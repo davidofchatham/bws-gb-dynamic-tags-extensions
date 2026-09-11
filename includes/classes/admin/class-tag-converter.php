@@ -251,13 +251,23 @@ class TagConverter {
 	 * 6. Fires bws_dynamic_tags_content_written so downstream caches over post content can
 	 *    refresh — step 5 fires no save hooks, so nothing else is told (#99).
 	 *
+	 * STEPS 3 AND 4 ARE BOTH GATED, and that is not belt-and-braces. Step 4 rewrites BASE
+	 * tag names, and a base name is as takeable as a deprecated one — whichever loop the
+	 * next rewrite is added to, it goes through the guard, because the thing being protected
+	 * is somebody's post content and not one migration entry.
+	 *
 	 * @since 1.6.0
+	 * @since 1.20.0 Every rewrite passes bws_converter_rewrite_allowed() (FW-39).
 	 * @param int $post_id Post ID to migrate.
 	 * @return array {
 	 *   @type bool      $changed       Whether post content was modified.
 	 *   @type int       $tag_count     Deprecated tag replacements made.
 	 *   @type int       $option_count  Option migration replacements made.
 	 *   @type int|false $revision_id   Revision ID, or false if unsupported / not needed.
+	 *   @type array     $declined      Tag name → ownership reason, for tags left alone. ONE
+	 *                                  ENTRY PER NAME, not per match: the reason is a property
+	 *                                  of the name on this site, so a post using a contested
+	 *                                  tag forty times has one thing to say about it.
 	 * }
 	 */
 	public static function migrate_post( int $post_id ): array {
@@ -265,7 +275,7 @@ class TagConverter {
 
 		$post = get_post( $post_id );
 		if ( ! $post ) {
-			return array( 'changed' => false, 'tag_count' => 0, 'option_count' => 0, 'revision_id' => false );
+			return array( 'changed' => false, 'tag_count' => 0, 'option_count' => 0, 'revision_id' => false, 'declined' => array() );
 		}
 
 		$content = $post->post_content;
@@ -273,18 +283,25 @@ class TagConverter {
 		// Step 2: Pre-migration snapshot.
 		$revision_id = wp_save_post_revision( $post_id );
 
+		// Both loops below hand their rewrite to apply_if_owned(), which is where the
+		// ownership guard is asked — see bws_converter_tag_ownership() for the invariant,
+		// and the $declined note on this method's return for why a name is reported once.
+		$declined = array();
+
 		// Step 3: Deprecated tag transforms.
 		$tag_count = 0;
 		foreach ( MigrationRegistry::get_deprecated_tag_names() as $old_tag ) {
 			$pattern = '/\{\{' . preg_quote( $old_tag, '/' ) . '(\s[^}]*)?\}\}/';
 			$content = preg_replace_callback(
 				$pattern,
-				static function ( array $matches ) use ( $old_tag, &$tag_count ): string {
-					$transformed = self::resolve_full_chain( $old_tag, $matches[0] );
-					if ( $transformed !== $matches[0] ) {
-						++$tag_count;
-					}
-					return $transformed;
+				static function ( array $matches ) use ( $old_tag, &$tag_count, &$declined ): string {
+					return self::apply_if_owned(
+						$old_tag,
+						$matches[0],
+						self::resolve_full_chain( $old_tag, $matches[0] ),
+						$tag_count,
+						$declined
+					);
 				},
 				$content
 			) ?? $content;
@@ -296,12 +313,14 @@ class TagConverter {
 			$pattern = '/\{\{' . preg_quote( $base_tag, '/' ) . '(\s[^}]*)?\}\}/';
 			$content = preg_replace_callback(
 				$pattern,
-				static function ( array $matches ) use ( $base_tag, &$option_count ): string {
-					$transformed = MigrationRegistry::apply_option_migration( $base_tag, $matches[0] );
-					if ( $transformed !== $matches[0] ) {
-						++$option_count;
-					}
-					return $transformed;
+				static function ( array $matches ) use ( $base_tag, &$option_count, &$declined ): string {
+					return self::apply_if_owned(
+						$base_tag,
+						$matches[0],
+						MigrationRegistry::apply_option_migration( $base_tag, $matches[0] ),
+						$option_count,
+						$declined
+					);
 				},
 				$content
 			) ?? $content;
@@ -356,6 +375,7 @@ class TagConverter {
 			'tag_count'    => $tag_count,
 			'option_count' => $option_count,
 			'revision_id'  => $revision_id,
+			'declined'     => $declined,
 		);
 	}
 
@@ -470,6 +490,52 @@ class TagConverter {
 	// ===============================================
 	// PRIVATE HELPERS
 	// ===============================================
+
+	/**
+	 * Accept one rewrite, or leave the stored string alone and record why.
+	 *
+	 * THE ONE PLACE THIS CLASS ASKS THE OWNERSHIP GUARD, and that is the point of it
+	 * existing rather than the five lines sitting in each loop. What the guard protects is
+	 * somebody's post content, so what has to be true is not "both loops call it" but "no
+	 * loop can fail to" — a property a reader checks by counting rewrite loops against
+	 * callers of this method, and one `converter-ownership-test.php` §O7 checks on every
+	 * run. Two hand-kept copies could only ever be checked by reading them.
+	 *
+	 * A TRANSFORM THAT CHANGED NOTHING IS NOT A REWRITE and never reaches the guard. There
+	 * is no content to damage and no decision to record: an entry that declined a shape has
+	 * already said so through the skip channel, and reporting it again as an ownership
+	 * decline would put a second reason on one tag.
+	 *
+	 * @since 1.20.0
+	 * @param string $tag         Tag name as stored in post content.
+	 * @param string $stored      The matched tag string, exactly as content holds it.
+	 * @param string $transformed What the migration entry produced from it.
+	 * @param int    $count       Running count of accepted rewrites, incremented in place.
+	 * @param array  $declined    Tag name → reason, written in place. One entry per name.
+	 * @return string The string to put back in the content.
+	 */
+	private static function apply_if_owned(
+		string $tag,
+		string $stored,
+		string $transformed,
+		int &$count,
+		array &$declined
+	): string {
+		if ( $transformed === $stored ) {
+			return $stored;
+		}
+
+		$decision = bws_converter_rewrite_allowed( $tag, $transformed );
+
+		if ( ! $decision['rewrite'] ) {
+			$declined[ $tag ] = $decision['reason'];
+			return $stored;
+		}
+
+		++$count;
+
+		return $transformed;
+	}
 
 	/**
 	 * Resolve the full deprecated chain for a single tag match (max 10 hops).

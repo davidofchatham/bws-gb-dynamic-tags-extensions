@@ -148,6 +148,10 @@ function bws_dynamic_tags_init() {
 	// type:'option' migration entries in deprecated-tags.php; loads after the grammar
 	// it adapts and after serialization-order.php (it canonicalizes emitted key order).
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/slot-fold-migrate.php';
+	// The converter's OWNERSHIP GUARD (FW-39) — the predicate every content rewrite passes.
+	// Pure but for one gatherer; loads with the helpers rather than with the admin classes
+	// because nothing about it is admin-only and the harness needs it reachable on its own.
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/converter-ownership.php';
 
 	// Migration data + the public migration-registration API. Loaded HERE, at
 	// plugins_loaded, rather than only in the init:20 pass that calls its registrars:

@@ -24,6 +24,8 @@
 
   **Three hand-typed shapes are skipped rather than converted**, and keep rendering exactly as they do now: a `{{term_*}}` tag set to a taxonomy with no term picked, one written as `src:term` with no id, and one whose term ID is not a plain whole number. None has ever been offered in the editor, and the only faithful rewrite of any of them would render nothing.
 
+- **The tag scanner now leaves a tag alone when it cannot tell whose it is.** If another plugin on your site registers a tag by the same name, the strings in your content could have been written for either plugin and nothing in them says which. Rather than guess, the scanner converts none of them. It does the same for a tag carrying settings this plugin does not recognize, which is what content written for someone else's tag looks like once this plugin holds the name. Where you know those tags are yours, you can say so for that one tag name and the conversion runs. This applies to every conversion the scanner does, not only the `{{term_*}}` ones, and it changes nothing on a site where no other plugin claims one of these names.
+
 ### Changed
 
 - **A chain root offered by another plugin is no longer hidden by the `term_ tags` setting.** A root whose source reads a term used to disappear from the source dropdowns when that setting was switched off. The setting now means the deprecated `{{term_*}}` tag family and nothing else, so a plugin's root stays offered either way, and a source's context type no longer has any say in whether it is offered. No saved tag is affected, because the setting never reached rendering.
