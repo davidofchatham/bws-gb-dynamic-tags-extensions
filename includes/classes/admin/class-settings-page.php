@@ -597,7 +597,7 @@ class SettingsPage {
 								<td>
 									<label for="bws-modifier-term"><?php esc_html_e( 'term_ tags', 'generateblocks' ); ?></label>
 									<code class="bws-tag-name">term_</code>
-									<p class="description"><?php esc_html_e( 'Deprecated. Term-context tags (term_text, term_image, term_title, etc.). Use a base tag with its source set to a term instead. These tags keep working, and the Tag Converter rewrites them for you, but they are planned for removal in a later release. New sites have them switched off.', 'generateblocks' ); ?></p>
+									<p class="description"><span class="dashicons dashicons-warning bws-warn-icon" aria-hidden="true"></span><?php esc_html_e( 'Deprecated and slated for removal. Base tags set for Current Context resolve term fields in a query/archive context, or you can pick a specific term in the Source selector. Use the Migration Tool below to convert existing tags.', 'generateblocks' ); ?></p>
 								</td>
 							</tr>
 							<tr class="bws-tag-row">
@@ -1337,6 +1337,16 @@ function my_result( $post_id, $arg = '' ) {
 				border: 1px solid #c3c4c7;
 				border-bottom: none;
 				font-size: 13px;
+			}
+			/* Sized down from the dashicon default of 20px so it sits on the description's
+			   13px line rather than above it; same red as .bws-call-warn. */
+			.bws-dynamic-tags-settings .bws-warn-icon {
+				color: #b32d2e;
+				font-size: 16px;
+				width: 16px;
+				height: 16px;
+				vertical-align: text-bottom;
+				margin-right: 4px;
 			}
 			.bws-dynamic-tags-settings .bws-call-ok   { color: #008a20; font-weight: 600; }
 			.bws-dynamic-tags-settings .bws-call-warn { color: #b32d2e; font-weight: 600; }
