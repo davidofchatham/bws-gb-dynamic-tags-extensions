@@ -944,7 +944,7 @@ pin is authored by numeric ID (D9) and a fresh install's term is not guaranteed 
 | F20.1 | `{{text src:term,<sales-id>\|use:title}}` | `Sales` — the tracer bullet: pinned, not ambient |
 | F20.2 | `{{text use:title}}` | `Matrix: Pinned Entity Roots` — the ambient contrast, same page |
 | F20.3 | `{{text src:term\|use:title}}` (bare, no pin — D2/D8/D33; hand-wire only, nothing offers this) | **empty** — an argless declaring root refuses at the factory seam. The editor's own preview of the same tag reads `[⚠ Term: nothing pinned]` rather than looking like a healthy bare tag (D8) |
-| F20.4 | `{{text src:term,999999\|use:title}}` | **empty** — a pin naming a nonexistent term refuses too; the editor's own preview marks this `term,999999 (missing)` |
+| F20.4 | `{{text src:term,999999\|use:title}}` | **empty** — a pin naming a nonexistent term refuses too; the editor's own preview marks this `term 999999 (missing)` |
 | F20.5 | `{{try_text A:src(term,<sales-id>);use(title)}}` | `Sales` — the SAME picker's offering resolves identically inside a `try_` attempt (D11, D18) |
 | F20.6 | `{{join mode:template\|A:src(term,<sales-id>);use(title)\|B:src(current);use(title)\|format:%A / %B}}` | `Sales / Matrix: Pinned Entity Roots` — one composed string names the pinned term AND the ambient page, proving they are two independent reads |
 | F20.7 | `{{text src:term,<sales-id>;refs,dept_lead\|use:title}}` | `Tom Associate` — D3: a RELATIONSHIP STEP running off a pinned term root. `dept_lead` (v20, a `relationship` field, max 1) is the one term-meta field in the blueprint answering a POST reference rather than the reverse hop every other term field here carries |
@@ -979,7 +979,7 @@ against the reseeded testbed, all green.
 | F21.1 | `{{text src:post,<tom-id>\|use:title}}` | `Tom Associate` — the tracer bullet: pinned, not ambient |
 | F21.2 | `{{text use:title}}` | `Matrix: Pinned Entity Roots` — the ambient contrast, same page |
 | F21.3 | `{{text src:post\|use:title}}` (bare, no pin — D2/D8; hand-wire only, nothing offers this) | **empty** — an argless declaring root refuses at the factory seam, same as §F20.3. The editor's own preview reads `[⚠ Post: nothing pinned]` |
-| F21.4 | `{{text src:post,999999\|use:title}}` | **empty** — a pin naming a nonexistent post refuses too; the editor's own preview marks this `post,999999 (missing)` |
+| F21.4 | `{{text src:post,999999\|use:title}}` | **empty** — a pin naming a nonexistent post refuses too; the editor's own preview marks this `post 999999 (missing)` |
 | F21.5 | `{{try_text A:src(post,<tom-id>);use(title)}}` | `Tom Associate` — the SAME picker's offering resolves identically inside a `try_` attempt |
 | F21.6 | `{{join mode:template\|A:src(post,<tom-id>);use(title)\|B:src(current);use(title)\|format:%A / %B}}` | `Tom Associate / Matrix: Pinned Entity Roots` — one composed string names the pinned post AND the ambient page |
 | F21.7 | `{{text src:post,<tom-id>;refs,reports_to\|use:title}}` | `Jane Partner` — D3: a RELATIONSHIP STEP running off a pinned POST root, the mirror direction of §F20.7 (a post hopping to a post, rather than a term hopping to one) |

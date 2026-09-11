@@ -1594,6 +1594,7 @@ function bws_modifier_root_facts( string $root ): array {
 const BWS_MODIFIER_SKIP_REASONS = array(
 	'tax_without_id',
 	'bare_pinning_root',
+	'unpinnable_id',
 );
 
 /**
@@ -1603,11 +1604,11 @@ const BWS_MODIFIER_SKIP_REASONS = array(
  * met: a skip is informational (the tag is unchanged and still renders) and its only value
  * to a site owner is naming what it saw. Returning '' means nothing was met.
  *
- * A SKIP IS NEVER A PARTIAL REWRITE. Both members below rewrite to wire that renders
- * something DIFFERENT from what the stored tag renders today — measured, both value→empty
- * — which is the direction the migration's one exemption does not cover. Halfway is the
- * worst outcome available: a tag that keeps its name and loses a key reads as converted and
- * renders as neither.
+ * A SKIP IS NEVER A PARTIAL REWRITE. Every member below rewrites to wire that renders
+ * something DIFFERENT from what the stored tag renders today — value→empty in each case,
+ * measured for the first two — which is the direction the migration's one exemption does
+ * not cover. Halfway is the worst outcome available: a tag that keeps its name and loses a
+ * key reads as converted and renders as neither.
  *
  * The set is CLOSED and censused by tools/test/fold-migration-test.php, so a reason added
  * without a case fails the suite rather than reaching a report that has no wording for it.
@@ -1642,6 +1643,23 @@ function bws_modifier_skip_reason( array $options, string $root ): string {
 	// and the one shape where the wire names a root we would have to silently delete.
 	if ( $facts['pins'] && '' === $id && $src === $root ) {
 		return 'bare_pinning_root';
+	}
+
+	// AN `id` THE ROOT ARGUMENT CANNOT CARRY. The modifier family's own resolver runs a
+	// stated `id` through `absint()`, so `34.9` reads term 34 and `abc` reads nothing and
+	// falls through to the ambient term; a root argument is verified as AUTHORED and
+	// resolves neither (bws_strict_digit_id — the one validator both pinning roots share).
+	// Emitting `term,34.9` would re-point the tag or empty it, so the tag is left alone.
+	//
+	// Hand-edited wire only: GB's entity picker writes a term id or nothing. It is named
+	// anyway because the alternative is a rewrite that corrupts the chain grammar itself —
+	// an `id` carrying `,` or `;` would emit a second step out of a pin.
+	//
+	// Without the validator loaded there is no way to ask, and the answer is the same one
+	// bws_modifier_root_facts() gives a registry it cannot see: do nothing.
+	if ( $facts['pins'] && '' !== $id
+		&& ( ! function_exists( 'bws_strict_digit_id' ) || ! bws_strict_digit_id( $id ) ) ) {
+		return 'unpinnable_id';
 	}
 
 	return '';
@@ -1713,17 +1731,35 @@ function bws_modifier_skip_reason( array $options, string $root ): string {
  * an ambient root and is byte-identical to what a flat base tag with the same triple
  * already stores. The `site` row is unaffected: a different root is still a root.
  *
- * A PINNED tag (an `id` beside a pinning root) is declined whole here; that rewrite is a
- * sibling half of the same FW-39 ship and is not built at this seam yet. Declining leaves
- * the tag rendering as it does now, where a rootless chain would silently unpin it.
+ * A PINNED tag (an `id` beside a pinning root) states the root WITH its argument —
+ * `src:<root>,<id>` — and the `id` key goes with it. That is the opposite outcome to the
+ * unpinned row above and the same rule producing it: the root is stated exactly when the
+ * tag actually read it. `tax` goes too, off a term-context root only; see the unset site.
+ *
+ * NEITHER HALF IS `term`-SPECIFIC. `id` is GB's key on every modifier family, so a second
+ * family whose root pins converts by this paragraph with no entry of its own — which is why
+ * it is here and not in a hand-written entry riding the generator's never-overwrites door.
  *
  * NOT OUTPUT-NEUTRAL, and decided rather than overlooked. A kind-locked family rewritten
  * into a kind-agnostic one surfaces as empty→value off a term page (CONTEXT.md [I20]);
  * FW-39 owns the direction bound, the seven-context measurement and the disclosure.
  *
+ * THE PINNED ARM ADDS A SECOND DIVERGENCE, AND IT RUNS THE OTHER WAY. A pin whose entity has
+ * been DELETED is converted like any other, and the converted wire renders nothing where the
+ * stored tag rendered something: the modifier family's resolver fails the dead id and falls
+ * through to the AMBIENT term, so on a term archive the tag shows whatever term the page is
+ * about. Measured on the testbed 2026-09-11 — `{{term_text id:999999|use:title}}` renders
+ * `Sales` on `/department/sales/` and empty on the other six contexts; the converted
+ * `{{text src:term,999999|use:title}}` renders empty on all seven.
+ *
+ * That is value→empty, which is NOT the direction the unpinned arm's exemption is bound to,
+ * and it is deliberate: a dead pin reading as broken (and as `(missing)` in the editor) is the
+ * outcome the ticket asked for, against a silent borrow of the page's own term that no author
+ * can see. **It carries no decision id yet.** The rows are `context-test-matrix.md` §C-CONV13/14.
+ *
  * @since 1.17.0
  * @since 1.20.0 Reads the family's root through bws_modifier_root_facts(); skips the shapes
- *               bws_modifier_skip_reason() names.
+ *               bws_modifier_skip_reason() names. Converts a PINNED tag to `src:<root>,<id>`.
  * @param array  $options Modifier tag options (GB-parsed).
  * @param string $root    Registered source key the modifier rooted at (e.g. 'view').
  * @return array|null Rewritten options, or null when no root was given, or when the shape
@@ -1755,12 +1791,12 @@ function bws_modifier_base_options( array $options, string $root ) {
 	// The tag is NOT output-neutral across this rewrite, and that is decided rather than
 	// overlooked: kind-locked to kind-agnostic surfaces as empty→value off a term page
 	// (CONTEXT.md [I20]). The direction bound, the evidence and the disclosure are FW-39's.
-	if ( $facts['pins'] && '' !== trim( (string) ( $options['id'] ?? '' ) ) ) {
-		// PINNED — the `id` becomes the root's argument, which is the sibling half of this
-		// ticket and not yet built. Declining leaves the tag rendering exactly as it does
-		// now; emitting a rootless chain would silently unpin it.
-		return null;
-	}
+	//
+	// A PINNING ROOT WITH SOMETHING PINNED STATES THE ROOT AND ITS ARGUMENT — `src:<root>,<id>`
+	// (FW-39, D30). GB's `id` is the same key on EVERY modifier family, so the reading lives
+	// here rather than in a hand-written entry for one family: a second family whose root
+	// pins inherits it with no new rule, which is the whole reason this transform is shared.
+	$id = trim( (string) ( $options['id'] ?? '' ) );
 
 	$src = trim( (string) ( $options['src'] ?? $options['source'] ?? '' ) );
 	$ref = trim( (string) ( $options['ref'] ?? '' ) );
@@ -1792,7 +1828,15 @@ function bws_modifier_base_options( array $options, string $root ) {
 		// Both sidecars are inert under this token and are dropped with it — see docblock.
 		$chain = array( $step( 'site' ) );
 	} else {
-		$chain = $facts['pins'] ? array() : array( $step( $root ) );
+		// A pinning root states itself ONLY with its argument beside it: `term,34` when the
+		// tag pinned one, nothing at all when it did not (the unpinned case above). The
+		// argument is the `id` AS AUTHORED — bws_fold_chain_root_arg() keeps a root argument
+		// opaque, and the declaring source is the only thing that knows what it means.
+		if ( $facts['pins'] ) {
+			$chain = '' !== $id ? array( $step( $root, $id ) ) : array();
+		} else {
+			$chain = array( $step( $root ) );
+		}
 		if ( 'ref' === $src ) {
 			$chain[] = $step( 'refs', '' !== $ref ? $ref : null );
 		}
@@ -1824,6 +1868,25 @@ function bws_modifier_base_options( array $options, string $root ) {
 
 	$out = $options;
 	unset( $out['source'], $out['ref'], $out['rel'], $out['srcTermIn'] );
+
+	// THE PIN MOVED INTO THE CHAIN, so its keys go with it — but only where it was READ.
+	// Under `src:site` the pin was never consulted (the site arm above states a different
+	// root), so `id` stays exactly as stale as it already was rather than being tidied by a
+	// transform that did not use it.
+	//
+	// `tax` IS DROPPED HERE, AND ONLY HERE (D31). A term id is globally unique, so a pinned
+	// tag's taxonomy adds nothing to the read — the editor re-derives it from the pin. With
+	// NO `id` the same key is not redundant at all, and that shape is skipped whole rather
+	// than stripped (bws_modifier_skip_reason's `tax_without_id`). The `term_context` gate is
+	// what makes the two halves one rule: off a post-context pinning root `tax` was never a
+	// taxonomy hint for the entity, so neither half applies and the dead key rides through.
+	if ( $facts['pins'] && '' !== $id && 'site' !== $src ) {
+		unset( $out['id'] );
+		if ( $facts['term_context'] ) {
+			unset( $out['tax'], $out['taxonomy'] );
+		}
+	}
+
 	if ( '' === $wire ) {
 		unset( $out['src'] );
 	} else {

@@ -78,6 +78,11 @@ require __DIR__ . '/../../includes/helpers/serialization-order.php';
 // through. Loading the real one rather than a stand-in is the point: "does this root pin"
 // must have one answer, and a malformed declaration's meaning is that function's to state.
 require __DIR__ . '/../../includes/tags/base-shared.php';
+// bws_strict_digit_id() — THE one validator a root argument is checked against, shared with
+// both pinning sources' resolve_root_argument(). Loaded rather than stubbed for the same
+// reason bws_root_argument_row() is: "is this `id` a pin" must have one answer, and a
+// harness-local copy is exactly the drift these files exist to remove.
+require __DIR__ . '/../../includes/helpers/field-helpers.php';
 require __DIR__ . '/../../includes/helpers/slot-fold.php';
 require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
 require __DIR__ . '/../../includes/helpers/slot-fold-migrate.php';
@@ -650,16 +655,67 @@ assert_eq( 'V6.16 a converting shape has no skip reason',
 	'', bws_modifier_skip_reason( array( 'src' => 'ref', 'ref' => 'office' ), 'pinnedterm' ) );
 
 // ---------------------------------------------------------------------------
-// The PINNED arm is DECLINED, not converted — it is the sibling ticket's build. Declining
-// leaves the tag rendering as it does now; emitting the rootless chain would silently unpin
-// it, which is the one outcome worse than doing nothing.
-assert_eq( 'V6.17 a PINNED tag is left byte-identical (its rewrite is the sibling half)',
-	'{{pin_text id:34|key:bio}}',
+// The PINNED arm (FW-39 ticket 08, D30). The opposite outcome to the unpinned rows above,
+// out of the same rule: the root is stated exactly when the tag actually read it, and here
+// it did — so the root comes out WITH its argument and the `id` key goes with it.
+assert_eq( 'V6.17 a PINNED tag states the root and its argument',
+	'{{text src:pinnedterm,34|key:bio}}',
 	$pin( '{{pin_text id:34|key:bio}}' ) );
 
 // …and `tax` beside an `id` is NOT the skip above: it is part of the pinned shape.
 assert_eq( 'V6.18 `tax` beside an `id` is the pinned shape, not the skip',
 	'', bws_modifier_skip_reason( array( 'id' => '34', 'tax' => 'genre' ), 'pinnedterm' ) );
+
+// D31's ONE drop. A term id is globally unique, so the taxonomy adds nothing to a pinned
+// read — and it is dropped ONLY here, which V6.11/V6.12 above are the other half of.
+assert_eq( 'V6.18b `tax` is DROPPED beside an `id`, the one place it is',
+	'{{text src:pinnedterm,34|key:bio}}',
+	$pin( '{{pin_text id:34|tax:genre|key:bio}}' ) );
+
+assert_eq( 'V6.18c …the legacy `taxonomy` spelling with it',
+	'{{text src:pinnedterm,34|key:bio}}',
+	$pin( '{{pin_text id:34|taxonomy:genre|key:bio}}' ) );
+
+// The gate is TERM-CONTEXT, not `pins` — `pinroot` pins identically and its entity is a
+// post, where `tax` was never a taxonomy hint for the entity. So the dead key rides through
+// exactly as V6.20 says it does on the unpinned side. Same pin, opposite outcome, one rule.
+assert_eq( 'V6.18d a non-term pinning root pins the same way and KEEPS the dead `tax`',
+	'{{text src:pinroot,34|key:bio|tax:genre}}',
+	bws_migrate_modifier_root_chain( '{{pr_text id:34|tax:genre|key:bio}}', 'pr', 'pinroot' ) );
+
+// A pin is a ROOT, so steps run off it exactly as off any other root — the `refs` step the
+// unpinned row spells rootless (V6.6) leads with the pin here instead.
+assert_eq( 'V6.18e steps run off the pin, in the #44 order',
+	'{{text src:pinnedterm,34;refs,office;terms,genre|key:bio}}',
+	$pin( '{{pin_text id:34|src:ref|ref:office|srcTermIn:genre|key:bio}}' ) );
+
+// `src:site` names a DIFFERENT root and still wins, so the pin was never read — and an `id`
+// the transform did not consume is left exactly as stale as it already was.
+assert_eq( 'V6.18f under `src:site` the pin is not consumed and `id` stays',
+	'{{text src:site|key:bio|id:34}}',
+	$pin( '{{pin_text id:34|src:site|key:bio}}' ) );
+
+// AN `id` THE ROOT ARGUMENT CANNOT CARRY. `absint()` reads `34.9` as term 34; a root
+// argument is verified as authored and resolves nothing. Skipped whole rather than emitted.
+assert_eq( 'V6.18g a PHP-numeric-but-not-authored `id` is skipped whole',
+	'{{pin_text id:34.9|key:bio}}',
+	$pin( '{{pin_text id:34.9|key:bio}}' ) );
+
+assert_eq( 'V6.18h …and the skip channel names it',
+	'unpinnable_id',
+	bws_modifier_skip_reason( array( 'id' => '34.9' ), 'pinnedterm' ) );
+
+// The grammar-corrupting shape the reason exists for: an `id` carrying a step separator
+// would emit a second step out of a pin.
+assert_eq( 'V6.18i an `id` carrying chain punctuation never reaches the wire',
+	'unpinnable_id',
+	bws_modifier_skip_reason( array( 'id' => '34;refs,x' ), 'pinnedterm' ) );
+
+// A non-pinning family's `id` is GB's own entity key on the base tag too, so it is carried
+// rather than consumed — nothing here reads it and nothing here may drop it.
+assert_eq( 'V6.18j a NON-pinning root leaves `id` alone',
+	'{{text src:view|key:bio|id:34}}',
+	bws_migrate_modifier_root_chain( '{{view_text id:34|key:bio}}', 'view', 'view' ) );
 
 // ---------------------------------------------------------------------------
 // THE OTHER SIDE OF EACH AXIS — both facts are read per root, and neither generalizes.

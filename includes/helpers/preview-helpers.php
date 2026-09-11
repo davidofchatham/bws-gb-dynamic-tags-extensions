@@ -713,11 +713,14 @@ function bws_preview_tax_label( string $tax ): string {
  *
  * THREE distinct answers, and they are three different questions:
  *   - the argument resolves to a named entity  → "<Label>: <Name>" ("Term: News")
- *   - the argument resolves to NOTHING         → "<root>,<arg> (missing)" — a deleted
+ *   - the argument resolves to NOTHING         → "<root> <arg> (missing)" — a deleted
  *     term, so the author can find and fix the pin rather than read a silent blank.
  *   - the argument cannot be READ AT ALL (not numeric, or the resolver hands back
- *     something with no name) → the wire TOKEN itself ("term,abc"), because naming
- *     nothing is a worse answer than showing what was typed.
+ *     something with no name) → the root and argument as typed ("term abc"), because
+ *     naming nothing is a worse answer than showing what was typed.
+ *
+ * BOTH FALLBACKS ARE SPACE-SEPARATED, NOT the wire's `term,34` — see the assignment. The
+ * preview is prose, not a tag, and nothing parses it back.
  *
  * THE RESOLVER IS INJECTED, never called directly by name — see
  * bws_preview_source_segments()'s `entity_resolvers` param. That is what lets
@@ -743,7 +746,12 @@ function bws_preview_tax_label( string $tax ): string {
  */
 if ( ! function_exists( 'bws_preview_pinned_entity_segment' ) ) {
 function bws_preview_pinned_entity_segment( string $root, string $arg, string $label, $resolver = null ): string {
-	$token = $root . ',' . $arg;
+	// SPACE, NOT THE WIRE'S COMMA. `term,34` is the serialized form; this string is prose an
+	// author reads in a preview, and the comma there reads as punctuation inside a sentence
+	// rather than as the separator it is on the wire. The preview never round-trips back
+	// into a tag, so nothing parses this and the two spellings cannot come to disagree —
+	// bws_fold_emit_chain() remains the only thing that writes the comma form.
+	$token = $root . ' ' . $arg;
 
 	if ( ! is_numeric( $arg ) || null === $resolver ) {
 		return $token;

@@ -596,14 +596,14 @@ check(
 check(
 	'pinned term, deleted → "(missing)"',
 	bws_build_preview_label( [ 'src' => 'term,999', 'key' => 'sku' ], 'text' ),
-	"['sku' from term,999 (missing)]"
+	"['sku' from term 999 (missing)]"
 );
 // A NON-NUMERIC argument falls back to the wire TOKEN — D10 dropped the designed
 // slug-recovery affordance, so this is not reinterpreted as anything else.
 check(
 	'pinned term, non-numeric argument → falls back to the token',
 	bws_build_preview_label( [ 'src' => 'term,abc', 'key' => 'sku' ], 'text' ),
-	"['sku' from term,abc]"
+	"['sku' from term abc]"
 );
 // Steps run OFF a pinned root exactly as they do off any other (D3) — a term step behind
 // a term root is nonsensical (no term→term edge) but a relationship step is legal, and
@@ -635,12 +635,12 @@ check(
 check(
 	'pinned post, deleted → "(missing)"',
 	bws_build_preview_label( [ 'src' => 'post,999', 'key' => 'sku' ], 'text' ),
-	"['sku' from post,999 (missing)]"
+	"['sku' from post 999 (missing)]"
 );
 check(
 	'pinned post, non-numeric argument → falls back to the token',
 	bws_build_preview_label( [ 'src' => 'post,abc', 'key' => 'sku' ], 'text' ),
-	"['sku' from post,abc]"
+	"['sku' from post abc]"
 );
 check(
 	'a chain runs off a pinned post root exactly as off a pinned term root (D3)',
@@ -665,12 +665,12 @@ check(
 check(
 	'segment: missing entity',
 	bws_preview_pinned_entity_segment( 'term', '99', 'Term', static function () { return null; } ),
-	'term,99 (missing)'
+	'term 99 (missing)'
 );
 check(
 	'segment: no resolver supplied → falls back to the token',
 	bws_preview_pinned_entity_segment( 'term', '34', 'Term', null ),
-	'term,34'
+	'term 34'
 );
 check(
 	'segment: a POST entity is named off `post_title`, not `name` — the SAME namer, no per-kind branch',
@@ -682,7 +682,7 @@ check(
 check(
 	'segment: an entity with no name falls back to the token, not a blank label',
 	bws_preview_pinned_entity_segment( 'term', '34', 'Term', static function () { return (object) []; } ),
-	'term,34'
+	'term 34'
 );
 
 // ---------------------------------------------------------------------------

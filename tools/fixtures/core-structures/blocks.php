@@ -1952,16 +1952,31 @@ function bws_fixture_build_page_content( $builder ) {
  * @since 1.19.0
  * C-CONV1..7 are the MIGRATION half of the same question, and they are PAIRS on purpose: an
  * unpinned `term_*` tag beside the base tag it converts to, on all seven contexts at once.
- * What they measure is a DIRECTION — every difference must run empty→value — and a single
- * row cannot show a direction. C-CONV6/7 are the pair that runs the other way, which is why
- * that shape is skipped rather than converted; keeping the refused shape visible beside the
- * allowed ones is what stops the exemption reading as "term_ tags may change".
+ * What they measure is a DIRECTION, and a single row cannot show one. On the UNPINNED arm
+ * every difference runs empty→value; C-CONV6/7 are the pair that runs the other way, which
+ * is why that shape is skipped rather than converted, and keeping the refused shape visible
+ * beside the allowed ones is what stops the exemption reading as "term_ tags may change".
+ *
+ * The PINNED arm (C-CONV10..14) claims no exemption at all — a tag that named its own term
+ * still names it, so those pairs are byte-identical in both directions. C-CONV13/14 are the
+ * one exception and are labelled as such: a pin whose term is GONE renders the page's own
+ * term before the rewrite and nothing after it.
  *
  * @since 1.19.1 C-C2/C-DT1/C-DT2 added
- * @since 1.20.0 C-TERM1/C-TERM2 added, then C-CONV1..7 (FW-39)
+ * @since 1.20.0 C-TERM1/C-TERM2 added, then C-CONV1..9 and the pinned C-CONV10..14 (FW-39)
  * @return string
  */
 function bws_fixture_element_content_context_header() {
+	// The PINNED conversion rows (C-CONV10..12) name a term by id on BOTH sides, so the id is
+	// resolved at build time rather than hand-typed — same rule as the pinned-roots page.
+	// C-TERM2 above still carries a literal `6`; it predates the resolver and is left alone
+	// rather than re-typed under this ticket's baseline. A failed lookup renders the rows
+	// against id `0`, which resolves nothing on either side and reads as "reseed", not as a
+	// broken pin — the pair stays honest because both halves fail together.
+	$support_id = function_exists( 'bws_fixture_seeded_term_id' )
+		? (int) bws_fixture_seeded_term_id( 'support', 'department' )
+		: 0;
+
 	return bws_fixture_gb_section(
 		'Query-context rows (C-rows)',
 		array(
@@ -2036,6 +2051,26 @@ function bws_fixture_element_content_context_header() {
 			bws_fixture_gb_empty_row(
 				'C-CONV9 what C-CONV8 converts to -> (987) 333-4444 on the Sales archive, EQUAL to C-CONV8 on all seven contexts. The inert key leaves with the source axis it belonged to; folding it into a terms step instead rendered empty here, which is C-CONV7 one root over',
 				'{{text key:phone}}'
+			),
+			bws_fixture_gb_row(
+				'C-CONV10 a PINNED tag, the before half -> Support on EVERY context, term archive included (a pin is not an ambient read). Deliberately NOT the term the archive is about: a row pinned at Sales would pass here whether the pin resolved or not',
+				"{{term_text id:{$support_id}|use:title}}"
+			),
+			bws_fixture_gb_row(
+				'C-CONV11 what C-CONV10 converts to -> Support on all seven contexts, EQUAL to C-CONV10 on every one. The pinned direction is the only one in this section with no exemption to claim: a tag that named its own term still names it',
+				"{{text src:term,{$support_id}|use:title}}"
+			),
+			bws_fixture_gb_row(
+				'C-CONV12 the SAME pin carrying a `tax` -> Support, identical to C-CONV10 everywhere. It converts to C-CONV11 with the taxonomy GONE: a term id is globally unique, so the key adds nothing to a pinned read. This is the one shape `tax` is dropped from - with no `id` beside it the same key is C-CONV6, skipped whole',
+				"{{term_text id:{$support_id}|tax:department|use:title}}"
+			),
+			bws_fixture_gb_empty_row(
+				'C-CONV13 a DEAD pin, the before half -> Sales on the TERM ARCHIVE and empty on the other six. A pin naming a term that no longer exists does not render blank: the family falls through to the ambient term and shows whichever term the page is about, as if the author had picked it',
+				'{{term_text id:999999|use:title}}'
+			),
+			bws_fixture_gb_empty_row(
+				'C-CONV14 what C-CONV13 converts to -> EMPTY on all seven, term archive included. THE ONE ROW IN THIS SECTION THAT RUNS value->empty: the conversion is not output-neutral for a dead pin, and that is the decided outcome - a broken pin reads as broken (and as `(missing)` in the editor) instead of silently borrowing the page term. Every other pinned row above is byte-identical in both directions',
+				'{{text src:term,999999|use:title}}'
 			),
 		)
 	);
