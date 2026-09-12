@@ -38,14 +38,22 @@ class TagConverter {
 	 * and option migration labels found in the content, plus whether WP revision support
 	 * is available for that post type.
 	 *
+	 * EVERY DEPRECATED TAG CARRIES ITS VERDICT (FW-39, D46). A scan that only reported
+	 * presence promised work on every row it printed, and two kinds of tag were quietly
+	 * going to be left alone — one we must not rewrite and one we cannot express. Both now
+	 * say so, through the two channels report_channels() assembles.
+	 *
 	 * @since 1.6.0
+	 * @since 1.20.0 Deprecated tag rows carry status / reason / count / sample (FW-39).
 	 * @return array[] {
 	 *   @type int    $post_id              Post ID.
 	 *   @type string $post_title           Post title (or "(no title)").
 	 *   @type string $post_type            Post type slug.
 	 *   @type string $edit_url             Edit link URL.
 	 *   @type bool   $has_revision_support Whether wp_save_post_revision() can snapshot this post.
-	 *   @type array  $deprecated_tags      List of { tag, has_migration } found in content.
+	 *   @type array  $deprecated_tags      One row per tag name PER VERDICT:
+	 *                                      { tag, has_migration, status, reason, exempt, count, sample }.
+	 *                                      See classify_tag() for the three statuses.
 	 *   @type array  $option_migrations    List of { tag, label } for base tags with deprecated option keys.
 	 * }
 	 */
@@ -93,17 +101,40 @@ class TagConverter {
 		foreach ( $rows as $row ) {
 			$content = $row->post_content;
 
-			// Deprecated tag names.
+			// Deprecated tag names, each stored string CLASSIFIED into one of the report's
+			// three channels — see classify_tag(). Grouped by name + verdict rather than by
+			// name alone, because one post can hold two strings of the same name that fall
+			// different ways (a pinned `term_text` converts, a bare one beside it is
+			// skipped), and a single row per name would have to pick one and lose the other.
 			$deprecated_found = array();
 			foreach ( $tag_names as $tag ) {
 				$pattern = '/\{\{' . preg_quote( $tag, '/' ) . '(?:\s[^}]*)?\}\}/';
-				if ( preg_match( $pattern, $content ) ) {
-					$deprecated_found[] = array(
-						'tag'           => $tag,
-						'has_migration' => MigrationRegistry::has_migration_path( $tag ),
-					);
+				if ( ! preg_match_all( $pattern, $content, $tag_matches ) ) {
+					continue;
+				}
+
+				$has_migration = MigrationRegistry::has_migration_path( $tag );
+
+				foreach ( $tag_matches[0] as $stored ) {
+					$verdict = self::classify_tag( $tag, $stored );
+					$group   = $verdict['status'] . '|' . $verdict['reason'];
+
+					if ( ! isset( $deprecated_found[ $group . '|' . $tag ] ) ) {
+						$deprecated_found[ $group . '|' . $tag ] = array(
+							'tag'           => $tag,
+							'has_migration' => $has_migration,
+							'status'        => $verdict['status'],
+							'reason'        => $verdict['reason'],
+							'exempt'        => $verdict['exempt'],
+							'count'         => 0,
+							'sample'        => $stored,
+						);
+					}
+
+					++$deprecated_found[ $group . '|' . $tag ]['count'];
 				}
 			}
+			$deprecated_found = array_values( $deprecated_found );
 
 			// Option migrations.
 			$option_migrations_found = array();
@@ -157,6 +188,191 @@ class TagConverter {
 		}
 
 		return $results;
+	}
+
+	// ===============================================
+	// SCAN REPORT CHANNELS (FW-39, D46)
+	// ===============================================
+
+	/**
+	 * Which of the report's three channels one stored tag string belongs to.
+	 *
+	 * THE ORDER IS THE DECISION, not a convenience. A shape the migration entry cannot
+	 * express is SKIPPED, and that is settled before ownership is ever asked — the entry has
+	 * already declined the shape, so asking the guard would put a second reason on one tag
+	 * and file an informational outcome under a channel that offers an action.
+	 * apply_if_owned() states the same ordering from the rewrite side.
+	 *
+	 * A TRANSFORM THAT CHANGES NOTHING IS NOT A DECLINE. There is no rewrite to refuse, so
+	 * the row stays in the default channel exactly as it did before this method existed;
+	 * only a real rewrite can be declined.
+	 *
+	 * `exempt` IS A DISCLOSURE RIDING A CONVERSION, NEVER A FOURTH STATUS. The tag converts;
+	 * what the flag says is that the conversion is the one place this migration is not
+	 * output-neutral (D40), which the report states as a line beside the conversion preview
+	 * and not as a second gate. bws_modifier_unpinned_rewrite() owns the population.
+	 *
+	 * @since 1.20.0
+	 * @param string $tag    Tag name as stored in post content.
+	 * @param string $stored The matched tag string, exactly as content holds it.
+	 * @return array{status:string, reason:string, exempt:bool} `status` is one of
+	 *         'convert', 'declined' or 'skipped'; `reason` is a member of
+	 *         BWS_MODIFIER_SKIP_REASONS or BWS_CONVERTER_OWNERSHIP_REASONS, or ''.
+	 */
+	private static function classify_tag( string $tag, string $stored ): array {
+		$skip = function_exists( 'bws_modifier_skip_reason_for_tag' )
+			? bws_modifier_skip_reason_for_tag( $stored )
+			: '';
+
+		if ( '' !== $skip ) {
+			return array( 'status' => 'skipped', 'reason' => $skip, 'exempt' => false );
+		}
+
+		$exempt = function_exists( 'bws_modifier_unpinned_rewrite' )
+			&& bws_modifier_unpinned_rewrite( $stored );
+
+		$transformed = self::resolve_full_chain( $tag, $stored );
+		if ( $transformed === $stored ) {
+			return array( 'status' => 'convert', 'reason' => '', 'exempt' => false );
+		}
+
+		$decision = bws_converter_rewrite_allowed( $tag, $transformed );
+
+		return $decision['rewrite']
+			? array( 'status' => 'convert', 'reason' => '', 'exempt' => $exempt )
+			: array( 'status' => 'declined', 'reason' => $decision['reason'], 'exempt' => false );
+	}
+
+	/**
+	 * The two non-conversion channels, site-wide, plus the exemption disclosure.
+	 *
+	 * TWO CHANNELS AND NOT ONE LIST (D46). A DECLINE has an author action and gates a
+	 * rewrite; a SKIP has neither and exists so an owner knows a shape was met and left
+	 * alone. Merging them would make one census question apply to a set with two unrelated
+	 * halves, and would put a second gate beside the opt-in — training click-through on the
+	 * one control here that can damage content.
+	 *
+	 * SITE-WIDE RATHER THAN PER POST, because both facts are properties of a TAG NAME on
+	 * this site and not of a post. "Which plugin wrote these strings" has one answer however
+	 * many posts hold them, and an opt-in is a claim about the name; repeating either per row
+	 * would ask the same question forty times.
+	 *
+	 * THE EXEMPTION IS A COUNT AND A LINE, NOT A GATE (D40). It rides the conversion channel
+	 * — those tags convert — and the report states it once beside the preview.
+	 *
+	 * @since 1.20.0
+	 * @param array[] $posts A scan() result.
+	 * @return array{declined:array[], skipped:array[], exemptCount:int, optedIn:string[]}
+	 */
+	public static function report_channels( array $posts ): array {
+		$channels = array( 'declined' => array(), 'skipped' => array() );
+		$exempt   = 0;
+
+		foreach ( $posts as $post ) {
+			foreach ( $post['deprecated_tags'] ?? array() as $row ) {
+				$count  = (int) ( $row['count'] ?? 0 );
+				$status = (string) ( $row['status'] ?? '' );
+
+				if ( ! empty( $row['exempt'] ) ) {
+					$exempt += $count;
+				}
+
+				if ( ! isset( $channels[ $status ] ) ) {
+					continue;
+				}
+
+				$key = $row['tag'] . '|' . $row['reason'];
+				if ( ! isset( $channels[ $status ][ $key ] ) ) {
+					$channels[ $status ][ $key ] = array(
+						'tag'    => $row['tag'],
+						'reason' => $row['reason'],
+						'count'  => 0,
+						// THE PREVIEW IS WHAT MAKES THE OPT-IN MEANINGFUL (D37): a claim of
+						// ownership next to a count and nothing else asks an owner to
+						// recognize strings they cannot see.
+						'sample' => (string) ( $row['sample'] ?? '' ),
+						'posts'  => 0,
+					);
+				}
+
+				$channels[ $status ][ $key ]['count'] += $count;
+				++$channels[ $status ][ $key ]['posts'];
+			}
+		}
+
+		// PHP OWNS THE WORDING; THE SCRIPT ONLY PLACES IT. Same rule the pattern-cache line
+		// rides on (PatternCache::format_status) and for the same reason: composing these
+		// sentences in the browser would put a second copy of each channel's vocabulary in a
+		// second language, untranslated, and outside the census that keeps them complete.
+		$ownership = bws_converter_ownership_report_lines();
+		$skips     = bws_modifier_skip_report_lines();
+
+		$declined = array_values( array_map(
+			static function ( array $row ) use ( $ownership ): array {
+				$wording       = $ownership[ $row['reason'] ] ?? array( 'line' => '', 'action' => '' );
+				$row['line']   = '' === $wording['line'] ? '' : sprintf(
+					$wording['line'],
+					$row['tag'],
+					$row['count'],
+					self::other_registrar_phrase( $row['tag'] )
+				);
+				$row['action'] = $wording['action'];
+				return $row;
+			},
+			$channels['declined']
+		) );
+
+		$skipped = array_values( array_map(
+			static function ( array $row ) use ( $skips ): array {
+				$line        = $skips[ $row['reason'] ] ?? '';
+				$row['line'] = '' === $line ? '' : sprintf( $line, $row['tag'], $row['count'] );
+				return $row;
+			},
+			$channels['skipped']
+		) );
+
+		return array(
+			'declined'    => $declined,
+			'skipped'     => $skipped,
+			'exemptCount' => $exempt,
+			'exemptLine'  => $exempt > 0 ? sprintf(
+				/* translators: %d: number of stored tag strings. */
+				_n(
+					'%d of these tags reads the current context only when that context is a term. After conversion it reads the current context whatever kind it is, so on a page that is not a term archive it will show content where it shows nothing today. This is the one place conversion changes what a page displays.',
+					'%d of these tags read the current context only when that context is a term. After conversion they read the current context whatever kind it is, so on a page that is not a term archive they will show content where they show nothing today. This is the one place conversion changes what a page displays.',
+					$exempt,
+					'generateblocks'
+				),
+				$exempt
+			) : '',
+			'optedIn'     => array_values( (array) get_option( BWS_CONVERTER_OWNERSHIP_OPTIN_OPTION, array() ) ),
+		);
+	}
+
+	/**
+	 * The other plugin answering for a contested tag name, as a phrase, or a stand-in.
+	 *
+	 * Thin: bws_gb_collision_other_parties() decides WHICH party is the other one and
+	 * bws_gb_other_registrar_phrase() words it — both already own their halves for the
+	 * settings page's conflicts block. This only picks the record out by name, so the decline
+	 * line names the same plugin that block does.
+	 *
+	 * @since 1.20.0
+	 * @param string $tag Tag name as stored in post content.
+	 * @return string An escaped phrase, or a translated stand-in when nothing is recorded.
+	 */
+	private static function other_registrar_phrase( string $tag ): string {
+		$collisions = function_exists( 'bws_gb_tag_name_collisions' ) ? bws_gb_tag_name_collisions() : array();
+		$record     = $collisions[ $tag ] ?? array();
+
+		if ( ! $record || ! function_exists( 'bws_gb_collision_other_parties' ) ) {
+			return __( 'another plugin', 'generateblocks' );
+		}
+
+		$parties = bws_gb_collision_other_parties( $record );
+		$other   = $parties[ $parties['subject'] ] ?? array();
+
+		return bws_gb_other_registrar_phrase( (string) ( $other['title'] ?? '' ), (string) ( $other['source'] ?? '' ) );
 	}
 
 	// ===============================================
@@ -410,10 +626,61 @@ class TagConverter {
 			array(
 				'posts'             => $posts,
 				'total'             => count( $posts ),
+				'channels'          => self::report_channels( $posts ),
 				'patternCache'      => $pattern_cache,
 				'patternCacheLine'  => PatternCache::format_status( PatternCache::get_status() ),
 			)
 		);
+	}
+
+	/**
+	 * AJAX: claim, or un-claim, one contested tag name as this site's own.
+	 *
+	 * POST fields:
+	 *   nonce — bws_convert_tag nonce.
+	 *   tag   — the tag name being claimed.
+	 *   claim — "1" to claim, "0" to withdraw.
+	 *
+	 * THE ONLY WRITER OF THE OPT-IN SET (BWS_CONVERTER_OWNERSHIP_OPTIN_OPTION), and it lives
+	 * beside the report because the count and the preview that justify the click are there.
+	 * A claim is PER NAME: the answer for one contested name says nothing about the next, so
+	 * there is no site-wide form and no "claim all".
+	 *
+	 * WITHDRAWAL IS AS AVAILABLE AS CLAIMING. A claim lifts the one guard standing between
+	 * this tool and somebody else's content, so an owner who ticks it by mistake must be able
+	 * to untick it before running a migration — not only after.
+	 *
+	 * THE NAME IS NOT VALIDATED AGAINST THE SCAN. A claim is about a tag name on this site,
+	 * and re-deriving the report to check the name was in it would make the write depend on a
+	 * second full scan; `manage_options` plus the nonce is the boundary, and the guard itself
+	 * re-reads the option on every rewrite.
+	 *
+	 * @since 1.20.0
+	 */
+	public static function ajax_ownership_optin(): void {
+		check_ajax_referer( 'bws_convert_tag', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'generateblocks' ) ), 403 );
+		}
+
+		$tag = sanitize_text_field( wp_unslash( $_POST['tag'] ?? '' ) );
+		if ( '' === $tag ) {
+			wp_send_json_error( array( 'message' => __( 'No tag name given.', 'generateblocks' ) ), 400 );
+		}
+
+		$claimed = array_values( array_unique( array_filter( array_map(
+			'strval',
+			(array) get_option( BWS_CONVERTER_OWNERSHIP_OPTIN_OPTION, array() )
+		) ) ) );
+
+		$claimed = '1' === (string) ( $_POST['claim'] ?? '' )
+			? array_values( array_unique( array_merge( $claimed, array( $tag ) ) ) )
+			: array_values( array_diff( $claimed, array( $tag ) ) );
+
+		update_option( BWS_CONVERTER_OWNERSHIP_OPTIN_OPTION, $claimed );
+
+		wp_send_json_success( array( 'optedIn' => $claimed ) );
 	}
 
 	/**

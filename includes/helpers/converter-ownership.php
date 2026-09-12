@@ -58,6 +58,50 @@ const BWS_CONVERTER_OWNERSHIP_REASONS = array(
 );
 
 /**
+ * One report line per ownership reason — the DECLINE channel's whole vocabulary (FW-39).
+ *
+ * Keyed by reason so the census is `array_keys()` against the enum above: a fifth reason
+ * added without a line fails `converter-ownership-test.php` rather than reaching a report
+ * that silently prints nothing for it. The two AUTHORIZING reasons carry an empty line on
+ * purpose — a tag that converted has no decline to report, and spelling that as '' keeps
+ * both halves of the enum in one list the census can read.
+ *
+ * `action` IS WHAT SEPARATES THE TWO REFUSALS, and it is the reason they are not one
+ * reason (D38). A contested NAME has something a site owner can go and do — rename or
+ * remove the other plugin's tag — so the report offers it. Unknown option vocabulary does
+ * not: there is no other plugin to go and find, and telling an owner to look for one sends
+ * them after a conflict that does not exist. Opting in is available for both and is not
+ * this flag; it is the channel's own control.
+ *
+ * `%1$s` is the tag name, `%2$d` the number of stored strings, `%3$s` the other registrar's
+ * phrase (bws_gb_other_registrar_phrase(), already escaped) where one is known. A line that
+ * does not use a placeholder simply omits it.
+ *
+ * NOT A SECOND GATE. The skip channel has its own list beside its own enum
+ * (bws_modifier_skip_report_lines()), and the two are never merged — see that function and
+ * BWS_MODIFIER_SKIP_REASONS for why.
+ *
+ * @since 1.20.0
+ * @return array<string, array{line:string, action:string}> Reason → wording.
+ */
+function bws_converter_ownership_report_lines(): array {
+	return array(
+		'ours'            => array( 'line' => '', 'action' => '' ),
+		'opted_in'        => array( 'line' => '', 'action' => '' ),
+		'name_not_ours'   => array(
+			/* translators: 1: tag name, 2: number of stored tag strings, 3: the other plugin that registers the name. */
+			'line'   => __( '%1$s is also registered by %3$s on this site, so we cannot tell which plugin the %2$d stored tags were written for. They are left exactly as they are.', 'generateblocks' ),
+			'action' => __( 'Rename or remove the other plugin\'s tag, or claim these tags as yours below.', 'generateblocks' ),
+		),
+		'unknown_options' => array(
+			/* translators: 1: tag name, 2: number of stored tag strings. */
+			'line'   => __( '%1$s carries option names we do not recognize, which is what content written for a different plugin\'s tag of the same name looks like. The %2$d stored tags are left exactly as they are.', 'generateblocks' ),
+			'action' => '',
+		),
+	);
+}
+
+/**
  * Option holding the tag names the site owner has claimed as theirs.
  *
  * A flat list of tag names. WRITTEN BY THE SCAN REPORT'S OPT-IN CONTROL (ticket 12), which

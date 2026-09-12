@@ -757,6 +757,75 @@ assert_eq( 'V6.25 a skipped tag comes back byte-identical through the converter'
 	TagConverter::resolve_full_chain( 'pinfam_text', '{{pinfam_text tax:genre|key:bio}}' ) );
 
 // ===========================================================================
+echo "\nV7 — the scan report's two readers, off the REAL registry (FW-39 ticket 12)\n";
+// ===========================================================================
+//
+// The report has to answer two questions the converter answers by RUNNING — which shape is
+// skipped, and which rewrite is the one output-neutrality exemption — without rewriting
+// anything. Both readers get the root off the migration entry, which is why they belong here:
+// §V6.22's `pinfam` family went in through the shipped generator, so the root they read is
+// the root the generator recorded rather than one this file handed them.
+//
+// WHAT THIS PINS IS AGREEMENT, not a second answer. §V6.25 shows the converter leaving that
+// tag byte-identical; V7.1 shows the report saying why. A reader that drifted from the
+// predicate would produce a report naming shapes that convert, or silent about shapes that
+// do not, and nothing else in the suite would notice.
+
+assert_eq( 'V7.1 the skip reader names the reason for the shape §V6.25 leaves alone',
+	'tax_without_id',
+	bws_modifier_skip_reason_for_tag( '{{pinfam_text tax:genre|key:bio}}' ) );
+
+assert_eq( 'V7.2 …and says nothing about a tag that converts',
+	'',
+	bws_modifier_skip_reason_for_tag( '{{pinfam_text key:bio}}' ) );
+
+// A NAME NO GENERATED ENTRY ANSWERS FOR HAS NO SKIP VOCABULARY. The reader walks the registry
+// for a recorded root and finds none, which is not the same as "converts cleanly" — it is
+// "this is not a modifier→base rewrite at all". Both answer '' and that is correct: neither
+// belongs in the skip channel.
+assert_eq( 'V7.3 a tag with no generated entry has no skip reason',
+	'',
+	bws_modifier_skip_reason_for_tag( '{{text key:bio}}' ) );
+
+// THE EXEMPTION POPULATION (D40): the family's root PINS, and the tag pins nothing. That tag
+// read the ambient entity and the rewrite makes it kind-agnostic, so it surfaces empty→value
+// where the page is not a term. Counted for the disclosure LINE; it is not a gate and not a
+// skip — the tag converts (§V6.23).
+assert_eq( 'V7.4 an unpinned tag on a pinning family IS the exemption',
+	true,
+	bws_modifier_unpinned_rewrite( '{{pinfam_content}}' ) );
+
+assert_eq( 'V7.5 a PINNED tag is not — it named its term, so nothing about it was ambient',
+	false,
+	bws_modifier_unpinned_rewrite( '{{pinfam_text id:34|key:bio}}' ) );
+
+// THE OTHER HALF OF "FAMILY-AGNOSTIC". `view` resolves from ambient state and declares no
+// argument, so its unpinned tags are not the exemption — the rewrite keeps naming a root. The
+// reader asks the CONTRACT, so this needs no rule about which family is which.
+assert_eq( 'V7.6 a family whose root does not pin is never the exemption',
+	false,
+	bws_modifier_unpinned_rewrite( '{{view_content}}' ) );
+
+assert_eq( 'V7.7 a tag with no generated entry is not the exemption either',
+	false,
+	bws_modifier_unpinned_rewrite( '{{content}}' ) );
+
+// THE DISCLOSURE IS A LINE, NOT A GATE (D40/D46), held structurally because the failure is an
+// ADDITION: somebody reaching for a confirm() on the one sentence that says conversion changes
+// output. The opt-in checkbox is the page's only gate, and training click-through on it by
+// putting a second prompt beside it is exactly what D46 refuses.
+$scanner_js = (string) file_get_contents( __DIR__ . '/../../assets/js/admin-tag-scanner.js' );
+
+assert_eq( 'V7.8 the report asks for no confirmation anywhere',
+	false,
+	(bool) preg_match( '/\b(confirm|prompt)\s*\(/', $scanner_js ) );
+
+assert_eq( 'V7.9 the exemption line is PLACED, never composed in the browser',
+	true,
+	false !== strpos( $scanner_js, 'channels.exemptLine' )
+		&& 1 !== preg_match( '/exemptCount\s*\+/', $scanner_js ) );
+
+// ===========================================================================
 echo "\n";
 if ( $failures > 0 ) {
 	echo "FAILED: {$failures} of {$count} assertions\n";

@@ -50,6 +50,7 @@ class SettingsPage {
 		add_action( 'admin_enqueue_scripts', array( static::class, 'enqueue_scripts' ) );
 		add_action( 'wp_ajax_bws_scan_tags', array( TagConverter::class, 'ajax_scan' ) );
 		add_action( 'wp_ajax_bws_migrate_tags', array( TagConverter::class, 'ajax_migrate' ) );
+		add_action( 'wp_ajax_bws_ownership_optin', array( TagConverter::class, 'ajax_ownership_optin' ) );
 	}
 
 	public static function add_menu_page(): void {
@@ -108,6 +109,14 @@ class SettingsPage {
 					'deselectAll'    => __( 'Deselect all', 'generateblocks' ),
 					'progressLabel'  => __( 'Migrating post %1$d of %2$d…', 'generateblocks' ),
 					'bulkDone'       => __( '%d posts processed.', 'generateblocks' ),
+					// The report's two non-conversion channels (FW-39, D46). Every SENTENCE in
+					// those channels is composed in PHP and keyed by reason; these are the
+					// labels the layout itself authors.
+					'nothingToConvert' => __( 'Nothing to convert. See the sections below for what was left alone, and why.', 'generateblocks' ),
+					'storedExample'    => __( 'Stored example:', 'generateblocks' ),
+					'claimLabel'       => __( 'These tags are mine, convert them', 'generateblocks' ),
+					'claimSaved'       => __( 'Saved. Scan again to pick up the change.', 'generateblocks' ),
+					'saving'           => __( 'Saving…', 'generateblocks' ),
 				),
 			)
 		);
@@ -1026,7 +1035,27 @@ function my_result( $post_id, $arg = '' ) {
 						<?php echo esc_html( PatternCache::format_status( PatternCache::get_status() ) ); ?>
 					</p>
 
+					<?php /* ── The report's THREE sections (FW-39, D46) ──
+					        To be converted (the table below), then DECLINED and SKIPPED. The
+					        two extra sections are site-wide, not per post, because both facts
+					        are properties of a tag NAME on this site — see
+					        TagConverter::report_channels().
+
+					        THE EXEMPTION IS A LINE, NOT A GATE (D40). It sits with the
+					        conversion preview because those tags DO convert; what it discloses
+					        is that this one conversion changes what a page shows. Putting it
+					        behind a confirmation would be a second gate beside the opt-in, and
+					        training click-through on the one control here that can damage
+					        content is exactly what D46 refuses.
+
+					        Rendered empty and filled by the scan, like the pattern-cache line
+					        above: PHP composes every sentence, the script only places it. */ ?>
+					<div id="bws-scan-exemption" class="bws-scan-exemption notice notice-warning inline" style="display:none;">
+						<p id="bws-scan-exemption-line"></p>
+					</div>
+
 					<div id="bws-scan-results" style="display:none;">
+						<h3 class="bws-channel-header"><?php esc_html_e( 'To be converted', 'generateblocks' ); ?></h3>
 						<div class="bws-results-toolbar">
 							<label>
 								<input type="checkbox" id="bws-select-all" />
@@ -1052,6 +1081,33 @@ function my_result( $post_id, $arg = '' ) {
 							</thead>
 							<tbody id="bws-results-tbody"></tbody>
 						</table>
+					</div>
+
+					<?php /* DECLINED — the channel with an author action. Each row names one
+					        contested tag name, what the record actually knows about it, and the
+					        per-name claim that lifts the guard (D37). The claim is the ONE
+					        control on this page that can rewrite content nobody here can prove
+					        is ours, which is why the count and a stored example sit beside it:
+					        a claim of ownership with nothing to recognize is a click, not a
+					        decision. */ ?>
+					<div id="bws-scan-declined" class="bws-scan-channel" style="display:none;">
+						<h3 class="bws-channel-header"><?php esc_html_e( 'Declined: we cannot prove these tags are yours', 'generateblocks' ); ?></h3>
+						<p class="description bws-section-desc">
+							<?php esc_html_e( 'These tags are left exactly as they are and go on rendering. Claim a tag name only if you know the stored tags on this site were written for our version of it.', 'generateblocks' ); ?>
+						</p>
+						<ul class="bws-channel-list" id="bws-declined-list"></ul>
+					</div>
+
+					<?php /* SKIPPED — informational, no action, no gate (D33, D41). Separate from
+					        the declined list rather than a second reason column on it: a skip has
+					        no button, and merging the two would put a second gate beside the
+					        opt-in. */ ?>
+					<div id="bws-scan-skipped" class="bws-scan-channel" style="display:none;">
+						<h3 class="bws-channel-header"><?php esc_html_e( 'Skipped: no equivalent tag to convert to', 'generateblocks' ); ?></h3>
+						<p class="description bws-section-desc">
+							<?php esc_html_e( 'Nothing to do. These tags are unchanged, still render what they render today, and will keep working. They are listed so you know they were seen and left alone.', 'generateblocks' ); ?>
+						</p>
+						<ul class="bws-channel-list" id="bws-skipped-list"></ul>
 					</div>
 				</div>
 
@@ -1408,6 +1464,31 @@ function my_result( $post_id, $arg = '' ) {
 				background: #fff;
 				border: 1px solid #c3c4c7;
 			}
+			/* The report's three channels (FW-39). Each section is headed, so the two
+			   non-conversion lists read as peers of the table rather than as footnotes to it. */
+			.bws-dynamic-tags-settings .bws-channel-header {
+				margin: 20px 0 4px;
+				font-size: 14px;
+			}
+			.bws-dynamic-tags-settings .bws-channel-list { margin: 0; }
+			.bws-dynamic-tags-settings .bws-channel-item {
+				margin: 0 0 10px;
+				padding: 10px 12px;
+				border: 1px solid #dcdcde;
+				border-left-width: 4px;
+				background: #fff;
+			}
+			.bws-dynamic-tags-settings .bws-channel-declined { border-left-color: #d63638; }
+			.bws-dynamic-tags-settings .bws-channel-skipped  { border-left-color: #dba617; }
+			.bws-dynamic-tags-settings .bws-channel-line { margin: 0; }
+			.bws-dynamic-tags-settings .bws-channel-action,
+			.bws-dynamic-tags-settings .bws-channel-preview {
+				margin: 4px 0 0;
+				font-size: 12px;
+				color: #646970;
+			}
+			.bws-dynamic-tags-settings .bws-channel-claim { margin: 8px 0 0; }
+			.bws-dynamic-tags-settings .bws-claim-status { font-size: 12px; color: #646970; }
 			.bws-dynamic-tags-settings .bws-scan-controls {
 				display: flex;
 				align-items: center;

@@ -1071,6 +1071,58 @@ check(
 	'no case for: ' . implode( ',', $uncovered )
 );
 
+// THE WORDING, which is what the census was always for: the report prints one line per reason
+// and a reason with none prints nothing at all. By source scan for the same reason as the rest
+// of §M13 — the map lives in deprecated-tags.php beside registrations this harness does not
+// stub. The keys of a returned literal array are readable without running it.
+preg_match( '/function bws_modifier_skip_report_lines\(\).*?\n\}/s', $dep_src, $lines_m );
+preg_match_all( "/^\t\t'([a-z_]+)'\s*=>/m", $lines_m[0] ?? '', $worded_m );
+$worded = $worded_m[1] ?? array();
+
+sort( $listed );
+sort( $worded );
+
+check(
+	'M13.4 every skip reason has a report line, and nothing unlisted does',
+	array() !== $worded && $listed === $worded,
+	'enum: ' . implode( ',', $listed ) . '  worded: ' . implode( ',', $worded )
+);
+
+// A SKIP SAYS THE TAG STILL WORKS, every time. That is the difference in kind from a decline
+// (which gates a rewrite and offers an action), and it is the sentence a site owner needs: a
+// line that only named the shape would read as damage. Held by the one phrase every member
+// shares rather than by reviewing three strings.
+$unreassured = array();
+foreach ( preg_split( "/\n/", $lines_m[0] ?? '' ) as $line ) {
+	if ( 1 === preg_match( "/^\t\t'([a-z_]+)'\s*=>/", $line, $m ) && false === strpos( $line, 'still render' ) ) {
+		$unreassured[] = $m[1];
+	}
+}
+
+check(
+	'M13.5 every skip line says the stored tags still render',
+	array() === $unreassured,
+	'no reassurance on: ' . implode( ',', $unreassured )
+);
+
+// THE TWO CHANNELS ARE SEPARATE SURFACES (D46), from this side: no skip reason is reachable
+// from the ownership enum's census, and no ownership reason is a skip reason. The guard's own
+// harness holds the mirror of this, which is the point — neither enum can be widened into the
+// other's territory without one of the two failing.
+preg_match(
+	'/const BWS_CONVERTER_OWNERSHIP_REASONS = array\((.*?)\);/s',
+	(string) file_get_contents( __DIR__ . '/../../includes/helpers/converter-ownership.php' ),
+	$own_const_m
+);
+preg_match_all( "/'([a-z_]+)'/", $own_const_m[1] ?? '', $own_listed_m );
+$own_listed = $own_listed_m[1] ?? array();
+
+check(
+	'M13.6 no reason appears in both channels\' enums',
+	array() !== $own_listed && array() === array_intersect( $listed, $own_listed ),
+	'shared: ' . implode( ',', array_intersect( $listed, $own_listed ) )
+);
+
 // THE EDITOR MOUNT STAYS SILENT ON A `term_*` BLOCK, skipped or not, and this is what says
 // so structurally rather than by inspection. The mount anchors on the chain CONTROL, and a
 // modifier tag keeps the flat select — so the tag never reaches baseSrcState() at all, which

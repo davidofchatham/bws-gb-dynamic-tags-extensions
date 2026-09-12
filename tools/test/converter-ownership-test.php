@@ -212,6 +212,54 @@ check( 'O4.3 every listed reason is DRIVEN by a case in this file', $expected ==
 
 check( 'O4.4 the enum holds exactly the four states the ship decided on', array( 'ours', 'opted_in', 'name_not_ours', 'unknown_options' ) === $listed, 'a fifth state is a report surface change, not a drive-by — see D38' );
 
+// THE WORDING IS THE FOURTH CENSUS QUESTION, and the one that made the others worth having:
+// the report prints one line per reason, and a reason reaching it with no line prints nothing
+// at all — which reads exactly like a tag that converted.
+//
+// THE `__()` STUB LANDS HERE, NOT AT THE TOP, and deliberately: §O5's purity argument rests on
+// "this file defines ABSPATH and nothing else, and every §O1-O4 drive ran". Defining a
+// WordPress function before those drives would retire that argument for a map of literals that
+// needs it only to be read.
+if ( ! function_exists( '__' ) ) {
+	function __( string $text, string $domain = '' ): string { // phpcs:ignore
+		return $text;
+	}
+}
+
+$wording = bws_converter_ownership_report_lines();
+$worded  = array_keys( $wording );
+sort( $worded );
+
+check( 'O4.5 every reason has a report line entry, and nothing unlisted does', $expected === $worded, 'enum: ' . implode( ',', $expected ) . '  worded: ' . implode( ',', $worded ) );
+
+// The two halves of the enum word differently BY CONSTRUCTION, not by editorial habit. An
+// authorizing reason has no decline to report, and a refusal that printed nothing would be a
+// tag silently left alone.
+$authorizing = array( 'ours', 'opted_in' );
+foreach ( $wording as $reason => $row ) {
+	$is_auth = in_array( $reason, $authorizing, true );
+	check(
+		"O4.6 {$reason} " . ( $is_auth ? 'prints nothing (it converted)' : 'has a line to print' ),
+		$is_auth ? '' === $row['line'] : '' !== $row['line'],
+		'line: ' . var_export( $row['line'], true )
+	);
+}
+
+// D38 PROPER — the two refusals are not one reason, and `action` is where that lands. A
+// contested NAME has something an owner can go and do; unknown vocabulary does not, and
+// telling them to look for a plugin conflict sends them after one that does not exist.
+check( 'O4.7 name_not_ours offers an author action', '' !== $wording['name_not_ours']['action'], 'D38: rename or remove the other plugin\'s tag' );
+check( 'O4.8 unknown_options offers NONE', '' === $wording['unknown_options']['action'], 'D38: there is no other plugin to go and find' );
+
+// THE TWO CHANNELS ARE SEPARATE SURFACES (D46), and this is the half of that a harness can
+// see from here: no ownership reason is also a skip reason. The skip enum's own census owns
+// the other direction.
+preg_match( '/const BWS_MODIFIER_SKIP_REASONS = array\((.*?)\);/s', (string) file_get_contents( __DIR__ . '/../../includes/tags/deprecated-tags.php' ), $skip_const_m );
+preg_match_all( "/'([a-z_]+)'/", $skip_const_m[1] ?? '', $skip_listed_m );
+$skip_listed = $skip_listed_m[1] ?? array();
+
+check( 'O4.9 no reason appears in both channels\' enums', array() !== $skip_listed && array() === array_intersect( $listed, $skip_listed ), 'shared: ' . implode( ',', array_intersect( $listed, $skip_listed ) ) );
+
 // ---------------------------------------------------------------------------
 echo "\n§O5 — the predicate is pure, and the gatherer is the only half that is not\n";
 // ---------------------------------------------------------------------------
@@ -338,13 +386,32 @@ $gated  = preg_match_all( '/self::apply_if_owned\(/', $migrate );
 
 check( 'O7.2 every content-rewriting loop routes through the guard', $loops > 0 && $loops === $gated, "rewrite loops: {$loops}, gated: {$gated}" );
 
-// The guard is asked in ONE place in this class. A second caller is not wrong in itself,
-// but it is a second thing to keep correct, and §O7.2 counts loops rather than callers —
-// so a rewrite added beside an existing gated one would slip past it.
-check( 'O7.3 the class asks the guard from exactly one place', 1 === preg_match_all( '/bws_converter_rewrite_allowed\(/', $code_only ), 'found: ' . preg_match_all( '/bws_converter_rewrite_allowed\(/', $code_only ) );
+// THE GUARD IS ASKED FROM EXACTLY TWO PLACES, AND THE SECOND ONE REPORTS (FW-39 ticket 12).
+// It was one until the scan grew a decline channel: apply_if_owned() asks in order to REWRITE,
+// classify_tag() asks in order to SAY WHAT WILL HAPPEN, and a report that derived its answer
+// any other way would be a second copy of the rule — telling an owner their tags convert while
+// the rewrite refuses them, or the reverse.
+//
+// WHAT THIS STILL GUARDS is what the one-caller version guarded: §O7.2 counts LOOPS rather
+// than callers, so a rewrite added beside an existing gated one slips past it. Naming both
+// callers is what keeps that hole shut — a third call site fails here, and the two named below
+// are asserted to be the two that exist.
+$askers = preg_match_all( '/bws_converter_rewrite_allowed\(/', $code_only );
+check( 'O7.3 the class asks the guard from exactly two places — the rewrite and the report', 2 === $askers, 'found: ' . $askers );
 
-// scan() is read-only and correctly ungated (D46 splits the report surface off to its own
-// ticket). Pinned so "ungated" stays a decision rather than becoming an oversight.
+preg_match( '/private static function apply_if_owned\(.*?\n\t\}/s', $code_only, $gate_m );
+preg_match( '/private static function classify_tag\(.*?\n\t\}/s', $code_only, $classify_m );
+
+check( 'O7.3a the REWRITE asker is apply_if_owned()', false !== strpos( $gate_m[0] ?? '', 'bws_converter_rewrite_allowed(' ) );
+check( 'O7.3b the REPORT asker is classify_tag()', false !== strpos( $classify_m[0] ?? '', 'bws_converter_rewrite_allowed(' ) );
+
+// THE REPORT ASKER WRITES NOTHING. That is the whole licence for the second call site: it
+// decides a label, not a rewrite, so it needs no revision, no opt-in write and no content
+// update. A write appearing here would be a rewrite path that never passed §O7.2's loop count.
+check( 'O7.3c the report asker writes nothing', 1 !== preg_match( '/wpdb->update|update_option|wp_save_post_revision/', $classify_m[0] ?? '' ) );
+
+// scan() is read-only and correctly ungated — it asks through classify_tag() above. Pinned so
+// "ungated" stays a decision rather than becoming an oversight.
 preg_match( '/public static function scan\(\).*?\n\t\}/s', $code_only, $scan_m );
 check( 'O7.4 scan() writes no content, so it is ungated by design', false === strpos( $scan_m[0] ?? '', 'wpdb->update' ) );
 

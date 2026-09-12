@@ -1666,6 +1666,126 @@ function bws_modifier_skip_reason( array $options, string $root ): string {
 }
 
 /**
+ * One report line per skip reason — the SKIP channel's whole vocabulary (FW-39, D46).
+ *
+ * Keyed by reason so the census is `array_keys()` against BWS_MODIFIER_SKIP_REASONS: a
+ * reason added without a line fails `fold-migration-test.php` §M13 rather than reaching a
+ * report that has no wording for it and prints nothing, which reads exactly like a tag that
+ * converted.
+ *
+ * EVERY LINE ENDS BY SAYING THE TAG STILL WORKS, and that is the whole difference in kind
+ * from a decline. A skip has no author action and gates nothing — the stored tag keeps its
+ * name, keeps rendering what it renders today, and the only thing a site owner gains from
+ * the report is knowing which shape we met and why we left it alone. A line that merely
+ * named the shape would read as damage. §M13.5 holds the phrase.
+ *
+ * SEPARATE FROM THE OWNERSHIP LINES (bws_converter_ownership_report_lines()) for the reason
+ * the enums are separate: merging them would put a second gate beside the opt-in and train
+ * click-through on the one gate that can damage content.
+ *
+ * `%1$s` is the tag name, `%2$d` the number of stored strings.
+ *
+ * @since 1.20.0
+ * @return array<string, string> Reason → wording.
+ */
+function bws_modifier_skip_report_lines(): array {
+	return array(
+		/* translators: 1: tag name, 2: number of stored tag strings. */
+		'tax_without_id'    => __( '%1$s names a taxonomy but no specific term, and a tag that states a taxonomy reads it differently. The %2$d stored tags are unchanged and still render what they render today.', 'generateblocks' ),
+		/* translators: 1: tag name, 2: number of stored tag strings. */
+		'bare_pinning_root' => __( '%1$s names a source that needs a specific term or post, with none given. The %2$d stored tags are unchanged and still render what they render today.', 'generateblocks' ),
+		/* translators: 1: tag name, 2: number of stored tag strings. */
+		'unpinnable_id'     => __( '%1$s names a term or post that is not a plain ID number, which the replacement tag cannot carry. The %2$d stored tags are unchanged and still render what they render today.', 'generateblocks' ),
+	);
+}
+
+/**
+ * The skip reason for one STORED tag string, or '' when it converts (FW-39, D46).
+ *
+ * The scan report's way in. `bws_modifier_skip_reason()` above is the decision and takes
+ * the two facts it weighs; this reads those facts off a tag string and the registry, so the
+ * report and the converter ask the same predicate rather than two copies of it.
+ *
+ * THE ROOT COMES OFF THE MIGRATION ENTRY, which is the only thing that knows it: the
+ * generator binds prefix + root into a closure a caller cannot see into, so
+ * bws_register_modifier_root_migrations() records the root as DATA beside the callback for
+ * exactly this read. An entry without one is not a modifier→base rewrite and has no skip
+ * vocabulary, so it answers ''.
+ *
+ * @since 1.20.0
+ * @param string $tag_string The tag string as stored in post content.
+ * @return string One of BWS_MODIFIER_SKIP_REASONS, or '' when nothing is skipped.
+ */
+function bws_modifier_skip_reason_for_tag( string $tag_string ): string {
+	$root = bws_modifier_entry_root( $tag_string );
+	if ( '' === $root ) {
+		return '';
+	}
+
+	[ , $options ] = \BWS\DynamicTags\MigrationRegistry::parse_tag_string( $tag_string );
+
+	return bws_modifier_skip_reason( $options, $root );
+}
+
+/**
+ * Whether rewriting this stored tag is the migration's ONE output-neutrality exemption (D40).
+ *
+ * The population is a modifier tag whose family roots at a PINNING root and which pins
+ * nothing: the tag read the ambient entity, the rewrite makes it a bare base tag, and where
+ * the ambient entity is not of the family's kind the base tag reads something the stored tag
+ * could not (CONTEXT.md [I20]). Empty→value, disclosed as a LINE in the scan report beside
+ * the conversion preview, never as a second confirmation gate.
+ *
+ * FAMILY-AGNOSTIC, derived from the root's own declaration rather than from the `term_`
+ * prefix, so a second family with a pinning root is counted with no rule added here. The
+ * axis — which population the exemption covers, and why it is bound to one direction — is
+ * stated once, in this ship's `docs/design-history/` record; this answers only whether one
+ * tag string is in it.
+ *
+ * @since 1.20.0
+ * @param string $tag_string The tag string as stored in post content.
+ * @return bool True when the rewrite is the exempt empty→value case.
+ */
+function bws_modifier_unpinned_rewrite( string $tag_string ): bool {
+	$root = bws_modifier_entry_root( $tag_string );
+	if ( '' === $root || ! bws_modifier_root_facts( $root )['pins'] ) {
+		return false;
+	}
+
+	[ , $options ] = \BWS\DynamicTags\MigrationRegistry::parse_tag_string( $tag_string );
+
+	return '' === trim( (string) ( $options['id'] ?? '' ) );
+}
+
+/**
+ * The root a generated modifier→base entry rewrites this tag's family to, or ''.
+ *
+ * Shared by the two readers above, which is the only reason it exists apart: both need the
+ * same registry walk and a second copy would be the drift pair.
+ *
+ * @since 1.20.0
+ * @internal
+ * @param string $tag_string The tag string as stored in post content.
+ * @return string Registered source key, or '' when no generated entry answers for the name.
+ */
+function bws_modifier_entry_root( string $tag_string ): string {
+	$reg = 'BWS\DynamicTags\MigrationRegistry';
+	if ( ! class_exists( $reg ) ) {
+		return '';
+	}
+
+	[ $tag_name ] = $reg::parse_tag_string( $tag_string );
+
+	foreach ( $reg::get_by_type( 'tag' ) as $entry ) {
+		if ( ( $entry['match_tag'] ?? '' ) === $tag_name ) {
+			return (string) ( $entry['modifier_root'] ?? '' );
+		}
+	}
+
+	return '';
+}
+
+/**
  * A modifier tag's options → a BASE tag's options, sourced by an equivalent chain (#84).
  *
  * PURE — options in, options out; null when no chain can be stated. The rewrite is a
@@ -2101,6 +2221,13 @@ function bws_register_modifier_root_migrations( string $prefix, string $root, ar
 			'match_tag'          => $old_tag,
 			'new_tag'            => $key,
 			'transform_callback' => bws_modifier_root_transform( $prefix, $root ),
+			// THE ROOT, RECORDED AS DATA BESIDE THE CALLBACK THAT CLOSES OVER IT. The
+			// transform receives only a tag string, so the root is bound into a closure
+			// nothing can read back — and the scan report has to ask the same questions the
+			// transform asks (which shape is skipped, which rewrite is the D40 exemption)
+			// without running it. bws_modifier_entry_root() is the single reader; this is
+			// the only place the fact is written, so the two cannot drift.
+			'modifier_root'      => $root,
 			'since'              => (string) ( $args['since'] ?? '' ),
 			'callback'           => 'bws_modifier_migration_live_marker',
 			'prefix_removed'     => ! empty( $args['prefix_removed'] ),
