@@ -262,7 +262,20 @@ function bws_run_traversal( array $sources, array $steps, $reader = null, $gate 
  * empty rather than attempting the read. Widening one is a behaviour change on the
  * render path first and an editor change second, in that order.
  *
+ * @invariant THIS TABLE IS THE WHOLE OF STEP ADMISSION, AND NOTHING ELSE DECIDES IT. A
+ * PINNING root (FW-39) is a real chain root and gets no rule of its own: the factory hands
+ * back the same `{kind, id}` shape every other root does, so a step off `term,34` is
+ * admitted or refused by this list reading `term` and by nothing about the pin. That is
+ * what makes `term,34;refs,<rel>;terms,<tax>` legal with no engine change, and what makes
+ * a `terms` step straight off a term root refused — there is no term→term edge, which is
+ * this table's answer rather than a pinning rule. A second gate anywhere, editor or render,
+ * would be the drift the derive above exists to prevent; a pinned root's kind being
+ * knowable from the wire is BWS_FOLD_PARSE_TIME_ROOT_KINDS' business and changes only WHEN
+ * this list is consulted, never what it says.
+ *
  * @since 1.17.0
+ * @since 1.20.0 The pinning-root clause above (FW-39) — no text here changed for it, which
+ *               is the point.
  */
 const BWS_TRAVERSAL_STEP_INPUT_KINDS = array(
 	'refs'  => array( 'post', 'term', 'user', 'meta_row', 'site' ),

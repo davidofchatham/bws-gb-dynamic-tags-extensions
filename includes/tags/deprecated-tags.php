@@ -1739,8 +1739,9 @@ function bws_modifier_skip_reason_for_tag( string $tag_string ): string {
  * FAMILY-AGNOSTIC, derived from the root's own declaration rather than from the `term_`
  * prefix, so a second family with a pinning root is counted with no rule added here. The
  * axis — which population the exemption covers, and why it is bound to one direction — is
- * stated once, in this ship's `docs/design-history/` record; this answers only whether one
- * tag string is in it.
+ * stated once, in the decision that produced it
+ * (docs/design-history/term-family-migration-output-neutrality.md); this answers only
+ * whether one tag string is in it.
  *
  * @since 1.20.0
  * @param string $tag_string The tag string as stored in post content.

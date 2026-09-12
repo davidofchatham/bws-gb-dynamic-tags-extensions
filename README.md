@@ -20,13 +20,21 @@ Not only can you start from post, loop, term, and author contexts without changi
 
 Each step that can return several results carries its own optional limit, meaning at most that many *from each* incoming result. For example, limiting a taxonomy step to 1 gives you one term from the current post or each previous step's posts, not one term overall. Pick an ACF Relationship or Post Object field for a source step and you get a short note about its current configuration, including bidirectionality and entry limits, to help you decide whether and how to configure that step's limit. Leave it blank for all results.
 
+#### Pin a tag to one specific term or post
+
+Every source above answers "whatever this page is about". Sometimes you want the opposite: this tag, this term, every page. Set a tag's source to Term or Post and you get a picker listing every term or post, grouped by taxonomy or post type, searchable, with the ID shown beside the name so two similarly named entries are never a guess. A draft is pickable and labelled as one, and you only ever see what you could already see in the admin.
+
+A pin is a real starting point, so steps run off it exactly as they run off anything else: "this category's related posts, and their authors" is one tag. The configuration preview names what you picked ("Term: News"), and if that term or post is later deleted it reads `term 34 (missing)` rather than quietly going blank. Pick the source and leave the picker empty and the tag renders nothing, which is the honest answer: there is no entity to read yet. Available on a base tag, a `join` field and a `try_` attempt alike.
+
 #### Extendable
 
-Another plugin can add its own starting point to the source options. Developers: [`docs/plugin-integration.md`](docs/plugin-integration.md) §1a covers both routes, a source class and a filter.
+Another plugin can add its own starting point to the source options, and that starting point can take an argument of its own, so it can name one specific thing rather than only "whatever this page is about". Developers: [`docs/plugin-integration.md`](docs/plugin-integration.md) §1a covers both routes, a source class and a filter.
 
 ### Unlocked field selector
 
 GB's field selector is post-type-based, so when you're building GP Elements or WP Patterns, you usually can't see the fields that are actually available for what you're working on. Using our tags, every meta/option field key input shows all registered fields (including ACF fields and sub-fields, options-page fields, term fields, and post meta fields), and can be filtered by context, field group, and field type, or searched by label, name, and type.
+
+When a tag is pinned to a specific term or post, the list goes the other way and narrows to that taxonomy's or post type's own fields, plus any field whose group isn't tied to one location. Repin somewhere else and it re-narrows on the spot. Sources that don't pin anything still show everything, which is the only honest answer while the entity isn't known until the page renders, and you can always type a key in by hand either way.
 
 ### Special handling
 

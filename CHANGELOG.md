@@ -2,6 +2,24 @@
 
 ## [1.20.0] — unreleased
 
+### Highlights
+
+- A tag can now be pinned to one specific term or post, instead of only reading whatever the visitor is looking at!
+  - Choosing "Term" or "Post" as a source opens a picker listing every term or post, grouped and searchable, with the ID shown beside the name. *(Added)*
+  - Source paths run off a pin exactly as they run off any other source, so "this category's related posts" is one tag instead of unreachable. *(Added)*
+  - The field picker narrows to the fields that pinned taxonomy or post type can actually have, and re-narrows when you repin. *(Added)*
+  - Works on a base tag, a Join field and a Try attempt alike. *(Added)*
+- The `{{term_*}}` tags are deprecated, and the Migration Tool can convert them for you.
+  - They no longer read an unrelated term whose ID happened to match the page's, which could render a completely unrelated term's data with nothing on the page to show it was wrong. *(Fixed)*
+  - A `{{term_*}}` tag set to a taxonomy now reaches the current post's first matching term, which that setting always described but could not reach. *(Fixed)*
+  - `{{term_text}}` converts to `{{text}}`, keeping its term, its relationship hops and its taxonomy path; what it gains is the whole base-tag surface, now and from here on. *(Added)*
+  - Every `{{term_*}}` tag keeps rendering either way. Nothing is removed in this release, and removal will not happen without warning. *(Deprecated)*
+- The Migration Tool now refuses to rewrite a tag it cannot prove is yours, and says what it is not going to do.
+  - Where another plugin registers a tag by the same name, none of those tags are converted; you can claim that one tag name and the conversion runs. *(Added)*
+  - The scan report has three sections instead of one: to be converted, declined, and skipped, each with the reason. *(Added)*
+- Another plugin's chain root can now declare an argument of its own, so a root can name one entity rather than only "whatever this page is about." *(Added)*
+- The default source row is relabelled "Current Context," since it has followed terms, users and query contexts, not just posts, since 1.14.0. *(Changed)*
+
 ### Added
 
 - **A block can now be rooted at one specific term, on any page.** Choosing "Term" as a base tag's source, a `{{join}}` field's source or a `try_` attempt's source opens a picker listing every taxonomy's terms, grouped by taxonomy with the term's ID shown beside its name, filterable by taxonomy and searchable with no need to type first. Once pinned, the tag reads that term's field regardless of what the visitor is looking at, and steps (a relationship field, a repeater) can run off it exactly as they run off any other source, so "this category's related posts" is now one tag instead of unreachable. The editor's configuration preview names the pinned term ("Term: News"); a term that has since been deleted reads `term 34 (missing)` instead of rendering silently blank. Selecting Term with nothing picked renders nothing rather than falling back to whatever the current page happens to be about, and the preview flags it plainly ("Term: nothing pinned") instead of looking like an ordinary tag. Nothing about the existing `{{term_*}}` tags changes. **One narrow exception, for hand-edited wire only:** a base tag written as `src:term` with no id (nothing in the editor has ever offered this) now also renders nothing, where it previously read the term the page or query loop was already about. Nothing generates this wire, so this affects only a tag typed by hand.

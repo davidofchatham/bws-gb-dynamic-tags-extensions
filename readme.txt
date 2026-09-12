@@ -11,6 +11,9 @@ See README.md for overview, docs/tag-reference.md for architecture, and CHANGELO
 
 == Upgrade Notice ==
 
+= 1.20.0 =
+⚠ Two render changes on {{term_*}} tags, both fixes. 1) With no term picked they now render nothing off a term archive, instead of sometimes reading an unrelated term whose ID matched the page's. 2) With a taxonomy set they now reach the current post's first matching term. The family is also deprecated: it moves to GenerateBlocks' Deprecated group, keeps rendering, and arrives switched off on new installs only.
+
 = 1.19.0 =
 Tags on archives, search, 404 and blog home now show that page’s own heading, not an unrelated post’s; same fix in term and user query loops. ⚠ 1) bws_get_loop_row_context() renamed, no shim; search custom code first. 2) WooCommerce product loops and blog-home {{content}} now render nothing.
 
