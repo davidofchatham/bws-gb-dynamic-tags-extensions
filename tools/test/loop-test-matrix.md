@@ -1,10 +1,6 @@
 # Query-loop test matrix (QL-rows)
 
-Integration rows for tags rendered **inside a query loop whose items are not posts** — a loop
-over terms and a loop over users, both supplied by the co-resident query extension the blueprint
-declares required (`tools/fixtures/core-structures/env-versions.php`). All rows live on
-`/matrix-loops/` as visible GB blocks; see
-[`docs/testbed.md`](../../docs/testbed.md) for reseeding and the cache bust.
+Integration rows for tags rendered **inside a query loop whose items are not posts** — a loop over terms, a loop over users and a loop over WooCommerce products, all supplied by the co-resident query extension the blueprint declares required (`tools/fixtures/core-structures/env-versions.php`). The QL rows live on `/matrix-loops/` and the §QLP rows on `/matrix-products/`, both as visible GB blocks; see [`docs/testbed.md`](../../docs/testbed.md) for reseeding and the cache bust.
 
 Named for the PROPERTY under test rather than a tag family (precedent:
 [`limit-default-test-matrix.md`](limit-default-test-matrix.md)) — the finding is about the loop,
@@ -152,3 +148,22 @@ The outer loop is restricted by `post_name`, not by id: the ids are whatever the
 |---|---|---|---|
 | QL5.1 | `{{title}}`, in the OUTER post item beside the nested query | `Fixture Ref Target`, `Fixture Root Entity` — the non-vacuity control, and why the inner values below are crossed against QL4's rather than repeated | **PASS** |
 | QL5.2 | `{{title}}`, inside the INNER term loop | `Warehouse` under Fixture Ref Target, `Sales` under Fixture Root Entity — the inner loop's own term. The outer staff name here would be the live `get_the_ID()` fallback winning | **PASS** |
+
+## QLP — a query loop over WooCommerce PRODUCTS: the shape we refuse (FW-100)
+
+The third item shape, and the first one recognition REFUSES. Every group above ends with our tag reading the loop's own entity; this one ends with it reading nothing, because a product record satisfies no arm of the recognizer. These rows are the visible half of FW-100, and they are seeded against that refusal ON PURPOSE — the same staging pattern the QL groups used one recognition rule earlier, so whatever rule ships has a measured BEFORE to diff against.
+
+**This group lives on `/matrix-products/`, not on `/matrix-loops/`.** WooCommerce's chrome was already in the snapshot baseline when these rows landed, so a new page added a snapshot file and moved none of the existing ones; and QL3's own note records an unexplained GBQE gap that appears on a SECOND loop of the same kind on one page, which a fourth loop beside three others would have been measuring alongside its own subject. `manifest.php`'s `page-matrix-products` entry carries both reasons.
+
+**The item shape, MEASURED end to end 2026-09-14** (a real `WooCommerce_Query` loop on `/matrix-products/`, read through `gb_query_enhancements_wc_loop_item_context` — not off the extension's source, which is all any earlier record rested on). The item is a plain `stdClass` carrying 26 keys: `id`, `name`, `slug`, `type`, `permalink`, `price_html`, `regular_price`, `sale_price`, `sku`, `stock_status`, `stock_quantity`, `average_rating`, `review_count`, `image_id`, `gallery_image_ids`, `add_to_cart_url`, `add_to_cart_text`, `short_description`, `on_sale`, `featured`, `weight`, `length`, `width`, `height`, `categories`, `tags`. `bws_classify_loop_item()` answered `unknown:0` on every one of the three. The id key is lower-case `id` and pairs with nothing the way `term_id` pairs with `taxonomy`, which is why the record is refused; what decides that is owned by that function's PHPDoc and is not restated here.
+
+**These rows do not measure the recognition rule, and reading them as if they did is the QL trap restated.** The loop runs under the extension's real `queryType` string (`WooCommerce`), so a recognizer keyed on that string instead of on the item's shape would flip every row below and look correct. The rows measure the refusal's user-visible consequence, nothing more.
+
+**Two non-vacuity rows, from two different vendors**, because every row of ours here is expected empty and a loop that never ran would look identical from the page. QLP1.3 proves the query returned products; QLP1.4 proves the loop iterated over them.
+
+| # | Tag (on `/matrix-products/`) | Expected | Status |
+|---|---|---|---|
+| QLP1.1 | `{{title}}` | **EMPTY** — the refusal, and the row the page exists for. Should become `Adjustable Desk Riser`, `Cable Management Kit`, `Workshop Tool Chest` (matching QLP1.3's order) once a recognition rule ships; that flip is what the change is measured by | **PASS (empty as staged)** |
+| QLP1.2 | `{{permalink}}` | **EMPTY** — the same refusal on a URL read. Kept beside QLP1.1 because it separates a product from the USER shape: QL2.4 is empty PERMANENTLY (a user has no permalink of ours to give), while a product IS a post and has one, so this row becoming non-empty is a positive result and QL2.4's would not be | **PASS (empty as staged)** |
+| QLP1.3 | `{{product_sku}}` | `BWSFX-DR-01`, `BWSFX-CM-02`, `BWSFX-TC-03` — the extension's own product tag, and the identity for the two rows above. This row present with QLP1.1 absent is the refusal; this row absent too is a loop that never ran | **PASS** |
+| QLP1.4 | `{{loop_index}}` | `1`, `2`, `3` — GB's own loop index. Not redundant with QLP1.3: that one proves the query returned products, this proves the looper's inner block rendered per item | **PASS** |

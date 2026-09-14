@@ -19,6 +19,9 @@ manual matrices assume:
 - [`tools/test/loop-test-matrix.md`](../../test/loop-test-matrix.md) (added 1.19.0 — the query
   loop corpus on its own `matrix-loops` page: a term loop and a user loop, plus the unstaffed
   `department-workshop` term; see §Query-loop corpus below; manifest v16)
+- [`tools/test/loop-test-matrix.md`](../../test/loop-test-matrix.md) §QLP (added FW-100 — the
+  product loop corpus on its own `matrix-products` page: three WooCommerce products and the
+  loop that refuses them; see §Product-loop corpus below; manifest v21)
 
 Holds the SHARED schema (CPTs, taxonomies, field groups) for the plugin family;
 later blueprints (e.g. portal-system) compose on top and must not redefine keys
@@ -298,6 +301,21 @@ author analog to give, a deferred gap reached by a new route rather than a regre
 
 These loops carry the query extension's own `queryType` strings, which nothing under `includes/`
 does. Where that line sits, and why, is stated at `bws_fixture_gb_query_loop_blocks()`.
+
+## Product-loop corpus (manifest v21, FW-100)
+
+The THIRD loop item shape, on its own `matrix-products` page ([§QLP](../../test/loop-test-matrix.md)), and the first one recognition REFUSES: a WooCommerce product record is a plain `stdClass` with a lower-case `id`, so `bws_classify_loop_item()` answers unknown and every bare tag of ours inside the loop renders nothing. **The empty rows are the subject, not a broken fixture** — the same staging pattern §QL used one recognition rule earlier, so whatever rule ships for FW-100 has a measured before to diff against.
+
+| Piece | What it is |
+|---|---|
+| `products` (3) | Adjustable Desk Riser, Cable Management Kit, Workshop Tool Chest — distinct names, SKUs and prices, ordered deterministically by the loop's `orderby:title ASC` rather than by the extension's `date DESC` default (the seed inserts all three in one run, so a date order is whatever that run's second granularity produced) |
+| `page-matrix-products` | The four rows. Two of ours, both expected EMPTY; two non-vacuity rows from two DIFFERENT vendors, because a loop that never ran would otherwise look identical from the page |
+
+**Seeded through WooCommerce's own CRUD, not through section 4's posts loop**, and that is not a style preference: the loop queries via `wc_get_products()`, which needs a `product_type` term, a resolved `_price` and a `wc_product_meta_lookup` row that `wp_insert_post()` writes none of. A hand-built product post seeds a loop that runs zero times. Idempotent by SKU (`wc_get_product_id_by_sku`), since WooCommerce already enforces SKU uniqueness.
+
+**Its own page rather than a fourth group on `matrix-loops`**, for two reasons that are not the obvious one: WooCommerce's chrome was already in the snapshot baseline, so a new page adds a snapshot file and moves none of the existing ones; and QL3's note records an unexplained GBQE gap that appears on a SECOND loop of the same kind on one page, which a fourth loop beside three others would be measuring alongside its own subject.
+
+Requires WooCommerce ACTIVE. Absent, `seed.php` skips the products with a log line and the page renders an empty loop.
 
 ## Known gaps
 

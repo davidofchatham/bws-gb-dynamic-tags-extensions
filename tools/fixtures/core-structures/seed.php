@@ -532,6 +532,51 @@ if ( ! empty( $manifest['elements'] ) && post_type_exists( 'gp_elements' ) ) {
 }
 
 // ---------------------------------------------------------------------------
+// 4d. WooCommerce products — the PRODUCT LOOP corpus (v21, FW-100).
+// ---------------------------------------------------------------------------
+// Seeded through WooCommerce's OWN CRUD rather than through section 4's posts loop,
+// and that is not a style preference. `/matrix-products/` queries through
+// wc_get_products(), which reads the `wc_product_meta_lookup` table and requires a
+// `product_type` term and a resolved `_price`; wp_insert_post() writes none of the
+// three. A hand-built product post therefore seeds a loop that runs zero times, and
+// the page reads as a broken fixture instead of as the refusal it exists to show.
+//
+// Looked up by SKU, not by post_name: WooCommerce already enforces SKU uniqueness, so
+// wc_get_product_id_by_sku() is the idempotency check the platform gives us. Section 4
+// needs its explicit status list for the same job; here there is nothing to get wrong.
+//
+// Skips cleanly when WooCommerce is absent, exactly as the pattern and element sections
+// skip — the fixture is inert rather than broken, and says so.
+$product_ids = array();
+if ( ! empty( $manifest['products'] ) && class_exists( 'WC_Product_Simple' ) ) {
+	foreach ( $manifest['products'] as $slug => $def ) {
+		$existing = (int) wc_get_product_id_by_sku( $def['sku'] );
+		$product  = $existing ? wc_get_product( $existing ) : null;
+		if ( ! $product instanceof WC_Product ) {
+			$product = new WC_Product_Simple();
+		}
+
+		$product->set_name( $def['name'] );
+		$product->set_slug( $def['slug'] );
+		$product->set_sku( $def['sku'] );
+		$product->set_description( $def['description'] );
+		$product->set_regular_price( $def['regular_price'] );
+		$product->set_price( $def['regular_price'] );
+		$product->set_status( 'publish' );
+		// Both are query PREDICATES, not display settings: wc_get_products() applies the
+		// catalog visibility taxonomy, and a product left at the CRUD default would be
+		// filtered out of the very loop it is seeded for.
+		$product->set_catalog_visibility( 'visible' );
+		$product->set_stock_status( 'instock' );
+
+		$product_ids[ $slug ] = (int) $product->save();
+	}
+	$log( 'products: ' . count( $product_ids ) . ' upserted' );
+} elseif ( ! empty( $manifest['products'] ) ) {
+	$log( 'products: SKIPPED — WooCommerce inactive (the /matrix-products/ loop will render nothing)' );
+}
+
+// ---------------------------------------------------------------------------
 // 5. Post fields (ACF) + plain post meta.
 // ---------------------------------------------------------------------------
 foreach ( $manifest['post_fields'] as $slug => $fields ) {

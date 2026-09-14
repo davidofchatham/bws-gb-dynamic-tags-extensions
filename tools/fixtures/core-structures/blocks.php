@@ -1892,6 +1892,89 @@ function bws_fixture_page_content_matrix_pinned_roots() {
 }
 
 /** Dispatcher: manifest content_builder name → page content. */
+/**
+ * matrix-products — the PRODUCT LOOP corpus (FW-100; blueprint v21).
+ *
+ * A THIRD query-loop item shape, and the first one this plugin REFUSES. Item-shape
+ * recognition (1.19.0) reads four shapes — post, term, user, repeater row — and a
+ * WooCommerce product record satisfies none of them: the co-resident query extension
+ * hands the loop a bare stdClass whose id key is lower-case `id`, which pairs with
+ * nothing the way `term_id` pairs with `taxonomy`. So every bare tag of ours inside
+ * this loop renders NOTHING, and that is what the rows below are seeded against.
+ *
+ * THE EMPTY ROWS ARE THE SUBJECT, NOT A BROKEN FIXTURE, and they are seeded that way
+ * on purpose — the same method blueprint v16 used for the leaked bare rows one
+ * recognition rule earlier. Their first snapshot baseline records the refusal, so
+ * whatever recognition rule ships for FW-100 has a measured BEFORE to diff against
+ * instead of an assertion made after the fact. When one ships, these rows flip to the
+ * product's own name and permalink and stop being empty rows.
+ *
+ * WHY THE REFUSAL IS RIGHT UNTIL THEN, since a page of empty rows invites the opposite
+ * reading: a product id IS a post id, so before 1.19.0 the leaked read landed on the
+ * right entity by arithmetic coincidence — the same coincidence that hid the term-id
+ * leak (#123) until it landed on the wrong one. A shape we cannot identify says
+ * nothing (CONTEXT.md I15).
+ *
+ * TWO NON-VACUITY ROWS, FROM TWO DIFFERENT VENDORS, because every row of ours here is
+ * expected empty and a loop that never ran would look identical. QLP1.3 is the query
+ * extension's own product tag and QLP1.4 is GB's loop index; between them they prove
+ * the query returned items AND that the loop iterated over them.
+ *
+ * Requires WooCommerce and the query extension ACTIVE (env-versions.php declares both
+ * required, verify.php fails without either). Absent WooCommerce, seed.php skips the
+ * products with a log line and this page renders nothing at all.
+ */
+function bws_fixture_page_content_matrix_products() {
+	$sections = array();
+
+	// ONE loop, all four reads inside it, so each product prints refused/refused/
+	// present/present adjacent rather than four groups a reader has to align by eye —
+	// the QL1 rule.
+	//
+	// Ordered by TITLE ASC rather than by the extension's own `date DESC` default:
+	// the seed inserts all three in one run, so a date order is whatever the second
+	// granularity of that run produced, while the titles are the blueprint's.
+	$sections[] = bws_fixture_gb_section( 'Products QLP1 - a query loop over WooCommerce PRODUCTS: the shape we refuse', array(
+		bws_fixture_gb_query_loop_blocks(
+			array(
+				'type'           => array( 'simple' ),
+				'status'         => 'publish',
+				'posts_per_page' => 10,
+				'orderby'        => 'title',
+				'order'          => 'ASC',
+			),
+			bws_fixture_gb_empty_row(
+				'QLP1.1 BARE tag, and the row this page exists for - EXPECT EMPTY today (FW-100): a product record matches no arm of item-shape recognition, so the read refuses. It should print the product name beside QLP1.3 once a recognition rule ships, and the flip from empty to name is what that change is measured by',
+				'{{title}}'
+			)
+			. "
+
+" . bws_fixture_gb_empty_row(
+				'QLP1.2 the SAME refusal on a URL read - EXPECT EMPTY today (FW-100). Kept beside QLP1.1 because it is the row that separates a product from the USER shape: QL2.4 on the loops page is empty PERMANENTLY (a user has no permalink of ours to give), while a product is a post and has one, so this row becoming non-empty is a positive result and that one is not',
+				'{{permalink}}'
+			)
+			. "
+
+" . bws_fixture_gb_row( 'QLP1.3 NON-VACUITY, and the identity for the two rows above - the query extension own product tag (-> BWSFX-DR-01, BWSFX-CM-02, BWSFX-TC-03, in that order; this row present with QLP1.1 absent is the refusal, this row absent too is a loop that never ran)', '{{product_sku}}' )
+			// A SECOND non-vacuity row from a DIFFERENT vendor, and not redundant with
+			// QLP1.3. That one proves the query returned products; this proves the LOOP
+			// iterated, which is the half that fails when the query type resolves but the
+			// looper's inner block never renders. QL3.1's note on the loops page is the
+			// standing reminder that a co-resident tag can go empty for reasons that are
+			// neither ours nor the fixture's.
+			. "
+
+" . bws_fixture_gb_row( 'QLP1.4 SECOND non-vacuity, different vendor - GB own loop index (-> 1, 2, 3)', '{{loop_index}}' ),
+			'qlp1-product-loop-refusal',
+			'WooCommerce'
+		),
+	) );
+
+	return implode( "
+
+", $sections );
+}
+
 function bws_fixture_build_page_content( $builder ) {
 	$map = array(
 		'matrix_post_meta'     => 'bws_fixture_page_content_matrix_post_meta',
@@ -1901,6 +1984,7 @@ function bws_fixture_build_page_content( $builder ) {
 		'matrix_fixture_roots' => 'bws_fixture_page_content_matrix_fixture_roots',
 		'matrix_gate'          => 'bws_fixture_page_content_matrix_gate',
 		'matrix_loops'         => 'bws_fixture_page_content_matrix_loops',
+		'matrix_products'      => 'bws_fixture_page_content_matrix_products',
 		'matrix_pinned_roots'  => 'bws_fixture_page_content_matrix_pinned_roots',
 		'pattern_legacy_wire'  => 'bws_fixture_pattern_content_legacy_wire',
 		'context_header'       => 'bws_fixture_element_content_context_header',
