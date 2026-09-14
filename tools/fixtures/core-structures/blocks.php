@@ -1063,6 +1063,37 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_block_host_row( 'TB4 (caption "Our Team" -> <caption id> + wrapper aria-labelledby that id, role=region tabindex=0)', '{{table key:team_members|caption:Our Team|1-label:Name|1-key:name|2-label:Role|2-key:role}}' ),
 	) );
 
+	// The ambient-term guard on a SINGULAR page (1.20.0). The C-TERM rows on the context
+	// element cover the archives; a singular page is the other half, and it is where the
+	// old behaviour was least visible: `get_queried_object_id()` here is THIS PAGE'S id,
+	// and it was read straight back as a term id.
+	//
+	// CT-A IS THE ONE ROW ON THIS PAGE WHOSE MEANING DEPENDS ON A NUMBER NOBODY CHOSE.
+	// It only DEMONSTRATED the old bug while some term happened to carry this page's id
+	// (on the reference site, page 22 and the `mc_flag:Priority` term). It does not depend
+	// on that to be CORRECT — empty is the right answer whether or not a term collides —
+	// so it is written as the assertion, with the coincidence named as history rather than
+	// relied on. Do not "fix" it by pinning the page id.
+	//
+	// CT-C is the tier the old read starved. `tax` means "the first term of the current
+	// post in this taxonomy", and the unchecked ambient read answered before the detector
+	// could ever reach that tier, so the option described a behaviour it could not deliver
+	// on any page. It works now, and that is a behaviour change, not only a bug fix.
+	$sections[] = bws_fixture_gb_section( 'Term ambient guard CT - a term_ tag on a page that is NOT about a term (1.20.0)', array(
+		bws_fixture_gb_empty_row(
+			'CT-A unpinned term_text on this PAGE -> EMPTY. Before 1.20.0 it read this page\'s own id as a term id and rendered whichever term happened to carry that number (mc_flag:Priority on the reference site)',
+			'{{term_text use:title}}'
+		),
+		bws_fixture_gb_row(
+			'CT-B the same tag NAMING term 6 -> Support. Non-vacuity for CT-A: without this, CT-A passes on a term_text that resolves nothing anywhere',
+			'{{term_text id:6|use:title}}'
+		),
+		bws_fixture_gb_row(
+			'CT-C term_text with a TAXONOMY -> the first department term on this page, its phone field ((987) 333-4444). Unreachable before 1.20.0: the unchecked ambient read answered first, so this tier never ran',
+			'{{term_text tax:department|key:phone}}'
+		),
+	) );
+
 	return implode( "\n\n", $sections );
 }
 
@@ -1515,9 +1546,44 @@ function bws_fixture_page_content_matrix_loops() {
 				'order'          => 'ASC',
 				'hide_empty'     => false,
 			),
-			bws_fixture_gb_row( 'QL1.1 BARE tag, and the row the whole page exists for (-> the loop term name, matching the two rows under it; before item-shape recognition it rendered the post that shares the term id, which on a WordPress install is the first post)', '{{title}}' )
-				. "\n\n" . bws_fixture_gb_row( 'QL1.2 the same read with an EXPLICIT source, correct today (-> the loop term name)', '{{title src:term}}' )
-				. "\n\n" . bws_fixture_gb_row( 'QL1.3 the query extension own term tag, correct today (-> the loop term archive URL)', '{{term_archive_url}}' ),
+			bws_fixture_gb_row( 'QL1.1 BARE tag, and the row the whole page exists for (-> the loop term name, matching the row under it; before item-shape recognition it rendered the post that shares the term id, which on a WordPress install is the first post)', '{{title}}' )
+				. "\n\n" . bws_fixture_gb_empty_row(
+					// D8/FW-39 (v20): `term` DECLARING a pinning argument moved this row's
+					// answer. An EXPLICIT `src:term` with no argument now REFUSES at the
+					// factory seam rather than falling through to resolve_id()'s own
+					// loop-aware detection -- the same refusal a hand-typed, argument-less
+					// PIN gets, because the wire cannot tell the two intents apart. Before
+					// v20 this read the SAME loop term QL1.1 does ("correct today" was the
+					// row's own label); a MEASURED, DELIBERATE choice (not an oversight) --
+					// D8's literal rule was kept over D2's narrower equivalence claim once the
+					// conflict surfaced here. See CONTEXT.md I15's fifth shape.
+					'QL1.2 the SAME read with an EXPLICIT `src:term` -- EMPTY since v20 (was the loop term name through 1.20.0-pre; D8 now refuses an argless declaring root unconditionally, even where resolve_id() would have found the loop\'s own term)',
+					'{{title src:term}}'
+				)
+				. "\n\n" . bws_fixture_gb_row( 'QL1.3 the query extension own term tag, correct today (-> the loop term archive URL)', '{{term_archive_url}}' )
+				// QL1.5 guards the 1.20.0 ambient-term guard from the direction it was
+				// actually got wrong. That guard refuses an ambient term read off a page
+				// that is not about a term, and a query loop IS such a page -- the loop
+				// hands its row's term down through `generateblocks_dynamic_tag_id`, not
+				// through the queried object. The first cut refused the loop too and blanked
+				// this read; nothing on any fixture page caught it, because no term_* tag
+				// stood inside a loop. This row is that missing witness.
+				//
+				// It reads the same entity QL1.1 does, by a different route: QL1.1 is a base
+				// tag taking the loop item through bws_resolve_base_source(), this is the
+				// term_* family taking it through TaxonomyTerm::resolve_id(). Two routes to
+				// one term is the point -- they must agree, and only one of them has a guard.
+				. "\n\n" . bws_fixture_gb_row( 'QL1.5 the term_ family reading the SAME loop term as QL1.1, by the other route (-> the loop term name; the 1.20.0 ambient guard must not mistake a loop-supplied term for an ambient one)', '{{term_text use:title}}' )
+					// QL1.6 is QL1.5's CONVERT-SIDE TWIN (FW-39). The migration rewrites QL1.5
+					// into exactly this tag, and a query loop is the one context where the two
+					// reach the row's term by different code entirely: QL1.5 through GB's
+					// `generateblocks_dynamic_tag_id` filter into TaxonomyTerm::resolve_id(),
+					// QL1.6 through bws_resolve_base_source()'s loop-item classification. The
+					// bare-tag sweep that measured the rewrite could not see this route at all
+					// -- a term loop cannot be faked under `render-tag` at any flag combination
+					// -- so this row is the only thing standing under it, which is the same gap
+					// QL1.5 exists to fill one guard over.
+					. "\n\n" . bws_fixture_gb_row( 'QL1.6 what QL1.5 CONVERTS to, in the loop (-> the same loop term name as QL1.5 and QL1.1; three routes, one term, and the migration is only allowed to leave the first two agreeing)', '{{text use:title}}' ),
 			'ql1-term-loop-leak',
 			'WP_Term_Query'
 		),
@@ -1534,7 +1600,13 @@ function bws_fixture_page_content_matrix_loops() {
 				'hide_empty'     => true,
 			),
 			bws_fixture_gb_row( 'QL1.4 the SAME bare tag on fixture terms whose ids no post carries (-> the loop term name, matching the row under it; before item-shape recognition it rendered nothing at all, which was the leak with nowhere to land)', '{{title}}' )
-				. "\n\n" . bws_fixture_gb_row( 'QL1.4b NON-VACUITY for the row above, and the proof the loop ran (-> the loop term name)', '{{title src:term}}' ),
+				// NON-VACUITY switched off `{{title src:term}}` in v20 (FW-39): that
+				// explicit-source read is what D8 now REFUSES unconditionally (see QL1.2's
+				// own note above), so it can no longer prove the loop ran -- refusing and
+				// "the loop never rendered this section" would read identically. The query
+				// extension's OWN term tag (already proven independent, QL1.3) takes over
+				// the same non-vacuity role for this SECOND loop.
+				. "\n\n" . bws_fixture_gb_row( 'QL1.4b NON-VACUITY for the row above, and the proof the loop ran (-> the loop term archive URL)', '{{term_archive_url}}' ),
 			'ql1-term-loop-no-collision',
 			'WP_Term_Query'
 		),
@@ -1577,6 +1649,28 @@ function bws_fixture_page_content_matrix_loops() {
 	// and deliberate: the row disappearing IS the signal, and QL3.1 beside it keeps
 	// the term visible so a reader can see WHICH row went.
 	//
+	// QL3.1 IS NOW EMPTY, since 1.20.0 (FW-39, D8) — the SAME cause as QL1.2 above,
+	// and left UNFIXED here rather than given QL1.4b's fix, for a reason worth
+	// recording. `term` now declares a pinning argument, so this row's explicit,
+	// argument-less `src:term` REFUSES at the factory seam instead of reaching the
+	// loop-aware TaxonomyTerm::resolve_id() it relied on, and GB hides a text block
+	// whose tag resolves empty — taking this row's own label down with it, silently.
+	//
+	// `{{term_archive_url}}` — QL1.4b's OWN fix for the identical shape — was TRIED
+	// here first and does NOT carry over: this is the SECOND `department`-taxonomy
+	// WP_Term_Query loop on this page (QL1.4's is the first), and GBQE's own
+	// get_term_archive_url() (gb-query-enhancements/includes/Dynamic_Tags.php,
+	// read 2026-09-08) additionally requires `Utils::get_key( $loop_item,
+	// 'taxonomy' )`, which comes back empty for every item of this SECOND
+	// same-taxonomy loop while the id getter `{{term_count}}` also uses (and QL3.2
+	// proves resolves correctly per item here) does not. Bare `{{title}}` — OUR
+	// OWN item-shape recognition, proven correct in a term loop by QL1.1/QL1.4 —
+	// was tried too and empties identically, so whatever GBQE's second-loop gap
+	// is, it is not confined to GBQE's own tags. Left as a discovered, unexplained
+	// GBQE second-same-taxonomy-loop gap rather than chasing a third tag; QL3.2's
+	// own counts (6, 6, 3, 0) remain the non-vacuity control, though they can no
+	// longer disambiguate WHICH staffed department a tied count (6, 6) belongs to.
+	//
 	// `hide_empty` OFF here, which is what reaches the unstaffed Workshop term at
 	// all. The staffed departments loop with it and are the non-vacuity control: a
 	// zero beside real counts is the guard working, while a column of nothing is a
@@ -1590,7 +1684,7 @@ function bws_fixture_page_content_matrix_loops() {
 				'order'          => 'ASC',
 				'hide_empty'     => false,
 			),
-			bws_fixture_gb_row( 'QL3.1 term (the identity for the count beside it)', '{{title src:term}}' )
+			bws_fixture_gb_empty_row( 'QL3.1 the identity for the count beside it, EMPTY since 1.20.0 (FW-39, D8) — see the note above; was `Sales`/`Support`/`Warehouse`/`Workshop` through 1.20.0-pre', '{{title src:term}}' )
 				. "\n\n" . bws_fixture_gb_row( 'QL3.2 count (expect real counts for the staffed departments and a bare 0 for Workshop, which is assigned to no post; this whole row goes with the zero if the guard stops covering the tag)', '{{term_count}}' ),
 			'ql3-term-count-zero',
 			'WP_Term_Query'
@@ -1692,6 +1786,111 @@ function bws_fixture_page_content_matrix_loops() {
 	return implode( "\n\n", $sections );
 }
 
+/**
+ * matrix-pinned-roots — PINNED ENTITY ROOTS corpus (v20, FW-39, §F20 + §F21).
+ *
+ * The whole point of a pin is that it resolves the SAME wherever it is authored, so this
+ * page's own field values are deliberately unlike the pinned entities' ("Matrix: Pinned
+ * Entity Roots" the page title, "Sales" / "Tom Associate" / "Jane Partner" the pinned
+ * answers) — a row that happened to match ambient content would pass whether the pin
+ * resolved or not.
+ *
+ * The Sales department term's and Tom's staff post's real ids are resolved at BUILD TIME
+ * (bws_fixture_seeded_term_id() / bws_fixture_seeded_post_id()), never hand-typed: a pin
+ * is authored by ID (D9), and a fresh install's ids are not guaranteed to land on any
+ * particular number.
+ *
+ * §F21 (FW-39 ticket 03) reuses EXISTING staff fixture state — `staff-tom-associate`'s own
+ * `reports_to` (-> `staff-jane-partner`, v7) — rather than seeding anything new: `post`'s
+ * pinning offering needed no new manifest data to demonstrate, only a wire and a page to
+ * show it on, unlike `dept_lead` above which v20 added purpose-built.
+ *
+ * @return string
+ */
+function bws_fixture_page_content_matrix_pinned_roots() {
+	$sales_id = function_exists( 'bws_fixture_seeded_term_id' ) ? bws_fixture_seeded_term_id( 'sales', 'department' ) : false;
+	$tom_id   = function_exists( 'bws_fixture_seeded_post_id' ) ? bws_fixture_seeded_post_id( 'tom-associate', 'staff' ) : false;
+	// F22.6 pins the page that OWNS the `team_members` repeater, so a `rows` step can run
+	// off a pin from a page that is not that one. Resolved the same way, for the same reason.
+	$meta_id  = function_exists( 'bws_fixture_seeded_post_id' ) ? bws_fixture_seeded_post_id( 'matrix-post-meta', 'page' ) : false;
+	if ( ! $sales_id || ! $tom_id || ! $meta_id ) {
+		// Either seed is missing (a partial/out-of-order seed run) — render a single
+		// visible flag rather than a page of tags naming a bogus id, which would
+		// misreport as "the pin doesn't resolve" instead of "reseed first".
+		return bws_fixture_gb_text_block(
+			'PINNED-ROOTS FIXTURE ERROR: the "sales" department term, the "tom-associate" staff post or the "matrix-post-meta" page was not found. Reseed terms + staff + pages before this page.',
+			'pinned-roots-missing-term'
+		);
+	}
+
+	$sections = array();
+
+	$sections[] = bws_fixture_gb_section( 'F20 - a PINNED TERM resolves the same wherever it is authored', array(
+		bws_fixture_gb_row( "F20.1 base tag pinned at term,{$sales_id} (-> Sales)", "{{text src:term,{$sales_id}|use:title}}" ),
+		bws_fixture_gb_row( 'F20.2 the ambient contrast, same key, no root (-> Matrix: Pinned Entity Roots, THIS page)', '{{text use:title}}' ),
+		bws_fixture_gb_empty_row( 'F20.3 bare `src:term`, no argument - D2/D8 refusal, hand-wire only (nothing offers this in the UI) - EMPTY, never the page\'s own entity', '{{text src:term|use:title}}' ),
+		bws_fixture_gb_empty_row( 'F20.4 pinned at a term id that does not exist - EMPTY, a deleted pin does not fall back either', '{{text src:term,999999|use:title}}' ),
+		bws_fixture_gb_row( "F20.5 the SAME pin inside a try_ attempt (-> Sales)", "{{try_text A:src(term,{$sales_id});use(title)}}" ),
+		bws_fixture_gb_row(
+			"F20.6 the SAME pin composed inside a join with the ambient title (-> Sales / Matrix: Pinned Entity Roots)",
+			"{{join mode:template|A:src(term,{$sales_id});use(title)|B:src(current);use(title)|format:%A / %B}}"
+		),
+		// D3 - a RELATIONSHIP STEP running OFF a pinned term root. `dept_lead` (v20) is
+		// the one term-meta field in the blueprint that resolves a POST reference, so
+		// this is the only page that can express "the term this page is pinned to, then
+		// hop to a post" rather than the reverse (a post hopping INTO a term).
+		bws_fixture_gb_row( "F20.7 a relationship step off the pinned root (-> Tom Associate, the Sales dept_lead)", "{{text src:term,{$sales_id};refs,dept_lead|use:title}}" ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'F21 - a PINNED POST resolves the same wherever it is authored (FW-39 ticket 03)', array(
+		bws_fixture_gb_row( "F21.1 base tag pinned at post,{$tom_id} (-> Tom Associate)", "{{text src:post,{$tom_id}|use:title}}" ),
+		bws_fixture_gb_row( 'F21.2 the ambient contrast, same key, no root (-> Matrix: Pinned Entity Roots, THIS page)', '{{text use:title}}' ),
+		bws_fixture_gb_empty_row( 'F21.3 bare `src:post`, no argument - D2/D8 refusal, hand-wire only (nothing offers this in the UI) - EMPTY, never the page\'s own entity', '{{text src:post|use:title}}' ),
+		bws_fixture_gb_empty_row( 'F21.4 pinned at a post id that does not exist - EMPTY, a deleted pin does not fall back either', '{{text src:post,999999|use:title}}' ),
+		bws_fixture_gb_row( "F21.5 the SAME pin inside a try_ attempt (-> Tom Associate)", "{{try_text A:src(post,{$tom_id});use(title)}}" ),
+		bws_fixture_gb_row(
+			"F21.6 the SAME pin composed inside a join with the ambient title (-> Tom Associate / Matrix: Pinned Entity Roots)",
+			"{{join mode:template|A:src(post,{$tom_id});use(title)|B:src(current);use(title)|format:%A / %B}}"
+		),
+		// D3 - a RELATIONSHIP STEP running OFF a pinned POST root, the twin of F20.7 in
+		// the other direction (a post hopping to another post rather than a term hopping
+		// to one) - `reports_to` is Tom's existing staff->staff link (v7), reused rather
+		// than seeded new: pinning `post` needed no purpose-built state to demonstrate.
+		bws_fixture_gb_row( "F21.7 a relationship step off the pinned root (-> Jane Partner, Tom's reports_to)", "{{text src:post,{$tom_id};refs,reports_to|use:title}}" ),
+	) );
+
+	// F22 (FW-39 ticket 04) - STEPS off a pinned root. F20.7/F21.7 above are the ONE-STEP
+	// half and are not repeated here; these add the two-step chains, the same chain in all
+	// three containers, and the step the engine refuses.
+	$two_step = "src:term,{$sales_id};refs,dept_lead;refs,reports_to";
+	$sections[] = bws_fixture_gb_section( 'F22 - STEPS run off a pinned root, exactly as off any other root (FW-39 ticket 04)', array(
+		bws_fixture_gb_row( "F22.1 TWO steps off the pin: Sales -> its dept_lead (Tom) -> Tom's reports_to (-> Jane Partner)", "{{text {$two_step}|use:title}}" ),
+		// The literal D3 shape, term -> post -> term. `portal_visibility` and NOT
+		// `department`: jane and tom carry no department terms (F9.3), so that taxonomy
+		// would render empty here for a reason having nothing to do with pins.
+		bws_fixture_gb_row( "F22.2 the D3 shape term->post->term: the pin, its dept_lead, then that post's visibility terms (-> All Users)", "{{text src:term,{$sales_id};refs,dept_lead;terms,portal_visibility|use:title}}" ),
+		bws_fixture_gb_row( "F22.3 the SAME two-step chain inside a try_ attempt (-> Jane Partner, identical to F22.1)", "{{try_text A:src(term,{$sales_id};refs,dept_lead;refs,reports_to);use(title)}}" ),
+		bws_fixture_gb_row(
+			"F22.4 the SAME two-step chain inside a join slot, composed with the ambient title (-> Jane Partner / Matrix: Pinned Entity Roots)",
+			"{{join mode:template|A:src(term,{$sales_id};refs,dept_lead;refs,reports_to);use(title)|B:src(current);use(title)|format:%A / %B}}"
+		),
+		// THE REFUSED STEP: a `terms` step off a TERM source renders nothing, whether that
+		// term came from a pin or from anywhere else. What decides that is not this file's
+		// to state - see BWS_TRAVERSAL_STEP_INPUT_KINDS in traversal-pipeline.php. Hand-wire
+		// only: the editor does not offer this step off a term-kind root.
+		bws_fixture_gb_empty_row( 'F22.5 a `terms` step off the pinned TERM root - EMPTY: there is no term-to-term edge, and F20.1 already proves the pin itself resolves', "{{text src:term,{$sales_id};terms,department|use:title}}" ),
+		// ...and its NON-VACUITY partner: the same step type off a pinned POST root DOES
+		// run. Without this row, F22.5 reads identically to "the terms step is broken".
+		bws_fixture_gb_row( "F22.5b the SAME step type off a pinned POST root (-> All Users) - F22.5 is a KIND refusal, not a broken step", "{{text src:post,{$tom_id};terms,portal_visibility|use:title}}" ),
+		// A `rows` step off a pin, shown through {{table}} because no base/join/try_ arm
+		// assembles a repeater row (F9.5/F10.4 - a decided divergence, not a gap here). The
+		// pinned page is matrix-post-meta, which OWNS the repeater; this page does not.
+		bws_fixture_gb_block_host_row( "F22.6 a `rows` step off a pinned POST root: the team_members repeater read off matrix-post-meta, from this page (-> 2-row table: Alice Adams/Engineering, Bob Brown/Operations)", "{{table src:post,{$meta_id}|key:team_members|1-label:Name|1-key:name|2-label:Role|2-key:role}}" ),
+	) );
+
+	return implode( "\n\n", $sections );
+}
+
 /** Dispatcher: manifest content_builder name → page content. */
 function bws_fixture_build_page_content( $builder ) {
 	$map = array(
@@ -1702,6 +1901,7 @@ function bws_fixture_build_page_content( $builder ) {
 		'matrix_fixture_roots' => 'bws_fixture_page_content_matrix_fixture_roots',
 		'matrix_gate'          => 'bws_fixture_page_content_matrix_gate',
 		'matrix_loops'         => 'bws_fixture_page_content_matrix_loops',
+		'matrix_pinned_roots'  => 'bws_fixture_page_content_matrix_pinned_roots',
 		'pattern_legacy_wire'  => 'bws_fixture_pattern_content_legacy_wire',
 		'context_header'       => 'bws_fixture_element_content_context_header',
 		'home_lead'            => 'bws_fixture_page_content_home_lead',
@@ -1742,11 +1942,41 @@ function bws_fixture_build_page_content( $builder ) {
  * render-tag-only — see `context-test-matrix.md`), these three need no seeded Media Library id:
  * `fallback` is plain text, stable across every reseed, so they are fully visible here.
  *
+ * C-TERM1/C-TERM2 pin the 1.20.0 ambient-term guard. They are on THIS element and not on a
+ * singular page because the guard's subject is the ambient entity's KIND, and only a
+ * non-singular query varies it. The pair is deliberate: C-TERM1 alone is satisfied by a tag
+ * that resolves nowhere at all, since it asserts empty on six of the seven contexts, so
+ * C-TERM2 pins a term the tag NAMES and must keep rendering everywhere. `/department/sales/`
+ * joins the context pages for the same reason — the positive arm needs a term archive.
+ *
  * @since 1.19.0
+ * C-CONV1..7 are the MIGRATION half of the same question, and they are PAIRS on purpose: an
+ * unpinned `term_*` tag beside the base tag it converts to, on all seven contexts at once.
+ * What they measure is a DIRECTION, and a single row cannot show one. On the UNPINNED arm
+ * every difference runs empty→value; C-CONV6/7 are the pair that runs the other way, which
+ * is why that shape is skipped rather than converted, and keeping the refused shape visible
+ * beside the allowed ones is what stops the exemption reading as "term_ tags may change".
+ *
+ * The PINNED arm (C-CONV10..14) claims no exemption at all — a tag that named its own term
+ * still names it, so those pairs are byte-identical in both directions. C-CONV13/14 are the
+ * one exception and are labelled as such: a pin whose term is GONE renders the page's own
+ * term before the rewrite and nothing after it.
+ *
  * @since 1.19.1 C-C2/C-DT1/C-DT2 added
+ * @since 1.20.0 C-TERM1/C-TERM2 added, then C-CONV1..9 and the pinned C-CONV10..14 (FW-39)
  * @return string
  */
 function bws_fixture_element_content_context_header() {
+	// The PINNED conversion rows (C-CONV10..12) name a term by id on BOTH sides, so the id is
+	// resolved at build time rather than hand-typed — same rule as the pinned-roots page.
+	// C-TERM2 above still carries a literal `6`; it predates the resolver and is left alone
+	// rather than re-typed under this ticket's baseline. A failed lookup renders the rows
+	// against id `0`, which resolves nothing on either side and reads as "reseed", not as a
+	// broken pin — the pair stays honest because both halves fail together.
+	$support_id = function_exists( 'bws_fixture_seeded_term_id' )
+		? (int) bws_fixture_seeded_term_id( 'support', 'department' )
+		: 0;
+
 	return bws_fixture_gb_section(
 		'Query-context rows (C-rows)',
 		array(
@@ -1777,6 +2007,70 @@ function bws_fixture_element_content_context_header() {
 			bws_fixture_gb_row(
 				'C-DT2 datetime_range WITH a fallback (-> TBA, same reasoning as C-DT1)',
 				'{{datetime_range fallback:TBA}}'
+			),
+			bws_fixture_gb_empty_row(
+				'C-TERM1 unpinned term_text -> the queried term name (Sales) on a TERM archive, EMPTY on every other context here (author, PTA, date, search, 404, latest-home). Before 1.20.0 it read whatever id the page had queried as if it were a term id, so /author/fixture-author/ (user 2) rendered the term All Users',
+				'{{term_text use:title}}'
+			),
+			bws_fixture_gb_row(
+				'C-TERM2 term_text NAMING its own term -> Support on EVERY context, term archive included. A pin is not an ambient read, so the guard must not touch it; this row is what says so, and it is also what stops C-TERM1 passing on a tag that resolves nowhere',
+				'{{term_text id:6|use:title}}'
+			),
+			bws_fixture_gb_empty_row(
+				'C-CONV1 the CONVERTED form of C-TERM1, unpinned -> read the two together: EQUAL on the term archive (Sales), and empty-vs-value everywhere else. This is C-X1 above under a second name, and the duplicate is the point - the PAIR is the measurement',
+				'{{text use:title}}'
+			),
+			bws_fixture_gb_empty_row(
+				'C-CONV2 unpinned term_content, the BEFORE half of the collapsing template -> the Sales term description on the term archive, EMPTY on all six others',
+				'{{term_content}}'
+			),
+			bws_fixture_gb_empty_row(
+				'C-CONV3 what C-CONV2 converts to -> the SAME term description on the term archive; on the six others it renders the page own analog (PTA description, author bio, 404 borrow) where C-CONV2 renders nothing. Empty->value, never value->value: that direction is the whole exemption',
+				'{{content}}'
+			),
+			bws_fixture_gb_empty_row(
+				'C-CONV4 the CHAINED unpinned arm, before -> Tom Associate on the term archive (the Sales term dept_lead relationship), EMPTY on all six others',
+				'{{term_text src:ref|ref:dept_lead|use:title}}'
+			),
+			bws_fixture_gb_empty_row(
+				'C-CONV5 what C-CONV4 converts to -> Tom Associate on the term archive, EMPTY on all six others. Identical to C-CONV4 in BOTH directions on every context: the ambient root is the only thing that moved, and a chained tag states its own steps',
+				'{{text src:refs,dept_lead,limit(1)|use:title}}'
+			),
+			bws_fixture_gb_empty_row(
+				'C-CONV6 a SKIPPED shape, `tax` with no `id` -> the phone of the term the page is about ((987) 333-4444 on the Sales archive; the stated taxonomy is ignored), EMPTY elsewhere. The converter leaves it byte-identical: its only faithful rewrite renders empty here, which is the direction the exemption does not cover',
+				'{{term_text tax:department|key:phone}}'
+			),
+			bws_fixture_gb_empty_row(
+				'C-CONV7 what C-CONV6 would convert to if it were converted -> EMPTY on the term archive (a terms hop needs a post input) and (987) 333-4444 on nothing here. Value->empty is why C-CONV6 is skipped, and this row is what shows it',
+				'{{text src:terms,department|key:phone|limit:1}}'
+			),
+			bws_fixture_gb_empty_row(
+				'C-CONV8 an INERT srcTermIn, the before half -> (987) 333-4444 on the Sales archive (the term this page is about; the stated taxonomy is ignored, because a terms step needs a post input this family only supplies through ref), EMPTY on every other context',
+				'{{term_text srcTermIn:department|key:phone}}'
+			),
+			bws_fixture_gb_empty_row(
+				'C-CONV9 what C-CONV8 converts to -> (987) 333-4444 on the Sales archive, EQUAL to C-CONV8 on all seven contexts. The inert key leaves with the source axis it belonged to; folding it into a terms step instead rendered empty here, which is C-CONV7 one root over',
+				'{{text key:phone}}'
+			),
+			bws_fixture_gb_row(
+				'C-CONV10 a PINNED tag, the before half -> Support on EVERY context, term archive included (a pin is not an ambient read). Deliberately NOT the term the archive is about: a row pinned at Sales would pass here whether the pin resolved or not',
+				"{{term_text id:{$support_id}|use:title}}"
+			),
+			bws_fixture_gb_row(
+				'C-CONV11 what C-CONV10 converts to -> Support on all seven contexts, EQUAL to C-CONV10 on every one. The pinned direction is the only one in this section with no exemption to claim: a tag that named its own term still names it',
+				"{{text src:term,{$support_id}|use:title}}"
+			),
+			bws_fixture_gb_row(
+				'C-CONV12 the SAME pin carrying a `tax` -> Support, identical to C-CONV10 everywhere. It converts to C-CONV11 with the taxonomy GONE: a term id is globally unique, so the key adds nothing to a pinned read. This is the one shape `tax` is dropped from - with no `id` beside it the same key is C-CONV6, skipped whole',
+				"{{term_text id:{$support_id}|tax:department|use:title}}"
+			),
+			bws_fixture_gb_empty_row(
+				'C-CONV13 a DEAD pin, the before half -> Sales on the TERM ARCHIVE and empty on the other six. A pin naming a term that no longer exists does not render blank: the family falls through to the ambient term and shows whichever term the page is about, as if the author had picked it',
+				'{{term_text id:999999|use:title}}'
+			),
+			bws_fixture_gb_empty_row(
+				'C-CONV14 what C-CONV13 converts to -> EMPTY on all seven, term archive included. THE ONE ROW IN THIS SECTION THAT RUNS value->empty: the conversion is not output-neutral for a dead pin, and that is the decided outcome - a broken pin reads as broken (and as `(missing)` in the editor) instead of silently borrowing the page term. Every other pinned row above is byte-identical in both directions',
+				'{{text src:term,999999|use:title}}'
 			),
 		)
 	);

@@ -5,10 +5,7 @@
 to the field-selector invariants so they stay valid past the SPEC's post-ship
 truncation.
 
-> **Re-run trigger:** after any change to `assets/js/field-combo-control.js`,
-> `includes/rest/field-discovery.php`, the enqueue/inline block in the main plugin
-> file, or a flip of any `key`/`ref`/datetime-key option to (or from)
-> `bws-field-combo`.
+> **Re-run trigger:** after any change to `assets/js/field-combo-control.js`, `includes/rest/field-discovery.php`, the enqueue/inline block in the main plugin file, a flip of any `key`/`ref`/datetime-key option to (or from) `bws-field-combo`, or either half of the pinned-root narrowing (the `scope` slug on `includes/rest/entity-lookup.php`'s row shapers, and the `window.bwsRootArgKinds` inline the enqueue path emits).
 >
 > **Two layers:**
 > - **Discovery logic (pure, automated):** `php tools/test/field-discovery-test.php`
@@ -158,3 +155,25 @@ M3.5-3.7; kept here as the focused reopen pass.)
 | # | Action | Expect |
 |---|---|---|
 | M11.1 | Set a base tag to `src:ref`, open its `key` picker | Location filter defaults to **"All detected fields"** (NOT preset to Post), control label reads generic **"Meta/Option Field"** — ref-hop target is unknown, so unscoped (V3). Post fields still reachable by choosing them |
+
+---
+
+## M12 — pinned-root narrowing (FW-39 D22)
+
+A pinned root is the one source whose entity KIND and entity are both known before a render, so it is the one root the picker can narrow against. `current` and every other unpinned root cannot, and that asymmetry is the design, not a gap (D22). The narrowing rides the discovery envelope's EXISTING per-field `scope` plus the entity's own lookup — **if a row here fails, check that the entity row carries a `scope` slug and that `window.bwsRootArgKinds` is present in the page source** before suspecting the picker.
+
+M12.1 and M12.2 are the side-by-side pair: same tag, same field list underneath, one pinned and one not.
+
+| # | Action | Expect |
+|---|---|---|
+| M12.1 | Base `{{text}}`, Source = **Current Context**, open the `key` picker | The UNNARROWED list — `contact_email` (Staff Contact, `staff`), `event_date` (Department Event Date, `department`) and every other discovered field are all offered together |
+| M12.2 | Same tag, Source = **Term**, pin a `department` term (e.g. Support), reopen the `key` picker | NARROWED to the `department`-scoped fields — `Department Event Date ('event_date')`, `Department Lead ('dept_lead')`, `Email ('email')` — plus any field whose group has no location scope. The `staff`-scoped fields (`contact_email`, `related_staff`) are GONE |
+| M12.3 | Change the pin to a term of a DIFFERENT taxonomy, reopen the picker | The list re-narrows to that taxonomy's fields with no page reload — the scope is derived per render, never cached against the first pin |
+| M12.4 | Same tag, Source = **Post**, pin a `staff` post (e.g. Jane Partner) | NARROWED to the `staff`-scoped fields — `Contact Email ('contact_email')`, `Related Staff ('related_staff')` — and the `department`-only fields are gone. Same rule, other kind |
+| M12.5 | Pin a post of a type NO field group is scoped to | Only the unscoped fields are offered. NOT the full list, and not an error — an entity with no fields of its own is the answer the narrowing exists to give. Free-typing a key still commits |
+| M12.6 | Pin a term, then add a `refs` step after it, and open the STEP's field picker | Narrowed to the pinned term's taxonomy — the step's field is read off the pin, which is the entity just before it |
+| M12.7 | Add a SECOND step and open ITS field picker | UNNARROWED — its input is the previous step's target, whose type nothing knows at parse time (same reason M11.1 presets nothing under `src:ref`) |
+| M12.8 | With a pinned root and a `refs` step, open the tag's own `key` picker | UNNARROWED — the read applies to the step's target, not to the pin |
+| M12.9 | `try_text` slot 2: pin a term on slot 2 while slot 1 is pinned to a POST | Slot 2's field picker narrows to slot 2's taxonomy, independently of slot 1 (the same per-slot independence M6.3 asserts for the location preset) |
+| M12.10 | `{{join}}` field with a pinned root, open its field picker | Narrows identically to the base tag's — one rule, all three containers (D11) |
+| M12.11 | Pin a term, then DELETE that term in another tab and reopen the picker | The list is UNNARROWED, never empty: a pin that will not resolve must not hide every scoped field, because a transient failure and "this taxonomy has no fields" would look identical |

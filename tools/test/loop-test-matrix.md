@@ -75,17 +75,19 @@ second is over the blueprint's `department` terms, whose ids no post carries —
 landing on nothing. A reader saw an unrelated value in one and an empty row in the other; they
 are one defect and they flipped together.
 
-The three reads in the first group now AGREE, and that agreement is the assertion: a bare tag, an
-explicit source and the extension's own tag all name the same term. A row disagreeing with its
-neighbours is the leak returning.
+The three reads in the first group AGREED through 1.20.0-pre, and that agreement was the
+assertion: a bare tag, an explicit source and the extension's own tag all named the same term. A
+row disagreeing with its neighbours was the leak returning. **QL1.2 stopped agreeing in 1.20.0
+(FW-39, v20) — see its own row below**, a measured and deliberate consequence of `term` becoming a
+PINNING root, not a regression of this group's own mechanism.
 
 | # | Tag (on `/matrix-loops/`) | Expected | Status |
 |---|---|---|---|
 | QL1.1 | `{{title}}`, inside the `category` loop | `Uncategorized` — the loop's own term. Was `Hello world!`, the post sharing the term id | **PASS** |
-| QL1.2 | `{{title src:term}}`, same loop | `Uncategorized` — an explicit source resolved the loop's term throughout | **PASS** |
+| QL1.2 | `{{title src:term}}`, same loop | **EMPTY since 1.20.0** (FW-39, D8) — was `Uncategorized` through 1.20.0-pre. `term` now DECLARES a pinning argument, and an explicit `src:term` with none REFUSES at the factory seam before `TaxonomyTerm::resolve_id()` (the loop-aware call that used to answer this) is ever reached — the same refusal a hand-typed, argument-less PIN gets, because the wire cannot tell the two intents apart. See CONTEXT.md I15's fifth shape and `fold-test-matrix.md` §F20.3 | **PASS** |
 | QL1.3 | `{{term_archive_url}}`, same loop | `https://<site>/category/uncategorized/` — the extension's own term tag, correct throughout. Its ARCHIVE URL tag and not its title tag: we register a `term_title` of our own, so that name is a registration collision (spec D4) and which plugin answers depends on load order. This row shows a third-party read landing on the loop's term, not whose registration won | **PASS** |
 | QL1.4 | `{{title}}`, inside the `department` loop | `Sales`, `Support`, `Warehouse` — the loop's own terms. Was **EMPTY**: the same leak with no post carrying the id (6/7/8 on the reference site) | **PASS** |
-| QL1.4b | `{{title src:term}}`, same loop | `Sales`, `Support`, `Warehouse` — the non-vacuity control for QL1.4, and now also its equivalence control: the bare read and the explicit one must agree | **PASS** |
+| QL1.4b | `{{term_archive_url}}`, same loop | The loop's own archive URLs — the non-vacuity control for QL1.4. Switched from `{{title src:term}}` in 1.20.0 (v20): that read is QL1.2's own now-empty shape and can no longer distinguish "the loop didn't run" from "the loop ran and this root refused", so the extension's independently-proven tag (QL1.3's mechanism) took over the role | **PASS** |
 
 ## QL2 — a query loop over USERS
 
@@ -122,7 +124,7 @@ the guard working; a column of nothing is a loop that did not run.
 
 | # | Tag (on `/matrix-loops/`) | Expected | Status |
 |---|---|---|---|
-| QL3.1 | `{{title src:term}}` | `Sales`, `Support`, `Warehouse`, `Workshop` — the identity for the count beside each | **PASS** |
+| QL3.1 | `{{title src:term}}` | **EMPTY since 1.20.0** (FW-39, D8) — was `Sales`, `Support`, `Warehouse`, `Workshop` (the identity for the count beside each) through 1.20.0-pre. Same cause as QL1.2: `term` now declares a pinning argument, so this argument-less `src:term` REFUSES at the factory seam. Left unfixed rather than given QL1.4b's `{{term_archive_url}}` fix: TRIED, and it does not carry over because this is the SECOND `department`-taxonomy term loop on the page and GBQE's own tag needs a `taxonomy` key its loop item does not carry here — a discovered, unexplained GBQE gap on a second same-taxonomy loop, not a D8 consequence. The row is split (label/tag) so it stays visible with nothing after the colon, rather than vanishing whole; QL3.2's own counts remain the non-vacuity control, though a tied count (6, 6) can no longer say which department it belongs to | **PASS** |
 | QL3.2 | `{{term_count}}` | real counts for the three staffed departments, then `0` for `Workshop`, which is assigned to no post. The zero survives GB's block-kill only because of the guard; without it the whole row disappears | **PASS** |
 
 ## QL4 — a POST query nested inside a TERM query loop

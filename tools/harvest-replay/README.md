@@ -48,6 +48,18 @@ today, and conflating their baselines makes one invisible:
 
   A re-run after the migrator itself has moved is **the second migration replay**, and is the same
   experiment against a later converter.
+
+  **REUSING AN EARLIER A-RENDER IS ONLY SOUND WHILE THE ENV HAS NOT MOVED.** Reuse is otherwise
+  legitimate and cheap — same build, same restored DB, and `diff-replays.php` asserts census and
+  build identity before reading anything — but neither assertion covers the SITE the renders were
+  produced against, and the env repo owns that site. Measured 2026-09-14 on the Site P clone: the
+  env repo stopped writing dynamic `WP_HOME`/`WP_SITEURL` two days after an A-render was captured,
+  and the reused baseline turned a 464-pair result into **1051 pairs, 582 of them nothing but the
+  host string**. Re-rendering the A arm on the current env cost one replay and restored the number
+  exactly. **Do not normalize the difference away instead** — the instrument's claim is that it
+  compares bytes, and a collapse applied to its output on the way past is a rule invented for one
+  run that the next operator cannot see was applied. `docs/design-history/term-family-migration-output-neutrality.md`
+  §Measurement 3 is the build record.
 - **The build replay — OUR BUILD changed**, same wire both sides. Baseline is one clone, same
   declared plugin version, before/after a resolver change — no converter run, no `--map`, no DB
   restore. The gate expects the diff to come back **empty**; `diff-replays.php`'s build-identity

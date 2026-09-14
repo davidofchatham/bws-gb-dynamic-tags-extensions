@@ -176,6 +176,60 @@ function bws_replay_split_missing( array $missing, array $removed ): array {
 }
 
 /**
+ * Whether a changed pair is the FW-39 unpinned `term_*` exemption rather than a regression.
+ *
+ * THE AXIS, and both halves are required: the pair's OLD wire is an unpinned `term_*` tag,
+ * AND the change runs EMPTY → VALUE. Either alone forgives too much — an unpinned `term_*`
+ * tag whose value merely changed is a regression, and an empty A side under any other wire
+ * is the ordinary shape of a migration that broke something on one context.
+ *
+ * WHY THE OLD WIRE AND NOT A MARKER. The converter emits nothing that says "this row is
+ * exempt", and adding one would make the rule true only for runs that postdate it — a
+ * corpus harvested last month would be re-triaged by hand for a property its own wire
+ * already states. `term_`-prefixed with no `id` is exactly the population the rewrite
+ * changes (a pinned tag keeps its entity; every other family keeps its root), it is
+ * readable off the mapping file the run already loads, and it was true before this function
+ * existed.
+ *
+ * WHAT IT IS FORGIVING. A `term_*` tag addresses a term and nothing else, so off a term page
+ * it renders empty; the base tag it converts to addresses whatever the page is about. The
+ * difference is the capability the migration exists to grant, it is bound to this one
+ * direction, and it is disclosed in the scan report before anything is rewritten. The
+ * migration's own decision record owns why a rewrite may do that at all — this only
+ * recognizes the shape, and refuses every other one.
+ *
+ * ERRORS ARE NEVER FORGIVEN. A side that errored has not rendered empty, it has failed, and
+ * the two must not read alike.
+ *
+ * CALL IT ONLY UNDER `--map`. Without a mapping there is no migration in the run, and this
+ * exact shape is then a plain regression.
+ *
+ * @param string $old_tag  The A-side (pre-migration) tag string — the mapping's `old`.
+ * @param array  $a_side   array( output, error ) as the A render recorded them.
+ * @param array  $b_side   array( output, error ) as the B render recorded them.
+ * @return bool True when the pair is the exemption and must not fail the gate.
+ */
+function bws_replay_migration_exempt_row( string $old_tag, array $a_side, array $b_side ): bool {
+	if ( '' !== (string) ( $a_side[1] ?? '' ) || '' !== (string) ( $b_side[1] ?? '' ) ) {
+		return false;
+	}
+
+	if ( '' !== (string) ( $a_side[0] ?? '' ) || '' === (string) ( $b_side[0] ?? '' ) ) {
+		return false;
+	}
+
+	if ( ! preg_match( '/^\{\{\s*(term_[A-Za-z0-9_]+)(.*)\}\}$/s', trim( $old_tag ), $parts ) ) {
+		return false;
+	}
+
+	// PINNED IS NOT EXEMPT. A tag naming its own term reads that term on every context, so
+	// nothing about it was ambient and nothing about the rewrite may move it. `id` is GB's
+	// key and arrives after the tag name — first behind the separating space, thereafter
+	// behind a pipe.
+	return 1 !== preg_match( '/(?:^|\|)\s*id\s*:/', ltrim( $parts[2] ) );
+}
+
+/**
  * Findings for a DEPENDENCY replay — the one where our build is the held-fixed half.
  *
  * THE AXIS: the environment must have MOVED and our build must NOT have. That is the exact
@@ -304,4 +358,44 @@ function bws_replay_dependency_findings( $a_env, $b_env, array $a_build, array $
 	}
 
 	return $findings;
+}
+
+/**
+ * Classify one derived mapping row against what the converter actually left in wp_posts.
+ *
+ * THE MAPPING NAMES WHAT MOVED, and a derived row is not evidence that anything did.
+ * `run-converter.php` derives old → new from the two shipped transforms, but `migrate_post()`
+ * puts a THIRD thing between the transform and the write — the ownership guard — so the
+ * derived set is a superset of the written one, by however much the guard refuses.
+ *
+ * A ROW NAMING A REWRITE THAT NEVER HAPPENED IS NOT FREE. `diff-replays.php` falls back to
+ * identity pairing when a row's new wire is absent from the B side, which costs nothing while
+ * the old wire is all that URL holds — but a URL that ALREADY held the new form pairs the
+ * declined A render against it and reports a change nobody made.
+ *
+ * THE DISCRIMINATOR IS PER STRING, NOT PER NAME. `$name_declined` comes from what
+ * `migrate_post()` reported as it ran, and it is keyed by tag NAME; one name can hold a string
+ * the guard passed beside one it refused, since the decision reads that string's option keys.
+ * So it takes a SURVIVING OLD STRING to say this row is the refused one.
+ *
+ * `unverified` IS THE POPULATION WITH A RESTING STATE OF ZERO, which is the whole reason it is
+ * split out. Old wire surviving in wp_posts has causes beyond the guard — a pattern that
+ * stopped matching, a post type `scan()` does not reach, an early return in the write path —
+ * and before the guard shipped those were the only ones, so any member stood out against an
+ * empty field. Folding the guard's declines in with them costs the instrument its only
+ * detector for the rest of that class, an ownership guard refusing MORE than it should
+ * included.
+ *
+ * @since 1.20.0
+ * @param bool $still_old     Old wire still present in wp_posts after the run.
+ * @param bool $has_new       New wire present in wp_posts after the run.
+ * @param bool $name_declined The guard refused this row's tag name during the run.
+ * @return string One of 'moved', 'declined', 'unreached', 'unverified'.
+ */
+function bws_replay_classify_mapping_row( bool $still_old, bool $has_new, bool $name_declined ): string {
+	if ( $still_old ) {
+		return $name_declined ? 'declined' : 'unverified';
+	}
+
+	return $has_new ? 'moved' : 'unreached';
 }

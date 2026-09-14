@@ -1394,11 +1394,13 @@ eq(
 	)
 );
 
-// The settings gate is an OFFERING gate too — it hides a term-context root from the
-// dropdown, and a tag already naming one keeps rendering.
+// The term_ toggle reaches NEITHER offering nor resolution. Until 1.20.0 it reached
+// offering (a term-context root was hidden from the dropdown with the family switched
+// off); that gate is gone — `slot-options-build-test.php` pins the offering half. This
+// pins the half that was never gated: what a tag already names goes on resolving.
 \BWS\DynamicTags\Admin\SettingsPage::$modifiers_enabled = false;
 eq(
-	'registry: a DISABLED term root still resolves for a tag that already names it',
+	'registry: a term root resolves with the term_ family switched off',
 	array( 'kind' => 'term', 'id' => 99 ),
 	bws_resolve_base_source( array( 'src' => 'testtermroot' ), null, sig() )
 );
@@ -1417,6 +1419,123 @@ eq(
 	array( array( 'type' => 'refs', 'field' => 'office' ) ),
 	bws_field_values_assemble_steps( array( 'src' => 'testroot;refs,office' ) )
 );
+
+// ── THE ROOT-ARGUMENT SEAM (D3/D8, FW-39) ─────────────────────────────────────
+//
+// D3: a PINNED root is a REAL chain root — hops run off it exactly as off any other, and
+// step ADMISSION is BWS_TRAVERSAL_STEP_INPUT_KINDS' answer and nothing else. Live
+// resolution against WordPress (get_term, the tax round-trip) rides testbed matrix rows
+// per this ticket's Testing Decisions; what a pure harness owns is that the PIN reaches
+// the factory and that the engine admits/refuses steps by KIND, unaffected by whether
+// that kind came from a pin or from ambient context.
+\BWS\DynamicTags\SourceRegistry::register_source( new BWS_Test_Pinned_Term_Source() );
+\BWS\DynamicTags\SourceRegistry::register_source( new BWS_Test_Owner_Resolves_Root_Source() );
+
+eq(
+	'D3: a pinned root resolves through resolve_root_argument(), not resolve_id()',
+	array( 'kind' => 'term', 'id' => 68 ),
+	bws_resolve_base_source( array( 'src' => 'pinnedterm,34' ), null, sig() )
+);
+eq(
+	'D3: a `refs` step is admitted off a pinned root (term kind accepts it)',
+	array( post_src( 5 ) ),
+	bws_run_traversal(
+		array( array( 'kind' => 'term', 'id' => 68 ) ),
+		array( array( 'type' => 'refs', 'field' => 'lead' ) ),
+		function ( $step, $source ) { return array( 5 ); }
+	)
+);
+eq(
+	'D3: a `terms` step is REFUSED off a pinned root — no term→term edge',
+	array(),
+	bws_run_traversal(
+		array( array( 'kind' => 'term', 'id' => 68 ) ),
+		array( array( 'type' => 'terms', 'slug' => 'category' ) ),
+		function ( $step, $source ) { return array(); }
+	)
+);
+
+// The THIRD step type, and the other side of the refusal (ticket 04). `rows` accepts every
+// entity kind, so it runs off either pin; `terms` accepts a POST input, so the SAME step
+// the term pin refuses is admitted off the post pin. The pair is what makes the refusal a
+// KIND rule rather than a rule about pinned roots — a "pinned roots are terminal" shortcut
+// would pass the row above and fail both of these.
+eq(
+	'D3: a `rows` step is admitted off a pinned TERM root (rows accepts every entity kind)',
+	array( array( 'kind' => 'meta_row', 'row' => array( 'name' => 'Alice' ) ) ),
+	bws_run_traversal(
+		array( array( 'kind' => 'term', 'id' => 68 ) ),
+		array( array( 'type' => 'rows', 'field' => 'team_members' ) ),
+		function ( $step, $source ) { return array( array( 'name' => 'Alice' ) ); }
+	)
+);
+eq(
+	'D3: a `terms` step IS admitted off a pinned POST root — the refusal above is the KIND, not the pin',
+	array( array( 'kind' => 'term', 'id' => 7 ) ),
+	bws_run_traversal(
+		array( array( 'kind' => 'post', 'id' => 1692 ) ),
+		array( array( 'type' => 'terms', 'slug' => 'department' ) ),
+		function ( $step, $source ) { return array( new WP_Term( 7 ) ); }
+	)
+);
+// The D3 headline shape end to end through the engine: term → post → term, two hops off a
+// pin, each admitted on the kind the previous one produced. Pure here (the reader is
+// injected); the live values ride fold-test-matrix.md §F22.
+eq(
+	'D3: `term,<id>;refs,<rel>;terms,<tax>` runs both hops off the pin',
+	array( array( 'kind' => 'term', 'id' => 9 ) ),
+	bws_run_traversal(
+		array( array( 'kind' => 'term', 'id' => 68 ) ),
+		array(
+			array( 'type' => 'refs', 'field' => 'dept_lead' ),
+			array( 'type' => 'terms', 'slug' => 'portal_visibility' ),
+		),
+		function ( $step, $source ) {
+			return 'refs' === ( $step['type'] ?? '' ) ? array( 5 ) : array( new WP_Term( 9 ) );
+		}
+	)
+);
+
+// D8: an ARGLESS declaring root REFUSES at the factory seam — it never falls back to
+// resolve_id()'s ambient read, which is [I15] applied at the root layer. Verified by
+// MUTATION: an accidental `?? $source->resolve_id(...)` on the argless branch would pass
+// every OTHER row in this file (no ambient signal names 'pinnedterm') and only this row
+// would catch it.
+eq(
+	'D8: an argless declaring root refuses — it does not degrade to resolve_id(), EVEN WHEN resolve_id() would have answered something (the fixture always returns 555)',
+	array( 'kind' => BWS_SOURCE_KIND_UNRESOLVED ),
+	bws_resolve_base_source( array( 'src' => 'pinnedterm' ), null, sig() )
+);
+// The QL1.2 discovery, pinned directly: an explicit, argless `src:term` used to reach
+// resolve_id() and correctly answer whatever the AMBIENT/LOOP context was — this row
+// proves the refusal fires even with a live ambient TERM signal present, not merely when
+// there is nothing there to find. See fold-test-matrix.md §F20's own note and
+// loop-test-matrix.md §QL1 (the fixture row this measurement changed).
+eq(
+	'D8: the refusal holds even with an ambient TERM signal present — the QL1.2 regression, pinned',
+	array( 'kind' => BWS_SOURCE_KIND_UNRESOLVED ),
+	bws_resolve_base_source(
+		array( 'src' => 'pinnedterm' ),
+		null,
+		sig( array( 'queried_kind' => 'term', 'queried_id' => 34, 'is_tax' => true ) )
+	)
+);
+// A pin naming NOTHING resolvable is equally terminal — resolve_root_argument() returning
+// false does not fall back to resolve_id() either.
+eq(
+	'D8: a pin resolve_root_argument() refuses on refuses too (non-numeric argument)',
+	array( 'kind' => BWS_SOURCE_KIND_UNRESOLVED ),
+	bws_resolve_base_source( array( 'src' => 'pinnedterm,abc' ), null, sig() )
+);
+// The OWNER-RESOLVES policy is the one case an argless token is NOT refused — it runs
+// resolve_id() by the owner's own rule, never the ambient fallthrough (that fixture
+// resolves a fixed post id regardless of ambient signals, proving nothing here leaked in).
+eq(
+	'D8: OWNER_RESOLVES is the one argless policy that reaches resolve_id()',
+	array( 'kind' => 'post', 'id' => 11 ),
+	bws_resolve_base_source( array( 'src' => 'ownerroot' ), null, sig() )
+);
+
 // ── A PRESENT-BUT-UNUSABLE SOURCE REFUSES (#75 / #76) ────────────────────────
 //
 // An ABSENT source legitimately means the ambient entity — that is what a bare tag

@@ -1,10 +1,72 @@
 # Changelog
 
+## [1.20.0] — unreleased
+
+### Highlights
+
+- A tag can now be pinned to one specific term or post, instead of only reading whatever the visitor is looking at!
+  - Choosing "Term" or "Post" as a source opens a picker listing every term or post, grouped and searchable, with the ID shown beside the name. *(Added)*
+  - Source paths run off a pin exactly as they run off any other source, so "this category's related posts" is one tag instead of unreachable. *(Added)*
+  - The field picker narrows to the fields that pinned taxonomy or post type can actually have, and re-narrows when you repin. *(Added)*
+  - Works on a base tag, a Join field and a Try attempt alike. *(Added)*
+- The `{{term_*}}` tags are deprecated, and the Migration Tool can convert them for you.
+  - They no longer read an unrelated term whose ID happened to match the page's, which could render a completely unrelated term's data with nothing on the page to show it was wrong. *(Fixed)*
+  - A `{{term_*}}` tag set to a taxonomy now reaches the current post's first matching term, which that setting always described but could not reach. *(Fixed)*
+  - `{{term_text}}` converts to `{{text}}`, keeping its term, its relationship hops and its taxonomy path; what it gains is the whole base-tag surface, now and from here on. *(Added)*
+  - Every `{{term_*}}` tag keeps rendering either way. Nothing is removed in this release, and removal will not happen without warning. *(Deprecated)*
+- The Migration Tool now refuses to rewrite a tag it cannot prove is yours, and says what it is not going to do.
+  - Where another plugin registers a tag by the same name, none of those tags are converted; you can claim that one tag name and the conversion runs. *(Added)*
+  - The scan report has three sections instead of one: to be converted, declined, and skipped, each with the reason. *(Added)*
+- Another plugin's chain root can now declare an argument of its own, so a root can name one entity rather than only "whatever this page is about." *(Added)*
+- The default source row is relabelled "Current Context," since it has followed terms, users and query contexts, not just posts, since 1.14.0. *(Changed)*
+
+### Added
+
+- **A block can now be rooted at one specific term, on any page.** Choosing "Term" as a base tag's source, a `{{join}}` field's source or a `try_` attempt's source opens a picker listing every taxonomy's terms, grouped by taxonomy with the term's ID shown beside its name, filterable by taxonomy and searchable with no need to type first. Once pinned, the tag reads that term's field regardless of what the visitor is looking at, and steps (a relationship field, a repeater) can run off it exactly as they run off any other source, so "this category's related posts" is now one tag instead of unreachable. The editor's configuration preview names the pinned term ("Term: News"); a term that has since been deleted reads `term 34 (missing)` instead of rendering silently blank. Selecting Term with nothing picked renders nothing rather than falling back to whatever the current page happens to be about, and the preview flags it plainly ("Term: nothing pinned") instead of looking like an ordinary tag. Nothing about the existing `{{term_*}}` tags changes. **One narrow exception, for hand-edited wire only:** a base tag written as `src:term` with no id (nothing in the editor has ever offered this) now also renders nothing, where it previously read the term the page or query loop was already about. Nothing generates this wire, so this affects only a tag typed by hand.
+
+- **The same is now true for a specific post.** Choosing "Post" as a source opens the same kind of picker, grouped by post type instead of taxonomy; a draft is pickable and its row is labelled "(draft)" so pinning one before it publishes is a deliberate choice, not an accident, and a picker never shows a post its viewer could not otherwise see in the admin. The preview names the pinned post ("Post: Hello world!"); a deleted one reads `post 1692 (missing)`. A base tag written by hand as `src:post` with no id now also renders nothing rather than reading the current post, for the same reason as the term case above: nothing in the editor has ever offered this shape either.
+
+- **The field picker now shows only the fields a pinned entity can actually have.** With a base tag, a `{{join}}` field or a `try_` attempt rooted at a specific term or post, the field list narrows to that taxonomy's or post type's own fields, plus any field whose group is not tied to one location. Repin to a different taxonomy or post type and the list re-narrows on the spot. A step that runs off the pin narrows the same way, since the field it reads belongs to the pinned entity; a second step does not, because nothing knows yet what the first one will land on. Sources that pin nothing, Current Context among them, still list every discovered field, which is the only honest answer when the entity is not known until render. A pinned entity with no fields of its own offers just the unscoped ones rather than quietly reverting to the full list, and a pin that cannot be looked up, because it was deleted or the current user cannot read it, leaves the list unnarrowed rather than empty. Any key can still be typed in by hand in every case.
+
+- **A chain root registered by another plugin can now declare an ARGUMENT**: one opaque token an author fills in, so a root can name one specific entity rather than only "whatever this page is about". A source class declares it from the new `get_root_argument()`, and a `bws_dynamic_tags_chain_roots` spec from a new optional `arg` key; both say what the argument means, which control edits it, and what a bare root with no argument means. On the wire the argument travels beside the root, so `view,north-campus` roots at `view` and hands `north-campus` to the declaring plugin's control. Nothing this plugin ships takes an argument yet and no control for one ships either, so no tag renders differently and no editor screen changes. See [Plugin integration §1a](docs/plugin-integration.md#1a-offering-your-source-as-a-chain-root).
+
+  **Upgrade note for integrators:** `get_root_argument()` is declared on `SourceInterface`, so a class implementing that interface **directly** must add it. A class extending `AbstractSource`, which is the documented recommendation, inherits the no-argument default and needs no change.
+
+- **The tag scanner can now convert a `{{term_*}}` tag into an ordinary base tag.** `{{term_content}}` becomes `{{content}}`, `{{term_text}}` becomes `{{text}}`, and a tag that walked a relationship field or a taxonomy comes out reading the same way, written as a source path. What it gains is the whole base-tag surface: source paths, per-step limits, the field picker, the configuration preview, and every capability added to the base tags from here on. Nothing converts until you run the scanner, and the old tag names keep rendering either way.
+
+  **A tag that names its own term converts too, and keeps naming it.** `{{term_text id:34}}` becomes `{{text src:term,34}}`, which reads term 34 on every page exactly as it did before, and opens in the editor with that term shown in the new picker. If the tag also had a taxonomy set, the taxonomy is dropped: a term ID is unique on its own, so it was adding nothing, and the editor works the taxonomy out from the term. This is the one part of the conversion that changes nothing at all on the page.
+
+  **One change you will see on the page**, and it is on the tags with no term picked. A `{{term_*}}` tag can only address a term, so it renders nothing on a page that is not about one. The base tag it becomes addresses whatever the page is about, so a converted tag can begin showing a value where it showed nothing before: on a post, an author archive, a post type archive or a 404. It never runs the other way, and a tag that renders a value today renders the same value after. This was measured on all seven page contexts before it was allowed.
+
+  **The exception is a tag pinned to a term that has since been deleted.** Today such a tag quietly falls back to whatever term the page is about, so on a category archive it shows that category's data as though you had picked it. After conversion it renders nothing, and the editor marks it `term 34 (missing)` so you can see which tag to repoint. This is the only case where a converted pinned tag stops showing something it was showing.
+
+  **Three hand-typed shapes are skipped rather than converted**, and keep rendering exactly as they do now: a `{{term_*}}` tag set to a taxonomy with no term picked, one written as `src:term` with no id, and one whose term ID is not a plain whole number. None has ever been offered in the editor, and the only faithful rewrite of any of them would render nothing.
+
+- **The tag scanner now leaves a tag alone when it cannot tell whose it is.** If another plugin on your site registers a tag by the same name, the strings in your content could have been written for either plugin and nothing in them says which. Rather than guess, the scanner converts none of them. It does the same for a tag carrying settings this plugin does not recognize, which is what content written for someone else's tag looks like once this plugin holds the name. Where you know those tags are yours, you can say so for that one tag name and the conversion runs. This applies to every conversion the scanner does, not only the `{{term_*}}` ones, and it changes nothing on a site where no other plugin claims one of these names.
+
+- **The scan report now says what it is NOT going to do, and why.** It has three sections instead of one: the posts that will be converted, the tag names **declined** because we cannot prove the tags on this site are ours, and the shapes **skipped** because there is no equivalent tag to convert them to. A declined tag names the other plugin that registers it, shows how many stored tags are affected and an example of one, and carries the per-name "these tags are mine" checkbox that lets the conversion run. A skipped tag says which shape was met and that the tag is unchanged and still renders, because there is nothing for you to do about it. Previously both kinds were simply listed as findings, so the report promised conversions that would silently not happen. Where a conversion will change what a page shows, the report says so once with a count, above the list; it does not ask you to confirm it twice.
+
+### Changed
+
+- **A chain root offered by another plugin is no longer hidden by the `term_ tags` setting.** A root whose source reads a term used to disappear from the source dropdowns when that setting was switched off. The setting now means the deprecated `{{term_*}}` tag family and nothing else, so a plugin's root stays offered either way, and a source's context type no longer has any say in whether it is offered. No saved tag is affected, because the setting never reached rendering.
+
+- **The default source is now labelled "Current Context" instead of "Current."** A tag with no source set follows whatever the page is about, which since 1.14.0 has meant a post, a term, a user or a query context, but the old label still read as though it meant the current post. The row is renamed everywhere it appears: a base tag's source dropdown, a `{{join}}` field's source and a `try_` attempt's source. Label only, so the saved tag string is unchanged, no stored tag moves, and nothing renders differently.
+
+### Deprecated
+
+- **The `{{term_*}}` tags are deprecated.** They now sit in GenerateBlocks' Deprecated group in the tag picker rather than in a group of their own, so an author browsing for a tag is steered away from them. Every `{{term_*}}` tag you already have keeps rendering exactly what it rendered before, and none of them has been removed: removal is a separate decision for a later release, and it will not be made without warning. The replacement is an ordinary base tag with its source set to a term, which the tag scanner can now do for you in one pass. On sites installed from this release onward the family arrives switched off, and the `term_ tags` toggle on the settings page turns it back on; a site that already has the plugin is untouched, whether or not it ever opened that page.
+
+- **Registering a context modifier is deprecated, and the option will be removed.** `TagTemplateRegistry::register_modifier()` creates a prefixed family of tags (`example_text`, `example_image`, and so on) that duplicates the base tags, so every capability added to the base tags has to be built a second time to reach it. Offering your source as a chain root does the same job and gives it the whole base-tag surface for free: source paths, per-step limits, field pickers and previews. No known external plugin registers a modifier any more; if yours does, see [Plugin integration §2](docs/plugin-integration.md#2-registering-a-context-modifier) for the move, and [§9](docs/plugin-integration.md#9-migrating-a-modifier-family-to-a-base-tag) to convert tags already saved in content before you retire your prefix. Nothing renders differently in this release.
+
+### Fixed
+
+- **A `{{term_*}}` tag no longer reads an unrelated term when the page is not about a term.** With no term picked, these tags fell back to the ID of whatever the page had queried and used it as a term ID, without checking that the queried thing was a term at all. Post IDs, term IDs and user IDs share one numbering, so on a page whose ID happened to match a real term the tag rendered that term's data as though it were the right answer: a page with ID 22 read a "Priority" flag term, and an author archive for user 2 read an "All Users" term. There was nothing on the page to show it was wrong. These tags now render nothing outside a term archive unless the tag names its own term or a query loop supplies one, which is what they already did whenever the numbers did not happen to collide. Picking a term explicitly, and reading a term inside a term loop, are unchanged. One knock-on improvement: a `{{term_*}}` tag set to a taxonomy now falls through to the first matching term on the current post, which is what that setting always described but could not reach, because the unchecked fallback answered first.
+
 ## [1.19.2] — 2026-09-10
 
 ### Changed
 
-- **The editor now says a slot "carries over" the previous slot's source or field, instead of "inherits" it.** Five advisory messages on slots 2 and up are reworded; the "Same as Previous Source" and "Same as Previous Field" options are unchanged. Nothing about how tags resolve or render changes, and no saved tag is affected.
+- **The editor now says a slot "carries over" the previous slot's source or field, instead of "inherits" it.** Five advisory messages on slots 2 and up are reworded; the "Same as Previous Source" and "Same as Previous Field" options are unchanged. Nothing about how tags resolve or render changes, and no saved tag is affected. The wording was freed up because "inherit" is being reserved for a different relationship — taking a value from a parent, rather than from the slot before.
 
 ### Removed
 
@@ -13,11 +75,13 @@
 ### Fixed
 
 - **`{{content}}` inside a query loop no longer processes the surrounding page before the loop starts, or duplicates that page's inline styles in the footer.** WordPress renders a query loop's inner blocks against the surrounding page before the loop begins iterating, then GenerateBlocks throws that render away. This plugin had a guard meant to skip processing the discarded render, but it was ineffectual because it did not correctly target GenerateBlocks' loop name. On a page whose content carries its own styles, those styles were being added to the page footer multiple times while contributing nothing visible. Rendered output is unchanged.
+
 - **A GB Query Enhancements Term Query or User Query loop no longer flickers in the editor while this plugin is active**, with the browser console filling with `useSelect` warnings about values that differ when nothing changed. The loop was refetching its own preview data on every render. Saved content was never affected, and the front end always rendered correctly.
 
 ### Security
 
 - **Site option values are no longer resolved in the editor preview of a user who cannot author dynamic data.** A contributor or author previewing `{{text src:site|key:...}}` against a custom options-page field now sees the tag's configured fallback instead of the stored value. Common WordPress options (site title, tagline, home URL, site URL, time format, user count) still resolve for them, published pages are unaffected, and nothing changes for a user who can author dynamic data. This matches what GenerateBlocks Pro 2.7 does with its own `{{option}}` tag; this plugin's site reads had not been following it.
+
 - **The field key picker's data is no longer sent to editors who cannot use it.** A user who can edit posts but is not permitted to author dynamic data now loads the editor without the list of registered field keys and labels. GenerateBlocks already gives that user no way to add or edit a dynamic tag, so no picker was reachable for them in the first place; nothing changes for anyone who can author dynamic data.
 
 ## [1.19.1] — 2026-09-03

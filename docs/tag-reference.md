@@ -59,6 +59,8 @@ Traversal selector on every base tag. Serializes as `src:<value>` in the tag str
 | unset (default) | Current entity (post or term per template context) | Implemented |
 | `ref` | Reference/relational field step — requires `ref` sub-option (field key) | Implemented |
 | `site` | Site-wide data (no entity) — an implicit-mode tag resolves the site analog, `key` reads an option. See [§Site Source](#site-source-srcsite). | Implemented (v1.9.0, Stage A) |
+| `term,<ID>` | **Pinned term root** (1.20.0, FW-39). Roots the chain at ONE specific term, whatever the page is about. `<ID>` is required — a bare `term` resolves nothing (see below). Steps run off it like any other root (`term,34;refs,rel` is legal; `terms` is refused — no term→term edge). | Implemented |
+| `post,<ID>` | **Pinned post root** (1.20.0, FW-39). Roots the chain at ONE specific post, whatever the page is about. `<ID>` is required — a bare `post` resolves nothing (see below); it would be `current` under another name. Authoring-only: unlike `term`, `post` has no legacy modifier family to stay compatible with (no `post_*` tags exist), so there is no converter/migration half. | Implemented |
 | *(a registered source key)* | Whatever that source's `resolve_id()` returns — post or term per its context type. Resolves whether or not the source is OFFERED (below). | Implemented |
 | `parent` | WP parent post/term | Planned |
 | `ancestor` | WP top-level ancestor | To be considered |
@@ -73,14 +75,14 @@ What an author can CHOOSE as a root is a shorter list than what RESOLVES as one,
 deliberately not the same rule.
 
 - **Offering is stated, never inferred.** A registered source appears in the root enum iff
-  `is_selectable_root()` returns true (default false) *and* `is_source_enabled()` passes — the
-  latter is the settings gate, so a term-context root follows the `term_` modifier toggle. The
-  precondition for opting in is that the source **resolves its own id from ambient context**.
-- **Opt-in rather than derived, permanently.** The registry accumulates non-offerable entries by
-  policy and never sheds them (a `register_source()` call is never deleted for lacking resolve
-  logic), so the four retired traversal-substitute sources and the internal `post`/`term` keys are
-  registered right now and must stay out. A registry that keeps its dead is the wrong shape to
-  derive an authoring enum from.
+  `is_selectable_root()` returns true (default false) — that claim is the only gate, and a
+  source's context type does not decide the question. The precondition for opting in is that
+  the source **resolves its own id from ambient context**. Through 1.19.x a second, settings
+  gate stood beside it (`is_source_enabled()`, which answered the `term_` modifier toggle for
+  every term-context source); 1.20.0 removed it when that toggle became the deprecated `term_`
+  tag family's own switch, which seeds OFF on a new install — a fresh site must still be able
+  to author the `term` root the pinning feature above is built on.
+- **Opt-in rather than derived, permanently.** The registry accumulates non-offerable entries by policy and never sheds them (a `register_source()` call is never deleted for lacking resolve logic), so the four retired traversal-substitute sources are registered right now and must stay out — none resolves its own id from ambient context in a way an author could usefully pin. A registry that keeps its dead is the wrong shape to derive an authoring enum from. **`term` and `post` are the exceptions, and each changed rather than broke this rule** (1.20.0, FW-39, tickets 02/03): a bare `term`/`post` root is still exactly what a bare base tag does and stays unofferable, but each now also offers a PINNING argument (`term,<ID>`, `post,<ID>`), and the root row it offers carries that argument's declaration (`arg: { label, control, argless, kind }`, from `SourceInterface::get_root_argument()`). An argless root of either kind REFUSES at the factory seam rather than degrading to the ambient entity — see the root-argument seam's own PHPDoc (`bws_factory_registry_source()`, `includes/helpers/traversal-pipeline.php`) for the full rule, which this doc does not restate per the axis-ownership convention.
 - **Offering is not resolving.** The flag governs the dropdown alone; the factory's registry
   delegation is untouched, so wire naming any registered source resolves either way. Load-bearing
   rather than incidental: wire is hand-editable by decision (ADR 0004), and an integrator flipping
@@ -96,9 +98,11 @@ deliberately not the same rule.
   derived families (`term_*`, `try_*`, `{{table}}`, `{{call}}`) build their own surfaces from its
   rows, so a leak there would offer a root inside its own modifier family's Source dropdown and
   widen `{{call}}`'s deliberate allowlist.
-- **Registered roots declare no parse-time kind.** `BWS_FOLD_PARSE_TIME_ROOT_KINDS` stays as it is (only
-  `site` has one); a chain rooted at a registered source resolves to the kind the factory
-  determines at render, and the editor's step-offer filter stays permissive there.
+- **Registered roots offered through the `bws_dynamic_tags_chain_roots` filter route declare no
+  parse-time kind.** `BWS_FOLD_PARSE_TIME_ROOT_KINDS` is scoped to sources this repo ships
+  (`site`, `term`, `post`); a chain rooted at an integrator's registered source resolves to the
+  kind the factory determines at render, and the editor's step-offer filter stays permissive
+  there.
 - **A root key must be writable as a `src` token.** The filter route refuses a key that is a chain
   step slug (`refs`/`terms`/`rows`, read from `BWS_FOLD_STEP_TYPES` rather than re-typed), the
   slot carry-over sentinel `same`, or one carrying a grammar character — each would parse back as
@@ -416,7 +420,7 @@ future opt-in ("search past empty fields"), called by nothing shipped; the track
 
 In v1.6.0 the per-source×template matrix was removed from the admin settings page. Default-enabled state is now controlled at two levels:
 
-**Modifier group toggles** — `term_` and `try_` each have an on/off toggle in the admin settings page. Disabling a modifier group removes all its tags from the GB editor picker. Both groups default to enabled. An externally registered modifier group would not be surfaced in the toggle UI; none exists (the route is deprecated, see FW-129).
+**Modifier group toggles** — `term_` and `try_` each have an on/off toggle in the admin settings page. Disabling a modifier group removes all its tags from the GB editor picker. `try_` defaults to enabled; `term_` is seeded OFF on installs activated at v1.20.0 or later, because the family is deprecated. A settings row that never mentioned a group reads that group as enabled, which is what leaves an existing install rendering what it always rendered — the activation seed is the only place a new install is told apart from an untouched old one. An externally registered modifier group would not be surfaced in the toggle UI; none exists (the route is deprecated, see FW-129).
 
 **Deprecated wrapper tags** — GB registration and runtime callbacks for all current deprecated tags were removed entirely (no longer conditional on any setting). Migration data (`MigrationRegistry` entries) and the admin Tag Converter / settings-page list stay intact for detection and migration of old content. The settings page still shows a Keep/Suppress/Disable radio per group (Has migration path, No migration path), but it no longer has any effect — pending a settings-page redesign to reflect that these are removed, not merely deprecated (tracked `docs/future-work.md`).
 
@@ -744,7 +748,9 @@ In the source-agnostic architecture, each template has one GB tag registration. 
 | `join` | `'Join Fields'` | *(no term_ variant)* | `'cross-source'` | ❌ | **Structural outlier — not a base tag.** Standalone COMBINING tag: absorbs up to 10 base `text` reads as slots and assembles all non-empty values (separator or template mode). No read of its own; no per-slot link-wrap. See [§join](#join). |
 | `call` | `'Call Custom Function'` | *(no term_ variant)* | `'post'` | ❌ | **Structural outlier — not a base tag.** Binds the loop-correct post (L1 only), then delegates to an allowlisted site PHP function; output is the function's return string, verbatim + unescaped. Type `'post'` (NOT `'cross-source'`) — no term/site/media/taxonomy features; `src` offers Current + Ref only. Ships with an empty allowlist. See [§Call tag](#call-tag). |
 
-The term_ modifier produces additional tags with GB type `'term'`: `term_text`, `term_image`, `term_title`, `term_permalink`. `src` unset = user-selected term (never serialized); `src:'ref'` = term→related post traversal. `term_image` uses GB type `'term'`; `as` and `size` registered as custom options (same pattern as base `image` — `'media'` type not used on any image tag). `as` serialization exception applies to `term_image` as well — default `as:url` is always written to the tag string.
+The term_ modifier produces additional tags: `term_text`, `term_image`, `term_title`, `term_permalink`. `src` unset = user-selected term (never serialized); `src:'ref'` = term→related post traversal. `as` and `size` are registered as custom options on `term_image` (same pattern as base `image` — `'media'` type not used on any image tag). `as` serialization exception applies to `term_image` as well — default `as:url` is always written to the tag string.
+
+**The family's GB type is `'deprecated'` as of v1.20.0, so every `term_*` tag sits in GenerateBlocks' deprecated group** rather than in a `'term'` group of its own. The type is not written at the registration: each tag takes it from that tag's migration-registry entry (`MigrationRegistry::register()` owns what an entry carries). The family is also **switched off on new installs** (the settings page's `term_ tags` toggle seeds unchecked — an install that predates v1.20.0, or one whose settings row never mentioned the family, is unaffected). Nothing is unregistered: removal is a separate later decision, and an unregistered tag would render its own braces on the page. Tracked as FW-129; the replacement is a base tag with its source set to a term.
 
 **WHETHER A GIVEN `term_*` TAG IS OURS DEPENDS ON THE SITE, AND THIS DOC CANNOT KNOW.** Where
 another plugin already holds one of these names, the tag of that name is theirs and nothing
@@ -1132,7 +1138,7 @@ Plus two global **Settings → Tag Extensions → Phone** options (not per-tag):
 
 **A fourth structural position.** Beyond base / modifier / join-absorber, `{{call}}` reuses **L1 post-resolution ONLY** — it binds the loop-correct post entity via `bws_resolve_post_by_source`, then **delegates to an opaque PHP function**. There is no L2 resolve-field, no L2b fetch, no L3 assemble; no resolved field, no field value. The output is opaque to the read pipeline: a single string, no list mode, no composite, no analog. It sits outside the try_ transparency / list-mode destination model.
 
-**Post-context-only — a stated design non-goal, not a gap.** The source menu offers **Current** + **In Reference/Relational Field** ONLY; both resolve to a post id, exactly what a `$post_id`-contract function consumes. `src:site` (a wp_options namespace) and `srcTermIn` (terms) are deliberately **not offered** — neither is a post id, a `$post_id` function cannot consume them, and they add no post-binding affordance (the [qualifying test](#qualifying-test-for-new-use-values) applied at the source level). A future reader must not "fix" this by adding term/site sources: the post binding is the entire purpose. The GB type is `'post'` precisely because `{{call}}` has none of the term/site/media/taxonomy editor features `'cross-source'` implies.
+**Post-context-only — a stated design non-goal, not a gap.** The source menu offers **Current Context** + **In Reference/Relational Field** ONLY; both resolve to a post id, exactly what a `$post_id`-contract function consumes. `src:site` (a wp_options namespace) and `srcTermIn` (terms) are deliberately **not offered** — neither is a post id, a `$post_id` function cannot consume them, and they add no post-binding affordance (the [qualifying test](#qualifying-test-for-new-use-values) applied at the source level). A future reader must not "fix" this by adding term/site sources: the post binding is the entire purpose. The GB type is `'post'` precisely because `{{call}}` has none of the term/site/media/taxonomy editor features `'cross-source'` implies.
 
 **Known limit — repeater rows.** `bws_resolve_post_by_source` resolves a post id. A query loop standing on a POST (relationship / post-object) resolves and is the driver. A repeater row has no post behind it, so `src:current` returns false; there is no post to bind, and the `$post_id` function contract cannot consume a bag of row fields. Passing current-repeater-row fields into a function needs a different fn contract + a new src mode — a separate, deferred design, not a bug.
 

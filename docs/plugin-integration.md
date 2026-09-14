@@ -92,7 +92,7 @@ To let authors choose it, opt in as a chain root (below). The older routes remai
 
 ## 1a. Offering your source as a chain root
 
-A **chain root** is where a tag's source path starts — `Current`, `Site`, a relationship step, and now any registered source that opts in. Once yours does, an author sees it in the Source control on every base tag and in every folded slot (`{{join}}` fields, `try_*` attempts), named by your source label, and the whole base-tag surface applies unchanged: further steps, per-step limits, field pickers, previews.
+A **chain root** is where a tag's source path starts — `Current Context`, `Site`, a relationship step, and now any registered source that opts in. Once yours does, an author sees it in the Source control on every base tag and in every folded slot (`{{join}}` fields, `try_*` attempts), named by your source label, and the whole base-tag surface applies unchanged: further steps, per-step limits, field pickers, previews.
 
 Two routes, one registry.
 
@@ -117,6 +117,28 @@ class ExternalSource extends AbstractSource {
 
 Offerability is stated rather than derived because the registry keeps entries that can no longer resolve: a `register_source()` call is never deleted just because its resolve logic was retired (see [§7](#7-registering-deprecated-tag-wrappers)). Deriving an authoring list from a registry that keeps its dead would surface them.
 
+> **Upgrade note (v1.20.0).** `get_root_argument()` is declared on `SourceInterface` alongside it, so a class implementing the interface **directly** must add it. Extending `AbstractSource` inherits the no-argument default and needs no change.
+
+#### Declaring a root argument (v1.20.0)
+
+A root that pins one specific entity needs an author to say *which*: `term,34`, `post,1692`, or a `view,north-campus` your own plugin understands. Declare that argument beside the offer:
+
+```php
+public function get_root_argument(): array {
+    return array(
+        'label'   => __( 'View', 'my-plugin' ),   // required; what the argument means
+        'control' => 'my-plugin-view-picker',     // required; the control that edits it
+        'argless' => 'owner-resolves',            // optional; 'refuse' is the default
+    );
+}
+```
+
+The argument is **one opaque token**, and it travels beside the root rather than inside it: the chain reads `view,north-campus`, `bws_fold_chain_root()` still answers `view`, and `bws_fold_chain_root_arg()` answers `north-campus`. Nothing between your declaration and your control interprets the value, so it need not be an ID.
+
+`argless` says what a bare `view` with no argument means. `refuse`, the default and what a pinning root wants, resolves nothing until an author fills it. `owner-resolves` says your source answers a bare token by a rule of its own; it is not permission to fall back to whatever the page is about, which no root does.
+
+**Two caveats before you ship one.** A declaration missing either required key is dropped and your root is offered as an argless root; a working source is never retired over a bad optional declaration. And **this plugin ships no argument-taking root and no `bws-*` control for one yet**, so the declaration is carried to both authoring surfaces but the control you name has to be one you register yourself.
+
 ### Route B — declare a root from a filter, with no class
 
 For the cheap case — you have an entity and a function that finds it — skip the class entirely:
@@ -127,6 +149,11 @@ add_filter( 'bws_dynamic_tags_chain_roots', function( $roots ) {
         'label'   => __( 'External Post', 'my-plugin' ),   // required; what authors see
         'context' => 'post',                               // 'post' or 'term'; default 'post'
         'resolve' => 'my_plugin_current_external_id',      // callable( array $options, $instance ): int|false
+        'arg'     => array(                                // optional; see Route A (v1.20.0)
+            'label'   => __( 'View', 'my-plugin' ),
+            'control' => 'my-plugin-view-picker',
+            'argless' => 'owner-resolves',
+        ),
     );
     return $roots;
 } );
@@ -140,6 +167,7 @@ Each spec is adapted into a registered source and registered normally, so it lan
 - **The filter fires at registry initialisation**, not when the editor builds its dropdown. A row added at enum-build time would exist for the editor and not for the renderer, and the token would quietly fall through to the ambient entity.
 - **A key that collides with an already-registered source is ignored**, never merged over it. Class-route registrations win.
 - **A spec with no label, or a non-callable `resolve`, is skipped** rather than registered half-formed.
+- **A spec's `arg` declaration means exactly what Route A's does**, and is read by the same single gate, so a spec whose declaration is missing a key or carries the wrong shape registers a working root that simply takes no argument rather than being skipped. Label and `resolve` are checked here because a spec failing either has no dropdown row to be at all; a bad argument declaration leaves a perfectly good argless root.
 - **The key has to be writable as a `src` token**, so a spec is also skipped when its key is a chain step slug (`refs`, `terms`, `rows`), the slot carry-over sentinel (`same`), or carries a grammar character (`; , ( ) [ ] : |` or whitespace). Any of those would parse back as something other than a root, which would break the guarantee that an offered root resolves. Use a plain identifier — your plugin's own slug is the obvious choice.
 - **No `$context` argument.** No tag, block or container exists when this fires. (WordPress passes arguments positionally by registered arity, so one can be added later without breaking existing listeners.)
 
@@ -150,7 +178,7 @@ Each spec is adapted into a registered source and registered normally, so it lan
 Two further consequences worth knowing:
 
 - **Your rows reach base tags and slots, and nothing else.** They are appended at the chain-root layer, so `term_*`, `try_*`'s own source lists, `{{table}}` and `{{call}}` are unaffected.
-- **A term-context root follows the `term_` modifier toggle** in the plugin settings — switching that off hides it from the dropdown, exactly as it hides every other term surface. Resolution is unaffected.
+- **Your opt-in is the only gate.** No plugin setting sits beside it, and your source's context type does not decide whether it is offered. Through 1.19.x a term-context root also followed the `term_` modifier toggle; since 1.20.0 that toggle governs the deprecated `term_` tag family alone, and no longer reaches the dropdown.
 
 Where a rooted tag cannot resolve in the editor (common when your source reads request state), the preview names it by your registered label:
 
@@ -303,6 +331,7 @@ Two things follow that are easy to get backwards:
 | Method | Return | Default | Notes |
 |--------|--------|---------|-------|
 | `is_selectable_root(): bool` | Whether authors may choose this source as a chain root | `false` | Added v1.17.0. Governs the **dropdown only** — wire naming your source resolves either way. Precondition: the source resolves its own id from ambient context. **Do not** phrase the decision in terms of `needs_relationship_field()`, which is inert and would wrongly pass a wrapper-only registration. See [§1a](#1a-offering-your-source-as-a-chain-root). |
+| `get_root_argument(): array` | The argument this root takes, if any: `label` (what it means), `control` (the `bws-*` control that edits it), `argless` (`refuse`, the default, or `owner-resolves`) | `array()` | Added v1.20.0. One opaque token, arity fixed at one, carried to both authoring surfaces without being interpreted. A declaration missing `label` or `control` is dropped and the root is offered argless. See [§1a](#1a-offering-your-source-as-a-chain-root). |
 
 ### Options
 
@@ -745,6 +774,8 @@ add_action( 'init', function () {
 That registers one migration entry per **registered modifier template** — the same list `register_modifier()` iterates to mint your tags — so there is no list of tag names to maintain. Call it after templates are registered: the plugin registers them on `init` priority 20, so priority 21 is the natural home, beside your `register_modifier()` call. (Called too early, the template list is empty and `_doing_it_wrong()` says so.)
 
 **Your prefix is supplied, never derived.** Nothing in this plugin knows your family exists; you name it. The root key is usually your source key, but it does not have to be.
+
+**Call order decides where your tags appear in the editor.** `register_modifier()` reads each tag's GB type off that tag's migration entry when it has one. So calling this registrar *before* `register_modifier()` moves the whole family into GenerateBlocks' deprecated group; calling it *after* leaves the family under the `gb_type` you passed and registers only the conversion. Both are supported — pick the one that matches whether you are telling authors to stop reaching for the family yet. The built-in `term_` family registers entries first, for that reason.
 
 ### What a converted tag looks like
 

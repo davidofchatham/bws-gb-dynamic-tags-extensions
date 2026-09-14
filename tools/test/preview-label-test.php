@@ -66,6 +66,47 @@ if ( ! function_exists( 'sanitize_key' ) ) {
 	function sanitize_key( $key ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $key ) ); }
 }
 
+// get_term + is_wp_error: bws_build_preview_label() injects the real `get_term` as its
+// entity resolver (D20, FW-39) for a PINNED `term,<ID>` root — this is the one path in
+// this harness's scope that calls a live WordPress function by name rather than reading
+// it through a shim, so it needs one. Deterministic: term 34 exists and is named 'News',
+// every other id does not.
+if ( ! function_exists( 'get_term' ) ) {
+	function get_term( $id ) {
+		if ( 34 === (int) $id ) {
+			return (object) [ 'term_id' => 34, 'name' => 'News' ];
+		}
+		return null;
+	}
+}
+if ( ! function_exists( 'is_wp_error' ) ) {
+	function is_wp_error( $thing ) { return false; }
+}
+// bws_build_preview_label() injects `bws_get_validated_term` (taxonomy-helpers.php), not
+// bare `get_term` — the plugin's one "is this term real" rule, so this file's own segment
+// function has no second falsy/WP_Error check to hold. Shimmed the same shape here.
+if ( ! function_exists( 'bws_get_validated_term' ) ) {
+	function bws_get_validated_term( $id ) {
+		if ( ! $id ) { return false; }
+		$term = get_term( $id );
+		return ( ! $term || is_wp_error( $term ) ) ? false : $term;
+	}
+}
+
+// get_post: bws_build_preview_label() injects the real `get_post` as its entity resolver
+// (D20, FW-39 ticket 03) for a PINNED `post,<ID>` root — bare, per D20's own stated
+// default, since `post` has no "is this real" wrapper the way `bws_get_validated_term()`
+// is for term (D13: no legacy read path to keep compatible with). Deterministic: post
+// 1692 exists and is named 'Hello world!', every other id does not.
+if ( ! function_exists( 'get_post' ) ) {
+	function get_post( $id ) {
+		if ( 1692 === (int) $id ) {
+			return (object) [ 'ID' => 1692, 'post_title' => 'Hello world!' ];
+		}
+		return null;
+	}
+}
+
 // The join preview walks slots through the FOLDED-SLOT seam (FW-56/57) rather than its
 // own copy of join's slot walk, so the grammar owner and the canonical order it emits
 // through are real dependencies here. Both are pure.
@@ -437,22 +478,26 @@ check(
 	bws_build_preview_label( [ 'src' => 'nosuchsource', 'use' => 'key', 'key' => 'sku' ], 'text' ),
 	"[⚠ Unknown source 'nosuchsource']"
 );
-// The INTERNAL spellings of the ambient entity name nothing AND never flag: they resolve,
-// and `src:post` would read "from Post", which is what a bare tag already is. Registered
-// below so the assertion cannot pass vacuously.
+// `term` LEFT THE "internal registry key" ROW in 1.20.0 (FW-39 ticket 02), and `post`
+// leaves it too in ticket 03: both are still the internal spelling of the ambient entity
+// when BARE, but both now ALSO declare a pinning argument, and a bare `term`/`post` is
+// that declaration UNFILLED — D8 says a half-configured pin must look broken, not silent.
+// See the "pinned entity roots" section below for those rows. The "internal key" list this
+// file used to check here (bare tokens that name nothing and never flag) is EMPTY now —
+// every internal registry key that could be pinned has been, so this file has nothing
+// left to check under that heading, only that both remain registered so neither section's
+// assertions are vacuous.
 \BWS\DynamicTags\SourceRegistry::init();
-foreach ( [ 'post', 'term' ] as $internal_key ) {
-	check(
-		"an INTERNAL registry key adds no segment and no warning: `{$internal_key}`",
-		bws_build_preview_label( [ 'src' => $internal_key, 'use' => 'key', 'key' => 'sku' ], 'text' ),
-		"['sku']"
-	);
-	check(
-		"…and it IS registered, so the row above is not vacuous: `{$internal_key}`",
-		null !== \BWS\DynamicTags\SourceRegistry::get_source( $internal_key ),
-		true
-	);
-}
+check(
+	'`post` is registered, so the "pinned entity roots" section below is not vacuous',
+	null !== \BWS\DynamicTags\SourceRegistry::get_source( 'post' ),
+	true
+);
+check(
+	'…and `term` too',
+	null !== \BWS\DynamicTags\SourceRegistry::get_source( 'term' ),
+	true
+);
 // The four RETIRED traversal-substitute tokens get their OWN sentence, not "unknown": they
 // ARE registered (the registry keeps its dead by policy), so "unknown" would be false — and
 // this is the one warning here with a NAMED REPAIR, since the converter rewrites the token.
@@ -533,6 +578,111 @@ check(
 	'text + link wrap',
 	bws_build_preview_label( [ 'key' => 'sku', 'linkTo' => 'permalink' ], 'text' ),
 	"<a href=\"#\">['sku' (link: permalink)]</a>"
+);
+
+// ---------------------------------------------------------------------------
+echo "\npinned entity roots — D20 namer (FW-39)\n";
+
+// A PIN that resolves names the ENTITY, not the root's own label — the whole point of
+// D20: every other rooted tag previews "from <Source Label>", and a pinned one that did
+// the same would read "from Term" for every term on the site regardless of which.
+check(
+	'pinned term resolves → "Term: <name>"',
+	bws_build_preview_label( [ 'src' => 'term,34', 'key' => 'sku' ], 'text' ),
+	"['sku' from Term: News]"
+);
+// A DELETED term's pin is MARKED, not silently blank — the failure an author can see
+// least, since a missing pin and an empty field both render nothing.
+check(
+	'pinned term, deleted → "(missing)"',
+	bws_build_preview_label( [ 'src' => 'term,999', 'key' => 'sku' ], 'text' ),
+	"['sku' from term 999 (missing)]"
+);
+// A NON-NUMERIC argument falls back to the wire TOKEN — D10 dropped the designed
+// slug-recovery affordance, so this is not reinterpreted as anything else.
+check(
+	'pinned term, non-numeric argument → falls back to the token',
+	bws_build_preview_label( [ 'src' => 'term,abc', 'key' => 'sku' ], 'text' ),
+	"['sku' from term abc]"
+);
+// Steps run OFF a pinned root exactly as they do off any other (D3) — a term step behind
+// a term root is nonsensical (no term→term edge) but a relationship step is legal, and
+// the preview names both the pin and the hop.
+check(
+	'a chain runs off a pinned root — the pin names itself, the hop follows',
+	bws_build_preview_label( [ 'src' => 'term,34;refs,rel', 'key' => 'sku' ], 'text' ),
+	"['sku' from Term: News Ref 'rel']"
+);
+// A BARE `term` root (no argument) REFUSES at render (D2/D8) — the factory does not
+// degrade to the ambient term — and the preview says so rather than staying silent.
+// Only hand-edited wire can produce this (nothing in the UI offers bare `term`), but
+// [I15] applies to hand-edited wire exactly as it applies to anything else: a
+// half-configured pin must look broken, not look right with the wrong values.
+check(
+	'bare `src:term` (hand-edited only) is flagged INERT — "nothing pinned", not silent',
+	bws_build_preview_label( [ 'src' => 'term', 'key' => 'sku' ], 'text' ),
+	'[⚠ Term: nothing pinned]'
+);
+
+// The SECOND pinning root (FW-39 ticket 03) — same rules, different kind, D20's own point:
+// the entity_resolvers dispatch is what lets a second kind reuse this whole mechanism
+// unchanged.
+check(
+	'pinned post resolves → "Post: <title>"',
+	bws_build_preview_label( [ 'src' => 'post,1692', 'key' => 'sku' ], 'text' ),
+	"['sku' from Post: Hello world!]"
+);
+check(
+	'pinned post, deleted → "(missing)"',
+	bws_build_preview_label( [ 'src' => 'post,999', 'key' => 'sku' ], 'text' ),
+	"['sku' from post 999 (missing)]"
+);
+check(
+	'pinned post, non-numeric argument → falls back to the token',
+	bws_build_preview_label( [ 'src' => 'post,abc', 'key' => 'sku' ], 'text' ),
+	"['sku' from post abc]"
+);
+check(
+	'a chain runs off a pinned post root exactly as off a pinned term root (D3)',
+	bws_build_preview_label( [ 'src' => 'post,1692;refs,rel', 'key' => 'sku' ], 'text' ),
+	"['sku' from Post: Hello world! Ref 'rel']"
+);
+check(
+	'bare `src:post` (hand-edited only) is flagged INERT — "nothing pinned", not silent',
+	bws_build_preview_label( [ 'src' => 'post', 'key' => 'sku' ], 'text' ),
+	'[⚠ Post: nothing pinned]'
+);
+
+// The pure namer, directly, with an INJECTED fake resolver (D20) — the reason the
+// production caller supplies `get_term` rather than this function calling it by name.
+check(
+	'segment: named entity',
+	bws_preview_pinned_entity_segment( 'term', '34', 'Term', static function ( $id ) {
+		return 34 === $id ? (object) [ 'name' => 'News' ] : null;
+	} ),
+	'Term: News'
+);
+check(
+	'segment: missing entity',
+	bws_preview_pinned_entity_segment( 'term', '99', 'Term', static function () { return null; } ),
+	'term 99 (missing)'
+);
+check(
+	'segment: no resolver supplied → falls back to the token',
+	bws_preview_pinned_entity_segment( 'term', '34', 'Term', null ),
+	'term 34'
+);
+check(
+	'segment: a POST entity is named off `post_title`, not `name` — the SAME namer, no per-kind branch',
+	bws_preview_pinned_entity_segment( 'post', '1692', 'Post', static function ( $id ) {
+		return 1692 === $id ? (object) [ 'post_title' => 'Hello world!' ] : null;
+	} ),
+	'Post: Hello world!'
+);
+check(
+	'segment: an entity with no name falls back to the token, not a blank label',
+	bws_preview_pinned_entity_segment( 'term', '34', 'Term', static function () { return (object) []; } ),
+	'term 34'
 );
 
 // ---------------------------------------------------------------------------

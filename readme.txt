@@ -11,6 +11,9 @@ See README.md for overview, docs/tag-reference.md for architecture, and CHANGELO
 
 == Upgrade Notice ==
 
+= 1.20.0 =
+⚠ {{term_}} tags are deprecated and will be removed soon. Two fixes in the meantime: On a post, if no term was selected, they now return nothing instead of sometimes reading an unrelated term with the same ID as the post; with a taxonomy set, they now reach the current post's first matching term.
+
 = 1.19.0 =
 Tags on archives, search, 404 and blog home now show that page’s own heading, not an unrelated post’s; same fix in term and user query loops. ⚠ 1) bws_get_loop_row_context() renamed, no shim; search custom code first. 2) WooCommerce product loops and blog-home {{content}} now render nothing.
 

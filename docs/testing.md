@@ -16,7 +16,10 @@ Run the pure harness always; route integration through the testbed.
    test-local copy of the rule is the exact drift the extraction removed (`limit-clamp-test.php`,
    `slot-options-build-test.php`, `slot-fold-test.php`, `fold-migration-test.php`,
    `related-post-src-migration-test.php`, `pattern-cache-test.php`, `gb-output-boundary-test.php`,
-   `gb-trust-boundary-test.php`, `replay-verdict-test.php`); one reads a sibling script's SOURCE
+   `gb-trust-boundary-test.php`, `replay-verdict-test.php`, `converter-ownership-test.php` — that last
+   one requires the real file AND then reads its source, because half of what it holds is a census of
+   the ownership guard's reason enum and the other half is that the predicate stays callable with no
+   WordPress at all); one reads a sibling script's SOURCE
    rather than calling it, because the script under test executes a replay on load
    (`replay-source-identity-test.php`); three require the real file AND then scan every `.php` in the
    repo, because half of what each holds is a census rather than a property of any one file —

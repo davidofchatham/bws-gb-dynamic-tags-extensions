@@ -790,6 +790,21 @@
 				"srcTermIn": "department",
 				"linkTo": "permalink"
 			}
+		},
+		{
+			"label": "DECLINED: NO source at all, beside a tag-level limit -- the shape the unpinned term_ rewrite creates (FW-39)",
+			"conf": {},
+			"options": {
+				"limit": "3",
+				"key": "bio"
+			}
+		},
+		{
+			"label": "DECLINED: no source at all and nothing else to migrate either",
+			"conf": {},
+			"options": {
+				"use": "title"
+			}
 		}
 	]
 }

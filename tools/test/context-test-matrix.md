@@ -64,6 +64,67 @@ Baselines captured 2026-07-18, **re-measured on the front end 2026-08-29** when 
 | C-DT1/C-DT2.6 | 404 | `/no-such-page-xyz/` | empty | `TBA` | no analog (datetime has no 404 borrow, unlike content) |
 | C-I1 | Date archive | `/2026/07/` | empty | the fallback IMAGE renders | **`render-tag` only, exception stated per the visible-rows rule** — `fallback` is a Media Library id assigned at seed time, so no static string in `blocks.php` can name it, same reasoning as F11b.3. Pass the seeded `fixture-photo` attachment's id (`wp post list --post_type=attachment`); repeat against `/staff/`, `/?s=searchpin`, `/`, `/no-such-page-xyz/` — image has no analog on any of the five, so all five were broken and all five are fixed the same way |
 
+## C-TERM / CT rows — the ambient-term guard (1.20.0)
+
+An unpinned `{{term_*}}` tag resolved through `TaxonomyTerm::resolve_id()`, which handed back `get_queried_object_id()` without checking what kind of thing WP had queried. Post, term and user ids share one number space, so wherever the queried object's id collided with a real term the tag rendered that term's data as though it were the answer. `bws_queried_object_is_term()` now owns the rule; that function's PHPDoc is where it is stated.
+
+**The rows come in pairs on purpose.** The guard's correct behaviour is "empty" on six of seven contexts, and a set of all-empty rows cannot distinguish a working guard from a tag that stopped resolving anywhere. Every ambient row therefore has a pinned-term twin that must keep rendering.
+
+| # | Context | URL | Before 1.20.0 | Expect | Surface |
+|---|---|---|---|---|---|
+| C-TERM1.1 | Term archive (the positive arm) | `/department/sales/` | `Sales` | `Sales` — unchanged | C-element, `ctx-term` baseline |
+| C-TERM1.2 | Author archive | `/author/fixture-author/` | `All Users` — the `portal_visibility` term carrying user 2's id | empty | C-element, `ctx-author` |
+| C-TERM1.3 | Post type archive | `/staff/` | empty (nothing queried an id) | empty | C-element, `ctx-pta-staff` |
+| C-TERM1.4 | Date archive | `/2026/07/` | empty | empty | C-element, `ctx-date-202607` |
+| C-TERM1.5 | Search | `/?s=searchpin` | empty | empty | C-element, `ctx-search` |
+| C-TERM1.6 | 404 | `/no-such-page-xyz/` | empty | empty | C-element, `ctx-404` |
+| C-TERM1.7 | Latest-posts home | `/` | empty | empty | C-element, `ctx-home-latest` |
+| C-TERM2 | all seven above | — | `Support` | `Support` — a tag naming its own term is not an ambient read and the guard must not touch it | C-element, every context baseline |
+| CT-A | Singular page | `/matrix-post-meta/` | `Priority` — the `mc_flag` term carrying this page's own id | empty | page content |
+| CT-B | Singular page | `/matrix-post-meta/` | `Support` | `Support` — non-vacuity for CT-A | page content |
+| CT-C | Singular page | `/matrix-post-meta/` | empty | `(987) 333-4444` — `tax` reaches the first-term-of-this-post tier at last | page content |
+| QL1.5 | Term query loop | `/matrix-loops/` | the loop's term name | the loop's term name — unchanged | page content, inside QL1's loop |
+
+**QL1.5 is the row that would have caught the mistake this fix made on its first cut.** The guard's first version refused every arm of GB's `get_id()`, including the `generateblocks_dynamic_tag_id` filter a query loop uses to hand down its row's term. Nothing on any fixture page saw it, because no `term_*` tag stood inside a loop; the page snapshots were green. It reads the same entity QL1.1 does by the other route — QL1.1 is a base tag through `bws_resolve_base_source()`, QL1.5 is the `term_` family through `TaxonomyTerm::resolve_id()` — and only one of those routes has a guard on it.
+
+**CT-A does not depend on the collision it names.** Empty is the right answer on a singular page whether or not some term carries this page's id; the `mc_flag:Priority` coincidence is what made the OLD behaviour visibly wrong, and it is recorded as history, not relied on. Do not pin the page id to "strengthen" the row.
+
+**`/department/sales/` joins the context pages** (`ctx-term`) so C-TERM1.1 has a captured baseline. It asserts `body_class` `tax-department` rather than the generic `archive`: the guard's entire subject is which KIND of archive a page is, so the row must fail if the page degrades into a different one.
+
+## §C-CONV — a `term_*` tag beside the base tag it converts to (FW-39)
+
+The C-TERM rows above measure ONE tag against its own past. These measure a tag against its REPLACEMENT: the migration rewrites a `term_*` tag into a base tag, and what has to be shown is not that either side is right but which way every difference between them runs. A single row cannot show a direction, so every row here is half of a pair and is useless read alone.
+
+**The two arms have different answers, and the rows are grouped by which.** On the UNPINNED arm every difference runs empty→value, never value→anything-else. On the PINNED arm (C-CONV10..14, ticket 08) there is no difference at all — a tag that named its own term still names it — with ONE labelled exception: a pin whose term has been deleted, which runs value→empty because the old family falls through to the ambient term where the new wire refuses.
+
+The UNPINNED rewrite is not output-neutral, which is why this section exists at all: a `term_*` tag addresses a term and nothing else, a base tag addresses whatever the page is about ([CONTEXT.md I20]), and off a term page the first renders nothing where the second renders the page. Whether a migration may do that is FW-39's decision, recorded with the ship; this table is the measurement it rests on. The PINNED rewrite is a different question — an `id` was never an ambient read, so [CONTEXT.md I20] does not reach it — and C-CONV10/11 are what says the answer is "no change at all".
+
+Measured 2026-09-10 via `bws render-tag --porcelain` on all seven contexts; the pinned rows (C-CONV10..14) 2026-09-11 the same way. Search is the one context `render-tag` cannot reach (header note) and is front-end only.
+
+**The EDITOR half of C-CONV13/14, measured the same day** via `bws render-tag --preview --porcelain`, because a row that renders nothing has to be distinguishable from a row that is broken and only the editor does that: `{{text src:term,999999|use:title}}` previews as `[Title from term 999999 (missing)]`, while the live pin `{{text src:term,<support>|use:title}}` previews as its resolved value (`Support`) and claims no bracket at all. `preview-label-test.php` owns the namer's own rules; this records that the wire the MIGRATION emits is wire that namer reads.
+
+| # | Arm | Before (`term_*`) | After (base) | Term archive `/department/sales/` | The other six |
+|---|---|---|---|---|---|
+| C-CONV1 | bare title read | `{{term_text use:title}}` | `{{text use:title}}` | `Sales` / `Sales` — EQUAL | empty / this context's own heading — **empty→value** |
+| C-CONV2/3 | bare collapsing template | `{{term_content}}` | `{{content}}` | the Sales term description, both sides | empty / the PTA description, author bio or 404 borrow — **empty→value**; on date and latest-home both are empty |
+| — | chain-only collapsing template | `{{term_permalink}}` | `{{permalink}}` | the term archive URL, both sides | empty / the singular page's own URL — **empty→value**; empty on both everywhere else. `render-tag` rows only, no fixture pair (its value is a URL that moves with every reseed) |
+| C-CONV4/5 | CHAINED, unpinned | `{{term_text src:ref\|ref:dept_lead\|use:title}}` | `{{text src:refs,dept_lead,limit(1)\|use:title}}` | `Tom Associate`, both sides | empty on both sides, every context — **IDENTICAL in both directions** |
+| — | chained, two steps | `{{term_text src:ref\|ref:dept_lead\|srcTermIn:portal_visibility\|use:title}}` | `{{text src:refs,dept_lead;terms,portal_visibility,limit(1)\|use:title}}` | `All Users`, both sides | `render-tag` row only; the visible pair is C-CONV4/5, whose one step is the shape a stored tag actually has |
+| C-CONV6/7 | SKIPPED: `tax`, no `id` | `{{term_text tax:department\|key:phone}}` | *(not converted)* | `(987) 333-4444` / empty — **value→empty**, which is why it is skipped | empty on both sides on all six; `(987) 333-4444` on both on the singular `/matrix-post-meta/`, which is where the two agree and is not a context page |
+| C-CONV8/9 | converts: INERT `srcTermIn` | `{{term_text srcTermIn:department\|key:phone}}` | `{{text key:phone}}` | `(987) 333-4444` on both sides — **EQUAL**, the key is dropped with the source axis it belonged to | empty on both sides on all six. On the singular `/matrix-post-meta/` both are empty too, which is the row's second half: the step the converter used to fold in renders `(987) 333-4444, (987) 111-2222` there, a value the stored tag has never produced on any context |
+| — | SKIPPED: bare `src:term` | `{{term_text src:term\|use:title}}` | *(not converted)* | `Sales` / empty — **value→empty**. The base tag REFUSES an argless declaring root (D8), the `term_*` family falls through to its own ambient read | empty on both |
+| — | converts: `src:site` | `{{term_text src:site\|use:title}}` | `{{text src:site\|use:title}}` | empty / `BWS Testbed` — **empty→value**, so it converts through the shared mapping like every other family's | same, every context |
+| C-CONV10/11 | PINNED (FW-39 ticket 08) | `{{term_text id:<support>\|use:title}}` | `{{text src:term,<support>\|use:title}}` | `Support`, both sides — **EQUAL** | `Support` on both sides on all six. The pin is deliberately NOT the archive's own term: a row pinned at Sales would pass whether the pin resolved or not |
+| C-CONV12 | …the same pin carrying `tax` | `{{term_text id:<support>\|tax:department\|use:title}}` | C-CONV11, `tax` GONE | `Support` — **EQUAL** | `Support` everywhere. A term id is globally unique, so the key adds nothing to a PINNED read and is dropped; with no `id` beside it the same key is C-CONV6, skipped whole |
+| C-CONV13/14 | DEAD pin | `{{term_text id:999999\|use:title}}` | `{{text src:term,999999\|use:title}}` | `Sales` / empty — **value→empty** | empty on both sides on all six. The ONE pinned pair that is not output-neutral: the old family falls through to the ambient term and shows whichever term the page is about, and the converted tag renders nothing. Decided, not overlooked — a broken pin reads as broken (`(missing)` in the editor) instead of silently borrowing the page's term |
+| QL1.5/QL1.6 | TERM QUERY LOOP | `{{term_text use:title}}` | `{{text use:title}}` | — | the loop row's term name, both sides, `/matrix-loops/` — see below |
+
+**The `src:site` row is the one D33 predicted would be unconvertible, and the measurement refuted it.** A modifier tag returns EMPTY under `src:site` by an explicit guard (`register_modifier()`'s callback, #37) — for every family, not just this one — so the arm is empty→value, inside the exemption, and skipping it here would be a rule that applies to one family for no reason the code states. The shared mapping has made exactly this rewrite since 1.17.0 (`modifier-base-migration-test.php` §V1.6).
+
+**QL1.6 is the convert-side twin of QL1.5, and it is a fixture row because it cannot be anything else.** A term query loop hands its row's term down through GB's `generateblocks_dynamic_tag_id` filter, and `render-tag` cannot fake a term loop at any flag combination — so the two routes to one term (QL1.5 through `TaxonomyTerm::resolve_id()`, QL1.6 through `bws_resolve_base_source()`'s loop-item classification) are comparable on the page and nowhere else. That is the same gap QL1.5 itself was added to fill, one guard over.
+
+**Vacuity, and how it was ruled out.** An earlier sweep compared `{{term_text use:name}}` on both sides; `name` is not a registered `use` value (`bws_get_text_field_options()` offers `key` and `title`, whose LABEL reads "Title/Name"), so both sides rendered empty on every context and the table proved nothing. Every row above renders a value on at least one side.
+
 ## Author-kind detail
 
 Author kind shipped 1.15.0 = `{{title}}`/`{{content}}` ONLY (the plan's author-archive dispatch rows). text/permalink/image/datetime author analogs are future work (FW-47) — deliberately unhandled, render empty not wrong. The PTA query-context kind this section used to point at as "next" shipped 1.19.0 (C2/C12 above).

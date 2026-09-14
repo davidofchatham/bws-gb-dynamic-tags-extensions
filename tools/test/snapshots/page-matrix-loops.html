@@ -7,7 +7,7 @@
 <meta property="og:description" content="Loops QL1 - a query loop over TERMS: the id leak Loops QL2 - a query loop over USERS: the same leak, second item shape Loops QL3 - a preserved zero in a term lo">
 </head>
 
-<body class="wp-singular page-template-default page page-id-1732 wp-embed-responsive wp-theme-generatepress post-image-above-header post-image-aligned-center secondary-nav-above-header secondary-nav-aligned-right sticky-menu-fade mobile-header right-sidebar nav-float-right separate-containers header-aligned-left dropdown-hover" itemtype="https://schema.org/WebPage" itemscope>
+<body class="wp-singular page-template-default page page-id-1732 wp-embed-responsive wp-theme-generatepress theme-generatepress post-image-above-header post-image-aligned-center secondary-nav-above-header secondary-nav-aligned-right sticky-menu-fade mobile-header woocommerce-no-js right-sidebar nav-float-right separate-containers header-aligned-left dropdown-hover" itemtype="https://schema.org/WebPage" itemscope>
 	<a class="screen-reader-text skip-link" href="#content" title="Skip to content">Skip to content</a>			<nav id="secondary-navigation" aria-label="Secondary" class="secondary-navigation" itemtype="https://schema.org/SiteNavigationElement" itemscope>
 				<div class="inside-navigation grid-container grid-parent">
 										<button class="menu-toggle secondary-menu-toggle">
@@ -62,11 +62,15 @@
 
 <div><ol >
 <li class="gb-loop-item">
-<p class="gb-text">QL1.1 BARE tag, and the row the whole page exists for (-> the loop term name, matching the two rows under it; before item-shape recognition it rendered the post that shares the term id, which on a WordPress install is the first post): Uncategorized</p>
+<p class="gb-text">QL1.1 BARE tag, and the row the whole page exists for (-> the loop term name, matching the row under it; before item-shape recognition it rendered the post that shares the term id, which on a WordPress install is the first post): Uncategorized</p>
 
-<p class="gb-text">QL1.2 the same read with an EXPLICIT source, correct today (-> the loop term name): Uncategorized</p>
+<p class="gb-text">QL1.2 the SAME read with an EXPLICIT `src:term` &#8212; EMPTY since v20 (was the loop term name through 1.20.0-pre; D8 now refuses an argless declaring root unconditionally, even where resolve_id() would have found the loop&#8217;s own term):</p>
 
 <p class="gb-text">QL1.3 the query extension own term tag, correct today (-> the loop term archive URL): /category/uncategorized/</p>
+
+<p class="gb-text">QL1.5 the term_ family reading the SAME loop term as QL1.1, by the other route (-> the loop term name; the 1.20.0 ambient guard must not mistake a loop-supplied term for an ambient one): Uncategorized</p>
+
+<p class="gb-text">QL1.6 what QL1.5 CONVERTS to, in the loop (-> the same loop term name as QL1.5 and QL1.1; three routes, one term, and the migration is only allowed to leave the first two agreeing): Uncategorized</p>
 </li>
 </ol></div>
 
@@ -74,19 +78,19 @@
 <li class="gb-loop-item">
 <p class="gb-text">QL1.4 the SAME bare tag on fixture terms whose ids no post carries (-> the loop term name, matching the row under it; before item-shape recognition it rendered nothing at all, which was the leak with nowhere to land): Sales</p>
 
-<p class="gb-text">QL1.4b NON-VACUITY for the row above, and the proof the loop ran (-> the loop term name): Sales</p>
+<p class="gb-text">QL1.4b NON-VACUITY for the row above, and the proof the loop ran (-> the loop term archive URL): /department/sales/</p>
 </li>
 
 <li class="gb-loop-item">
 <p class="gb-text">QL1.4 the SAME bare tag on fixture terms whose ids no post carries (-> the loop term name, matching the row under it; before item-shape recognition it rendered nothing at all, which was the leak with nowhere to land): Support</p>
 
-<p class="gb-text">QL1.4b NON-VACUITY for the row above, and the proof the loop ran (-> the loop term name): Support</p>
+<p class="gb-text">QL1.4b NON-VACUITY for the row above, and the proof the loop ran (-> the loop term archive URL): /department/support/</p>
 </li>
 
 <li class="gb-loop-item">
 <p class="gb-text">QL1.4 the SAME bare tag on fixture terms whose ids no post carries (-> the loop term name, matching the row under it; before item-shape recognition it rendered nothing at all, which was the leak with nowhere to land): Warehouse</p>
 
-<p class="gb-text">QL1.4b NON-VACUITY for the row above, and the proof the loop ran (-> the loop term name): Warehouse</p>
+<p class="gb-text">QL1.4b NON-VACUITY for the row above, and the proof the loop ran (-> the loop term archive URL): /department/warehouse/</p>
 </li>
 </ol></div>
 </div>
@@ -124,25 +128,25 @@
 
 <div><ol >
 <li class="gb-loop-item">
-<p class="gb-text">QL3.1 term (the identity for the count beside it): Sales</p>
+<p class="gb-text">QL3.1 the identity for the count beside it, EMPTY since 1.20.0 (FW-39, D8) — see the note above; was `Sales`/`Support`/`Warehouse`/`Workshop` through 1.20.0-pre:</p>
 
 <p class="gb-text">QL3.2 count (expect real counts for the staffed departments and a bare 0 for Workshop, which is assigned to no post; this whole row goes with the zero if the guard stops covering the tag): 6</p>
 </li>
 
 <li class="gb-loop-item">
-<p class="gb-text">QL3.1 term (the identity for the count beside it): Support</p>
+<p class="gb-text">QL3.1 the identity for the count beside it, EMPTY since 1.20.0 (FW-39, D8) — see the note above; was `Sales`/`Support`/`Warehouse`/`Workshop` through 1.20.0-pre:</p>
 
 <p class="gb-text">QL3.2 count (expect real counts for the staffed departments and a bare 0 for Workshop, which is assigned to no post; this whole row goes with the zero if the guard stops covering the tag): 6</p>
 </li>
 
 <li class="gb-loop-item">
-<p class="gb-text">QL3.1 term (the identity for the count beside it): Warehouse</p>
+<p class="gb-text">QL3.1 the identity for the count beside it, EMPTY since 1.20.0 (FW-39, D8) — see the note above; was `Sales`/`Support`/`Warehouse`/`Workshop` through 1.20.0-pre:</p>
 
 <p class="gb-text">QL3.2 count (expect real counts for the staffed departments and a bare 0 for Workshop, which is assigned to no post; this whole row goes with the zero if the guard stops covering the tag): 3</p>
 </li>
 
 <li class="gb-loop-item">
-<p class="gb-text">QL3.1 term (the identity for the count beside it): Workshop</p>
+<p class="gb-text">QL3.1 the identity for the count beside it, EMPTY since 1.20.0 (FW-39, D8) — see the note above; was `Sales`/`Support`/`Warehouse`/`Workshop` through 1.20.0-pre:</p>
 
 <p class="gb-text">QL3.2 count (expect real counts for the staffed departments and a bare 0 for Workshop, which is assigned to no post; this whole row goes with the zero if the guard stops covering the tag): 0 </p>
 </li>
@@ -235,11 +239,24 @@
 <script id="generate-a11y">
 !function(){"use strict";if("querySelector"in document&&"addEventListener"in window){var e=document.body;e.addEventListener("pointerdown",(function(){e.classList.add("using-mouse")}),{passive:!0}),e.addEventListener("keydown",(function(){e.classList.remove("using-mouse")}),{passive:!0})}}();
 </script>
-<script type="application/ld+json" id="slim-seo-schema">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"/#website","url":"/","name":"BWS Testbed","inLanguage":"en-US","potentialAction":{"@id":"/#searchaction"},"publisher":{"@id":"/#organization"}},{"@type":"SearchAction","@id":"/#searchaction","target":"/?s={search_term_string}","query-input":"required name=search_term_string"},{"@type":"BreadcrumbList","name":"Breadcrumbs","@id":"/matrix-loops/#breadcrumblist","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"/"},{"@type":"ListItem","position":2,"name":"Matrix: Query Loops"}]},{"@type":"WebPage","@id":"/matrix-loops/#webpage","url":"/matrix-loops/","inLanguage":"en-US","name":"Matrix: Query Loops – BWS Testbed","description":"Loops QL1 - a query loop over TERMS: the id leak Loops QL2 - a query loop over USERS: the same leak, second item shape Loops QL3 - a preserved zero in a term lo","datePublished":"TIMESTAMP","dateModified":"TIMESTAMP","isPartOf":{"@id":"/#website"},"breadcrumb":{"@id":"/matrix-loops/#breadcrumblist"},"potentialAction":{"@id":"/matrix-loops/#readaction"}},{"@type":"ReadAction","@id":"/matrix-loops/#readaction","target":"/matrix-loops/"},{"@type":"Organization","@id":"/#organization","url":"/","name":"BWS Testbed"}]}</script><script id="generate-menu-js-before">
+<script type="application/ld+json" id="slim-seo-schema">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"/#website","url":"/","name":"BWS Testbed","inLanguage":"en-US","potentialAction":{"@id":"/#searchaction"},"publisher":{"@id":"/#organization"}},{"@type":"SearchAction","@id":"/#searchaction","target":"/?s={search_term_string}","query-input":"required name=search_term_string"},{"@type":"BreadcrumbList","name":"Breadcrumbs","@id":"/matrix-loops/#breadcrumblist","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"/"},{"@type":"ListItem","position":2,"name":"Matrix: Query Loops"}]},{"@type":"WebPage","@id":"/matrix-loops/#webpage","url":"/matrix-loops/","inLanguage":"en-US","name":"Matrix: Query Loops – BWS Testbed","description":"Loops QL1 - a query loop over TERMS: the id leak Loops QL2 - a query loop over USERS: the same leak, second item shape Loops QL3 - a preserved zero in a term lo","datePublished":"TIMESTAMP","dateModified":"TIMESTAMP","isPartOf":{"@id":"/#website"},"breadcrumb":{"@id":"/matrix-loops/#breadcrumblist"},"potentialAction":{"@id":"/matrix-loops/#readaction"}},{"@type":"ReadAction","@id":"/matrix-loops/#readaction","target":"/matrix-loops/"},{"@type":"Organization","@id":"/#organization","url":"/","name":"BWS Testbed"}]}</script>	<script>
+		(function () {
+			var c = document.body.className;
+			c = c.replace(/woocommerce-no-js/, 'woocommerce-js');
+			document.body.className = c;
+		})();
+	</script>
+	<script id="generate-menu-js-before">
 var generatepressMenu = {"toggleOpenedSubMenus":true,"openSubMenuLabel":"Open Sub-Menu","closeSubMenuLabel":"Close Sub-Menu"};
 //# sourceURL=generate-menu-js-before
 </script>
 <script id="generate-menu-js" src="/wp-content/themes/generatepress/assets/js/menu.js?ver=VER"></script>
+<script id="sourcebuster-js-js" src="/wp-content/plugins/woocommerce/assets/js/sourcebuster/sourcebuster.js?ver=VER"></script>
+<script id="wc-order-attribution-js-extra">
+var wc_order_attribution = {"params":{"lifetime":1.0e-5,"session":30,"base64":false,"ajaxurl":"/wp-admin/admin-ajax.php","prefix":"wc_order_attribution_","allowTracking":true},"fields":{"source_type":"current.typ","referrer":"current_add.rf","utm_campaign":"current.cmp","utm_source":"current.src","utm_medium":"current.mdm","utm_content":"current.cnt","utm_id":"current.id","utm_term":"current.trm","utm_source_platform":"current.plt","utm_creative_format":"current.fmt","utm_marketing_tactic":"current.tct","session_entry":"current_add.ep","session_start_time":"current_add.fd","session_pages":"session.pgs","session_count":"udata.vst","user_agent":"udata.uag"}};
+//# sourceURL=wc-order-attribution-js-extra
+</script>
+<script id="wc-order-attribution-js" src="/wp-content/plugins/woocommerce/assets/js/frontend/order-attribution.js?ver=VER"></script>
 <script id="wp-emoji-settings" type="application/json">
 {"baseUrl":"https://s.w.org/images/core/emoji/17.0.2/72x72/","ext":".png","svgUrl":"https://s.w.org/images/core/emoji/17.0.2/svg/","svgExt":".svg","source":{"wpemoji":"/wp-includes/js/wp-emoji.js?ver=VER","twemoji":"/wp-includes/js/twemoji.js?ver=VER"}}
 </script>

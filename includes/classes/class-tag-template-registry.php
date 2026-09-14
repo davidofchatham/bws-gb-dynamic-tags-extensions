@@ -127,11 +127,19 @@ class TagTemplateRegistry {
 	 * dispatch path: term for base-source, post for src:ref traversal, term for srcTermIn step.
 	 * Templates without supports_link_wrap (content, permalink, image) never receive link options.
 	 *
+	 * Registers nothing when the family's settings toggle is off, and the toggle key IS
+	 * the prefix (`term` → the `term_ tags` checkbox). A family a settings row never
+	 * mentions is on.
+	 *
 	 * @since 1.6.0
+	 * @since 1.20.0 Gated on the family's settings toggle; `gb_type` per tag is overridden
+	 *               by the tag's migration-registry entry when it has one.
 	 *
 	 * @param array $config {
 	 *     @type string $prefix               Tag prefix, e.g. 'term' → produces 'term_text'.
-	 *     @type string $gb_type              GB type for all modifier tags, e.g. 'term'.
+	 *     @type string $gb_type              GB type for modifier tags with no migration entry,
+	 *                                        e.g. 'term'. A tag the migration registry already
+	 *                                        claims takes that entry's stamp instead.
 	 *     @type string $modifier_label       Parenthetical appended to the tag title, e.g. 'term-based'.
 	 *     @type string $traversal_source_key Source key for the 'ref' traversal (e.g. 'term_related_post').
 	 *     @type string $base_source_key      Source key for direct entity resolution (e.g. 'term').
@@ -149,6 +157,28 @@ class TagTemplateRegistry {
 		$traversal_src_key = $config['traversal_source_key'] ?? '';
 		$base_src_key      = $config['base_source_key']      ?? '';
 		$excl              = $config['excluded_supports']     ?? [];
+
+		// A family switched off in settings registers nothing — the same gate the try_
+		// constructor carries below, reading the same absent-key default of true, so an
+		// install that never saved its settings keeps every tag it already had.
+		if ( ! SettingsPage::is_modifier_enabled( $prefix ) ) {
+			return;
+		}
+
+		// THE DEPRECATED STAMP IS READ OFF THE MIGRATION REGISTRY, NEVER MINTED HERE. A tag
+		// with a type:'tag' entry takes its GB type from that entry; what such an entry
+		// carries, and why, is MigrationRegistry::register()'s to say. A `deprecated` flag
+		// on $config would be a second producer of the same stamp, free to drift out of
+		// step with the registry that governs it. Two consequences for a caller: a family
+		// with converter entries lands in GB's deprecated group, and this call therefore
+		// has to run AFTER those entries are registered. [FW-39 D25/D26]
+		$entry_gb_type = [];
+		foreach ( MigrationRegistry::get_by_type( 'tag' ) as $entry ) {
+			$claimed = (string) ( $entry['match_tag'] ?? '' );
+			if ( '' !== $claimed && ! empty( $entry['gb_type'] ) ) {
+				$entry_gb_type[ $claimed ] = (string) $entry['gb_type'];
+			}
+		}
 
 		// Include 'source' support (GB entity picker) unless explicitly excluded.
 		$base_supports = in_array( 'source', $excl, true ) ? [] : [ 'source' ];
@@ -282,7 +312,7 @@ class TagTemplateRegistry {
 			// VE3/VP-vis gate the standalone email/phone tags carry. Empty otherwise.
 			$visibility = $tpl['visibility'] ?? [];
 
-			self::register_gb_tag( $title, $tag_name, $gb_type, $tag_supports, $options, $callback, $visibility );
+			self::register_gb_tag( $title, $tag_name, $entry_gb_type[ $tag_name ] ?? $gb_type, $tag_supports, $options, $callback, $visibility );
 		}
 	}
 

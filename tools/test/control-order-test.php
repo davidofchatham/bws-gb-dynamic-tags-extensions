@@ -148,6 +148,7 @@ foreach ( array(
 	'includes/tags/phone-tags.php',
 	'includes/tags/table-tags.php',
 	'includes/tags/taxonomy-tags.php',
+	'includes/tags/deprecated-tags.php',
 ) as $rel ) {
 	require_once $root . '/' . $rel;
 }
@@ -160,6 +161,13 @@ bws_register_base_tags();
 bws_register_email_tag();
 bws_register_phone_tag();
 \BWS\DynamicTags\TagTemplateRegistry::generate_base_try_tags();
+// The `term_` family, in the plugin's own three-step order: templates (above), then the
+// family's converter entries, then the constructor that reads their stamp back. Running
+// the constructor without the entries would register the family under `term` and every
+// §C3 assertion below would still pass, so the order here is not incidental — §C4 is what
+// holds it. [FW-39 D25/D26]
+bws_register_modifier_root_migrations( 'term', 'term', array( 'since' => '1.20.0' ) );
+bws_register_term_modifier_tags();
 
 $registered = GenerateBlocks_Register_Dynamic_Tag::get_tags();
 
@@ -1034,6 +1042,44 @@ assert_same(
 	false,
 	isset( $live_tags['term_title']['options']['key'] )
 );
+
+// --- C4. every term_ tag carries the migration registry's deprecated stamp ---
+//
+// The family is deprecated, and the way that is SAID is `gb_type = 'deprecated'` on the GB
+// registration, which lands it in GB's deprecated group. Pinned here because this is the
+// file that drives all three constructors, and because the failure mode is silent: the
+// constructor falls back to the `gb_type` its config names, so a family whose converter
+// entries never ran registers under `term` and every assertion above still passes.
+//
+// PINS THE ROUTE, NOT JUST THE VALUE — the expectation is read back out of the registry
+// entry rather than written as the literal 'deprecated'. A second producer of the stamp
+// inside the constructor would satisfy a literal and fail this. [FW-39 D25/D26]
+$term_entry_types = array();
+foreach ( \BWS\DynamicTags\MigrationRegistry::get_by_type( 'tag' ) as $entry ) {
+	$name = (string) ( $entry['match_tag'] ?? '' );
+	if ( 0 === strpos( $name, 'term_' ) ) {
+		$term_entry_types[ $name ] = $entry['gb_type'] ?? null;
+	}
+}
+assert_same(
+	'every term_ template got a converter entry to take its stamp from',
+	count( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() ),
+	count( $term_entry_types )
+);
+// The one literal, read at the OWNER: MigrationRegistry::register() force-stamps this on
+// every type:'tag' entry. Without it the loop below could pass against two matching nulls.
+assert_same(
+	'the migration registry stamps its tag entries deprecated',
+	array( 'deprecated' ),
+	array_values( array_unique( $term_entry_types ) )
+);
+foreach ( $term_entry_types as $name => $stamp ) {
+	assert_same(
+		"{$name} registers under the stamp its migration entry carries",
+		$stamp,
+		$live_tags[ $name ]['type'] ?? null
+	);
+}
 
 // --- D. the late re-read is quiet while every name is still ours ------------
 

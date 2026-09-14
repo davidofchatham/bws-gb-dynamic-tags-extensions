@@ -397,7 +397,14 @@ check( 'stepArg: an absent vocabulary yields no arg at all (registration bug)', 
 // The assertions are on the RENDERED tree because that is where the bug was: the value
 // and the enum were each individually correct.
 
-const CHAIN_CONF = rep.foldConfig( { fold: {
+// The RAW fold literal, kept as its own const — CHAIN_CONF below is what
+// rep.foldConfig() RETURNS (its fields live at the TOP LEVEL: `.offer`, `.steps`,
+// `.roots`, never `.fold`), so a fixture wanting "the same config with one row
+// overridden" has to re-derive from THIS literal, never from `CHAIN_CONF.fold`
+// (undefined — the bug PIN_CONF shipped with once, caught by #1's own review: it
+// silently dropped `offer`/`steps`/`roots`, which is why an unfilled pinned root's
+// "Add step" gap did not fail here the first time this section was written).
+const CHAIN_FOLD = {
 	container: 'try',
 	combining: false,
 	perSlotUse: true,
@@ -417,7 +424,9 @@ const CHAIN_CONF = rep.foldConfig( { fold: {
 	// Shaped exactly as bws_fold_wire_vocabulary() ships it: one record per WIRE
 	// slug — label declared once, `arg` from the compiler seam, `accepts` from the
 	// engine's own refusal list, `produces` the step's output kind — plus the per-
-	// container ordered OFFER and the parse-time root kinds (only `site` has one).
+	// container ordered OFFER and the parse-time root kinds (BWS_FOLD_PARSE_TIME_ROOT_KINDS
+	// owns which roots have one; this fixture declares only `site`, and PIN_CONF below
+	// declares the two pinning roots).
 	steps: {
 		refs: { label: 'In Reference/Relational Field', arg: 'field', accepts: [ 'post', 'term', 'user', 'meta_row', 'site' ], produces: 'post' },
 		terms: { label: 'In Taxonomy Term', arg: 'slug', accepts: [ 'post' ], produces: 'term' },
@@ -435,7 +444,8 @@ const CHAIN_CONF = rep.foldConfig( { fold: {
 		help: 'Maximum number of results. Leave blank for all.',
 		helpFanning: 'Maximum number of results for each previous-step result. Leave blank for all.'
 	}
-} } );
+};
+const CHAIN_CONF = rep.foldConfig( { fold: CHAIN_FOLD } );
 
 /**
  * The STEP pickers in a rendered tree, in order.
@@ -952,6 +962,295 @@ check( '...Add step is still reachable', hasAddStep( noted.nodes ), true );
 check( '...and a slug switch commits exactly what it would without one', noted.committed[ 0 ].slug, 'rows' );
 check( '...carrying the same field', noted.committed[ 0 ].arg, 'partners' );
 check( '...and the same limit', noted.committed[ 0 ].limit, 3 );
+
+// =========================================================================
+// A PINNED ROOT's argument control (FW-39, D5/D6/D11) — mounted at position 0,
+// off the SAME `srcRows` row the root's own SelectControl reads. `slot-fold-control.js`
+// is the ONE place a chain's root and its steps both render, so this is the seam that
+// makes "the same picker on a base tag, a {{join}} field and a try_ attempt" (D11, D15)
+// true by construction rather than by three copies staying in sync.
+// =========================================================================
+console.log( '\npinned root argument (FW-39)' );
+
+const PIN_CONF = rep.foldConfig( { fold: Object.assign( {}, CHAIN_FOLD, {
+	// Both pinning roots declare a PARSE-TIME kind, which is the whole mechanism behind
+	// "the editor offers steps off a pinned root with no render having occurred" (ticket
+	// 04): the offer is a function of `roots` + `steps`, both shipped in the config, so
+	// nothing below queries anything.
+	roots: { site: 'site', term: 'term', post: 'post' },
+	srcRows: [
+		{ value: 'current', label: 'Current' },
+		{ value: 'refs', label: 'In Reference/Relational Field' },
+		{ value: 'term', label: 'Term', arg: { label: 'Term', control: 'bws-entity-picker', argless: 'refuse', kind: 'term' } },
+		{ value: 'post', label: 'Post', arg: { label: 'Post', control: 'bws-entity-picker', argless: 'refuse', kind: 'post' } }
+	],
+	srcRowsWithSame: [
+		{ value: 'same', label: 'Same as Previous Source' },
+		{ value: 'current', label: 'Current' },
+		{ value: 'term', label: 'Term', arg: { label: 'Term', control: 'bws-entity-picker', argless: 'refuse', kind: 'term' } }
+	]
+} ) } );
+
+function renderPinChain( chain, EntityPicker, sameOnEmpty, stepContext ) {
+	// KEYED ON THE CONTROL NAME (`bws-entity-picker`), matching how the control looks
+	// itself up in the shipped code — `window.bwsRootArgControls[ rootArg.control ]`,
+	// never a bare global whose mere presence would mount the wrong picker for a root
+	// declaring a different control name.
+	const prior = global.window.bwsRootArgControls;
+	if ( EntityPicker ) {
+		global.window.bwsRootArgControls = { 'bws-entity-picker': EntityPicker };
+	} else {
+		delete global.window.bwsRootArgControls;
+	}
+	try {
+		return rep.chainSteps( {
+			conf: PIN_CONF,
+			chain: chain,
+			onChange: function () {},
+			sameOnEmpty: !! sameOnEmpty,
+			slotNoun: 'attempt',
+			stepContext: stepContext || function () { return { state: {}, setState: function () {} }; }
+		} );
+	} finally {
+		if ( prior === undefined ) {
+			delete global.window.bwsRootArgControls;
+		} else {
+			global.window.bwsRootArgControls = prior;
+		}
+	}
+}
+
+/** The mounted entity-picker element in a rendered chain, or null. */
+function pickerIn( nodes, PickerType ) {
+	let found = null;
+	( function walk( n ) {
+		if ( ! n || found ) { return; }
+		if ( Array.isArray( n ) ) { n.forEach( walk ); return; }
+		if ( n.type === PickerType ) { found = n; return; }
+		( n.children || [] ).forEach( walk );
+	}( nodes ) );
+	return found;
+}
+
+const ENTITY_PICKER_STUB = {};
+const pinNoArg = renderPinChain( [ { slug: 'term', arg: null, limit: null } ], ENTITY_PICKER_STUB );
+const pinPicker = pickerIn( pinNoArg, ENTITY_PICKER_STUB );
+
+check( 'the root row\'s declared control mounts at position 0', !! pinPicker, true );
+check( 'it is handed the DERIVED kind off the row\'s own `arg.kind`', pinPicker && pinPicker.props.kind, 'term' );
+check( 'and the row\'s own label, verbatim', pinPicker && pinPicker.props.label, 'Term' );
+function hasKey( nodes, key ) {
+	let found = false;
+	( function walk( n ) {
+		if ( ! n || found ) { return; }
+		if ( Array.isArray( n ) ) { n.forEach( walk ); return; }
+		if ( n.props && key === n.props.key ) { found = true; return; }
+		( n.children || [] ).forEach( walk );
+	}( nodes ) );
+	return found;
+}
+check( 'an EMPTY pin is warned — it will be skipped, not silently ambient (D8)', hasKey( pinNoArg, 'rootargwarn' ), true );
+// D8's editor-side mirror: an UNFILLED pin must not ALSO offer "Add step" beside that
+// warning. `stepArg()` answers '' for any slug outside the step vocabulary — which a
+// root slug always is, roots and steps being disjoint namespaces — so without a
+// root-aware completeness test this button would appear on a chain the factory
+// unconditionally refuses (traversal-pipeline.php's argless-root decline).
+check( '...and "Add step" does NOT appear beside it — the chain is not buildable yet', hasKey( pinNoArg, 'addstep' ), false );
+
+const pinWithArg = renderPinChain( [ { slug: 'term', arg: '34', limit: null } ], ENTITY_PICKER_STUB );
+check( 'a FILLED pin carries its stored value through to the control', pickerIn( pinWithArg, ENTITY_PICKER_STUB ).props.value, '34' );
+// ...and NOW "Add step" is offered — a pinning root that IS filled is a complete,
+// buildable chain, exactly as a `refs`/`rows` step with its field set already is.
+check( '...and a FILLED pin DOES offer "Add step" — the chain is complete', hasKey( pinWithArg, 'addstep' ), true );
+check( '...and carries no "will be skipped" warning', hasKey( pinWithArg, 'rootargwarn' ), false );
+
+// No entity-picker component loaded (a partial deploy, or a harness that never stubs
+// it) DEGRADES to a plain text input rather than rendering nothing — the same
+// FieldCombo-or-TextControl fallback pattern the refs/rows arg control already takes.
+const pinFallback = renderPinChain( [ { slug: 'term', arg: '34', limit: null } ], null );
+check(
+	'with no entity-picker component available, the control falls back to plain text',
+	!! pickerIn( pinFallback, global.wp.components.TextControl ),
+	true
+);
+
+// A NON-PINNING root (no `arg` on its row) renders no root-argument control at all —
+// this branch must not fire for `current`/`refs`, or every ordinary chain would sprout
+// an entity picker nobody asked for.
+const noPin = renderPinChain( [ { slug: 'current' } ], ENTITY_PICKER_STUB );
+check( 'an ordinary (non-pinning) root mounts no entity-picker control', !! pickerIn( noPin, ENTITY_PICKER_STUB ), false );
+
+// A pinned root behind a `same` carry (slot ≥2, `sameOnEmpty: true`) is offered on the
+// SAME terms — position 0's row lookup reads BOTH `srcRows` and `srcRowsWithSame`
+// (rootArgOf checks both pools), so a slot ≥2 picking `term` gets the identical control
+// slot 1 does.
+const pinSlot2 = renderPinChain( [ { slug: 'term', arg: '5', limit: null } ], ENTITY_PICKER_STUB, true );
+check( 'slot ≥2 offers the same pinned-root control (D11 — base and slot ship together)', !! pickerIn( pinSlot2, ENTITY_PICKER_STUB ), true );
+
+// ── STEPS OFF A PINNED ROOT (FW-39 ticket 04, D3) ────────────────────────────
+//
+// A pinned root is a REAL chain root, so the step offer off it is the engine's own
+// admission list and nothing else — the same derive that already narrows the offer off
+// `site`. What makes the PIN different from `current` is only that its kind is known at
+// PARSE time (`conf.roots`), so this whole section runs with no render, no query and no
+// resolver: the offer is computed from the shipped config alone. That is the acceptance
+// criterion, stated as the way these rows are able to exist.
+/** Option values of the LAST picker in a rendered pinned chain — the step-slug offer. */
+function pinLastValues( nodes ) {
+	const sels = selectsIn( nodes );
+	return ( sels[ sels.length - 1 ].options || [] ).map( function ( r ) { return r.value; } );
+}
+
+const afterPinnedTerm = renderPinChain(
+	[ { slug: 'term', arg: '34', limit: null }, { slug: 'refs', arg: 'dept_lead', limit: null } ],
+	ENTITY_PICKER_STUB
+);
+check(
+	'a `refs` step IS offered off a pinned TERM root (refs accepts a term input)',
+	pinLastValues( afterPinnedTerm ).indexOf( 'refs' ) !== -1,
+	true
+);
+// `rows` is absent from that offer too — but for the CONTAINER's reason, not the pin's: no
+// join/try_ arm assembles a repeater row, so `rows` is on no slot offer at all
+// (fold-test-matrix.md §F10.4). Said here so the absence is never read back as a kind
+// refusal alongside the `terms` row below. The engine's own admission of `rows` off a term
+// is pinned in traversal-pipeline-test.php; its RENDER off a pin rides {{table}} in §F22.
+check( '`rows` is absent off the pin for the CONTAINER reason — it is on no slot offer', CHAIN_FOLD.offer.indexOf( 'rows' ), -1 );
+check(
+	'...so that absence is NOT a kind refusal — the engine accepts a term input for `rows`',
+	CHAIN_FOLD.steps.rows.accepts.indexOf( 'term' ) !== -1,
+	true
+);
+check(
+	'a `terms` step is NOT offered off a pinned TERM root — there is no term→term edge',
+	pinLastValues( afterPinnedTerm ).indexOf( 'terms' ),
+	-1
+);
+
+// The POST pin is the contrast that makes the row above a KIND rule rather than a rule
+// about pinned roots: the SAME step the term pin refuses is offered off the post pin.
+const afterPinnedPost = renderPinChain(
+	[ { slug: 'post', arg: '1692', limit: null }, { slug: 'refs', arg: 'partner_staff', limit: null } ],
+	ENTITY_PICKER_STUB
+);
+check(
+	'a `terms` step IS offered off a pinned POST root',
+	pinLastValues( afterPinnedPost ).indexOf( 'terms' ) !== -1,
+	true
+);
+
+// A SECOND step is offered on what the FIRST step produced, not on the pin — `refs`
+// produces a post, so `terms` becomes offerable one hop after the pin refused it. This is
+// the `term,34;refs,<rel>;terms,<tax>` chain, offered a step at a time.
+// (`rows` is the HELD slug at that position on purpose — a held `terms` would be included
+// as `keep` whatever the filter said, and the row would pass while asserting nothing.)
+const afterPinThenRefs = renderPinChain(
+	[
+		{ slug: 'term', arg: '34', limit: null },
+		{ slug: 'refs', arg: 'dept_lead', limit: null },
+		{ slug: 'rows', arg: 'team_members', limit: null }
+	],
+	ENTITY_PICKER_STUB
+);
+check(
+	'...and `terms` IS offered after a `refs` hop off that same pin (the D3 headline chain)',
+	pinLastValues( afterPinThenRefs ).indexOf( 'terms' ) !== -1,
+	true
+);
+
+// Stored-but-refused paints its own row here as everywhere: a hand-authored
+// `term,34;terms,department` is shown as authored and resolves to nothing at render
+// (fold-test-matrix.md §F22.5), never repainted as a different step.
+const pinStoredDead = renderPinChain(
+	[ { slug: 'term', arg: '34', limit: null }, { slug: 'terms', arg: 'department', limit: null } ],
+	ENTITY_PICKER_STUB
+);
+check( 'a hand-authored refused step off a pin still shows its own value', selectsIn( pinStoredDead )[ 1 ].value, 'terms' );
+check(
+	'...and its own row is in its own list',
+	pinLastValues( pinStoredDead ).indexOf( 'terms' ) !== -1,
+	true
+);
+
+// ── THE PIN REACHES THE STEP'S FIELD PICKER (FW-39 ticket 05, D22) ──────────
+//
+// The picker narrows its own list; what this control owes it is the pin, spelled the way
+// the base tag's `src` spells it, so ONE narrowing rule serves the base tag and both fold
+// containers rather than three. The picker is stubbed here because the subject is the
+// hand-off, not the narrowing — `field-combo-control-test.js` §F13 holds the other side.
+//
+// POSITION 1 ONLY. The entity a step's field is read off is whatever the chain resolved
+// to just before it, and only at position 1 is that the root; handing the pin further
+// down would narrow a list against an entity two hops away from the field being picked.
+const FIELD_COMBO_STUB = {};
+
+function renderPinChainWithPicker( chain ) {
+	const prior = global.window.bwsFieldComboControl;
+	global.window.bwsFieldComboControl = FIELD_COMBO_STUB;
+	try {
+		// The container's own synthetic context, as `chainSteps`' two real callers build
+		// it: the step's field key, which the pin hand-off must CARRY rather than replace.
+		return renderPinChain( chain, ENTITY_PICKER_STUB, false, function ( stepObj ) {
+			return { state: { key: stepObj.arg || '' }, setState: function () {} };
+		} );
+	} finally {
+		if ( prior === undefined ) {
+			delete global.window.bwsFieldComboControl;
+		} else {
+			global.window.bwsFieldComboControl = prior;
+		}
+	}
+}
+
+/** Every mounted field-picker element in a rendered chain, in order. */
+function fieldPickersIn( nodes ) {
+	const found = [];
+	( function walk( n ) {
+		if ( ! n ) { return; }
+		if ( Array.isArray( n ) ) { n.forEach( walk ); return; }
+		if ( n.type === FIELD_COMBO_STUB ) { found.push( n ); }
+		( n.children || [] ).forEach( walk );
+	}( nodes ) );
+	return found;
+}
+
+const pinnedRefsArg = fieldPickersIn( renderPinChainWithPicker( [
+	{ slug: 'term', arg: '34', limit: null },
+	{ slug: 'refs', arg: 'dept_lead', limit: null }
+] ) );
+check(
+	'a step at position 1 gets the pin as a `src` token, spelled as the wire spells it',
+	pinnedRefsArg.length === 1 && pinnedRefsArg[ 0 ].props.context.state.src,
+	'term,34'
+);
+// The caller's own synthetic context is CARRIED, not replaced — the field key the picker
+// round-trips lives there, and a hand-off that dropped it would blank the stored field.
+check(
+	"...alongside the field key the caller's own context already carried",
+	pinnedRefsArg[ 0 ].props.context.state.key,
+	'dept_lead'
+);
+
+const deepStepArg = fieldPickersIn( renderPinChainWithPicker( [
+	{ slug: 'term', arg: '34', limit: null },
+	{ slug: 'refs', arg: 'dept_lead', limit: null },
+	{ slug: 'rows', arg: 'team_members', limit: null }
+] ) );
+check(
+	'a step at position 2 gets NO pin — its input is the step before it, not the root',
+	deepStepArg.length === 2 && deepStepArg[ 1 ].props.context.state.src,
+	undefined
+);
+
+const unpinnedStepArg = fieldPickersIn( renderPinChainWithPicker( [
+	{ slug: 'current' },
+	{ slug: 'refs', arg: 'dept_lead', limit: null }
+] ) );
+check(
+	'an ARGLESS root hands over no pin — `current` has no entity to narrow against',
+	unpinnedStepArg[ 0 ].props.context.state.src,
+	undefined
+);
 
 console.log( '\n' + ( total - fail ) + '/' + total + ' passed' );
 process.exit( fail ? 1 : 0 );

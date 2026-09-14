@@ -18,6 +18,11 @@
  * tree it returns. That is a stronger subject than the private functions anyway: it is what
  * an author actually sees.
  *
+ * TWO FILES LOAD, NOT ONE: the shipped chain grammar goes in first, because the control
+ * recognizes a pinned root (§F13) by parsing the sibling `src` through it. A stub of the
+ * grammar here would be a second spelling of the thing the twin harnesses exist to keep
+ * single.
+ *
  * THE HOOK STUBS ARE INSTALLED BEFORE THE FILE LOADS, and that is not optional. The control
  * captures `useState` / `useMemo` / `useEffect` into locals at IIFE time, so replacing them
  * on `wp.element` afterwards would change nothing and every case below would silently
@@ -28,15 +33,19 @@
  * than a count or a joined string. That is the FW-71 / #104 lesson: four defects shipped
  * under a green suite that asserted reductions of the shape instead of the shape.
  *
- * MUTATION-CHECKED 2026-08-28, because a display-layer harness that asserts the wrong shapes
- * passes forever and nobody looks again. Ten rules were broken one at a time in the shipped
- * file and every one failed here by name: always repeating the key in a row (F1.1, F1.2,
+ * MUTATION-CHECKED 2026-08-28 (and again 2026-09-08 for §F13), because a display-layer
+ * harness that asserts the wrong shapes passes forever and nobody looks again. Ten rules
+ * were broken one at a time in the shipped file and every one failed here by name: always repeating the key in a row (F1.1, F1.2,
  * F2.2), an equality location filter instead of a prefix one (F5.1), serializing the merge-key
  * wrapper instead of the bare key (F11.1), dropping the underscore demotion (F1.1, F1.2),
  * dropping the label from the merge identity (F1.1, F1.4, F6.2), collapsing the auto-scope to
  * an empty list (F8.4), case-folding the custom-key suppression (F7.3), auto-selecting an
  * ambiguous key (F6.2), applying an undiscovered typeDefault (F9.4), and rendering the filters
- * while auto-scoped (F8.1, F8.5).
+ * while auto-scoped (F8.1, F8.5). §F13's three: collapsing the `scopeless` flag into an empty
+ * scope list (F13.1 through F13.4 — both kinds read the same flag), narrowing off a chain that
+ * HOPS past its pin (F13.6), and narrowing on a pin that failed to resolve (F13.7, reached by
+ * making the resolve fallback answer the pin's KIND instead of ''; deleting the empty-scope
+ * guard outright is too coarse — it narrows unpinned tags too and the suite dies before §F13).
  *
  * WHAT THIS DOES NOT COVER, stated so a passing run is not read as full coverage of the
  * control: the PHP field-discovery transforms (`field-discovery-test.php` owns those), the
@@ -140,6 +149,24 @@ function createElement( type, props ) {
 
 const registeredFilters = {};
 
+/* -------------------------------------------------------------------------
+ * The entity-lookup fixtures
+ *
+ * `scope` is the SLUG the picker matches against a discovery group's own `scope` — a
+ * taxonomy slug for a term, a post-type slug for a post. `#999` is deliberately absent:
+ * a pin that will not resolve must leave the list unnarrowed rather than empty.
+ * ---------------------------------------------------------------------- */
+
+const ENTITY_ROUTE = '/bws-dynamic-tags/v1/entities';
+
+const ENTITIES = {
+	'term:34': { id: 34, label: '#34 Support', group: 'Department', scope: 'department' },
+	'term:77': { id: 77, label: '#77 News', group: 'Category', scope: 'category' },
+	'post:12': { id: 12, label: '#12 Jane Partner', group: 'Staff', scope: 'staff' },
+};
+
+const entityRequests = [];
+
 global.window = {};
 global.wp = {
 	hooks: {
@@ -160,11 +187,24 @@ global.wp = {
 		Flex: 'Flex',
 		FlexItem: 'FlexItem',
 	},
-	// Present because the control's guard requires it. Never called: the inline envelope
-	// below is the path a real editor page takes too (wp_add_inline_script), and the REST
-	// round trip is out of this harness's scope.
-	apiFetch: function () {
-		throw new Error( 'apiFetch called — the inline envelope should have short-circuited it' );
+	// The FIELD envelope is inlined below, the path a real editor page takes too
+	// (wp_add_inline_script), so a `/fields` fetch here is a defect and still throws.
+	// The ENTITY-LOOKUP route is a genuine round trip — it is how a pinned root's own
+	// scope slug reaches the picker (FW-39 D22) — so it is served from the fixture
+	// table below instead. Anything else is neither and throws.
+	apiFetch: function ( args ) {
+		const path = ( args && args.path ) || '';
+		if ( 0 !== path.indexOf( ENTITY_ROUTE ) ) {
+			throw new Error( 'apiFetch called for ' + path + ' — only the entity lookup is served here' );
+		}
+		entityRequests.push( path );
+		const q = {};
+		( path.split( '?' )[ 1 ] || '' ).split( '&' ).forEach( function ( pair ) {
+			const kv = pair.split( '=' );
+			q[ decodeURIComponent( kv[ 0 ] ) ] = decodeURIComponent( kv[ 1 ] || '' );
+		} );
+		const row = ENTITIES[ q.kind + ':' + q.id ] || null;
+		return Promise.resolve( { row: row } );
 	},
 	i18n: {
 		__: function ( s ) { return s; },
@@ -191,6 +231,8 @@ global.window.bwsFieldEnvelope = {
 	post: [
 		{
 			group_title: 'Event Details',
+			// Scoped to ONE post type, so a pin of another kind narrows these away.
+			scope: [ 'staff' ],
 			fields: [
 				{ name: 'event_date', label: 'event_date', type: 'date_picker' },
 				{ name: 'venue_city', label: 'City', type: 'text' },
@@ -203,6 +245,9 @@ global.window.bwsFieldEnvelope = {
 		},
 		{
 			group_title: 'Feature Block',
+			// NO scope — the endpoint's own "any entity of that kind". Its `photo` is
+			// also an Event Details field, so the merged row is reachable both scoped
+			// and unscoped: the case the `scopeless` flag exists for.
 			fields: [
 				{ name: 'name', label: 'Feature Name', type: 'text' },
 				{ name: 'photo', label: 'Photo', type: 'image' },
@@ -212,6 +257,7 @@ global.window.bwsFieldEnvelope = {
 	term: [
 		{
 			group_title: 'Taxonomy Extras',
+			scope: [ 'department' ],
 			fields: [
 				{ name: 'blurb', label: 'Blurb', type: 'textarea' },
 			],
@@ -233,6 +279,18 @@ global.window.bwsFieldEnvelope.post[ 0 ].fields.push( { name: 'email', label: 'E
 /* -------------------------------------------------------------------------
  * Load the shipped file
  * ---------------------------------------------------------------------- */
+
+// WHICH ROOT SLUGS PIN, and of what kind — inlined from bws_registered_root_rows() on a
+// real editor page. Spelled here as the two shipped pinning roots do; an argless root is
+// absent from the map, which is what `current` below asserts.
+global.window.bwsRootArgKinds = { term: 'term', post: 'post' };
+
+// The SHIPPED chain grammar, not a stub of it: the control recognizes a pin by parsing
+// the sibling `src` through `window.bwsSlotFold`, and a hand-rolled split here would be
+// the second spelling of the chain grammar that this repo's twin harnesses exist to
+// prevent.
+const grammarFile = path.join( root, 'assets/js/slot-fold-grammar.js' );
+vm.runInThisContext( fs.readFileSync( grammarFile, 'utf8' ), { filename: grammarFile } );
 
 const file = path.join( root, 'assets/js/field-combo-control.js' );
 vm.runInThisContext( fs.readFileSync( file, 'utf8' ), { filename: file } );
@@ -776,6 +834,150 @@ async function main() {
 		'F12.5 ...and the config reaches it, scope handle included',
 		[ mounted.props.optionKey, mounted.props.label, mounted.props.scope, mounted.props.scopeKey ],
 		[ 'key', 'Meta/Option Field', 'row', 'staff_list' ]
+	);
+
+	/* =====================================================================
+	 * §F13 — the pinned-root narrowing (FW-39 D22)
+	 *
+	 * A single-step chain rooted at a PINNED entity narrows the list to the fields
+	 * scoped to that entity's taxonomy or post type. The scope handle is the
+	 * entity-lookup route's own `scope`, matched against the discovery envelope's
+	 * EXISTING per-field `scope` — nothing is added to discovery, which is where D23
+	 * draws the line.
+	 *
+	 * ASSERTED AS WHOLE LISTS, not as membership of one row: the property is what an
+	 * author sees in the picker, and a membership check passes just as happily on a list
+	 * that narrowed nothing.
+	 * ================================================================== */
+
+	const pinnedDepartment = labels( combo( await render( FieldComboControl, {
+		optionKey: 'key',
+		label: 'Field',
+		context: ctx( { src: 'term,34' } ),
+	} ) ).options );
+
+	check(
+		"F13.1 a pinned TERM narrows to that taxonomy's fields, plus every unscoped one",
+		pinnedDepartment,
+		[
+			"Blurb (Text Area, 'blurb')",
+			"Email (Email, 'email')",
+			"Feature Name (Text, 'name')",
+			"Photo (Image, 'photo')",
+		]
+	);
+
+	// `photo` is reached through a `staff`-scoped group AND an unscoped one. It survives
+	// a `department` pin because ONE unscoped home makes a field reachable anywhere —
+	// the rule a plain union of scope slugs would have lost.
+	check(
+		'F13.2 a field with one unscoped home survives a pin its other home excludes',
+		pinnedDepartment.indexOf( "Photo (Image, 'photo')" ) !== -1,
+		true
+	);
+
+	check(
+		"F13.3 a pinned POST narrows to that post type's fields — a different list, same rule",
+		labels( combo( await render( FieldComboControl, {
+			optionKey: 'key',
+			label: 'Field',
+			context: ctx( { src: 'post,12' } ),
+		} ) ).options ),
+		[
+			"City (Text, 'venue_city')",
+			"Email (Email, 'email')",
+			"Email (Email, 'email')",
+			'event_date (Date)',
+			"Feature Name (Text, 'name')",
+			"Name (Text, 'name')",
+			"Photo (Image, 'photo')",
+			"Role (Text, 'role')",
+			"Staff List (Repeater, 'staff_list')",
+			'_gb_internal (Text)',
+		]
+	);
+
+	// Re-narrowing is what "changing the pin re-narrows without a reload" means at this
+	// layer: the scope is derived per render from the sibling token, never cached against
+	// the first pin the control saw.
+	check(
+		'F13.4 changing the pin re-narrows — a taxonomy with no fields of its own leaves only the unscoped ones',
+		labels( combo( await render( FieldComboControl, {
+			optionKey: 'key',
+			label: 'Field',
+			context: ctx( { src: 'term,77' } ),
+		} ) ).options ),
+		[
+			"Email (Email, 'email')",
+			"Feature Name (Text, 'name')",
+			"Photo (Image, 'photo')",
+		]
+	);
+
+	check(
+		'F13.5 an ARGLESS root narrows nothing — `current` has no kind until render',
+		labels( combo( await render( FieldComboControl, {
+			optionKey: 'key',
+			label: 'Field',
+			context: ctx( { src: 'current' } ),
+		} ) ).options ),
+		baseLabels
+	);
+
+	// The read applies to the STEP's target, not to the pin, and nothing here knows that
+	// target's type — the same reason `src:ref` presets no location (matrix M11.1).
+	check(
+		'F13.6 a chain that HOPS past the pin narrows nothing',
+		labels( combo( await render( FieldComboControl, {
+			optionKey: 'key',
+			label: 'Field',
+			context: ctx( { src: 'term,34;refs,related' } ),
+		} ) ).options ),
+		baseLabels
+	);
+
+	check(
+		'F13.7 a pin that will not resolve leaves the list UNNARROWED, never empty',
+		labels( combo( await render( FieldComboControl, {
+			optionKey: 'key',
+			label: 'Field',
+			context: ctx( { src: 'term,999' } ),
+		} ) ).options ),
+		baseLabels
+	);
+
+	// The slot prefix is the same one `presetKind()` reads by: a try_ slot's key control
+	// must narrow on ITS OWN slot's source, not on slot 1's.
+	check(
+		"F13.8 a slot-prefixed key reads its own slot's pin",
+		labels( combo( await render( FieldComboControl, {
+			optionKey: '2-key',
+			label: 'Field',
+			context: ctx( { src: 'post,12', '2-src': 'term,34' } ),
+		} ) ).options ),
+		pinnedDepartment
+	);
+
+	// The narrowing composes with the repeater auto-scope rather than replacing it —
+	// `staff_list` lives in the `staff`-scoped group, so a post pin keeps its sub-fields.
+	check(
+		'F13.9 the pin narrowing composes with the repeater auto-scope',
+		labels( combo( await render( FieldComboControl, {
+			optionKey: 'key',
+			label: 'Field',
+			scope: 'row',
+			scopeKey: 'staff_list',
+			context: ctx( { src: 'post,12' } ),
+		} ) ).options ),
+		[ "Role (Text, 'role')" ]
+	);
+
+	// The lookup is the ENTITY route's, once per pin — the discovery envelope is still
+	// read inline and never fetched, which is the boundary D23 draws.
+	check(
+		"F13.10 the scope came from the entity-lookup route's resolve mode, never from discovery",
+		entityRequests[ 0 ],
+		ENTITY_ROUTE + '?kind=term&mode=resolve&id=34'
 	);
 
 	console.log( '' );

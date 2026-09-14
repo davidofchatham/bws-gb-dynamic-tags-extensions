@@ -143,6 +143,7 @@ $field_keys = array(
 		'email'      => 'field_bwsfx_department_email',
 		'event_date' => 'field_bwsfx_dept_event_date',
 		'charter'    => 'field_bwsfx_charter',   // v12 first-usable corpus (§F15).
+		'dept_lead'  => 'field_bwsfx_dept_lead', // v20 pinned-root chain step (§F20).
 	),
 );
 
@@ -630,6 +631,38 @@ foreach ( $manifest['post_meta'] as $slug => $meta ) {
 	}
 }
 $log( 'post fields + plain meta applied' );
+
+// A term-meta field that RESOLVES A POST-SLUG REFERENCE ('dept_lead', §F20) has to wait
+// until POSTS exist (section 4, above) — `term_fields` runs in section 3, before any post
+// is created, so `$post_ids` there is always empty for this key. A second, narrow pass
+// here (rather than moving the whole term_fields loop after posts) keeps every OTHER term
+// field seeded in its original, long-stable position; only the one key that needs a post
+// id gets a second write.
+$term_post_ref_fields = array( 'dept_lead' );
+foreach ( $manifest['term_fields'] as $slug => $fields ) {
+	if ( ! isset( $term_ids[ $slug ] ) ) {
+		continue;
+	}
+	$tid = $term_ids[ $slug ];
+	foreach ( $fields as $name => $value ) {
+		if ( ! in_array( $name, $term_post_ref_fields, true ) ) {
+			continue;
+		}
+		// ARRAY-shaped (relationship, §F20) — map each slug through $post_ids, same
+		// resolver the post_fields loop uses for `related_staff` and friends.
+		$value = is_array( $value )
+			? array_values( array_filter( array_map( function ( $ref ) use ( $post_ids ) {
+				return isset( $post_ids[ $ref ] ) ? $post_ids[ $ref ] : 0;
+			}, $value ) ) )
+			: ( isset( $post_ids[ $value ] ) ? $post_ids[ $value ] : 0 );
+		if ( $have_acf && isset( $field_keys['term'][ $name ] ) ) {
+			update_field( $field_keys['term'][ $name ], $value, 'term_' . $tid );
+		} else {
+			update_term_meta( $tid, $name, $value );
+		}
+	}
+}
+$log( 'term post-reference fields applied' );
 
 // ---------------------------------------------------------------------------
 // 6. Plain wp_options (recursive merge — only the manifest's keys change).

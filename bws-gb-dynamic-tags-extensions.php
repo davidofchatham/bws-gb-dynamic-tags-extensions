@@ -148,6 +148,10 @@ function bws_dynamic_tags_init() {
 	// type:'option' migration entries in deprecated-tags.php; loads after the grammar
 	// it adapts and after serialization-order.php (it canonicalizes emitted key order).
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/slot-fold-migrate.php';
+	// The converter's OWNERSHIP GUARD (FW-39) — the predicate every content rewrite passes.
+	// Pure but for one gatherer; loads with the helpers rather than with the admin classes
+	// because nothing about it is admin-only and the harness needs it reachable on its own.
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/converter-ownership.php';
 
 	// Migration data + the public migration-registration API. Loaded HERE, at
 	// plugins_loaded, rather than only in the init:20 pass that calls its registrars:
@@ -161,6 +165,11 @@ function bws_dynamic_tags_init() {
 	// Field-discovery REST service (backs the bws-field-combo editor control).
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/rest/field-discovery.php';
 	add_action( 'rest_api_init', 'bws_register_field_discovery_route' );
+
+	// Entity-lookup REST service (backs the bws-entity-picker control, FW-39). Shares
+	// field-discovery's namespace const, so it must load after the require above.
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/rest/entity-lookup.php';
+	add_action( 'rest_api_init', 'bws_register_entity_lookup_route' );
 
 	// Dev/testing CLI commands (never part of shipped runtime). Registered on
 	// cli_init so it lands after tags register at init:20.
@@ -326,6 +335,25 @@ function bws_dynamic_tags_register_all() {
 	// Register option-key migrations for base tags with deprecated option names.
 	bws_register_option_migrations();
 
+	// The `term_` family's modifier → base entries (FW-39). Through the same generator an
+	// external prefix owner calls, with no per-family rule: the shared transform reads the
+	// root's own contract, and `term` declares a required argument, so an unpinned tag
+	// converts to a bare base tag rather than to a root that would refuse.
+	//
+	// AFTER bws_register_option_migrations(), and the order is load-bearing in one
+	// direction only: the generator skips any tag name a `type:'tag'` entry already claims,
+	// so a hand-written `term_*` entry registered earlier keeps governing its own tag. The
+	// converter's own cascade (renames first, then every option entry) is what carries a
+	// migrated tag on into the base-tag chain entry, not this position.
+	bws_register_modifier_root_migrations( 'term', 'term', array( 'since' => '1.20.0' ) );
+
+	// The `term_` GB tags themselves, AFTER the entries above — the constructor reads each
+	// tag's `gb_type` off the migration registry, which is what lands the family in GB's
+	// deprecated group. Registered late for that reason alone; nothing else in the pass
+	// depends on the order. Registrations never retire, so the family stays here even once
+	// removal is decided (an unregistered tag renders literally). [FW-39 D25/D27]
+	bws_register_term_modifier_tags();
+
 	// Deprecated wrappers registered last (old tag names pointing to new core functions).
 	bws_register_deprecated_tags();
 }
@@ -465,6 +493,38 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 			'before'
 		);
 	}
+	// WHICH ROOT SLUGS PIN AN ENTITY, and of what kind (FW-39 D22) — the field picker
+	// narrows its list to a pinned entity's taxonomy or post type, and to do that it has
+	// to recognize `term,34` in the sibling `src` as a pin rather than as any other
+	// two-part root token. Derived from bws_registered_root_rows(), the one appender both
+	// authoring surfaces already read their root enum through, so a root contributed via
+	// `bws_dynamic_tags_chain_roots` narrows on the same terms as ours and an argless root
+	// is simply absent from the map. `(object)` so an empty map emits `{}` rather than the
+	// array literal `[]`, which reads as no map at all on the JS side.
+	if ( function_exists( 'bws_registered_root_rows' ) ) {
+		$bws_root_arg_kinds = array();
+		foreach ( bws_registered_root_rows() as $bws_root_row ) {
+			if ( ! empty( $bws_root_row['arg']['kind'] ) ) {
+				$bws_root_arg_kinds[ (string) $bws_root_row['value'] ] = (string) $bws_root_row['arg']['kind'];
+			}
+		}
+		wp_add_inline_script(
+			'bws-dynamic-tags-field-combo-control',
+			'window.bwsRootArgKinds = ' . wp_json_encode( (object) $bws_root_arg_kinds ) . ';',
+			'before'
+		);
+	}
+	// The pinned-entity picker (FW-39) — backs a chain root's ARGUMENT, not an option
+	// key, so it is exposed for composition rather than self-registering (see the
+	// file header). Loads before the slot-fold CONTROL, which mounts it at a chain's
+	// position 0 the same way it already mounts the field-combo control mid-chain.
+	wp_enqueue_script(
+		'bws-dynamic-tags-entity-picker-control',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/entity-picker-control.js',
+		array( 'wp-hooks', 'wp-element', 'wp-components', 'wp-api-fetch', 'wp-i18n' ),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
 	// Folded slot wire (FW-56/57). The GRAMMAR is the tested twin of
 	// includes/helpers/slot-fold.php and carries no decisions of its own; the CONTROL
 	// is the repeater that owns one folded slot value. The control must load after the
@@ -502,6 +562,7 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 			'bws-dynamic-tags-slot-fold-grammar',
 			'bws-dynamic-tags-slot-fold-migrate',
 			'bws-dynamic-tags-field-combo-control',
+			'bws-dynamic-tags-entity-picker-control',
 			'bws-dynamic-tags-option-group',
 		),
 		BWS_DYNAMIC_TAGS_VERSION,
@@ -539,7 +600,16 @@ add_action( 'plugins_loaded', 'bws_dynamic_tags_init', 20 );
  * are removed from GB out of the box. Existing installs (option row already
  * present) are left untouched to avoid silently breaking live content.
  *
+ * THE SEED ROW IS THE ONLY PLACE A FRESH INSTALL CAN BE TOLD FROM AN OLD ONE. Every
+ * accessor reading these keys treats an absent key as ON, which is what keeps an install
+ * that never opened the settings page rendering what it always rendered — and it is
+ * therefore blind to which kind of install it is looking at. A key seeded here says "this
+ * site started life after the default changed", and nothing else can. Do not add a second
+ * discriminator elsewhere. `modifiers.term` seeds OFF for that reason (1.20.0), on the
+ * precedent the two deprecated group modes set in 1.6.1.
+ *
  * @since 1.6.1
+ * @since 1.20.0 `modifiers.term` seeds false — the term_ family is deprecated.
  */
 function bws_dynamic_tags_activate() {
 	if ( null !== get_option( 'bws_dynamic_tags_settings', null ) ) {
@@ -547,7 +617,7 @@ function bws_dynamic_tags_activate() {
 	}
 	add_option( 'bws_dynamic_tags_settings', array(
 		'modifiers'   => array(
-			'term' => true,
+			'term' => false,
 			'try'  => true,
 		),
 		'deprecated'  => array(

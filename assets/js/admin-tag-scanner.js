@@ -89,6 +89,31 @@
 	var selectAllLbl = document.getElementById( 'bws-select-all-label' );
 	var migrateSelBtn = document.getElementById( 'bws-migrate-selected-btn' );
 
+	// The two non-conversion channels and the exemption disclosure (FW-39, D46).
+	var declinedWrap = document.getElementById( 'bws-scan-declined' );
+	var declinedList = document.getElementById( 'bws-declined-list' );
+	var skippedWrap  = document.getElementById( 'bws-scan-skipped' );
+	var skippedList  = document.getElementById( 'bws-skipped-list' );
+	var exemptWrap   = document.getElementById( 'bws-scan-exemption' );
+	var exemptLine   = document.getElementById( 'bws-scan-exemption-line' );
+
+	/**
+	 * Whether a scan row has anything the Migrate button would actually do.
+	 *
+	 * A deprecated tag counts only when its verdict is `convert`; an option migration always
+	 * counts, because those never reach either channel. `status` is absent on a response from
+	 * a pre-1.20.0 build, and an absent verdict reads as convertible — which is exactly what
+	 * that build meant by listing the row.
+	 */
+	function hasConvertibleWork( post ) {
+		var tags = post.deprecated_tags || [];
+		var convertible = tags.some( function ( t ) {
+			return ! t.status || t.status === 'convert';
+		} );
+
+		return convertible || ( post.option_migrations || [] ).length > 0;
+	}
+
 	if ( scanBtn ) {
 		scanBtn.addEventListener( 'click', function () {
 			scanBtn.disabled = true;
@@ -112,13 +137,32 @@
 					// so the one run that did real work reported none of it.
 					setPatternCacheLine( data );
 
+					// THE THREE CHANNELS RENDER BEFORE THE ZERO-RESULT RETURN, for the same
+					// reason the pattern-cache line does: a site whose every finding is a
+					// skip or a decline has results worth printing and no convertible post,
+					// and leaving this below the return would report "no issues" over a list
+					// of tags we deliberately left alone.
+					renderChannels( data.channels || {} );
+
 					if ( scanResults.length === 0 ) {
 						scanStatus.textContent = i18n.noIssues || 'No issues found.';
 						return;
 					}
 
-					scanStatus.textContent = scanResults.length + ' post' + ( scanResults.length === 1 ? '' : 's' ) + ' found.';
-					renderResults( scanResults );
+					// ONLY POSTS WITH SOMETHING TO CONVERT REACH THE TABLE. The table carries a
+					// Migrate button per row, so a post whose every finding was declined or
+					// skipped would offer work that cannot happen — the run would report "no
+					// changes needed" and the owner would have no idea why. Those posts are
+					// accounted for in the two channels below instead.
+					var convertible = scanResults.filter( hasConvertibleWork );
+
+					if ( convertible.length === 0 ) {
+						scanStatus.textContent = i18n.nothingToConvert || 'Nothing to convert.';
+						return;
+					}
+
+					scanStatus.textContent = convertible.length + ' post' + ( convertible.length === 1 ? '' : 's' ) + ' found.';
+					renderResults( convertible );
 					resultsWrap.style.display = 'block';
 				},
 				function ( err ) {
@@ -127,6 +171,106 @@
 				}
 			);
 		} );
+	}
+
+	// ============================================================
+	// RENDER THE TWO NON-CONVERSION CHANNELS (FW-39, D46)
+	// ============================================================
+
+	/**
+	 * Place the declined list, the skipped list and the exemption line.
+	 *
+	 * EVERY SENTENCE ARRIVES COMPOSED. PHP owns each channel's vocabulary, keyed by reason
+	 * and censused against its own enum, so a reason added without wording fails a harness
+	 * instead of reaching here and printing an empty row. This function decides layout and
+	 * nothing else — the one string it authors is the preview's label.
+	 *
+	 * A DECLINE GETS A CLAIM CONTROL; A SKIP GETS NOTHING. That asymmetry is the channels'
+	 * whole point: a decline gates a rewrite and has an author action, a skip has neither.
+	 */
+	function renderChannels( channels ) {
+		var declined = channels.declined || [];
+		var skipped  = channels.skipped  || [];
+		var optedIn  = channels.optedIn  || [];
+
+		if ( exemptWrap && exemptLine ) {
+			exemptLine.textContent = channels.exemptLine || '';
+			exemptWrap.style.display = channels.exemptLine ? 'block' : 'none';
+		}
+
+		if ( declinedList && declinedWrap ) {
+			declinedList.innerHTML = '';
+			declined.forEach( function ( row ) {
+				declinedList.appendChild( declinedRow( row, optedIn.indexOf( row.tag ) !== -1 ) );
+			} );
+			declinedWrap.style.display = declined.length ? 'block' : 'none';
+		}
+
+		if ( skippedList && skippedWrap ) {
+			skippedList.innerHTML = '';
+			skipped.forEach( function ( row ) {
+				var li = document.createElement( 'li' );
+				li.className = 'bws-channel-item bws-channel-skipped';
+				li.innerHTML = '<p class="bws-channel-line">' + esc( row.line ) + '</p>' + previewHtml( row );
+				skippedList.appendChild( li );
+			} );
+			skippedWrap.style.display = skipped.length ? 'block' : 'none';
+		}
+	}
+
+	/** The stored example, so a count is something an owner can recognize (D37). */
+	function previewHtml( row ) {
+		if ( ! row.sample ) { return ''; }
+
+		return '<p class="bws-channel-preview">' +
+			esc( i18n.storedExample || 'Stored example:' ) + ' <code>' + esc( row.sample ) + '</code>' +
+			'</p>';
+	}
+
+	function declinedRow( row, claimed ) {
+		var li = document.createElement( 'li' );
+		li.className = 'bws-channel-item bws-channel-declined';
+
+		var action = row.action
+			? '<p class="bws-channel-action">' + esc( row.action ) + '</p>'
+			: '';
+
+		li.innerHTML =
+			'<p class="bws-channel-line">' + esc( row.line ) + '</p>' +
+			action +
+			previewHtml( row ) +
+			'<p class="bws-channel-claim"><label>' +
+				'<input type="checkbox" class="bws-claim-cb"' + ( claimed ? ' checked' : '' ) + ' />' +
+				' ' + esc( i18n.claimLabel || 'These tags are mine, convert them' ) +
+			'</label> <span class="bws-claim-status" aria-live="polite"></span></p>';
+
+		var cb     = li.querySelector( '.bws-claim-cb' );
+		var status = li.querySelector( '.bws-claim-status' );
+
+		// THE BOX REVERTS ON FAILURE rather than staying where the click left it. It is the
+		// control that lifts the ownership guard, so a box showing "claimed" over an option
+		// that was never written would read as a decision the site never recorded.
+		cb.addEventListener( 'change', function () {
+			var wanted = cb.checked;
+			cb.disabled = true;
+			status.textContent = i18n.saving || 'Saving…';
+
+			post(
+				'bws_ownership_optin',
+				{ tag: row.tag, claim: wanted ? '1' : '0' },
+				function () {
+					cb.disabled = false;
+					status.textContent = i18n.claimSaved || 'Saved. Scan again to pick up the change.';
+				},
+				function ( err ) {
+					cb.checked  = ! wanted;
+					cb.disabled = false;
+					status.textContent = ( i18n.errorPrefix || 'Error:' ) + ' ' + err;
+				}
+			);
+		} );
+
+		return li;
 	}
 
 	// ============================================================
@@ -142,9 +286,13 @@
 			var row  = document.createElement( 'tr' );
 			row.setAttribute( 'data-post-id', post.post_id );
 
-			// Issues list.
+			// Issues list — ONLY WHAT THIS ROW'S MIGRATE BUTTON WILL CONVERT. A declined or
+			// skipped tag in the same post is reported in its own channel, with its own
+			// reason; listing it here too would name it under a heading that says it is
+			// about to change, and leave an owner comparing two accounts of one tag.
 			var issueHtml = '<ul class="bws-issue-list">';
 			( post.deprecated_tags || [] ).forEach( function ( t ) {
+				if ( t.status && t.status !== 'convert' ) { return; }
 				issueHtml += '<li class="bws-issue-tag">⚠ <code>' + esc( t.tag ) + '</code>';
 				if ( ! t.has_migration ) { issueHtml += ' <em>(no auto-convert)</em>'; }
 				issueHtml += '</li>';

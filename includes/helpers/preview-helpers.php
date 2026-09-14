@@ -709,6 +709,74 @@ function bws_preview_tax_label( string $tax ): string {
 }
 
 /**
+ * The author-facing segment for one PINNED root — "Term: News" (D20, FW-39).
+ *
+ * THREE distinct answers, and they are three different questions:
+ *   - the argument resolves to a named entity  → "<Label>: <Name>" ("Term: News")
+ *   - the argument resolves to NOTHING         → "<root> <arg> (missing)" — a deleted
+ *     term, so the author can find and fix the pin rather than read a silent blank.
+ *   - the argument cannot be READ AT ALL (not numeric, or the resolver hands back
+ *     something with no name) → the root and argument as typed ("term abc"), because
+ *     naming nothing is a worse answer than showing what was typed.
+ *
+ * BOTH FALLBACKS ARE SPACE-SEPARATED, NOT the wire's `term,34` — see the assignment. The
+ * preview is prose, not a tag, and nothing parses it back.
+ *
+ * THE RESOLVER IS INJECTED, never called directly by name — see
+ * bws_preview_source_segments()'s `entity_resolvers` param. That is what lets
+ * tools/test/preview-label-test.php hold this behaviour with a fake resolver instead of
+ * asserting against a live WordPress term, and what lets bws_build_preview_label() (the
+ * one caller with a real WordPress to ask) supply `get_term` without this file gaining a
+ * WP dependency it does not otherwise have.
+ *
+ * A missing resolver (null, the default when the caller supplies none) answers the
+ * fallback-to-token case unconditionally — the same answer an unreadable argument gets —
+ * because a kind with no resolver is a kind this function cannot name, and guessing would
+ * be worse than the token.
+ *
+ * @since 1.20.0
+ * @param string        $root     The pinning root token ('term').
+ * @param string        $arg      The root's argument, verbatim.
+ * @param string        $label    What the argument means to an author ("Term").
+ * @param callable|null $resolver fn( int $id ): object|null|WP_Error — the entity, or a
+ *                                falsy/error value when there is none. Untyped return
+ *                                deliberately: `get_term()` returns WP_Term|WP_Error|null,
+ *                                and the caller's own default may differ.
+ * @return string
+ */
+if ( ! function_exists( 'bws_preview_pinned_entity_segment' ) ) {
+function bws_preview_pinned_entity_segment( string $root, string $arg, string $label, $resolver = null ): string {
+	// SPACE, NOT THE WIRE'S COMMA. `term,34` is the serialized form; this string is prose an
+	// author reads in a preview, and the comma there reads as punctuation inside a sentence
+	// rather than as the separator it is on the wire. The preview never round-trips back
+	// into a tag, so nothing parses this and the two spellings cannot come to disagree —
+	// bws_fold_emit_chain() remains the only thing that writes the comma form.
+	$token = $root . ' ' . $arg;
+
+	if ( ! is_numeric( $arg ) || null === $resolver ) {
+		return $token;
+	}
+
+	$entity = call_user_func( $resolver, (int) $arg );
+	if ( ! $entity || ( function_exists( 'is_wp_error' ) && is_wp_error( $entity ) ) ) {
+		return $token . ' (missing)';
+	}
+
+	// `name` is WP_Term's; a future kind (post) reads `post_title` instead — this
+	// function stays generic by trying both rather than branching on $root, so a third
+	// kind with either property needs no change here.
+	$name = '';
+	if ( is_object( $entity ) ) {
+		$name = (string) ( $entity->name ?? $entity->post_title ?? '' );
+	} elseif ( is_array( $entity ) ) {
+		$name = (string) ( $entity['name'] ?? $entity['post_title'] ?? '' );
+	}
+
+	return '' === $name ? $token : ( $label . ': ' . $name );
+}
+}
+
+/**
  * The author-facing SEGMENTS naming a source, from the chain that describes it.
  *
  * ONE namer behind all three previews (base, join, try_). It used to be assembled inline
@@ -740,6 +808,10 @@ function bws_preview_tax_label( string $tax ): string {
  *   - an unknown STEP slug, at any position (BWS_FOLD_STEP_TYPES owns that definition)
  *   - an unregistered ROOT token
  *   - a RETIRED source token (BWS_FOLD_RETIRED_SRC_TOKENS), which has a NAMED REPAIR
+ *   - a PINNING ROOT with NO ARGUMENT (D8, FW-39) — decidable from the wire the same way
+ *     the others are: the root is registered and declares an argument, and `$root_arg`
+ *     is simply empty. Exempt when the declaration states ROOT_ARGLESS_OWNER_RESOLVES —
+ *     that root is not unfinished, it answers a bare token by its own stated rule.
  * An AMBIENT root never flags: what the ambient entity is on a given request is not knowable at parse time,
  * unknowable ([I9]), so guessing would cry wolf on every ordinary tag. A registered but
  * UNOFFERED root never flags either — offering is not resolving, and a source an integrator
@@ -754,8 +826,10 @@ function bws_preview_tax_label( string $tax ): string {
  * @param array $missing Out-param: slugs of fanning steps with no argument, as
  *                       `array( 'refs' => true, 'terms' => true, 'rows' => true )`.
  * @param array $inert   Out-param: what makes this chain resolve to nothing, as at most one
- *                       of `retired`/`root`/`step` keyed to the offending token. Worded by
- *                       bws_preview_inert_warning(), never here.
+ *                       of `retired`/`root`/`step`/`unpinned` keyed to the offending token.
+ *                       Worded by bws_preview_inert_warning(), never here.
+ * @since 1.20.0 `entity_resolvers` param + PINNED-ROOT naming, and the `unpinned` inert
+ *               reason (D8/D20, FW-39).
  * @return string[] Ordered segments (root name, one per relationship step, site, one per
  *                  term step). Space-join them for a source part.
  */
@@ -767,26 +841,33 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 	// switch that no existing case exercises.
 	$params = array_merge(
 		array(
-			'named_current' => false,
-			'lead'          => false,
-			'roots'         => true,
-			'site'          => true,
-			'terms'         => true,
+			'named_current'    => false,
+			'lead'             => false,
+			'roots'            => true,
+			'site'             => true,
+			'terms'            => true,
+			// INJECTED (D20), never called directly, so the pure preview harness holds
+			// this behaviour rather than restating it as prose. Keyed by root token;
+			// `term` defaults to `get_term` at the call site that owns WordPress (see
+			// bws_build_preview_label()), so this file stays loadable with no WP present.
+			'entity_resolvers' => array(),
 		),
 		$params
 	);
-	$named_current = ! empty( $params['named_current'] );
-	$lead          = ! empty( $params['lead'] );
-	$name_roots    = ! empty( $params['roots'] );
-	$name_site     = ! empty( $params['site'] );
-	$name_terms    = ! empty( $params['terms'] );
+	$named_current     = ! empty( $params['named_current'] );
+	$lead              = ! empty( $params['lead'] );
+	$name_roots        = ! empty( $params['roots'] );
+	$name_site         = ! empty( $params['site'] );
+	$name_terms        = ! empty( $params['terms'] );
+	$entity_resolvers  = is_array( $params['entity_resolvers'] ) ? $params['entity_resolvers'] : array();
 
 	$missing  = array();
 	$inert    = array();
 	$segments = array();
 
-	$root  = function_exists( 'bws_fold_chain_root' ) ? bws_fold_chain_root( $chain ) : '';
-	$steps = array_values( $chain );
+	$root     = function_exists( 'bws_fold_chain_root' ) ? bws_fold_chain_root( $chain ) : '';
+	$root_arg = function_exists( 'bws_fold_chain_root_arg' ) ? bws_fold_chain_root_arg( $chain ) : '';
+	$steps    = array_values( $chain );
 	if ( '' !== $root && ! empty( $steps ) ) {
 		// Position 0 is the ROOT, which the factory consumes — never a step.
 		array_shift( $steps );
@@ -813,6 +894,39 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 			// offering still resolves, so gating on is_selectable_root() would flag a tag
 			// that renders perfectly well.
 			$inert['root'] = $root;
+		}
+	}
+	// A PINNING ROOT DECLARED BUT NOT PINNED (D8, FW-39) is DECIDABLE FROM THE WIRE
+	// ALONE — the argument is either there or it is not — which is exactly this
+	// function's own bar for flagging (see the header note on what may and may not be
+	// detected here). `term` is normally excluded from this walk via $internal_roots
+	// (a bare `term` root is the internal spelling of the ambient read, and a bare tag
+	// carries no root token at all to check against), so it is read directly rather
+	// than through that list: [I15] at the root layer says a half-configured pin must
+	// look broken, and an internal-root exemption written for the ambient case must not
+	// accidentally also hide the one wire shape that IS a configuration mistake.
+	//
+	// OWNER-RESOLVES ROOTS ARE EXEMPT: an argless root that ANSWERS one by its own rule
+	// (SourceInterface::ROOT_ARGLESS_OWNER_RESOLVES) is not unfinished, it is doing
+	// exactly what its declaration says an absent argument means.
+	//
+	// NOT bws_root_argument_row() (base-shared.php) — TRIED, and reverted: it would add
+	// a cross-file dependency this pure preview file does not otherwise have, on a
+	// function the OTHER authoring surface owns, for a normalization this narrow inline
+	// check already gets right. The two guards below and the naming branch further down
+	// read the same declaration independently on purpose — see the header note on why a
+	// second falsy/WP_Error-shaped check stays inline rather than centralized here.
+	if ( '' === $root_arg && '' !== $root && class_exists( '\BWS\DynamicTags\SourceRegistry' ) ) {
+		$pin_check = \BWS\DynamicTags\SourceRegistry::get_source( $root );
+		if ( $pin_check ) {
+			$pin_decl = $pin_check->get_root_argument();
+			$has_pin_control = is_scalar( $pin_decl['label'] ?? null ) && '' !== trim( (string) $pin_decl['label'] )
+				&& is_scalar( $pin_decl['control'] ?? null ) && '' !== trim( (string) $pin_decl['control'] );
+			$owner_resolves = is_scalar( $pin_decl['argless'] ?? null )
+				&& \BWS\DynamicTags\SourceInterface::ROOT_ARGLESS_OWNER_RESOLVES === (string) $pin_decl['argless'];
+			if ( $has_pin_control && ! $owner_resolves ) {
+				$inert['unpinned'] = $root;
+			}
 		}
 	}
 
@@ -858,29 +972,67 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 	// an absent root: a chain LEADING with a step has no root token either, and naming that
 	// would ANCHOR the hop it makes ("Current Ref 'x'"), when the entity a relationship step
 	// starts from is not the source the segment describes.
+	//
+	// THE WORD stays bare `Current` while the Source dropdown's row reads "Current
+	// Context" (1.20.0). What decides it is the NEIGHBOURS the string is read against, not
+	// which surface it appears on: this segment sits inline in a `from` list beside its
+	// siblings ("from Current, Ref 'rel_post'"), where the qualifier buys no clarity and
+	// costs width on every slot carrying one; a menu row is read against the other rows of
+	// its own dropdown, where "Current" alone read as "the current post". Different
+	// neighbours, different word. Reviewed as a deliberate divergence, and pinned by
+	// preview-label-test.php's `ambient named` case; do not "fix" it into agreement.
 	if ( $named_current && 'current' === $root ) {
 		$segments[] = 'Current';
 	}
 
-	// A REGISTERED SOURCE as the chain's root names itself in AUTHOR TERMS (#83) — the
-	// label the source registered, never the serialization token, which is the standing
-	// rule for user-facing text. This is the whole editor experience for a tag rooted at a
-	// source that needs request context: it cannot resolve in the editor, so it previews
-	// rather than renders.
-	//
-	// OFFERED or not is irrelevant: the tag is stored, so the preview describes what it
-	// says, and a source an integrator stopped offering still renders. Reading the label
-	// off the registry (rather than a copy) is what keeps the preview naming a source the
-	// same way the dropdown that authored it did.
-	//
-	// The keys the ROOT ENUM refuses are refused HERE TOO, and for the same reasons, or
-	// the preview would name in author terms exactly what the authoring surface is written
-	// to keep out of an author's vocabulary: `post`/`term` are INTERNAL spellings of the
-	// ambient entity (`{{text src:post}}` would read "from Post", which is what a bare tag
-	// already is), and the four retired traversal-substitute tokens are what the
-	// `related_post` migration exists to REMOVE from wire — naming one dresses a token on
-	// its way out as a configured source.
-	if ( $name_roots && '' !== $root && class_exists( '\BWS\DynamicTags\SourceRegistry' ) ) {
+	// A PINNED ROOT (D20, FW-39) names the ENTITY, not the root's own label — "Term: News",
+	// never "Term" for every tag regardless of which one is pinned. The argument's LABEL
+	// is read off the same declaration the picker itself is authored against
+	// (`SourceInterface::get_root_argument()`), never a second hand-typed map — a map
+	// keyed only on 'term' would silently stop applying the moment a second pinning root
+	// (`post`, D13) ships with its own label, and nothing would say so. `term` stays in
+	// $internal_roots below for a BARE `src:term`: with no argument to pin, `$root_arg`
+	// is '', so this NAMING branch is skipped — but skipped is not silent. The INERT
+	// check above (the `unpinned` reason) already flagged that exact shape, per D8: a
+	// bare `term` root refuses at render, and the preview says so rather than reading
+	// like a healthy bare tag.
+	$root_arg_label = '';
+	if ( '' !== $root_arg && class_exists( '\BWS\DynamicTags\SourceRegistry' ) ) {
+		$pin_source = \BWS\DynamicTags\SourceRegistry::get_source( $root );
+		$decl       = $pin_source ? $pin_source->get_root_argument() : array();
+		$root_arg_label = is_scalar( $decl['label'] ?? null ) ? trim( (string) $decl['label'] ) : '';
+	}
+	if ( $name_roots && '' !== $root_arg_label ) {
+		$segments[] = bws_preview_pinned_entity_segment(
+			$root,
+			$root_arg,
+			$root_arg_label,
+			$entity_resolvers[ $root ] ?? null
+		);
+	} elseif ( $name_roots && '' !== $root && class_exists( '\BWS\DynamicTags\SourceRegistry' ) ) {
+		// A REGISTERED SOURCE as the chain's root names itself in AUTHOR TERMS (#83) — the
+		// label the source registered, never the serialization token, which is the
+		// standing rule for user-facing text. This is the whole editor experience for a
+		// tag rooted at a source that needs request context: it cannot resolve in the
+		// editor, so it previews rather than renders.
+		//
+		// OFFERED or not is irrelevant: the tag is stored, so the preview describes what
+		// it says, and a source an integrator stopped offering still renders. Reading the
+		// label off the registry (rather than a copy) is what keeps the preview naming a
+		// source the same way the dropdown that authored it did.
+		//
+		// The keys the ROOT ENUM refuses are refused HERE TOO, and for the same reasons,
+		// or the preview would name in author terms exactly what the authoring surface is
+		// written to keep out of an author's vocabulary: `post`/`term` are the INTERNAL
+		// spellings of the ambient entity, and BOTH are now also PINNING roots (FW-39) —
+		// a bare one never reaches the `if` just below at all, because the `unpinned` inert
+		// check above already flagged it and $segments already holds a warning, not a plain
+		// label. This branch's exclusion still matters for what it prevents: a bare
+		// `post`/`term` naming itself here on top of that warning would repeat the same fact
+		// twice in two different tones. The four retired traversal-substitute tokens are
+		// excluded for a different reason — they are what the `related_post` migration
+		// exists to REMOVE from wire, and naming one here would dress a token on its way out
+		// as a configured source.
 		$internal = array_merge( $internal_roots, $retired_roots );
 		if ( ! in_array( $root, $internal, true ) ) {
 			$root_source = \BWS\DynamicTags\SourceRegistry::get_source( $root );
@@ -928,7 +1080,12 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
  * The slot form drops the leading capital and the possessive noun, because the letter and the
  * bracket prefix already supply both (`⚠ Join: B unknown source 'currnet'`).
  *
+ * An UNPINNED pinning root (D8, FW-39) is worded plainly rather than as "unknown" or
+ * "unsupported" — it IS a known, registered, offered root; it simply has nothing pinned yet,
+ * which is a different fact from every other reason a chain resolves to nothing here.
+ *
  * @since 1.17.0
+ * @since 1.20.0 The `unpinned` reason (D8, FW-39).
  * @param array $inert Report from bws_preview_source_segments()'s out-param.
  * @param bool  $slot  True for the multislot phrasing (detail alone, no leading capital).
  * @return string Warning text, or '' when the chain is not inert.
@@ -947,6 +1104,12 @@ function bws_preview_inert_warning( array $inert, bool $slot = false ): string {
 	}
 	if ( isset( $inert['step'] ) ) {
 		return ( $slot ? 'unknown source step \'' : 'Unknown source step \'' ) . $inert['step'] . '\'';
+	}
+	if ( isset( $inert['unpinned'] ) ) {
+		// D8's editor-side mirror: this root REFUSES with no argument (it does not
+		// degrade to the ambient entity), so the preview says so rather than staying
+		// silent — the failure an author is least able to see, per [I15].
+		return $slot ? 'nothing pinned' : ucfirst( $inert['unpinned'] ) . ': nothing pinned';
 	}
 	return '';
 }
@@ -1171,12 +1334,26 @@ function bws_build_preview_label( array $options, string $template ): string {
 			$chain,
 			array(
 				// A modifier's own segment precedes, so a term step takes the hop arrow.
-				'lead'  => ! empty( $ctx_segments ),
+				'lead'             => ! empty( $ctx_segments ),
 				// On a rooting modifier a site root is already short-circuited to the
 				// invalid-combo warning below, so the segment would never be reached.
-				'site'  => ! $modifier_label,
+				'site'             => ! $modifier_label,
 				// A term modifier builds its taxonomy segment from `tax`, above.
-				'terms' => ! $is_term_modifier,
+				'terms'            => ! $is_term_modifier,
+				// The ONE caller with a real WordPress to ask (D20) — every other reader
+				// of bws_preview_source_segments() is a pure test supplying its own fake.
+				// `bws_get_validated_term()` (taxonomy-helpers.php), not bare `get_term`:
+				// the plugin's one "is this term real" rule, already the answer every
+				// other term-existence read in this codebase takes, rather than a second
+				// falsy/WP_Error check owned only by the preview. `post` has no equivalent
+				// "is this post real" helper to route through (D13: no legacy read path to
+				// keep compatible with, unlike term's), so it takes bare `get_post` — D20's
+				// own stated default, and `bws_preview_pinned_entity_segment()` already
+				// treats a null return as "missing" without a WP_Error check to make.
+				'entity_resolvers' => array(
+					'term' => 'bws_get_validated_term',
+					'post' => 'get_post',
+				),
 			),
 			$src_missing,
 			$src_inert

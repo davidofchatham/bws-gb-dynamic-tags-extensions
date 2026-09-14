@@ -12,6 +12,7 @@
  * SCOPE:
  *   §C1  bws_fold_chain_is_wire()        chain-vs-token detection (conservative)
  *   §C2  bws_fold_chain_root()           the factory token; ROOT is not a step
+ *   §C2a bws_fold_chain_root_arg()       the root's argument, beside the bare slug
  *   §C3  bws_fold_chain_to_steps()       slug→type map, argless drop, unknown slug
  *   §C4  per-step `limit`                emitted only when it BOUNDS (0/-1 = unlimited)
  *   §C5  bws_fold_chain_from_options()   depth-0 chain: chain wire OR legacy triple
@@ -125,6 +126,97 @@ assert_same( 'registry root passes through', 'portal_resource', bws_fold_chain_r
 // Slot sentinels are resolved by the container BEFORE compile; the root reader must
 // not interpret one (it would have to know the accumulator to do so).
 assert_same( 'same sentinel is returned verbatim', 'same', bws_fold_chain_root( chain_of( 'same' ) ) );
+
+echo "\n§C2a bws_fold_chain_root_arg — the argument travels BESIDE the bare slug (FW-39)\n";
+
+// The pair, on the same chain: the slug the factory looks up, and the argument the
+// declaring source's control owns. Reading `term,34` whole as the factory's src token was
+// the rejected alternative, and this pair is what makes it unnecessary — every
+// registry-name lookup stays a comparison rather than becoming a parse.
+assert_same( 'pinned term root → bare slug', 'term', bws_fold_chain_root( chain_of( 'term,34' ) ) );
+assert_same( '...and the argument beside it', '34', bws_fold_chain_root_arg( chain_of( 'term,34' ) ) );
+assert_same( 'pinned post root → bare slug', 'post', bws_fold_chain_root( chain_of( 'post,1692' ) ) );
+assert_same( '...and the argument beside it', '1692', bws_fold_chain_root_arg( chain_of( 'post,1692' ) ) );
+// OPAQUE — not every root argument is an ID. A Site Views root wants a dimension slug, and
+// anything here that assumed numeric would be wrong the first time one shipped.
+assert_same( 'a NON-NUMERIC argument passes through verbatim', 'north-campus', bws_fold_chain_root_arg( chain_of( 'view,north-campus' ) ) );
+assert_same( '...and its root is still the bare slug', 'view', bws_fold_chain_root( chain_of( 'view,north-campus' ) ) );
+// The argument survives a chain that goes on to hop — a pinning root is a REAL root.
+assert_same( 'argument survives a following hop', '34', bws_fold_chain_root_arg( chain_of( 'term,34;refs,office' ) ) );
+// ARGLESS answers '' — and so does every chain with no root at all. One answer on purpose:
+// what an argless root MEANS is the declaring source's to state (ROOT_ARGLESS_REFUSE or
+// _OWNER_RESOLVES), and this function reads the wire rather than deciding policy on it.
+assert_same( 'argless root → no argument', '', bws_fold_chain_root_arg( chain_of( 'site' ) ) );
+assert_same( 'legacy current root → no argument', '', bws_fold_chain_root_arg( chain_of( 'current' ) ) );
+assert_same( 'empty chain → no argument', '', bws_fold_chain_root_arg( array() ) );
+// A LEADING HOP's own argument is not the root's. The hop applies to the ambient entity, so
+// there is no root to argue about; returning 'office' here would hand the factory a pin
+// nobody authored.
+assert_same( 'leading refs hop → its arg is NOT a root argument', '', bws_fold_chain_root_arg( chain_of( 'refs,office' ) ) );
+assert_same( 'leading terms hop likewise', '', bws_fold_chain_root_arg( chain_of( 'terms,category' ) ) );
+// A pinned root's `limit` is a NAMED token, so it never reads as the argument.
+assert_same( 'a limit beside the pin does not become the argument', '34', bws_fold_chain_root_arg( chain_of( 'term,34,limit(2)' ) ) );
+
+// ── D3: A PINNED ROOT IS A REAL ROOT — hops COMPILE off it (FW-39 ticket 04) ──
+//
+// The pair above says the root and its argument are read apart. These say the rest of the
+// chain is then compiled exactly as it is off any other root: the root is CONSUMED by the
+// factory and never becomes a step, and the pin never leaks into one. That is the whole
+// content of "pinning belongs on base tags rather than a separate tag family" — a second
+// compile path for pinned chains is what this asserts does not exist.
+assert_same(
+	'D3: two hops compile off a pinned term root — the root is consumed, not stepped',
+	array(
+		array( 'type' => 'refs', 'field' => 'dept_lead' ),
+		array( 'type' => 'terms', 'slug' => 'portal_visibility' ),
+	),
+	bws_fold_chain_to_steps( chain_of( 'term,34;refs,dept_lead;terms,portal_visibility' ) )
+);
+assert_same(
+	'...and the same chain through the base arms assembler, unchanged',
+	array(
+		array( 'type' => 'refs', 'field' => 'dept_lead' ),
+		array( 'type' => 'terms', 'slug' => 'portal_visibility' ),
+	),
+	bws_field_values_assemble_steps( array( 'src' => 'term,34;refs,dept_lead;terms,portal_visibility' ) )
+);
+assert_same(
+	'D3: a `rows` hop compiles off a pinned POST root the same way',
+	array( array( 'type' => 'rows', 'field' => 'team_members' ) ),
+	bws_field_values_assemble_steps( array( 'src' => 'post,1692;rows,team_members' ) )
+);
+// The REFUSED step still COMPILES: this compiler emits it like any other. A compiler that
+// dropped it here would make the refusal look like a grammar error and hide that the wire
+// says something that is declined elsewhere (§F22.5 is the rendered row).
+//
+// WHAT decides admission, and WHEN, is NOT this file's to state — the axis lives at
+// BWS_TRAVERSAL_STEP_INPUT_KINDS (traversal-pipeline.php), and nothing below this line
+// would break if that sentence went stale, so it takes a pointer rather than a restatement
+// (CLAUDE.md §Documentation ownership, the per-CLAUSE harness exemption). The step's actual
+// refusal is driven in traversal-pipeline-test.php's own D3 rows.
+assert_same(
+	'D3: a `terms` hop off a pinned TERM root still COMPILES — this file owns only that half',
+	array( array( 'type' => 'terms', 'slug' => 'department' ) ),
+	bws_fold_chain_to_steps( chain_of( 'term,34;terms,department' ) )
+);
+// What the EDITOR reads to offer steps off the pin, with no render having occurred: the
+// chain's resolution. Root-only answers the pin's own kind (BWS_FOLD_PARSE_TIME_ROOT_KINDS),
+// and a hopped chain answers the last step's, exactly as off any other root.
+assert_same(
+	'D3: a root-only pinned chain resolves to the pinned KIND at PARSE time (no render)',
+	array( 'root' => 'term', 'kind' => 'term', 'fans' => false ),
+	bws_fold_chain_resolution( chain_of( 'term,34' ) )
+);
+assert_same(
+	'...and the pinned POST root likewise',
+	array( 'root' => 'post', 'kind' => 'post', 'fans' => false ),
+	bws_fold_chain_resolution( chain_of( 'post,1692' ) )
+);
+assert_same(
+	'...and once it hops, the LAST STEP owns the kind — a pin starts a chain, it does not answer it',
+	array( 'root' => 'term', 'kind' => 'post', 'fans' => true ),
+	bws_fold_chain_resolution( chain_of( 'term,34;refs,dept_lead' ) )
+);
 
 echo "\n§C2b bws_fold_src_root_token — the token every UNMIGRATED tag still hands the factory\n";
 

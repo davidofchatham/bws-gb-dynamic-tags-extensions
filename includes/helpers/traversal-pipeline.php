@@ -262,7 +262,20 @@ function bws_run_traversal( array $sources, array $steps, $reader = null, $gate 
  * empty rather than attempting the read. Widening one is a behaviour change on the
  * render path first and an editor change second, in that order.
  *
+ * @invariant THIS TABLE IS THE WHOLE OF STEP ADMISSION, AND NOTHING ELSE DECIDES IT. A
+ * PINNING root (FW-39) is a real chain root and gets no rule of its own: the factory hands
+ * back the same `{kind, id}` shape every other root does, so a step off `term,34` is
+ * admitted or refused by this list reading `term` and by nothing about the pin. That is
+ * what makes `term,34;refs,<rel>;terms,<tax>` legal with no engine change, and what makes
+ * a `terms` step straight off a term root refused — there is no term→term edge, which is
+ * this table's answer rather than a pinning rule. A second gate anywhere, editor or render,
+ * would be the drift the derive above exists to prevent; a pinned root's kind being
+ * knowable from the wire is BWS_FOLD_PARSE_TIME_ROOT_KINDS' business and changes only WHEN
+ * this list is consulted, never what it says.
+ *
  * @since 1.17.0
+ * @since 1.20.0 The pinning-root clause above (FW-39) — no text here changed for it, which
+ *               is the point.
  */
 const BWS_TRAVERSAL_STEP_INPUT_KINDS = array(
 	'refs'  => array( 'post', 'term', 'user', 'meta_row', 'site' ),
@@ -774,6 +787,7 @@ function bws_capture_ambient_signals( $instance ) {
  * This function declines in three distinct situations, and they are three different
  * QUESTIONS rather than three shapes of one:
  *
+ *   0. A PINNING ROOT WAS GIVEN NO PIN.        REFUSES (FW-39; see below).
  *   1. OUR REGISTRY DID NOT LOAD.  Stays a NULL — the caller falls through to ambient.
  *      The principle, and it is the whole reason this one is different: *our registry
  *      did not load is a fact about the PLUGIN, not a fact about the wire.* Refusing
@@ -796,8 +810,28 @@ function bws_capture_ambient_signals( $instance ) {
  * The refusal needs no change at the delegation site: a non-null return is already
  * terminal there, so the sentinel stops the fallthrough by arriving.
  *
+ * ── THE ROOT-ARGUMENT SEAM (FW-39) ──────────────────────────────────────────────────
+ *
+ * @invariant AN ARGLESS ROOT NEVER DEGRADES TO THE AMBIENT ENTITY. A root that declares
+ * an argument and was given none either REFUSES or resolves by a rule its owner states
+ * (SourceInterface::ROOT_ARGLESS_REFUSE / _OWNER_RESOLVES) — it never falls through to
+ * whatever the page happens to be about. This is [I15] at the root layer, and its axis is
+ * here: a half-configured pin must look broken rather than look right with the wrong
+ * values, because a plausible wrong answer is the failure an author cannot see.
+ *
+ * THE POLICY LIVES HERE AND NOT IN THE SOURCE. TaxonomyTerm::resolve_id() has a permanent
+ * second caller — the `term_*` modifier family, whose registrations never retire — and
+ * that caller must keep reading the ambient term forever. Putting the refusal in the
+ * source would blank every stored `{{term_*}}` tag on the site; putting it here reaches
+ * only wire that names a root, which is the only wire the policy is about.
+ *
+ * A PIN THAT NAMES NOTHING IS ALSO TERMINAL. resolve_root_argument() returning false does
+ * not fall back to resolve_id(): `term,34` after term 34 is deleted renders blank, it does
+ * not silently become the term the visitor is looking at.
+ *
  * @since 1.14.0
  * @since 1.17.0 Declines 2 and 3 refuse instead of falling through to ambient.
+ * @since 1.20.0 Decline 0 — a declared root argument that was not given (FW-39).
  * @param string $src      The src token.
  * @param array  $options  Tag options.
  * @param object $instance GB instance.
@@ -813,7 +847,34 @@ function bws_factory_registry_source( $src, array $options, $instance ) {
 	if ( ! $source ) {
 		return array( 'kind' => BWS_SOURCE_KIND_UNRESOLVED );
 	}
-	$id = $source->resolve_id( $options, $instance );
+
+	// The DECLARATION is read through the same normalizer both authoring surfaces read it
+	// through, so a malformed one resolves exactly as it is offered: as an argless root.
+	$decl = function_exists( 'bws_root_argument_row' )
+		? bws_root_argument_row( $source->get_root_argument() )
+		: array();
+	$id   = null;
+	if ( array() !== $decl ) {
+		$arg = function_exists( 'bws_fold_src_root_arg' ) ? bws_fold_src_root_arg( $options ) : '';
+		if ( '' === $arg ) {
+			// Argless. REFUSE unless the owner said it answers one itself, in which case
+			// resolve_id() runs below — the owner's rule, not the ambient fallthrough.
+			if ( \BWS\DynamicTags\SourceInterface::ROOT_ARGLESS_OWNER_RESOLVES !== ( $decl['argless'] ?? '' ) ) {
+				return array( 'kind' => BWS_SOURCE_KIND_UNRESOLVED );
+			}
+		} else {
+			// Pinned. Terminal either way: a pin naming nothing is not a licence to read
+			// the ambient entity.
+			$id = $source->resolve_root_argument( $arg, $options, $instance );
+			if ( ! $id ) {
+				return array( 'kind' => BWS_SOURCE_KIND_UNRESOLVED );
+			}
+		}
+	}
+
+	if ( null === $id ) {
+		$id = $source->resolve_id( $options, $instance );
+	}
 	if ( ! $id ) {
 		return array( 'kind' => BWS_SOURCE_KIND_UNRESOLVED );
 	}

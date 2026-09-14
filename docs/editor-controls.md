@@ -50,7 +50,7 @@ values](tag-reference.md#src-option-values).
 | Option label | Option value | Base / Slot 1 | Slot 2+ | Context segment in editor preview label | Notes |
 |---|---|---|---|---|---|
 | Same as Previous Source | `same` | Current entity — not serialized | Carry over slot N−1 | N/A | Slot 2+: prepended entry, not in template definition |
-| Current | `current` | stripped → unset | `current` | *(omitted)* | Slot 2+ only: explicit override back to current |
+| Current Context | `current` | stripped → unset | `current` | *(omitted)* | Slot 2+ only: explicit override back to current |
 | In Reference/Relational Field | `ref` | `ref` | `ref` | `Ref 'X'` where X = `ref` field value | Triggers `ref` sub-option |
 | Parent | `parent` | `parent` | `parent` | — | Future |
 | Ancestor | `ancestor` | `ancestor` | `ancestor` | — | Future |

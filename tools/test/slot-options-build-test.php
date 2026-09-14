@@ -81,7 +81,7 @@ $s1 = bws_build_slot_traversal_options( 1, $base_src, $base_trav );
 assert_same(
 	'slot1 src options = current,ref (site filtered, no same)',
 	array(
-		array( 'value' => 'current', 'label' => 'Current' ),
+		array( 'value' => 'current', 'label' => 'Current Context' ),
 		array( 'value' => 'ref',     'label' => 'In Reference/Relational Field' ),
 	),
 	$s1['src']['options']
@@ -129,7 +129,7 @@ assert_same(
 	'slot2 src options = same,current,ref',
 	array(
 		array( 'value' => 'same',    'label' => 'Same as Previous Source' ),
-		array( 'value' => 'current', 'label' => 'Current' ),
+		array( 'value' => 'current', 'label' => 'Current Context' ),
 		array( 'value' => 'ref',     'label' => 'In Reference/Relational Field' ),
 	),
 	$s2['src']['options']
@@ -169,7 +169,7 @@ $mod_src = bws_filter_site_from_src( $base_src );
 assert_same(
 	'rooting-modifier src = current,ref (site filtered)',
 	array(
-		array( 'value' => 'current', 'label' => 'Current' ),
+		array( 'value' => 'current', 'label' => 'Current Context' ),
 		array( 'value' => 'ref',     'label' => 'In Reference/Relational Field' ),
 	),
 	$mod_src['src']['options']
@@ -189,7 +189,7 @@ $picked = bws_pick_src_values( bws_base_source_option(), array( 'current', 'ref'
 assert_same(
 	'pick current,ref → exactly those rows, base labels',
 	array(
-		array( 'value' => 'current', 'label' => 'Current' ),
+		array( 'value' => 'current', 'label' => 'Current Context' ),
 		array( 'value' => 'ref',     'label' => 'In Reference/Relational Field' ),
 	),
 	$picked['src']['options']
@@ -469,12 +469,14 @@ assert_same(
 	BWS_FOLD_STEP_KINDS,
 	array_combine( array_keys( $fold['steps'] ), array_column( $fold['steps'], 'produces' ) )
 );
-// Only `site` has a parse-time root kind. Every other root resolves at render, so
-// the editor must offer everything there rather than guess whether `current` is a post
-// or a term — a guess would hide the taxonomy step on every ordinary tag. `roots` is
-// its own top-level key: a fact about roots, not about steps.
+// A root ABSENT from BWS_FOLD_PARSE_TIME_ROOT_KINDS resolves at render — the editor must
+// offer everything there rather than guess whether `current` is a post or a term, a guess
+// that would hide the taxonomy step on every ordinary tag. `roots` is its own top-level
+// key: a fact about roots, not about steps. The const OWNS which roots have a parse-time
+// kind (see its own PHPDoc); this assertion pins the count and content mechanically
+// rather than restating the axis in prose that could drift from it.
 assert_same(
-	'roots is its own key and only `site` has a parse-time kind',
+	'roots is its own key, straight off the const that owns which roots have a parse-time kind',
 	BWS_FOLD_PARSE_TIME_ROOT_KINDS,
 	$fold['roots']
 );
@@ -777,6 +779,22 @@ add_filter( 'bws_dynamic_tags_chain_roots', static function ( $roots ) {
 		'context' => 'post',
 		'resolve' => static function ( $options, $instance ) { return 5150; },
 	);
+	// ROOT ARGUMENTS through the filter route (FW-39). An argument only in-repo sources
+	// could declare would make the public route second-class, and FW-69/70 made it
+	// integration surface.
+	$roots['argfilterroot'] = array(
+		'label'   => 'Arg Filter Root',
+		'resolve' => static function ( $options, $instance ) { return 1; },
+		'arg'     => array( 'label' => 'View', 'control' => 'bws-test-view-picker', 'argless' => 'owner-resolves' ),
+	);
+	// A spec whose declaration names no control meets the same rule a class does: the
+	// route hands it through unvalidated and the ONE reader drops it, rather than the
+	// rule living at two sites that can come to disagree.
+	$roots['argfilterhalf'] = array(
+		'label'   => 'Arg Filter Half',
+		'resolve' => static function ( $options, $instance ) { return 1; },
+		'arg'     => array( 'control' => 'bws-test-view-picker' ),
+	);
 	// COLLIDES with the class-route source registered above. Must be ignored, not
 	// overwrite it: a plugin shipping a real source class must not have it shadowed by a
 	// spec someone else declared.
@@ -805,16 +823,18 @@ $root_values = static function ( array $rows ): array {
 	return array_map( static function ( $row ) { return $row['value']; }, $rows );
 };
 
-// The appender is the single answer both surfaces take their rows from.
+// The appender is the single answer both surfaces take their rows from. `post` now sits
+// between `testroot` and `term` because CurrentPost registers before TaxonomyTerm in
+// SourceRegistry::init() (FW-39 ticket 03) — both are now selectable pinning roots.
 $appended = bws_registered_root_rows();
 assert_same(
 	'the appender offers the opted-in source and the filter-declared root, in registration order',
-	array( 'testroot', 'filterroot' ),
+	array( 'testroot', 'post', 'term', 'filterroot', 'argfilterroot', 'argfilterhalf' ),
 	$root_values( $appended )
 );
 assert_same(
 	'...labelled by the source\'s OWN accessor, so an integrator names their concept',
-	array( 'Test Root', 'Filter Root' ),
+	array( 'Test Root', 'Post', 'Term', 'Filter Root', 'Arg Filter Root', 'Arg Filter Half' ),
 	array_map( static function ( $row ) { return $row['label']; }, $appended )
 );
 // The collision rule, stated as an outcome rather than as an absence: the key resolves to
@@ -845,14 +865,107 @@ assert_same(
 	in_array( 'quietsource', $root_values( $appended ), true )
 );
 // The registry keeps its dead by policy — four traversal-substitute classes retired when
-// the generic relationship step subsumed them, plus the two INTERNAL keys, which would
-// otherwise promote to roots that duplicate Current and collide with the planned
-// pinned-entity spelling. Every one of them is a registered source right now.
-foreach ( array( 'related_post', 'second_related_post', 'post_term_related_post', 'term_related_post', 'post', 'term' ) as $never ) {
+// the generic relationship step subsumed them. Every one of them is a registered source
+// right now, and none is offerable: nothing here resolves its own id from ambient context
+// in a way an author could usefully pin, and no argument seam changes that.
+//
+// `term` AND `post` USED TO BE ON THIS LIST and are pinning roots now (FW-39, tickets 02
+// and 03). What changed is not that the objection was wrong: a bare `term`/`post` root
+// really would duplicate what a bare base tag does. It is that `term,<ID>`/`post,<ID>` is
+// a different offering, and the argument is REQUIRED — asserted just below, and enforced
+// at the factory seam rather than here.
+foreach ( array( 'related_post', 'second_related_post', 'post_term_related_post', 'term_related_post' ) as $never ) {
 	assert_same(
 		"the registry's own `{$never}` stays out of the root enum",
 		array( true, false ),
 		array( null !== \BWS\DynamicTags\SourceRegistry::get_source( $never ), in_array( $never, $root_values( $appended ), true ) )
+	);
+}
+
+// The SHIPPED pinning root (FW-39), through the same appender an integrator's reaches.
+// Both halves matter: `term` is offered at all (it never has been), and it is offered
+// WITH an argument whose policy is refuse — a bare `term` row would be the ambient read a
+// bare base tag already gives, under a second name.
+$term_row = null;
+foreach ( $appended as $row ) {
+	if ( 'term' === $row['value'] ) { $term_row = $row; }
+}
+assert_same(
+	'`term` is offered as a PINNING root — declared argument, refuse when bare',
+	array(
+		'label'   => 'Term',
+		'control' => 'bws-entity-picker',
+		'argless' => \BWS\DynamicTags\SourceInterface::ROOT_ARGLESS_REFUSE,
+		'kind'    => 'term',
+	),
+	$term_row['arg'] ?? null
+);
+// The picker's kind is DERIVED from the source's own context type, never declared beside
+// the control. A declared kind could come to disagree with what the source resolves —
+// browsing terms for a root that answers posts — and nothing would report it.
+assert_same(
+	'...and its kind is the source\'s own context type, not a second declaration',
+	\BWS\DynamicTags\SourceRegistry::get_source( 'term' )->get_context_type(),
+	$term_row['arg']['kind'] ?? null
+);
+// The declaration is what the EDITOR reads; BWS_FOLD_PARSE_TIME_ROOT_KINDS is what it
+// filters steps by. A pinning root needs both, and the pair is the census below.
+assert_same(
+	'`term` answers its kind at PARSE TIME, so steps can be offered off it with no render',
+	'term',
+	BWS_FOLD_PARSE_TIME_ROOT_KINDS['term'] ?? null
+);
+
+// The SECOND pinning root (FW-39 ticket 03) — same appender, same declaration shape,
+// different kind. `post` has no legacy `id`-carrying modifier family (D13), so unlike
+// `term` there is no compatibility constraint to note here; the declaration itself is
+// identical in shape.
+$post_row = null;
+foreach ( $appended as $row ) {
+	if ( 'post' === $row['value'] ) { $post_row = $row; }
+}
+assert_same(
+	'`post` is offered as a PINNING root — declared argument, refuse when bare',
+	array(
+		'label'   => 'Post',
+		'control' => 'bws-entity-picker',
+		'argless' => \BWS\DynamicTags\SourceInterface::ROOT_ARGLESS_REFUSE,
+		'kind'    => 'post',
+	),
+	$post_row['arg'] ?? null
+);
+assert_same(
+	'...and its kind is the source\'s own context type too',
+	\BWS\DynamicTags\SourceRegistry::get_source( 'post' )->get_context_type(),
+	$post_row['arg']['kind'] ?? null
+);
+assert_same(
+	'`post` answers its kind at PARSE TIME too',
+	'post',
+	BWS_FOLD_PARSE_TIME_ROOT_KINDS['post'] ?? null
+);
+
+// ── The parse-time root CENSUS (FW-39) ───────────────────────────────────────────────
+//
+// Every root that DECLARES AN ARGUMENT pins one entity, so its kind is knowable from the
+// wire and must be stated here. A pinning root that omits it produces no error anywhere:
+// bws_fold_chain_resolution() falls to `render_time`, the editor keeps offering every step
+// off it, and a chain that can never resolve is authorable with nothing saying so. That is
+// block-context-keys-test.php's hazard exactly — a legal read with a plausible answer.
+//
+// Scoped to the SHIPPED sources. An integrator's pinning root is theirs to declare, and
+// nothing here can census a constant it does not own.
+foreach ( \BWS\DynamicTags\SourceRegistry::get_selectable_roots() as $root_key => $root_source ) {
+	if ( array() === bws_root_argument_row( $root_source->get_root_argument() ) ) {
+		continue;
+	}
+	if ( ! in_array( $root_key, array( 'term', 'post' ), true ) ) {
+		continue; // Fixture roots stand in for an integrator's; they own no constant here.
+	}
+	assert_same(
+		"a pinning root declares its parse-time kind: `{$root_key}`",
+		true,
+		isset( BWS_FOLD_PARSE_TIME_ROOT_KINDS[ $root_key ] )
 	);
 }
 
@@ -871,17 +984,17 @@ $rooted_fold = bws_build_fold_slot_options(
 
 assert_same(
 	'BASE root enum = built-ins then the appended roots',
-	array( 'current', 'site', 'testroot', 'filterroot' ),
+	array( 'current', 'site', 'testroot', 'post', 'term', 'filterroot', 'argfilterroot', 'argfilterhalf' ),
 	$root_values( $rooted_base['src']['fold']['srcRows'] )
 );
 assert_same(
 	'SLOT source enum carries the same roots (a root offered on a tag is offered in a field)',
-	array( 'current', 'refs', 'site', 'testroot', 'filterroot' ),
+	array( 'current', 'refs', 'site', 'testroot', 'post', 'term', 'filterroot', 'argfilterroot', 'argfilterhalf' ),
 	$root_values( $rooted_fold['srcRows'] )
 );
 assert_same(
 	'...and so does a slot ≥2, behind its `same` row',
-	array( 'same', 'current', 'refs', 'site', 'testroot', 'filterroot' ),
+	array( 'same', 'current', 'refs', 'site', 'testroot', 'post', 'term', 'filterroot', 'argfilterroot', 'argfilterhalf' ),
 	$root_values( $rooted_fold['srcRowsWithSame'] )
 );
 // APPENDED, never prepended: `defaultRoot` is derived from the first row and stands for
@@ -906,12 +1019,13 @@ assert_same(
 	$root_values( bws_build_slot_traversal_options( 1, bws_base_source_option(), $base_trav, false )['src']['options'] )
 );
 
-// ── The settings gate ────────────────────────────────────────────────────────────────
+// ── The term_ toggle does NOT gate offering (1.20.0, FW-39/D39) ──────────────────────
 //
-// Two different questions: `is_selectable_root()` is the source's claim that it MAY be
-// chosen, `is_source_enabled()` is this site saying whether that context is switched on
-// at all. A term-context root follows the term_ modifier toggle exactly as every other
-// term surface does. Neither gate reaches resolution.
+// ONE gate on an offered root: `is_selectable_root()`, the source's own claim that it MAY
+// be chosen. The settings gate that stood beside it until 1.20.0 read a source's CONTEXT
+// TYPE and answered the term_ modifier toggle, which now means the term_ TAG FAMILY alone
+// — deprecated, seeded off on a new install, and a fresh site must still be able to author
+// the `term` chain root. So a TERM-context root is offered with the toggle either way.
 \BWS\DynamicTags\SourceRegistry::register_source( new BWS_Test_Term_Root_Source() );
 assert_same(
 	'a term-context root is offered while the term_ modifier toggle is ON',
@@ -920,18 +1034,120 @@ assert_same(
 );
 \BWS\DynamicTags\Admin\SettingsPage::$modifiers_enabled = false;
 assert_same(
-	'...and disappears with the toggle, like every other term surface',
-	false,
+	'...and is STILL offered with the toggle off — offering is decoupled from the family',
+	true,
 	in_array( 'testtermroot', $root_values( bws_registered_root_rows() ), true )
 );
 assert_same(
-	'...while a post-context root is unaffected by it',
+	'...as is a post-context root, which never answered the toggle',
 	true,
 	in_array( 'testroot', $root_values( bws_registered_root_rows() ), true )
 );
 \BWS\DynamicTags\Admin\SettingsPage::$modifiers_enabled = true;
 
 echo "\n";
+// ── The ROOT ARGUMENT declaration, carried (FW-39) ───────────────────────────────────
+//
+// A root that PINS an entity needs an author to say which one, and the declaration of
+// that argument rides the same row the label does. The class-route fixtures register HERE,
+// after the enum-order block above, so that block keeps asserting the order it was
+// written for; the filter-route pair had to be declared before init and is in the enum
+// order above for the same reason.
+//
+// Both surfaces carry the declaration WITHOUT KNOWING WHAT IT MEANS — one opaque token,
+// interpreted only by the control it names. That is the property that lets a filter-route
+// root take one on the same terms as a class.
+\BWS\DynamicTags\SourceRegistry::register_source( new BWS_Test_Pinned_Root_Source() );
+\BWS\DynamicTags\SourceRegistry::register_source( new BWS_Test_Owner_Resolves_Root_Source() );
+\BWS\DynamicTags\SourceRegistry::register_source( new BWS_Test_Half_Declared_Root_Source() );
+
+$row_arg = static function ( array $rows, string $value ) {
+	foreach ( $rows as $row ) {
+		if ( $value === $row['value'] ) {
+			return $row['arg'] ?? null;
+		}
+	}
+	return 'NO SUCH ROW';
+};
+$arg_of = static function ( string $value ) use ( $row_arg ) {
+	return $row_arg( bws_registered_root_rows(), $value );
+};
+
+assert_same(
+	'a declaring root carries its argument on the row, argless defaulting to REFUSE',
+	array( 'label' => 'Which One', 'control' => 'bws-test-picker', 'argless' => 'refuse', 'kind' => 'post' ),
+	$arg_of( 'pinroot' )
+);
+assert_same(
+	'...and the second policy is carried as STATED, never inferred from what exists',
+	array( 'label' => 'Dimension', 'control' => 'bws-test-view-picker', 'argless' => 'owner-resolves', 'kind' => 'post' ),
+	$arg_of( 'ownerroot' )
+);
+// ABSENT rather than empty on a root that takes no argument: the key's presence IS the
+// claim that this root takes one, so an empty array would say the opposite of what it
+// means and every surface would have to test emptiness instead of presence.
+assert_same( 'a root that declares nothing carries no `arg` key at all', null, $arg_of( 'testroot' ) );
+// DROPPED WHOLE, not repaired. There is no default control to fall back to, and a
+// declared argument an author cannot fill leaves a root whose only behaviour is refusing.
+assert_same( 'a declaration naming no control is dropped', null, $arg_of( 'halfroot' ) );
+assert_same(
+	'...and the root itself is still offered — a bad optional declaration retires nothing',
+	true,
+	in_array( 'halfroot', $root_values( bws_registered_root_rows() ), true )
+);
+
+// THE FILTER ROUTE, on the same terms. The route hands its spec's declaration through
+// UNVALIDATED and the one reader drops a bad one, rather than the rule living at two
+// sites that can come to disagree — which is why the half-declared spec answers exactly
+// as the half-declared class does.
+assert_same(
+	'a filter-declared root carries an argument on the same terms as a class',
+	array( 'label' => 'View', 'control' => 'bws-test-view-picker', 'argless' => 'owner-resolves', 'kind' => 'post' ),
+	$arg_of( 'argfilterroot' )
+);
+assert_same( '...and a half-declared spec is dropped by that same one reader', null, $arg_of( 'argfilterhalf' ) );
+
+// Both surfaces, one appender — the enum-order block's property, re-asked for the
+// argument. A root offered on a base tag with a picker and offered in a `{{join}}` field
+// without one is exactly the asymmetry the single appender exists to remove.
+// A declaration of the WRONG SHAPE lands where a missing key does. The gate reads an
+// integrator's array, so a non-string is a shape to EXPECT: cast without checking, an
+// array passes as the literal "Array" and captions a picker with it, and an object with
+// no `__toString` throws an uncaught Error that takes down the option build for every
+// base tag and folded slot on the site.
+\BWS\DynamicTags\SourceRegistry::register_source( new BWS_Test_Nonscalar_Arg_Root_Source() );
+\BWS\DynamicTags\SourceRegistry::register_source( new BWS_Test_Nonscalar_Policy_Root_Source() );
+assert_same( 'a non-scalar label or control is dropped, not stringified', null, $arg_of( 'nonscalarroot' ) );
+assert_same(
+	'...leaving that root offered too',
+	true,
+	in_array( 'nonscalarroot', $root_values( bws_registered_root_rows() ), true )
+);
+// The two axes stay independent: a broken POLICY must not delete the argument an author
+// is being asked to fill, so it lands on the conservative value an unrecognized string
+// gets.
+assert_same(
+	'a non-scalar argless policy falls back to REFUSE, keeping the argument',
+	array( 'label' => 'Which One', 'control' => 'bws-test-picker', 'argless' => 'refuse', 'kind' => 'post' ),
+	$arg_of( 'badpolicyroot' )
+);
+
+$argued_base = bws_build_src_chain_option()['src']['fold']['srcRows'];
+$argued_fold = bws_build_fold_slot_options(
+	array(
+		'container'  => 'join',
+		'max'        => 2,
+		'base_read'  => $text['use'],
+		'base_key'   => $text['key'],
+		'allow_site' => true,
+		'noun'       => 'field',
+	)
+)['A']['fold'];
+$expected_pin = array( 'label' => 'Which One', 'control' => 'bws-test-picker', 'argless' => 'refuse', 'kind' => 'post' );
+assert_same( 'BASE root enum carries the declaration', $expected_pin, $row_arg( $argued_base, 'pinroot' ) );
+assert_same( 'SLOT source enum carries the same declaration', $expected_pin, $row_arg( $argued_fold['srcRows'], 'pinroot' ) );
+assert_same( '...and so does a slot 2 and up, behind its `same` row', $expected_pin, $row_arg( $argued_fold['srcRowsWithSame'], 'pinroot' ) );
+
 if ( $failures > 0 ) {
 	echo "FAILED: {$failures}/{$count}\n";
 	exit( 1 );

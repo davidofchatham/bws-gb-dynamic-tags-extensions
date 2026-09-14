@@ -103,9 +103,20 @@ const BWS_FOLD_STEP_KINDS = array(
 /**
  * Root token → the resolved-source KIND it carries, for the roots that answer at PARSE TIME.
  *
- * Only `site` is. Every other root — `current`, a registry source name — is the source
- * FACTORY's to resolve at render, and comes back `render_time` (see bws_fold_chain_resolution's
- * `kind` list), so the wire cannot say more than "ask the factory".
+ * `site` names one store. A PINNING root (FW-39) names one entity of a known kind — the
+ * wire says `term,34`, so the kind is `term` whether or not term 34 still exists, and the
+ * editor can offer the steps that accept a term without a render. Every other root —
+ * `current`, an ambient registry source name — is the source FACTORY's to resolve at
+ * render and comes back `render_time` (see bws_fold_chain_resolution's `kind` list),
+ * because what the ambient entity is on a given request is not knowable from the wire.
+ *
+ * CENSUSED (tools/test/slot-options-build-test.php): a pinning root that fails to declare
+ * its kind here produces no error anywhere — just an editor that quietly stops offering
+ * hops off it, which is the hazard block-context-keys-test.php exists for. Three entries
+ * is where a list stops being self-evidently complete, and a FOURTH (a sister plugin's own
+ * pinning root, declared through the `bws_dynamic_tags_chain_roots` filter route) is the
+ * integrator's own to declare — this const is scoped to sources this repo ships, per the
+ * census's own comment.
  *
  * A map rather than the inline ternary it replaces, because there are TWO readers and
  * they read it in opposite directions: bws_fold_chain_resolution() answers what a
@@ -115,9 +126,12 @@ const BWS_FOLD_STEP_KINDS = array(
  * renders — the class of drift the whole derive exists to prevent.
  *
  * @since 1.17.0
+ * @since 1.20.0 `post` (FW-39 ticket 03) — the second pinning root, alongside `term`.
  */
 const BWS_FOLD_PARSE_TIME_ROOT_KINDS = array(
 	'site' => 'site',
+	'term' => 'term',
+	'post' => 'post',
 );
 
 /**
@@ -316,6 +330,41 @@ function bws_fold_chain_root( array $chain ): string {
 }
 
 /**
+ * The ROOT's argument — what pins `term,34` to term 34 (FW-39).
+ *
+ * The root keeps its BARE SLUG and the argument travels beside it, which is what
+ * bws_fold_chain_root() above still returns for the same chain. Reading the whole
+ * `term,34` string as the factory's `src` token was the alternative, and it would turn
+ * every registry-name lookup and every is_selectable_root() check into a parse.
+ *
+ * The grammar needed nothing new: a chain step has carried a positional ARG since #57,
+ * and position 0 is a step whose slug happens to name a root. So a legacy argless token
+ * answers `''` here and re-serializes byte-identically, and no existing wire moves.
+ *
+ * OPAQUE, and stays that way. This returns the token as authored — not an int, not a
+ * looked-up entity — because a root argument is not always an ID (a Site Views root wants
+ * `view,<dimension-slug>`). The declaring source's control is the only thing that knows
+ * what it means; see SourceInterface::get_root_argument().
+ *
+ * '' for the same three cases the root does — an empty chain, a chain LEADING with a step
+ * (the step applies to the ambient entity) — plus a root that simply carries no argument.
+ * All three are one answer on purpose: an argless root's MEANING is the declaring
+ * source's to state (SourceInterface::ROOT_ARGLESS_REFUSE or _OWNER_RESOLVES), and this
+ * function reads the wire rather than deciding policy on it.
+ *
+ * @since 1.20.0
+ * @param array $chain Parsed chain (bws_fold_parse_chain shape).
+ * @return string The root's argument verbatim ('' = none).
+ */
+function bws_fold_chain_root_arg( array $chain ): string {
+	if ( '' === bws_fold_chain_root( $chain ) ) {
+		return '';
+	}
+	$first = reset( $chain );
+	return (string) ( $first['arg'] ?? '' );
+}
+
+/**
  * Compile a parsed chain into ordered traversal steps.
  *
  * The leading ROOT step (if any) is dropped — the factory owns it. Everything after is a
@@ -507,6 +556,26 @@ function bws_fold_chain_from_options( array $options ): array {
  */
 function bws_fold_src_root_token( array $options ): string {
 	return bws_fold_chain_root( bws_fold_chain_from_options( $options ) );
+}
+
+/**
+ * The ROOT ARGUMENT off a tag's OPTIONS — bws_fold_chain_root_arg()'s options-level twin.
+ *
+ * Sibling of bws_fold_src_root_token() above and reads the same depth-0 chain, so the
+ * factory can ask for a root and its argument through one reading of the wire. Its own
+ * function rather than a second return value because every caller of the token predates
+ * arguments and none of them wants one.
+ *
+ * '' for legacy wire, which is what makes this safe to consult unconditionally: no
+ * existing option string carries a root argument, and an argless root's MEANING is the
+ * declaring source's to state, not this reader's.
+ *
+ * @since 1.20.0
+ * @param array $options Tag options.
+ * @return string The root's argument verbatim ('' = none).
+ */
+function bws_fold_src_root_arg( array $options ): string {
+	return bws_fold_chain_root_arg( bws_fold_chain_from_options( $options ) );
 }
 
 /**

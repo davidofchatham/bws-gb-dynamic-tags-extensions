@@ -151,6 +151,7 @@ foreach ( $corpus['srcOptions'] as $case ) {
 		'isWire' => bws_fold_chain_is_wire( trim( (string) ( $case['options']['src'] ?? $case['options']['source'] ?? '' ) ) ),
 		'chain'  => twin_canon_chain( $chain ),
 		'root'   => $res['root'],
+		'rootArg' => bws_fold_chain_root_arg( $chain ),
 		'fans'   => $res['fans'],
 	);
 }

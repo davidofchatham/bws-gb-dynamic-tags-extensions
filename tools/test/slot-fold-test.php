@@ -193,12 +193,29 @@ $corpus = array(
 	array( 'try', 'src(same);key(second)' ),                            // same source, new read
 	array( 'try', 'src(refs,office);key(second)' ),                     // both new
 	array( 'try', 'src(post,9999;refs,related_staff,limit[5]);use(title)' ),
+	// PINNED ENTITY ROOTS (FW-39). The grammar needed nothing new: a root is the step at
+	// position 0, and a step has carried a positional argument since #57. So these already
+	// round-tripped, and they are pinned HERE so the seam that reads the argument rests on a
+	// property with a name rather than on a coincidence.
+	array( 'try', 'src(term,34);use(title)' ),
+	array( 'try', 'src(term,34;refs,related_post);key(name)' ),
+	// TWO hops off the pin (ticket 04, D3) — the shape the base-tag wire spells as
+	// `src:term,34;refs,dept_lead;terms,portal_visibility`. A slot must spell it identically
+	// or D11's "same chain on a base tag, in a {{join}} field and in a try_ attempt" is three
+	// grammars agreeing by luck.
+	array( 'try', 'src(term,34;refs,dept_lead;terms,portal_visibility);use(title)' ),
+	array( 'join', 'title;src(term,34;refs,dept_lead;terms,portal_visibility)' ),
+	array( 'join', 'title;src(post,1692;rows,team_members)' ),
 	// join — agnostic, type leads
 	array( 'join', 'title' ),
 	array( 'join', 'phone;key(mobile)' ),
 	array( 'join', 'email;key(contact_email)' ),
 	array( 'join', 'key(note)' ),
 	array( 'join', 'title;src(refs,office)' ),
+	array( 'join', 'title;src(post,1692)' ),
+	// ARGLESS, and it must stay byte-identical: no existing wire moves because a root CAN
+	// now take an argument.
+	array( 'join', 'title;src(site)' ),
 	array( 'join', 'title;linkTo(permalink)' ),
 	array( 'join', 'title;linkTo(key);linkKey(profile_url);newTab' ),
 	array( 'join', 'email;key(contact_email);linkTo(key);linkKey(profile_url)' ),
@@ -206,6 +223,7 @@ $corpus = array(
 	array( 'table', 'label(Name);title;linkTo(permalink)' ),
 	array( 'table', 'label(Office);src(refs,office);key(address)' ),
 	array( 'table', 'label(Depts);src(terms,department,limit[3]);use(title)' ),
+	array( 'table', 'label(Tier);src(term,34,limit[2]);key(name)' ),
 	// datetime slots — `key` is the datetime field option, not the read
 	array( 'join', 'datetime_range;as(date);format(M j);startKey(start_date);endKey(end_date)' ),
 	array( 'join', 'datetime_single;key(event_date);timeKey(event_time)' ),

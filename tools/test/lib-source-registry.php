@@ -82,9 +82,10 @@ if ( ! function_exists( 'do_action' ) ) {
 
 // ── The registry's one WP-facing dependency ──────────────────────────────────────────
 //
-// register_source() logs through it, and is_source_enabled() asks it whether the term_
-// modifier is switched on — the second gate on an offered root. Declared through eval so
-// this file can stay in the global namespace like every other harness.
+// register_source() logs through it. `$modifiers_enabled` is still driveable because the
+// term_ toggle's NON-effect on an offered root is itself pinned (1.20.0, FW-39/D39) —
+// nothing in the registry reads it any more. Declared through eval so this file can stay
+// in the global namespace like every other harness.
 if ( ! class_exists( '\BWS\DynamicTags\Admin\SettingsPage' ) ) {
 	eval( 'namespace BWS\DynamicTags\Admin; class SettingsPage {
 		public static $modifiers_enabled = true;
@@ -146,8 +147,9 @@ class BWS_Test_Absent_Source extends \BWS\DynamicTags\AbstractSource {
 }
 
 /**
- * A TERM-context opted-in root, for the settings gate: it is offered while the term_
- * modifier toggle is on and disappears with it, exactly as every other term surface does.
+ * A TERM-context opted-in root. Its context type used to decide whether it was offered;
+ * since 1.20.0 it does not, and the fixture exists to hold that line — offered with the
+ * term_ modifier toggle either way.
  */
 class BWS_Test_Term_Root_Source extends \BWS\DynamicTags\AbstractSource {
 	public function get_source_key(): string { return 'testtermroot'; }
@@ -155,5 +157,138 @@ class BWS_Test_Term_Root_Source extends \BWS\DynamicTags\AbstractSource {
 	public function get_context_type(): string { return 'term'; }
 	public function is_selectable_root(): bool { return true; }
 	public function resolve_id( array $options, $instance ) { return 99; }
+	public function get_source_options(): array { return array(); }
+}
+
+/**
+ * A PINNING root — it declares a root argument (FW-39).
+ *
+ * The declaration is what the seam carries; nothing here resolves off the argument yet,
+ * which is the ticket's own boundary (no root in the plugin offers one). Its `argless`
+ * is OMITTED deliberately, so the normalizer's default (refuse) is exercised by absence
+ * rather than by a value that happens to match it.
+ */
+class BWS_Test_Pinned_Root_Source extends \BWS\DynamicTags\AbstractSource {
+	public function get_source_key(): string { return 'pinroot'; }
+	public function get_source_label(): string { return 'Pinned Root'; }
+	public function is_selectable_root(): bool { return true; }
+	public function get_root_argument(): array {
+		return array( 'label' => 'Which One', 'control' => 'bws-test-picker' );
+	}
+	public function resolve_id( array $options, $instance ) { return 4242; }
+	public function get_source_options(): array { return array(); }
+}
+
+/**
+ * A PINNING root that actually RESOLVES its argument — a TERM-context stand-in for
+ * `term,<ID>` that never calls out to WordPress (FW-39, D3/D8).
+ *
+ * The shipped TaxonomyTerm resolves through `get_term()`, and per this ticket's Testing
+ * Decisions that live resolution rides testbed matrix rows, not a pure harness. What IS
+ * pure is step admission off a pinned root's KIND — traversal-pipeline-test.php's D3/D8
+ * coverage needs a term-kind pinning root that resolves deterministically without WP, so
+ * this stands in for TaxonomyTerm the same way the fixtures above stand in for an
+ * integrator's plugin.
+ *
+ * A NUMERIC argument resolves (id = the argument, doubled, so a wrong id is easy to spot
+ * in a failing assertion); anything else refuses, matching D8's terminal rule that a pin
+ * naming nothing does not fall back to resolve_id().
+ */
+class BWS_Test_Pinned_Term_Source extends \BWS\DynamicTags\AbstractSource {
+	public function get_source_key(): string { return 'pinnedterm'; }
+	public function get_source_label(): string { return 'Pinned Term'; }
+	public function get_context_type(): string { return 'term'; }
+	public function is_selectable_root(): bool { return true; }
+	public function get_root_argument(): array {
+		return array( 'label' => 'Term', 'control' => 'bws-test-picker' );
+	}
+	public function resolve_root_argument( string $arg, array $options, $instance ) {
+		return is_numeric( $arg ) ? (int) $arg * 2 : false;
+	}
+	// TRUTHY, deliberately — not `false`. The point of the D8 refusal is that it never
+	// REACHES this method for an argless declaring root, whatever it would have
+	// answered; a fixture whose ambient path always fails could not tell "refused before
+	// asking" apart from "asked and got nothing", which is exactly the shape a query
+	// loop's own term item takes (FW-39, discovered building fold-test-matrix.md §F20 —
+	// an explicit, argless `src:term` used to reach TaxonomyTerm::resolve_id() and
+	// correctly read a loop's term; D8 now refuses before it is ever called).
+	public function resolve_id( array $options, $instance ) { return 555; }
+	public function get_source_options(): array { return array(); }
+}
+
+/**
+ * A root that answers a bare token BY ITS OWN RULE — the second argless policy.
+ *
+ * Stands in for a sister plugin's Site Views `view`, which ships argless today and gains
+ * an argument later. It is not a licence to fall back to the ambient entity; it means the
+ * SOURCE decides, which is why the policy is stated rather than inferred.
+ */
+class BWS_Test_Owner_Resolves_Root_Source extends \BWS\DynamicTags\AbstractSource {
+	public function get_source_key(): string { return 'ownerroot'; }
+	public function get_source_label(): string { return 'Owner Resolves Root'; }
+	public function is_selectable_root(): bool { return true; }
+	public function get_root_argument(): array {
+		return array(
+			'label'   => 'Dimension',
+			'control' => 'bws-test-view-picker',
+			'argless' => \BWS\DynamicTags\SourceInterface::ROOT_ARGLESS_OWNER_RESOLVES,
+		);
+	}
+	public function resolve_id( array $options, $instance ) { return 11; }
+	public function get_source_options(): array { return array(); }
+}
+
+/**
+ * A root whose declaration NAMES NO CONTROL — the load-bearing malformed case.
+ *
+ * It must still be an offered root, with no argument. Dropping the row entirely would
+ * retire a working source over a bad optional declaration; keeping the argument would
+ * paint a picker with no control behind it, leaving a root whose only behaviour is
+ * refusing.
+ */
+class BWS_Test_Half_Declared_Root_Source extends \BWS\DynamicTags\AbstractSource {
+	public function get_source_key(): string { return 'halfroot'; }
+	public function get_source_label(): string { return 'Half Declared Root'; }
+	public function is_selectable_root(): bool { return true; }
+	public function get_root_argument(): array {
+		return array( 'label' => 'Which One' );
+	}
+	public function resolve_id( array $options, $instance ) { return 12; }
+	public function get_source_options(): array { return array(); }
+}
+
+/**
+ * A root whose declaration is the WRONG SHAPE — an array where a string belongs, and an
+ * object with no `__toString` beside it.
+ *
+ * The gate reads an integrator's array, so this is a shape to expect rather than one to
+ * rule out. Cast without checking, the array passes as the literal "Array" and paints a
+ * picker captioned that; the object throws an uncaught Error and takes the option build
+ * down for every base tag and every folded slot on the site.
+ */
+class BWS_Test_Nonscalar_Arg_Root_Source extends \BWS\DynamicTags\AbstractSource {
+	public function get_source_key(): string { return 'nonscalarroot'; }
+	public function get_source_label(): string { return 'Nonscalar Arg Root'; }
+	public function is_selectable_root(): bool { return true; }
+	public function get_root_argument(): array {
+		return array( 'label' => array( 'Which One' ), 'control' => new \stdClass() );
+	}
+	public function resolve_id( array $options, $instance ) { return 13; }
+	public function get_source_options(): array { return array(); }
+}
+
+/**
+ * A declaration whose ARGLESS POLICY is the wrong shape. The two axes are independent:
+ * a broken policy must not delete the argument the author is being asked to fill, so it
+ * lands on the conservative value exactly as an unrecognized string does.
+ */
+class BWS_Test_Nonscalar_Policy_Root_Source extends \BWS\DynamicTags\AbstractSource {
+	public function get_source_key(): string { return 'badpolicyroot'; }
+	public function get_source_label(): string { return 'Bad Policy Root'; }
+	public function is_selectable_root(): bool { return true; }
+	public function get_root_argument(): array {
+		return array( 'label' => 'Which One', 'control' => 'bws-test-picker', 'argless' => array( 'owner-resolves' ) );
+	}
+	public function resolve_id( array $options, $instance ) { return 14; }
 	public function get_source_options(): array { return array(); }
 }

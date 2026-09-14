@@ -412,5 +412,150 @@ $check(
 	false === bws_replay_upgrade_reconcile_consumed( $status( 'upgrade', $running ), '?' )
 );
 
+// ---------------------------------------------------------------------------
+echo "\n§R6 — the unpinned `term_*` exemption: what it forgives, and what it must not\n";
+// ---------------------------------------------------------------------------
+// This is the only rule in the file that lets a CHANGED pair through, so every assertion
+// below is a way of getting it wrong. The gate's whole value is that a real regression on
+// the same wire still fails, and the shapes that could slip past are neighbours of the
+// forgiven one — same tag family, other direction; right direction, other family.
+
+$side = static function ( $output, $error = '' ) {
+	return array( $output, $error );
+};
+
+$check( 'R6.1 empty → value on an unpinned term_ tag is the exemption',
+	true === bws_replay_migration_exempt_row( '{{term_content}}', $side( '' ), $side( '<p>A post body</p>' ) ) );
+
+$check( 'R6.2 …with options, and with the family\'s other templates',
+	true === bws_replay_migration_exempt_row( '{{term_text use:title|limit:1}}', $side( '' ), $side( 'Matrix: Post Meta' ) ) );
+
+// THE REGRESSION THIS MUST STILL CATCH. Same family, same wire shape, but the tag rendered
+// something before — so the rewrite moved a value, which no exemption covers.
+$check( 'R6.3 value → different value on the SAME wire is NOT forgiven',
+	false === bws_replay_migration_exempt_row( '{{term_text use:title}}', $side( 'Support' ), $side( 'Matrix: Post Meta' ) ) );
+
+$check( 'R6.4 value → empty is not forgiven either — that is the direction that loses a page',
+	false === bws_replay_migration_exempt_row( '{{term_text use:title}}', $side( 'Support' ), $side( '' ) ) );
+
+// A PINNED tag names its own term on every context. Nothing about it was ambient, so an
+// empty side is a failure rather than the capability difference.
+$check( 'R6.5 a PINNED term_ tag is not exempt, even empty → value',
+	false === bws_replay_migration_exempt_row( '{{term_text id:34|use:title}}', $side( '' ), $side( 'Support' ) ) );
+
+$check( 'R6.6 …including when `id` is the first option, behind the separating space',
+	false === bws_replay_migration_exempt_row( '{{term_content id:34}}', $side( '' ), $side( 'A body' ) ) );
+
+// An option whose NAME ends in `id` is not the `id` key, and a value containing it is not
+// either. Getting this wrong refuses rows that should be forgiven, which is the safe
+// direction — but it would refuse them for a reason nobody could find.
+$check( 'R6.7 a look-alike option key does not read as a pin',
+	true === bws_replay_migration_exempt_row( '{{term_text key:staff_id}}', $side( '' ), $side( 'x' ) ) );
+
+$check( 'R6.8 another family is never exempt, whatever the direction',
+	false === bws_replay_migration_exempt_row( '{{view_text key:bio}}', $side( '' ), $side( 'A bio' ) ) );
+
+$check( 'R6.9 a base tag is not exempt — the rewrite does not touch one',
+	false === bws_replay_migration_exempt_row( '{{text use:title}}', $side( '' ), $side( 'A title' ) ) );
+
+// A SIDE THAT ERRORED HAS NOT RENDERED EMPTY. Reading the two alike would forgive exactly
+// the pair where the migration broke the render and the page went blank behind it.
+$check( 'R6.10 an error on the A side is not an empty render',
+	false === bws_replay_migration_exempt_row( '{{term_content}}', $side( '', 'fatal: something' ), $side( 'A body' ) ) );
+
+$check( 'R6.11 an error on the B side is not a value',
+	false === bws_replay_migration_exempt_row( '{{term_content}}', $side( '' ), $side( 'A body', 'notice: something' ) ) );
+
+$check( 'R6.12 empty → empty is not a change and is not classified as one',
+	false === bws_replay_migration_exempt_row( '{{term_content}}', $side( '' ), $side( '' ) ) );
+
+// Wire the rule cannot read is never forgiven: an unparseable string proves nothing about
+// which family it belongs to.
+$check( 'R6.13 a malformed tag string is not exempt',
+	false === bws_replay_migration_exempt_row( 'term_content', $side( '' ), $side( 'A body' ) ) );
+
+// THE CALL-SITE GATE, asserted against the differ's SOURCE — the rule itself cannot see
+// whether a mapping was supplied, and without one there is no migration in the run, so the
+// same shape is an ordinary regression. Prior art: §R5's source-read of a sibling script.
+$differ_src = file_get_contents( __DIR__ . '/../harvest-replay/diff-replays.php' );
+$check(
+	'R6.14 the differ calls it under --map only',
+	1 === preg_match( '/if \(\s*\$map && bws_replay_migration_exempt_row\(/', $differ_src ),
+	'exemption must be gated on $map at the call site'
+);
+
+// ---------------------------------------------------------------------------
+// R7. bws_replay_classify_mapping_row() — which of the four outcomes a derived row lands in.
+// ---------------------------------------------------------------------------
+// THE DERIVED SET IS A SUPERSET OF THE WRITTEN ONE. run-converter.php derives old → new from
+// the two shipped transforms; migrate_post() puts the ownership guard between the transform
+// and the write. These pin the split, because the differ cannot: a mapping row naming a
+// rewrite that never happened degrades to identity pairing there, silently.
+
+$check( 'R7.1 old wire gone and new wire present is a move',
+	'moved' === bws_replay_classify_mapping_row( false, true, false ) );
+
+$check( 'R7.2 neither form in wp_posts is wire the converter cannot reach',
+	'unreached' === bws_replay_classify_mapping_row( false, false, false ) );
+
+// THE POPULATION WHOSE RESTING STATE IS ZERO. Old wire surviving with no refusal behind it is
+// the derivation and the converter disagreeing, which is the only thing this field ever meant
+// and the only thing that should make it non-empty.
+$check( 'R7.3 old wire surviving unrefused is the derivation trip-hazard',
+	'unverified' === bws_replay_classify_mapping_row( true, false, false ) );
+
+$check( 'R7.4 old wire surviving a refusal is the guard working, not a derivation fault',
+	'declined' === bws_replay_classify_mapping_row( true, false, true ) );
+
+// A URL CAN HOLD BOTH FORMS — pre-migrated wire beside refused wire — and that does not turn a
+// refusal into a move. The surviving OLD string is what decides, which is also what makes the
+// classification per-string when the refusal record is only per-name.
+$check( 'R7.5 a refused row is still refused where the new wire exists elsewhere',
+	'declined' === bws_replay_classify_mapping_row( true, true, true ) );
+
+$check( 'R7.6 an unrefused survivor is still the trip-hazard where the new wire exists elsewhere',
+	'unverified' === bws_replay_classify_mapping_row( true, true, false ) );
+
+// A REFUSAL RECORDED FOR A NAME WHOSE STRING DID MOVE IS NOT A DECLINE. One name can hold a
+// string the guard passed beside one it refused — the decision reads that string's option
+// keys — so the name alone must not be able to pull a moved row out of the mapping.
+$check( 'R7.7 a refused NAME does not declassify a string that moved',
+	'moved' === bws_replay_classify_mapping_row( false, true, true ) );
+
+$check( 'R7.8 a refused NAME does not declassify unreached wire',
+	'unreached' === bws_replay_classify_mapping_row( false, false, true ) );
+
+// THE CALL SITES, asserted against SOURCE — both are scripts, so nothing here can call them.
+// Prior art: R5 and R6.14 read a sibling the same way.
+$conv_src = file_get_contents( __DIR__ . '/../harvest-replay/run-converter.php' );
+
+$check(
+	'R7.9 the converter driver classifies rather than testing $still_old inline',
+	1 === preg_match( '/switch \(\s*bws_replay_classify_mapping_row\(/', $conv_src ),
+	'run-converter.php must route the decision through the rule'
+);
+
+// THE REFUSAL RECORD IS READ, NOT RE-DERIVED. Mirroring apply_if_owned() here would mean
+// mirroring its two-pass structure, which is the trip-hazard the header already warns about.
+$check(
+	'R7.10 the refusal record comes off what the run reported',
+	1 === preg_match( '/\$result\[.declined.\]/', $conv_src ),
+	'declined names must be collected from what migrate_post() returned'
+);
+
+// A DECLINED ROW MUST NOT REACH mapping.jsonl. That is the whole effect: the mapping names
+// what moved, while unreached wire keeps its pairing because that wire may still render.
+$check(
+	'R7.11 the mapping is rebuilt from moved + unreached only',
+	1 === preg_match( '/\$mapping = array_merge\(\s*\$moved,\s*array_column\(\s*\$unreached,/', $conv_src ),
+	'declined rows must be excluded from the written mapping'
+);
+
+$check(
+	'R7.12 the differ counts the silent identity fallback',
+	1 === preg_match( '/\$unpaired\+\+;/', $differ_src ),
+	'diff-replays.php must count mapping rows that fell back to the old wire'
+);
+
 echo $fail ? "\nREPLAY VERDICT TEST FAILED ({$fail})\n" : "\nREPLAY VERDICT TEST PASSED\n";
 exit( $fail ? 1 : 0 );

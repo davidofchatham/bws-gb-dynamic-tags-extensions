@@ -37,11 +37,18 @@
  * - Composes with existing tagSpecificControls filters: `if (!element) return
  *   element` so conditional-options hiding (show_if -> null) still wins.
  *
+ * - PINNED-ROOT NARROWING (FW-39 D22): when the sibling `src` is a single-step chain
+ *   rooted at a PINNED entity (`term,34`, `post,1692`), the list narrows to the fields
+ *   scoped to that term's taxonomy or that post's post type. The scope handle comes off
+ *   the entity-lookup route's resolve mode; the per-field `scope` it matches against is
+ *   the discovery envelope's EXISTING one, unchanged (D23).
+ *
  * Registered via `generateblocks.editor.tagSpecificControls`; activates for any
  * option whose PHP `type` is `bws-field-combo`.
  *
  * @package BWS_Dynamic_Tags
  * @since   1.13.0
+ * @since   1.20.0 Pinned-root scope narrowing (FW-39 D22).
  */
 ( function () {
 	'use strict';
@@ -183,6 +190,46 @@
 	}
 
 	/**
+	 * The PINNED ENTITY this picker reads a field off, or null (FW-39 D22).
+	 *
+	 * Read off the SAME sibling `src` token `presetKind()` below reads, through the
+	 * shipped chain grammar rather than a second parser — a chain's root and its
+	 * argument are `window.bwsSlotFold`'s to spell, and a local split on `,` would be
+	 * the second spelling that goes stale the first time the grammar grows a token.
+	 *
+	 * ONLY A SINGLE-STEP CHAIN ANSWERS. A pin narrows the picker because the entity the
+	 * field is read off IS the pinned one; add a `refs` step and the read applies to
+	 * that step's target instead, whose type nothing here knows (the same reason
+	 * `presetKind()` refuses to preset under `src:ref`). Narrowing there would assert a
+	 * scope the wire does not support.
+	 *
+	 * THE KIND COMES FROM THE ROOT ROWS, not from the root slug. `window.bwsRootArgKinds`
+	 * is emitted from `bws_registered_root_rows()`, the one appender both authoring
+	 * surfaces read, so a root contributed through `bws_dynamic_tags_chain_roots` is
+	 * pinnable here on the same terms as ours and a root that takes no argument is
+	 * simply absent from the map.
+	 *
+	 * @param {Object} state     extraTagParams.
+	 * @param {string} optionKey The key control's own option key (for slot prefix).
+	 * @return {Object|null} `{ kind, id }`, or null when nothing is pinned.
+	 */
+	function pinFromState( state, optionKey ) {
+		var fold  = window.bwsSlotFold;
+		var kinds = window.bwsRootArgKinds;
+		if ( ! state || ! kinds || ! fold || 'function' !== typeof fold.parseChain ) {
+			return null;
+		}
+		var wire = String( state[ slotPrefix( optionKey ) + 'src' ] || '' ).trim();
+		if ( '' === wire ) { return null; }
+		var chain = fold.parseChain( wire );
+		if ( ! Array.isArray( chain ) || 1 !== chain.length ) { return null; }
+		var slug = fold.chainRoot( chain );
+		var arg  = fold.chainRootArg( chain );
+		if ( ! slug || '' === arg || ! kinds[ slug ] ) { return null; }
+		return { kind: kinds[ slug ], id: arg };
+	}
+
+	/**
 	 * Safe source-token -> kind preset for the Location filter (NEVER assume post
 	 * from the editor context — only when the src TOKEN proves the kind). Reads the
 	 * sibling tokens of the SAME slot (prefix-aware) so per-slot try_ keys track
@@ -280,6 +327,17 @@
 	 *                a picker scoped to repeater R keeps only records whose
 	 *                repeaterKeys include R. Machine-readable — NOT parsed from the
 	 *                breadcrumb (parent_path), which stays display-only.
+	 *   scopes       array of the entity slugs (taxonomy slugs under kind `term`,
+	 *                post-type slugs under kind `post`) this field is scoped to, from
+	 *                the envelope GROUP's existing `scope`. Drives the pinned-root
+	 *                narrowing (FW-39 D22).
+	 *   scopeless    true if ANY home this record was reached through carried NO scope.
+	 *                An empty group scope is the discovery endpoint's own way of saying
+	 *                "any entity of that kind", so such a record is offered under every
+	 *                pin — and it is a SEPARATE flag rather than an empty `scopes`
+	 *                because a record merged from one scoped home and one unscoped one
+	 *                has both a slug list and unrestricted reach, and unioning the two
+	 *                into one array would lose the second.
 	 *
 	 * @param {Object} envelope { post:[groups], term:[groups], site:[groups] }.
 	 * @return {Array} Flat merged field records.
@@ -293,6 +351,7 @@
 			var root   = kindRootLabel( kind );
 			groups.forEach( function ( group ) {
 				var groupTitle = group.group_title || '';
+				var groupScope = group.scope || [];
 				( group.fields || [] ).forEach( function ( field ) {
 					var key   = field.name;
 					if ( ! key ) { return; }
@@ -326,6 +385,8 @@
 							paths:        [],
 							rowSeen:      false,
 							repeaterKeys: [],
+							scopes:       [],
+							scopeless:    false,
 						};
 						order.push( mkey );
 					}
@@ -343,6 +404,16 @@
 					var rk = field.repeater_key || '';
 					if ( rk && rec.repeaterKeys.indexOf( rk ) === -1 ) {
 						rec.repeaterKeys.push( rk );
+					}
+
+					// Entity scope, UNIONED across the homes a merged record was reached
+					// through — the same conservative widening `paths` and `types` take.
+					if ( groupScope.length ) {
+						groupScope.forEach( function ( sc ) {
+							if ( sc && rec.scopes.indexOf( sc ) === -1 ) { rec.scopes.push( sc ); }
+						} );
+					} else {
+						rec.scopeless = true;
 					}
 				} );
 			} );
@@ -568,6 +639,41 @@
 			return function () { live = false; };
 		}, [] );
 
+		// THE PINNED ENTITY'S OWN SCOPE SLUG (FW-39 D22) — the taxonomy a pinned term
+		// belongs to, or the post type a pinned post is. Fetched from the entity-lookup
+		// route's resolve mode, which is the pin's own lookup and already the shape the
+		// picker beside this control resolves its reopen label through; NOTHING is added
+		// to the field-discovery endpoint, whose per-field `scope` this matches against
+		// exactly as it already ships (D23 is where that line is drawn).
+		//
+		// A pin that will not resolve — deleted entity, a taxonomy this user may not
+		// read — answers '' and the list stays UNNARROWED. Narrowing on a failed lookup
+		// would hide every scoped field on a transient error, which is the one outcome
+		// an author cannot tell apart from "this taxonomy has no fields".
+		var pin        = pinFromState( state, key );
+		var pinKind    = pin ? pin.kind : '';
+		var pinId      = pin ? pin.id : '';
+		var pinState   = useState( '' );
+		var pinScope   = pinState[ 0 ];
+		var setPinScope = pinState[ 1 ];
+
+		useEffect( function () {
+			if ( '' === pinKind || '' === pinId ) {
+				setPinScope( '' );
+				return;
+			}
+			var live = true;
+			wp.apiFetch( {
+				path: '/bws-dynamic-tags/v1/entities?kind=' + encodeURIComponent( pinKind ) +
+					'&mode=resolve&id=' + encodeURIComponent( pinId ),
+			} ).then( function ( res ) {
+				if ( live ) { setPinScope( ( res && res.row && res.row.scope ) || '' ); }
+			} ).catch( function () {
+				if ( live ) { setPinScope( '' ); }
+			} );
+			return function () { live = false; };
+		}, [ pinKind, pinId ] );
+
 		var allRecords = useMemo( function () {
 			return envelope ? envelopeToRecords( envelope ) : [];
 		}, [ envelope ] );
@@ -598,17 +704,34 @@
 			: '';
 		var scopeToRepeater  = '' !== scopeRepeaterKey;
 
+		// FW-39 D22's narrowing, applied BEFORE the repeater auto-scope so the two
+		// compose: a `{{table}}` column picker under a pinned root shows that repeater's
+		// sub-fields, of that entity. A field with no scope of its own stays offered
+		// under either kind — that is what an unscoped discovery group means.
+		//
+		// NO FALL-BACK-TO-ALL when the narrowed list comes out empty, unlike the
+		// repeater scope below. There, an empty result means the scope handle matched
+		// nothing discovered and the author is stranded with no picker; here it means
+		// the pinned entity genuinely has no fields, which is the answer the narrowing
+		// exists to give. Free text still commits any key either way.
+		var pinnedRecords = useMemo( function () {
+			if ( '' === pinScope ) { return allRecords; }
+			return allRecords.filter( function ( rec ) {
+				return rec.scopeless || rec.scopes.indexOf( pinScope ) !== -1;
+			} );
+		}, [ allRecords, pinScope ] );
+
 		var records = useMemo( function () {
-			if ( ! scopeToRepeater ) { return allRecords; }
-			var scoped = allRecords.filter( function ( rec ) {
+			if ( ! scopeToRepeater ) { return pinnedRecords; }
+			var scoped = pinnedRecords.filter( function ( rec ) {
 				return rec.repeaterKeys && rec.repeaterKeys.indexOf( scopeRepeaterKey ) !== -1;
 			} );
 			// If the repeater key matched NO discovered sub-fields (an unregistered /
 			// free-typed repeater, or a non-repeater key), do NOT collapse to an empty
 			// list — that would strand the author with no picker and no way back. Fall
 			// through to the full pool; free-text still commits any sub-field name.
-			return scoped.length ? scoped : allRecords;
-		}, [ allRecords, scopeToRepeater, scopeRepeaterKey ] );
+			return scoped.length ? scoped : pinnedRecords;
+		}, [ pinnedRecords, scopeToRepeater, scopeRepeaterKey ] );
 
 		var locationOptions = useMemo( function () {
 			return buildLocationOptions( records );

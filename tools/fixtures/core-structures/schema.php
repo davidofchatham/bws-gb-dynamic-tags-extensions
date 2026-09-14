@@ -722,6 +722,28 @@ function bws_fixture_core_structures_register_acf() {
 					'return_format'  => 'F j, Y',
 					'display_format' => 'F j, Y',
 				),
+				array(
+					// FW-39 §F20 — a relationship step running OFF A PINNED TERM ROOT
+					// (`term,<sales-id>;refs,dept_lead`). Every other term-hop field
+					// above answers a chain STARTING from a post (`refs,...;terms,
+					// department`); this is the one field in the blueprint that makes
+					// the REVERSE hop (term → post) expressible off a term that is
+					// itself a chain ROOT rather than a step's landing spot.
+					//
+					// TYPE IS `relationship`, NOT `post_object` — load-bearing, not a
+					// style choice. See docs/gb-constraints.md
+					// §GenerateBlocks_Meta_Handler::get_value() drops a SCALAR once
+					// single_only is false, which owns the measurement and the rule;
+					// `related_staff` above already follows it for the post-hop
+					// direction.
+					'key'           => 'field_bwsfx_dept_lead',
+					'name'          => 'dept_lead',
+					'label'         => 'Department Lead',
+					'type'          => 'relationship',
+					'post_type'     => array( 'staff' ),
+					'max'           => 1,
+					'return_format' => 'id',
+				),
 			),
 			'location' => array(
 				array( array( 'param' => 'taxonomy', 'operator' => '==', 'value' => 'department' ) ),
@@ -755,6 +777,33 @@ function bws_fixture_seeded_post_id( $slug, $post_type ) {
 		return false;
 	}
 	$cache[ $ck ] = (int) $post->ID;
+	return $cache[ $ck ];
+}
+
+/**
+ * TERM twin of bws_fixture_seeded_post_id() (FW-39, §F20).
+ *
+ * A `term,<ID>` PIN is authored by ID, not by slug (D9) — the wire has no other way to
+ * spell it — so the visible §F20 block needs the SEEDED term's real numeric id at build
+ * time, not the fixture slug this file otherwise keys everything by. `get_term_by()`
+ * rather than a hand-kept id: term ids are assigned by WP at creation and a fresh
+ * install's `sales` term is not guaranteed to be any particular number.
+ *
+ * @param string $slug     Term slug (WP's, not the fixture manifest key).
+ * @param string $taxonomy Taxonomy.
+ * @return int|false
+ */
+function bws_fixture_seeded_term_id( $slug, $taxonomy ) {
+	static $cache = array();
+	$ck = $taxonomy . ':' . $slug;
+	if ( isset( $cache[ $ck ] ) ) {
+		return $cache[ $ck ];
+	}
+	$term = get_term_by( 'slug', $slug, $taxonomy );
+	if ( ! $term ) {
+		return false;
+	}
+	$cache[ $ck ] = (int) $term->term_id;
 	return $cache[ $ck ];
 }
 
@@ -856,6 +905,12 @@ function bws_fixture_core_structures_register_modifier() {
 	// The family stays REGISTERED after migrating. Retiring it is the owner's decision on
 	// the owner's schedule (`prefix_removed`), and the FR3 corpus needs the tags rendering
 	// to be a migration corpus at all — a reseed puts the pre-conversion wire back.
+	//
+	// AFTER the registration above, deliberately — the opposite of the built-in `term_`
+	// family's order. A prefix owner who registers entries first hands the constructor a
+	// deprecated stamp for every tag and the family moves into GB's deprecated group; this
+	// fixture is rehearsing the MIGRATION, not the deprecation, and its tags need to stay
+	// in their own group where the seeded rows read them. See docs/plugin-integration.md §9.
 	if ( function_exists( 'bws_register_modifier_root_migrations' ) ) {
 		bws_register_modifier_root_migrations( 'fixture', 'fixture', array( 'since' => '1.17.0' ) );
 	}
