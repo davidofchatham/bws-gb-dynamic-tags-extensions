@@ -83,6 +83,10 @@ require __DIR__ . '/../../includes/tags/base-shared.php';
 // reason bws_root_argument_row() is: "is this `id` a pin" must have one answer, and a
 // harness-local copy is exactly the drift these files exist to remove.
 require __DIR__ . '/../../includes/helpers/field-helpers.php';
+// bws_map_gb_link_option() — the `link` value map the transform calls. Loaded real for the
+// third time for the same reason: what a stored `link` value MEANS has one owner, and §V1.12
+// is only a test of the transform if the map it consults is the shipped one.
+require __DIR__ . '/../../includes/helpers/link-helpers.php';
 require __DIR__ . '/../../includes/helpers/slot-fold.php';
 require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
 require __DIR__ . '/../../includes/helpers/slot-fold-migrate.php';
@@ -196,6 +200,23 @@ assert_eq( 'V1.10 the image template migrates the same way, `as` untouched',
 assert_eq( 'V1.11 a chain-only template migrates to a bare rooted tag',
 	'{{permalink src:view}}',
 	$migrate( '{{view_permalink}}' ) );
+
+// THE VALUE-LEVEL ROW. `link` is a GB-registered key, so it passes the ownership guard's
+// key-level vocabulary check and reaches the rewrite untouched — but `term` is not one of
+// GB with_link()'s six values, so carried through it renders no link at all and says
+// nothing. This wire only exists where the tag was authored against a same-named tag of
+// another plugin's, which is why it is reachable only past an ownership opt-in.
+assert_eq( 'V1.12 link:term is translated, not carried onto a tag that cannot read it',
+	'{{text src:view|key:bio|linkTo:permalink}}',
+	$migrate( '{{view_text key:bio|link:term}}' ) );
+
+// The other half of the same rule, and the reason translating is not optional for values
+// GB DOES answer for: left in place, `link:post` reaches with_link(), which resolves it
+// against a POST id on a tag that may be reading something else entirely. Translated, the
+// link is ours to resolve against the entity the tag actually read.
+assert_eq( 'V1.13 link:post is translated too, not left for GB to resolve post-shaped',
+	'{{text src:view|key:bio|linkTo:permalink}}',
+	$migrate( '{{view_text key:bio|link:post}}' ) );
 
 // ===========================================================================
 echo "\nV1b — the dead `rel` spelling, which this transform must settle itself\n";

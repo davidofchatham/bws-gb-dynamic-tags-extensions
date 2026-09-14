@@ -219,13 +219,37 @@ function bws_get_link_options(): array {
 }
 
 /**
- * Remap a GB-native `link` option (from deprecated N×M tags) to linkTo/linkKey (V10b).
+ * Remap a stored `link` option to linkTo/linkKey (V10b).
  *
- * GB saved `link` option values:
- *   link:post           → linkTo:permalink
- *   link:term           → linkTo:permalink  (term permalink)
- *   link:post_meta,key  → linkTo:key, linkKey:key
- *   link:author_archive, link:author_meta, link:author_email, link:comments → dropped
+ * AXIS — THE KEY IS GB'S, THE VALUES ARE NOT ALL GB'S, and that is the whole reason this
+ * function has to exist rather than the options being left for GB to read. `link` is a
+ * GB-registered option name, so anything may write it; what a given VALUE means is decided
+ * by whichever callback consumes it, and those disagree:
+ *
+ *   GenerateBlocks 2.4.1, GenerateBlocks_Dynamic_Tag_Callbacks::with_link() — an enum of
+ *   six link targets, resolved against a POST id (`get_id( $options, 'post', … )`):
+ *     link:post           → linkTo:permalink
+ *     link:post_meta,key  → linkTo:key, linkKey:key
+ *     link:author_archive, link:author_meta, link:author_email, link:comments → dropped
+ *
+ *   GenerateBlocks 2.4.1, ::get_term_list() — the SAME key read as a BOOLEAN. On that tag
+ *   `link:anything` means "link each term", and with_link()'s enum is not consulted.
+ *
+ *   `link:term` → linkTo:permalink — NOT a GB value. with_link() has no `term` case and
+ *   never had one; the value was defined privately by our own N×M `*_term_title` /
+ *   `*_term_custom_text` tags (2026-05-19), and GB Query Enhancements 1.3.0 defines it
+ *   again, independently, inside its own get_term_title(). Both wrap the term permalink,
+ *   which is why one arm serves both.
+ *
+ * SO A KEY-LEVEL CHECK CANNOT SEE ANY OF THIS. `link` is in BWS_GB_TAG_OUTPUT_OPTIONS and
+ * is therefore "known" to the converter's ownership guard; the foreignness lives one level
+ * down, in the value. Measured across the Site P clone's harvest corpus 2026-09-14: of the
+ * seven keys in that set, `link` is the only one carrying a value at all, and two of its
+ * five stored values are ones with_link() does not answer for.
+ *
+ * TWO CALLERS, BOTH transform_callbacks, both calling this themselves because a
+ * transform_callback overrides run_transform()'s `gb_link_remap` step —
+ * bws_nxm_migrate_chain() and bws_modifier_base_options(), each saying so at its call site.
  *
  * The `link` key is always removed. Returns options array with mapping applied.
  *

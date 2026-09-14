@@ -2014,6 +2014,23 @@ function bws_modifier_base_options( array $options, string $root ) {
 		$out['src'] = $wire;
 	}
 
+	// THE `link` KEY IS TRANSLATED HERE BECAUSE NOTHING ELSE ON THIS PATH WILL. A
+	// `transform_callback` overrides run_transform()'s declarative pipeline whole, so the
+	// `gb_link_remap` step never fires for a generated modifier→base entry — the same
+	// reason bws_nxm_migrate_chain() calls this itself, stated at that function too. Left
+	// out, the key rides through onto a base tag that reads linkTo/linkKey, where GB's own
+	// output pipeline is handed a value its transform does not answer for and the author's
+	// link disappears with no warning anywhere. Measured 2026-09-12 on the Site P clone,
+	// one stored tag; which values map to what is bws_map_gb_link_option()'s own.
+	//
+	// OUR `term_` FAMILY NEVER WROTE THIS KEY — register_modifier() appends
+	// bws_get_link_options(), so it writes linkTo/linkKey/newTab. The wire this catches was
+	// authored against a same-named tag of somebody else's, which is why it is only
+	// reachable at all once the ownership guard has been lifted for that name.
+	if ( function_exists( 'bws_map_gb_link_option' ) ) {
+		$out = bws_map_gb_link_option( $out );
+	}
+
 	return function_exists( 'bws_serialization_order_sort_map' )
 		? bws_serialization_order_sort_map( $out )
 		: $out;

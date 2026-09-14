@@ -1093,7 +1093,7 @@ function my_result( $post_id, $arg = '' ) {
 					<div id="bws-scan-declined" class="bws-scan-channel" style="display:none;">
 						<h3 class="bws-channel-header"><?php esc_html_e( 'Declined: we cannot prove these tags are yours', 'generateblocks' ); ?></h3>
 						<p class="description bws-section-desc">
-							<?php esc_html_e( 'These tags are left exactly as they are and go on rendering. Claim a tag name only if you know the stored tags on this site were written for our version of it.', 'generateblocks' ); ?>
+							<?php esc_html_e( 'These tags are left exactly as they are and go on rendering. Claim a tag name only if you know the stored tags on this site were written for our version of it. Conversion keeps each tag\'s settings as written, so a setting that belonged to the other plugin\'s version of the tag may not carry over.', 'generateblocks' ); ?>
 						</p>
 						<ul class="bws-channel-list" id="bws-declined-list"></ul>
 					</div>
