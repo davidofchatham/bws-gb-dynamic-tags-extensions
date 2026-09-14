@@ -438,7 +438,15 @@ foreach ( array( 'A' => $a, 'B' => $b ) as $label => $side ) {
 // The mapping that pairs the two sides is loaded further up, beside the build-identity guard
 // that reads it.
 
-$translate = static function ( string $key ) use ( $map, $b ): string {
+// THE FALLBACK IS SILENT, SO IT IS COUNTED. A mapping row whose NEW wire is absent from the B
+// side degrades to identity pairing, which costs nothing when the old wire is all that URL
+// holds — and hides, without a word, that a row said a rewrite happened where none did. Worse,
+// on a URL that already held the new form the same row pairs the two wrong renders and reports
+// a change nobody made. Neither reaches the verdict; both are the operator's business.
+// `run-converter.php` is where a row like this should stop existing (see
+// `bws_replay_classify_mapping_row()`); this counter is what says one got through.
+$unpaired  = 0;
+$translate = static function ( string $key ) use ( $map, $b, &$unpaired ): string {
 	if ( ! $map ) {
 		return $key;
 	}
@@ -448,6 +456,7 @@ $translate = static function ( string $key ) use ( $map, $b ): string {
 		if ( isset( $b['renders'][ $candidate ] ) ) {
 			return $candidate;
 		}
+		$unpaired++;
 	}
 	return $key;
 };
@@ -583,6 +592,11 @@ if ( $split['unexplained'] ) {
 }
 
 if ( $map ) {
+	if ( $unpaired > 0 ) {
+		$line( sprintf( '[i] %d A-side render(s) carried a mapping row whose new wire is absent on the B side — paired on the OLD wire instead. Expected only for wire the converter cannot reach; anything else means the mapping names a rewrite that did not happen.', $unpaired ) );
+		$line();
+	}
+
 	$leftover = count( $b['renders'] ) - count( $consumed );
 	if ( $leftover > 0 ) {
 		$line( sprintf( '[i] %d B-side render(s) had no A-side counterpart — wire the migration introduced, or an old form left behind where the converter could not reach it.', $leftover ) );

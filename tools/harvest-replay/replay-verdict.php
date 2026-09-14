@@ -359,3 +359,43 @@ function bws_replay_dependency_findings( $a_env, $b_env, array $a_build, array $
 
 	return $findings;
 }
+
+/**
+ * Classify one derived mapping row against what the converter actually left in wp_posts.
+ *
+ * THE MAPPING NAMES WHAT MOVED, and a derived row is not evidence that anything did.
+ * `run-converter.php` derives old → new from the two shipped transforms, but `migrate_post()`
+ * puts a THIRD thing between the transform and the write — the ownership guard — so the
+ * derived set is a superset of the written one, by however much the guard refuses.
+ *
+ * A ROW NAMING A REWRITE THAT NEVER HAPPENED IS NOT FREE. `diff-replays.php` falls back to
+ * identity pairing when a row's new wire is absent from the B side, which costs nothing while
+ * the old wire is all that URL holds — but a URL that ALREADY held the new form pairs the
+ * declined A render against it and reports a change nobody made.
+ *
+ * THE DISCRIMINATOR IS PER STRING, NOT PER NAME. `$name_declined` comes from what
+ * `migrate_post()` reported as it ran, and it is keyed by tag NAME; one name can hold a string
+ * the guard passed beside one it refused, since the decision reads that string's option keys.
+ * So it takes a SURVIVING OLD STRING to say this row is the refused one.
+ *
+ * `unverified` IS THE POPULATION WITH A RESTING STATE OF ZERO, which is the whole reason it is
+ * split out. Old wire surviving in wp_posts has causes beyond the guard — a pattern that
+ * stopped matching, a post type `scan()` does not reach, an early return in the write path —
+ * and before the guard shipped those were the only ones, so any member stood out against an
+ * empty field. Folding the guard's declines in with them costs the instrument its only
+ * detector for the rest of that class, an ownership guard refusing MORE than it should
+ * included.
+ *
+ * @since 1.20.0
+ * @param bool $still_old     Old wire still present in wp_posts after the run.
+ * @param bool $has_new       New wire present in wp_posts after the run.
+ * @param bool $name_declined The guard refused this row's tag name during the run.
+ * @return string One of 'moved', 'declined', 'unreached', 'unverified'.
+ */
+function bws_replay_classify_mapping_row( bool $still_old, bool $has_new, bool $name_declined ): string {
+	if ( $still_old ) {
+		return $name_declined ? 'declined' : 'unverified';
+	}
+
+	return $has_new ? 'moved' : 'unreached';
+}

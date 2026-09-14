@@ -484,5 +484,78 @@ $check(
 	'exemption must be gated on $map at the call site'
 );
 
+// ---------------------------------------------------------------------------
+// R7. bws_replay_classify_mapping_row() — which of the four outcomes a derived row lands in.
+// ---------------------------------------------------------------------------
+// THE DERIVED SET IS A SUPERSET OF THE WRITTEN ONE. run-converter.php derives old → new from
+// the two shipped transforms; migrate_post() puts the ownership guard between the transform
+// and the write. These pin the split, because the differ cannot: a mapping row naming a
+// rewrite that never happened degrades to identity pairing there, silently.
+
+$check( 'R7.1 old wire gone and new wire present is a move',
+	'moved' === bws_replay_classify_mapping_row( false, true, false ) );
+
+$check( 'R7.2 neither form in wp_posts is wire the converter cannot reach',
+	'unreached' === bws_replay_classify_mapping_row( false, false, false ) );
+
+// THE POPULATION WHOSE RESTING STATE IS ZERO. Old wire surviving with no refusal behind it is
+// the derivation and the converter disagreeing, which is the only thing this field ever meant
+// and the only thing that should make it non-empty.
+$check( 'R7.3 old wire surviving unrefused is the derivation trip-hazard',
+	'unverified' === bws_replay_classify_mapping_row( true, false, false ) );
+
+$check( 'R7.4 old wire surviving a refusal is the guard working, not a derivation fault',
+	'declined' === bws_replay_classify_mapping_row( true, false, true ) );
+
+// A URL CAN HOLD BOTH FORMS — pre-migrated wire beside refused wire — and that does not turn a
+// refusal into a move. The surviving OLD string is what decides, which is also what makes the
+// classification per-string when the refusal record is only per-name.
+$check( 'R7.5 a refused row is still refused where the new wire exists elsewhere',
+	'declined' === bws_replay_classify_mapping_row( true, true, true ) );
+
+$check( 'R7.6 an unrefused survivor is still the trip-hazard where the new wire exists elsewhere',
+	'unverified' === bws_replay_classify_mapping_row( true, true, false ) );
+
+// A REFUSAL RECORDED FOR A NAME WHOSE STRING DID MOVE IS NOT A DECLINE. One name can hold a
+// string the guard passed beside one it refused — the decision reads that string's option
+// keys — so the name alone must not be able to pull a moved row out of the mapping.
+$check( 'R7.7 a refused NAME does not declassify a string that moved',
+	'moved' === bws_replay_classify_mapping_row( false, true, true ) );
+
+$check( 'R7.8 a refused NAME does not declassify unreached wire',
+	'unreached' === bws_replay_classify_mapping_row( false, false, true ) );
+
+// THE CALL SITES, asserted against SOURCE — both are scripts, so nothing here can call them.
+// Prior art: R5 and R6.14 read a sibling the same way.
+$conv_src = file_get_contents( __DIR__ . '/../harvest-replay/run-converter.php' );
+
+$check(
+	'R7.9 the converter driver classifies rather than testing $still_old inline',
+	1 === preg_match( '/switch \(\s*bws_replay_classify_mapping_row\(/', $conv_src ),
+	'run-converter.php must route the decision through the rule'
+);
+
+// THE REFUSAL RECORD IS READ, NOT RE-DERIVED. Mirroring apply_if_owned() here would mean
+// mirroring its two-pass structure, which is the trip-hazard the header already warns about.
+$check(
+	'R7.10 the refusal record comes off what the run reported',
+	1 === preg_match( '/\$result\[.declined.\]/', $conv_src ),
+	'declined names must be collected from what migrate_post() returned'
+);
+
+// A DECLINED ROW MUST NOT REACH mapping.jsonl. That is the whole effect: the mapping names
+// what moved, while unreached wire keeps its pairing because that wire may still render.
+$check(
+	'R7.11 the mapping is rebuilt from moved + unreached only',
+	1 === preg_match( '/\$mapping = array_merge\(\s*\$moved,\s*array_column\(\s*\$unreached,/', $conv_src ),
+	'declined rows must be excluded from the written mapping'
+);
+
+$check(
+	'R7.12 the differ counts the silent identity fallback',
+	1 === preg_match( '/\$unpaired\+\+;/', $differ_src ),
+	'diff-replays.php must count mapping rows that fell back to the old wire'
+);
+
 echo $fail ? "\nREPLAY VERDICT TEST FAILED ({$fail})\n" : "\nREPLAY VERDICT TEST PASSED\n";
 exit( $fail ? 1 : 0 );

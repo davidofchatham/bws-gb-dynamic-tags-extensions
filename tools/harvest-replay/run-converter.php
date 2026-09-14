@@ -26,6 +26,15 @@
  * string is checked for presence in the stored content afterwards, and a mismatch is reported
  * loudly rather than written into the mapping.
  *
+ * THE DERIVATION IS DELIBERATELY NOT A FULL MIRROR — IT DOES NOT MODEL THE OWNERSHIP GUARD.
+ * `migrate_post()` hands every rewrite to `apply_if_owned()`, twice per string against two
+ * different intermediate forms, so mirroring the decision here would mean mirroring that
+ * two-pass structure and doubling the hazard the paragraph above describes. Instead the run
+ * REPORTS what it refused (`migrate_post()` returns `declined`), and the check below reads that
+ * rather than re-deriving it — measured, not mirrored. `bws_replay_classify_mapping_row()` in
+ * replay-verdict.php owns which of the four outcomes a derived row lands in and why the
+ * guard's refusals are separated from the rest.
+ *
  * WHAT THE CONVERTER CANNOT REACH IS PART OF THE RESULT. `scan()` is a wp_posts query, so wire
  * living in options, postmeta or termmeta is neither reported nor rewritten and keeps
  * rendering the old way indefinitely. The census already counted that; this records which
@@ -139,7 +148,7 @@ foreach ( $tags as $tag ) {
 	}
 }
 
-WP_CLI::log( sprintf( '%d distinct tag strings, %d of them change', count( $tags ), count( $mapping ) ) );
+WP_CLI::log( sprintf( '%d distinct tag strings, %d derive a rewrite', count( $tags ), count( $mapping ) ) );
 
 // ---------------------------------------------------------------------------
 // 2. REPORT — what the converter says it will do, before it does it.
@@ -161,6 +170,13 @@ $migrated = 0;
 $tag_count = 0;
 $failed    = array();
 
+// WHAT THE GUARD REFUSED, AS THE RUN REPORTED IT. Collected outside the `changed` branch
+// because a post can be declined on every tag it holds and therefore not change at all — that
+// post is exactly the one whose refusals the mapping check needs. Keyed by tag NAME with the
+// reason, which is the shape `migrate_post()` returns; the per-STRING half of the decision is
+// recovered below from whether the old wire survived.
+$declined_names = array();
+
 foreach ( $scan as $row ) {
 	$id = (int) $row['post_id'];
 	try {
@@ -169,6 +185,9 @@ foreach ( $scan as $row ) {
 		$failed[] = array( 'post_id' => $id, 'error' => $e->getMessage() );
 		continue;
 	}
+	foreach ( (array) ( $result['declined'] ?? array() ) as $declined_tag => $reason ) {
+		$declined_names[ (string) $declined_tag ] = (string) $reason;
+	}
 	if ( ! empty( $result['changed'] ) ) {
 		$migrated++;
 		$tag_count += (int) ( $result['tag_count'] ?? 0 );
@@ -176,6 +195,19 @@ foreach ( $scan as $row ) {
 }
 
 WP_CLI::log( sprintf( 'migrated %d posts, %d tag rewrites', $migrated, $tag_count ) );
+if ( $declined_names ) {
+	WP_CLI::log( sprintf(
+		'ownership guard declined %d tag name(s): %s',
+		count( $declined_names ),
+		implode( ', ', array_map(
+			static function ( $name, $reason ) {
+				return "{$name} ({$reason})";
+			},
+			array_keys( $declined_names ),
+			$declined_names
+		) )
+	) );
+}
 
 // THE ADMIN BUTTON RECONCILES THE GB PRO PATTERN CACHE; SO MUST THIS.
 // migrate_post() writes with $wpdb->update(), so GB Pro rebuilds nothing and a cached copy of the
@@ -221,15 +253,24 @@ if ( class_exists( '\BWS\DynamicTags\Admin\PatternCache' ) ) {
 
 // REPORT/RUN AGREEMENT — a report that outlives its run means the two halves disagree about
 // what a migration is.
+//
+// CONVERTIBLE WORK ONLY. `scan()` classifies every stored string into convert / declined /
+// skipped, and the last two are reported BECAUSE they survive — a declined tag still being
+// there after the run is the guard working, not the two halves disagreeing. Counting any
+// non-empty `deprecated_tags` would fire this warning on every default-guard run from now on,
+// and a warning with a loud resting state is one nobody reads.
 $rescan    = \BWS\DynamicTags\Admin\TagConverter::scan();
 $remaining = 0;
 foreach ( $rescan as $row ) {
-	if ( ! empty( $row['deprecated_tags'] ) ) {
-		$remaining++;
+	foreach ( (array) ( $row['deprecated_tags'] ?? array() ) as $d ) {
+		if ( 'convert' === ( $d['status'] ?? 'convert' ) ) {
+			$remaining++;
+			break;
+		}
 	}
 }
 if ( $remaining ) {
-	WP_CLI::warning( "a second scan still reports {$remaining} post(s) — report and run disagree" );
+	WP_CLI::warning( "a second scan still reports {$remaining} convertible post(s) — report and run disagree" );
 }
 
 // ---------------------------------------------------------------------------
@@ -240,8 +281,10 @@ if ( $remaining ) {
 // ---------------------------------------------------------------------------
 global $wpdb;
 
-$unreached = array();
+$unreached  = array();
 $unverified = array();
+$declined   = array();
+$moved      = array();
 foreach ( $mapping as $old => $new ) {
 	$still_old = (int) $wpdb->get_var( $wpdb->prepare(
 		"SELECT COUNT(*) FROM {$wpdb->posts}
@@ -256,19 +299,50 @@ foreach ( $mapping as $old => $new ) {
 		'%' . $wpdb->esc_like( $new ) . '%'
 	) );
 
-	if ( $still_old ) {
-		// Survived in wp_posts despite being mapped: the derivation and the converter's own
-		// order have diverged. That is the trip-hazard this check exists for.
-		$unverified[] = array( 'old' => $old, 'new' => $new, 'posts_still_old' => $still_old );
-	} elseif ( ! $has_new ) {
-		// Neither form is in wp_posts — the tag lived only in options/postmeta/termmeta, which
-		// the converter cannot reach. Expected, and recorded.
-		$unreached[] = array( 'old' => $old, 'new' => $new );
+	list( $name ) = \BWS\DynamicTags\MigrationRegistry::parse_tag_string( $old );
+
+	switch ( bws_replay_classify_mapping_row( (bool) $still_old, (bool) $has_new, isset( $declined_names[ $name ] ) ) ) {
+		case 'declined':
+			// The guard refused this one, and the run said so. Not a derivation fault, and not
+			// a mapping row: nothing became anything.
+			$declined[] = array(
+				'old'             => $old,
+				'would_have_been' => $new,
+				'reason'          => $declined_names[ $name ],
+				'posts_still_old' => $still_old,
+			);
+			break;
+
+		case 'unverified':
+			// Survived in wp_posts despite being mapped, and the guard did not refuse it: the
+			// derivation and the converter's own order have diverged. That is the trip-hazard
+			// this check exists for, and its resting state is zero.
+			$unverified[] = array( 'old' => $old, 'new' => $new, 'posts_still_old' => $still_old );
+			break;
+
+		case 'unreached':
+			// Neither form is in wp_posts — the tag lived only in options/postmeta/termmeta,
+			// which the converter cannot reach. Expected, and recorded.
+			$unreached[] = array( 'old' => $old, 'new' => $new );
+			break;
+
+		default:
+			$moved[ $old ] = $new;
 	}
 }
 
+// AN UNREACHED ROW STAYS IN THE MAPPING, A DECLINED ONE DOES NOT. Both left the old wire in
+// place, but only one of them is a rewrite the converter still owns: unreached wire lives
+// outside wp_posts and the diff needs the pairing if that wire is ever rendered, while a
+// declined row names a rewrite that was refused and will stay refused. See
+// `bws_replay_classify_mapping_row()` for why the two are told apart at all.
+$mapping = array_merge( $moved, array_column( $unreached, 'new', 'old' ) );
+
 if ( $unverified ) {
-	WP_CLI::warning( sprintf( '%d mapped tag(s) still present in post_content in their OLD form — derivation may not mirror migrate_post', count( $unverified ) ) );
+	WP_CLI::warning( sprintf( '%d mapped tag(s) still present in post_content in their OLD form, unrefused — derivation may not mirror migrate_post', count( $unverified ) ) );
+}
+if ( $declined ) {
+	WP_CLI::log( sprintf( '%d derived rewrite(s) refused by the ownership guard, left out of the mapping', count( $declined ) ) );
 }
 
 // ---------------------------------------------------------------------------
@@ -325,6 +399,7 @@ $report = array(
 	'converted_at'      => gmdate( 'c' ),
 	'plugin_version'    => $version,
 	'distinct_tags'     => count( $tags ),
+	'derived_rewrites'  => count( $moved ) + count( $unreached ) + count( $declined ) + count( $unverified ),
 	'mapped_tags'       => count( $mapping ),
 	'posts_reported'    => $reported,
 	'posts_migrated'    => $migrated,
@@ -332,6 +407,7 @@ $report = array(
 	'posts_still_reported_after' => $remaining,
 	'migrate_failures'  => $failed,
 	'unreached_by_converter' => $unreached,
+	'ownership_declined'     => $declined,
 	'derivation_unverified'  => $unverified,
 	'pattern_cache'     => $pattern_cache,
 );
@@ -342,8 +418,9 @@ file_put_contents(
 );
 
 WP_CLI::log( sprintf(
-	'unreached by converter (options/meta only): %d   derivation unverified: %d',
+	'unreached by converter (options/meta only): %d   ownership declined: %d   derivation unverified: %d',
 	count( $unreached ),
+	count( $declined ),
 	count( $unverified )
 ) );
 WP_CLI::log( 'written: ' . $map_path );
