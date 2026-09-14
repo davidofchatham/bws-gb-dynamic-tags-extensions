@@ -391,6 +391,18 @@ Open: What "removed" means for the external half — a hard delete of the public
 
 Blocked by: —  •  Interacts with: FW-33 (the internal half waits on its migration), FW-67 (the `bws-term-hop` carrier dies with the constructor), FW-38 (the proxy this API is the last justification for), FW-104 (the enroll-a-live-family trap is a property of this API), FW-128 (a tags-in-use report is what would make the internal half's gate checkable)
 
+#### FW-130 — An ownership opt-in converts foreign wire without translating its option vocabulary
+
+Claiming a contested tag name lifts the converter's ownership guard and the rewrite proceeds, but the transform carries every stored option key through verbatim. A key that belonged to the OTHER plugin's vocabulary then lands on our tag, where it is inert — the option is not rejected, not reported, and not remapped, it simply stops doing anything. The guard is what keeps this off by default, so the exposure is exactly the population an owner has claimed, which is also the population where they are least expecting a behavior change.
+
+Detail home: this row
+
+Progress: Measured on the Site P clone 2026-09-12, driving a real conversion with `term_title` claimed. GB Query Enhancements registers that tag with `'supports' => ['link','source']`, so GB itself serialized its native `link:term`; our base tags read `linkTo`/`linkKey`, and the migrated `{{title link:term}}` rendered the value with the author's link GONE on 14 of 5220 renders. `bws_map_gb_link_option()` already performs exactly this remap, but it is registered for the deprecated N×M tags, not for wire arriving through the modifier→base transform. Our own `term_` family is unaffected and always was — `register_modifier()` appends `bws_get_link_options()`, so it writes `linkTo`/`linkKey`/`newTab` and never `link`.
+
+Open: Whether the fix is to run the GB-native remap on the opted-in path, to report unrecognized keys at claim time so the decision is informed rather than silent, or to leave it and say so in the opt-in's own wording. The measurement covers ONE key (`link`) on ONE foreign tag; nothing enumerates which other vocabularies a claim could drag in, and the ownership predicate already computes `unknown_options` for its own refusal, so the fact is available wherever this is answered.
+
+Blocked by: —  •  Interacts with: FW-39 (the guard and the opt-in are its ticket 10), FW-73 (the other converter-coverage question), FW-128 (an unrecognized-key count is the same scan an in-use report needs)
+
 ### Feature follow-ups & UX
 
 #### FW-9 — Context-aware base tags — the deferred residue
