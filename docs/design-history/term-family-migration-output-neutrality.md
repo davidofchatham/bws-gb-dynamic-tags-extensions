@@ -168,6 +168,31 @@ exempt    : 0         volatile: 0      GATE HELD — every comparable pair is by
 - **The A side was the clone's live 1.19.1, not the shipped 1.19.2**, so anything 1.19.2 moved in rendering folds into `identical` rather than being held fixed. It touches neither the `term_title` finding nor the gate.
 - **A clean gate is a statement about our resolver over real wire, never about what a visitor sees.** `replay-tags.php` calls `replace_tags()` with an empty `$block`, no query loop and no `the_content` filters. And the harvest sampled 45 URLs across its strata, so nothing here speaks to a context-kind stratum the sample never drew.
 
+## Measurement 3 — the `link:term` fix, re-run on the same clone, 2026-09-14
+
+The fix the run-1 finding produced (translate the foreign option VALUE, not just the key) was verified by re-running run 1's arm against the fixed build. Same clone, same opt-in (`term_title` claimed), same 45-URL set, same converter numbers (3 posts, 22 rewrites, 13 distinct strings).
+
+**One mapping row moved, and it is the one the fix names.** `{{term_title link:term}}` mapped to `{{title link:term}}` before and maps to `{{title linkTo:permalink}}` after. The other twelve rows are byte-identical.
+
+| Bucket | run 1 | run 3 |
+|---|---|---|
+| identical | 4725 | 4725 |
+| exempt (unpinned `term_*`, empty→value) | 31 | 31 |
+| CHANGED | 464 | 464 |
+| rescued / volatile | 0 / 0 | 0 / 0 |
+
+**The buckets did not move; what is INSIDE the 14 did.** Those 14 pairs carried an anchor on the A side and none on the B side in run 1; in run 3 they carry an anchor on both. The link is back, and because the pair was already counted as changed for the empty→value reason it shares with the other 31, restoring it does not change a single bucket count. **A run read by exit code alone therefore reports this fix as no change at all** — the difference is one level below the summary, and the tally that shows it is anchors per side, per tag, on the changed pairs.
+
+**Nothing else moved, measured directly rather than inferred from the buckets.** Run 1's post-migration render compared against run 3's, pairing on (URL, tag string): 5175 shared renders, all byte-identical, zero moved. The B-side census drops 5220 → 5175 because the fixed rewrite now emits a string another rewrite already emitted (`{{title linkTo:permalink}}`), so 45 rows dedupe into one that was already there and already correct.
+
+**The §C-CONV half of the trigger row was answered by probing the wire, not by re-rendering the matrix.** Every `term_*` "before" string in `tools/test/context-test-matrix.md` §C-CONV was pushed through the shipped transform at this commit and at its parent; the only string whose emitted wire differs is a control row carrying `link:`. The matrix's "After (base)" column is unmoved, so its render column — measured 2026-09-10/11 — cannot have moved with it.
+
+### The A side was re-rendered, not reused, and that was not optional
+
+Run 2 reused run 1's A-render, and the reuse was sound then. It was not sound here: between 2026-09-12 and 2026-09-14 the ENV repo stopped writing dynamic `WP_HOME`/`WP_SITEURL`, so the clone that had been emitting a literal `DOMAIN_PLACEHOLDER` host now emits its real one. Diffed against the stale A-render, the run reported **1051 changed pairs, 582 of them nothing but that host string**. Re-rendering the A arm on the current env brought it back to 464 with no normalization applied anywhere.
+
+**A normalizer would have produced the same number and been worth less.** The instrument's whole claim is that it compares bytes; a hand-written collapse applied to its output on the way past is an unpinned rule invented for one run, and the next operator has no way to know it was applied. `tools/harvest-replay/README.md` carries the operating rule this cost.
+
 ## Not promoted, and what would promote it
 
 Neither the exemption nor the fix-vs-migration line is a live rule. Both are decisions about one
