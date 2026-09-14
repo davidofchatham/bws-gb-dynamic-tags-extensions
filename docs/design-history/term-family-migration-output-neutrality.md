@@ -5,6 +5,8 @@
 > §Spec lifecycle owns that rule). Cite it for PROVENANCE — what a decision was hardened against,
 > what a build actually did — never as a statement of how the code works now. For current state:
 > `docs/tag-reference.md`, `CONTEXT.md`, or the PHPDoc at the enforcing site.
+>
+> **`Site P` is a pseudonym** for the real client clone the replay gate below was measured against, substituted before publication. The measurements are unchanged; only the name is.
 
 **What this record is for.** The `{{term_*}}` → base-tag converter shipped in 1.20.0 with one
 stated exception to a rule this repo had held without exception until then: a migration does not
@@ -94,6 +96,8 @@ the diff looks the same size.
 instance. The line is real and it is load-bearing for this ship; what it is not yet is a rule the
 repo has needed twice.
 
+The sharpest instance of it is not the fix above but a rewrite nobody designed — 14 silently dropped links on a real site, measured, in §Measurement 2 run 1.
+
 ## What the replay gate could and could not reach
 
 **The evidence is SPLIT by what each instrument can actually see (D44),** and the split matters more
@@ -123,6 +127,46 @@ fallback for anything the rule does not match, never the mechanism.
 **A gate expected to be dirty stops being read**, which is why `replay-vacuity-test.php` exists:
 it drives every attestation to failure and then censuses the source, so an instrument that has
 quietly stopped being able to fail fails instead.
+
+## Measurement 2 — the replay gate, on a `Site P` clone
+
+**The gate was met before ship.** Harvest and replay pre-migration, run the converter, harvest and replay again, diff across the mapping the converter wrote. Two arms on the same clone, the same corpus and the same A-render: **run 2 is the gate**, run 1 is evidence about the ownership opt-in and is not the shipping configuration. Corpus: 270 census rows, 45 URLs (9 attested), 116 tags per URL = **5220 renders per arm**, 0 volatile, 0 errors, non-vacuity 1678/5220. Artifacts stayed in the ENV repo; nothing carrying client data left the clone.
+
+### Run 2 — the shipping configuration, 2026-09-13. GATE HELD
+
+The converter with the ownership guard at its default rewrote **2 posts, 4 tags, 2 distinct strings** — the `term_content` pair, the whole of what that clone holds that we can prove is ours. `term_title` was left alone, as designed.
+
+```
+identical : 5220      CHANGED : 0      MISSING/ADDED : 0
+exempt    : 0         volatile: 0      GATE HELD — every comparable pair is byte-identical.   (exit 0)
+```
+
+**`exempt: 0` is the measured form of the prediction above**, not a second proof of safety. The clone's unpinned-and-ours population is zero, so the exemption was never exercised — exactly what §What the replay gate could and could not reach says a clean diff at that row means. The exemption's evidence remains the testbed fixture rows.
+
+### Run 1 — the arm the guard refuses by default, 2026-09-12. GATE FAILED, as designed
+
+`term_title` was claimed in the per-name opt-in before the converter ran, so this measures what lifting the guard DOES. Converter: 3 posts, 22 rewrites, 13 distinct strings — 2 `term_content`, 11 `term_title`.
+
+| Bucket | n |
+|---|---|
+| identical | 4725 |
+| exempt (unpinned `term_*`, empty→value) | 31 |
+| CHANGED | 464 |
+| rescued / volatile | 0 / 0 |
+
+**Every one of the 464 is `term_title`** — 450 empty→value (14 attested, 436 synthetic) and 14 value→different. `term_content` → `content src:term,N`, the only wire on that clone we can prove is ours, produced **zero** changed pairs.
+
+**The exemption rule held and its limiting clause fired unseeded.** The 31 were classified mechanically off the map's own wire, no hand triage. The 14 value→different are the SAME stored string as those 31 — unpinned `{{term_title link:term}}`, separated only by URL — and the differ refused to forgive them because the A side was not empty. That is better evidence than the seeded change the acceptance criterion asked for: nobody built the case, and a rule that over-forgave would have swallowed it.
+
+**The 14 are a lost link, and they root-cause to the opt-in rather than to the migration.** On term archives the A side rendered an anchor with empty text (GB Query Enhancements' `get_term_title()` needs a loop item) and the C side renders the bare term name with no anchor at all. GBQE registers those names with `'supports' => ['link','source']`, so **GB** serialized its own native `link:term`; the transform carried the key through verbatim into `{{title link:term}}`; our base tags read `linkTo`/`linkKey`. The key is inert on the target and the link is dropped silently. Not a defect in the modifier→base path: `register_modifier()` appends `bws_get_link_options()`, so our own `term_` family writes `linkTo`/`linkKey`/`newTab` and never `link`. That wire exists only because it was authored against somebody else's tag — which is the whole of why the converter now refuses a name it cannot prove is ours, and why this is the instance the fix-vs-migration sentence rests on.
+
+**What it measured for the ownership guard:** the decline was RIGHT on this clone, measured rather than argued, and both refusal reasons apply independently — `name_not_ours` (GBQE holds the name) and `unknown_options` (the `link` key). Lifting it moved 464 renders and dropped 14 links.
+
+### What these numbers do not hold
+
+- **Run 2's figures were produced by the pre-fix instrument.** `run-converter.php` did not model the ownership guard sitting between the two calls it mirrors, so the run reported `derivation unverified: 11` against a 13-row mapping. The verdict is unaffected by construction, and that was measured rather than assumed: the diff was run both ways, raw 13-row mapping and filtered 2-row mapping, **identical both times**. On a re-run the same clone reads `ownership declined: 11`, `derivation unverified: 0` and the same 5220/5220.
+- **The A side was the clone's live 1.19.1, not the shipped 1.19.2**, so anything 1.19.2 moved in rendering folds into `identical` rather than being held fixed. It touches neither the `term_title` finding nor the gate.
+- **A clean gate is a statement about our resolver over real wire, never about what a visitor sees.** `replay-tags.php` calls `replace_tags()` with an empty `$block`, no query loop and no `the_content` filters. And the harvest sampled 45 URLs across its strata, so nothing here speaks to a context-kind stratum the sample never drew.
 
 ## Not promoted, and what would promote it
 
