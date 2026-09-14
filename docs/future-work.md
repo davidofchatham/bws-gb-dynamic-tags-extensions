@@ -625,11 +625,11 @@ Query-loop item-shape recognition (1.19.0) reads four shapes — post, term, use
 
 Detail home: `.scratch/plans/product-loop-item-recognition.md` (new) + `bws_classify_loop_item()` PHPDoc (the axis)
 
-Progress: Accepted as a regression, not hidden: measured 2026-08-26 that `WooCommerce_Query` emits a bare anonymous `(object)['id' => …, 'name' => …]` record with no class or marker, satisfying no recognition arm. The old behaviour worked only because a WooCommerce product id happens to equal a post id — the same coincidence that hid the term-id leak (#123, closed) — so an unrecognized shape must say nothing ([I15]). No fixture site carries WooCommerce, so no matrix row exists; `loop-item-classify-test.php` §C1.13 pins only that the shape is refused.
+Progress: Accepted as a regression, not hidden: measured 2026-08-26 that `WooCommerce_Query` emits a bare anonymous `(object)['id' => …, 'name' => …]` record with no class or marker, satisfying no recognition arm. The old behaviour worked only because a WooCommerce product id happens to equal a post id — the same coincidence that hid the term-id leak (#123, closed) — so an unrecognized shape must say nothing ([I15]). WooCommerce 11.1.0 landed on the fixture site 2026-09-14, unpopulated, and the snapshot baseline was re-captured to absorb its chrome — measured there: it moves all 19 pages and no rendered tag among them. No product fixture and no matrix row yet, so `loop-item-classify-test.php` §C1.13 still pins only that the shape is refused, against a hand-built record rather than one GB Query Enhancements emitted.
 
 Open: What marker identifies a product record, given a bare `id` is the weakest marker there is. Whatever ships must stay SHAPE-keyed, never vendor-keyed.
 
-Blocked by: decision:what marker identifies a product record  •  Interacts with: FW-97 (a Woo fixture would move every baseline it lands on), [I15]
+Blocked by: decision:what marker identifies a product record  •  Interacts with: FW-97 (largely discharged — Woo's own chrome is already in the baseline, so a product fixture on a NEW page moves no existing one), [I15]
 
 #### FW-105 — The raw search query is unreachable on a core-only site
 
