@@ -109,7 +109,7 @@ Detail home: `docs/design-history/traversal-pipeline.md` §Post-Phase-1 converge
 
 Progress: Not started; excluded from Phase 1 because `TaxonomyTerm::resolve_id` and the `term_` modifiers depend on it, which would have widened the blast radius mid-refactor. Read in full 2026-09-07 for FW-39, with two findings for whoever takes this: **tier 5 ("first term of the current post") is an implicit `terms` hop**, guarded on a taxonomy read from the tag's own options, so the chain grammar already spells it better and a truly bare tag never reaches it; and **tiers 3-4 give the same answer a bare base tag has given since the term kind shipped in 1.14.0**, which is what lets FW-39 migrate an unpinned `term_*` to a bare base tag by equivalence. FW-39 leaves this item's surface unchanged: bare `term` is never offered there, so no new authored wire depends on the detector.
 
-Blocked by: row:FW-7  •  Interacts with: FW-33, FW-39
+Blocked by: row:FW-7  •  Interacts with: — (FW-33 and FW-39 both closed with 1.20.0; what they found about this detector is recorded in Progress above)
 
 #### FW-38 — Explicit registered_by + lifecycle entry fields (retire the callback proxy)
 
@@ -143,7 +143,7 @@ Progress: The permalink soft gate — a non-ambient user source — is MET since
 
 Open: image — no clean intrinsic analog (parity with the #29 term-image gap); the avatar (`get_avatar_url`) candidate adds external Gravatar HTTP + privacy surface and isn't "featured-image" semantics (a `use:key` ACF user-image field already covers key-mode). permalink — whether a user query loop alone is enough to ship on, or it still waits for a user source the wire can NAME (FW-48's `src:author` hop, `src:ref`→user, or FW-39's ID source).
 
-Blocked by: `decision:image-avatar-analog`  •  Interacts with: FW-9, FW-48, FW-39, FW-101, FW-113
+Blocked by: `decision:image-avatar-analog`  •  Interacts with: FW-9, FW-48, FW-39 (closed), FW-101, FW-113
 
 #### FW-67 — Retire the bws-term-hop control-type carrier (the last retired word)
 
@@ -153,9 +153,9 @@ Detail home: GH #80 (closed) §Out of Scope (Phase C, parked); `docs/design-hist
 
 Progress: Every base tag has already retired the carrier. It survives only where the flat `srcTermIn` control still registers — the `term_` modifier family and `{{table}}` — because they take `bws_base_traversal_options()` raw with no chain option to gate `bws_drop_chain_flat_options()` on. The `view_` family was the third carrier until bws-portal-system 5.9.0 (2026-09-08) deleted it, so no externally-registered family holds the control any more.
 
-Open: The likely outcome is deletion, not rename — the carrier dies with `register_modifier()` (FW-129) or with `{{table}}` taking a chain source (FW-53). Also open, added 2026-09-07: the carrier's taxonomy list is PUBLIC-ONLY, while FW-39's pin picker lists every REGISTERED taxonomy behind a capability check, so a private editorial taxonomy is pinnable and not hoppable. The divergence was accepted rather than reconciled — reconciling it changes a shipped control's offering on every existing tag, and this carrier is slated for deletion here.
+Open: The likely outcome is deletion, not rename — the carrier dies with `register_modifier()` (FW-129) or with `{{table}}` taking a chain source (FW-53). Also open, added 2026-09-07: the carrier's taxonomy list is PUBLIC-ONLY, while the pin picker (FW-39, shipped 1.20.0) lists every REGISTERED taxonomy behind a capability check, so a private editorial taxonomy is now pinnable and still not hoppable. The divergence was accepted rather than reconciled — reconciling it changes a shipped control's offering on every existing tag, and this carrier is slated for deletion here.
 
-Blocked by: row:FW-129, row:FW-53  •  Interacts with: FW-33
+Blocked by: row:FW-129, row:FW-53  •  Interacts with: — (FW-33 closed with 1.20.0; deprecating the `term_` family did not retire its registrations, so the carrier still has both of its homes)
 
 #### FW-74 — A base-tag arm that consumes a REPEATER-ROW source
 
@@ -201,7 +201,7 @@ Progress: Fresh installs seed both groups to `disable` (the read-path fallback i
 
 Open: Which of the four directions (exempt externally-registered entries, go per-family/per-entry, treat a stored `disable` as applying only to entries present when it was saved, or delete the dead accessors); whichever lands, `docs/plugin-integration.md` §9 must state what registering an entry enrolls tags in.
 
-Blocked by: decision:which of the four directions  •  Interacts with: FW-38 (`registered_by` — the registrar identity a gated version needs), FW-33
+Blocked by: decision:which of the four directions  •  Interacts with: FW-38 (`registered_by` — the registrar identity a gated version needs), FW-33 (closed)
 
 #### FW-106 — The resolved chain is re-derived, not passed
 
@@ -291,7 +291,7 @@ Progress: `class-tag-template-registry.php:400-424` (in `make_modifier_callback(
 
 Open: Neither remaining site should be fixed standalone. Site 1 sits inside `register_modifier()`, itself pending retirement (FW-67, blocked by FW-70/FW-53) — fixing it now risks throwaway work if that lands first. Site 2's two callbacks are the exact ones FW-81 collapses into one — joining the seam there before FW-81 means redoing the join on the merged callback. Expected to resolve for free as a side effect of FW-67/FW-70/FW-53 (site 1) and FW-81 (site 2) rather than needing its own PR — re-check after either lands.
 
-Blocked by: —  •  Interacts with: FW-47 (widening the user arm dissolves the third, already-excluded site), FW-33, FW-3, FW-106, FW-67 (site 1 rides `register_modifier()`'s retirement), FW-81 (site 2's callbacks are the ones it merges — sequence after)
+Blocked by: —  •  Interacts with: FW-47 (widening the user arm dissolves the third, already-excluded site), FW-33 (closed), FW-3, FW-106, FW-67 (site 1 rides `register_modifier()`'s retirement), FW-81 (site 2's callbacks are the ones it merges — sequence after)
 
 #### FW-114 — Fold-grammar PHP↔JS twin checks the wrong constant for `chainRoot`
 
@@ -379,17 +379,17 @@ Blocked by: —  •  Interacts with: FW-124 (a user-kind fixture serves both; t
 
 `TagTemplateRegistry::register_modifier()` mints a parallel prefixed tag family (`term_text`, `term_image`, …) that duplicates the base tags, and every capability added to the base tags has to be built a second time to reach it. Registered chain roots superseded it: a source that wants to be a starting point registers a root and the whole base-tag surface follows for free. This item deletes the option — the constructor, the surfaces that exist only to serve a prefixed family, and the published integrator contract for it.
 
-Detail home: this row (decision taken 2026-09-08); `docs/plugin-integration.md` §2 "Registering a Context Modifier" + §8 "Renaming a Modifier Prefix" are the published contract being withdrawn; FW-33 owns the internal family's own migration
+Detail home: this row (decision taken 2026-09-08); `docs/plugin-integration.md` §2 "Registering a Context Modifier" + §8 "Renaming a Modifier Prefix" are the published contract being withdrawn; the internal family's own deprecation and converter shipped with FW-33 (closed, 1.20.0)
 
 Progress: The two halves separate cleanly and do not gate each other.
 
 **External half — no consumer left.** `register_modifier()` had exactly one external caller, bws-portal-system, which deleted its `view_*` family in 5.9.0 (2026-09-08) and now integrates through the `view` chain root alone. The same release deleted the only external use of `DeprecatedTagRegistry` prefix aliases, so `prefix_removed`'s external population is empty too (`CONTEXT.md` I10). Nothing outside this repo is known to call the API, so the external half is a documentation withdrawal plus a deprecation notice, and can land in the next release.
 
-**Internal half — waits on `term_`.** `register_modifier()`'s one remaining caller is our own `term_` constructor, so the API cannot go while `term_*` registers, and `term_*` cannot unregister until known instances are migrated (an unregistered tag renders LITERALLY — the gate FW-33 states, and the one bws-portal-system chose to step past for its own names). Removal here therefore trails FW-33's migration completing, not FW-33's deprecation landing.
+**Internal half — waits on `term_`.** `register_modifier()`'s one remaining caller is our own `term_` constructor, so the API cannot go while `term_*` registers, and `term_*` cannot unregister until known instances are migrated (an unregistered tag renders LITERALLY — the gate FW-33 states, and the one bws-portal-system chose to step past for its own names). The deprecation itself landed in 1.20.0 (FW-33, closed) and moved this gate not at all: removal here trails the migration COMPLETING on live content, which is a fact about other people's sites and not about our release history.
 
 Open: What "removed" means for the external half — a hard delete of the public method, or a `_doing_it_wrong()` stub that keeps a third-party fatal from a version bump. The deletion set has not been enumerated beyond the constructor: `register_modifier_template()` STAYS either way (the base tags and `generate_base_try_tags()` both consume it), and the `bws_dynamic_tags_preview_modifier_map` filter, the rooting-modifier `site`-filtering branch, and `bws_register_modifier_root_migrations()` each need their own call — the last of these is the escape hatch `term_`'s own migration will use, so it outlives the constructor by at least one release. Whether the settings page keeps a Deprecated/Removed distinction once no external plugin can enroll a family is FW-38's question, not this one.
 
-Blocked by: —  •  Interacts with: FW-33 (the internal half waits on its migration), FW-67 (the `bws-term-hop` carrier dies with the constructor), FW-38 (the proxy this API is the last justification for), FW-104 (the enroll-a-live-family trap is a property of this API), FW-128 (a tags-in-use report is what would make the internal half's gate checkable)
+Blocked by: —  •  Interacts with: FW-67 (the `bws-term-hop` carrier dies with the constructor), FW-38 (the proxy this API is the last justification for), FW-104 (the enroll-a-live-family trap is a property of this API), FW-128 (a tags-in-use report is what would make the internal half's gate checkable)
 
 ### Feature follow-ups & UX
 
@@ -403,7 +403,7 @@ Progress: The five query-context kinds shipped 1.19.0 (term kind 1.14.0, author 
 
 Open: The deferred option surface (404 title/text override, search format — also FW-105's home, taxonomy-label prefix, date format, latest-home title source) and the datetime archive-context semantics (`use:archive_range` era).
 
-Blocked by: decision:option surface scope  •  Interacts with: FW-33, FW-47, FW-105
+Blocked by: decision:option surface scope  •  Interacts with: FW-33 (closed), FW-47, FW-105
 
 #### FW-13 — Smart field selector v2/v3
 
@@ -411,11 +411,11 @@ Follow-on work to the shipped field-selector v1 (discovery-backed `bws-field-com
 
 Detail home: `.scratch/plans/field-selector.md`
 
-Progress: v1 shipped 1.13.0 — ACF + sub-fields + options-page + term-meta + registered meta, flat searchable list with two filters, kind/group-dynamic label, free-text + clear, a REST endpoint inlined per editor load, offered-iff-resolvable.
+Progress: v1 shipped 1.13.0 — ACF + sub-fields + options-page + term-meta + registered meta, flat searchable list with two filters, kind/group-dynamic label, free-text + clear, a REST endpoint inlined per editor load, offered-iff-resolvable. One scope nibble landed with FW-39 in 1.20.0: a PINNED term or post narrows the list to that taxonomy's or post type's own fields plus any group not tied to one location, and re-narrows on repin. That is the pinned-root case only — the `src:ref` stepped-to-post-type scope below is untouched by it.
 
 Open: v2 type-priority (recommend-divider or multi-select Filter 2; `ref`→relationship+post_object; `src:ref` stepped-to-PT scope; smarter Filter-1 preset; dynamic label on `ref`; custom combobox widget for reopen-highlight); v3 Pie Calendar; v-future pick-a-post-to-scan.
 
-Blocked by: —  •  Interacts with: FW-14, FW-20
+Blocked by: —  •  Interacts with: FW-14, FW-20, FW-131 (a pinned user would want the same narrowing the pinned term and post got)
 
 #### FW-14 — Field-selector post-v1 follow-ups
 
@@ -659,13 +659,25 @@ Blocked by: row:FW-53  •  Interacts with: FW-53, FW-106 (the parse half of the
 
 The scanner today walks `post_content` to answer ONE question — which strings a registered migration entry can rewrite — and its report is shaped entirely by that. The walk itself is general, and other questions want the same pass: **validity** (wire naming an entity, field key or relationship that no longer exists), **tags in use** (what this site actually authors, per tag and per option shape), **option VALUES against the transform that consumes them** (below), and plausibly more. This item is the generalization: a walk that classifies every BWS tag string once, with migration demoted to one report over it rather than the reason the walk exists.
 
-Detail home: this row (raised in the FW-39 grilling, 2026-09-07; the per-block handling a site-wide report complements is decided in `.scratch/fw-39-id-source/spec.md`)
+Detail home: this row (raised in the FW-39 grilling, 2026-09-07; the per-block handling a site-wide report complements shipped with FW-39 — [PR #134](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/pull/134))
 
 Progress: Not started. Two consumers already exist and are recorded elsewhere, which is what distinguishes this from a nice-to-have. **Validity:** FW-39 settles what happens without it — a dangling `src:term,34` renders silent-empty per the §V2 rule and the editor's tag configuration preview marks it `(missing)` — so an author only learns of a broken pin by opening the block that holds it, and there is no site-wide answer. **Tags in use:** the deprecation progression gates step 3 (unregistering a family) on the unreachable surfaces being EMPTY rather than on elapsed releases, because an unregistered tag renders LITERALLY — see `docs/design-history/external-source-roots.md` Q7. An inventory report is what could answer that; today nothing can, which is part of why FW-33 and FW-67 defer removal indefinitely. bws-portal-system 5.9.0 (2026-09-08) removed its `view_*` family without such a report, on the operator's own knowledge of one install's content — which is exactly the answer this instrument would make checkable rather than asserted. **Option values:** a third consumer, added 2026-09-14 when the FW-130 row it replaced was closed. An option KEY can be one of ours while its VALUE belongs to whoever consumes it, and nothing we ship reads at that depth — the converter's ownership guard checks keys only (`bws_converter_tag_ownership()`), so a foreign value on a shared key passes it. One corpus holds three incompatible readings of GB's own `link` key: an enum of six link targets in `GenerateBlocks_Dynamic_Tag_Callbacks::with_link()`, a plain boolean in the same class's `get_term_list()`, and a private `term` sentinel defined independently by our N×M era and by GB Query Enhancements 1.3.0. Measured across the Site P clone's harvest corpus 2026-09-14: of the seven keys in `BWS_GB_TAG_OUTPUT_OPTIONS`, `link` is the only one carrying a value at all, and two of its five stored values are ones `with_link()` does not answer for. The one instance that reached our own rewrite path is fixed at `bws_modifier_base_options()`; the general question — which values a report should check, against which consumer — is what lands here.
 
 Open: Whether the generalized scanner SUBSUMES the migration scan (one walk, migration becomes a report) or sits beside it — the existing walk is driven by registered migration entries, so a general walk inverts the relationship. Whether FW-73's enumeration half (a sweep of postmeta / options / termmeta for wire `post_content` cannot reach) folds in here as the reach dimension, or stays its own row: reports and reach are separable, and FW-73 is already settled as DISCLOSURE for the migration reader specifically. What the report SURFACE is, given the current one has a migration audience and these questions have a maintenance audience. And which validity classes are decidable by inspection at all — a deleted term is, a field key that ACF supplies conditionally is not.
 
-Blocked by: — (cleared 2026-09-14: FW-39 lands the validity class this waited on, and the option-value consumer above arrived with it)  •  Interacts with: FW-73 (the reach half of the same instrument), FW-33, FW-67 and FW-129 (a tags-in-use report is what their removal step waits on), FW-13 (a field-key validity check would read the same discovery envelope)
+Blocked by: — (cleared 2026-09-14: FW-39 landed the validity class this waited on, and the option-value consumer above arrived with it)  •  Interacts with: FW-73 (the reach half of the same instrument), FW-67 and FW-129 (a tags-in-use report is what their removal step waits on — FW-33 closed with the deprecation, leaving removal to them), FW-13 (a field-key validity check would read the same discovery envelope)
+
+#### FW-131 — Pin a user (`user,<ID>`), plus the two questions parked beside it
+
+The third pinning kind: an author names one specific user, offered in the picker grouped by role. Designed in the FW-39 grilling and then deliberately left OUT of the shipped kind list rather than gated off, so no half-built kind ships.
+
+Detail home: this item; [PR #134](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/pull/134) (where the kind list was decided, and why this one was held back)
+
+Progress: Not started, and the machinery it needs already shipped — a root declares its argument on the source contract, the picker's REST route is kind-generic, and `BWS_FOLD_PARSE_TIME_ROOT_KINDS` takes a third entry. What is missing is the kind itself: the role grouping, its own permission predicate (listing users is not listing posts), and a decision on whether `user` joins the field-discovery envelope, which today has no user kind for the pin-narrowing to read.
+
+Open: two residues FW-39 left that are NOT about the user kind, parked here for want of a better home — ref-step decoupling (a per-`src` ref option), and where the "specific-resource + site fallback" case belongs (a `try_` attempt via `try_allow_site_slot`, not a `try_term_` form). Split either out if it grows past a line.
+
+Blocked by: —  •  Interacts with: FW-13 (a pinned user would want the same narrowing, and the discovery envelope has no user kind), FW-9 (the per-kind option surface its residue tracks)
 
 ### Testing & infrastructure
 
@@ -911,20 +923,6 @@ Progress: Not started.
 
 Blocked by: —  •  Interacts with: FW-30
 
-#### FW-33 — term_ deprecation path
-
-Subsumed by base tags + context-aware kinds (#19, closed) + the ID source (FW-39); registry-only re-add expected after. This item also homes `term_`'s collapsed-fan gap (a `term_` tag with a fanning source silently returns one result).
-
-Detail home: `.scratch/fw-39-id-source/spec.md` (the deprecation half is designed there beside the capability that gates it); memory `project_term_deprecation_path.md`; the de-scoping decision `docs/design-history/multi-step-slot-sources.md` §History
-
-Progress: `view_` ran ahead of this item on its own path (FW-70) and is now GONE — bws-portal-system 5.9.0 (2026-09-08) deleted the family, its `portal_*`/`views_*` aliases and the migration entries that converted them, on the strength of its live content already using `src:view`. That went past the rule this row rides on (registrations never retire ahead of migration, because an unregistered tag renders LITERALLY), which is the external plugin's call to make about its own names; the consequence for us is that a straggler `{{view_title}}` is now neither renderable nor convertible, and `term_*` must not take the same route. `term_` keeps the flat `srcTermIn` control until `register_modifier()` itself retires (FW-129). The family's one remaining capability is PINNING A SPECIFIC TERM, which it gets from GB's own picker via `gb_type:'term'` — established 2026-09-06; every other `term_*` shape has a base-tag equivalent today, which is why FW-9 is no longer a gate. Closure is one release carrying all three of parity, converter entries, and `term_*` re-registered through `MigrationRegistry` `type:'tag'` (which stamps `gb_type='deprecated'`); only REMOVAL is deferred, and the availability window sits before that rather than before deprecation. The collapsed-fan gap (GH #63, closed) does NOT resolve for free: migration is output-neutral, so a migrated tag carries the materialized flat-era number and the gap closes when the author deletes it.
-
-Settled 2026-09-11 (user): the `term_ tags` toggle no longer gates term-context SOURCES, and it still seeds off on a new install. Seeding it off would otherwise have removed the `term` chain root from the base tag and slot source enums — the root FW-39 pins and the root the conversion writes into — because `SourceRegistry::is_source_enabled()` answered that toggle for every term-context source. That method is deleted; offering follows `is_selectable_root()` alone. Reverses the 2026-08-12 row in `docs/design-history/external-source-roots.md`, which as design history is not corrected.
-
-Open: The ownership guard the converter needs. Measured on the Site P clone 2026-09-06 — `term_title` and `term_description` there are GB Query Enhancements' tags (we yielded the names), GBQE registers them with the same `type:'term'` + `source` support, and so the wire carries the same `id`/`tax` keys ours would: option vocabulary cannot tell the two plugins' strings apart. The yield record gates by default and means "cannot prove ownership", with a per-tag-name admin opt-in to lift it.
-
-Blocked by: code:ID source lands  •  Interacts with: FW-39 (the gate), FW-8, FW-67, FW-70 (closed), FW-129 (the internal half of the API retirement waits on this row's migration completing)
-
 #### FW-34 — Configurable default field keys per source × tag-type
 
 Let an author configure the default field key read per source and tag type.
@@ -946,18 +944,6 @@ Progress: Designed 2026-08-24. Not a position in FW-81's read fold — a boolean
 Open: The whole item waits on FW-59/FW-61's bracketed free-form value escape discipline, since the note is a bracketed free-form value and blocks the whole feature (shipping `key,<field>` alone would need a migration once `midnight` later joins).
 
 Blocked by: row:FW-59, row:FW-61  •  Interacts with: FW-3, FW-81, FW-13 (the flag field is itself a discovered field)
-
-#### FW-39 — ID source
-
-A new source flavor where the author identifies one specific entity, its id serialized into the token — `<kind>,<ID>` (e.g. `post,9999`) as the first step of a chain.
-
-Detail home: `.scratch/fw-39-id-source/spec.md` (design decided end to end, 2026-09-07); CONTEXT.md §Language "Source binding" for the concept + two-axis model
-
-Progress: Encoding decided via FW-56 Decision 3 (2026-07-27) — the kind is forced onto the wire by the editor-UX static-computability floor (no live ID resolution in Patterns/Elements), matching the engine's `{kind,id}` shape 1:1. Designed in full over two grilling sessions, 2026-09-06/07, and the second reversed the first's central framing. **Ambient is `current`, which is kind-agnostic and always was** (`bws_resolve_base_source()` normalizes the token to `''`), so an entity-kind root is a PINNING root: `term,<ID>` and `post,<ID>` are pin-only and their bare forms refuse rather than degrading to ambient ([I15] at the root layer). The root keeps its bare slug and a single opaque argument travels beside it, declared on the source contract — with a second axis saying what argless MEANS (`refuse` by default, `owner-resolves` for a root like Site Views' `view`, which ships argless today and will gain an argument). Measured on the Site P clone 2026-09-06 — resolution of a pinned term ALREADY works on a base tag (`src:term` → `TaxonomyTerm::resolve_id()` → GB's `id`), so what this row builds is authoring, not engine. The picker follows GB's specific-post picker (grouped by taxonomy or post-type heading, id shown, optional filter above, unserialized), over one kind-generic REST route with a browse/search mode and a resolve-by-id mode — deliberately NOT the field-discovery envelope, since fields are bounded and entities are not. The FW-56 slug-recovery affordance is DROPPED: no parity precedent exists, and V9 retired exactly that kind of near-miss reinterpretation.
-
-Open: `user,<ID>` and its `role` grouping — designed only, and deliberately absent from the shipped kind list rather than gated off. Ref-step decoupling (a per-`src` ref option). Home for the "specific-resource + site fallback" case as a `try_` attempt (`try_allow_site_slot`), not a `try_term_` form.
-
-Blocked by: —  •  Interacts with: FW-33 (this is its last capability gate), FW-13 (a scope-filter nibble for both kinds rides this ship), FW-67 (the pin picker's registered+capability taxonomy list diverges from `bws-term-hop`'s public-only one), FW-8 (measured 2026-09-07: the 5-tier detector's tier 5 is an implicit `terms` hop, and this ship leaves FW-8's surface unchanged because bare `term` is never offered). **FW-9 is NOT an interaction** — the term kind shipped in 1.14.0 and FW-9's open residue is the per-kind option surface, which gates nothing here.
 
 #### FW-44 — join per-slot inner list sep ({N}-sep)
 
@@ -1003,7 +989,7 @@ Progress: The seam halves shipped 1.16.0 (FW-49 build) — `case 'user':` in `bw
 
 Open: Remaining scope is only the factory post→author hop itself, which makes `src:author` user-facing. Opens the same permalink/image analog questions FW-47 tracks — out of scope here.
 
-Blocked by: —  •  Interacts with: FW-47, FW-39, FW-9, FW-49 (closed)
+Blocked by: —  •  Interacts with: FW-47, FW-39 (closed), FW-9, FW-49 (closed)
 
 #### FW-53 — {{table}} repeater→HTML table tag
 
@@ -1055,7 +1041,7 @@ Progress: Assessed premature (user, 2026-08-01) — recorded as a possibility, n
 
 Open: Whether `try_` is structurally "base + N slots" or carries real structural difference (verify against `generate_base_try_tags()`'s inline resolve + `show_if_any` reveal, which FW-43 targets); the add-slot control (largely answered by FW-45's repeater spike); the slot-noun label ("Add fallback" rejected — collides with the shipped `fallback` option).
 
-Blocked by: `decision:premature — absorb try_ into base at all`  •  Interacts with: FW-57 (closed), FW-45, FW-27, FW-43, FW-24, FW-33
+Blocked by: `decision:premature — absorb try_ into base at all`  •  Interacts with: FW-57 (closed), FW-45, FW-27, FW-43, FW-24, FW-33 (closed)
 
 #### FW-61 — Per-step sep on a fanning chain
 
@@ -1145,8 +1131,10 @@ Append-only ledger of closed, shipped, or cut work — both `FW-N` items deleted
 | FW-12 | Custom time format on two-ended `as:time` range | Shipped 1.15.0: per-side format via the single-ended resolver chain | CHANGELOG 1.15.0; `bws_format_time_range()` PHPDoc; matrix D3 |
 | FW-22 | `{{join}}` tag | Shipped 1.15.0: standalone combining tag, 10 text slots, separator + template modes, %N wire tokens. Spawned FW-43/44/45/46 | CHANGELOG 1.15.0; `tag-reference.md` §join; plan archived `docs/design-history/combine-text.md` |
 | FW-32 | Primary-source + ref-hop parity | Retired 1.17.0 — its limits are discharged by chain-then-step rooting, preserved (not collapsed-to-first) fan-out, and multi-`refs` chains; the one residue is FW-39's scope | CHANGELOG 1.17.0; design record `docs/design-history/ref-hop-parity.md` |
+| FW-33 | `term_` deprecation path | Shipped, unreleased (1.20.0, [PR #134](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/pull/134)): all three closure conditions in one change — base-tag parity via FW-39's pin, converter entries for the pinned and unpinned shapes, and the family re-registered through `MigrationRegistry` `type:'tag'` (stamping `gb_type='deprecated'`), plus the `term_ tags` toggle seeding off on new installs. Two live defects fixed on the way: an ID-collision read of an unrelated term, and a taxonomy setting that could not reach the current post's first matching term. REMOVAL was always outside this item — it waits at FW-129's internal half, gated on the tags-in-use report FW-128 would build. The collapsed-fan gap does not resolve for free (migration is output-neutral): a converted tag carries the flat-era number until its author deletes it | CHANGELOG 1.20.0; [PR #134](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/pull/134); `docs/deprecated-tags-options.md`; `docs/design-history/term-family-migration-output-neutrality.md`; memory `project_term_deprecation_path.md` |
 | FW-36 | Deprecated vs Removed settings split (tags AND options) | Shipped 1.14.0 (absorbed FW-37) | CHANGELOG 1.14.0; `MigrationRegistry::is_entry_live()` PHPDoc + CONTEXT.md I10; FW-38 is the principled successor |
 | FW-37 | Settings-split sub-item | Merged into FW-36 before ship | see FW-36 |
+| FW-39 | ID source — pinned entity roots | Shipped, unreleased (1.20.0, [PR #134](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/pull/134)): Term and Post pinning roots, built on a general root-ARGUMENT declaration on the source contract, so an external root can name one entity too. Entity picker + its REST route, pin-narrowed field discovery, the preview's entity namer, on a base tag / a `join` field / a `try_` attempt alike. Ambient stayed `current` and kind-agnostic; a declaring root refuses rather than degrading to it. Carried FW-33's converter entries, the converter's ownership guard and the scanner's three-channel report. Open residue (the `user` kind and two smaller questions) went to FW-131 | CHANGELOG 1.20.0; [PR #134](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/pull/134); CONTEXT.md §Language "Source binding" + the pinning-root invariant; `docs/plugin-integration.md` §1a; `docs/design-history/term-family-migration-output-neutrality.md` |
 | FW-40 | `datetime_single` `use` addition | Folded into FW-81 2026-08-19 — the collapsed tag's read list IS this enum; the analog corollary carries forward as FW-81 §OPEN O7 | FW-81; `.scratch/plans/datetime-tag-collapse.md` §Encoding |
 | FW-41 | Datetime key pair-combine | Overtaken by FW-81 2026-08-19 — FW-81 goes 6→1 at the same single parse site rather than 6→3 | FW-81; `.scratch/plans/datetime-tag-collapse.md` §Migration |
 | FW-42 | Fixture testbed (seeded WP site + render seam) | Shipped, retired 2026-08-28. Deliverable A landed with the `core-structures` blueprint and the `wp bws render-tag --url` seam; Deliverable B got no successor row (the visible-blocks trigger enforces the same need more strongly) | `docs/testbed.md`; `tools/fixtures/core-structures/`; `CLAUDE.md` §Development |
