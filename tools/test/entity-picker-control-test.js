@@ -332,9 +332,31 @@ async function main() {
 		true
 	);
 	check(
-		'D20: the resolved label is shown even though it is not the combo VALUE text',
+		'D20: the stored id is the combo VALUE, the matching option carrying its name',
 		combo( withValue ).value,
 		'34'
+	);
+	check(
+		'a pin PRESENT in the list gets NO caption — the combo already reads as its name',
+		findAll( withValue, 'p' ).some( function ( n ) { return 'resolved' === n.props.key; } ),
+		false
+	);
+
+	// The caption's whole job: a pin the browse list does not hold has no option to
+	// render, so the combo box comes up empty and only the caption names the entity.
+	responses[ 'kind=term&mode=resolve&id=77' ] = { row: { id: 77, label: '#77 Archived', group: 'Benefit Tier' } };
+	const offList = await render( EntityPickerControl, {
+		kind: 'term',
+		value: '77',
+		label: 'Term',
+		onChange: function () {},
+	} );
+	check(
+		'a pin ABSENT from the list keeps its caption, which is the only place its name shows',
+		findAll( offList, 'p' )
+			.filter( function ( n ) { return 'resolved' === n.props.key; } )
+			.map( function ( n ) { return n.children[ 0 ]; } ),
+		[ '#77 Archived' ]
 	);
 
 	// D20's "missing" case is the PREVIEW namer's job (preview-label-test.php), not this

@@ -157,6 +157,10 @@
 			} );
 		}, [ filteredRows ] );
 
+		var valueInOptions = useMemo( function () {
+			return ( options || [] ).some( function ( o ) { return o.value === value; } );
+		}, [ options, value ] );
+
 		return el( Fragment, null, [
 			groups.length > 1
 				? el( SelectControl, {
@@ -186,12 +190,13 @@
 				allowReset: true,
 				__nextHasNoMarginBottom: true,
 			} ),
-			// The RESOLVED label as a quiet caption, so a pin that does not currently
-			// match the browse/search filter (a different taxonomy selected, or the
-			// list simply has not loaded it yet) still reads as itself on reopen —
-			// ComboboxControl shows the raw id otherwise, which is not what D20 wants
-			// an author to see.
-			( value && resolvedLabel )
+			// The RESOLVED label as a quiet caption, ONLY when the combo itself cannot
+			// show it: a pin outside the current browse/search list (a different
+			// taxonomy selected, or the list simply has not loaded it yet) has no
+			// matching option, so ComboboxControl renders an empty box. When the
+			// option IS present the combo already reads as the entity's name and the
+			// caption would only repeat it.
+			( value && resolvedLabel && ! valueInOptions )
 				? el( 'p', {
 					key: 'resolved',
 					style: { fontSize: '11px', opacity: 0.75, margin: '4px 0 0' },
