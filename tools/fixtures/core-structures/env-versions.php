@@ -61,27 +61,23 @@ return array(
 	// The date the baseline under `tools/test/snapshots/` was captured. Prose only —
 	// nothing compares it; it is here so a reader can place the record in time.
 	//
-	// THIS RE-CAPTURE DELETED THE DOCUMENT HEAD FROM EVERY BASELINE, ROUGHLY 80 LINES A PAGE.
-	// Nothing vanished from the output: `bws_page_snapshot_normalize()` grew a rule that stops
-	// capturing the head at all, bar `<title>`, `meta name="description"` and `og:description`.
-	// A reader hitting an ~800-line deletion in `git log` for this commit is looking at that
-	// rule arriving, not at rendered content disappearing.
+	// THIS RE-CAPTURE IS WOOCOMMERCE JOINING THE FIXTURE SITE, and every one of the 297 added
+	// and 50 removed lines is its chrome: the `sourcebuster` and `wc-order-attribution` footer
+	// scripts, the `woocommerce-no-js` body class with the inline script that swaps it, and an
+	// `aria-label="Page N"` on every paginated archive. That last one comes from
+	// `wc_add_aria_label_to_pagination_numbers()` on `paginate_links_output`, which is a
+	// SITE-WIDE filter and not scoped to Woo's own pages. The remainder is line-packing
+	// shifting around the inserted scripts.
 	//
-	// WHAT IT FIXED, recorded because the previous note is what identified it: the earlier
-	// 2026-08-28 capture moved every page with no rendered tag moving, because two co-resident
-	// BWS plugins (`bws-sticky-header` and the viewport-height styles beside it) had been
-	// ACTIVE when the baseline before it was taken and were inactive by then. Their stylesheet
-	// and inline-CSS blocks left the head and every line after them shifted — 252 lines over
-	// ten pages, carrying no tag output at all. Any plugin toggling on the fixture site did
-	// that, because the normalizer kept third-party `<link>` and `<style id>` lines and only
-	// blanked their bodies. It no longer reaches them to keep.
+	// NO RENDERED TAG MOVED, and that was measured rather than assumed: every changed line was
+	// bucketed by category with none left unclassified, and the slim-seo schema pair on each of
+	// the 19 pages was compared byte-for-byte — the JSON is identical, only its adjacency to the
+	// next `<script` changed. Woo's footprint on our output is nil. That is why this capture is
+	// a commit of its own: a later change that does move a tag gets a readable diff.
 	//
-	// NEITHER OF THOSE TWO IS IN THE `plugins` LIST BELOW, and their absence is still not an
-	// omission to repair: that list holds what was PRESENT at capture, so an entry for a plugin
-	// the baseline was taken WITHOUT would assert the opposite of the truth. They are absent
-	// from `active` for the same reason. What changed is that a future toggle is now REPORTED
-	// rather than reconstructed after the fact.
-	'captured' => '2026-09-03',
+	// The previous capture (2026-09-03) is where the head-deletion rule arrived — a reader
+	// hitting an ~800-line deletion further back in `git log` is looking at that, not at this.
+	'captured' => '2026-09-14',
 
 	// EVERY PLUGIN THAT WAS RUNNING, not only the four this record requires. The version
 	// list below answers "were the dependencies the same"; this answers "what else was in
@@ -118,6 +114,7 @@ return array(
 		'meta-conductor/meta-conductor.php',
 		'redirection/redirection.php',
 		'slim-seo/slim-seo.php',
+		'woocommerce/woocommerce.php',
 		'wpcodebox2-keyed/wpcodebox2.php',
 		'ws-form-pro/ws-form.php',
 	),
@@ -147,6 +144,15 @@ return array(
 		'advanced-custom-fields-pro/acf.php' => array(
 			'label'    => 'ACF Pro',
 			'version'  => '6.8.9',
+			'required' => true,
+		),
+		// Recorded for the same reason as GB Query Enhancements above: it supplies no fixture
+		// row's content, but it was running at capture and its chrome is in every baseline.
+		// `required` is TRUE because deactivating it invalidates all 19 pages — one line
+		// naming WooCommerce is a better failure than 19 page diffs with no stated cause.
+		'woocommerce/woocommerce.php' => array(
+			'label'    => 'WooCommerce',
+			'version'  => '11.1.0',
 			'required' => true,
 		),
 	),
