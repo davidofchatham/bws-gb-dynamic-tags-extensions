@@ -58,7 +58,7 @@ opportunistically when touched.
 to append-at-end.** E.g. `{{table}}` (not yet shipped, no row in §Base tag GB types today) is decided
 to sit after `{{join}}` when it ships, not after the `call` outlier.
 
-See `tools/fixtures/core-structures/README.md`. Full design: `.scratch/plans/fixture-testbed.md`.
+See `tools/fixtures/core-structures/README.md`. The design record that produced this testbed: [`design-history/fixture-testbed.md`](design-history/fixture-testbed.md).
 
 ## Two layers of staleness sit between an edit and what you read
 

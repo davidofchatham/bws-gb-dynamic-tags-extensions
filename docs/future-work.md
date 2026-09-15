@@ -731,6 +731,20 @@ Open: Fix shape — undecided. Whether every attachment upsert needs this or onl
 
 Blocked by: —  •  Interacts with: —
 
+#### FW-133 — Blueprint composition is unspecified, and the deadline for specifying it passed unobserved
+
+The fixture design settled that a seed is blueprint-COMPOSING from day one — `bin/seed.sh <site> <blueprint>...` takes a list, the runner stays plugin-blind, and a consumer pins another blueprint's manifest keys and `version` the way it would pin any API. What it deliberately left open was how a consumer *declares* those dependencies and their pinned versions (a file in the consumer repo? arguments to `seed.sh`?), and whether seed order ever matters beyond list order. That was to be decided "no later than the second blueprint". Five sibling plugin repos now carry their own `tools/fixtures/<blueprint>/`, so the second blueprint arrived several times over without the decision being taken, and whether any of them composes another — or silently redefines a key this repo's `core-structures` manifest already claims — is recorded nowhere. The collision rule the design specified (a manifest lists the keys its blueprint defines; a later blueprint must not redefine a listed one) has no enforcement, by design: the "trivial manifest-compare script" was explicitly deferred to day two, and day two is here.
+
+Cross-repo by nature, tracked here because `core-structures` is the blueprint others would compose and this is where the composing design was decided. Not a GitHub issue: no plugin user can reach it, and nothing pins it today.
+
+Detail home: `docs/design-history/fixture-testbed.md` §Open (the decision that deferred it, and the 2026-09-15 amendment that found the deadline passed) + §Decisions for the composing-seed rationale.
+
+Progress: Survey 2026-09-15 established the population — five sibling repos with blueprints beside this one. Nothing beyond the count is known; no repo was read for whether it composes.
+
+Open: Everything the original deferral named, plus one the survey added — whether composition is actually WANTED now, or whether five independently-seeded sites is the arrangement that emerged and the composing runner is a capability nobody needs. Read the five manifests before designing anything.
+
+Blocked by: —  •  Interacts with: FW-97 (the other live half of the same design), FW-119 (the other `seed.php` defect)
+
 ### Docs & vocabulary
 
 Repairs to the documentation corpus itself: prose that has outgrown its reader, pointers that no longer resolve, and vocabulary the docs use inconsistently. Split out of §Testing & infrastructure 2026-08-28 — those items had nothing in common with a fixture site beyond "not a feature and not a bug".
