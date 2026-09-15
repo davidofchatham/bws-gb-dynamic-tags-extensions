@@ -532,7 +532,7 @@ if ( ! empty( $manifest['elements'] ) && post_type_exists( 'gp_elements' ) ) {
 }
 
 // ---------------------------------------------------------------------------
-// 4d. WooCommerce products — the PRODUCT LOOP corpus (v21, FW-100).
+// 4d. WooCommerce products — the PRODUCT corpus (v21, extended v22, FW-100).
 // ---------------------------------------------------------------------------
 // Seeded through WooCommerce's OWN CRUD rather than through section 4's posts loop,
 // and that is not a style preference. `/matrix-products/` queries through
@@ -556,10 +556,20 @@ if ( ! empty( $manifest['products'] ) && class_exists( 'WC_Product_Simple' ) ) {
 			$product = new WC_Product_Simple();
 		}
 
+		// A product carrying a `content_builder` gets the built blocks APPENDED to its
+		// prose description rather than replacing it (v22): the prose is what makes the
+		// page read as a product to a human eyeballing it, and the blocks are the
+		// ambient-surface rows. WooCommerce renders the description through `the_content`
+		// on the single-product template, so this is the product's own body.
+		$description = $def['description'];
+		if ( ! empty( $def['content_builder'] ) ) {
+			$description .= "\n\n" . bws_fixture_build_page_content( $def['content_builder'] );
+		}
+
 		$product->set_name( $def['name'] );
 		$product->set_slug( $def['slug'] );
 		$product->set_sku( $def['sku'] );
-		$product->set_description( $def['description'] );
+		$product->set_description( $description );
 		$product->set_regular_price( $def['regular_price'] );
 		$product->set_price( $def['regular_price'] );
 		$product->set_status( 'publish' );
@@ -570,6 +580,13 @@ if ( ! empty( $manifest['products'] ) && class_exists( 'WC_Product_Simple' ) ) {
 		$product->set_stock_status( 'instock' );
 
 		$product_ids[ $slug ] = (int) $product->save();
+
+		// Written AFTER save(), because an unsaved product has no id to hang meta on.
+		// update_post_meta and not a CRUD setter: the point of §C-PROD.3 is that a
+		// product custom field is ordinary postmeta.
+		foreach ( (array) ( isset( $def['meta'] ) ? $def['meta'] : array() ) as $meta_key => $meta_value ) {
+			update_post_meta( $product_ids[ $slug ], $meta_key, $meta_value );
+		}
 	}
 	$log( 'products: ' . count( $product_ids ) . ' upserted' );
 } elseif ( ! empty( $manifest['products'] ) ) {

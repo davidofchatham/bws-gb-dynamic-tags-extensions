@@ -101,9 +101,9 @@ define( 'BWS_PAGE_SNAPSHOT_ENV_RECORD', dirname( __DIR__ ) . '/fixtures/core-str
  *
  * The `content_builder` key is the selector: it marks an entry whose content was generated
  * to be READ, which is exactly the population a rendered-output baseline is about. Fixture
- * entries with no builder (relationship targets carrying only field values, and the
- * wp_block pattern, which has no permalink at all) render none of our tags and would
- * contribute a page of theme chrome to every diff.
+ * entries with no builder (relationship targets carrying only field values, the two
+ * products that exist only to be iterated, and the wp_block pattern, which has no permalink
+ * at all) render none of our tags and would contribute a page of theme chrome to every diff.
  */
 function bws_page_snapshot_pages( $manifest = null ) {
 	if ( null === $manifest ) {
@@ -112,7 +112,24 @@ function bws_page_snapshot_pages( $manifest = null ) {
 
 	$out = array();
 
-	foreach ( (array) ( isset( $manifest['posts'] ) ? $manifest['posts'] : array() ) as $key => $entry ) {
+	// PRODUCTS JOIN THE POSTS, rather than getting a loop of their own. A WooCommerce
+	// product IS a post — the whole finding FW-100 rests on — so a product carrying a
+	// builder is post-derived in exactly the sense this loop means, and giving it a
+	// second loop would duplicate the permastruct rule below at the one place it is
+	// most likely to rot. The blueprint spells a product's slug `slug` (WooCommerce's
+	// CRUD name for it) where a post spells it `post_name`, so the key is normalized
+	// here and nothing else changes.
+	$post_entries = (array) ( isset( $manifest['posts'] ) ? $manifest['posts'] : array() );
+
+	foreach ( (array) ( isset( $manifest['products'] ) ? $manifest['products'] : array() ) as $key => $entry ) {
+		$post_entries[ $key ] = array(
+			'post_name'       => isset( $entry['slug'] ) ? $entry['slug'] : '',
+			'post_type'       => 'product',
+			'content_builder' => isset( $entry['content_builder'] ) ? $entry['content_builder'] : '',
+		);
+	}
+
+	foreach ( $post_entries as $key => $entry ) {
 		if ( empty( $entry['content_builder'] ) || empty( $entry['post_name'] ) ) {
 			continue;
 		}
@@ -561,6 +578,11 @@ function bws_page_snapshot_normalize( $html, $base_url = BWS_PAGE_SNAPSHOT_DEFAU
 	$s = preg_replace( '#\bgb-([a-z]+)-[0-9a-f]{6,12}\b#i', 'gb-$1-ID', $s );
 	$s = preg_replace( '#\bid="block-[0-9a-f-]{8,}"#i', 'id="block-ID"', $s );
 	$s = preg_replace( '#\bwp-container-[a-z0-9-]*[0-9a-f]{6,}\b#i', 'wp-container-ID', $s );
+	//    WooCommerce's add-to-cart quantity field, whose id comes from uniqid() and so is
+	//    new on EVERY REQUEST rather than merely on every reseed — the sharpest member of
+	//    this class, since it fails a baseline captured seconds earlier. Reached only by
+	//    the product single (§C-PROD).
+	$s = preg_replace( '#\bquantity_[0-9a-f]{8,}\b#i', 'quantity_ID', $s );
 
 	// 7. antispambot()'s per-character coin flip. Decoding numeric references in the ASCII
 	//    range collapses every spelling it can produce onto one. The five markup-significant

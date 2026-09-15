@@ -1893,32 +1893,36 @@ function bws_fixture_page_content_matrix_pinned_roots() {
 
 /** Dispatcher: manifest content_builder name → page content. */
 /**
- * matrix-products — the PRODUCT LOOP corpus (FW-100; blueprint v21).
+ * matrix-products — the PRODUCT LOOP corpus (FW-100; blueprint v21, flipped in v22).
  *
- * A THIRD query-loop item shape, and the first one this plugin REFUSES. Item-shape
- * recognition (1.19.0) reads four shapes — post, term, user, repeater row — and a
- * WooCommerce product record satisfies none of them: the co-resident query extension
- * hands the loop a bare stdClass whose id key is lower-case `id`, which pairs with
- * nothing the way `term_id` pairs with `taxonomy`. So every bare tag of ours inside
- * this loop renders NOTHING, and that is what the rows below are seeded against.
+ * A THIRD query-loop item shape. It was the first one this plugin REFUSED: item-shape
+ * recognition (1.19.0) read four shapes — post, term, user, repeater row — and a
+ * WooCommerce product record satisfied none of them, so every bare tag of ours inside
+ * this loop rendered NOTHING and the rows below were seeded against that refusal on
+ * purpose, the same method blueprint v16 used for the leaked bare rows one recognition
+ * rule earlier. **1.20.0 taught the recognizer an object-shaped item that NAMES A POST,
+ * and QLP1.1/QLP1.2 flipped from empty to the product's own name and permalink.** That
+ * flip, against the v21 snapshot baseline, is what the change was measured by; what
+ * decides whether an item is recognized is `bws_classify_loop_item()`'s PHPDoc and is
+ * not restated here.
  *
- * THE EMPTY ROWS ARE THE SUBJECT, NOT A BROKEN FIXTURE, and they are seeded that way
- * on purpose — the same method blueprint v16 used for the leaked bare rows one
- * recognition rule earlier. Their first snapshot baseline records the refusal, so
- * whatever recognition rule ships for FW-100 has a measured BEFORE to diff against
- * instead of an assertion made after the fact. When one ships, these rows flip to the
- * product's own name and permalink and stop being empty rows.
- *
- * WHY THE REFUSAL IS RIGHT UNTIL THEN, since a page of empty rows invites the opposite
- * reading: a product id IS a post id, so before 1.19.0 the leaked read landed on the
+ * WHY THE REFUSAL WAS RIGHT WHILE IT LASTED, since it looks from here like a bug that
+ * shipped: a product id IS a post id, so before 1.19.0 the leaked read landed on the
  * right entity by arithmetic coincidence — the same coincidence that hid the term-id
  * leak (#123) until it landed on the wrong one. A shape we cannot identify says
- * nothing (CONTEXT.md I15).
+ * nothing (CONTEXT.md I15), and the repair was to make the shape identifiable rather
+ * than to let an unidentified one through.
  *
- * TWO NON-VACUITY ROWS, FROM TWO DIFFERENT VENDORS, because every row of ours here is
- * expected empty and a loop that never ran would look identical. QLP1.3 is the query
- * extension's own product tag and QLP1.4 is GB's loop index; between them they prove
- * the query returned items AND that the loop iterated over them.
+ * TWO NON-VACUITY ROWS, FROM TWO DIFFERENT VENDORS, kept after the flip rather than
+ * retired with it: QLP1.3 is the query extension's own product tag and QLP1.4 is GB's
+ * loop index, and between them they still separate "our rows went empty" from "the
+ * loop stopped running", which is the regression direction now that our rows carry
+ * values.
+ *
+ * QLP2 IS THE SAME THREE PRODUCTS THROUGH AN ORDINARY POST QUERY, and it is the
+ * control the loop above cannot be: its items are WP_Post objects recognized since
+ * 1.19.0, so it renders the same values by a different route. Reading QLP1 alone
+ * cannot tell a working recognizer from a working query extension; the pair can.
  *
  * Requires WooCommerce and the query extension ACTIVE (env-versions.php declares both
  * required, verify.php fails without either). Absent WooCommerce, seed.php skips the
@@ -1934,7 +1938,7 @@ function bws_fixture_page_content_matrix_products() {
 	// Ordered by TITLE ASC rather than by the extension's own `date DESC` default:
 	// the seed inserts all three in one run, so a date order is whatever the second
 	// granularity of that run produced, while the titles are the blueprint's.
-	$sections[] = bws_fixture_gb_section( 'Products QLP1 - a query loop over WooCommerce PRODUCTS: the shape we refuse', array(
+	$sections[] = bws_fixture_gb_section( 'Products QLP1 - a query loop over WooCommerce PRODUCTS: the object-shaped item that names a post', array(
 		bws_fixture_gb_query_loop_blocks(
 			array(
 				'type'           => array( 'simple' ),
@@ -1943,19 +1947,19 @@ function bws_fixture_page_content_matrix_products() {
 				'orderby'        => 'title',
 				'order'          => 'ASC',
 			),
-			bws_fixture_gb_empty_row(
-				'QLP1.1 BARE tag, and the row this page exists for - EXPECT EMPTY today (FW-100): a product record matches no arm of item-shape recognition, so the read refuses. It should print the product name beside QLP1.3 once a recognition rule ships, and the flip from empty to name is what that change is measured by',
+			bws_fixture_gb_row(
+				'QLP1.1 BARE tag, and the row this page exists for - EXPECT the product name (-> Adjustable Desk Riser, Cable Management Kit, Workshop Tool Chest, matching QLP1.3 order). EMPTY here is the FW-100 regression back: it was empty through 1.19.x, and the flip against that baseline is what 1.20.0 was measured by',
 				'{{title}}'
 			)
 			. "
 
-" . bws_fixture_gb_empty_row(
-				'QLP1.2 the SAME refusal on a URL read - EXPECT EMPTY today (FW-100). Kept beside QLP1.1 because it is the row that separates a product from the USER shape: QL2.4 on the loops page is empty PERMANENTLY (a user has no permalink of ours to give), while a product is a post and has one, so this row becoming non-empty is a positive result and that one is not',
+" . bws_fixture_gb_row(
+				'QLP1.2 the SAME read on a URL - EXPECT the product permalink (-> /product/<slug>/ per row). Kept beside QLP1.1 because it is the row that separates a product from the USER shape: QL2.4 on the loops page is empty PERMANENTLY (a user has no permalink of ours to give), while a product is a post and has one',
 				'{{permalink}}'
 			)
 			. "
 
-" . bws_fixture_gb_row( 'QLP1.3 NON-VACUITY, and the identity for the two rows above - the query extension own product tag (-> BWSFX-DR-01, BWSFX-CM-02, BWSFX-TC-03, in that order; this row present with QLP1.1 absent is the refusal, this row absent too is a loop that never ran)', '{{product_sku}}' )
+" . bws_fixture_gb_row( 'QLP1.3 NON-VACUITY, and the identity for the two rows above - the query extension own product tag (-> BWSFX-DR-01, BWSFX-CM-02, BWSFX-TC-03, in that order; this row absent with QLP1.1 present is the extension, this row absent too is a loop that never ran)', '{{product_sku}}' )
 			// A SECOND non-vacuity row from a DIFFERENT vendor, and not redundant with
 			// QLP1.3. That one proves the query returned products; this proves the LOOP
 			// iterated, which is the half that fails when the query type resolves but the
@@ -1970,9 +1974,71 @@ function bws_fixture_page_content_matrix_products() {
 		),
 	) );
 
+	// THE OTHER ROUTE TO THE SAME THREE PRODUCTS. An ordinary WP_Query narrowed to the
+	// product post type hands the looper WP_Post objects, a shape recognized since
+	// 1.19.0 and untouched by this work — so these rows rendered before QLP1's did and
+	// must keep rendering after. What they measure is the user's own framing: the choice
+	// of query type is not a hidden capability switch, and a product read the ordinary
+	// way is an ordinary post.
+	//
+	// Values are deliberately the SAME two reads as QLP1.1/QLP1.2, so the two groups are
+	// read against each other rather than each against prose.
+	$sections[] = bws_fixture_gb_section( 'Products QLP2 - the SAME three products through an ordinary post query', array(
+		bws_fixture_gb_query_loop_blocks(
+			array(
+				'post_type'      => array( 'product' ),
+				'post_status'    => 'publish',
+				'posts_per_page' => 10,
+				'orderby'        => 'title',
+				'order'          => 'ASC',
+			),
+			bws_fixture_gb_row(
+				'QLP2.1 BARE tag under WP_Query - EXPECT the same three names in the same order as QLP1.1 (-> Adjustable Desk Riser, Cable Management Kit, Workshop Tool Chest). A disagreement between the two groups is a recognizer that answers one route and not the other',
+				'{{title}}'
+			)
+			. "
+
+" . bws_fixture_gb_row(
+				'QLP2.2 the URL read under WP_Query - EXPECT the same three permalinks as QLP1.2 (-> /product/<slug>/ per row)',
+				'{{permalink}}'
+			)
+			. "
+
+" . bws_fixture_gb_row( 'QLP2.3 NON-VACUITY - GB own loop index (-> 1, 2, 3). The extension own product tag is NOT repeated here: this query is not its query, and a row that went empty would say nothing about either', '{{loop_index}}' ),
+			'qlp2-product-wp-query'
+		),
+	) );
+
 	return implode( "
 
 ", $sections );
+}
+
+/**
+ * A single PRODUCT'S OWN page content — the AMBIENT product surface (FW-100, v22).
+ *
+ * Every other product row in this blueprint is inside a loop. These are not: they ride
+ * the ambient single-post route, on a post whose type happens to be `product`. The
+ * expectation before the measurement was that no code is needed, because nothing in the
+ * read path was believed to treat one post type differently from another — and an
+ * expectation derived from the code's shape is not evidence here, which is why these rows
+ * exist rather than a sentence saying so. What the source gate actually decides on is
+ * bws_source_gate()'s own PHPDoc and is not restated here.
+ *
+ * THIS CONTENT IS THE PRODUCT'S DESCRIPTION. WooCommerce renders it through `the_content`
+ * on the single-product template, so the blocks below are the product's own body and not
+ * a page that references it. `{{content}}` is deliberately absent: it would read the very
+ * field these blocks live in.
+ *
+ * Rows are documented in `tools/test/context-test-matrix.md` §C-PROD, beside the other
+ * ambient-context rows, rather than in the loop matrix that owns QLP.
+ */
+function bws_fixture_page_content_product_single() {
+	return bws_fixture_gb_section( 'Products C-PROD - our tags on a product OWN page, outside any loop', array(
+		bws_fixture_gb_row( 'C-PROD.1 bare tag on the product own single - EXPECT Adjustable Desk Riser (the ambient route, no loop item present)', '{{title}}' ),
+		bws_fixture_gb_row( 'C-PROD.2 the URL read - EXPECT https://testbed.test/product/adjustable-desk-riser/', '{{permalink}}' ),
+		bws_fixture_gb_row( 'C-PROD.3 a CUSTOM FIELD read off the product - EXPECT Ships flat-packed in two cartons. (plain postmeta `product_note`, seeded for this row; a product custom field is ordinary postmeta and this is the row that says so)', '{{text key:product_note}}' ),
+	) );
 }
 
 function bws_fixture_build_page_content( $builder ) {
@@ -1985,6 +2051,7 @@ function bws_fixture_build_page_content( $builder ) {
 		'matrix_gate'          => 'bws_fixture_page_content_matrix_gate',
 		'matrix_loops'         => 'bws_fixture_page_content_matrix_loops',
 		'matrix_products'      => 'bws_fixture_page_content_matrix_products',
+		'product_single'       => 'bws_fixture_page_content_product_single',
 		'matrix_pinned_roots'  => 'bws_fixture_page_content_matrix_pinned_roots',
 		'pattern_legacy_wire'  => 'bws_fixture_pattern_content_legacy_wire',
 		'context_header'       => 'bws_fixture_element_content_context_header',

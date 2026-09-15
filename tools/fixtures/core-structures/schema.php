@@ -975,4 +975,28 @@ if ( function_exists( 'add_action' ) && ! defined( 'BWS_FIXTURE_SEEDING' ) ) {
 	// at init:20, and an mu-plugin loads well ahead of that. Delete this when the tag
 	// ships v1 and registers unconditionally again (FW-53).
 	add_filter( 'bws_dynamic_tags_register_table_tag', '__return_true' );
+
+	// WooCommerce's RELATED PRODUCTS block, off on the fixture site (v22). It is
+	// nondeterministic by design — the data store orders by RAND() and WooCommerce
+	// shuffles the result again — so the §C-PROD product single reordered its own
+	// related list between two consecutive captures and could never hold a baseline.
+	// REMOVED rather than normalized away, because a normalization rule would be
+	// teaching the instrument to stop looking at a REGION, where this is one block of
+	// another vendor's chrome that has nothing to do with the rows on the page. The
+	// product loops that ARE the subject (QLP1/QLP2, /matrix-products/) run their own
+	// queries and are untouched by this.
+	//
+	// ON `init`, NOT AT FILE LOAD, and the difference is the whole behavior: an
+	// mu-plugin runs before WooCommerce has added the action, so a bare remove_action()
+	// here removes nothing and does it silently. That spelling shipped first and passed
+	// one snapshot run by coincidence, the related list having happened to come back in
+	// the captured order.
+	add_action( 'init', 'bws_fixture_core_structures_woo_chrome', 5 );
+}
+
+/**
+ * Fixture-site WooCommerce chrome adjustments. See the registration site for why.
+ */
+function bws_fixture_core_structures_woo_chrome() {
+	remove_action( 'woocommerce_after_single_product_summary', 'woocommerce_output_related_products', 20 );
 }

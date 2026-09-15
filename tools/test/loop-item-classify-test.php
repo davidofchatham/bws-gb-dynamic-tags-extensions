@@ -1,7 +1,8 @@
 <?php
 /**
  * Standalone unit harness for QUERY-LOOP ITEM RECOGNITION — bws_classify_loop_item()
- * and the two shape readers beside it (bws_loop_item_term_id / bws_loop_item_user_id),
+ * and the three shape readers beside it (bws_loop_item_term_id / bws_loop_item_user_id /
+ * bws_loop_item_post_id),
  * plus the predicate the render cores gate on (bws_loop_item_is_post_or_row) and the
  * SOURCE GATE applied to a loop item (bws_loop_item_gated_post_id, #122). All in
  * includes/helpers/field-helpers.php.
@@ -35,6 +36,8 @@
  *   §C8  the source gate on a loop item — that it is consulted, that a refusal is a
  *        HARD STOP rather than a skipped branch, that mode 2b is untouched, and a
  *        CENSUS of every ungated `item_post_id` consumer in the tree
+ *   §C9  the object-shaped item that NAMES A POST — the agreeing slug, the permalink
+ *        veto, the arm's position last, and the permanent refusal of an empty object
  *
  * Run:  php tools/test/loop-item-classify-test.php   (exit 0 = pass, 1 = fail)
  *
@@ -51,7 +54,11 @@ define( 'ABSPATH', __DIR__ );
 // collision is the whole defect (#123), and a harness whose ids were disjoint would
 // pass while proving nothing.
 if ( ! class_exists( 'WP_Post' ) ) {
-	class WP_Post { public $ID; public function __construct( $id ) { $this->ID = $id; } }
+	class WP_Post {
+		public $ID;
+		public $post_name;
+		public function __construct( $id, $name = '' ) { $this->ID = $id; $this->post_name = $name; }
+	}
 }
 if ( ! class_exists( 'WP_Term' ) ) {
 	class WP_Term {
@@ -64,13 +71,23 @@ if ( ! class_exists( 'WP_User' ) ) {
 	class WP_User { public $ID; public function __construct( $id ) { $this->ID = $id; } }
 }
 
-const STUB_POSTS = array( 1, 5, 6 );
+// Each post carries a `post_name`, because the object-shaped post arm compares the item's
+// stated slug against it rather than merely requiring one. Post 2 exists and is slugged
+// `news` BESIDE user 2 and term 1's `category` — the collision the slug+permalink pair has
+// to survive.
+const STUB_POSTS = array( 1 => 'post-one', 2 => 'news', 5 => 'sample-post', 6 => 'gated-post' );
 const STUB_TERMS = array( 1 => 'category', 7 => 'department' );
 const STUB_USERS = array( 2, 4 );
 
 if ( ! function_exists( 'get_post' ) ) {
 	function get_post( $id = null ) {
-		return in_array( (int) $id, STUB_POSTS, true ) ? new WP_Post( (int) $id ) : null;
+		return isset( STUB_POSTS[ (int) $id ] ) ? new WP_Post( (int) $id, STUB_POSTS[ (int) $id ] ) : null;
+	}
+}
+if ( ! function_exists( 'get_permalink' ) ) {
+	function get_permalink( $id = 0 ) {
+		$post = get_post( $id );
+		return $post ? "https://example.test/{$post->post_name}/" : false;
 	}
 }
 if ( ! function_exists( 'get_term' ) ) {
@@ -411,6 +428,72 @@ assert_same(
 	'bws-ctx-probe.php=1, field-helpers.php=2, traversal-pipeline.php=2',
 	implode( ', ', array_map( static fn( $f, $n ) => "{$f}={$n}", array_keys( $census ), $census ) )
 );
+
+echo "\n=== C9 - the object-shaped item that NAMES A POST (FW-100) ===\n";
+
+// The arm recognizes a SHAPE, never a vendor: an object carrying an `id` and a `slug`
+// the named post's `post_name` AGREES with, with a `permalink` (when present) that does
+// not contradict the post's own. A WooCommerce product item is one instance of that
+// shape and no row below says so — every record here is hand-built, and the rows would
+// read the same if the producer that motivated them never existed.
+//
+// WHAT EACH REFUSAL IS FOR. C9.2 holds the rule at "agreeing" rather than "carrying" on
+// the slug side: without C9.4 the arm would be `id` + any slug, which is the bare-integer
+// hole restated with a decoration. C9.5/C9.6 are the collision the permalink veto exists
+// for — a post and a term may share both a number and a slug, and only the URL separates
+// them. The axis is bws_classify_loop_item()'s PHPDoc; these rows hold it.
+
+assert_same( 'C9.1 id + AGREEING slug -> POST, carrying the id the item named', 'post:5', classify( (object) array( 'id' => 5, 'slug' => 'sample-post' ) ) );
+assert_same( 'C9.2 id with NO slug -> UNKNOWN (a lone id names nothing)', 'unknown:0', classify( (object) array( 'id' => 5 ) ) );
+assert_same( 'C9.3 id naming a post that is not there -> UNKNOWN', 'unknown:0', classify( (object) array( 'id' => 999, 'slug' => 'sample-post' ) ) );
+assert_same( 'C9.4 id + DISAGREEING slug -> UNKNOWN (the load-bearing one: agreeing, not merely present)', 'unknown:0', classify( (object) array( 'id' => 5, 'slug' => 'some-other-post' ) ) );
+assert_same( 'C9.5 CONTROL: an agreeing permalink is no obstacle', 'post:5', classify( (object) array( 'id' => 5, 'slug' => 'sample-post', 'permalink' => 'https://example.test/sample-post/' ) ) );
+assert_same( 'C9.6 a CONTRADICTING permalink vetoes an otherwise agreeing pair', 'unknown:0', classify( (object) array( 'id' => 5, 'slug' => 'sample-post', 'permalink' => 'https://example.test/category/sample-post/' ) ) );
+assert_same( 'C9.7 scheme and trailing slash are normalized away, so neither is a false veto', 'post:5', classify( (object) array( 'id' => 5, 'slug' => 'sample-post', 'permalink' => 'http://example.test/sample-post' ) ) );
+
+// ABSENCE IS NOT CONTRADICTION. A producer that does not compute URLs is not thereby
+// suspect; requiring the key would narrow the arm back onto one vendor's record shape by
+// accident, which is the alternative this was chosen over.
+assert_same( 'C9.8 an EMPTY permalink is an absence, not a contradiction', 'post:5', classify( (object) array( 'id' => 5, 'slug' => 'sample-post', 'permalink' => '' ) ) );
+
+// ORDER. The arm runs LAST because its evidence is the weakest of the three: `id` is a
+// key whose name states nothing, where `term_id` states its own kind. Swapping it ahead
+// of either existing arm flips these two rows, which is what makes the position
+// behavior rather than layout.
+$user_and_post = (object) array( 'ID' => 2, 'user_login' => 'fixture-author', 'id' => 2, 'slug' => 'news' );
+assert_same( 'C9.9 a record satisfying the USER arm AND this one still answers USER', 'user:2', classify( $user_and_post ) );
+$term_and_post = (object) array( 'term_id' => 7, 'taxonomy' => 'department', 'id' => 5, 'slug' => 'sample-post' );
+assert_same( 'C9.10 a record satisfying the TERM arm AND this one still answers TERM', 'term:7', classify( $term_and_post ) );
+
+// THE PERMANENT REFUSAL. Every other empty outcome in this family is the regression
+// being fixed; this one must stay empty forever. It is a statement about the
+// recognizer's MINIMUM INPUT, not about any producer's branch — the motivating instance
+// (the co-resident extension's no-items render, which hands over an empty object beside
+// a zero post id) is why it was written down and is not what it tests. It is also the
+// shape that catches a later widening toward reading bare context `postId`: on the
+// product ITEM path that key holds the real product id and such a widening would pass
+// unnoticed, while here it holds zero.
+assert_same( 'C9.11 an object carrying NO properties at all -> UNKNOWN, permanently', 'unknown:0', classify( new stdClass() ) );
+
+// A foreign record may hold anything under a key we read, and the two keys answer that
+// DIFFERENTLY on purpose. A malformed SLUG is a failed claim — the item said what it is
+// and the claim is unreadable, so there is nothing left to agree with. A malformed
+// PERMALINK is a claim never made: the veto exists to catch a permalink that CONTRADICTS,
+// and a value that cannot be compared contradicts nothing. Both rows pin the asymmetry
+// rather than each half alone, because either one read by itself looks arbitrary.
+assert_same( 'C9.11b a non-string slug is refused, not cast', 'unknown:0', classify( (object) array( 'id' => 5, 'slug' => array( 'sample-post' ) ) ) );
+assert_same( 'C9.11c a non-string permalink is an ABSENCE, not a contradiction - it vetoes nothing', 'post:5', classify( (object) array( 'id' => 5, 'slug' => 'sample-post', 'permalink' => array( 'x' ) ) ) );
+
+// The shape reader answers directly too, the way §C5.3 pins the term side: a caller
+// asking it can rely on 0 meaning "not this shape", not on the classifier's wrapping.
+assert_same( 'C9.12 the reader itself answers 0 on a disagreeing slug', 0, bws_loop_item_post_id( (object) array( 'id' => 5, 'slug' => 'some-other-post' ) ) );
+assert_same( 'C9.13 the reader itself answers the id on an agreeing one', 5, bws_loop_item_post_id( (object) array( 'id' => 5, 'slug' => 'sample-post' ) ) );
+
+// The predicate the six render cores gate on must now pass a recognized product item,
+// or the classification would be right and every read still empty.
+assert_same( 'C9.14 a recognized object-shaped post item passes the render-core predicate', true, bws_loop_item_is_post_or_row( inst( (object) array( 'id' => 5, 'slug' => 'sample-post' ) ) ) );
+assert_same( 'C9.15 and it reaches the post READ, rather than stopping at the classification', 'post5:name', bws_read_field( 'name', inst( (object) array( 'id' => 5, 'slug' => 'sample-post' ) ), false ) );
+assert_same( 'C9.16 the SOURCE GATE still applies to it - a refused post reads nothing', null, bws_read_field( 'name', inst( (object) array( 'id' => 6, 'slug' => 'gated-post' ) ), false ) );
 
 echo "\n";
 echo $failures

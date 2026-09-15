@@ -64,6 +64,24 @@ Baselines captured 2026-07-18, **re-measured on the front end 2026-08-29** when 
 | C-DT1/C-DT2.6 | 404 | `/no-such-page-xyz/` | empty | `TBA` | no analog (datetime has no 404 borrow, unlike content) |
 | C-I1 | Date archive | `/2026/07/` | empty | the fallback IMAGE renders | **`render-tag` only, exception stated per the visible-rows rule** — `fallback` is a Media Library id assigned at seed time, so no static string in `blocks.php` can name it, same reasoning as F11b.3. Pass the seeded `fixture-photo` attachment's id (`wp post list --post_type=attachment`); repeat against `/staff/`, `/?s=searchpin`, `/`, `/no-such-page-xyz/` — image has no analog on any of the five, so all five were broken and all five are fixed the same way |
 
+## C-PROD rows — a product OUTSIDE any loop (FW-100, 1.20.0)
+
+**Why these exist at all, since they pass and always did.** FW-100's fix was about a product INSIDE a loop; the ambient single-product surface was expected to need no code, because nothing in the read path was believed to treat one post type differently from another (what the source gate actually decides on is `bws_source_gate()`'s own PHPDoc, and is not restated here). That is an expectation derived from the code's SHAPE, which this repo does not accept as evidence for a claim about behavior — so the belief was replaced with a measurement, and these are it. They are also the rows that would catch a future post-type narrowing added for some other reason.
+
+**Where they live.** On the product's OWN page (`/product/adjustable-desk-riser/`), inside its description, which WooCommerce renders through `the_content`. A single product carries them and the other two do not: the ambient route does not vary per product, and two more would be two more snapshot files pinning the same answer. `{{content}}` is deliberately absent from the set — it would read the very field these blocks live in.
+
+**These rows also settle what a product custom field IS.** C-PROD.3 reads plain postmeta by key off a product, which is the ordinary field route with nothing product-shaped in it. What that does NOT cover is the field PICKER, which does not offer protected or unregistered postmeta — a boundary tracked at FW-13, not a defect in this row.
+
+| # | Tag (on `/product/adjustable-desk-riser/`) | Expected | Status |
+|---|---|---|---|
+| C-PROD.1 | `{{title}}` | `Adjustable Desk Riser` — the ambient single route, no loop item present | **PASS (measured 2026-09-14)** |
+| C-PROD.2 | `{{permalink}}` | `https://testbed.test/product/adjustable-desk-riser/` | **PASS (measured 2026-09-14)** |
+| C-PROD.3 | `{{text key:product_note}}` | `Ships flat-packed in two cartons.` — a product custom field is ordinary postmeta, read by the ordinary route | **PASS (measured 2026-09-14)** |
+
+**Two ambient surfaces are NOT measured, and the reason is not that they were forgotten.** The shop archive and the product-category archive ride the existing post-type-archive and term-archive rows above (C2/C12, C7/C17), which already cover those contexts for a custom post type, and no post-type gate exists for a product to trip. The residual risk there is WooCommerce's archive TEMPLATING — whether a block renders on a Woo-templated archive at all is a theme question, not a question about our resolution — and genuinely measuring it is a fixture-theme task with its own item rather than a row hidden in this table.
+
+**One piece of fixture state is load-bearing for this group and invisible from it:** WooCommerce's coming-soon mode is off in the blueprint's `wp_options`. It defaults ON for a store whose setup wizard never ran, and it serves every store URL as a launch placeholder to logged-out visitors — which `/matrix-products/` cannot see, because that is an ordinary page. A product loop can therefore pass while the product's own page shows no product at all, which is exactly what happened here before the option was written down.
+
 ## C-TERM / CT rows — the ambient-term guard (1.20.0)
 
 An unpinned `{{term_*}}` tag resolved through `TaxonomyTerm::resolve_id()`, which handed back `get_queried_object_id()` without checking what kind of thing WP had queried. Post, term and user ids share one number space, so wherever the queried object's id collided with a real term the tag rendered that term's data as though it were the answer. `bws_queried_object_is_term()` now owns the rule; that function's PHPDoc is where it is stated.
