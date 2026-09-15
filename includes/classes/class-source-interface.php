@@ -38,7 +38,7 @@ interface SourceInterface {
 	 * The SOURCE answers a bare root by a rule it states (FW-39).
 	 *
 	 * The only other value, and it exists for a root that ships ARGLESS TODAY and gains an
-	 * argument later — a sister plugin's Site Views `view`, which answers a bare `view`
+	 * argument later — a sister plugin's Staff Roster `roster`, which answers a bare `roster`
 	 * from its own priority ranking. Declaring it is not permission to fall back to the
 	 * ambient entity: an argless root never degrades to whatever the page is about
 	 * (CONTEXT.md I15 at the root layer), it resolves by the owner's stated rule or not at
@@ -208,8 +208,8 @@ interface SourceInterface {
 	 *
 	 * ONE argument, arity fixed at one, and OPAQUE to everything that carries it. This
 	 * declaration says what it means and which control edits it; nothing between here and
-	 * that control interprets the value. It is not always an ID — a sister Site Views
-	 * plugin wants `view,<dimension-slug>` — so a numeric assumption anywhere in the carry
+	 * that control interprets the value. It is not always an ID — a sister Staff Roster
+	 * plugin wants `roster,<department-slug>` — so a numeric assumption anywhere in the carry
 	 * path would be wrong the first time it is used. Plural arguments would be a grammar
 	 * change touching every step type and the twin JS port, and nothing needs them.
 	 *
@@ -241,8 +241,8 @@ interface SourceInterface {
 	 * says which control fills it, and this one is where the token finally MEANS
 	 * something. Everything between the two — the grammar, the compiler, the root rows,
 	 * both authoring surfaces, the picker's own value — carries the token opaquely,
-	 * because it is not always an ID (a sister Site Views plugin wants
-	 * `view,<dimension-slug>`) and a numeric assumption in the carry path would be wrong
+	 * because it is not always an ID (a sister Staff Roster plugin wants
+	 * `roster,<department-slug>`) and a numeric assumption in the carry path would be wrong
 	 * the first time one shipped. The DECLARING SOURCE is the only thing that knows.
 	 *
 	 * Called ONLY with a non-empty argument, and only on a source that declared one, so an

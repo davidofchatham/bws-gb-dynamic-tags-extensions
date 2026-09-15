@@ -137,10 +137,10 @@ assert_same( 'pinned term root → bare slug', 'term', bws_fold_chain_root( chai
 assert_same( '...and the argument beside it', '34', bws_fold_chain_root_arg( chain_of( 'term,34' ) ) );
 assert_same( 'pinned post root → bare slug', 'post', bws_fold_chain_root( chain_of( 'post,1692' ) ) );
 assert_same( '...and the argument beside it', '1692', bws_fold_chain_root_arg( chain_of( 'post,1692' ) ) );
-// OPAQUE — not every root argument is an ID. A Site Views root wants a dimension slug, and
+// OPAQUE — not every root argument is an ID. A Staff Roster root wants a department slug, and
 // anything here that assumed numeric would be wrong the first time one shipped.
-assert_same( 'a NON-NUMERIC argument passes through verbatim', 'north-campus', bws_fold_chain_root_arg( chain_of( 'view,north-campus' ) ) );
-assert_same( '...and its root is still the bare slug', 'view', bws_fold_chain_root( chain_of( 'view,north-campus' ) ) );
+assert_same( 'a NON-NUMERIC argument passes through verbatim', 'engineering', bws_fold_chain_root_arg( chain_of( 'roster,engineering' ) ) );
+assert_same( '...and its root is still the bare slug', 'roster', bws_fold_chain_root( chain_of( 'roster,engineering' ) ) );
 // The argument survives a chain that goes on to hop — a pinning root is a REAL root.
 assert_same( 'argument survives a following hop', '34', bws_fold_chain_root_arg( chain_of( 'term,34;refs,office' ) ) );
 // ARGLESS answers '' — and so does every chain with no root at all. One answer on purpose:

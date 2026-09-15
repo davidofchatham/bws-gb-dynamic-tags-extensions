@@ -219,7 +219,7 @@ class BWS_Test_Pinned_Term_Source extends \BWS\DynamicTags\AbstractSource {
 /**
  * A root that answers a bare token BY ITS OWN RULE — the second argless policy.
  *
- * Stands in for a sister plugin's Site Views `view`, which ships argless today and gains
+ * Stands in for a sister plugin's Staff Roster `roster`, which ships argless today and gains
  * an argument later. It is not a licence to fall back to the ambient entity; it means the
  * SOURCE decides, which is why the policy is stated rather than inferred.
  */
@@ -230,7 +230,7 @@ class BWS_Test_Owner_Resolves_Root_Source extends \BWS\DynamicTags\AbstractSourc
 	public function get_root_argument(): array {
 		return array(
 			'label'   => 'Dimension',
-			'control' => 'bws-test-view-picker',
+			'control' => 'bws-test-roster-picker',
 			'argless' => \BWS\DynamicTags\SourceInterface::ROOT_ARGLESS_OWNER_RESOLVES,
 		);
 	}

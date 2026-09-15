@@ -26,7 +26,7 @@ Each step that can return several results carries its own optional limit, meanin
 
 Every source above answers "whatever this page is about". Sometimes you want the opposite: this tag, this term, every page. Set a tag's source to Term or Post and you get a picker listing every term or post, grouped by taxonomy or post type, searchable, with the ID shown beside the name so two similarly named entries are never a guess. A draft is pickable and labelled as one, and you only ever see what you could already see in the admin.
 
-A specific term or post is a real starting point, so steps run off it exactly as they run off anything else: "this category's related posts, and their authors" is one tag. The configuration preview names what you picked ("Term: News"), and if that term or post is later deleted it reads `term 34 (missing)` rather than quietly going blank. Pick the source and leave the picker empty and the tag renders nothing, which is the honest answer: there is no entity to read yet. Available on a base tag, a `join` field and a `try_` attempt alike.
+A specific term or post is a real starting point, so steps run off it exactly as they run off anything else: "this category's related posts, and their authors" is one tag. The configuration preview names what you picked ("Term: News"), and if that term or post is later deleted it reads `term 34 (missing)` rather than quietly going blank. Pick the source and leave the picker empty and the tag renders nothing, which is the honest answer: there is no entity to read yet. Available on a base tag, a `join` field, and a `try_` attempt alike.
 
 #### Extendable
 
@@ -107,7 +107,7 @@ A security gate blocks adding PHP built-ins (`system`, `unlink`, `eval`, and the
 
 The `term_*` modifier wraps base tags, allowing term-context resolution using GenerateBlock's built-in taxonomy/term selector.
 
-**[UNRELEASED]** Deprecated as of 1.20.0. Set a base tag's source to a term instead: it does the same job and gets source paths, per-step limits, the field picker and the configuration preview along with it. The tag scanner converts saved `{{term_*}}` tags for you. Existing tags keep rendering and nothing has been removed, but the family now appears in GenerateBlocks' Deprecated group, and it is switched off by default on sites installed from 1.20.0 onward (the `term_ tags` toggle on the settings page turns it back on).
+**[UNRELEASED]** Deprecated as of 1.20.0. Set a base tag's source to a term instead: it does the same job and gets source paths, per-step limits, the field picker and the configuration preview along with it. The Migration Tool converts saved `{{term_*}}` tags for you. Existing tags keep rendering and nothing has been removed, but the family now appears in GenerateBlocks' Deprecated group, and it is switched off by default on sites installed from 1.20.0 onward (the `term_ tags` toggle on the settings page turns it back on).
 
 ## Requirements
 

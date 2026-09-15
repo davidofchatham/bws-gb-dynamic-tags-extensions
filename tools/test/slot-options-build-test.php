@@ -785,7 +785,7 @@ add_filter( 'bws_dynamic_tags_chain_roots', static function ( $roots ) {
 	$roots['argfilterroot'] = array(
 		'label'   => 'Arg Filter Root',
 		'resolve' => static function ( $options, $instance ) { return 1; },
-		'arg'     => array( 'label' => 'View', 'control' => 'bws-test-view-picker', 'argless' => 'owner-resolves' ),
+		'arg'     => array( 'label' => 'Department', 'control' => 'bws-test-roster-picker', 'argless' => 'owner-resolves' ),
 	);
 	// A spec whose declaration names no control meets the same rule a class does: the
 	// route hands it through unvalidated and the ONE reader drops it, rather than the
@@ -793,7 +793,7 @@ add_filter( 'bws_dynamic_tags_chain_roots', static function ( $roots ) {
 	$roots['argfilterhalf'] = array(
 		'label'   => 'Arg Filter Half',
 		'resolve' => static function ( $options, $instance ) { return 1; },
-		'arg'     => array( 'control' => 'bws-test-view-picker' ),
+		'arg'     => array( 'control' => 'bws-test-roster-picker' ),
 	);
 	// COLLIDES with the class-route source registered above. Must be ignored, not
 	// overwrite it: a plugin shipping a real source class must not have it shadowed by a
@@ -1080,7 +1080,7 @@ assert_same(
 );
 assert_same(
 	'...and the second policy is carried as STATED, never inferred from what exists',
-	array( 'label' => 'Dimension', 'control' => 'bws-test-view-picker', 'argless' => 'owner-resolves', 'kind' => 'post' ),
+	array( 'label' => 'Dimension', 'control' => 'bws-test-roster-picker', 'argless' => 'owner-resolves', 'kind' => 'post' ),
 	$arg_of( 'ownerroot' )
 );
 // ABSENT rather than empty on a root that takes no argument: the key's presence IS the
@@ -1102,7 +1102,7 @@ assert_same(
 // as the half-declared class does.
 assert_same(
 	'a filter-declared root carries an argument on the same terms as a class',
-	array( 'label' => 'View', 'control' => 'bws-test-view-picker', 'argless' => 'owner-resolves', 'kind' => 'post' ),
+	array( 'label' => 'Department', 'control' => 'bws-test-roster-picker', 'argless' => 'owner-resolves', 'kind' => 'post' ),
 	$arg_of( 'argfilterroot' )
 );
 assert_same( '...and a half-declared spec is dropped by that same one reader', null, $arg_of( 'argfilterhalf' ) );

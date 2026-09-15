@@ -147,14 +147,14 @@ class SourceRegistry {
 		 * Declare chain roots without writing a source class.
 		 *
 		 *     add_filter( 'bws_dynamic_tags_chain_roots', function( $roots ) {
-		 *         $roots['view'] = array(
-		 *             'label'   => __( 'View', 'my-plugin' ),      // required, author-facing
-		 *             'context' => 'post',                         // 'post'|'term', default 'post'
-		 *             'resolve' => 'my_plugin_current_view_id',    // callable( $options, $instance )
-		 *             'arg'     => array(                          // optional (FW-39)
-		 *                 'label'   => __( 'View', 'my-plugin' ),   //   what the argument means
-		 *                 'control' => 'my-plugin-view-picker',     //   the control that edits it
-		 *                 'argless' => 'owner-resolves',            //   or 'refuse' (the default)
+		 *         $roots['roster'] = array(
+		 *             'label'   => __( 'Staff Roster', 'my-plugin' ), // required, author-facing
+		 *             'context' => 'post',                            // 'post'|'term', default 'post'
+		 *             'resolve' => 'my_plugin_current_roster_id',     // callable( $options, $instance )
+		 *             'arg'     => array(                             // optional (FW-39)
+		 *                 'label'   => __( 'Department', 'my-plugin' ), //   what the argument means
+		 *                 'control' => 'my-plugin-department-picker',   //   the control that edits it
+		 *                 'argless' => 'owner-resolves',                //   or 'refuse' (the default)
 		 *             ),
 		 *         );
 		 *         return $roots;

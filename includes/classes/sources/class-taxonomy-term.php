@@ -143,7 +143,7 @@ class TaxonomyTerm extends AbstractSource {
 	 *
 	 * The label names what the ARGUMENT means to an author ("Term"), which here reads the
 	 * same as the source's own label and will not on every root; the two are separate
-	 * fields because a Site Views root's argument is a dimension, not a view.
+	 * fields because a Staff Roster root's argument is a department, not a roster.
 	 *
 	 * ROOT_ARGLESS_REFUSE is stated rather than left to the normalizer's default, because
 	 * this is the declaration a reader will copy: refusal is the decision, not an

@@ -342,8 +342,8 @@ function bws_fold_chain_root( array $chain ): string {
  * answers `''` here and re-serializes byte-identically, and no existing wire moves.
  *
  * OPAQUE, and stays that way. This returns the token as authored — not an int, not a
- * looked-up entity — because a root argument is not always an ID (a Site Views root wants
- * `view,<dimension-slug>`). The declaring source's control is the only thing that knows
+ * looked-up entity — because a root argument is not always an ID (a Staff Roster root wants
+ * `roster,<department-slug>`). The declaring source's control is the only thing that knows
  * what it means; see SourceInterface::get_root_argument().
  *
  * '' for the same three cases the root does — an empty chain, a chain LEADING with a step
