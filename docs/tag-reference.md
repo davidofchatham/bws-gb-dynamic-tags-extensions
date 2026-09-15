@@ -1437,7 +1437,7 @@ replicate. Each would add a row to all applicable source matrices. The naming pa
 | Template key | Description | Link support | Status |
 |---|---|---|---|
 | `number` | Format a raw numeric field: decimal places, thousands separator, currency symbol + position, optional prefix/suffix | No | To be considered |
-| `phone` | Output a stored phone number; rebuild a `tel:` href from messy input (author separators preserved); 2-tier country code | `tel:` | **Built, unreleased** (slated 1.10.0, in testing) — see [Phone tag](#phone-tag) |
+| `phone` | Output a stored phone number; rebuild a `tel:` href from messy input (author separators preserved); 2-tier country code | `tel:` | **Implemented (1.10.0)** — see [Phone tag](#phone-tag) |
 | `email` | Output a stored email address; can wrap output in a `mailto:` link | `mailto:` | **Implemented (1.9.0)** — see [Email tag](#email-tag) |
 
 Image tags are excluded: multiple return formats are already built into image tag mechanics.

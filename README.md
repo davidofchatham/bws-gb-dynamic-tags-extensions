@@ -2,8 +2,6 @@
 
 A [GenerateBlocks Pro](https://generatepress.com/blocks/) extension with advanced dynamic tags for both standard post/term fields and custom field data.
 
-*Anything marked **[UNRELEASED]** is merged but not in a tagged release yet — see [CHANGELOG.md](CHANGELOG.md) for what ships when.*
-
 ## What's different?
 
 ### Fewer tags, more sources
@@ -22,7 +20,7 @@ Not only can you start from post, loop, term, and author contexts without changi
 
 Each step that can return several results carries its own optional limit, meaning at most that many *from each* incoming result. For example, limiting a taxonomy step to 1 gives you one term from the current post or each previous step's posts, not one term overall. Pick an ACF Relationship or Post Object field for a source step and you get a short note about its current configuration, including bidirectionality and entry limits, to help you decide whether and how to configure that step's limit. Leave it blank for all results.
 
-#### Select one specific term or post as a tag's source **[UNRELEASED]**
+#### Select one specific term or post as a tag's source
 
 Every source above answers "whatever this page is about". Sometimes you want the opposite: this tag, this term, every page. Set a tag's source to Term or Post and you get a picker listing every term or post, grouped by taxonomy or post type, searchable, with the ID shown beside the name so two similarly named entries are never a guess. A draft is pickable and labelled as one, and you only ever see what you could already see in the admin.
 
@@ -30,13 +28,13 @@ A specific term or post is a real starting point, so steps run off it exactly as
 
 #### Extendable
 
-Another plugin can add its own starting point to the source options, and that starting point can take an argument of its own, so it can name one specific thing rather than only "whatever this page is about" **[UNRELEASED: the argument]**. Developers: [`docs/plugin-integration.md`](docs/plugin-integration.md) §1a covers both routes, a source class and a filter.
+Another plugin can add its own starting point to the source options, and that starting point can take an argument of its own, so it can name one specific thing rather than only "whatever this page is about". Developers: [`docs/plugin-integration.md`](docs/plugin-integration.md) §1a covers both routes, a source class and a filter.
 
 ### Unlocked field selector
 
 GB's field selector is post-type-based, so when you're building GP Elements or WP Patterns, you usually can't see the fields that are actually available for what you're working on. Using our tags, every meta/option field key input shows all registered fields (including ACF fields and sub-fields, options-page fields, term fields, and post meta fields), and can be filtered by context, field group, and field type, or searched by label, name, and type.
 
-**[UNRELEASED]** When a tag's source is one specific term or post, the list goes the other way and narrows to that taxonomy's or post type's own fields, plus any field whose group isn't tied to one location. Select a different one and it re-narrows on the spot. Sources that don't name a specific entity still show everything, which is the only honest answer while the entity isn't known until the page renders, and you can always type a key in by hand either way.
+When a tag's source is one specific term or post, the list goes the other way and narrows to that taxonomy's or post type's own fields, plus any field whose group isn't tied to one location. Select a different one and it re-narrows on the spot. Sources that don't name a specific entity still show everything, which is the only honest answer while the entity isn't known until the page renders, and you can always type a key in by hand either way.
 
 ### Special handling
 
@@ -103,11 +101,11 @@ Properly registered functions will appear in the tag's **Function** dropdown for
 
 A security gate blocks adding PHP built-ins (`system`, `unlink`, `eval`, and the like) or anything that isn't a real function. All functions registered via the filter are shown, along with their security-gate status, on the admin settings page. Manually inserting an unregistered or blocked function will cause the tag to return its fallback text or return empty.
 
-## `term_` tags (deprecated **[UNRELEASED]**)
+## `term_` tags (deprecated)
 
 The `term_*` modifier wraps base tags, allowing term-context resolution using GenerateBlock's built-in taxonomy/term selector.
 
-**[UNRELEASED]** Deprecated as of 1.20.0. Set a base tag's source to a term instead: it does the same job and gets source paths, per-step limits, the field picker and the configuration preview along with it. The Migration Tool converts saved `{{term_*}}` tags for you. Existing tags keep rendering and nothing has been removed, but the family now appears in GenerateBlocks' Deprecated group, and it is switched off by default on sites installed from 1.20.0 onward (the `term_ tags` toggle on the settings page turns it back on).
+Deprecated as of 1.20.0. Set a base tag's source to a term instead: it does the same job and gets source paths, per-step limits, the field picker and the configuration preview along with it. The Migration Tool converts saved `{{term_*}}` tags for you. Existing tags keep rendering and nothing has been removed, but the family now appears in GenerateBlocks' Deprecated group, and it is switched off by default on sites installed from 1.20.0 onward (the `term_ tags` toggle on the settings page turns it back on).
 
 ## Requirements
 
