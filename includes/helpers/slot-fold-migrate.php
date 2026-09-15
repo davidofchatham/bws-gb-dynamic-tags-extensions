@@ -277,7 +277,7 @@ function bws_fold_migrate_slots( array $options, array $cfg ) {
 		}
 
 		// An already-folded slot: the retiring number lands on its own last fanning step,
-		// by the same positional rule everything else uses. A slot that pins its own limit
+		// by the same positional rule everything else uses. A slot that states its own limit
 		// is left alone — the tag-level number was a DEFAULT, and a default never
 		// overwrites a stated value (bws_fold_chain_apply_legacy_limit decides both).
 		if ( '' !== $folded_val && null !== $tag_limit ) {

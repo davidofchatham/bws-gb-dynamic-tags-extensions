@@ -1,5 +1,5 @@
 /**
- * Entity picker control (`bws-entity-picker`) for a PINNED chain root (FW-39).
+ * Entity picker control (`bws-entity-picker`) for a chain root's ARGUMENT (FW-39).
  *
  * NOT registered via `generateblocks.editor.tagSpecificControls` — a root's argument is
  * not an option key with a `type`, it is a value carried INSIDE the chain wire's position
@@ -120,7 +120,7 @@
 		}, [ kind, query ] );
 
 		// RESOLVE (the reopen case, D14/D20): the stored value's label, independent of
-		// whatever the browse list currently holds — a pin whose entity would not
+		// whatever the browse list currently holds — a selected entity that would not
 		// currently match the typed search must still show its own name.
 		useEffect( function () {
 			if ( '' === value ) {
@@ -191,7 +191,7 @@
 				__nextHasNoMarginBottom: true,
 			} ),
 			// The RESOLVED label as a quiet caption, ONLY when the combo itself cannot
-			// show it: a pin outside the current browse/search list (a different
+			// show it: a selection outside the current browse/search list (a different
 			// taxonomy selected, or the list simply has not loaded it yet) has no
 			// matching option, so ComboboxControl renders an empty box. When the
 			// option IS present the combo already reads as the entity's name and the

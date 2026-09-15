@@ -839,7 +839,7 @@ check(
 // number is a DEFAULT, and a default never overwrites a stated value.
 $m10 = bws_fold_migrate_slots( array( 'A' => 'src(refs,office,limit[2]);use(title)', 'limit' => '3' ), $text_cfg );
 check(
-	'M10.4 a slot that already pins its own limit is untouched (the key still goes)',
+	'M10.4 a slot that already states its own limit is untouched (the key still goes)',
 	'src(refs,office,limit[2]);use(title)' === ( $m10['A'] ?? null ) && ! array_key_exists( 'limit', (array) $m10 ),
 	json_encode( $m10 )
 );

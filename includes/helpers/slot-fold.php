@@ -20,7 +20,7 @@
  *   all four sat on a superseded step char at once. This file is the PHP owner;
  *   `assets/js/slot-fold-grammar.js` is its unavoidable twin (different language,
  *   so agreement must be TESTED, not assumed) and carries no independent decisions.
- * - **Bracket ALTERNATION by depth, never a pinned char.** `limit` sits one level
+ * - **Bracket ALTERNATION by depth, never a fixed char.** `limit` sits one level
  *   INSIDE whatever encloses its chain, so its bracket is `bracket_pair(enclosing+1)`:
  *   `limit(3)` on a base tag's `src:` (enclosing level 0) and `limit[3]` inside a
  *   slot's `src(...)` (enclosing level 1). Same construct, two spellings — reviewed
@@ -140,7 +140,7 @@ const BWS_FOLD_SLOT_KEY_RE = '/^[A-Z]+$/';
  * WHY CAPITALS AND NOT DIGITS (decided 2026-08-04): an all-digit key is a JS array-index
  * property, which ECMAScript enumerates ahead of every string key whatever order the
  * object was built in, and GB serializes with `Object.entries( extraTagParams )`. Digit
- * slots are therefore PINNED to the front of the saved string and no sort — ours or GB's —
+ * slots are therefore FIXED to the front of the saved string and no sort — ours or GB's —
  * can move them. Capitals hand rank back to bws_serialization_order_sort() and its JS
  * port, letting `format` and a container's tag-level options lead as
  * docs/tag-reference.md §Option order intends. The prefix itself reads slightly worse than
@@ -598,7 +598,7 @@ function bws_fold_emit_chain( array $steps, int $enclosing_level = 1 ): string {
 		}
 		$limit = $step['limit'] ?? null;
 		if ( null !== $limit && '' !== $limit ) {
-			// 0 = unlimited and MUST survive as a literal: an author who pinned "all"
+			// 0 = unlimited and MUST survive as a literal: an author who chose "all"
 			// silently reverts if a falsy guard drops it. Negative forms normalize to 0.
 			$normalized = (int) $limit;
 			$segment   .= BWS_FOLD_PART_SEP . 'limit' . $open . ( $normalized < 0 ? 0 : $normalized ) . $close;
@@ -1632,7 +1632,7 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 	// ride the emitted wire and bound the ENGINE's hops. A LIMIT APPLIES TO THE STEP IT
 	// IS STATED ON (ADR 0005's own sentence, one level down; ADR 0007) — so only the
 	// FINAL step's number can be the item bound, because the final step's outputs ARE
-	// the rendered items. The selection this replaced kept the last step that PINNED
+	// the rendered items. The selection this replaced kept the last step that STATED
 	// one, which let a number written on `terms` go on governing output after the
 	// author appended an unbounded `refs` — a number stated in one place silently
 	// acting on another. An earlier step's limit still bounds its own step, in the

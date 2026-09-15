@@ -121,7 +121,7 @@ Offerability is stated rather than derived because the registry keeps entries th
 
 #### Declaring a root argument (v1.20.0)
 
-A root that pins one specific entity needs an author to say *which*: `term,34`, `post,1692`, or a `view,north-campus` your own plugin understands. Declare that argument beside the offer:
+A root that names one specific entity needs an author to say *which*: `term,34`, `post,1692`, or a `view,north-campus` your own plugin understands. Declare that argument beside the offer:
 
 ```php
 public function get_root_argument(): array {
@@ -135,7 +135,7 @@ public function get_root_argument(): array {
 
 The argument is **one opaque token**, and it travels beside the root rather than inside it: the chain reads `view,north-campus`, `bws_fold_chain_root()` still answers `view`, and `bws_fold_chain_root_arg()` answers `north-campus`. Nothing between your declaration and your control interprets the value, so it need not be an ID.
 
-`argless` says what a bare `view` with no argument means. `refuse`, the default and what a pinning root wants, resolves nothing until an author fills it. `owner-resolves` says your source answers a bare token by a rule of its own; it is not permission to fall back to whatever the page is about, which no root does.
+`argless` says what a bare `view` with no argument means. `refuse`, the default and what a declaring root wants, resolves nothing until an author fills it. `owner-resolves` says your source answers a bare token by a rule of its own; it is not permission to fall back to whatever the page is about, which no root does.
 
 **Two caveats before you ship one.** A declaration missing either required key is dropped and your root is offered as an argless root; a working source is never retired over a bad optional declaration. And **this plugin ships no argument-taking root and no `bws-*` control for one yet**, so the declaration is carried to both authoring surfaces but the control you name has to be one you register yourself.
 

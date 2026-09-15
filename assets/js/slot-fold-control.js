@@ -567,12 +567,12 @@
 	 * known until ref-step parity, so presetting would falsely assert a kind. Leaving
 	 * it unmapped matches shipped behaviour and is not an omission.
 	 *
-	 * A PINNED ROOT hands over its ARGUMENT as well, spelled the way the base tag's own
-	 * `src` spells it (`term,34`) — the picker's pinned-root narrowing (FW-39 D22) reads
+	 * A ROOT WITH AN ARGUMENT hands that over as well, spelled the way the base tag's own
+	 * `src` spells it (`term,34`) — the picker's root-argument narrowing (FW-39 D22) reads
 	 * the sibling `src` through the chain grammar, so a folded slot presenting only the
 	 * bare slug would narrow on the base tag and not under the fold, for no reason an
 	 * author could see. It stays a one-step wire because that is what the terminal IS
-	 * here; a chain that hops past the pin reaches the `refs` arm above and presets
+	 * here; a chain that hops past the root reaches the `refs` arm above and presets
 	 * nothing, which is the same answer for the same reason.
 	 */
 	function fieldContext( slot, commitField ) {
@@ -673,8 +673,8 @@
 		}
 
 		/**
-		 * Hand a step's field picker the PIN its argument is read off, when there is one
-		 * (FW-39 D22).
+		 * Hand a step's field picker the ROOT ARGUMENT its own argument is read off, when
+		 * there is one (FW-39 D22).
 		 *
 		 * Only position 1 qualifies, and for the reason `fieldContext()` states: the
 		 * entity a step's field is read off is whatever the chain resolved to just
@@ -683,15 +683,15 @@
 		 * and spelled as the wire spells it, which is what keeps ONE narrowing rule
 		 * serving the base tag and both fold containers.
 		 *
-		 * `rootArgOf()` is the test for pinning-ness, not a slug list: a root declares
-		 * its own argument, so an integrator's pinning root narrows here without this
-		 * file knowing its name.
+		 * `rootArgOf()` is the test for whether a root takes an argument, not a slug list:
+		 * a root declares its own argument, so an integrator's declaring root narrows here
+		 * without this file knowing its name.
 		 *
 		 * @param {Object} ctx The synthetic context the caller built.
 		 * @param {number} idx This step's position in the chain.
-		 * @return {Object} The same context, or one carrying the pin's `src` token.
+		 * @return {Object} The same context, or one carrying the root argument's `src` token.
 		 */
-		function pinnedContext( ctx, idx ) {
+		function rootArgContext( ctx, idx ) {
 			var root = ( 1 === idx ) ? chain[ 0 ] : null;
 			if ( ! root || ! root.arg || ! rootArgOf( conf, root.slug ) ) {
 				return ctx;
@@ -835,11 +835,11 @@
 				__nextHasNoMarginBottom: true
 			} ) );
 
-			// A PINNED ROOT's argument (FW-39) — position 0 only, and answered from the
+			// A DECLARING ROOT's argument (FW-39) — position 0 only, and answered from the
 			// SAME row the root's own SelectControl reads, never a second declaration.
 			// Checked BEFORE the step vocabulary below: a root slug is never `known`
 			// there (BWS_FOLD_STEP_TYPES has no root in it), so without this branch a
-			// pinning root would render its SelectControl and nothing to fill it with —
+			// declaring root would render its SelectControl and nothing to fill it with —
 			// exactly the "declared argument, no control" shape D5/D6 exist to prevent.
 			var rootArg = ( 0 === i ) ? rootArgOf( conf, stepObj.slug ) : null;
 			if ( rootArg ) {
@@ -869,7 +869,7 @@
 						} )
 				) );
 				if ( ! stepObj.arg ) {
-					// D2/D8: an argless pinning root REFUSES — it does not fall back to
+					// D2/D8: an argless declaring root REFUSES — it does not fall back to
 					// the ambient entity. Same voice as every other incomplete-step
 					// warning in this file ("will be skipped"), because that is exactly
 					// what happens: the factory refuses it and the whole chain reads empty.
@@ -903,7 +903,7 @@
 							help: argCfg.help,
 							placeholder: argCfg.placeholder,
 							typeDefault: argCfg.typeDefault,
-							context: pinnedContext( stepContext( stepObj, commitArg ), i )
+							context: rootArgContext( stepContext( stepObj, commitArg ), i )
 						} )
 						: el( TextControl, {
 							label: argCfg.label,
@@ -1044,11 +1044,11 @@
 		// instead would offer an Add that can only produce a dead step.
 		var last = chain.length ? chain[ chain.length - 1 ] : null;
 		var nextSteps = offerableSteps( chain.length, '' );
-		// A PINNING ROOT at the last position (only possible at chain.length 1 — a root
+		// A DECLARING ROOT at the last position (only possible at chain.length 1 — a root
 		// is never anywhere but position 0) is complete ONLY when its argument is filled
 		// (FW-39, D8's editor-side mirror). `stepArg()` answers '' for ANY slug absent
 		// from the step vocabulary, and a root slug is never IN it (roots and steps are
-		// disjoint namespaces) — so without this branch a pinning root reads as
+		// disjoint namespaces) — so without this branch a declaring root reads as
 		// "complete" the instant it is selected, by the same test an UNKNOWN step slug
 		// trivially passes, and Add step appears beside the "will be skipped" warning
 		// for a chain the factory will unconditionally refuse.

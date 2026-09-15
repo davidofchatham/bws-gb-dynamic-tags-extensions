@@ -244,7 +244,7 @@ something to know.
 
 - **Enforcement is stated positively.** "Enforced only when this field is edited directly, using
   ACF" correctly implies that imports, WP-CLI and every other programmatic write bypass it too,
-  rather than pinning the bypass on bidirectionality.
+  rather than resting the bypass on bidirectionality.
 - **Case 5 carries no enforcement clause on purpose.** ACF Extended honours the single-value setting
   at write; ACF native does not. That asymmetry is the finding, not an omission — and it is why the
   bidirectional flavour is carried rather than flattened to a boolean, since the two describe

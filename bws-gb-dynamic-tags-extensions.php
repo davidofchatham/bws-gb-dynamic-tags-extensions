@@ -337,7 +337,7 @@ function bws_dynamic_tags_register_all() {
 
 	// The `term_` family's modifier → base entries (FW-39). Through the same generator an
 	// external prefix owner calls, with no per-family rule: the shared transform reads the
-	// root's own contract, and `term` declares a required argument, so an unpinned tag
+	// root's own contract, and `term` declares a required argument, so an argless tag
 	// converts to a bare base tag rather than to a root that would refuse.
 	//
 	// AFTER bws_register_option_migrations(), and the order is load-bearing in one
@@ -493,9 +493,9 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 			'before'
 		);
 	}
-	// WHICH ROOT SLUGS PIN AN ENTITY, and of what kind (FW-39 D22) — the field picker
-	// narrows its list to a pinned entity's taxonomy or post type, and to do that it has
-	// to recognize `term,34` in the sibling `src` as a pin rather than as any other
+	// WHICH ROOT SLUGS NAME AN ENTITY, and of what kind (FW-39 D22) — the field picker
+	// narrows its list to the selected entity's taxonomy or post type, and to do that it has
+	// to recognize `term,34` in the sibling `src` as a root argument rather than as any other
 	// two-part root token. Derived from bws_registered_root_rows(), the one appender both
 	// authoring surfaces already read their root enum through, so a root contributed via
 	// `bws_dynamic_tags_chain_roots` narrows on the same terms as ours and an argless root
@@ -514,7 +514,7 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 			'before'
 		);
 	}
-	// The pinned-entity picker (FW-39) — backs a chain root's ARGUMENT, not an option
+	// The entity picker (FW-39) — backs a chain root's ARGUMENT, not an option
 	// key, so it is exposed for composition rather than self-registering (see the
 	// file header). Loads before the slot-fold CONTROL, which mounts it at a chain's
 	// position 0 the same way it already mounts the field-combo control mid-chain.

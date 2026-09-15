@@ -5,7 +5,7 @@
  * @package BWS_Dynamic_Tags
  * @since 1.2.0
  * @since 1.2.0 Added format_id_for_acf().
- * @since 1.20.0 Offered as a PINNING chain root — `term,<ID>` (FW-39).
+ * @since 1.20.0 Offered as a DECLARING chain root — `term,<ID>` (FW-39).
  */
 
 namespace BWS\DynamicTags\Sources;
@@ -115,7 +115,7 @@ class TaxonomyTerm extends AbstractSource {
 	}
 
 	/**
-	 * Offered as a chain root — a PINNING one (FW-39).
+	 * Offered as a chain root — a DECLARING one (FW-39).
 	 *
 	 * `term` has resolved through the factory since it was registered and has never been
 	 * OFFERED: nothing authored `src:term`, which is why bare `src:term` can only exist in
@@ -139,7 +139,7 @@ class TaxonomyTerm extends AbstractSource {
 	}
 
 	/**
-	 * `term,<ID>` — the pin, and it is required (FW-39).
+	 * `term,<ID>` — the argument, and it is required (FW-39).
 	 *
 	 * The label names what the ARGUMENT means to an author ("Term"), which here reads the
 	 * same as the source's own label and will not on every root; the two are separate
@@ -167,7 +167,7 @@ class TaxonomyTerm extends AbstractSource {
 	/**
 	 * Resolve `term,<ID>` to that term, or to nothing (FW-39).
 	 *
-	 * VERIFIED against the taxonomy store, not cast and trusted. A pin whose term has been
+	 * VERIFIED against the taxonomy store, not cast and trusted. An argument whose term has been
 	 * deleted must render blank and read `(missing)` in the editor, and an unchecked
 	 * `(int)` would hand a dead id to the field read, where a missing term and a term with
 	 * an empty field produce the same empty output — the failure the author is least able
@@ -186,7 +186,7 @@ class TaxonomyTerm extends AbstractSource {
 	 * @return int|false
 	 */
 	public function resolve_root_argument( string $arg, array $options, $instance ) {
-		// bws_strict_digit_id() (field-helpers.php) is the one validator both pinning
+		// bws_strict_digit_id() (field-helpers.php) is the one validator both declaring
 		// roots share — see its own PHPDoc for why is_numeric()+cast is not enough.
 		if ( ! function_exists( 'bws_strict_digit_id' ) || ! bws_strict_digit_id( $arg ) ) {
 			return false;

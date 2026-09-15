@@ -104,7 +104,7 @@ class TagConverter {
 			// Deprecated tag names, each stored string CLASSIFIED into one of the report's
 			// three channels — see classify_tag(). Grouped by name + verdict rather than by
 			// name alone, because one post can hold two strings of the same name that fall
-			// different ways (a pinned `term_text` converts, a bare one beside it is
+			// different ways (a `term_text` naming a term converts, a bare one beside it is
 			// skipped), and a single row per name would have to pick one and lose the other.
 			$deprecated_found = array();
 			foreach ( $tag_names as $tag ) {
@@ -210,7 +210,7 @@ class TagConverter {
 	 * `exempt` IS A DISCLOSURE RIDING A CONVERSION, NEVER A FOURTH STATUS. The tag converts;
 	 * what the flag says is that the conversion is the one place this migration is not
 	 * output-neutral (D40), which the report states as a line beside the conversion preview
-	 * and not as a second gate. bws_modifier_unpinned_rewrite() owns the population.
+	 * and not as a second gate. bws_modifier_argless_rewrite() owns the population.
 	 *
 	 * @since 1.20.0
 	 * @param string $tag    Tag name as stored in post content.
@@ -228,8 +228,8 @@ class TagConverter {
 			return array( 'status' => 'skipped', 'reason' => $skip, 'exempt' => false );
 		}
 
-		$exempt = function_exists( 'bws_modifier_unpinned_rewrite' )
-			&& bws_modifier_unpinned_rewrite( $stored );
+		$exempt = function_exists( 'bws_modifier_argless_rewrite' )
+			&& bws_modifier_argless_rewrite( $stored );
 
 		$transformed = self::resolve_full_chain( $tag, $stored );
 		if ( $transformed === $stored ) {

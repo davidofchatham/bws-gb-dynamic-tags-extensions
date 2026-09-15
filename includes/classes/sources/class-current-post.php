@@ -6,7 +6,7 @@
  * @since 1.0.0
  * @since 1.2.0 Renamed source key from 'current_post' to 'post'. Added tag prefix,
  *              related variant, and related effective source methods.
- * @since 1.20.0 Offered as a PINNING chain root — `post,<ID>` (FW-39, ticket 03).
+ * @since 1.20.0 Offered as a DECLARING chain root — `post,<ID>` (FW-39, ticket 03).
  */
 
 namespace BWS\DynamicTags\Sources;
@@ -54,7 +54,7 @@ class CurrentPost extends AbstractSource {
 	}
 
 	/**
-	 * Offered as a chain root — a PINNING one (FW-39, ticket 03).
+	 * Offered as a chain root — a DECLARING one (FW-39, ticket 03).
 	 *
 	 * `post` has resolved through the factory since it was registered and has never been
 	 * OFFERED — bare `post` would be `current` under another name (D1/D2), and `current`
@@ -75,7 +75,7 @@ class CurrentPost extends AbstractSource {
 	}
 
 	/**
-	 * `post,<ID>` — the pin, and it is required (FW-39, ticket 03).
+	 * `post,<ID>` — the argument, and it is required (FW-39, ticket 03).
 	 *
 	 * D13: post has no migration half, so unlike `term` this argument has no legacy `id`
 	 * read path to stay compatible with — it is authoring-only from day one.
@@ -99,7 +99,7 @@ class CurrentPost extends AbstractSource {
 	 * or that has been permanently deleted, must render blank and read `(missing)` in the
 	 * editor rather than silently reading nothing through a dead id. A TRASHED post still
 	 * exists in the store (trash is a status, not a deletion) and resolves — an author who
-	 * pinned a post before moving it to trash is not the case this seam exists to catch.
+	 * selected a post before moving it to trash is not the case this seam exists to catch.
 	 *
 	 * Shares its digit-string validation with TaxonomyTerm via `bws_strict_digit_id()`
 	 * (field-helpers.php) — see that function's own PHPDoc for why `is_numeric()` + cast

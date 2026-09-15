@@ -136,7 +136,7 @@ function bws_registered_root_rows(): array {
  * An unrecognized `argless` normalizes to REFUSE rather than being dropped, because the
  * two axes are independent: a typo in the policy must not silently delete the argument
  * the author is being asked to fill. Refuse is the conservative answer — the root
- * resolves nothing until it is pinned, which is what a pinning root does anyway.
+ * resolves nothing until its argument is given, which is what a declaring root does anyway.
  *
  * @since 1.20.0
  * @param array $decl Raw declaration.
@@ -1874,7 +1874,7 @@ function bws_base_ambient_analog( string $tag, array $base, array $options, $ins
 	// short-circuited to the term's own analog). A registry-source root still reads
 	// 'render_time' and still reaches the kind switch below. Explicit options (a
 	// query-loop item, src:current, id) won inside the factory itself (SPEC §V1),
-	// so a pinned non-ambient source never lands an ambient kind here.
+	// so a stated non-ambient source never lands an ambient kind here.
 	if ( 'render_time' !== bws_base_src_resolution( $options )['kind'] ) {
 		return null;
 	}

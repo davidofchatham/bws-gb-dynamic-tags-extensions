@@ -105,7 +105,7 @@ abstract class AbstractSource implements SourceInterface {
 	 *
 	 * FALSE is the default because the registry keeps its dead: the four in-repo
 	 * traversal-substitute sources are inert by decision, and `post`/`term` would promote
-	 * to roots that duplicate Current and collide with the planned pinned-entity spelling.
+	 * to roots that duplicate Current and collide with the planned specific-entity spelling.
 	 * Opting in is a claim that this source resolves its own id from ambient context —
 	 * see SourceInterface::is_selectable_root() for the full precondition.
 	 *
@@ -121,7 +121,7 @@ abstract class AbstractSource implements SourceInterface {
 	 *
 	 * NONE is the default for the same reason `false` is the default above: nearly every
 	 * source resolves its own id from ambient context and has nothing for an author to
-	 * pin. A root that takes an argument is the exception, and it says so.
+	 * name. A root that takes an argument is the exception, and it says so.
 	 *
 	 * @since 1.20.0
 	 * @return array
@@ -135,7 +135,7 @@ abstract class AbstractSource implements SourceInterface {
 	 *
 	 * FALSE rather than a fallback to resolve_id(), for the reason the seam exists: a
 	 * declared-but-unimplemented argument would otherwise resolve the AMBIENT entity while
-	 * the wire says a pinned one, which is the degradation [I15] prohibits and the hardest
+	 * the wire names a specific one, which is the degradation [I15] prohibits and the hardest
 	 * kind to notice — the page renders something plausible. Refusing gives the author the
 	 * blank a half-configured root is supposed to produce.
 	 *

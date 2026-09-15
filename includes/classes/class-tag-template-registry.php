@@ -900,7 +900,7 @@ class TagTemplateRegistry {
 					// today and diverge the moment 0 stops meaning 1. Unguarded: field-helpers
 					// is required at plugin init, this dispatch runs at render.
 					//
-					// A folded slot may PIN its own limit (`src(terms[category] limit[3])`
+					// A folded slot may STATE its own limit (`src(terms[category] limit[3])`
 					// or a slot-level `limit(3)`), which then governs this slot only and is
 					// threaded into the core call too, so the seam's slice and the core's
 					// own read agree.
@@ -926,7 +926,7 @@ class TagTemplateRegistry {
 					$slot_opts['limit'] = (string) $slot_max;
 
 					// A collapsing template's attempt wants ONE result, whatever any
-					// limit says — pinned, tag-level or carried alike (ADR 0007,
+					// limit says — slot-stated, tag-level or carried alike (ADR 0007,
 					// same rule as its base tag). The stored wire keeps its number.
 					if ( $collapse ) {
 						$slot_max           = 1;

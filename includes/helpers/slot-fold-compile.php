@@ -103,18 +103,18 @@ const BWS_FOLD_STEP_KINDS = array(
 /**
  * Root token → the resolved-source KIND it carries, for the roots that answer at PARSE TIME.
  *
- * `site` names one store. A PINNING root (FW-39) names one entity of a known kind — the
+ * `site` names one store. A DECLARING root (FW-39) names one entity of a known kind — the
  * wire says `term,34`, so the kind is `term` whether or not term 34 still exists, and the
  * editor can offer the steps that accept a term without a render. Every other root —
  * `current`, an ambient registry source name — is the source FACTORY's to resolve at
  * render and comes back `render_time` (see bws_fold_chain_resolution's `kind` list),
  * because what the ambient entity is on a given request is not knowable from the wire.
  *
- * CENSUSED (tools/test/slot-options-build-test.php): a pinning root that fails to declare
+ * CENSUSED (tools/test/slot-options-build-test.php): a declaring root that fails to declare
  * its kind here produces no error anywhere — just an editor that quietly stops offering
  * hops off it, which is the hazard block-context-keys-test.php exists for. Three entries
  * is where a list stops being self-evidently complete, and a FOURTH (a sister plugin's own
- * pinning root, declared through the `bws_dynamic_tags_chain_roots` filter route) is the
+ * declaring root, declared through the `bws_dynamic_tags_chain_roots` filter route) is the
  * integrator's own to declare — this const is scoped to sources this repo ships, per the
  * census's own comment.
  *
@@ -126,7 +126,7 @@ const BWS_FOLD_STEP_KINDS = array(
  * renders — the class of drift the whole derive exists to prevent.
  *
  * @since 1.17.0
- * @since 1.20.0 `post` (FW-39 ticket 03) — the second pinning root, alongside `term`.
+ * @since 1.20.0 `post` (FW-39 ticket 03) — the second declaring root, alongside `term`.
  */
 const BWS_FOLD_PARSE_TIME_ROOT_KINDS = array(
 	'site' => 'site',
@@ -330,7 +330,7 @@ function bws_fold_chain_root( array $chain ): string {
 }
 
 /**
- * The ROOT's argument — what pins `term,34` to term 34 (FW-39).
+ * The ROOT's argument — what binds `term,34` to term 34 (FW-39).
  *
  * The root keeps its BARE SLUG and the argument travels beside it, which is what
  * bws_fold_chain_root() above still returns for the same chain. Reading the whole

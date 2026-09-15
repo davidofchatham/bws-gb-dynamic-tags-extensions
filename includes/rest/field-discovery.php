@@ -325,7 +325,7 @@ function bws_field_discovery_field_note( array $field, string $kind = 'post' ) {
 	//
 	// The unenforcement clause is stated POSITIVELY — naming direct ACF editing as the
 	// only enforcement point correctly implies that imports, WP-CLI and every other
-	// programmatic write bypass it too, rather than pinning the bypass on
+	// programmatic write bypass it too, rather than resting the bypass on
 	// bidirectionality alone.
 	// `consequence` MARKS the segment, it does not render: the REST envelope is
 	// tag-blind by construction (no tag identity reaches this route), so which tags

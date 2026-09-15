@@ -37,9 +37,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Whether a root-argument token is a STRICT digit string — an id an author actually typed,
  * not merely something PHP happens to consider numeric (FW-39, ticket 03).
  *
- * THE ONE VALIDATOR both pinning roots' `resolve_root_argument()` call
+ * THE ONE VALIDATOR both declaring roots' `resolve_root_argument()` call
  * (`TaxonomyTerm`, `CurrentPost`) before trusting an argument enough to look it up. Shared
- * so a future pinning root with a numeric id (a third kind, or an integrator's own) reaches
+ * so a future declaring root with a numeric id (a third kind, or an integrator's own) reaches
  * the same rule rather than a third hand-copy.
  *
  * `ctype_digit()`, NOT `is_numeric()` + cast: "34.9", "3e1" and " 34" are all PHP-numeric

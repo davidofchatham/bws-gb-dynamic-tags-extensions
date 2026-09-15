@@ -619,9 +619,9 @@ check(
 // [I15] applies to hand-edited wire exactly as it applies to anything else: a
 // half-configured pin must look broken, not look right with the wrong values.
 check(
-	'bare `src:term` (hand-edited only) is flagged INERT — "nothing pinned", not silent',
+	'bare `src:term` (hand-edited only) is flagged INERT — "nothing selected", not silent',
 	bws_build_preview_label( [ 'src' => 'term', 'key' => 'sku' ], 'text' ),
-	'[⚠ Term: nothing pinned]'
+	'[⚠ Term: nothing selected]'
 );
 
 // The SECOND pinning root (FW-39 ticket 03) — same rules, different kind, D20's own point:
@@ -648,40 +648,40 @@ check(
 	"['sku' from Post: Hello world! Ref 'rel']"
 );
 check(
-	'bare `src:post` (hand-edited only) is flagged INERT — "nothing pinned", not silent',
+	'bare `src:post` (hand-edited only) is flagged INERT — "nothing selected", not silent',
 	bws_build_preview_label( [ 'src' => 'post', 'key' => 'sku' ], 'text' ),
-	'[⚠ Post: nothing pinned]'
+	'[⚠ Post: nothing selected]'
 );
 
 // The pure namer, directly, with an INJECTED fake resolver (D20) — the reason the
 // production caller supplies `get_term` rather than this function calling it by name.
 check(
 	'segment: named entity',
-	bws_preview_pinned_entity_segment( 'term', '34', 'Term', static function ( $id ) {
+	bws_preview_root_entity_segment( 'term', '34', 'Term', static function ( $id ) {
 		return 34 === $id ? (object) [ 'name' => 'News' ] : null;
 	} ),
 	'Term: News'
 );
 check(
 	'segment: missing entity',
-	bws_preview_pinned_entity_segment( 'term', '99', 'Term', static function () { return null; } ),
+	bws_preview_root_entity_segment( 'term', '99', 'Term', static function () { return null; } ),
 	'term 99 (missing)'
 );
 check(
 	'segment: no resolver supplied → falls back to the token',
-	bws_preview_pinned_entity_segment( 'term', '34', 'Term', null ),
+	bws_preview_root_entity_segment( 'term', '34', 'Term', null ),
 	'term 34'
 );
 check(
 	'segment: a POST entity is named off `post_title`, not `name` — the SAME namer, no per-kind branch',
-	bws_preview_pinned_entity_segment( 'post', '1692', 'Post', static function ( $id ) {
+	bws_preview_root_entity_segment( 'post', '1692', 'Post', static function ( $id ) {
 		return 1692 === $id ? (object) [ 'post_title' => 'Hello world!' ] : null;
 	} ),
 	'Post: Hello world!'
 );
 check(
 	'segment: an entity with no name falls back to the token, not a blank label',
-	bws_preview_pinned_entity_segment( 'term', '34', 'Term', static function () { return (object) []; } ),
+	bws_preview_root_entity_segment( 'term', '34', 'Term', static function () { return (object) []; } ),
 	'term 34'
 );
 

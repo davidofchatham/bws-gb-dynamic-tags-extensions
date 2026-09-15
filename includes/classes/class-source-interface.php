@@ -201,7 +201,7 @@ interface SourceInterface {
 	/**
 	 * This root's ARGUMENT, if it takes one (FW-39).
 	 *
-	 * A root that pins an entity needs an author to say WHICH — `term,34`, `post,1692`.
+	 * A root that names an entity needs an author to say WHICH — `term,34`, `post,1692`.
 	 * The token stays the source's bare key and the argument travels beside it, so every
 	 * registry-name lookup and is_selectable_root() check stays a comparison rather than
 	 * becoming a parse.
@@ -235,7 +235,7 @@ interface SourceInterface {
 	public function get_root_argument(): array;
 
 	/**
-	 * Resolve this root's ARGUMENT to the entity it pins (FW-39).
+	 * Resolve this root's ARGUMENT to the entity it names (FW-39).
 	 *
 	 * The counterpart of get_root_argument(): that method declares an argument exists and
 	 * says which control fills it, and this one is where the token finally MEANS
@@ -254,19 +254,19 @@ interface SourceInterface {
 	 * SEPARATE FROM resolve_id(), not a third parameter on it. resolve_id() answers from
 	 * AMBIENT CONTEXT and has callers that must keep doing exactly that forever — the
 	 * `term_*` modifier family reaches TaxonomyTerm::resolve_id() on every request. A
-	 * pinned read is a different question with a different input, and widening the ambient
+	 * read from a named entity is a different question with a different input, and widening the ambient
 	 * method's signature would put both behind one implementation that has to tell them
 	 * apart.
 	 *
 	 * A FALSE RETURN IS TERMINAL. The factory does not then fall back to resolve_id():
-	 * a pin naming a deleted entity renders nothing, it does not quietly become the
+	 * an argument naming a deleted entity renders nothing, it does not quietly become the
 	 * current page's entity (CONTEXT.md I15 at the root layer).
 	 *
 	 * @since 1.20.0
 	 * @param string $arg      The root argument as authored, verbatim.
 	 * @param array  $options  Tag options.
 	 * @param object $instance GB tag instance.
-	 * @return int|string|false The pinned entity id, or false when the argument names none.
+	 * @return int|string|false The named entity id, or false when the argument names none.
 	 */
 	public function resolve_root_argument( string $arg, array $options, $instance );
 }

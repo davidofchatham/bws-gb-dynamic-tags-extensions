@@ -59,7 +59,7 @@ equivalence — not the new capability — is what this matrix mostly asserts.
 `limit(2)` as a slot option, `limit[2]` inside `src(...)`. A folded key ranks as its SLOT'S SOURCE in
 the saved string — after `format`, after any tag-level source key, slots ascending; see §F14.7. (It
 LED the whole string while the keys were digits, which is an array-index property JS enumerates
-first — escaping that pin is why the keys are capitals.)
+first — escaping that trap is why the keys are capitals.)
 
 > Verified 2026-08-04 against the 1.17.0 build (`feat/table-tag`): every §F1–§F8 and §F10–§F13 row
 > below is a MEASURED value, not a predicted one. §F9 recorded four DIVERGENCES at that point; the
@@ -788,7 +788,7 @@ read lands on an EMPTY field by design). Post-route rows on `/matrix-post-meta/`
 | F15.7 | terms-mixed | `{{text src:terms,department,limit(1)\|use:key\|key:charter}}` | **EMPTY** | POSITIVE pin now, not a disclosure: `limit(1)` reads the first source (Sales), whose field is empty — the DESIGNED deterministic rule, identical for list-mode and collapsing tags. Slice C is retired |
 
 **Stated exception (ticket 07 — a slot limit binds its own step):** the probative render shape —
-an earlier step pinning a limit with an unlimited later step whose fan EXCEEDS that pin — has no
+an earlier step stating a limit with an unlimited later step whose fan EXCEEDS it — has no
 fixture: no seeded relationship target carries more than one term, so old and new selection render
 identically on every expressible row. Pinned purely instead (`slot-fold-test.php` §P13.6c, five
 rows), per this file's exception convention. The common shape (limit on the LAST step) is already
@@ -929,25 +929,25 @@ The staff ids come from `wp post list --post_type=staff --post_status=publish,dr
 
 Verified 2026-08-29 via `render-tag`. Arm-table membership, columns and branchability are pinned pure in `try-slot-arms-test.php` (§A1–§A5); the WIRING (which template carries a `try_query_fn`, the fn-absent fallthrough) shares the accepted coverage gap `text-test-matrix.md` T8's note records — these rows are its only pins.
 
-## §F20 — a PINNED TERM root, end to end (FW-39, ticket 02)
+## §F20 — a SPECIFIC TERM root, end to end (FW-39, ticket 02)
 
 **VISIBLE at `/matrix-pinned-roots/`** (blueprint v20 — `matrix_pinned_roots` content builder,
-`tools/fixtures/core-structures/blocks.php`). The pin's whole promise is that it resolves the SAME
+`tools/fixtures/core-structures/blocks.php`). The selection's whole promise is that it resolves the SAME
 wherever it is authored, so the page's own field values (its title, "Matrix: Pinned Entity Roots")
-are deliberately unlike the pinned term's ("Sales") — a row that happened to match ambient content
-would pass whether the pin resolved or not. The seeded `department` taxonomy's `sales` term is
+are deliberately unlike the selected term's ("Sales") — a row that happened to match ambient content
+would pass whether the selection resolved or not. The seeded `department` taxonomy's `sales` term is
 resolved by SLUG at fixture build time (`bws_fixture_seeded_term_id()`), never hand-typed, since a
-pin is authored by numeric ID (D9) and a fresh install's term is not guaranteed any particular one.
+selection is authored by numeric ID (D9) and a fresh install's term is not guaranteed any particular one.
 
 | # | Tag | Expected |
 |---|---|---|
-| F20.1 | `{{text src:term,<sales-id>\|use:title}}` | `Sales` — the tracer bullet: pinned, not ambient |
+| F20.1 | `{{text src:term,<sales-id>\|use:title}}` | `Sales` — the tracer bullet: the selected term, not ambient |
 | F20.2 | `{{text use:title}}` | `Matrix: Pinned Entity Roots` — the ambient contrast, same page |
-| F20.3 | `{{text src:term\|use:title}}` (bare, no pin — D2/D8/D33; hand-wire only, nothing offers this) | **empty** — an argless declaring root refuses at the factory seam. The editor's own preview of the same tag reads `[⚠ Term: nothing pinned]` rather than looking like a healthy bare tag (D8) |
-| F20.4 | `{{text src:term,999999\|use:title}}` | **empty** — a pin naming a nonexistent term refuses too; the editor's own preview marks this `term 999999 (missing)` |
+| F20.3 | `{{text src:term\|use:title}}` (bare, no argument — D2/D8/D33; hand-wire only, nothing offers this) | **empty** — an argless declaring root refuses at the factory seam. The editor's own preview of the same tag reads `[⚠ Term: nothing selected]` rather than looking like a healthy bare tag (D8) |
+| F20.4 | `{{text src:term,999999\|use:title}}` | **empty** — an argument naming a nonexistent term refuses too; the editor's own preview marks this `term 999999 (missing)` |
 | F20.5 | `{{try_text A:src(term,<sales-id>);use(title)}}` | `Sales` — the SAME picker's offering resolves identically inside a `try_` attempt (D11, D18) |
-| F20.6 | `{{join mode:template\|A:src(term,<sales-id>);use(title)\|B:src(current);use(title)\|format:%A / %B}}` | `Sales / Matrix: Pinned Entity Roots` — one composed string names the pinned term AND the ambient page, proving they are two independent reads |
-| F20.7 | `{{text src:term,<sales-id>;refs,dept_lead\|use:title}}` | `Tom Associate` — D3: a RELATIONSHIP STEP running off a pinned term root. `dept_lead` (v20, a `relationship` field, max 1) is the one term-meta field in the blueprint answering a POST reference rather than the reverse hop every other term field here carries |
+| F20.6 | `{{join mode:template\|A:src(term,<sales-id>);use(title)\|B:src(current);use(title)\|format:%A / %B}}` | `Sales / Matrix: Pinned Entity Roots` — one composed string names the selected term AND the ambient page, proving they are two independent reads |
+| F20.7 | `{{text src:term,<sales-id>;refs,dept_lead\|use:title}}` | `Tom Associate` — D3: a RELATIONSHIP STEP running off a specific term root. `dept_lead` (v20, a `relationship` field, max 1) is the one term-meta field in the blueprint answering a POST reference rather than the reverse hop every other term field here carries |
 
 **F20.7's field TYPE is load-bearing, not incidental** — a `post_object` field silently read EMPTY through this exact path (a `refs` step off a term-kind source), and `relationship` does not. The GB fact, the measurement and the rule live at [`docs/gb-constraints.md` §GenerateBlocks_Meta_Handler::get_value() drops a SCALAR once single_only is false](../../docs/gb-constraints.md#generateblocks_meta_handlerget_value-drops-a-scalar-once-single_only-is-false) — not restated here.
 
@@ -966,47 +966,47 @@ shape.
 against real seeded content; the entity-lookup REST route's two modes (`bws_entity_lookup_browse_terms()`
 returns every `department` term grouped and ID-prefixed per D15, `bws_entity_lookup_resolve_term()`
 answers a real term's row and `null` for a nonexistent id, registered and correctly `401`s an
-unauthenticated request); `bws_build_preview_label()` on a pinned tag reads `['sku' from Term:
+unauthenticated request); `bws_build_preview_label()` on a tag naming an entity reads `['sku' from Term:
 Sales]`; and the full `verify.php` + `page-snapshots.php` suite (18 pages, including this one)
 against the reseeded testbed, all green.
 
-## §F21 — a PINNED POST root, end to end (FW-39, ticket 03)
+## §F21 — a SPECIFIC POST root, end to end (FW-39, ticket 03)
 
-**Same page as §F20** (`/matrix-pinned-roots/`) — the tracer bullet's twin for the second pinning kind, proving the seam §F20 built is genuinely kind-generic rather than term-shaped, exactly as ticket 03 stated. Reuses EXISTING staff fixture state rather than seeding anything new: `staff-tom-associate` (real id resolved at BUILD TIME via `bws_fixture_seeded_post_id( 'tom-associate', 'staff' )`, D9 — a pin is authored by numeric id) and its own `reports_to` field (→ `staff-jane-partner`, v7) stand in for the "relationship step off the pinned root" row, where §F20.7 needed a purpose-built term-meta field (`dept_lead`) that did not already exist. `post` has no migration half (D13), so there is no converter/`fixture_` corpus equivalent to add here.
+**Same page as §F20** (`/matrix-pinned-roots/`) — the tracer bullet's twin for the second entity kind, proving the seam §F20 built is genuinely kind-generic rather than term-shaped, exactly as ticket 03 stated. Reuses EXISTING staff fixture state rather than seeding anything new: `staff-tom-associate` (real id resolved at BUILD TIME via `bws_fixture_seeded_post_id( 'tom-associate', 'staff' )`, D9 — a selection is authored by numeric id) and its own `reports_to` field (→ `staff-jane-partner`, v7) stand in for the "relationship step off the selected entity" row, where §F20.7 needed a purpose-built term-meta field (`dept_lead`) that did not already exist. `post` has no migration half (D13), so there is no converter/`fixture_` corpus equivalent to add here.
 
 | # | Tag | Expected |
 |---|---|---|
-| F21.1 | `{{text src:post,<tom-id>\|use:title}}` | `Tom Associate` — the tracer bullet: pinned, not ambient |
+| F21.1 | `{{text src:post,<tom-id>\|use:title}}` | `Tom Associate` — the tracer bullet: the selected post, not ambient |
 | F21.2 | `{{text use:title}}` | `Matrix: Pinned Entity Roots` — the ambient contrast, same page |
-| F21.3 | `{{text src:post\|use:title}}` (bare, no pin — D2/D8; hand-wire only, nothing offers this) | **empty** — an argless declaring root refuses at the factory seam, same as §F20.3. The editor's own preview reads `[⚠ Post: nothing pinned]` |
-| F21.4 | `{{text src:post,999999\|use:title}}` | **empty** — a pin naming a nonexistent post refuses too; the editor's own preview marks this `post 999999 (missing)` |
+| F21.3 | `{{text src:post\|use:title}}` (bare, no argument — D2/D8; hand-wire only, nothing offers this) | **empty** — an argless declaring root refuses at the factory seam, same as §F20.3. The editor's own preview reads `[⚠ Post: nothing selected]` |
+| F21.4 | `{{text src:post,999999\|use:title}}` | **empty** — an argument naming a nonexistent post refuses too; the editor's own preview marks this `post 999999 (missing)` |
 | F21.5 | `{{try_text A:src(post,<tom-id>);use(title)}}` | `Tom Associate` — the SAME picker's offering resolves identically inside a `try_` attempt |
-| F21.6 | `{{join mode:template\|A:src(post,<tom-id>);use(title)\|B:src(current);use(title)\|format:%A / %B}}` | `Tom Associate / Matrix: Pinned Entity Roots` — one composed string names the pinned post AND the ambient page |
-| F21.7 | `{{text src:post,<tom-id>;refs,reports_to\|use:title}}` | `Jane Partner` — D3: a RELATIONSHIP STEP running off a pinned POST root, the mirror direction of §F20.7 (a post hopping to a post, rather than a term hopping to one) |
+| F21.6 | `{{join mode:template\|A:src(post,<tom-id>);use(title)\|B:src(current);use(title)\|format:%A / %B}}` | `Tom Associate / Matrix: Pinned Entity Roots` — one composed string names the selected post AND the ambient page |
+| F21.7 | `{{text src:post,<tom-id>;refs,reports_to\|use:title}}` | `Jane Partner` — D3: a RELATIONSHIP STEP running off a specific POST root, the mirror direction of §F20.7 (a post hopping to a post, rather than a term hopping to one) |
 
-**Verified live** (`wp eval` + `render-tag`, admin user, 2026-09-07/08, blueprint v20): every row above against real seeded content; `bws_entity_lookup_browse_posts()` returns every readable `staff` post grouped and ID-prefixed per D15, with a draft's and a private post's row correctly suffixed ` (draft)` / ` (private)` (D18) when browsed as an administrator and both ABSENT for an anonymous request (D19, no per-post check — the status set is derived once per post type); `bws_entity_lookup_resolve_post()` answers a real post's row and `null` for a nonexistent id; `bws_build_preview_label()` on a pinned tag reads `['title' from Post: Tom Associate]`; and the full `verify.php` + `page-snapshots.php` suite (18 pages, including this one) against the reseeded testbed, all green (one unrelated pre-existing failure — GB's own P3 taint-suppression check — reproduces identically on the pre-ticket-03 commit and is not this ticket's regression).
+**Verified live** (`wp eval` + `render-tag`, admin user, 2026-09-07/08, blueprint v20): every row above against real seeded content; `bws_entity_lookup_browse_posts()` returns every readable `staff` post grouped and ID-prefixed per D15, with a draft's and a private post's row correctly suffixed ` (draft)` / ` (private)` (D18) when browsed as an administrator and both ABSENT for an anonymous request (D19, no per-post check — the status set is derived once per post type); `bws_entity_lookup_resolve_post()` answers a real post's row and `null` for a nonexistent id; `bws_build_preview_label()` on a tag naming an entity reads `['title' from Post: Tom Associate]`; and the full `verify.php` + `page-snapshots.php` suite (18 pages, including this one) against the reseeded testbed, all green (one unrelated pre-existing failure — GB's own P3 taint-suppression check — reproduces identically on the pre-ticket-03 commit and is not this ticket's regression).
 
-## §F22 — STEPS run off a pinned root (FW-39, ticket 04)
+## §F22 — STEPS run off a specific entity root (FW-39, ticket 04)
 
-**Same page as §F20/§F21** (`/matrix-pinned-roots/`). D3: a pinning root is a REAL chain root, so hops run off it exactly as off any other root — which is the whole reason pinning belongs on base tags rather than staying a separate tag family. **No engine change was needed for any legal case**: `refs` and `rows` already accept a `term` input, and the refusals below are what `bws_run_step()` already declines — the rule deciding that lives with `BWS_TRAVERSAL_STEP_INPUT_KINDS` in [`traversal-pipeline.php`](../../includes/helpers/traversal-pipeline.php), which is where to read it, not here. The ONE-STEP half is §F20.7 / §F21.7 and is not repeated here; these rows are the two-step chains, the same chain in all three containers, and the refused step with its non-vacuity partner.
+**Same page as §F20/§F21** (`/matrix-pinned-roots/`). D3: a declaring root is a REAL chain root, so hops run off it exactly as off any other root — which is the whole reason entity selection belongs on base tags rather than staying a separate tag family. **No engine change was needed for any legal case**: `refs` and `rows` already accept a `term` input, and the refusals below are what `bws_run_step()` already declines — the rule deciding that lives with `BWS_TRAVERSAL_STEP_INPUT_KINDS` in [`traversal-pipeline.php`](../../includes/helpers/traversal-pipeline.php), which is where to read it, not here. The ONE-STEP half is §F20.7 / §F21.7 and is not repeated here; these rows are the two-step chains, the same chain in all three containers, and the refused step with its non-vacuity partner.
 
 The ids below are resolved at BUILD TIME (`bws_fixture_seeded_term_id()` / `bws_fixture_seeded_post_id()`), never hand-typed, for the reason §F20 states.
 
 | # | Tag | Expected |
 |---|---|---|
-| F22.1 | `{{text src:term,<sales-id>;refs,dept_lead;refs,reports_to\|use:title}}` | `Jane Partner` — TWO steps off the pin: Sales → its `dept_lead` (Tom) → Tom's `reports_to`. Each hop is admitted on the kind the previous one produced, and the pin is only where the chain starts |
-| F22.2 | `{{text src:term,<sales-id>;refs,dept_lead;terms,portal_visibility\|use:title}}` | `All Users` — the literal D3 shape, term → post → term. `portal_visibility` and NOT `department`: jane and tom carry no department terms (§F9.3), so that taxonomy would render empty for a reason having nothing to do with pins |
+| F22.1 | `{{text src:term,<sales-id>;refs,dept_lead;refs,reports_to\|use:title}}` | `Jane Partner` — TWO steps off the selected term: Sales → its `dept_lead` (Tom) → Tom's `reports_to`. Each hop is admitted on the kind the previous one produced, and the selected term is only where the chain starts |
+| F22.2 | `{{text src:term,<sales-id>;refs,dept_lead;terms,portal_visibility\|use:title}}` | `All Users` — the literal D3 shape, term → post → term. `portal_visibility` and NOT `department`: jane and tom carry no department terms (§F9.3), so that taxonomy would render empty for a reason having nothing to do with the root |
 | F22.3 | `{{try_text A:src(term,<sales-id>;refs,dept_lead;refs,reports_to);use(title)}}` | `Jane Partner` — identical to F22.1 inside a `try_` attempt |
 | F22.4 | `{{join mode:template\|A:src(term,<sales-id>;refs,dept_lead;refs,reports_to);use(title)\|B:src(current);use(title)\|format:%A / %B}}` | `Jane Partner / Matrix: Pinned Entity Roots` — the same chain inside a `{{join}}` field, composed with the ambient title. F22.1/F22.3/F22.4 together are the "same chain on a base tag, in a `{{join}}` field and in a `try_` attempt" criterion |
-| F22.5 | `{{text src:term,<sales-id>;terms,department\|use:title}}` (hand-wire only — the editor does not offer this step off a term-kind root) | **empty** — there is no term→term edge. §F20.1 already proves the pin itself resolves, so this row is the STEP being refused, not the pin failing |
-| F22.5b | `{{text src:post,<tom-id>;terms,portal_visibility\|use:title}}` | `All Users` — F22.5's non-vacuity partner: the SAME step type off a pinned POST root runs. Without it F22.5 reads identically to "the `terms` step is broken" |
-| F22.6 | `{{table src:post,<matrix-post-meta-id>\|key:team_members\|1-label:Name\|1-key:name\|2-label:Role\|2-key:role}}` | a 2-row table (`Alice Adams`/`Engineering`, `Bob Brown`/`Operations`) — a `rows` step off a pinned POST root, reading a repeater that lives on a DIFFERENT page. Through `{{table}}` because no base/join/try_ arm assembles a repeater row (§F9.5/§F10.4, a decided divergence rather than a gap here) |
+| F22.5 | `{{text src:term,<sales-id>;terms,department\|use:title}}` (hand-wire only — the editor does not offer this step off a term-kind root) | **empty** — there is no term→term edge. §F20.1 already proves the root itself resolves, so this row is the STEP being refused, not the root failing |
+| F22.5b | `{{text src:post,<tom-id>;terms,portal_visibility\|use:title}}` | `All Users` — F22.5's non-vacuity partner: the SAME step type off a specific POST root runs. Without it F22.5 reads identically to "the `terms` step is broken" |
+| F22.6 | `{{table src:post,<matrix-post-meta-id>\|key:team_members\|1-label:Name\|1-key:name\|2-label:Role\|2-key:role}}` | a 2-row table (`Alice Adams`/`Engineering`, `Bob Brown`/`Operations`) — a `rows` step off a specific POST root, reading a repeater that lives on a DIFFERENT page. Through `{{table}}` because no base/join/try_ arm assembles a repeater row (§F9.5/§F10.4, a decided divergence rather than a gap here) |
 
-**The editor half is pinned PURE, not here.** That the offer off a pin is computed with no render having occurred is exactly what makes it unobservable on a rendered page: `slot-fold-repeater-test.js` drives the control off the shipped config alone (no query, no resolver) and asserts `refs` offered off a pinned term root, `terms` NOT offered off it, `terms` offered off a pinned POST root, and `terms` offered one `refs` hop later — the F22.1/F22.2 chain, offered a step at a time. `fold-chain-compile-test.php` holds the other side: the refused step still COMPILES, so the refusal stays the engine's answer at run rather than a grammar error at parse.
+**The editor half is pinned PURE, not here.** That the offer off a root argument is computed with no render having occurred is exactly what makes it unobservable on a rendered page: `slot-fold-repeater-test.js` drives the control off the shipped config alone (no query, no resolver) and asserts `refs` offered off a specific term root, `terms` NOT offered off it, `terms` offered off a specific POST root, and `terms` offered one `refs` hop later — the F22.1/F22.2 chain, offered a step at a time. `fold-chain-compile-test.php` holds the other side: the refused step still COMPILES, so the refusal stays the engine's answer at run rather than a grammar error at parse.
 
 **Verified live** (`render-tag`, admin user, 2026-09-08, blueprint v20): every row above against real seeded content, each string measured rather than predicted.
 
-**The `term_*` MIGRATION's rows are not here.** Converting an unpinned `{{term_*}}` tag to a base tag emits chain wire every section above already covers; what the migration has to show is something else entirely — that the old tag and the tag it becomes differ in ONE DIRECTION, across every page context. That is a context-indexed measurement, so it lives with the context rows: [`context-test-matrix.md`](context-test-matrix.md) §C-CONV.
+**The `term_*` MIGRATION's rows are not here.** Converting an argless `{{term_*}}` tag to a base tag emits chain wire every section above already covers; what the migration has to show is something else entirely — that the old tag and the tag it becomes differ in ONE DIRECTION, across every page context. That is a context-indexed measurement, so it lives with the context rows: [`context-test-matrix.md`](context-test-matrix.md) §C-CONV.
 
 ## Fail triage
 

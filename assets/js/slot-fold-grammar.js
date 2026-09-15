@@ -301,7 +301,7 @@
 				segment += PART_SEP + step.arg;
 			}
 			// Guard on null/undefined, NEVER truthiness: `0` means unlimited and must
-			// survive as a literal, or an author who pinned "all" silently reverts the
+			// survive as a literal, or an author who chose "all" silently reverts the
 			// next time the contextual default changes.
 			if ( null !== step.limit && void 0 !== step.limit && '' !== step.limit ) {
 				var n = parseInt( step.limit, 10 );

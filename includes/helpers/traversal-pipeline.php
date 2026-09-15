@@ -263,18 +263,18 @@ function bws_run_traversal( array $sources, array $steps, $reader = null, $gate 
  * render path first and an editor change second, in that order.
  *
  * @invariant THIS TABLE IS THE WHOLE OF STEP ADMISSION, AND NOTHING ELSE DECIDES IT. A
- * PINNING root (FW-39) is a real chain root and gets no rule of its own: the factory hands
+ * DECLARING root (FW-39) is a real chain root and gets no rule of its own: the factory hands
  * back the same `{kind, id}` shape every other root does, so a step off `term,34` is
- * admitted or refused by this list reading `term` and by nothing about the pin. That is
+ * admitted or refused by this list reading `term` and by nothing about the argument. That is
  * what makes `term,34;refs,<rel>;terms,<tax>` legal with no engine change, and what makes
  * a `terms` step straight off a term root refused — there is no term→term edge, which is
- * this table's answer rather than a pinning rule. A second gate anywhere, editor or render,
- * would be the drift the derive above exists to prevent; a pinned root's kind being
+ * this table's answer rather than a root-argument rule. A second gate anywhere, editor or render,
+ * would be the drift the derive above exists to prevent; a declaring root's kind being
  * knowable from the wire is BWS_FOLD_PARSE_TIME_ROOT_KINDS' business and changes only WHEN
  * this list is consulted, never what it says.
  *
  * @since 1.17.0
- * @since 1.20.0 The pinning-root clause above (FW-39) — no text here changed for it, which
+ * @since 1.20.0 The root-argument clause above (FW-39) — no text here changed for it, which
  *               is the point.
  */
 const BWS_TRAVERSAL_STEP_INPUT_KINDS = array(
@@ -474,7 +474,7 @@ function bws_pipeline_rows_to_sources( $raw ) {
  *      src:site → { kind:'site' }; src:ref/registry sources → post via the
  *      registry / ref step (delegated by the caller — factory returns the
  *      current-context base they step FROM, unless the token names a distinct
- *      pinned/registry source).
+ *      named/registry source).
  *   2. loop_ctx.in_loop → THE LOOP'S OWN ITEM, whatever kind it is (loop wins over
  *      ambient — a bare tag inside a query loop reads the ITEM, not the archive):
  *      a post → { kind:'post' }, a term → { kind:'term' }, a user → { kind:'user' },
@@ -593,7 +593,7 @@ function bws_resolve_base_source( array $options, $instance, $signals = null ) {
 	//    GB get_id($options,'post') = get_the_ID() = the stale first-loop post on
 	//    an archive (probe 48418), so today src:ref reads a relationship field off
 	//    an arbitrary leaked post. Ambient-term-as-base is V7 applied to ref, NOT
-	//    the deferred parity gap (that is PINNING a specific NON-ambient primary).
+	//    the deferred parity gap (that is NAMING a specific NON-ambient primary).
 	//    Singular pages: queried_kind null → falls through → post base (unchanged).
 	if ( 'term' === ( $signals['queried_kind'] ?? '' ) && ! empty( $signals['queried_id'] ) ) {
 		return array( 'kind' => 'term', 'id' => (int) $signals['queried_id'] );
@@ -787,7 +787,7 @@ function bws_capture_ambient_signals( $instance ) {
  * This function declines in three distinct situations, and they are three different
  * QUESTIONS rather than three shapes of one:
  *
- *   0. A PINNING ROOT WAS GIVEN NO PIN.        REFUSES (FW-39; see below).
+ *   0. A DECLARING ROOT WAS GIVEN NO ARGUMENT. REFUSES (FW-39; see below).
  *   1. OUR REGISTRY DID NOT LOAD.  Stays a NULL — the caller falls through to ambient.
  *      The principle, and it is the whole reason this one is different: *our registry
  *      did not load is a fact about the PLUGIN, not a fact about the wire.* Refusing
@@ -816,7 +816,7 @@ function bws_capture_ambient_signals( $instance ) {
  * an argument and was given none either REFUSES or resolves by a rule its owner states
  * (SourceInterface::ROOT_ARGLESS_REFUSE / _OWNER_RESOLVES) — it never falls through to
  * whatever the page happens to be about. This is [I15] at the root layer, and its axis is
- * here: a half-configured pin must look broken rather than look right with the wrong
+ * here: a half-configured root must look broken rather than look right with the wrong
  * values, because a plausible wrong answer is the failure an author cannot see.
  *
  * THE POLICY LIVES HERE AND NOT IN THE SOURCE. TaxonomyTerm::resolve_id() has a permanent
@@ -825,7 +825,7 @@ function bws_capture_ambient_signals( $instance ) {
  * source would blank every stored `{{term_*}}` tag on the site; putting it here reaches
  * only wire that names a root, which is the only wire the policy is about.
  *
- * A PIN THAT NAMES NOTHING IS ALSO TERMINAL. resolve_root_argument() returning false does
+ * AN ARGUMENT THAT NAMES NOTHING IS ALSO TERMINAL. resolve_root_argument() returning false does
  * not fall back to resolve_id(): `term,34` after term 34 is deleted renders blank, it does
  * not silently become the term the visitor is looking at.
  *
@@ -863,7 +863,7 @@ function bws_factory_registry_source( $src, array $options, $instance ) {
 				return array( 'kind' => BWS_SOURCE_KIND_UNRESOLVED );
 			}
 		} else {
-			// Pinned. Terminal either way: a pin naming nothing is not a licence to read
+			// Argument given. Terminal either way: one naming nothing is not a licence to read
 			// the ambient entity.
 			$id = $source->resolve_root_argument( $arg, $options, $instance );
 			if ( ! $id ) {

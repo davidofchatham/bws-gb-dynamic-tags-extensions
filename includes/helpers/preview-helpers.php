@@ -709,12 +709,12 @@ function bws_preview_tax_label( string $tax ): string {
 }
 
 /**
- * The author-facing segment for one PINNED root — "Term: News" (D20, FW-39).
+ * The author-facing segment for one root's ARGUMENT — "Term: News" (D20, FW-39).
  *
  * THREE distinct answers, and they are three different questions:
  *   - the argument resolves to a named entity  → "<Label>: <Name>" ("Term: News")
  *   - the argument resolves to NOTHING         → "<root> <arg> (missing)" — a deleted
- *     term, so the author can find and fix the pin rather than read a silent blank.
+ *     term, so the author can find and repoint the tag rather than read a silent blank.
  *   - the argument cannot be READ AT ALL (not numeric, or the resolver hands back
  *     something with no name) → the root and argument as typed ("term abc"), because
  *     naming nothing is a worse answer than showing what was typed.
@@ -735,7 +735,7 @@ function bws_preview_tax_label( string $tax ): string {
  * be worse than the token.
  *
  * @since 1.20.0
- * @param string        $root     The pinning root token ('term').
+ * @param string        $root     The declaring root's token ('term').
  * @param string        $arg      The root's argument, verbatim.
  * @param string        $label    What the argument means to an author ("Term").
  * @param callable|null $resolver fn( int $id ): object|null|WP_Error — the entity, or a
@@ -744,8 +744,8 @@ function bws_preview_tax_label( string $tax ): string {
  *                                and the caller's own default may differ.
  * @return string
  */
-if ( ! function_exists( 'bws_preview_pinned_entity_segment' ) ) {
-function bws_preview_pinned_entity_segment( string $root, string $arg, string $label, $resolver = null ): string {
+if ( ! function_exists( 'bws_preview_root_entity_segment' ) ) {
+function bws_preview_root_entity_segment( string $root, string $arg, string $label, $resolver = null ): string {
 	// SPACE, NOT THE WIRE'S COMMA. `term,34` is the serialized form; this string is prose an
 	// author reads in a preview, and the comma there reads as punctuation inside a sentence
 	// rather than as the separator it is on the wire. The preview never round-trips back
@@ -808,7 +808,7 @@ function bws_preview_pinned_entity_segment( string $root, string $arg, string $l
  *   - an unknown STEP slug, at any position (BWS_FOLD_STEP_TYPES owns that definition)
  *   - an unregistered ROOT token
  *   - a RETIRED source token (BWS_FOLD_RETIRED_SRC_TOKENS), which has a NAMED REPAIR
- *   - a PINNING ROOT with NO ARGUMENT (D8, FW-39) — decidable from the wire the same way
+ *   - a DECLARING ROOT with NO ARGUMENT (D8, FW-39) — decidable from the wire the same way
  *     the others are: the root is registered and declares an argument, and `$root_arg`
  *     is simply empty. Exempt when the declaration states ROOT_ARGLESS_OWNER_RESOLVES —
  *     that root is not unfinished, it answers a bare token by its own stated rule.
@@ -826,9 +826,9 @@ function bws_preview_pinned_entity_segment( string $root, string $arg, string $l
  * @param array $missing Out-param: slugs of fanning steps with no argument, as
  *                       `array( 'refs' => true, 'terms' => true, 'rows' => true )`.
  * @param array $inert   Out-param: what makes this chain resolve to nothing, as at most one
- *                       of `retired`/`root`/`step`/`unpinned` keyed to the offending token.
+ *                       of `retired`/`root`/`step`/`no_arg` keyed to the offending token.
  *                       Worded by bws_preview_inert_warning(), never here.
- * @since 1.20.0 `entity_resolvers` param + PINNED-ROOT naming, and the `unpinned` inert
+ * @since 1.20.0 `entity_resolvers` param + ROOT-ARGUMENT naming, and the `no_arg` inert
  *               reason (D8/D20, FW-39).
  * @return string[] Ordered segments (root name, one per relationship step, site, one per
  *                  term step). Space-join them for a source part.
@@ -896,13 +896,13 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 			$inert['root'] = $root;
 		}
 	}
-	// A PINNING ROOT DECLARED BUT NOT PINNED (D8, FW-39) is DECIDABLE FROM THE WIRE
+	// A ROOT THAT DECLARES AN ARGUMENT AND WAS GIVEN NONE (D8, FW-39) is DECIDABLE FROM THE WIRE
 	// ALONE — the argument is either there or it is not — which is exactly this
 	// function's own bar for flagging (see the header note on what may and may not be
 	// detected here). `term` is normally excluded from this walk via $internal_roots
 	// (a bare `term` root is the internal spelling of the ambient read, and a bare tag
 	// carries no root token at all to check against), so it is read directly rather
-	// than through that list: [I15] at the root layer says a half-configured pin must
+	// than through that list: [I15] at the root layer says a half-configured root must
 	// look broken, and an internal-root exemption written for the ambient case must not
 	// accidentally also hide the one wire shape that IS a configuration mistake.
 	//
@@ -917,15 +917,15 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 	// read the same declaration independently on purpose — see the header note on why a
 	// second falsy/WP_Error-shaped check stays inline rather than centralized here.
 	if ( '' === $root_arg && '' !== $root && class_exists( '\BWS\DynamicTags\SourceRegistry' ) ) {
-		$pin_check = \BWS\DynamicTags\SourceRegistry::get_source( $root );
-		if ( $pin_check ) {
-			$pin_decl = $pin_check->get_root_argument();
-			$has_pin_control = is_scalar( $pin_decl['label'] ?? null ) && '' !== trim( (string) $pin_decl['label'] )
-				&& is_scalar( $pin_decl['control'] ?? null ) && '' !== trim( (string) $pin_decl['control'] );
-			$owner_resolves = is_scalar( $pin_decl['argless'] ?? null )
-				&& \BWS\DynamicTags\SourceInterface::ROOT_ARGLESS_OWNER_RESOLVES === (string) $pin_decl['argless'];
-			if ( $has_pin_control && ! $owner_resolves ) {
-				$inert['unpinned'] = $root;
+		$arg_source = \BWS\DynamicTags\SourceRegistry::get_source( $root );
+		if ( $arg_source ) {
+			$arg_decl = $arg_source->get_root_argument();
+			$has_arg_control = is_scalar( $arg_decl['label'] ?? null ) && '' !== trim( (string) $arg_decl['label'] )
+				&& is_scalar( $arg_decl['control'] ?? null ) && '' !== trim( (string) $arg_decl['control'] );
+			$owner_resolves = is_scalar( $arg_decl['argless'] ?? null )
+				&& \BWS\DynamicTags\SourceInterface::ROOT_ARGLESS_OWNER_RESOLVES === (string) $arg_decl['argless'];
+			if ( $has_arg_control && ! $owner_resolves ) {
+				$inert['no_arg'] = $root;
 			}
 		}
 	}
@@ -985,25 +985,25 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 		$segments[] = 'Current';
 	}
 
-	// A PINNED ROOT (D20, FW-39) names the ENTITY, not the root's own label — "Term: News",
-	// never "Term" for every tag regardless of which one is pinned. The argument's LABEL
+	// A ROOT WITH AN ARGUMENT (D20, FW-39) names the ENTITY, not the root's own label — "Term: News",
+	// never "Term" for every tag regardless of which entity was selected. The argument's LABEL
 	// is read off the same declaration the picker itself is authored against
 	// (`SourceInterface::get_root_argument()`), never a second hand-typed map — a map
-	// keyed only on 'term' would silently stop applying the moment a second pinning root
+	// keyed only on 'term' would silently stop applying the moment a second declaring root
 	// (`post`, D13) ships with its own label, and nothing would say so. `term` stays in
-	// $internal_roots below for a BARE `src:term`: with no argument to pin, `$root_arg`
+	// $internal_roots below for a BARE `src:term`: with no argument, `$root_arg`
 	// is '', so this NAMING branch is skipped — but skipped is not silent. The INERT
-	// check above (the `unpinned` reason) already flagged that exact shape, per D8: a
+	// check above (the `no_arg` reason) already flagged that exact shape, per D8: a
 	// bare `term` root refuses at render, and the preview says so rather than reading
 	// like a healthy bare tag.
 	$root_arg_label = '';
 	if ( '' !== $root_arg && class_exists( '\BWS\DynamicTags\SourceRegistry' ) ) {
-		$pin_source = \BWS\DynamicTags\SourceRegistry::get_source( $root );
-		$decl       = $pin_source ? $pin_source->get_root_argument() : array();
+		$arg_source = \BWS\DynamicTags\SourceRegistry::get_source( $root );
+		$decl       = $arg_source ? $arg_source->get_root_argument() : array();
 		$root_arg_label = is_scalar( $decl['label'] ?? null ) ? trim( (string) $decl['label'] ) : '';
 	}
 	if ( $name_roots && '' !== $root_arg_label ) {
-		$segments[] = bws_preview_pinned_entity_segment(
+		$segments[] = bws_preview_root_entity_segment(
 			$root,
 			$root_arg,
 			$root_arg_label,
@@ -1024,8 +1024,8 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 		// The keys the ROOT ENUM refuses are refused HERE TOO, and for the same reasons,
 		// or the preview would name in author terms exactly what the authoring surface is
 		// written to keep out of an author's vocabulary: `post`/`term` are the INTERNAL
-		// spellings of the ambient entity, and BOTH are now also PINNING roots (FW-39) —
-		// a bare one never reaches the `if` just below at all, because the `unpinned` inert
+		// spellings of the ambient entity, and BOTH are now also DECLARING roots (FW-39) —
+		// a bare one never reaches the `if` just below at all, because the `no_arg` inert
 		// check above already flagged it and $segments already holds a warning, not a plain
 		// label. This branch's exclusion still matters for what it prevents: a bare
 		// `post`/`term` naming itself here on top of that warning would repeat the same fact
@@ -1080,12 +1080,12 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
  * The slot form drops the leading capital and the possessive noun, because the letter and the
  * bracket prefix already supply both (`⚠ Join: B unknown source 'currnet'`).
  *
- * An UNPINNED pinning root (D8, FW-39) is worded plainly rather than as "unknown" or
- * "unsupported" — it IS a known, registered, offered root; it simply has nothing pinned yet,
+ * A DECLARING root with NO ARGUMENT (D8, FW-39) is worded plainly rather than as "unknown" or
+ * "unsupported" — it IS a known, registered, offered root; nothing has been selected for it yet,
  * which is a different fact from every other reason a chain resolves to nothing here.
  *
  * @since 1.17.0
- * @since 1.20.0 The `unpinned` reason (D8, FW-39).
+ * @since 1.20.0 The `no_arg` reason (D8, FW-39).
  * @param array $inert Report from bws_preview_source_segments()'s out-param.
  * @param bool  $slot  True for the multislot phrasing (detail alone, no leading capital).
  * @return string Warning text, or '' when the chain is not inert.
@@ -1105,11 +1105,11 @@ function bws_preview_inert_warning( array $inert, bool $slot = false ): string {
 	if ( isset( $inert['step'] ) ) {
 		return ( $slot ? 'unknown source step \'' : 'Unknown source step \'' ) . $inert['step'] . '\'';
 	}
-	if ( isset( $inert['unpinned'] ) ) {
+	if ( isset( $inert['no_arg'] ) ) {
 		// D8's editor-side mirror: this root REFUSES with no argument (it does not
 		// degrade to the ambient entity), so the preview says so rather than staying
 		// silent — the failure an author is least able to see, per [I15].
-		return $slot ? 'nothing pinned' : ucfirst( $inert['unpinned'] ) . ': nothing pinned';
+		return $slot ? 'nothing selected' : ucfirst( $inert['no_arg'] ) . ': nothing selected';
 	}
 	return '';
 }
@@ -1348,7 +1348,7 @@ function bws_build_preview_label( array $options, string $template ): string {
 				// falsy/WP_Error check owned only by the preview. `post` has no equivalent
 				// "is this post real" helper to route through (D13: no legacy read path to
 				// keep compatible with, unlike term's), so it takes bare `get_post` — D20's
-				// own stated default, and `bws_preview_pinned_entity_segment()` already
+				// own stated default, and `bws_preview_root_entity_segment()` already
 				// treats a null return as "missing" without a WP_Error check to make.
 				'entity_resolvers' => array(
 					'term' => 'bws_get_validated_term',

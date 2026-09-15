@@ -39,7 +39,7 @@
  * census (gb-trust-boundary-test.php scans the whole tree for exactly this reason: two
  * named predicate functions are two census sites, one branching callback would be one).
  * EVERY REGISTERED taxonomy and post type is a candidate, not public-only (D19): a
- * public-only filter would hide the private editorial taxonomies and post types pinning
+ * public-only filter would hide the private editorial taxonomies and post types selection
  * exists to reach.
  *
  * @since 1.20.0
@@ -141,7 +141,7 @@ function bws_entity_lookup_kind_readable_predicates(): array {
 
 /**
  * `term` kind-level gate (D19). `edit_posts` is generous by DESIGN: it covers every
- * ordinary editor, because a pinned term is exactly as reachable to them as a pinned
+ * ordinary editor, because a selected term is exactly as reachable to them as a selected
  * relationship field is — the per-TAXONOMY filter (`bws_entity_lookup_taxonomy_readable()`)
  * is what actually narrows the list to what they may see; this predicate answers "may this
  * user use the picker AT ALL", not "which rows".
@@ -172,7 +172,7 @@ function bws_entity_lookup_post_kind_readable(): bool {
  * Whether the current user may see terms of ONE taxonomy — the row-level narrowing D19
  * asks for on top of the kind-level gate above.
  *
- * `assign_terms` rather than `edit_terms`/`manage_terms`: pinning a term is closer to
+ * `assign_terms` rather than `edit_terms`/`manage_terms`: selecting a term is closer to
  * assigning one to content than to administering the taxonomy itself, and a contributor
  * who may tag a post with a term is the intended floor for browsing it here. A taxonomy
  * with no registered capabilities (the common case — most custom taxonomies never
@@ -217,9 +217,9 @@ function bws_entity_lookup_post_type_readable( $post_type ): bool {
  * who may edit this post type's posts may see its unpublished ones, matching WordPress's
  * own list-table posture. `private` rides its own, stricter `read_private_posts` cap,
  * because a private post is deliberately hidden from ordinary editors, not merely
- * unfinished. `trash` is EXCLUDED outright — a trashed post is not a candidate to pin,
+ * unfinished. `trash` is EXCLUDED outright — a trashed post is not a candidate to select,
  * which is a narrower design choice than "still exists" (resolve_root_argument() on
- * CurrentPost resolves a trashed post that was already pinned; this function governs only
+ * CurrentPost resolves a trashed post that was already selected; this function governs only
  * what the BROWSE list offers going forward).
  *
  * A DIFFERENT AXIS FROM bws_source_gate() (traversal-pipeline.php), deliberately, not a
@@ -490,7 +490,7 @@ function bws_entity_lookup_browse_posts( string $search = '', string $post_type_
  * RESOLVE mode for `post` — one id in, one row (or null) out. Mirrors
  * bws_entity_lookup_resolve_term()'s shape exactly: re-derives the row through the SAME
  * shaper the browse list uses (bws_entity_lookup_post_row()), and re-checks BOTH gates a
- * pin outside the current browse could have moved past — its post type's readability, and
+ * selection outside the current browse could have moved past — its post type's readability, and
  * its OWN status against that post type's current status set — so a post whose type was
  * un-shared, or whose status a capability change no longer covers, resolves to null
  * exactly as a deleted one does, rather than showing a reopen label for something already
@@ -522,7 +522,7 @@ function bws_entity_lookup_resolve_post( int $id ) {
 
 /**
  * The ONE shaper of a post into a picker row — "#1692 Hello world!" (D15), grouped by post
- * type, with a ` (<status>)` suffix on anything not published (D18: "pinning a draft is a
+ * type, with a ` (<status>)` suffix on anything not published (D18: "selecting a draft is a
  * real authoring case; doing it unknowingly is not").
  *
  * `scope` is the post-type SLUG — the machine handle the field picker matches against the
