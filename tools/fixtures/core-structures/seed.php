@@ -532,6 +532,68 @@ if ( ! empty( $manifest['elements'] ) && post_type_exists( 'gp_elements' ) ) {
 }
 
 // ---------------------------------------------------------------------------
+// 4d. WooCommerce products — the PRODUCT corpus (v21, extended v22, FW-100).
+// ---------------------------------------------------------------------------
+// Seeded through WooCommerce's OWN CRUD rather than through section 4's posts loop,
+// and that is not a style preference. `/matrix-products/` queries through
+// wc_get_products(), which reads the `wc_product_meta_lookup` table and requires a
+// `product_type` term and a resolved `_price`; wp_insert_post() writes none of the
+// three. A hand-built product post therefore seeds a loop that runs zero times, and
+// the page reads as a broken fixture instead of as the refusal it exists to show.
+//
+// Looked up by SKU, not by post_name: WooCommerce already enforces SKU uniqueness, so
+// wc_get_product_id_by_sku() is the idempotency check the platform gives us. Section 4
+// needs its explicit status list for the same job; here there is nothing to get wrong.
+//
+// Skips cleanly when WooCommerce is absent, exactly as the pattern and element sections
+// skip — the fixture is inert rather than broken, and says so.
+$product_ids = array();
+if ( ! empty( $manifest['products'] ) && class_exists( 'WC_Product_Simple' ) ) {
+	foreach ( $manifest['products'] as $slug => $def ) {
+		$existing = (int) wc_get_product_id_by_sku( $def['sku'] );
+		$product  = $existing ? wc_get_product( $existing ) : null;
+		if ( ! $product instanceof WC_Product ) {
+			$product = new WC_Product_Simple();
+		}
+
+		// A product carrying a `content_builder` gets the built blocks APPENDED to its
+		// prose description rather than replacing it (v22): the prose is what makes the
+		// page read as a product to a human eyeballing it, and the blocks are the
+		// ambient-surface rows. WooCommerce renders the description through `the_content`
+		// on the single-product template, so this is the product's own body.
+		$description = $def['description'];
+		if ( ! empty( $def['content_builder'] ) ) {
+			$description .= "\n\n" . bws_fixture_build_page_content( $def['content_builder'] );
+		}
+
+		$product->set_name( $def['name'] );
+		$product->set_slug( $def['slug'] );
+		$product->set_sku( $def['sku'] );
+		$product->set_description( $description );
+		$product->set_regular_price( $def['regular_price'] );
+		$product->set_price( $def['regular_price'] );
+		$product->set_status( 'publish' );
+		// Both are query PREDICATES, not display settings: wc_get_products() applies the
+		// catalog visibility taxonomy, and a product left at the CRUD default would be
+		// filtered out of the very loop it is seeded for.
+		$product->set_catalog_visibility( 'visible' );
+		$product->set_stock_status( 'instock' );
+
+		$product_ids[ $slug ] = (int) $product->save();
+
+		// Written AFTER save(), because an unsaved product has no id to hang meta on.
+		// update_post_meta and not a CRUD setter: the point of §C-PROD.3 is that a
+		// product custom field is ordinary postmeta.
+		foreach ( (array) ( isset( $def['meta'] ) ? $def['meta'] : array() ) as $meta_key => $meta_value ) {
+			update_post_meta( $product_ids[ $slug ], $meta_key, $meta_value );
+		}
+	}
+	$log( 'products: ' . count( $product_ids ) . ' upserted' );
+} elseif ( ! empty( $manifest['products'] ) ) {
+	$log( 'products: SKIPPED — WooCommerce inactive (the /matrix-products/ loop will render nothing)' );
+}
+
+// ---------------------------------------------------------------------------
 // 5. Post fields (ACF) + plain post meta.
 // ---------------------------------------------------------------------------
 foreach ( $manifest['post_fields'] as $slug => $fields ) {

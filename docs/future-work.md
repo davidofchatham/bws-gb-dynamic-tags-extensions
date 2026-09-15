@@ -415,7 +415,9 @@ Progress: v1 shipped 1.13.0 — ACF + sub-fields + options-page + term-meta + re
 
 Open: v2 type-priority (recommend-divider or multi-select Filter 2; `ref`→relationship+post_object; `src:ref` stepped-to-PT scope; smarter Filter-1 preset; dynamic label on `ref`; custom combobox widget for reopen-highlight); v3 Pie Calendar; v-future pick-a-post-to-scan.
 
-Blocked by: —  •  Interacts with: FW-14, FW-20, FW-131 (a pinned user would want the same narrowing the pinned term and post got)
+Open, added 2026-09-14 from FW-100: **whether PROTECTED or UNREGISTERED postmeta should be offerable, and to whom.** The list offers neither today, which is correct by default and is why nobody had to decide it. FW-100 gave it a first concrete population — a WooCommerce product's own fields (`_price`, `_sku`, `_stock_status`, …) are all underscore-prefixed postmeta and WooCommerce registers none of them, measured in `docs/coresident/woocommerce.md`, so on a product every field the author might want is invisible to the picker while readable by typing the key. It lands here rather than in its own row because this item already owns what the list offers, and because the question is inseparable from the permission dimension this item also owns: "protected" is WordPress's word for "not for arbitrary editing by whoever can edit the post", so any offering is a capability decision, not a display one.
+
+Blocked by: —  •  Interacts with: FW-14, FW-20, FW-131 (a pinned user would want the same narrowing the pinned term and post got), FW-132 (a record-side read would want its own keys offered from somewhere too)
 
 #### FW-14 — Field-selector post-v1 follow-ups
 
@@ -619,18 +621,6 @@ Open: Whether to carry a second version record outside `tools/` (a drift pair) o
 
 Blocked by: decision:second record vs generate from env-versions.php  •  Interacts with: FW-96 (the other consumer of the same version record)
 
-#### FW-100 — Product-shaped loop items are unrecognized, and WooCommerce loops now render empty
-
-Query-loop item-shape recognition (1.19.0) reads four shapes — post, term, user, repeater row — and refuses everything else, so a tag inside a WooCommerce product loop now renders nothing where it used to render something by coincidence.
-
-Detail home: `.scratch/plans/product-loop-item-recognition.md` (new) + `bws_classify_loop_item()` PHPDoc (the axis)
-
-Progress: Accepted as a regression, not hidden: measured 2026-08-26 that `WooCommerce_Query` emits a bare anonymous `(object)['id' => …, 'name' => …]` record with no class or marker, satisfying no recognition arm. The old behaviour worked only because a WooCommerce product id happens to equal a post id — the same coincidence that hid the term-id leak (#123, closed) — so an unrecognized shape must say nothing ([I15]). WooCommerce 11.1.0 landed on the fixture site 2026-09-14, unpopulated, and the snapshot baseline was re-captured to absorb its chrome — measured there: it moves all 19 pages and no rendered tag among them. No product fixture and no matrix row yet, so `loop-item-classify-test.php` §C1.13 still pins only that the shape is refused, against a hand-built record rather than one GB Query Enhancements emitted.
-
-Open: What marker identifies a product record, given a bare `id` is the weakest marker there is. Whatever ships must stay SHAPE-keyed, never vendor-keyed.
-
-Blocked by: decision:what marker identifies a product record  •  Interacts with: FW-97 (largely discharged — Woo's own chrome is already in the baseline, so a product fixture on a NEW page moves no existing one), [I15]
-
 #### FW-105 — The raw search query is unreachable on a core-only site
 
 Since 1.19.0 `{{title}}` on search results returns core's formatted heading rather than the bare query string, and no new tag route to the bare query shipped with that pass.
@@ -678,6 +668,18 @@ Progress: Not started, and the machinery it needs already shipped — a root dec
 Open: two residues FW-39 left that are NOT about the user kind, parked here for want of a better home — ref-step decoupling (a per-`src` ref option), and where the "specific-resource + site fallback" case belongs (a `try_` attempt via `try_allow_site_slot`, not a `try_term_` form). Split either out if it grows past a line.
 
 Blocked by: —  •  Interacts with: FW-13 (a pinned user would want the same narrowing, and the discovery envelope has no user kind), FW-9 (the per-kind option surface its residue tracks)
+
+#### FW-132 — A loop item's RECORD-SIDE values (price, sale flag, add-to-cart URL) are unreachable
+
+A recognized product loop item answers the `post` kind and everything downstream reads the POST. The item's own computed values — `price_html`, `regular_price`, `sale_price`, `on_sale`, `add_to_cart_url`, `average_rating` and the rest of the 26-key record — have no database column behind them and are reachable through none of our tags.
+
+Detail home: `docs/coresident/gb-query-enhancements.md` §Its Product Query's loop item is a 26-key record naming a post (the measured record) + this row
+
+Progress: Deliberately out of scope for FW-100 (1.20.0), which is why this row exists rather than an omission. The query extension's own product tags serve every one of these values today, so nothing is unreachable on the page — only unreachable through our vocabulary. It would be the first case of a ROW-STYLE read (read `$item[$key]`, the repeater-row arm's shape) layered over an item classified as a `post`, which is a real seam question and not a new option: the two kinds currently mean different read routes and this would be an item that wants both.
+
+Open: Whether it should exist at all, given the other plugin's tags already serve it and `{{text}}` reading a vendor's computed key would be the vendor-vocabulary coupling FW-100 spent its whole design avoiding. If it does, whether the route is a new kind, a `row`-arm fallback on a `post`-classified item, or an opt-in option.
+
+Blocked by: decision:should record-side reads exist at all  •  Interacts with: FW-100 (closed — the recognizer this would layer on), FW-13 (the picker would have to offer these keys from somewhere)
 
 ### Testing & infrastructure
 
@@ -1158,6 +1160,7 @@ Append-only ledger of closed, shipped, or cut work — both `FW-N` items deleted
 | FW-87 | Limits bound usable results — the remaining slices | Shipped 1.18.0, reshaped in the build: the 2026-08-21 determinism reversal redefined "usable" as a source property (resolvable × exists × visible, field population removed), retiring slice C outright and folding slice B in. Open residue went to FW-88/FW-89 | CHANGELOG 1.18.0; ADR 0007; [I19]; `docs/design-history/deterministic-source-selection.md` |
 | FW-94 | Loop-context identifiers follow the vocabulary | Shipped 1.19.0: `bws_get_loop_row_context()`→`bws_get_loop_item_context()`, `row_post_id`→`item_post_id`, across 64 sites in one change. Acknowledged break, no shim. Old names deliberately survive in CHANGELOG, design-history, debug-probe transcripts, and this ledger's own record | CHANGELOG 1.19.0; `bws_get_loop_item_context()` PHPDoc; `docs/plugin-integration.md` §Field helpers |
 | FW-103 | Page snapshots shift when a co-resident plugin toggles | Fixed, closed 2026-08-28: the normalizer stopped capturing the document head; `env-versions.php` now records the active plugin set so a toggle is reported as a warning instead of silently absorbed | `tools/test/page-snapshots.php` rule 8; `docs/update-triggers.md` §Page-snapshot instrument |
+| FW-100 | Product-shaped loop items are unrecognized, and WooCommerce loops render empty | Fixed, unreleased (1.20.0). The recognizer learned a FIFTH accepting shape: an object-shaped item that NAMES A POST, established by evidence the DATABASE agrees with rather than by any vendor vocabulary — an `id` plus a `slug` the post's `post_name` equals, with a `permalink` (when the item carries one) that must not contradict the post's own. A WooCommerce product item is one instance of that shape and the code never says so. The arm runs LAST, after term and user, because `id` is the weakest of the three keys; a recognized item answers the existing `post` kind, so the gate, the field reads and the traversal pipeline are untouched. Measured by the flip: `loop-test-matrix.md` §QLP1.1/1.2 went from empty to the product's name and permalink against the v21 snapshot baseline, with the two non-vacuity rows and both other loop kinds unmoved. Ambient product surfaces were MEASURED rather than assumed (§C-PROD, a new snapshot page) and needed no code, as expected but not as evidence. Two capabilities deliberately not built, each with a home: record-side reads at FW-132, pickable protected meta at FW-13 | CHANGELOG 1.20.0; `bws_classify_loop_item()` + `bws_loop_item_post_id()` PHPDoc (the axis); `tools/test/loop-item-classify-test.php` §C9; `docs/coresident/woocommerce.md`; `docs/coresident/gb-query-enhancements.md`; `tools/test/loop-test-matrix.md` §QLP; `tools/test/context-test-matrix.md` §C-PROD |
 | FW-121 | "inherit" names the sibling relation everywhere it ships, and the parent relation needs the word | Shipped, unreleased — renamed the SIBLING carry (three user-facing strings, four identifiers, the `'inherit'` skip-reason token, ~140 sibling-axis sites across ~15 files, ~27 live-doc sites) from `inherit` to **carries over**, freeing `inherit` for FW-53's future `src(inherit)` PARENT relation. Landed STANDALONE and FIRST, ahead of `src(inherit)`. Fixture row labels + page-snapshot baseline split into a second commit so the rename's own snapshot diff stayed empty; a code-review pass then caught and fixed five missed sites plus a broken array alignment | CHANGELOG (Unreleased); commits `d6b29ec`, `8c81529`, `4eac93b`; `.scratch/plans/table-tag.md` §H |
 | FW-130 | An ownership opt-in converted foreign wire without translating its option values | Closed, unreleased — reframed in the grilling from KEY-level to VALUE-level: an option key can be one of ours while its value belongs to whoever consumes it, which is why the ownership guard's key-only `unknown_options` check passed the offending wire. Fixed with one `bws_map_gb_link_option()` call in `bws_modifier_base_options()` — a `transform_callback` bypasses `run_transform()`'s `gb_link_remap` step and so owns its own normalization, the same reason `bws_nxm_migrate_chain()` calls it too. Guard signature deliberately left keys-only; the general value-level report went to FW-128 as a third consumer. No CHANGELOG entry — the defect and its fix both fall inside the unreleased 1.20.0 window | `bws_map_gb_link_option()` PHPDoc (owns the value axis); `tools/test/modifier-base-migration-test.php` §V1.12–V1.13; residue tracked at FW-128 |
 | #21 | Editor preview: resolve-then-label | Closed 2026-05-19 (commit 9f4fa96), shipped v1.6.2 | Resolve-then-label on all base/modifier/try/datetime callbacks; CHANGELOG v1.6.2 |

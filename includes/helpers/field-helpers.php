@@ -261,8 +261,9 @@ function bws_extract_post_id( $post_data ) {
  *
  * FIVE ANSWERS:
  *
- *   post     WP_Post | numeric id | (post_meta only) an array carrying 'ID',
- *            each confirmed with get_post().
+ *   post     WP_Post | numeric id | (post_meta only) an array carrying 'ID' | an
+ *            object carrying `id` + an AGREEING `slug` (and, when it carries one, a
+ *            non-contradicting `permalink`), each confirmed with get_post().
  *   term     WP_Term, or any object carrying BOTH `term_id` and `taxonomy` whose
  *            term resolves. The duck-typed arm is not a convenience — see below.
  *   user     WP_User, or any object carrying `ID` plus at least one of WordPress's
@@ -301,17 +302,24 @@ function bws_extract_post_id( $post_data ) {
  * `user_nicename`, `user_email`, `display_name`, …) and are NOT `WP_User`. An
  * `instanceof`-only recognizer would leave every user loop leaking. The markers
  * chosen are WordPress's own user-record field names, which is what makes the arm
- * hold for a producer nobody has met.
+ * hold for a producer nobody has met. The same holds for the object-shaped post arm,
+ * whose evidence is the item's own claims AGREEING WITH THE DATABASE rather than any
+ * key belonging to a particular producer (bws_loop_item_post_id()'s PHPDoc).
  *
- * ORDER (term before user) IS A DELIBERATE TIE-BREAK AND IS LOAD-BEARING. "Disjoint
- * by construction" would be a claim about objects other people build, and this
- * recognizer exists precisely because those objects are not ours: an item carrying
- * `term_id` + `taxonomy` AND `ID` + `user_login` satisfies both arms, and whichever
- * is asked first wins. TERM IS ASKED FIRST because its markers are the stronger
- * evidence — two fields that must agree with each other AND with the database, against
- * the user arm's `ID`, the weakest marker there is and the one that collides.
- * Swapping these two arms changes what such an item resolves to, so the order is
- * behaviour, not layout. Pinned by name in tools/test/loop-item-classify-test.php §C4.
+ * ORDER (term, then user, then the object-shaped post) IS A DELIBERATE TIE-BREAK AND IS
+ * LOAD-BEARING. "Disjoint by construction" would be a claim about objects other people
+ * build, and this recognizer exists precisely because those objects are not ours: an
+ * item carrying `term_id` + `taxonomy` AND `ID` + `user_login` satisfies both of the
+ * first two arms, and whichever is asked first wins. THE ARMS RUN IN DESCENDING ORDER
+ * OF EVIDENCE. Term is asked first because its markers are the strongest — two fields
+ * that must agree with each other AND with the database. User is asked next on `ID`
+ * plus a WordPress user-record field name. The object-shaped post arm is asked LAST
+ * because `id` is the weakest key of the three: `term_id` states its own kind in its
+ * name and `ID` is at least WordPress's own spelling, while `id` states nothing at all,
+ * and the arm earns its answer only by making the item's own `slug` (and `permalink`,
+ * when offered) agree with the database. Swapping any two arms changes what a
+ * satisfying item resolves to, so the order is behavior, not layout. Pinned by name in
+ * tools/test/loop-item-classify-test.php §C4 and §C9.
  *
  * A POST-SHAPED ITEM THAT DOES NOT RESOLVE ANSWERS `unknown`, NOT `row` — a
  * `WP_Post`/numeric item naming a post that is not there is an unreadable item, and
@@ -363,6 +371,10 @@ function bws_classify_loop_item( $raw_item, string $query_type = '' ): array {
 		$user_id = bws_loop_item_user_id( $raw_item );
 		if ( $user_id ) {
 			return array( 'kind' => 'user', 'id' => $user_id );
+		}
+		$post_id = bws_loop_item_post_id( $raw_item );
+		if ( $post_id ) {
+			return array( 'kind' => 'post', 'id' => $post_id );
 		}
 	}
 
@@ -436,6 +448,90 @@ function bws_loop_item_user_id( $item ): int {
 		return 0;
 	}
 	return get_userdata( (int) $item->ID ) ? (int) $item->ID : 0;
+}
+}
+
+/**
+ * The POST id an object-shaped loop item names, or 0.
+ *
+ * The item must carry BOTH `id` and `slug`, the post of that id must exist, and its
+ * `post_name` must EQUAL the stated slug. Where the item ALSO carries a `permalink`,
+ * that permalink must agree with the post's own once scheme and trailing slash are
+ * normalized away; a contradiction is a veto, an ABSENCE is not.
+ *
+ * A MALFORMED VALUE IS READ AS A FAILED CLAIM ON THE SLUG AND AS NO CLAIM ON THE
+ * PERMALINK, which is asymmetric on purpose. This is a foreign record and either key may
+ * hold anything. A slug that is not a string is an item that said what it is and then
+ * gave nothing to agree with, so there is no evidence and the arm refuses. A permalink
+ * that is not a string is a claim never made: the veto exists to catch a permalink that
+ * CONTRADICTS, and a value that cannot be compared contradicts nothing — treating it as a
+ * veto would refuse on a malformation rather than on a disagreement. Pinned as a pair at
+ * tools/test/loop-item-classify-test.php §C9.11b/§C9.11c.
+ *
+ * WHAT THIS RECOGNIZES IS A SHAPE, NEVER A VENDOR. A WooCommerce product item is one
+ * instance of it and this function does not know that — no product object, no
+ * post-type comparison, no query-type read, no key belonging to any extension's
+ * vocabulary. The evidence is entirely things the DATABASE agrees with, which is what
+ * makes the arm hold for a query plugin nobody has met.
+ *
+ * WHY THE SLUG IS COMPARED AND NOT MERELY REQUIRED, and why a lone `id` is not enough:
+ * `id` is a key whose name states nothing, so `id` + post-existence is the bare-integer
+ * hole restated — term 1 and post 1 exist on every install. The slug is what the item
+ * stakes a second claim on, and comparing it is what turns two coincidences into
+ * agreement. The same argument the term arm's `term_id`+`taxonomy` pair rests on.
+ *
+ * WHY THE PERMALINK IS A VETO RATHER THAN A REQUIREMENT. Requiring it would refuse
+ * every producer that does not compute URLs, narrowing the arm back onto one vendor's
+ * record shape by accident. Reading it only to CONTRADICT costs nothing when it is
+ * absent and closes the one collision slug-and-id agreement cannot: a term and a post
+ * may share both a number and a slug, and their URLs differ because a term's carries
+ * its taxonomy base. The error asymmetry decides it — a false negative here refuses a
+ * real item and renders empty, which is the status quo, while a false positive renders
+ * another entity's data ([I15]).
+ *
+ * @since 1.20.0
+ * @param object $item Object-shaped loop item.
+ * @return int Post id, or 0 when the item is not post-shaped, the post is gone, or
+ *             the item's own claims disagree with it.
+ */
+if ( ! function_exists( 'bws_loop_item_post_id' ) ) {
+function bws_loop_item_post_id( $item ): int {
+	// The slug must be a STRING, not merely present. This is a foreign record, and an
+	// `id` beside a `slug` holding an array is a shape that would otherwise reach a
+	// string cast and answer "Array" — which compares against no post_name, so the
+	// outcome is the same refusal, arrived at through a PHP notice.
+	if ( ! isset( $item->id, $item->slug ) || ! is_numeric( $item->id ) || (int) $item->id <= 0 || ! is_string( $item->slug ) ) {
+		return 0;
+	}
+	$post = get_post( (int) $item->id );
+	if ( ! $post instanceof WP_Post || (string) $post->post_name !== (string) $item->slug ) {
+		return 0;
+	}
+	if ( ! empty( $item->permalink ) && is_string( $item->permalink ) ) {
+		$actual = get_permalink( (int) $post->ID );
+		if ( ! $actual || bws_loop_item_url_key( $item->permalink ) !== bws_loop_item_url_key( $actual ) ) {
+			return 0;
+		}
+	}
+	return (int) $post->ID;
+}
+}
+
+/**
+ * A URL reduced to what two URLs for the same thing must share.
+ *
+ * Scheme and one trailing slash are dropped, because a producer building a URL from its
+ * own settings can differ from WordPress on both while naming the same page. Everything
+ * else is left alone, including the host: a permalink on another host is a different
+ * page, not a formatting difference.
+ *
+ * @since 1.20.0
+ * @param string $url URL to reduce.
+ * @return string Comparison key.
+ */
+if ( ! function_exists( 'bws_loop_item_url_key' ) ) {
+function bws_loop_item_url_key( string $url ): string {
+	return rtrim( preg_replace( '~^https?://~i', '', trim( $url ) ), '/' );
 }
 }
 

@@ -219,6 +219,19 @@ $check(
 	'P7.3 a core per-block element id is collapsed',
 	$norm( '<div id="block-a1b2c3d4-e5f6">x</div>' ) === $norm( '<div id="block-99887766-5544">x</div>' )
 );
+// WooCommerce's quantity field id comes from uniqid(), so it is new on every REQUEST and
+// not merely on every reseed — the one member of this class that fails a baseline captured
+// seconds earlier. The label's `for` and the input's `id` must collapse TOGETHER or the
+// pair stops agreeing, which is why P7.5 asserts the association rather than the id alone.
+$check(
+	'P7.4 WooCommerce per-request quantity id is collapsed',
+	$norm( '<input id="quantity_6aa8a726d17a9" />' ) === $norm( '<input id="quantity_6aa8a74fa1821" />' )
+);
+$check(
+	'P7.5 ...label `for` and input `id` collapse onto the SAME token, so the pair still agrees',
+	$norm( '<label for="quantity_6aa8a726d17a9">q</label><input id="quantity_6aa8a726d17a9" />' )
+		=== '<label for="quantity_ID">q</label><input id="quantity_ID" />' . "\n"
+);
 
 /* =========================================================================
  * §P8/§P9 — antispambot()'s per-character coin flip

@@ -26,6 +26,20 @@ Both query types hook `generateblocks_query_wp_query_args` at priority 10 and re
 
 We read bare `postId` at exactly one site — `bws_resolve_acf_object_id()` ([`field-helpers.php`](../../includes/helpers/field-helpers.php)) — and that read is reached only under a query type neither of these sets, which is what keeps a term id out of an ACF object id today. The condition deciding it is stated at that function; widening it is the change to watch.
 
+**The Product Query does the same thing with a product's post id.** `WooCommerce_Query::render_loop_items()` sets bare `postId` to `Utils::get_key( $item, 'id' )` (read 2026-09-14), which for a product IS the product's post id — so on this one query type the key holds exactly what its name says. That makes it the most dangerous of the three to read, not the safest: a rule taking the product id off block context would be right here and wrong-entity on the term and user loops beside it, and the two halves are indistinguishable from the reading site. Nothing of ours reads it, and FW-100's recognizer deliberately takes the id off the ITEM instead.
+
+## Its Product Query's loop item is a 26-key record naming a post
+
+**Measured end to end 2026-09-14** on the fixture site, through `gb_query_enhancements_wc_loop_item_context` on a real front-end render — not off the plugin's source, which is what every earlier record of this shape rested on and which said the item had two keys. The front-end path feeds `format_products_for_response()` straight into `render_loop_items()`, so this is the whole record a product loop item carries and not a REST-only projection.
+
+The item is a plain `stdClass` (no class, nothing naming what it is) carrying: `id`, `name`, `slug`, `type`, `permalink`, `price_html`, `regular_price`, `sale_price`, `sku`, `stock_status`, `stock_quantity`, `average_rating`, `review_count`, `image_id`, `gallery_image_ids`, `add_to_cart_url`, `add_to_cart_text`, `short_description`, `on_sale`, `featured`, `weight`, `length`, `width`, `height`, `categories`, `tags`.
+
+Three of those are database-checkable claims about a WordPress post — `id`, `slug` and `permalink` — and the rest are the record's own computed values, which exist nowhere in the database and which GBQE's own product tags serve.
+
+**Our response** is the object-shaped post arm of [`bws_classify_loop_item()`](../../includes/helpers/field-helpers.php), whose rule is stated at `bws_loop_item_post_id()`'s PHPDoc and nowhere else. Two things about it belong here rather than there, because they are facts about THIS record: the id key is lower-case `id`, which pairs with nothing the way `term_id` pairs with `taxonomy`; and the computed values are **not** read by us at all, deliberately, since keying on `sku` or `price_html` would be recognizing this plugin's vocabulary rather than a shape — the same objection that rules out keying on its `queryType` string.
+
+**Worth reporting upstream, and the reason this section is longer than the fact:** an item that named its own kind would let every duck-typed arm of that recognizer retire. This is the third vendor record we have reverse-engineered to answer "what is this", and each one is a rule of ours that a change of theirs can silently invalidate.
+
 ## It filters tag rendering in PHP, on every render
 
 Three hooks, enumerated 2026-09-04 (`add_filter`/`add_action` registrations under `includes/`):
