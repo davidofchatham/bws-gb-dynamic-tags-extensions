@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.21.0] — unreleased
+
+### Removed
+
+- **The `{{term_*}}` tags are removed.** All nine of them (`{{term_text}}`, `{{term_content}}`, `{{term_title}}`, `{{term_permalink}}`, `{{term_image}}`, `{{term_datetime_single}}`, `{{term_datetime_range}}`, `{{term_email}}`, `{{term_phone}}`) have stopped registering, so they no longer appear in the GenerateBlocks tag picker, and the `term_ tags` toggle has gone from the settings page with them. **Run the Migration Tool, either before you upgrade or straight afterwards.** A `{{term_*}}` tag still saved in your content now has nothing registered behind its name, and GenerateBlocks prints a tag it does not recognize as literal text, braces and all, on the published page. The Migration Tool still converts every one of them, exactly as it did in 1.20.0: nothing about the conversion has changed and it is not going away in this release. The replacement is a base tag with its source set to a term, which does the same job and gets source paths, per-step limits, the field picker and the configuration preview along with it. Deprecated in 1.20.0.
+
+  **Why this is a minor release.** Removing tags sounds like it should force a new major version, and it will: the release that retires these conversions, leaving a stored `{{term_*}}` tag with nowhere to go, is the one that will be 2.0.0. This is not that release. The Migration Tool still reaches every `{{term_*}}` tag you have, so the break is one you can undo whenever you get to it.
+- **`TagTemplateRegistry::register_modifier()` no longer registers anything.** For plugins integrating with this one: the method is still there, so a third-party plugin that calls it will not fatal on upgrade, but it raises a `_doing_it_wrong()` notice and returns without minting any tags. It is deleted outright in 1.22.0. No known plugin still calls it. If yours does, register your source as a chain root instead, which gives it the whole base-tag surface rather than a copy of it: see [Plugin integration §1a](docs/plugin-integration.md#1a-offering-your-source-as-a-chain-root) for the route in, and [§9](docs/plugin-integration.md#9-migrating-a-modifier-family-to-a-base-tag) to convert tags already saved in content before you retire your prefix. The `bws_dynamic_tags_preview_modifier_map` filter goes with it, since the only prefixes it could describe were the ones this constructor minted. `register_modifier_template()` is unaffected. Deprecated in 1.20.0.
+
 ## [1.20.0] — 2026-09-15
 
 ### Highlights
