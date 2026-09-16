@@ -61,23 +61,28 @@ return array(
 	// The date the baseline under `tools/test/snapshots/` was captured. Prose only —
 	// nothing compares it; it is here so a reader can place the record in time.
 	//
-	// THIS RE-CAPTURE IS WOOCOMMERCE JOINING THE FIXTURE SITE, and every one of the 297 added
-	// and 50 removed lines is its chrome: the `sourcebuster` and `wc-order-attribution` footer
-	// scripts, the `woocommerce-no-js` body class with the inline script that swaps it, and an
-	// `aria-label="Page N"` on every paginated archive. That last one comes from
-	// `wc_add_aria_label_to_pagination_numbers()` on `paginate_links_output`, which is a
-	// SITE-WIDE filter and not scoped to Woo's own pages. The remainder is line-packing
-	// shifting around the inserted scripts.
+	// THIS RE-CAPTURE IS THE `term_` FAMILY'S REMOVAL (FW-129, 1.21.0). Nine tags stopped
+	// being registered, so every stored `{{term_*}}` on a fixture page now renders its own
+	// braces — which is the removal's whole user-visible consequence, measured here rather
+	// than asserted. Nine pages moved: the six `ctx-*` pages carrying the context element's
+	// C-TERM/C-CONV rows, `ctx-term`, `page-matrix-post-meta` and `page-matrix-loops`. Most
+	// of the line count is packing — one literal line displaces the row below it and the
+	// rest of the document reports as changed.
 	//
-	// NO RENDERED TAG MOVED, and that was measured rather than assumed: every changed line was
-	// bucketed by category with none left unclassified, and the slim-seo schema pair on each of
-	// the 19 pages was compared byte-for-byte — the JSON is identical, only its adjacency to the
-	// next `<script` changed. Woo's footprint on our output is nil. That is why this capture is
-	// a commit of its own: a later change that does move a tag gets a readable diff.
+	// THE ROW LABELS STILL STATE THE OLD EXPECTATIONS on purpose. Rewriting the context
+	// matrix's `term_`-vs-base PAIRS against `{{text src:term,N}}` is a separate ticket in
+	// the same sweep; capturing here keeps each commit's baseline green rather than leaving
+	// two commits red, which is the state that trains people to ignore a red baseline.
 	//
-	// The previous capture (2026-09-03) is where the head-deletion rule arrived — a reader
-	// hitting an ~800-line deletion further back in `git log` is looking at that, not at this.
-	'captured' => '2026-09-14',
+	// ACF Pro moved 6.8.9 -> 6.8.10 and is re-recorded below. It is NOT attributable for
+	// any line: the pre-change run of this instrument passed against the 6.8.9-era baseline
+	// with 6.8.10 already installed, so the new version had already been shown to produce
+	// the old output before this capture was taken.
+	//
+	// The 2026-09-14 capture is WooCommerce joining the fixture site (chrome only, no
+	// rendered tag moved); the 2026-09-03 one is where the head-deletion rule arrived — a
+	// reader hitting an ~800-line deletion further back in `git log` is looking at that.
+	'captured' => '2026-09-16',
 
 	// EVERY PLUGIN THAT WAS RUNNING, not only the four this record requires. The version
 	// list below answers "were the dependencies the same"; this answers "what else was in
@@ -143,7 +148,7 @@ return array(
 		),
 		'advanced-custom-fields-pro/acf.php' => array(
 			'label'    => 'ACF Pro',
-			'version'  => '6.8.9',
+			'version'  => '6.8.10',
 			'required' => true,
 		),
 		// Recorded for the same reason as GB Query Enhancements above: it supplies no fixture

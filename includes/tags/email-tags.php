@@ -334,8 +334,7 @@ function bws_email_term_core( $term_id, $options, $instance ): string {
 /**
  * Register the `email` modifier TEMPLATE descriptor (not the standalone {{email}}
  * GB tag — that is bws_register_email_tag). Called from bws_register_base_tags()
- * BEFORE register_modifier(prefix=term) so term_email falls out, and before
- * generate_base_try_tags() so try_email falls out. [SPEC §32 T8/T11]
+ * before generate_base_try_tags() so try_email falls out. [SPEC §32 T8/T11]
  *
  * @since 1.11.0
  */

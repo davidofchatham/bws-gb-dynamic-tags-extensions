@@ -161,13 +161,10 @@ bws_register_base_tags();
 bws_register_email_tag();
 bws_register_phone_tag();
 \BWS\DynamicTags\TagTemplateRegistry::generate_base_try_tags();
-// The `term_` family, in the plugin's own three-step order: templates (above), then the
-// family's converter entries, then the constructor that reads their stamp back. Running
-// the constructor without the entries would register the family under `term` and every
-// §C3 assertion below would still pass, so the order here is not incidental — §C4 is what
-// holds it. [FW-39 D25/D26]
+// The `term_` family's converter ENTRIES, which the plugin still registers (FW-129 removed
+// the tags, not the migration path). No constructor follows them any more — that is the
+// subject of §C3 below, and running the generator here is what gives it something to read.
 bws_register_modifier_root_migrations( 'term', 'term', array( 'since' => '1.20.0' ) );
-bws_register_term_modifier_tags();
 
 $registered = GenerateBlocks_Register_Dynamic_Tag::get_tags();
 
@@ -539,10 +536,11 @@ foreach ( $chain_authoring as $tag ) {
 // ===========================================================================
 echo "\n§6 The always-serialized `as` still carries the default that serializes it\n";
 // ===========================================================================
-// Not an ordering property, but this harness is the only one that sees all three
-// constructors, and all three register a `bws-as-size` `as` (base {{image}}, the image
-// modifier template's leading + trailing sets, which term_image and try_image are built
-// from). GB writes an untouched option only if it SEEDED it, and it seeds from non-empty
+// Not an ordering property, but this harness is the only one that sees every constructor,
+// and each one registers a `bws-as-size` `as` (base {{image}}, and the image modifier
+// template's leading + trailing sets, which try_image is built from — term_image was the
+// third until FW-129 unregistered the family in 1.21.0, hence the count of two below).
+// GB writes an untouched option only if it SEEDED it, and it seeds from non-empty
 // `default`s at tag-select time — so on this option the default is not a convenience, it
 // is the whole always-serialize mechanism (docs/tag-reference.md §`as` serialization
 // opt-out). v1.16.0's fold dropped it believing the composite wrote on mount; it writes
@@ -560,7 +558,7 @@ foreach ( $registered as $tag => $args ) {
 		assert_same( "{{{$tag}}} — `{$name}` seeds its default", 'url,full', $opt['default'] ?? null );
 	}
 }
-assert_same( 'every image family member registered an as+size control', true, $seen_as_size >= 3 );
+assert_same( 'every image family member registered an as+size control', true, $seen_as_size >= 2 );
 
 echo "\n§7 A slot's STEP OFFER is the base tag's (#104)\n";
 
@@ -940,53 +938,35 @@ foreach ( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() as $cen
 	);
 }
 
-// --- C3. the derived `key` show_if carries the VALUE #88 promises, not just the fn --
+// --- C3. the `term_` family is GONE from the picker, its entries are NOT ------
 //
-// C2 above pins that the DISPATCH functions are wired correctly; it says nothing about
-// whether the `key` control's `show_if` (derived from try_use_no_key_values in
-// register_modifier(), replacing a hand-typed literal) actually renders the right
-// condition. Read off the REAL `term_*` tags bws_register_base_tags() registered at this
-// file's bootstrap (line ~155), which is the only family the constructor mints in this
-// process.
+// FW-129, 1.21.0. The two halves are asserted together because the whole claim that this
+// removal is a MINOR rests on them being separable: an author's stored `{{term_text}}`
+// stops resolving to a tag (half one) and stays convertible by the Migration Tool (half
+// two). Either half alone passes while the release is wrong in the way that matters.
+//
+// The bootstrap above runs `bws_register_modifier_root_migrations()` and no constructor
+// after it, which is the shipped init pass's shape since the removal — so a constructor
+// call restored anywhere reachable from `bws_register_base_tags()` fails the first loop.
+//
+// WHAT WENT WITH THE FAMILY, and is not pinned anywhere else: C2's dispatch census still
+// covers the template wiring, but the `key` control's derived `show_if` (built from
+// try_use_no_key_values inside register_modifier(), #88) had the `term_*` tags as its only
+// live readers. It is not reasserted against `try_`, which spends the same descriptor key
+// on its folded-slot config rather than on a flat `key` control. The derivation dies with
+// the constructor body.
 $live_tags = \GenerateBlocks_Register_Dynamic_Tag::get_tags();
-assert_same(
-	"census: 'term_text' key control hides on use:title",
-	array( 'use' => 'not_in:title' ),
-	$live_tags['term_text']['options']['key']['show_if'] ?? null
-);
-assert_same(
-	"census: 'term_content' key control hides on use:content or use:excerpt",
-	array( 'use' => 'not_in:content,excerpt' ),
-	$live_tags['term_content']['options']['key']['show_if'] ?? null
-);
-// image is folded INTO 'options' at registration (is_image path), so it is reachable
-// the same way. Same derivation, single no-key value — the one case that collapses to
-// the same string the old hand-typed `use:not:featured` used, which is exactly why
-// removing that literal (#88) was safe.
-assert_same(
-	"census: 'term_image' key control hides on use:featured",
-	array( 'use' => 'not_in:featured' ),
-	$live_tags['term_image']['options']['key']['show_if'] ?? null
-);
-// title/permalink carry no `use` axis at all — no derivation should have run, so no
-// show_if should exist on either (neither even has a `key` option).
-assert_same(
-	"census: 'term_title' has no key option to gate",
-	false,
-	isset( $live_tags['term_title']['options']['key'] )
-);
+$live_term = array_values( array_filter(
+	array_keys( $live_tags ),
+	static function ( $tag ) { return 0 === strpos( (string) $tag, 'term_' ); }
+) );
+assert_same( 'no term_ tag is registered with GB any more', array(), $live_term );
 
-// --- C4. every term_ tag carries the migration registry's deprecated stamp ---
-//
-// The family is deprecated, and the way that is SAID is `gb_type = 'deprecated'` on the GB
-// registration, which lands it in GB's deprecated group. Pinned here because this is the
-// file that drives all three constructors, and because the failure mode is silent: the
-// constructor falls back to the `gb_type` its config names, so a family whose converter
-// entries never ran registers under `term` and every assertion above still passes.
-//
-// PINS THE ROUTE, NOT JUST THE VALUE — the expectation is read back out of the registry
-// entry rather than written as the literal 'deprecated'. A second producer of the stamp
-// inside the constructor would satisfy a literal and fail this. [FW-39 D25/D26]
+// The surviving half. PINS THE ROUTE, NOT JUST THE VALUE — the expectation is read back
+// out of the registry entry rather than written as the literal 'deprecated'. The entries
+// are generated off the modifier TEMPLATES, which `bws_register_base_tags()` registers for
+// the base tags and `try_` regardless of the constructor, so the count below is what says
+// the generator never depended on the family being minted. [FW-39 D25/D26]
 $term_entry_types = array();
 foreach ( \BWS\DynamicTags\MigrationRegistry::get_by_type( 'tag' ) as $entry ) {
 	$name = (string) ( $entry['match_tag'] ?? '' );
@@ -995,24 +975,17 @@ foreach ( \BWS\DynamicTags\MigrationRegistry::get_by_type( 'tag' ) as $entry ) {
 	}
 }
 assert_same(
-	'every term_ template got a converter entry to take its stamp from',
+	'every term_ template still has a converter entry after the family is unregistered',
 	count( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() ),
 	count( $term_entry_types )
 );
 // The one literal, read at the OWNER: MigrationRegistry::register() force-stamps this on
-// every type:'tag' entry. Without it the loop below could pass against two matching nulls.
+// every type:'tag' entry. Without it the assertion could pass against a set of nulls.
 assert_same(
 	'the migration registry stamps its tag entries deprecated',
 	array( 'deprecated' ),
 	array_values( array_unique( $term_entry_types ) )
 );
-foreach ( $term_entry_types as $name => $stamp ) {
-	assert_same(
-		"{$name} registers under the stamp its migration entry carries",
-		$stamp,
-		$live_tags[ $name ]['type'] ?? null
-	);
-}
 
 // --- D. the late re-read is quiet while every name is still ours ------------
 

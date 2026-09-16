@@ -130,6 +130,24 @@ rewrite; see §8 and §9 in [`plugin-integration.md`](plugin-integration.md#8-re
 
 ---
 
+## The `term_` modifier family (removed in v1.21.0)
+
+Nine GB tags — `term_text`, `term_content`, `term_title`, `term_permalink`, `term_image`, `term_datetime_single`, `term_datetime_range`, `term_email`, `term_phone` — minted by `TagTemplateRegistry::register_modifier()` off the same modifier templates the base tags and `try_` are built from. **Nine because nine templates were registered**: seven in `bws_register_base_tags()` plus `email` and `phone`, whose own files register theirs. The table this section replaced in `tag-reference.md` showed seven term-variant rows and marked email/phone *(no term_ variant)*, contradicting that file's own Email/phone section a thousand lines below it; the count above is the one the code produced, and it is what `control-order-test.php` §C3 counts the surviving converter entries against. Deprecated in v1.20.0 (FW-33), **unregistered in v1.21.0** (FW-129). This section moved here from [`tag-reference.md`](tag-reference.md) at the removal: it stopped being current-state architecture the moment the tags stopped existing.
+
+**A stored `{{term_*}}` string renders its own braces until it is converted.** Nothing registers the name, so GenerateBlocks emits the literal text (measured on the reference fixture site 2026-09-16, and the nine moved `tools/test/snapshots/` pages are where it is held). The migration entries are the repair and they are still shipped — run the Migration Tool, and see [§Modifier prefix → base tag](#modifier-prefix--base-tag-with-a-registered-root-1170) above for what each stored shape becomes. Retiring those entries is a separate later release.
+
+### What the tags carried
+
+Each tag appended `'(term-based)'` to its template's base title. `src` unset = a user-selected term through GB's native taxonomy/term picker (never serialized); `src:'ref'` = a term→related-post traversal. `as` and `size` were custom options on `term_image`, the same pattern base `image` uses (`'media'` type was never used on any image tag), and the `as` serialization exception applied there too — the default `as:url` was always written into the tag string.
+
+**`term_image use:featured` gating:** `use:featured` was valid on `term_image` only with `src:ref` set. Term entities have no featured image, so the gate hid the option until a post-context traversal was selected.
+
+**The family's GB type was `'deprecated'` from v1.20.0**, so every `term_*` tag sat in GenerateBlocks' deprecated group rather than in a `'term'` group of its own. The type was not written at the registration: each tag took it from that tag's migration-registry entry (`MigrationRegistry::register()` owns what an entry carries). From v1.20.0 the family was also switched off on new installs — the settings page's `term_ tags` toggle seeded unchecked, leaving an install predating v1.20.0, or one whose settings row never mentioned the family, unaffected. Both the toggle and the registration went in v1.21.0.
+
+**WHETHER A GIVEN `term_*` TAG WAS EVER OURS DEPENDED ON THE SITE, AND THIS DOC CANNOT KNOW.** Where another plugin already held one of these names, the tag of that name is theirs, nothing above ever applied to it, and the removal changed nothing about it — [`tag-reference.md` §Tag name collisions](tag-reference.md#tag-name-collisions) owns why and what the outcome means. Measured on the reference fixture site 2026-08-26: GB Query Enhancements holds `term_title` there, so no `{{term_title}}` of ours ever existed on it, while the examples using that tag elsewhere in these docs and in [`editor-controls.md`](editor-controls.md) held on a site without that plugin.
+
+---
+
 ## Template key renaming tracker
 
 Records planned template key renames and consolidations. When a template key changes, the generated

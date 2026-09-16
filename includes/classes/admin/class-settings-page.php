@@ -135,9 +135,9 @@ class SettingsPage {
 			'phone'       => array(),
 		);
 
-		// Modifier toggles.
-		$sanitized['modifiers']['term'] = ! empty( $input['modifiers']['term'] );
-		$sanitized['modifiers']['try']  = ! empty( $input['modifiers']['try'] );
+		// Modifier toggles. An orphaned `modifiers.term` key on an existing row is simply
+		// not carried forward — nothing reads it since the family's removal (1.21.0).
+		$sanitized['modifiers']['try'] = ! empty( $input['modifiers']['try'] );
 
 		// Deprecated tag group modes.
 		$valid_modes = array( 'keep', 'suppress', 'disable' );
@@ -597,18 +597,6 @@ class SettingsPage {
 					<h2 class="bws-section-header"><?php esc_html_e( 'Modifier Groups', 'generateblocks' ); ?></h2>
 					<table class="bws-tags-table widefat">
 						<tbody>
-							<tr class="bws-tag-row">
-								<td class="bws-tag-checkbox">
-									<input type="checkbox" id="bws-modifier-term"
-										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[modifiers][term]"
-										value="1" <?php checked( self::is_modifier_enabled( 'term' ) ); ?> />
-								</td>
-								<td>
-									<label for="bws-modifier-term"><?php esc_html_e( 'term_ tags', 'generateblocks' ); ?></label>
-									<code class="bws-tag-name">term_</code>
-									<p class="description"><span class="dashicons dashicons-warning bws-warn-icon" aria-hidden="true"></span><?php esc_html_e( 'Deprecated and slated for removal. Base tags set for Current Context resolve term fields in a query/archive context, or you can pick a specific term in the Source selector. Use the Migration Tool below to convert existing tags.', 'generateblocks' ); ?></p>
-								</td>
-							</tr>
 							<tr class="bws-tag-row">
 								<td class="bws-tag-checkbox">
 									<input type="checkbox" id="bws-modifier-try"

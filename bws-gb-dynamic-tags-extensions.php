@@ -345,14 +345,12 @@ function bws_dynamic_tags_register_all() {
 	// so a hand-written `term_*` entry registered earlier keeps governing its own tag. The
 	// converter's own cascade (renames first, then every option entry) is what carries a
 	// migrated tag on into the base-tag chain entry, not this position.
+	//
+	// THE ENTRIES OUTLIVE THE TAGS. The family's GB registrations went in 1.21.0 (FW-129)
+	// and these did not: a `term_*` string already stored in someone's content converts
+	// through here whether or not the tag name still resolves, and it renders its own
+	// braces until it does. Retiring them is the separate later release.
 	bws_register_modifier_root_migrations( 'term', 'term', array( 'since' => '1.20.0' ) );
-
-	// The `term_` GB tags themselves, AFTER the entries above — the constructor reads each
-	// tag's `gb_type` off the migration registry, which is what lands the family in GB's
-	// deprecated group. Registered late for that reason alone; nothing else in the pass
-	// depends on the order. Registrations never retire, so the family stays here even once
-	// removal is decided (an unregistered tag renders literally). [FW-39 D25/D27]
-	bws_register_term_modifier_tags();
 
 	// Deprecated wrappers registered last (old tag names pointing to new core functions).
 	bws_register_deprecated_tags();
@@ -605,11 +603,11 @@ add_action( 'plugins_loaded', 'bws_dynamic_tags_init', 20 );
  * that never opened the settings page rendering what it always rendered — and it is
  * therefore blind to which kind of install it is looking at. A key seeded here says "this
  * site started life after the default changed", and nothing else can. Do not add a second
- * discriminator elsewhere. `modifiers.term` seeds OFF for that reason (1.20.0), on the
- * precedent the two deprecated group modes set in 1.6.1.
+ * discriminator elsewhere — the two deprecated group modes set the precedent in 1.6.1.
  *
  * @since 1.6.1
  * @since 1.20.0 `modifiers.term` seeds false — the term_ family is deprecated.
+ * @since 1.21.0 `modifiers.term` dropped — the term_ family is removed (FW-129).
  */
 function bws_dynamic_tags_activate() {
 	if ( null !== get_option( 'bws_dynamic_tags_settings', null ) ) {
@@ -617,8 +615,7 @@ function bws_dynamic_tags_activate() {
 	}
 	add_option( 'bws_dynamic_tags_settings', array(
 		'modifiers'   => array(
-			'term' => false,
-			'try'  => true,
+			'try' => true,
 		),
 		'deprecated'  => array(
 			'mode_with_path'    => 'disable',
