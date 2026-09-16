@@ -344,7 +344,7 @@ class MigrationRegistry {
 	 *
 	 * There is deliberately no singular first-match sibling. One shipped through 1.16.x
 	 * and 1.17.0 removed it: after the plural landed it was `find_option_migrations()[0]`
-	 * with no caller in this plugin or in bws-portal-system, and the admin scanner reads
+	 * with no caller in this plugin or in the one integrating plugin, and the admin scanner reads
 	 * get_option_migrations_by_tag() for its labels rather than either finder.
 	 *
 	 * @since 1.17.0

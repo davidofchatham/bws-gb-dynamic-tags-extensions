@@ -383,14 +383,14 @@ assert_eq( 'V4.5 an unregistered tag name is returned verbatim',
 // for the older prefix beyond the rename it already had.
 MigrationRegistry::register( array(
 	'type'      => 'tag',
-	'match_tag' => 'portal_text',
+	'match_tag' => 'former_text',
 	'new_tag'   => 'view_text',
 	'since'     => '1.6.0',
 ) );
 
 assert_eq( 'V4.6 an older prefix reaches the base tag in ONE run',
 	'{{text src:view;refs,office|key:bio}}',
-	TagConverter::resolve_full_chain( 'portal_text', '{{portal_text src:ref|ref:office|key:bio}}' ) );
+	TagConverter::resolve_full_chain( 'former_text', '{{former_text src:ref|ref:office|key:bio}}' ) );
 
 assert_eq( 'V4.7 the chain terminates at the base tag (no further rewrite)',
 	'{{text src:view|key:bio}}',
@@ -408,14 +408,14 @@ assert_eq( 'V4.7 the chain terminates at the base tag (no further rewrite)',
 // which is exactly what makes plugin-integration.md §9's "in one run" the property to pin.
 MigrationRegistry::register( array(
 	'type'      => 'tag',
-	'match_tag' => 'portal_permalink',
+	'match_tag' => 'former_permalink',
 	'new_tag'   => 'view_permalink',
 	'since'     => '1.6.0',
 ) );
 
 assert_eq( 'V4.6b an older prefix on an OPTION-LESS tag reaches the base tag in ONE run',
 	'{{permalink src:view}}',
-	TagConverter::resolve_full_chain( 'portal_permalink', '{{portal_permalink}}' ) );
+	TagConverter::resolve_full_chain( 'former_permalink', '{{former_permalink}}' ) );
 
 assert_eq( 'V4.7b …and its single-generation sibling still terminates',
 	'{{permalink src:view}}',

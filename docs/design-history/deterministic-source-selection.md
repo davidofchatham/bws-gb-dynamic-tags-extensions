@@ -741,14 +741,14 @@ does (S27, unchanged — `$ok = $ok && (bool) apply_filters( … )`).
 ### O8's answer — the contract
 
 `(bool $ok, array $source)`. Grounded rather than guessed: the only known consumer is the sister
-Portal System, whose predicate is
+an integrating plugin, whose predicate is
 
 ```php
-VisibilityChecker::is_post_visible( int $post_id, ?string $portal_id, string $post_type ): bool
+is_post_visible( int $post_id, ?string $scope_id, string $post_type ): bool
 ```
 
-It derives `$portal_id` from ambient request context itself and `$post_type` from the id, and already
-exposes its own `bws_portal_is_post_visible` hook — so composition is filter-to-filter and **the
+It derives `$scope_id` from ambient request context itself and `$post_type` from the id, and already
+exposes its own visibility filter — so composition is filter-to-filter and **the
 minimum it needs from us is the post id.** A resolved source carries `kind` + `id`, which covers it
 with nothing to spare.
 

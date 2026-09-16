@@ -225,7 +225,7 @@ if ( '' !== $url ) {
 	// already read an empty set by the time the lines above run. WP::parse_request() — the
 	// consumer those lines exist for — reads them later and is served correctly.
 	//
-	// Measured against bws-portal-system 5.7.0, whose RequestSignals::capture() freezes request
+	// Measured against the integrating plugin, whose request-signal capture freezes request
 	// state at plugins_loaded (davidofchatham/bws-portal-system#71):
 	//
 	//   --url on a custom domain     RESOLVES. HTTP_HOST lives in $_SERVER, which WP-CLI sets
@@ -243,7 +243,7 @@ if ( '' !== $url ) {
 	// because $_SERVER is not populated that early either (verified: at --require time
 	// QUERY_STRING, REQUEST_URI and HTTP_HOST are all unset and WordPress is not loaded). Not
 	// built, because the population is zero: the only registered external root today is
-	// bws-portal-system's `view`, every View carries a custom domain, and the in-repo fixture
+	// the integrating plugin's own root, every entity carries a custom domain, and the in-repo fixture
 	// source resolves deterministically. Build it when a row needs it.
 	//
 	// Expect VACUITY rather than a wrong answer if that day comes and this is still missing:

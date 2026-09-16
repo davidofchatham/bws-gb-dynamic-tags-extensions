@@ -7,7 +7,7 @@ manual matrices assume:
 - [`tools/test/field-selector-test-matrix.md`](../../test/field-selector-test-matrix.md)
 - [`tools/test/text-test-matrix.md`](../../test/text-test-matrix.md) (added 1.14.1 — read-seam rows; uses `staff-tom-associate` + `bws_zero_probe`)
 - [`tools/test/join-test-matrix.md`](../../test/join-test-matrix.md) (added 1.15.0 — {{join}} assembly rows; `name_*` person parts dense on `tom-associate` / sparse on `jane-partner`, `role` + `height_*` on `matrix-post-meta`; manifest v2)
-- [`tools/test/context-test-matrix.md`](../../test/context-test-matrix.md) (added 1.15.0 — context-aware base tags #19; author-archive C3/C13 via `fixture-author` user, date-archive rows via categoryless portal-visible `sample-event`, `department-sales` description for C17; manifest v4)
+- [`tools/test/context-test-matrix.md`](../../test/context-test-matrix.md) (added 1.15.0 — context-aware base tags #19; author-archive C3/C13 via `fixture-author` user, date-archive rows via categoryless, visibility-tagged `sample-event`, `department-sales` description for C17; manifest v4)
 - [`tools/test/fw52-order-test-matrix.md`](../../test/fw52-order-test-matrix.md) (added for FW-52 — EDITOR-EYEBALL serialization-order rows on `matrix-post-meta`; a seeded `fixture-photo` attachment + `feature_image` image field back the `{{image}}` reads; manifest v5, additive)
 - [`tools/test/registered-roots-test-matrix.md`](../../test/registered-roots-test-matrix.md) (added 1.17.0, #87 — the FR rows below as a runnable matrix: §FR1/§FR2 render-tag, §FR5 editor-eyeball for the enum, §FR6 the converter run)
 - the external-source contract rows on `matrix-fixture-roots` (added 1.17.0, #85 — two
@@ -28,7 +28,7 @@ manual matrices assume:
   corpus below; manifest v22)
 
 Holds the SHARED schema (CPTs, taxonomies, field groups) for the plugin family;
-later blueprints (e.g. portal-system) compose on top and must not redefine keys
+later blueprints (e.g. an integrating plugin's) compose on top and must not redefine keys
 listed in `manifest.php` `defines` — reuse via composition instead.
 
 ## External consumers (check before bumping `version`)
@@ -39,7 +39,7 @@ seed + verify clean, or coordinate a pin bump with them:
 
 | Consumer | Blueprint | Pins |
 |---|---|---|
-| bws-portal-system | `tools/fixtures/view-structures/` | v4+ |
+| the integrating plugin | its own fixture tree | v4+ |
 | meta-conductor | `tools/fixtures/mc-rules/` | v4+ |
 | bws-generate-layout-conditions | `tools/fixtures/layout-states/` | v4+ |
 
@@ -179,7 +179,7 @@ so the schema survives snapshot restores.
 - Fixture user `fixture-author` (display name + bio) authoring `sample-event`
   → the author-archive context fixture (`/author/fixture-author/`, C3/C13).
 - `sample-event` doubles as the date-archive fixture: kept categoryless +
-  portal-visible so `/2026/07/` has results under the portal-system anonymous
+  visibility-tagged so `/2026/07/` has results under the integrator's anonymous
   query filter (else 404). `department-sales` carries a description (C17).
 - join person-name surface: `name_*` parts (Staff Contact group) — dense on
   `tom-associate`, sparse (first+last) on `jane-partner`; `role` + `height_*`

@@ -44,7 +44,7 @@ currently works.** Live homes for Phase 1 itself: CHANGELOG 1.14.0, `docs/tag-re
 
 **Relationship to the source-resolution model (2026-06-12 grill):** this plan is **L1-full** — the deep form of the L1 source-resolution seam (CONTEXT.md §L1/L2/L3, ADR 0002). The source factory (§Base Resolution) IS L1 (resolve source); the `ref`/`srcTermIn` steps are L1 traversal; `bws_read_field` is L2. The **N×M source-class explosion this plan kills is the same "L1 not shared" smell** as the `bws_email_resolve_addresses`/`bws_phone_resolve_numbers` clones the try_email/phone work extracts. **Sequencing:** the shallow seam (**L1-lite** — shared resolve-read fn + post/term/site kinds, no class retirement) ships first via #32 try_email/phone; this plan deepens that same shared fn's internals into the factory+pipeline WITHOUT changing its call-sites (consumers written against the L1-lite seam survive untouched — the seam is the interface, the pipeline fills it in). See §Sequencing.
 
-**History:** First drafted during v1.6.0 development. Updated post-1.6.0 to reflect shipped naming (`srcTermIn` replaces the `tax` step option after collision with GB's reserved key) and to integrate the modifier-composition use case (`try_view_*`, `try_term_*`) discovered while scoping portal plugin try_ support. Vocabulary reconciled 2026-06-12 to the resolved-source model (typed entity → resolved source, variable payload).
+**History:** First drafted during v1.6.0 development. Updated post-1.6.0 to reflect shipped naming (`srcTermIn` replaces the `tax` step option after collision with GB's reserved key) and to integrate the modifier-composition use case (`try_view_*`, `try_term_*`) discovered while scoping an external plugin's try_ support. Vocabulary reconciled 2026-06-12 to the resolved-source model (typed entity → resolved source, variable payload).
 
 ---
 
@@ -52,7 +52,7 @@ currently works.** Live homes for Phase 1 itself: CHANGELOG 1.14.0, `docs/tag-re
 
 Source classes conflate two concerns:
 
-- **Base resolution** — where does the read start? (current post, current term, current portal view, future: loop-meta-row, user)
+- **Base resolution** — where does the read start? (current post, current term, an external plugin's current entity, future: loop-meta-row, user)
 - **Traversal** — hop from that resolved source to another (relationship field, taxonomy term)
 
 This produces O(N×M) source class growth: each new traversal path combination requires a new class (`RelatedPost`, `TermRelatedPost`, `SecondRelatedPost`, `PostTermRelatedPost`, `TermRelatedPost`, …). Adding a second hop, or composing modifier prefixes (`view_` × `try_`) without a registry, multiplies further.
@@ -65,11 +65,11 @@ A second, related problem: try_ slot dispatch hardcodes `bws_resolve_post_by_sou
 
 ## Design principle: start-from-current-context
 
-The pipeline preserves the same model regardless of where the tag renders. Whatever the **ambient context** is at render time — post, term archive, portal view, GB list-block loop item (post or meta row), user — that is what the pipeline starts from.
+The pipeline preserves the same model regardless of where the tag renders. Whatever the **ambient context** is at render time — post, term archive, an external plugin's entity, GB list-block loop item (post or meta row), user — that is what the pipeline starts from.
 
 Tag authoring stays uniform: `{{text key:bio}}` means "read `bio` from the current thing, whatever the current thing is." The pipeline runner detects the ambient context once at entry and produces the base resolved source. Steps then operate generically.
 
-This shifts current kind detection (today scattered: `bws_get_loop_row_context()`, term-archive checks in some callbacks but not others, portal context inside `view_*` modifier dispatch) into one place: the source factory.
+This shifts current kind detection (today scattered: `bws_get_loop_row_context()`, term-archive checks in some callbacks but not others, external context inside a modifier dispatch) into one place: the source factory.
 
 ---
 
@@ -171,7 +171,7 @@ Sources shrink to one responsibility: return a resolved source. No traversal ins
 
 - `CurrentPost` → `{ kind: 'post', id: $current_post_id }`
 - `TaxonomyTerm` → `{ kind: 'term', id: $current_term_id }`
-- `PortalSource` (external, bws-portal-system) → `{ kind: 'post', id: $current_view_post_id }`
+- An external source (registered by an integrating plugin) → `{ kind: 'post', id: $its_current_post_id }`
 - Future `CurrentUser` → `{ kind: 'user', id: $current_user_id }`
 - GB list-block loop-item context (currently detected via `bws_get_loop_row_context()`) → `{ kind: 'post', id: $row_post_id }` for post-source loops; `{ kind: 'meta_row', id: $row_array }` for meta-source loops.
 
@@ -252,7 +252,7 @@ Modifier prefixes (`term_`, `view_`, future `user_`) become source factory choic
 `register_modifier()` already declares `base_source_key` (source resolver for the modifier's starting context). Under the pipeline:
 
 - `term_*` modifier source factory = `TaxonomyTerm` → `{kind: 'term', id}`
-- `view_*` modifier source factory = `PortalSource` → `{kind: 'post', id}` (portal post type)
+- an external modifier's source factory → `{kind: 'post', id}` (that plugin's post type)
 - Default (no prefix) source factory = ambient detection (post / term / loop-row, per §Base Resolution)
 
 Modifier callbacks assemble identical pipelines as base callbacks. The only difference is which factory produces the base resolved source. `traversal_source_key` (currently a separate "ref hop from this modifier" source class) disappears — the `ref` step does that work generically.
@@ -286,7 +286,7 @@ Editor-side: typed sources can suppress incompatible step options in the UI (e.g
 |-------|------|
 | `CurrentPost` | Stays; already no traversal; simplifies slightly. Becomes one ambient-detection branch in the source factory. |
 | `TaxonomyTerm` | Stays; already no traversal; ACF ID-prefix logic moves to engine. |
-| `PortalSource` | **EXTERNAL — not ours.** Lives in bws-portal-system (`includes/integrations/class-portal-source.php`), extends our `AbstractSource`, self-registers via `SourceRegistry::register_source()` + `register_modifier(['base_source_key'=>'view'])`. Phase 1 MUST NOT break the external source contract (`AbstractSource::resolve_id()` + both registries) — the factory wraps a registered external source's `resolve_id()` as `{kind:'post', id}`. Contract doc: `docs/plugin-integration.md`. |
+| An external source class | **EXTERNAL — not ours.** Lives in the integrating plugin, extends our `AbstractSource`, self-registers via `SourceRegistry::register_source()` + `register_modifier(['base_source_key'=>'view'])`. Phase 1 MUST NOT break the external source contract (`AbstractSource::resolve_id()` + both registries) — the factory wraps a registered external source's `resolve_id()` as `{kind:'post', id}`. Contract doc: `docs/plugin-integration.md`. |
 | `RelatedPost` | Superseded by `CurrentPost` + `ref` step. |
 | `TermRelatedPost` | Superseded by `TaxonomyTerm` + `ref` step. |
 | `SecondRelatedPost` | Superseded by `CurrentPost` + `ref` + `ref` steps. |
@@ -347,17 +347,17 @@ not wrapper surgery.
 ## Migration Path
 
 **Release slicing (grill 2026-07-06, Q5): Phase 1 ships steps 1–4 in ONE
-release; step 5 = Phase 1b (own release, can follow immediately — portal is
+release; step 5 = Phase 1b (own release, can follow immediately — the integrator is
 ours, parallel work fine); step 6 opportunistic.** Rationale: 3–4 are the
 payoff (N×M retirement + fork collapse) and share one manual-test sweep with
 1–2; step 5 ships NEW user-facing tags (`try_view_*`) + a coordinated (tiny)
-bws-portal-system release — its own CHANGELOG story. **Portal is NOT stranded
+integrator release — its own CHANGELOG story. **The integrator is NOT stranded
 by Phase 1:** `base_source_key:'view'` resolves through the factory's
-`SourceRegistry` delegation, the `ref` step replaces `PortalRelatedPost`'s
+`SourceRegistry` delegation, the `ref` step replaces its per-combination traversal class's
 traversal, and `traversal_source_key` is **accepted-but-ignored** (NOT
-removed) — `view_*` tags render identically with zero portal changes; one
-release of registered-but-unused `PortalRelatedPost` is the only dead weight.
-Portal's 1b diff: drop `traversal_source_key` + `PortalRelatedPost`
+removed) — its tags render identically with zero changes on its side; one
+release of a registered-but-unused traversal class is the only dead weight.
+The integrator's 1b diff: drop `traversal_source_key` + that class
 registration, add `'supports_try' => true`. `plugin-integration.md` documents
 `traversal_source_key` as no-op-deprecated in Phase 1.
 
@@ -367,9 +367,9 @@ registration, add `'supports_try' => true`. `plugin-integration.md` documents
 4. `generate_base_try_tags()` parameterized by modifier descriptor's source factory. `try_core_fn` / `try_term_fn` fork collapses to single kind-dispatching `try_core_fn`.
    — **Phase 1 release boundary —**
 5. [Phase 1b — **SHAPE UNDECIDED, do NOT bake try_view_ in** (grill 2026-07-06)] Two competing shapes, decide before 1b:
-   - **(a) Prefix fan-out:** `register_modifier()` accepts `'supports_try' => true`; portal opts in (+ drops the retired key + `PortalRelatedPost`); `try_view_*` tag sets register automatically.
+   - **(a) Prefix fan-out:** `register_modifier()` accepts `'supports_try' => true`; the integrator opts in (+ drops the retired key + its traversal class); its `try_` tag sets register automatically.
    - **(b) Sources-as-src-values (user-preferred direction):** registered sources (incl. `view`) become base-tag `src` enum values — `{{text src:view}}` — and try_ slots inherit via #26 slot-option derivation. **NO new tag sets at all.** Precedent: site went exactly this route (`src:site` + `try_allow_site_slot`, never a `site_` prefix family); memory already anticipates `src:view` as a base option (term-deprecation path). Dissolves the prefix explosion at the TAG level, not just the class level; also reframes `view_`'s own future (rooting modifiers deprecate like `term_`).
-   - **Phase 1 is identical under both** — factory + `SourceRegistry` delegation + engine is the shared substrate. I4 source-gate + UX (src dropdown gains "Current View" only when portal active; GB native-source exclusion) get worked at 1b decision time.
+   - **Phase 1 is identical under both** — factory + `SourceRegistry` delegation + engine is the shared substrate. I4 source-gate + UX (src dropdown gains the external entry only when that plugin is active; GB native-source exclusion) get worked at 1b decision time.
 6. Long-term: deprecated wrappers (`related_post_*` etc.) migrate or retire.
 
 ## Test harness (grill 2026-07-06, Q7)

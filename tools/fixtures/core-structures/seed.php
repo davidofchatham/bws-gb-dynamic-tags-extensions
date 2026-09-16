@@ -382,13 +382,13 @@ foreach ( $manifest['post_terms'] as $slug => $terms ) {
 $log( 'post→term assignments applied' );
 
 // sample-event doubles as the date-archive context fixture (context-test-matrix
-// C-rows): the portal-system front-end query filter drops anonymous-invisible
-// posts (must carry an all-users/no-portal portal_visibility term AND no
+// C-rows): an integrating plugin's front-end query filter drops anonymous-invisible
+// posts (must carry an all-users visibility term AND no
 // category), so a default 'uncategorized' assignment 404s /2026/07/. Keep it
-// categoryless + all-users-visible. portal_visibility belongs to
-// bws-portal-system — guard on taxonomy existence so this blueprint stays
+// categoryless + all-users-visible. That taxonomy belongs to
+// the integrating plugin — guard on taxonomy existence so this blueprint stays
 // loadable without it.
-// Both posts need it for the same reason: the portal-system filter empties an anonymous
+// Both posts need it for the same reason: the integrator's filter empties an anonymous
 // query of anything not marked visible, which would take sample-event out of its date
 // archive and home-lead out of the latest-posts home it exists to lead. Measured rather
 // than assumed the second time — home-lead was seeded without it and simply did not

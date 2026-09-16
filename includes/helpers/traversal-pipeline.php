@@ -104,7 +104,7 @@ const BWS_SOURCE_KIND_UNRESOLVED = 'unresolved';
  * reversed).
  *
  * Filterable BY CONSTRUCTION, unshipped: when a consumer needs the hook (the
- * known one is Portal System's is_post_visible), an AND-composed, restrict-only
+ * known one is an integrating plugin's post-visibility predicate), an AND-composed, restrict-only
  * apply_filters lands inside this body — one line, no seam change. The contract
  * is decided and the row is FW-89; the record is
  * docs/design-history/deterministic-source-selection.md §S22 loosened + §O8.
@@ -779,7 +779,7 @@ function bws_capture_ambient_signals( $instance ) {
  * Resolve an explicit registry source (src token) to a resolved source.
  *
  * Post-yielding sources return { kind:'post', id }; a registry source is honored only
- * when it resolves its own id (SPEC §V5 — external sources like PortalSource route
+ * when it resolves its own id (SPEC §V5 — externally registered sources route
  * through here).
  *
  * ── THREE DECLINES, TWO OF THEM TERMINAL (GH #75 / #76) ─────────────────────────────

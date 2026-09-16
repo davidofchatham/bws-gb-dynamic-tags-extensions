@@ -170,12 +170,12 @@ class TagTemplateRegistry {
 	 *
 	 * Under the traversal pipeline (SPEC §T7/§V5) the modifier resolves its BASE
 	 * source via base_source_key (term_ → TaxonomyTerm term-kind, view_ →
-	 * PortalSource post-kind), then steps `src:ref` through the generic `ref` step —
-	 * the per-combination traversal source class (TermRelatedPost / PortalRelatedPost)
+	 * an external post-kind source), then steps `src:ref` through the generic `ref` step —
+	 * the per-combination traversal source class (TermRelatedPost and its external twin)
 	 * is no longer invoked. `$traversal_src_key` is ACCEPTED-BUT-IGNORED: kept in the
-	 * signature so register_modifier() (and external callers like bws-portal-system)
+	 * signature so register_modifier() (and external callers)
 	 * pass it without change, but never read — the ref step does the traversal
-	 * generically. Portal renders identically with zero portal changes (SPEC §V5).
+	 * generically. An external family renders identically with zero changes on its side (SPEC §V5).
 	 *
 	 * @since 1.6.0
 	 * @since 1.14.0 Pipeline-assembled; traversal_source_key accept-but-ignore (§V5).
@@ -250,10 +250,10 @@ class TagTemplateRegistry {
 			$link_entity_type = 'post';
 
 			// L1 — resolve the modifier's BASE resolved source via base_src_key (SPEC
-			// §V5): term_ → TaxonomyTerm (term kind), view_ → PortalSource (post kind).
+			// §V5): term_ → TaxonomyTerm (term kind), an external prefix → its own source (post kind).
 			// The pipeline engine then steps it; traversal_src_key is accepted-but-
-			// IGNORED (SPEC §V5 — portal still passes it, we never read it). The old
-			// per-combination traversal source class (TermRelatedPost / PortalRelatedPost)
+			// IGNORED (SPEC §V5 — an integrator still passes it, we never read it). The old
+			// per-combination traversal source class (TermRelatedPost and its external twin)
 			// is replaced by the generic `ref` step off this base source.
 			$base_src   = SourceRegistry::get_source( $base_src_key );
 			$base_kind  = ( $base_src && 'term' === $base_src->get_context_type() ) ? 'term' : 'post';

@@ -1014,7 +1014,7 @@ foreach ( array_diff( $ambient_kinds, array( 'term' ) ) as $kind ) {
 //
 // The modifier callback (term_/view_) resolves a BASE source via base_source_key
 // then hops src:ref through the generic ref step — replacing the retired
-// TermRelatedPost / PortalRelatedPost traversal classes. Shape assertion: a term
+// TermRelatedPost and its external twin, the old traversal classes. Shape assertion: a term
 // base hops term->post[] and collapses to first (single-valued modifier link).
 
 // term base + ref step → post[]; first post id (mirrors term_ modifier src:ref).
@@ -1023,7 +1023,7 @@ $stepped = bws_run_traversal( array( term_src( 34 ) ), array( array( 'type' => '
 eq( 'V5 term modifier ref hop -> post[]', array( post_src( 91 ), post_src( 92 ) ), $stepped );
 eq( 'V5 term modifier ref collapses to first', 91, bws_first_post_id_from_sources( $stepped ) );
 
-// post base + ref step → post[] (view_ modifier src:ref: PortalSource post -> rel).
+// post base + ref step → post[] (an external modifier src:ref: its post -> rel).
 $reader = make_reader( array( 'post:70' => 88 ) );
 $stepped = bws_run_traversal( array( post_src( 70 ) ), array( array( 'type' => 'refs', 'field' => 'rel' ) ), $reader );
 eq( 'V5 post modifier ref hop -> first post', 88, bws_first_post_id_from_sources( $stepped ) );

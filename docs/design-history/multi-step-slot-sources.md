@@ -100,7 +100,7 @@ Pointers, never content. The sections stay authoritative.
 | **The harvest/replay seam is TWO artifacts (census + URL inventory), never one manifest** | §Instruments | ✅ 2026-08-14 — CORRECTS the `{tag_string, url, post_id, post_type}` row this plan first proposed: an Element has no URL of its own, so a census row has no `url` to hold. Replay is their product |
 | **Replay covers the CARTESIAN and does not read Element display rules** | §Instruments | ✅ 2026-08-14 (user) — the cartesian is a SUPERSET of what display-rule reading yields, so nothing is missed and narrowing stays a filter over this output. Attestation (a container with its own permalink) splits the diff for free, with no GB coupling |
 | **Instruments BUILT and smoke-tested** | §Instruments | ✅ 2026-08-14 — `bin/harvest-tags.sh` + `fixtures/harvest/harvest-tags.php` (env), `tools/replay-tags.php` + `tools/run-converter.php` + `tools/diff-replays.php` (here). Green end to end on `testbed` |
-| **The converter is ADMIN-TRIGGERED — swapping the build migrates nothing** | §Verification step 2 | ✅ 2026-08-14 — CORRECTS "upgrade to 1.17.0; the converter runs". That is `bws-portal-system`'s behaviour, which `dev-plugin.sh`'s header describes; reading it as this plugin's is how the step got written. `tools/run-converter.php` invokes it |
+| **The converter is ADMIN-TRIGGERED — swapping the build migrates nothing** | §Verification step 2 | ✅ 2026-08-14 — CORRECTS "upgrade to 1.17.0; the converter runs". That is the integrating plugin's behaviour, which `dev-plugin.sh`'s header describes; reading it as this plugin's is how the step got written. `tools/run-converter.php` invokes it |
 | **A and C hold DIFFERENT tag strings, so the diff pairs through the converter's own mapping** | §Verification step 4 | ✅ 2026-08-14 — migration rewrites the wire; nothing else can supply the pairing. Best-effort by design, because a string can be migrated in a post and unmigrated in postmeta at the same time |
 | **EXPERIMENT M PASSED on both clones** | §Experiment M — RUN | ✅ 2026-08-14 — 0 changed of 5,104 (SITE-B) and 13,657 (SITE-A) pairs. The 1.17.0 migrator is safe on real wire |
 | **The `patterns_tree` shadow copy is a COMPLETENESS bug — FOUND here, FIXED elsewhere** | §Experiment M — RUN | ✅ 2026-08-15 — GH #98 → spec #99 → `1aad875`, both CLOSED. Orthogonal to FW-71; it never gated this work, and the claim that a migrated tag is done now holds |
@@ -121,7 +121,7 @@ Pointers, never content. The sections stay authoritative.
 | **EXPERIMENT R PASSED on both clones — the gate is HELD and FW-71 ships in 1.17.0** | §Experiment R — RUN | ✅ 2026-08-17 ([#107](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/107)) — 0 changed of 11,155 (SITE-B) and 13,568 (SITE-A), `5b0b98b` → `993cf16`, both declaring 1.17.0. Both silent-failure guards were OBSERVED FIRING rather than assumed (a self-diff refused, a wrong-census diff refused by the digest guard). The ship decision was conditional on #76 landing, and it landed |
 | **The BUILT ZIP was activated on a clone, which no symlinked run can substitute for** | §Experiment R — RUN | ✅ 2026-08-17 — 205 entries, no `tools/`/`docs/` leak, six URLs loaded, no fatal, dev symlink restored. That is the only check that catches an unguarded `require` of a `.distignore`d path (bit once in 1.15.0) |
 | **#108's run is DONE and its role was RE-CUT before it ran** | §Tier 2, [#108](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/108) | ✅ 2026-08-17/18 — neither corpus holds ambient-rooted `use(title)`/`use(content)` wire (every one sits behind a `refs` step; every ambient-rooted slot is a `key(...)` read), so the run CANNOT demonstrate the fix and was not written as though it could: **SITE-B = control, diff MUST be empty; SITE-A = observation, diff READ and triaged**, an empty one recorded as *"no exposed wire in the surveyed population"* and never as confirmation. Fix evidence is §T8 + the fixture. A positive control on a real clone kept the empty diff non-vacuous (`{{try_text use:title}}` empty on A, `Webmaster` on C, same author URL). Mechanics worth reusing: SITE-A's author stratum raised to all 9 URLs while other strata stayed at 3 (raising globally inflates both sides of pure-control strata), URL set drawn ONCE across all four runs, R's censuses REUSED with digest recorded rather than re-harvested. `try_title` is absent from both corpora — stated in the prediction, not discovered after |
-| **#111 needed an EXTERNAL plugin to get any real-wire exposure at all** | — ([#111](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/111)) | ✅ 2026-08-18 — verified during M2 rather than by its own run, and recorded as such: no `type:'tag'` entry this plugin ships targets another deprecated name, and neither census holds a two-generation shape, so the fix shipped with ZERO in-repo exposure. `bws-portal-system`'s `portal_*`/`views_*` → `view_*` → base chain is exactly the shape; four cases through one `migrate_post()` on the SITE-B clone, second run changed nothing |
+| **#111 needed an EXTERNAL plugin to get any real-wire exposure at all** | — ([#111](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/111)) | ✅ 2026-08-18 — verified during M2 rather than by its own run, and recorded as such: no `type:'tag'` entry this plugin ships targets another deprecated name, and neither census holds a two-generation shape, so the fix shipped with ZERO in-repo exposure. the integrating plugin's two-generation prefix chain into a base tag is exactly the shape; four cases through one `migrate_post()` on the SITE-B clone, second run changed nothing |
 | **#112's replay RAN and matched its prediction — the release's replay obligation is discharged** | §Experiment R — RUN | ✅ 2026-08-18 ([#112](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/112)) — A `6fc9335` → C `a4ea34a`, censuses re-harvested into FRESH `SITE-B-112/` / `SITE-A-112/`. **SITE-B: 62 changed of 5,060** (2 attested, 60 synthetic), six distinct tag strings, all decomposing into the `src:view` population — 43 × `{{title src:view}}`, 14 × the image tag (all 14 landing on ONE 109-byte fallback string, which is what a fallback looks like), 2 × `{{text src:view|key:…}}`, and 3 CASCADING through `{{content}}`/`{{post_excerpt}}`, verified word-level as byte-for-byte the vanished view-tag output. **SITE-A: CHANGED 0 of 13,568, GATE HELD** — the structural control. `GATE FAILED (2 findings)` on SITE-B is the tool counting non-empty buckets; it cannot express an expected non-empty diff without `--map`. **The one finding is against the PREDICTION, not the result:** "exactly the `src:view` population" did not allow for container tags carrying it, so the reusable form is that a blanking change reaches `{{content}}` and `{{post_excerpt}}` wherever the blanked tag sits inside post content |
 
 ## §OPEN
@@ -360,7 +360,7 @@ of this gets built, and it should run before the build starts.
 **Step 2 was written wrong and the correction matters.** This plugin's converter is
 admin-triggered (`wp_ajax_bws_scan_tags` / `wp_ajax_bws_migrate_tags`); there is no
 version-gated upgrade routine and NOTHING fires on a page load. Swapping in a newer build and
-loading a page migrates nothing — that is `bws-portal-system`'s behaviour, which is what
+loading a page migrates nothing — that is the integrating plugin's behaviour, which is what
 `dev-plugin.sh`'s header describes, and reading it as this plugin's is how the step got
 written. `tools/run-converter.php` invokes it the way the admin button does.
 
@@ -435,7 +435,7 @@ the FILE SWAP.
 **BUILT 2026-08-14**, smoke-tested end to end on `testbed` (4 URLs × 293 tags, all byte-identical):
 
 - **Harvest — env repo.** `bin/harvest-tags.sh` + `fixtures/harvest/harvest-tags.php`.
-  Plugin-agnostic; `bws-portal-system` wants it too.
+  Plugin-agnostic; the integrating plugin wants it too.
 - **Replay — this repo.** `tools/replay-tags.php`, one URL per invocation.
 - **Diff — this repo.** `tools/diff-replays.php`, plain PHP, no WP. Exits non-zero on any change.
 
@@ -556,11 +556,11 @@ No fresh pull — `dev-plugin.sh --live` restores the paired `predev` snapshot a
 and both clones still held theirs from 2026-08-14. Confirmed genuinely pre-1.17.0 before starting:
 zero rows of migrated chain wire, 40 (SITE-B) and 34 (SITE-A) legacy flat.
 
-**SITE-B ran STAGED, because two plugins migrate here.** `bws-portal-system` 5.7.0 registers
+**SITE-B ran STAGED, because two plugins migrate here.** The integrating plugin registers
 `view_*` → base root migrations (its #71), so an unstaged run would cross two boundaries at once and
 a failure would need bisecting afterwards.
 
-| | SITE-B C1 (this plugin) | SITE-B C2 (+ portal-system) | SITE-A |
+| | SITE-B C1 (this plugin) | SITE-B C2 (+ the integrator) | SITE-A |
 |---|---|---|---|
 | A → B | 1.16.0 → 1.17.0 | 1.17.0 both, PS 5.6.0 → 5.7.0 | 1.16.0 → 1.17.0 |
 | tag strings rewritten | 31 | 10 | 26 |
@@ -574,14 +574,14 @@ End to end (A → C2, mappings composed) SITE-B is 5,104 identical, CHANGED 0. E
 was what #71 promised, `{{view_title}}` → `{{title src:view}}` included.
 
 **#111 got its first real-wire exercise here, and it needed an external plugin to get one.** No
-`portal_*` or `views_*` occurrence exists in either census, and nothing this plugin ships chains two
-renames — so the fix stayed vacuous on stored wire. But portal-system registers `portal_*` and
+occurrence of either external prefix exists in either census, and nothing this plugin ships chains two
+renames — so the fix stayed vacuous on stored wire. But the integrator registers an older prefix and
 `views_*` → `view_*` as plain renames and 5.7.0 registers `view_*` → base, which makes
-`{{portal_title}}` exactly #111's shape: an OPTION-LESS intermediate. A throwaway probe on the
-SITE-B clone put all four cases through one `migrate_post()` — `{{portal_title}}` and
+its older prefix in exactly #111's shape: an OPTION-LESS intermediate. A throwaway probe on the
+SITE-B clone put all four cases through one `migrate_post()` — the two-generation title tag and
 `{{views_title}}` both reached `{{title src:view}}`, the optioned sibling reached
 `{{text src:view|key:home_introduction}}`, and a second run changed nothing. That closes the item
-portal-system's own commit left open ("asserted upstream but NOT against this repo's alias table,
+the integrator's own commit left open ("asserted upstream but NOT against this repo's alias table,
 marked unverified in situ").
 
 **SITE-A: 13,445 comparable pairs identical, CHANGED 0, and 212 pairs the diff could not compare.**
@@ -606,7 +606,7 @@ rows on this axis, and a row that ceases to exist is not a render change.
 | # | What it did | What it was |
 |---|---|---|
 | 1 | SITE-B' B-side reported 30 surviving legacy strings after a clean migration | `run-converter.php` called `scan()` + `migrate_post()` but NOT the pattern-cache reconcile the admin button ends with, so the driver under-reported the repair and read exactly like the bug #98 fixed four days earlier. Running the reconcile by hand took `generateblocks_patterns_tree` legacy wire 32 → 0 |
-| 2 | SITE-B C2 failed as "the swap did not happen" | the build-identity guard assumes the only migration boundary is THIS plugin's version bump. Staging portal-system holds this build fixed on both sides while the wire moves underneath it. A non-empty mapping now distinguishes the two — evidence, not an operator assertion. Mutation-verified: same build with no mapping, and with an empty one, still fail |
+| 2 | SITE-B C2 failed as "the swap did not happen" | the build-identity guard assumes the only migration boundary is THIS plugin's version bump. Staging the integrator holds this build fixed on both sides while the wire moves underneath it. A non-empty mapping now distinguishes the two — evidence, not an operator assertion. Mutation-verified: same build with no mapping, and with an empty one, still fail |
 
 **A third read as a defect and was not.** The derived new strings for those two datetime tags exist
 nowhere in the site, which looks like a derivation that does not mirror `migrate_post()`. It is the
