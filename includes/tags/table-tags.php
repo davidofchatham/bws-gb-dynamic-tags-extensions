@@ -16,8 +16,8 @@
  * inserted into a <p>/<span> (the tag modal description warns of this).
  *
  * v1 SCOPE (grill 2026-07-24, handoff §11):
- *   - Full source support (current/ref/site) + srcTermIn — the base entity that
- *     OWNS the repeater; the `rows` step reads it via ACF get_field (not have_rows,
+ *   - Full source support (current/ref/site) — the base entity that OWNS the
+ *     repeater; the `rows` step reads it via ACF get_field (not have_rows,
  *     whose stateful cursor breaks the pure fold).
  *   - Columns are numbered-prefix (ALL columns `{N}-` from N=1; bare keys reserved
  *     for the tag-level repeater source — option i, join/try_ retrofit deferred).
@@ -102,7 +102,7 @@ function bws_register_table_tag(): void {
  * Build the {{table}} option definitions.
  *
  * Tag-level (bare keys): the base source that OWNS the repeater — `src`
- * (current/ref/site), `ref`/`srcTermIn` traversal, and `key` (the repeater field
+ * (current/ref/site), the `ref` traversal key, and `key` (the repeater field
  * key — drives the table-only `rows` fold step). Then N column slots, ALL
  * `{N}-`-prefixed from N=1 (bare reserved for the tag-level source — option i). Per
  * column: `{N}-use`, `{N}-key`/`{N}-ref`, `{N}-label` (header cell text). Each
@@ -118,6 +118,12 @@ function bws_register_table_tag(): void {
 function bws_get_table_options(): array {
 	$source_opt     = function_exists( 'bws_base_source_option' ) ? bws_base_source_option() : array();
 	$traversal_opts = function_exists( 'bws_base_traversal_options' ) ? bws_base_traversal_options() : array();
+
+	// Drop the flat term-hop carrier the traversal leaf offers: bws_table_callback()
+	// never applies it, so the control would do nothing. The scope decision is
+	// recorded there. A plain unset — bws_drop_chain_flat_options() leaves this tag
+	// alone, as its own docblock says.
+	unset( $traversal_opts['srcTermIn'] );
 
 	$tag_level = array_merge(
 		$source_opt,
@@ -446,9 +452,11 @@ function bws_table_callback( $options, $block, $instance ): string {
 
 	// L1 — resolve the base entity that owns the repeater. Apply the tag-level ref
 	// steps (src:ref) FIRST so the repeater is read off the ref target, then step the
-	// `rows` step. srcTermIn is intentionally NOT applied here in v1 (a repeater on a
-	// term is read directly from the term base; the post→term step belongs to a later
-	// pass with the term-source column story).
+	// `rows` step. A post→term step is intentionally NOT applied here in v1 (a
+	// repeater on a term is read directly from the term base); it belongs to a later
+	// pass with the term-source column story, authored as a step inside `src` once
+	// {{table}} takes a chain source (FW-53). The flat carrier that used to spell it
+	// is not registered.
 	$base = bws_base_resolve_source_for_callback( $options, $instance );
 
 	$ref_steps = function_exists( 'bws_wrapper_ref_steps' ) ? bws_wrapper_ref_steps( $options ) : array();
