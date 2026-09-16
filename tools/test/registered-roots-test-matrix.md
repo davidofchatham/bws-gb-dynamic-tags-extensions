@@ -7,18 +7,8 @@ structurally cannot: a real source class resolving real seeded content, the cont
 slot renders through, the Source control an author actually picks the root from, and the converter
 run end to end.
 
-> **Re-run trigger:** any change to the chain-root offering (`is_selectable_root()`,
-> `SourceRegistry::get_selectable_roots()`, `bws_registered_root_rows()`, the
-> `bws_dynamic_tags_chain_roots` filter route or `Sources\CallbackRoot`), to the modifier→base
-> transform (`bws_migrate_modifier_root_chain()` and its helpers, the entry generator
-> `bws_register_modifier_root_migrations()`, `TagConverter::resolve_full_chain()`), or to the
-> blueprint pieces backing them (`fixture-source.php`, `schema.php`'s root + modifier registrations).
-> **Pure harnesses are the cheap gate — run them FIRST**, they own the algorithms:
-> `slot-options-build-test.php` (which rows each enum contains), `traversal-pipeline-test.php`
-> (resolution, incl. the mutation-pinned offering-is-not-resolving case),
-> `modifier-base-migration-test.php` (every mapping row + the generator),
-> `preview-label-test.php` (a rooted tag names its source by label), `fold-migration-test.php` (the
-> cascade this rides). Rows here assert only what needs real WP state or the editor.
+> **Re-run trigger:** any change to the chain-root offering (`is_selectable_root()`, `SourceRegistry::get_selectable_roots()`, `bws_registered_root_rows()`, the `bws_dynamic_tags_chain_roots` filter route or `Sources\CallbackRoot`), to the modifier→base transform (`bws_migrate_modifier_root_chain()` and its helpers, the entry generator `bws_register_modifier_root_migrations()`, `TagConverter::resolve_full_chain()`), or to the blueprint pieces backing them (`fixture-source.php`, `schema.php`'s root registrations and its `fixture_*` migration-entry registrar).
+> **Pure harnesses are the cheap gate — run them FIRST**, they own the algorithms: `slot-options-build-test.php` (which rows each enum contains), `traversal-pipeline-test.php` (resolution, incl. the mutation-pinned offering-is-not-resolving case), `modifier-base-migration-test.php` (every mapping row + the generator), `preview-label-test.php` (a rooted tag names its source by label), `fold-migration-test.php` (the cascade this rides). Rows here assert only what needs real WP state or the editor.
 
 **How to run:** rows are `render-tag` one-liners against the seeded testbed (state:
 `core-structures` blueprint **v8** — `bin/seed.sh testbed core-structures`). From the wp-litespeed
@@ -79,12 +69,7 @@ that lost its bound prints two values rather than looking unchanged.
 than the real external source being used here: that one reads request context, so a row through it
 could not state its own expected value.
 
-**§FR1-§FR4 read field keys, not `use:title`, on purpose.** Through 1.19.1 a modifier template's
-text core read `key` and ignored `use` entirely, so `use:title` rendered empty on `fixture_`,
-`term_` and `view_` alike (pre-existing, [#88](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/88)) —
-an equivalence pair built on it would have passed by comparing two empties. Fixed in the same
-release; §FR7 below is the dedicated row this fix earned, once an equivalence pair could mean
-something again.
+**§FR1-§FR4 read field keys, not `use:title`, on purpose.** Through 1.19.1 a modifier template's text core read `key` and ignored `use` entirely, so `use:title` rendered empty on `fixture_`, `term_` and `view_` alike (pre-existing, [#88](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/88)) — an equivalence pair built on it would have passed by comparing two empties. Fixed in the same release, and §FR7 was the dedicated row that fix earned; §FR7 is retired now that this fixture mints no family, and `term_`'s twin rows in `text-test-matrix.md` §T10 / `content-test-matrix.md` §CT7 are what still hold the fix.
 
 ---
 
@@ -132,28 +117,28 @@ resolve anywhere would satisfy the negative while asserting nothing at all.
 | FR2b.2 | `{{text key:role}}` | `Ambient Page Role` | The ambient contrast, same key — a root that fell through would print this |
 | FR2b.3 | FR2b.1's tag, on `/matrix-post-meta/` | EMPTY | Stated here as the pointer; the row itself is fold §F11a.4, beside its own ambient contrast |
 
-## §FR3 — The `fixture_` modifier corpus (pre-conversion)
+## §FR3 — The retired-prefix corpus (pre-conversion)
 
-The six shapes the transform maps, as stored wire. **Read against a freshly seeded site**: running
-the converter (§FR6) rewrites these in place, which is the point of them.
+The six shapes the transform maps, as stored wire. **Read against a freshly seeded site**: running the converter (§FR6) rewrites these in place, which is the point of them.
+
+**Every row renders LITERALLY.** The fixture stands down from `register_modifier()` ahead of FW-129 withdrawing it, so nothing mints a `fixture_*` tag and GB hands the unknown tag back untouched. (The constructor is still live and still mints `term_`; only this prefix is gone.) That is not a fault in the fixture — it is the state a retired prefix leaves on a published page, and the reason the converter exists. The value each row is *worth* after conversion is its §FR4 partner, which renders live on the same page.
 
 | Row | Tag | Expected | Property |
 |---|---|---|---|
-| FR3.1 | `{{fixture_text key:role}}` | `Fixture Root Role` | No source stated — the modifier's own entity |
-| FR3.2 | `{{fixture_text src:current\|key:role}}` | `Fixture Root Role` | `current` on a modifier named ITS entity, so identical to FR3.1 |
-| FR3.3 | `{{fixture_text src:ref\|ref:related_staff\|key:role\|limit:1}}` | `Fixture Ref Role` | Relationship sidecar |
-| FR3.4 | `{{fixture_text srcTermIn:department\|key:email}}` | `sales@example.test` | Taxonomy sidecar — the ROOT's term |
-| FR3.5 | `{{fixture_text src:ref\|ref:related_staff\|srcTermIn:department\|key:email}}` | `warehouse@example.test` | Both sidecars: hop, then drop into terms |
-| FR3.6 | `{{fixture_text src:site\|ref:related_staff\|srcTermIn:department\|use:key\|key:organization_email}}` | **empty** | `site` returns BEFORE either sidecar is read (the [#37](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/37) guard), so this shape has never rendered. Hand-wire only: `site` is filtered out of every rooting-modifier Source dropdown, so it cannot be re-authored through the control |
+| FR3.1 | `{{fixture_text key:role}}` | the tag, literally | No source stated — migrates to FR4.1. The visible row's LABEL carries no tag braces, here or on any FR3 row: §FR6's converter rewrites every `{{fixture_…}}` string in the post body, so a label quoting its own tag is rewritten out from under itself |
+| FR3.2 | `{{fixture_text src:current\|key:role}}` | the tag, literally | `current` on a prefix that named ITS entity, so it migrates to FR4.1 too |
+| FR3.3 | `{{fixture_text src:ref\|ref:related_staff\|key:role\|limit:1}}` | the tag, literally | Relationship sidecar — migrates to FR4.3 |
+| FR3.4 | `{{fixture_text srcTermIn:department\|key:email}}` | the tag, literally | Taxonomy sidecar — migrates to FR4.4 |
+| FR3.5 | `{{fixture_text src:ref\|ref:related_staff\|srcTermIn:department\|key:email}}` | the tag, literally | Both sidecars — migrates to FR4.5 |
+| FR3.6 | `{{fixture_text src:site\|ref:related_staff\|srcTermIn:department\|use:key\|key:organization_email}}` | the tag, literally | Hand-wire only: `site` was filtered out of every rooting-modifier Source dropdown ([#37](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/37)), so this shape could never be authored through a control. Migrates to FR4.6, sidecars dropped |
 
-FR3.6's visible block uses the split-label row helper (`bws_fixture_gb_empty_row`), since GB hides a
-text block whose tag resolves to nothing and would take a single-block row's own label down with it.
+FR3.6's visible block is an ordinary single-block row like its five siblings. It used the split-label helper (`bws_fixture_gb_empty_row`) while the family was minted and the row resolved to nothing, because GB hides a text block whose tag renders empty and would have taken the row's own label with it. Unregistered wire renders its own braces rather than nothing, so the block is no longer hidden and the helper is not needed.
 
 ## §FR4 — Each shape beside the base wire it must become
 
-The migration's whole promise: **same render out**, one row excepted. Numbered to MATCH its FR3
-partner, so a divergent pair is read off one digit. There is deliberately no FR4.2 — `src:current` and
-a stated-nothing source map to the same wire, which is FR4.1.
+What the migration produces, and the only side of the pair that renders now the `fixture_` family is no longer minted. Numbered to MATCH its FR3 partner, so a divergent pair is read off one digit. There is deliberately no FR4.2 — `src:current` and a stated-nothing source map to the same wire, which is FR4.1.
+
+**This is no longer a byte-identity pair.** The old `fixture_*` side rendered, so the two columns could be compared directly; it renders literally now, so what FR4 pins is that the converter's target renders the value the row names. `verify.php` asserts the same four values under the same wire, and `verify-migration.php` asserts the converter produces exactly these strings — between them the equivalence is still measured, just not by reading two rows side by side.
 
 These are the hand-written wire each shape MUST become, not a transcript of what the converter emits.
 It writes the same read a different way where a limit is involved: FR4.3's tag-level `limit:1` is
@@ -167,11 +152,9 @@ source is stated — see §FR6.
 | FR4.3 | `{{text src:fixture;refs,related_staff\|key:role\|limit:1}}` | `Fixture Ref Role` | FR3.3 |
 | FR4.4 | `{{text src:fixture;terms,department\|key:email\|limit:1}}` | `sales@example.test` | FR3.4 |
 | FR4.5 | `{{text src:fixture;refs,related_staff;terms,department\|key:email\|limit:1}}` | `warehouse@example.test` | FR3.5 |
-| FR4.6 | `{{text src:site\|use:key\|key:organization_email}}` | `info@example.test` | FR3.6 — **the one row whose rendered output the migration CHANGES.** The inert sidecars are dropped deliberately (rule + rationale: `deprecated-tags-options.md` §Modifier prefix → base tag, last mapping row) |
+| FR4.6 | `{{text src:site\|use:key\|key:organization_email}}` | `info@example.test` | FR3.6 — the inert sidecars are dropped deliberately (rule + rationale: `deprecated-tags-options.md` §Modifier prefix → base tag, last mapping row) |
 
-**Limits are stated EXPLICITLY on both sides of every pair.** Since 1.17.0 an unset limit is resolved
-by the source SPELLING — flat wire bounds at 1, chain wire does not — so a bare-versus-bare
-comparison compares two different quantities and diverges by design.
+**Limits are stated EXPLICITLY on every row.** Since 1.17.0 an unset limit is resolved by the source SPELLING — flat wire bounds at 1, chain wire does not — so wire written without one is not the same quantity as the flat shape it replaces.
 
 ## §FR5 — Editor eyeball (no render-tag equivalent)
 
@@ -183,16 +166,13 @@ The enum is the other half of the offering assertion and only the editor shows i
 | FR5.1 | FR1.1's tag → Source control | After the built-ins (Current, Site), in registration order: **Post**, **Term** (both DECLARING rows, 1.20.0 FW-39 — see below), then **Fixture Root (class)** and **Fixture Root (filter)**. The labels name their ROUTE (for the fixture pair), so a row present through the wrong one is visible. **No `ref` row is expected** — a relationship is a STEP, not a root, and is added with `+ Add step` |
 | FR5.2 | FR2.1's tag → attempt A's source dropdown | The same rows, in the same order — one appender feeds both surfaces, so "offered here, absent there" cannot happen |
 | FR5.3 | FR2.4's tag → field A's and field B's source dropdowns | Same rows in a `{{join}}` field |
-| FR5.4 | Any `{{fixture_text}}` row (FR3.x) → its own Source control | **No registered root appears** (Post/Term included). Registered roots never reach `bws_base_source_option()`, so a modifier family is not offered a second root inside its own dropdown |
+| FR5.4 | Any `{{fixture_text}}` row (FR3.x) → its own Source control | **No tag panel at all.** Nothing mints the family, so the block holds unrecognized wire and GB offers nothing to configure. This row used to assert that a modifier family was not offered a second root inside its own dropdown; the shape it guarded against cannot exist once no constructor mints a family |
 | FR5.5 | Any base tag's Source control | No row for the four retired traversal-substitute sources — a registry that keeps its dead must not leak it into an authoring surface. **Post and Term DO appear** (1.20.0, FW-39): each is now a declaring root, not an internal-only key; selecting either mounts the entity-picker control (D11/D15) rather than a plain enum row. The dedicated entity-selection eyeball (picker browsing, filtering, the resolved-label caption, the "nothing selected" warning) lives on `/matrix-pinned-roots/` — see `fold-test-matrix.md` §F20 |
 | FR5.6 | FR1.1's tag, preview text | Names the source in author terms (**Fixture Root (class)**, the registered source label), never the `src:fixture` token |
 
 ## §FR6 — The converter, end to end
 
-Not a row: a script, because it **mutates** the corpus. It converts `/matrix-fixture-roots/` exactly
-as the admin Migrate button does, asserts report/run agreement and byte-identical render, and a
-reseed puts the pre-conversion `fixture_*` wire back — which is what makes it repeatable rather than
-one-shot.
+Not a row: a script, because it **mutates** the corpus. It converts `/matrix-fixture-roots/` exactly as the admin Migrate button does, asserts report/run agreement and that what it wrote renders, and a reseed puts the pre-conversion `fixture_*` wire back — which is what makes it repeatable rather than one-shot.
 
 ```bash
 bin/wp.sh testbed eval-file <mounted-repo>/tools/fixtures/core-structures/verify-migration.php \
@@ -205,15 +185,6 @@ condition, not a fault. The limit spelling differs from §FR4's hand-written wir
 (`src:fixture;refs,related_staff,limit(1)`); the render is what must match. **Any §FR3 row read against an unreseeded site is reading post-conversion
 wire** — check the seed before filing a failure.
 
-## §FR7 — modifier `use` dispatch, both field-read families ([#88](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/88))
+## §FR7 — RETIRED (was: modifier `use` dispatch, [#88](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/88))
 
-Not a §FR3/§FR4 equivalence pair — `register_modifier()`'s dispatch fix, not the root/migration
-property this page otherwise tests. Lives here anyway because `fixture_` is the one live modifier
-prefix this repo can render outside a term-archive context, and the two entities §FR1-§FR4 already
-use are exactly what these rows need. `term_`'s twin rows are render-tag-only (`text-test-matrix.md`
-§T10, `content-test-matrix.md` §CT7 — a term-archive ambient context, same exception as `text`'s T4).
-
-| Row | Tag | Expected | Property |
-|---|---|---|---|
-| FR7.1 | `{{fixture_text use:title}}` | `Fixture Root Entity` | `text` family — before the fix, empty (`use` never read) |
-| FR7.2 | `{{fixture_content use:key\|key:role}}` | `Fixture Root Role` | `content` family — before the fix, empty (the modifier read `type`, never `use`, so this fell to the description/content branch, which is empty for this entity) |
+Two rows measured `register_modifier()`'s `use` dispatch on a minted `fixture_*` tag. This fixture no longer mints one, so there is no dispatch left on this prefix to observe and the blocks are gone from `blocks.php`. The constructor itself is still live for `term_` until FW-129 withdraws it. `term_`'s twin rows survive until the `term_` family does — `text-test-matrix.md` §T10 and `content-test-matrix.md` §CT7, both render-tag-only against a term archive.

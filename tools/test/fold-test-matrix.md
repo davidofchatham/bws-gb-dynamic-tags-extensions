@@ -373,7 +373,7 @@ Run on `/matrix-post-meta/`, where `related_staff` resolves and the page carries
 | F8b.1 | `{{text src:ref\|use:key\|key:main_line}}` | `(987) 654-3210` — the PAGE's own field, from a tag naming a relationship | **EMPTY** |
 | F8b.2 | `{{text src:refs\|use:key\|key:main_line}}` | same, in chain spelling | **EMPTY** |
 | F8b.3 | `{{text src:ref\|ref:related_staff\|use:key\|key:main_line}}` | `(555) 200-3000` | unchanged — the negative control: a step WITH its argument is untouched |
-| F8b.4 | `{{text src:terms\|use:title}}` (on `/matrix-terms-mixed/`) | the page title | **EMPTY.** Hand-edit-only, twice over: the `bws-term-hop` control never writes an empty slug, and the chain control never commits a step it cannot complete |
+| F8b.4 | `{{text src:terms\|use:title}}` (on `/matrix-terms-mixed/`) | the page title | **EMPTY.** Hand-edit-only, and more so since v1.21.0: no control authors the flat key at all now, and the chain control never commits a step it cannot complete |
 | F8b.5 | `{{text src:terms,department\|use:title}}` (on `/matrix-terms-mixed/`) | — | `Sales, Support, Warehouse` — the negative control for F8b.4 |
 
 **A flat `srcTermIn:` set to empty is NOT this shape and did not change.** The compiler appends a

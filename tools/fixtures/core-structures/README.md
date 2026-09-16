@@ -212,8 +212,8 @@ something reseedable to run against more than once.
 |---|---|---|
 | `fixture` root | `fixture-source.php` + `schema.php` | The **class route**: a source registered on `bws_dynamic_tags_register_sources`, opted in with `is_selectable_root()`. Resolves the seeded `staff/fixture-root` post **by slug**. |
 | `fixture_alt` root | `schema.php` | The **filter route**: a spec on `bws_dynamic_tags_chain_roots`, no source class. Resolves the seeded `sample-event` post by slug. |
-| `fixture_*` tags | `schema.php` (init:21) | A **modifier family** rooted at `fixture`, registered exactly as the external one is — prefix and root key are the same string, which is what makes the seeded tags a faithful rehearsal of the rewrite. |
-| Corpus rows | `blocks.php` → `/matrix-fixture-roots/` | FR1/FR2 the roots on a base tag and in a folded slot, FR3 the six migration shapes as `fixture_*` tags, FR4 each shape beside the base wire it must become. |
+| `fixture_*` migration entries | `schema.php` (init:21) | `bws_register_modifier_root_migrations( 'fixture', 'fixture' )` and nothing else — **no tag family is minted**. The fixture stands down from `register_modifier()` ahead of FW-129 withdrawing it; the constructor is still live and still mints the built-in `term_` family. Prefix and root key are the same string, which is what makes the seeded wire a faithful rehearsal of the rewrite; the converter matches stored strings and never needed the old tag registered. Seeded `fixture_*` wire therefore renders literally until it is converted, which is the post-retirement state this corpus is for. |
+| Corpus rows | `blocks.php` → `/matrix-fixture-roots/` | FR1/FR2 the roots on a base tag and in a folded slot, FR3 the six migration shapes as unconverted `fixture_*` wire, FR4 each shape beside the base wire it must become. |
 
 **Both roots resolve from seeded content, never from request state.** That is the whole
 reason they exist rather than the real external source being used here: that one reads

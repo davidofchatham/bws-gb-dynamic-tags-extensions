@@ -457,8 +457,12 @@ function bws_build_src_chain_option( array $args = array() ): array {
  * a site read is entity-blind, so offering `site` there merely duplicates the
  * unrooted base tag (`{{email src:site}}`) while discarding the rooting — it fails
  * the qualifying gate on both arms (CONTEXT.md I4 source-level application;
- * tag-reference.md §Qualifying test). register_modifier() routes its source dropdown
- * through this before injecting it into every term_/view_ tag.
+ * tag-reference.md §Qualifying test).
+ *
+ * NO PRODUCTION CALLER SINCE 1.21.0 — its one consumer was register_modifier(), withdrawn
+ * with the modifier families. Held only by slot-options-build-test.php
+ * §bws_filter_site_from_src. It goes with the constructor's hard delete in 1.22.0 (FW-129),
+ * unless a later rooting surface takes it up first.
  *
  * Mirrors the slot-side filter in bws_build_slot_traversal_options() (which omits
  * `site` from derived try_ slot src unless a template opts back in via
@@ -525,11 +529,12 @@ function bws_pick_src_values( array $source_opt, array $keep ): array {
  * Build traversal sub-option definitions for the source dispatch.
  *
  * `ref` — shown when src:ref; the relationship field key for the step.
- * `srcTermIn` — combined control (checkbox + taxonomy ComboboxControl); when a
- *               taxonomy slug is selected, the resolved entity's taxonomy term
- *               is used as the final entity instead of the post itself. Empty =
- *               disabled. Custom JS control (`bws-term-hop`) ensures non-GB-reserved
- *               serialization. Replaces the prior `srcTerm` + `tax` pair.
+ *
+ * The `srcTermIn` term-hop control was the second member until 1.20.0. A stored
+ * `srcTermIn` is still READ — the chain compiler appends a `terms` step for one,
+ * and the fold migration converts it — but no tag offers a control for it any
+ * more: every chain source absorbed it, and the two families that authored it
+ * flat (`term_*`, `{{table}}`) are gone. See docs/deprecated-tags-options.md.
  *
  * @since 1.6.0
  * @return array Option definitions keyed by option name.
@@ -551,20 +556,6 @@ function bws_base_traversal_options(): array {
 			// values of it. A site-rooted relationship is a CHAIN (`src:site;refs,x`),
 			// which the engine has read since 1.17.0 and the chain control authors.
 			'show_if'     => array( 'src' => 'ref' ),
-		),
-		'srcTermIn' => array(
-			// `bws-term-hop` keeps the retired word ON PURPOSE. A control `type` is a
-			// registered identifier the JS matches on, so it is interface, not prose —
-			// renaming it here alone silently unregisters the control. Whether to rename
-			// it (and its file) in lockstep is a decision the vocabulary pass left open.
-			'type'      => 'bws-term-hop',
-			'label'     => __( 'Get from taxonomy term?', 'generateblocks' ),
-			'help'      => __( 'Field is in a taxonomy term on this source.', 'generateblocks' ),
-			'pickLabel' => __( 'Taxonomy', 'generateblocks' ),
-			'pickHelp'  => __( 'Pick the taxonomy.', 'generateblocks' ),
-			// Hidden for src:site — no entity to step terms from. (Term-context tags
-			// override this to src:ref in the template registry.)
-			'show_if'   => array( 'src' => 'not:site' ),
 		),
 	);
 }
@@ -666,8 +657,8 @@ function bws_get_content_field_options(): array {
  * The image `use` + `key` field-option LEAF — bws_get_text_field_options()'s sibling.
  *
  * Same contract. The base registration overlays `show_if` on `key` (`use:not:featured`)
- * literally and additionally gates `use` itself on `srcTermIn:empty`; the modifier
- * consumer (register_modifier(), #88) derives the same `key` overlay generically from
+ * literally and additionally gates `use` itself on `srcTermIn:empty`; the try_ consumer
+ * (#88) derives the same `key` overlay generically from
  * `try_use_no_key_values` instead of a second hand-typed copy. The leaf carries neither,
  * because which conditions apply is the consumer's composition, not the enum's.
  *
@@ -886,9 +877,9 @@ function bws_build_fold_slot_options( array $args ): array {
 		$read_rows_with_same = array_merge( array( $unset_row ), $read_rows_with_same );
 	}
 
-	// Taxonomy rows for a `terms` step. Mirrors what the shipped bws-term-hop control
-	// lists from the REST store (public taxonomies), read here instead so the whole
-	// enum arrives with the definition.
+	// Taxonomy rows for a `terms` step: public taxonomies, read here rather than from
+	// the REST store so the whole enum arrives with the definition. (The retired
+	// term-hop control listed the same set, asynchronously, from `wp.data` `core`.)
 	$tax_rows = array( array( 'value' => '', 'label' => __( 'Select…', 'generateblocks' ) ) );
 	if ( function_exists( 'get_taxonomies' ) ) {
 		foreach ( get_taxonomies( array( 'public' => true ), 'objects' ) as $tax ) {
@@ -1105,9 +1096,10 @@ function bws_try_join_items( array $items, $sep, int $limit ): string {
  *     resolver site arm landed, SPEC §32 V7/V8): site is the canonical contact
  *     fallback slot. Slot ≥2 prepends the `same` (carry-over) row. `_strip_default`
  *     preserved (V5). Label overlaid as "N: Source" (V10).
- *   - ref / srcTermIn: base definitions verbatim (label body / placeholder / help
- *     from base — V10), show_if re-qualified via bws_slot_qualify_show_if, label
- *     (and srcTermIn pickLabel) given the "N: " ordinal prefix (V10).
+ *   - ref: base definition verbatim (label body / placeholder / help from base —
+ *     V10), show_if re-qualified via bws_slot_qualify_show_if, label given the
+ *     "N: " ordinal prefix (V10). `srcTermIn` was derived the same way until
+ *     1.20.0; its control is gone (see bws_base_traversal_options()).
  *
  * @since 1.11.0
  * @param int   $n          Slot ordinal (1-based).
@@ -1115,11 +1107,11 @@ function bws_try_join_items( array $items, $sep, int $limit ): string {
  * @param array $base_trav  bws_base_traversal_options() result.
  * @param bool  $allow_site When true, keep `site` in the src list (per-template
  *                          opt-in, gated on the resolver site arm). Default false.
- * @return array { 'src' => array, 'ref' => array, 'srcTermIn' => array } — option
- *               definitions WITHOUT $slot_trigger (caller merges show_if_any).
+ * @return array { 'src' => array, 'ref' => array } — option definitions WITHOUT
+ *               $slot_trigger (caller merges show_if_any).
  */
 function bws_build_slot_traversal_options( int $n, array $base_src, array $base_trav, bool $allow_site = false ): array {
-	$sibling_keys = array( 'src', 'ref', 'srcTermIn' );
+	$sibling_keys = array( 'src', 'ref' );
 
 	// --- src: filter 'site' unless per-template allowed (V6 guard / V8 opt-in),
 	// prepend 'same' for slot ≥2, keep _strip_default (V5). ---
@@ -1153,20 +1145,9 @@ function bws_build_slot_traversal_options( int $n, array $base_src, array $base_
 		$ref_def['show_if'] = bws_slot_qualify_show_if( $ref_def['show_if'], $n, $sibling_keys );
 	}
 
-	// --- srcTermIn: base def verbatim (V10), show_if re-qualified, "N: " label + pickLabel prefix. ---
-	$stm_def          = $base_trav['srcTermIn'];
-	$stm_def['label'] = sprintf( '%1$d: %2$s', $n, $base_trav['srcTermIn']['label'] );
-	if ( isset( $stm_def['pickLabel'] ) ) {
-		$stm_def['pickLabel'] = sprintf( '%1$d: %2$s', $n, $base_trav['srcTermIn']['pickLabel'] );
-	}
-	if ( isset( $stm_def['show_if'] ) ) {
-		$stm_def['show_if'] = bws_slot_qualify_show_if( $stm_def['show_if'], $n, $sibling_keys );
-	}
-
 	return array(
-		'src'       => $src_def,
-		'ref'       => $ref_def,
-		'srcTermIn' => $stm_def,
+		'src' => $src_def,
+		'ref' => $ref_def,
 	);
 }
 

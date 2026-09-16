@@ -176,8 +176,8 @@ function bws_option_visual_groups(): array {
  *
  * DERIVED from the chain option's own `flatAxes` — the same list the control deletes by,
  * so a change to what the chain absorbs cannot leave a stray control behind. Gated on the
- * control TYPE, so `term_*`, `try_*`, `{{table}}` and `{{call}}` (plain `select` sources,
- * which still author the flat pair) are untouched.
+ * control TYPE, so `term_*`, `try_*`, `{{table}}` and `{{call}}` (plain `select` sources)
+ * are untouched.
  *
  * Removing the OPTION does not remove the VALUE: GB seeds `extraTagParams` from the parsed
  * tag string, not from the registry (`{id, source, key, …, ...rest} = params`), and

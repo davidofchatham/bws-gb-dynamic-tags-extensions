@@ -1063,34 +1063,31 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_block_host_row( 'TB4 (caption "Our Team" -> <caption id> + wrapper aria-labelledby that id, role=region tabindex=0)', '{{table key:team_members|caption:Our Team|1-label:Name|1-key:name|2-label:Role|2-key:role}}' ),
 	) );
 
-	// The ambient-term guard on a SINGULAR page (1.20.0). The C-TERM rows on the context
-	// element cover the archives; a singular page is the other half, and it is where the
-	// old behaviour was least visible: `get_queried_object_id()` here is THIS PAGE'S id,
-	// and it was read straight back as a term id.
+	// Term context on a SINGULAR page, in base spellings (FW-129, 1.21.0). This group was
+	// three `term_*` rows pinning the 1.20.0 ambient-term guard; the family is gone and so
+	// is the guard, and what outlived both is the resolution the rows rode on — a term
+	// SOURCE and a term CONTEXT are different things, and only the second moves with the
+	// page. Two of the three rows had exact base twins already visible on
+	// `/matrix-pinned-roots/` and were deleted rather than duplicated here: CT-A (ambient
+	// on a page that is not about a term) is F20.2, CT-B (a stated term, unmoved by the
+	// page) is F20.1. `context-test-matrix.md` §C-TERM/CT carries the pointers.
 	//
-	// CT-A IS THE ONE ROW ON THIS PAGE WHOSE MEANING DEPENDS ON A NUMBER NOBODY CHOSE.
-	// It only DEMONSTRATED the old bug while some term happened to carry this page's id
-	// (on the reference site, page 22 and the `mc_flag:Priority` term). It does not depend
-	// on that to be CORRECT — empty is the right answer whether or not a term collides —
-	// so it is written as the assertion, with the coincidence named as history rather than
-	// relied on. Do not "fix" it by pinning the page id.
+	// CT-C stays HERE because it is the one that needs this page's fixture state: a `terms`
+	// step reads the terms of the current post, and `/matrix-pinned-roots/` carries none.
+	// It is also the row the old ambient read starved — `tax` meant "the first term of the
+	// current post in this taxonomy" and the unchecked ambient read answered before that
+	// tier could run, so the option described a behavior it could not deliver.
 	//
-	// CT-C is the tier the old read starved. `tax` means "the first term of the current
-	// post in this taxonomy", and the unchecked ambient read answered before the detector
-	// could ever reach that tier, so the option described a behaviour it could not deliver
-	// on any page. It works now, and that is a behaviour change, not only a bug fix.
-	$sections[] = bws_fixture_gb_section( 'Term ambient guard CT - a term_ tag on a page that is NOT about a term (1.20.0)', array(
-		bws_fixture_gb_empty_row(
-			'CT-A unpinned term_text on this PAGE -> EMPTY. Before 1.20.0 it read this page\'s own id as a term id and rendered whichever term happened to carry that number (mc_flag:Priority on the reference site)',
-			'{{term_text use:title}}'
-		),
+	// THE CHAIN SPELLING SAYS THE SAME THING HERE AND ONLY HERE. A `terms` step needs a
+	// post input, so the two shapes diverge the moment there is no post -- which is what
+	// C-CONV6/C-CONV7 measure on a term archive, and why the converter leaves the flat
+	// `tax`-without-`id` shape alone rather than rewriting it (`bws_modifier_skip_reason()`
+	// owns that rule). This row is a singular page, so the input exists and the reading is
+	// the one the flat key promised.
+	$sections[] = bws_fixture_gb_section( 'Term context CT - a term source on a page that is NOT about a term', array(
 		bws_fixture_gb_row(
-			'CT-B the same tag NAMING term 6 -> Support. Non-vacuity for CT-A: without this, CT-A passes on a term_text that resolves nothing anywhere',
-			'{{term_text id:6|use:title}}'
-		),
-		bws_fixture_gb_row(
-			'CT-C term_text with a TAXONOMY -> the first department term on this page, its phone field ((987) 333-4444). Unreachable before 1.20.0: the unchecked ambient read answered first, so this tier never ran',
-			'{{term_text tax:department|key:phone}}'
+			'CT-C first department term of THIS post, its phone field (-> (987) 333-4444). Sales leads, so the step limit is what makes this one value rather than both ((987) 333-4444, (987) 111-2222)',
+			'{{text src:terms,department,limit(1)|key:phone}}'
 		),
 	) );
 
@@ -1293,12 +1290,13 @@ function bws_fixture_page_content_matrix_content() {
  *           on a base tag and inside a folded slot. Open any of these in the editor to
  *           see both rows in the Source control — the enum is the other half of the
  *           assertion, and only the editor shows it.
- *  FR3      the fixture MODIFIER family in the six shapes #84's transform maps. This is
- *           the reseedable corpus the converter runs against (#86); after a run the rows
- *           are base tags, and a reseed puts them back.
- *  FR4      each modifier shape beside the base-tag wire it must become, so the property
- *           the migration promises — same bytes out — is eyeballable BEFORE any converter
- *           exists to be trusted.
+ *  FR3      seeded wire for a RETIRED prefix, in the six shapes #84's transform maps. This
+ *           is the reseedable corpus the converter runs against (#86); after a run the rows
+ *           are base tags, and a reseed puts them back. Nothing mints `fixture_*` since
+ *           FW-129, so every FR3 row prints its own braces until it is converted — which is
+ *           the visible cost of unconverted wire, and the reason the converter exists.
+ *  FR4      each shape beside the base-tag wire it must become, so what the migration
+ *           produces is eyeballable against what the retired spelling asked for.
  *
  * The page carries its own ambient values (role, main_line, Support term) that are unlike
  * the root's (Sales) and unlike the hop target's (Warehouse). A rooted row landing on the
@@ -1328,13 +1326,6 @@ function bws_fixture_page_content_matrix_fixture_roots() {
 		bws_fixture_gb_row( 'FR2.4 join mixes both roots in one string (-> Fixture Root Role of Chatham)', '{{join mode:template|A:src(fixture);use(key);key(role)|B:src(fixture_alt);use(key);key(venue_city)|format:%A of %B}}' ),
 	) );
 
-	// EVERY ROW READS A FIELD KEY, and none of them reads `use:title`. That is not a
-	// stylistic choice: a modifier template's text core reads `key` and ignores `use`
-	// entirely (bws_post_custom_text_core), so `use:title` renders empty on `fixture_`,
-	// `term_` and `view_` alike — a control that is offered and does nothing (issue #88;
-	// PRE-EXISTING, not this fixture's). Rows here must read something the
-	// modifier family actually renders, or an equivalence pair would compare '' to ''
-	// and pass whatever the migration did.
 	// FR2b (#112) - THE NON-VACUITY HALF of the fold matrix's F11a.4.
 	//
 	// `fixture_scoped` refuses on /matrix-post-meta/, where F11a.4 reads it and expects
@@ -1347,25 +1338,28 @@ function bws_fixture_page_content_matrix_fixture_roots() {
 		bws_fixture_gb_row( 'FR2b.2 the ambient contrast, same key, no root (-> Ambient Page Role)', '{{text key:role}}' ),
 	) );
 
-	$sections[] = bws_fixture_gb_section( 'FR3 - fixture_ MODIFIER corpus (the migration\'s six shapes, pre-conversion)', array(
-		bws_fixture_gb_row( 'FR3.1 bare, no source stated (-> Fixture Root Role)', '{{fixture_text key:role}}' ),
-		bws_fixture_gb_row( 'FR3.2 src:current — on a modifier that named ITS entity, so same as FR3.1 (-> Fixture Root Role)', '{{fixture_text src:current|key:role}}' ),
-		bws_fixture_gb_row( 'FR3.3 relationship hop (-> Fixture Ref Role, the hop target\'s own field)', '{{fixture_text src:ref|ref:related_staff|key:role|limit:1}}' ),
-		bws_fixture_gb_row( 'FR3.4 taxonomy sidecar (-> sales@example.test, the ROOT\'s term)', '{{fixture_text srcTermIn:department|key:email}}' ),
-		bws_fixture_gb_row( 'FR3.5 both sidecars: hop then drop into terms (-> warehouse@example.test, the hop TARGET\'s term)', '{{fixture_text src:ref|ref:related_staff|srcTermIn:department|key:email}}' ),
-		// HAND-WIRE ONLY, and that is not an oversight: `site` is filtered out of every
-		// rooting-modifier Source dropdown (#37), so this shape cannot be re-authored
-		// through the control the rest of the page exercises. It is stored wire a site
-		// can hold, which is exactly the population a migration has to answer for.
-		//
-		// The ONE shape whose rendered output the migration CHANGES, and the row exists
-		// to make that visible rather than to assert a value. The modifier callback
-		// returns on `site` BEFORE reading either sidecar (the #37 guard), so this
-		// renders EMPTY today; its migrated form ({{text src:site|use:key|
-		// key:organization_email}}, sidecars dropped) renders the org email. Empty is the
-		// expectation here, so it uses the split-label row — a single block would take
-		// its own label down with it and read as missing fixture.
-		bws_fixture_gb_empty_row( 'FR3.6 src:site with inert sidecars — EMPTY today (the modifier returns before reading them); migrates to a site read that renders', '{{fixture_text src:site|ref:related_staff|srcTermIn:department|use:key|key:organization_email}}' ),
+	// FR3 - THE RETIRED-PREFIX CORPUS. The fixture stands down from register_modifier()
+	// ahead of FW-129's withdrawal of it, so nothing mints a `fixture_*` tag and every row
+	// here renders its own braces: this is seeded wire for a prefix whose family is gone,
+	// which is the population the converter exists for and the state a retirement leaves on
+	// a published page. Each label states the
+	// literal it must print, per the visible-row mandate, and names the value its migrated
+	// form renders (FR4 shows that side live).
+	//
+	// FR3.6 is HAND-WIRE ONLY, and that is not an oversight: `site` was filtered out of
+	// every rooting-modifier Source dropdown (#37), so this shape could never be authored
+	// through a control. It is stored wire a site can hold, which is exactly the population
+	// a migration has to answer for.
+	$sections[] = bws_fixture_gb_section( 'FR3 - retired-prefix corpus (the migration\'s six shapes, pre-conversion — all render LITERALLY)', array(
+		// NO TAG BRACES IN A LABEL, here or anywhere on this page: the converter rewrites
+		// every `{{fixture_…}}` string in the post body, a label included, so a label
+		// quoting its own tag is rewritten out from under itself by §FR6's run.
+		bws_fixture_gb_row( 'FR3.1 bare, no source stated — prints its own braces; migrates to Fixture Root Role', '{{fixture_text key:role}}' ),
+		bws_fixture_gb_row( 'FR3.2 src:current — prints its own braces; migrates to the same wire as FR3.1, so Fixture Root Role', '{{fixture_text src:current|key:role}}' ),
+		bws_fixture_gb_row( 'FR3.3 relationship hop — prints its own braces; migrates to Fixture Ref Role', '{{fixture_text src:ref|ref:related_staff|key:role|limit:1}}' ),
+		bws_fixture_gb_row( 'FR3.4 taxonomy sidecar — prints its own braces; migrates to sales@example.test, the ROOT\'s term', '{{fixture_text srcTermIn:department|key:email}}' ),
+		bws_fixture_gb_row( 'FR3.5 both sidecars — prints its own braces; migrates to warehouse@example.test, the hop TARGET\'s term', '{{fixture_text src:ref|ref:related_staff|srcTermIn:department|key:email}}' ),
+		bws_fixture_gb_row( 'FR3.6 src:site with inert sidecars — prints its own braces; migrates to info@example.test with the sidecars DROPPED', '{{fixture_text src:site|ref:related_staff|srcTermIn:department|use:key|key:organization_email}}' ),
 	) );
 
 	$sections[] = bws_fixture_gb_section( 'FR4 - each shape beside the base-tag wire it must become', array(
@@ -1379,13 +1373,13 @@ function bws_fixture_page_content_matrix_fixture_roots() {
 		bws_fixture_gb_row( 'FR4.6 what FR3.6 becomes — sidecars DROPPED (-> info@example.test)', '{{text src:site|use:key|key:organization_email}}' ),
 	) );
 
-	// FR7 (#88) — register_modifier()'s `use` dispatch, not the root/migration property
-	// FR1-FR4 test. Lives here because `fixture_` is the one live modifier prefix this
-	// repo can render outside a term-archive context, reusing FR3's own entity.
-	$sections[] = bws_fixture_gb_section( 'FR7 - modifier use dispatch (#88)', array(
-		bws_fixture_gb_row( 'FR7.1 text family, use:title (-> Fixture Root Entity)', '{{fixture_text use:title}}' ),
-		bws_fixture_gb_row( 'FR7.2 content family, use:key (-> Fixture Root Role)', '{{fixture_content use:key|key:role}}' ),
-	) );
+	// FR7 (#88) is GONE, not moved. Its two rows measured register_modifier()'s `use`
+	// dispatch on a minted `fixture_*` tag, and this fixture no longer mints one — there is
+	// no dispatch left to observe on this prefix. (The constructor itself is still live and
+	// still mints `term_`; FW-129 takes that away later, and `term_`'s own rows go with it.)
+	// The base tags' own `use` dispatch is
+	// covered by text-test-matrix.md §T1 and content-test-matrix.md §CT3, which never rode
+	// the modifier path.
 
 	return implode( "\n\n", $sections );
 }
@@ -1561,29 +1555,19 @@ function bws_fixture_page_content_matrix_loops() {
 					'{{title src:term}}'
 				)
 				. "\n\n" . bws_fixture_gb_row( 'QL1.3 the query extension own term tag, correct today (-> the loop term archive URL)', '{{term_archive_url}}' )
-				// QL1.5 guards the 1.20.0 ambient-term guard from the direction it was
-				// actually got wrong. That guard refuses an ambient term read off a page
-				// that is not about a term, and a query loop IS such a page -- the loop
-				// hands its row's term down through `generateblocks_dynamic_tag_id`, not
-				// through the queried object. The first cut refused the loop too and blanked
-				// this read; nothing on any fixture page caught it, because no term_* tag
-				// stood inside a loop. This row is that missing witness.
+				// QL1.5 WAS HERE and was the term_* family reading this loop's term through
+				// TaxonomyTerm::resolve_id(), beside QL1.6 reading it through
+				// bws_resolve_base_source(). The family is gone (FW-129) and that route with
+				// it, so the row was deleted rather than rewritten -- its base spelling IS
+				// QL1.6, which was already sitting under it.
 				//
-				// It reads the same entity QL1.1 does, by a different route: QL1.1 is a base
-				// tag taking the loop item through bws_resolve_base_source(), this is the
-				// term_* family taking it through TaxonomyTerm::resolve_id(). Two routes to
-				// one term is the point -- they must agree, and only one of them has a guard.
-				. "\n\n" . bws_fixture_gb_row( 'QL1.5 the term_ family reading the SAME loop term as QL1.1, by the other route (-> the loop term name; the 1.20.0 ambient guard must not mistake a loop-supplied term for an ambient one)', '{{term_text use:title}}' )
-					// QL1.6 is QL1.5's CONVERT-SIDE TWIN (FW-39). The migration rewrites QL1.5
-					// into exactly this tag, and a query loop is the one context where the two
-					// reach the row's term by different code entirely: QL1.5 through GB's
-					// `generateblocks_dynamic_tag_id` filter into TaxonomyTerm::resolve_id(),
-					// QL1.6 through bws_resolve_base_source()'s loop-item classification. The
-					// bare-tag sweep that measured the rewrite could not see this route at all
-					// -- a term loop cannot be faked under `render-tag` at any flag combination
-					// -- so this row is the only thing standing under it, which is the same gap
-					// QL1.5 exists to fill one guard over.
-					. "\n\n" . bws_fixture_gb_row( 'QL1.6 what QL1.5 CONVERTS to, in the loop (-> the same loop term name as QL1.5 and QL1.1; three routes, one term, and the migration is only allowed to leave the first two agreeing)', '{{text use:title}}' ),
+				// QL1.6 keeps the whole job. A query loop is the one context `render-tag`
+				// cannot fake at any flag combination -- the loop hands its row's term down
+				// through GB's `generateblocks_dynamic_tag_id` filter, not through the
+				// queried object -- so nothing off this page stands under the loop-item
+				// classification path, and QL1.1 above is the only other route to the same
+				// term. Two routes, one term, and they must agree.
+				. "\n\n" . bws_fixture_gb_row( 'QL1.6 the SAME loop term as QL1.1 through the text tag (-> the loop term name; QL1.1 takes the loop item as a bare title, this takes it through the use:title absorb seam, and the two must agree)', '{{text use:title}}' ),
 			'ql1-term-loop-leak',
 			'WP_Term_Query'
 		),
@@ -2093,12 +2077,13 @@ function bws_fixture_build_page_content( $builder ) {
  * render-tag-only — see `context-test-matrix.md`), these three need no seeded Media Library id:
  * `fallback` is plain text, stable across every reseed, so they are fully visible here.
  *
- * C-TERM1/C-TERM2 pin the 1.20.0 ambient-term guard. They are on THIS element and not on a
- * singular page because the guard's subject is the ambient entity's KIND, and only a
- * non-singular query varies it. The pair is deliberate: C-TERM1 alone is satisfied by a tag
- * that resolves nowhere at all, since it asserts empty on six of the seven contexts, so
- * C-TERM2 pins a term the tag NAMES and must keep rendering everywhere. `/department/sales/`
- * joins the context pages for the same reason — the positive arm needs a term archive.
+ * C-TERM1/C-TERM2 WERE HERE and were the `term_*` half of the 1.20.0 ambient-term guard.
+ * The family is gone (FW-129), and their base spellings were already on this element under
+ * other names — the ambient arm is C-X1, the stated-term arm is C-CONV11 — so they were
+ * deleted rather than duplicated a third time. `context-test-matrix.md` §C-TERM/CT carries
+ * the pointers and the per-context expectations. `/department/sales/` stays among the
+ * context pages: the term archive is still the one context where an ambient read and a
+ * stated term source can be told apart at all.
  *
  * @since 1.19.0
  * C-CONV1..7 are the MIGRATION half of the same question, and they are PAIRS on purpose: an
@@ -2115,15 +2100,15 @@ function bws_fixture_build_page_content( $builder ) {
  *
  * @since 1.19.1 C-C2/C-DT1/C-DT2 added
  * @since 1.20.0 C-TERM1/C-TERM2 added, then C-CONV1..9 and the pinned C-CONV10..14 (FW-39)
+ * @since 1.21.0 C-TERM1/C-TERM2 removed with the `term_` family (FW-129)
  * @return string
  */
 function bws_fixture_element_content_context_header() {
 	// The PINNED conversion rows (C-CONV10..12) name a term by id on BOTH sides, so the id is
 	// resolved at build time rather than hand-typed — same rule as the pinned-roots page.
-	// C-TERM2 above still carries a literal `6`; it predates the resolver and is left alone
-	// rather than re-typed under this ticket's baseline. A failed lookup renders the rows
-	// against id `0`, which resolves nothing on either side and reads as "reseed", not as a
-	// broken pin — the pair stays honest because both halves fail together.
+	// A failed lookup renders the rows against id `0`, which resolves nothing on either side
+	// and reads as "reseed", not as a broken pin — the pair stays honest because both halves
+	// fail together.
 	$support_id = function_exists( 'bws_fixture_seeded_term_id' )
 		? (int) bws_fixture_seeded_term_id( 'support', 'department' )
 		: 0;
@@ -2160,15 +2145,7 @@ function bws_fixture_element_content_context_header() {
 				'{{datetime_range fallback:TBA}}'
 			),
 			bws_fixture_gb_empty_row(
-				'C-TERM1 unpinned term_text -> the queried term name (Sales) on a TERM archive, EMPTY on every other context here (author, PTA, date, search, 404, latest-home). Before 1.20.0 it read whatever id the page had queried as if it were a term id, so /author/fixture-author/ (user 2) rendered the term All Users',
-				'{{term_text use:title}}'
-			),
-			bws_fixture_gb_row(
-				'C-TERM2 term_text NAMING its own term -> Support on EVERY context, term archive included. A pin is not an ambient read, so the guard must not touch it; this row is what says so, and it is also what stops C-TERM1 passing on a tag that resolves nowhere',
-				'{{term_text id:6|use:title}}'
-			),
-			bws_fixture_gb_empty_row(
-				'C-CONV1 the CONVERTED form of C-TERM1, unpinned -> read the two together: EQUAL on the term archive (Sales), and empty-vs-value everywhere else. This is C-X1 above under a second name, and the duplicate is the point - the PAIR is the measurement',
+				'C-CONV1 the CONVERTED form of the unpinned arm -> Sales on the term archive, this context own heading everywhere else. Its before-half was the C-TERM1 row deleted with the family (FW-129); what it converted FROM is now the recorded value in context-test-matrix.md, not a row beside it. Still byte-identical to C-X1 above, and kept under this name so the C-CONV table keeps a row to point at',
 				'{{text use:title}}'
 			),
 			bws_fixture_gb_empty_row(

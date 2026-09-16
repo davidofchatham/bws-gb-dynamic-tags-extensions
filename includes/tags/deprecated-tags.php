@@ -1733,8 +1733,9 @@ function bws_modifier_skip_reason_for_tag( string $tag_string ): string {
  * The population is a modifier tag whose family roots at a DECLARING root and which names
  * no entity: the tag read the ambient entity, the rewrite makes it a bare base tag, and where
  * the ambient entity is not of the family's kind the base tag reads something the stored tag
- * could not (CONTEXT.md [I20]). Empty→value, disclosed as a LINE in the scan report beside
- * the conversion preview, never as a second confirmation gate.
+ * could not — the capability difference the exemption was granted against, recorded in
+ * docs/design-history/term-family-kind-lock.md. Empty→value, disclosed as a LINE in the scan
+ * report beside the conversion preview, never as a second confirmation gate.
  *
  * FAMILY-AGNOSTIC, derived from the root's own declaration rather than from the `term_`
  * prefix, so a second family with a declaring root is counted with no rule added here. The
@@ -1862,7 +1863,8 @@ function bws_modifier_entry_root( string $tag_string ): string {
  * it is here and not in a hand-written entry riding the generator's never-overwrites door.
  *
  * NOT OUTPUT-NEUTRAL, and decided rather than overlooked. A kind-locked family rewritten
- * into a kind-agnostic one surfaces as empty→value off a term page (CONTEXT.md [I20]);
+ * into a kind-agnostic one surfaces as empty→value off a term page — the difference this
+ * transform was hardened against, recorded in docs/design-history/term-family-kind-lock.md;
  * FW-39 owns the direction bound, the seven-context measurement and the disclosure.
  *
  * THE NAMED-ENTITY ARM ADDS A SECOND DIVERGENCE, AND IT RUNS THE OTHER WAY. A tag whose entity has
@@ -1910,8 +1912,9 @@ function bws_modifier_base_options( array $options, string $root ) {
 	// added and none of this knows the word "term".
 	//
 	// The tag is NOT output-neutral across this rewrite, and that is decided rather than
-	// overlooked: kind-locked to kind-agnostic surfaces as empty→value off a term page
-	// (CONTEXT.md [I20]). The direction bound, the evidence and the disclosure are FW-39's.
+	// overlooked: kind-locked to kind-agnostic surfaces as empty→value off a term page (the
+	// difference recorded in docs/design-history/term-family-kind-lock.md). The direction
+	// bound, the evidence and the disclosure are FW-39's.
 	//
 	// A DECLARING ROOT GIVEN AN ARGUMENT STATES THE ROOT AND THAT ARGUMENT — `src:<root>,<id>`
 	// (FW-39, D30). GB's `id` is the same key on EVERY modifier family, so the reading lives
@@ -2023,8 +2026,8 @@ function bws_modifier_base_options( array $options, string $root ) {
 	// link disappears with no warning anywhere. Measured 2026-09-12 on the Site P clone,
 	// one stored tag; which values map to what is bws_map_gb_link_option()'s own.
 	//
-	// OUR `term_` FAMILY NEVER WROTE THIS KEY — register_modifier() appends
-	// bws_get_link_options(), so it writes linkTo/linkKey/newTab. The wire this catches was
+	// OUR `term_` FAMILY NEVER WROTE THIS KEY — its constructor appended
+	// bws_get_link_options(), so it wrote linkTo/linkKey/newTab. The wire this catches was
 	// authored against a same-named tag of somebody else's, which is why it is only
 	// reachable at all once the ownership guard has been lifted for that name.
 	if ( function_exists( 'bws_map_gb_link_option' ) ) {
@@ -2111,7 +2114,7 @@ function bws_modifier_root_transform( string $prefix, string $root ): callable {
  * callback-presence as the interim proxy for "the owning plugin still registers these tag
  * names" (that docblock says so, and names FW-38's explicit `lifecycle` field as the
  * replacement) — which is exactly the state a migrated-but-not-retired modifier family is
- * in: `register_modifier()` goes on minting its nine GB tags, so the entries belong in the
+ * in: the owning plugin goes on registering its nine GB tags, so the entries belong in the
  * settings page's **Deprecated** box, not in **Removed**. An entry generated without one
  * would file a live family under "these tag names no longer register with GenerateBlocks",
  * which is false while the family renders.
@@ -2139,8 +2142,8 @@ function bws_modifier_migration_live_marker(): string {
  * **ENUMERATING TEMPLATES IS THE POINT.** A hand-kept list of tag names has already drifted
  * once in the wild: the alias table in the external plugin covers seven of the nine
  * templates, because two of them register from elsewhere. The registry is the only thing
- * that knows what a family's tags ARE — it is what `register_modifier()` itself iterates to
- * mint them — so generating from it makes the two lists the same list by construction.
+ * that knows what a family's tags ARE — it is the same list a family constructor iterates
+ * to mint them — so generating from it makes the two lists the same list by construction.
  *
  * **THE PREFIX IS SUPPLIED, NEVER DERIVED.** This matches the standing posture for
  * prefix-owning migrations (bws_migrate_rel_to_ref's `term` hardcode says the same thing):
@@ -2149,8 +2152,8 @@ function bws_modifier_migration_live_marker(): string {
  * rather than something this repo has to know about.
  *
  * **CALL IT AFTER TEMPLATES ARE REGISTERED**, i.e. later than the plugin's own init:20
- * pass — init:21 is the natural home, beside the `register_modifier()` call whose tags
- * these entries answer for. That is comfortably before the converter can run (an admin
+ * pass — init:21 is the natural home, beside the registration of the tags these entries
+ * answer for. That is comfortably before the converter can run (an admin
  * request). Called too early the template list is empty and there is nothing to generate,
  * so this says so out loud rather than registering nothing quietly.
  *

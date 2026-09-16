@@ -607,8 +607,8 @@ function bws_phone_term_core( $term_id, $options, $instance ): string {
 
 /**
  * Register the `phone` modifier TEMPLATE descriptor (not the standalone {{phone}}
- * GB tag). Called from bws_register_base_tags() before the term_ pass + try_
- * generation, so term_phone and try_phone fall out. [SPEC §32 T9/T11]
+ * GB tag). Called from bws_register_base_tags() before try_ generation, so
+ * try_phone falls out. [SPEC §32 T9/T11]
  *
  * @since 1.11.0
  */

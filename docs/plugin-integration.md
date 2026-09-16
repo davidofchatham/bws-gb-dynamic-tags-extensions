@@ -84,7 +84,7 @@ Base tags (`text`, `image`, `content`, `title`, `permalink`, `datetime_single`, 
 To let authors choose it, opt in as a chain root (below). The older routes remain:
 
 1. **Chain root** (preferred) — one row in the Source control on every base tag and in every folded slot. See [§1a Offering your source as a chain root](#1a-offering-your-source-as-a-chain-root).
-2. **Context modifier** (*deprecated — do not build on this*) — calls `TagTemplateRegistry::register_modifier()` to create a prefixed tag group (`example_text`, `example_image`, etc.) backed by your source. Superseded by the chain root, which gives your source the whole base-tag surface instead of a copy of it. Scheduled for removal; see [§2 Registering a Context Modifier](#2-registering-a-context-modifier).
+2. **Context modifier** (*withdrawn in 1.21.0 — registers nothing*) — `TagTemplateRegistry::register_modifier()` used to create a prefixed tag group (`example_text`, `example_image`, etc.) backed by your source. Superseded by the chain root, which gives your source the whole base-tag surface instead of a copy of it. See [§2](#2-registering-a-context-modifier) for the route out, and [§9](#9-migrating-a-modifier-family-to-a-base-tag) for tags already saved in content.
 3. **Manual registration** — register individual GB tags directly and call your source's `resolve_id()` in the callback. See [§4 Plugin-Specific Tags](#4-plugin-specific-tags-no-built-in-template).
 4. **Deprecated wrappers only** — if you only need backward-compat wrappers for legacy tag names, `register_source()` makes the source available to `DeprecatedTagRegistry` callbacks without creating any new GB tags. See [§7 Registering Deprecated Tag Wrappers](#7-registering-deprecated-tag-wrappers).
 
@@ -190,79 +190,15 @@ Where a rooted tag cannot resolve in the editor (common when your source reads r
 
 ## 2. Registering a Context Modifier
 
-> **Deprecated as of 2026-09-08 — this route is being removed.** Register a [chain root](#1a-offering-your-source-as-a-chain-root) instead. A modifier family is a second copy of the base tags that every additional capability has to be built into by hand. `register_modifier()` has no known external caller remaining and the public method is expected to go in a future release; the built-in `term_` family, its only remaining caller, is on its own deprecation path. If your plugin calls this, move to §1a and use [§9](#9-migrating-a-modifier-family-to-a-base-tag) to convert stored tags before you retire your prefix. The section below stays as reference for existing integrations.
+> **Withdrawn in 1.21.0. `TagTemplateRegistry::register_modifier()` registers nothing.** It emits a `_doing_it_wrong()` notice and returns; the method itself is deleted in 1.22.0. Nothing you pass it mints tags any more, and no reduced or grace family is produced.
 
-A context modifier creates a prefixed group of GB tags (`example_text`, `example_image`, etc.) backed by a specific entity resolution strategy. The built-in `term_` modifier is registered this way; external plugins can register their own.
+**Register a [chain root](#1a-offering-your-source-as-a-chain-root) instead.** A modifier family was a second copy of the base tags that every new capability had to be built into by hand. A chain root gives your source the whole base-tag surface instead of a copy of it: source paths, per-step limits, field pickers and editor previews, all of it arriving for free as the base tags gain it.
 
-### Implement and register the source(s)
+**Tags already saved in content are a separate job from the registration.** [§9 Migrating a Modifier Family to a Base Tag](#9-migrating-a-modifier-family-to-a-base-tag) converts stored `{{example_text}}` wire to base tags rooted at your source in one converter run, and older prefixes registered as plain renames chain into it automatically. §9 is live and unaffected by this withdrawal. Do this before you retire your prefix — an unregistered tag renders its own braces on a published page.
 
-The modifier needs one registered source for direct entity resolution (`base_source_key`). The `src:ref` step is handled generically off that base source (see the `traversal_source_key` note below) — no second traversal source class is needed as of 1.14.0:
+The `bws_dynamic_tags_preview_modifier_map` filter went with the constructor: its only population was prefixes minted here. The preview-text schema itself is [`editor-tag-previews.md`](editor-tag-previews.md).
 
-```php
-// Register on bws_dynamic_tags_register_sources (or plugins_loaded priority < 20).
-add_action( 'bws_dynamic_tags_register_sources', function() {
-    // Direct entity resolution (src unset = current context). This is base_source_key.
-    \BWS\DynamicTags\SourceRegistry::register_source( new ExampleSource() );
-    // The src:ref step reads the `ref` relationship field on the base entity via a
-    // generic step — no ExampleRelatedPostSource needed (1.14.0+).
-} );
-```
-
-### Call `register_modifier()`
-
-Call `TagTemplateRegistry::register_modifier()` on the `init` hook at priority 21 or later (after `bws_register_base_tags()` runs at priority 20, which populates `$modifier_templates`):
-
-```php
-add_action( 'init', function() {
-    if ( ! class_exists( 'BWS\DynamicTags\TagTemplateRegistry' ) ) {
-        return;
-    }
-    \BWS\DynamicTags\TagTemplateRegistry::register_modifier( array(
-        'prefix'               => 'example',              // Produces example_text, example_image, etc.
-        'gb_type'              => 'example-based',        // GB type string for all modifier tags.
-        'modifier_label'       => 'example-based',        // Parenthetical in tag title: "Text Fields (example-based)".
-        'base_source_key'      => 'example',              // Source key for unset src (direct resolution).
-        'traversal_source_key' => '',                     // Accept-but-ignore (1.14.0+): src:ref steps generically off base_source_key. Omit or leave ''.
-        'excluded_supports'    => array(),                // Omit to keep 'source' GB entity picker on all tags.
-    ) );
-}, 21 );
-```
-
-### What gets generated
-
-`register_modifier()` iterates every template registered via `register_modifier_template()` and creates one GB tag per template: `{prefix}_{template_key}` (e.g. `example_text`, `example_image`, `example_title`).
-
-Each modifier tag includes a **Source** selector with two entries: current entity (unset) and the traversal step (`ref`). Traversal sub-options (`ref` field key + `srcTermIn` term-step control) are included automatically via `bws_base_traversal_options()`. The `src:ref` entry reads the `ref` relationship field on the base entity and resolves the related post — no traversal source class needed (1.14.0+).
-
-**`traversal_source_key` is accepted-but-ignored as of 1.14.0 (traversal pipeline).** The `src:ref` traversal is now performed by a generic `ref` step off the modifier's `base_source_key` — the framework resolves your base entity via `base_source_key`, then reads the `ref` relationship field on it (via `bws_get_related_posts_data` for post bases, `bws_read_term_field` for term bases) and resolves the target post. **You no longer need a custom traversal source class.** Register only your `base_source_key` source; the `ref` step handles the relationship traversal generically.
-
-`traversal_source_key` is still accepted (so existing registrations pass it without change) but the framework does not read it at render time — you may drop it from new registrations. A traversal source class you previously registered (e.g. `ExampleRelatedPostSource`) stays harmless if left registered, but is no longer invoked by the modifier callback. (Historical note: pre-1.14.0, a custom traversal source was required when the base entity came from a non-loop context — that resolution now lives in `base_source_key` alone, and the relationship step is generic.)
-
-### `register_modifier()` parameter reference
-
-| Key | Type | Required | Notes |
-|-----|------|----------|-------|
-| `prefix` | string | Yes | Tag prefix. Produces `{prefix}_{template_key}` for each template. |
-| `gb_type` | string | Yes | GB tag type string for all generated modifier tags (e.g. `'post'`, `'term'`). |
-| `modifier_label` | string | — | Parenthetical appended to the tag title (e.g. `'term-based'`). Omit for no parenthetical. |
-| `base_source_key` | string | Yes | Source registry key used when `src` is unset (direct resolution). |
-| `traversal_source_key` | string | — | **Accept-but-ignore as of 1.14.0.** Previously the source key used for the `src:'ref'` traversal; it is now a generic `ref` step off `base_source_key`, so this is no longer read at render time. Still accepted for back-compat (existing registrations need no change); may be omitted from new registrations. No custom traversal source class is required. |
-| `excluded_supports` | array | — | GB supports to remove from modifier tags. Omit to keep all default supports. |
-
-### Editor preview label registration
-
-`bws_build_preview_label()` (in `includes/helpers/preview-helpers.php`) renders the bracketed placeholder shown in the editor when a tag can't resolve (e.g. `['related_posts' from Example Ref 'rel_post']`). To make your modifier prefix recognized by the preview label builder, hook the `bws_dynamic_tags_preview_modifier_map` filter and add your `prefix_ => Label` entry:
-
-```php
-add_filter( 'bws_dynamic_tags_preview_modifier_map', function ( $map ) {
-    $map['example_'] = 'Example';
-    return $map;
-} );
-```
-
-Without this, your modifier tags still render normally — only the editor preview text drops the modifier segment. Built-in `term_` is registered internally; external prefixes must opt in via this filter.
-
-For the preview-text schema itself (markers, assembly, warnings, per-template shapes), see [`editor-tag-previews.md`](editor-tag-previews.md).
+`TagTemplateRegistry::register_modifier_template()` is **not** affected and is still called by this plugin's own base tags — only the family constructor is withdrawn.
 
 ---
 
@@ -348,7 +284,7 @@ If your plugin needs a tag type with no equivalent built-in template, there are 
 
 ### Option A: Register a new modifier template (preferred)
 
-Adding a template via `register_modifier_template()` makes it available to all modifier groups (`term_`, plus any external prefix registered via `register_modifier()`) — `register_modifier()` iterates registered modifier templates and produces one tag per (modifier × template) pair:
+Adding a template via `register_modifier_template()` registers a base template descriptor. Since 1.21.0 no family constructor consumes it to mint a prefixed group — [§2](#2-registering-a-context-modifier) is withdrawn — but the `try_` constructor produces one `try_`-prefixed tag per registered template, and the converter reads the same list to derive per-template migration entries:
 
 ```php
 // In your plugin, at init priority 15 (before bws_register_base_tags runs at 20):
@@ -357,8 +293,8 @@ add_action( 'init', function() {
         return;
     }
     \BWS\DynamicTags\TagTemplateRegistry::register_modifier_template( array(
-        'key'           => 'my_field',          // Appended to modifier prefix → term_my_field, example_my_field
-        'title'         => 'My Field',           // Modifier label appended in GB tag picker
+        'key'           => 'my_field',          // Appended to a constructor's prefix → try_my_field
+        'title'         => 'My Field',           // Tag title in the GB tag picker
         'gb_type'       => null,                 // null = inherit modifier's gb_type
         'supports'      => array(),              // Base tags use custom 'src' option, not GB native 'source' support
         'options'       => array(),              // Or a callable returning option definitions
@@ -690,50 +626,6 @@ function oldname_deprecated_post_meta_callback( $options, $block, $instance ) {
 | `datetime_transforms` | bool | — | When `true`, apply the five special-case datetime option transforms during conversion. Default `false`. |
 | `prefix_removed` | bool | — | Hand-set. Set `true` once **you** retire this alias generation — moves the entry from the **Deprecated Tags** box to **Removed Tags** on the settings page. Default absent (still Deprecated). See "Alias status and retiring a prefix" below. |
 
----
-
-## 8. Renaming a Modifier Prefix
-
-When an external plugin renames its context modifier prefix (e.g., from `oldname_` to `newname_`), existing post content still contains the old tag names. The converter handles migration: for each old tag name that maps to a new one, register a deprecated wrapper and the **Convert** button will rewrite stored tags.
-
-Renaming a prefix keeps you on a route that is [deprecated](#2-registering-a-context-modifier). If you are choosing between a rename and an exit, [§9](#9-migrating-a-modifier-family-to-a-base-tag) takes stored tags to base tags rooted at your source in the same single converter run, and older prefixes chain into it automatically.
-
-### Pattern
-
-For each template your modifier generates, register one deprecated wrapper mapping the old prefixed name to the new prefixed name:
-
-```php
-add_action( 'bws_dynamic_tags_register_sources', function () {
-    $old_templates = array( 'text', 'image', 'content', 'title', 'permalink',
-                            'datetime_single', 'datetime_range' );
-
-    foreach ( $old_templates as $tpl ) {
-        \BWS\DynamicTags\DeprecatedTagRegistry::register( array(
-            'old_tag'  => 'oldname_' . $tpl,   // Old tag name in stored content
-            'new_tag'  => 'newname_' . $tpl,   // New tag name after conversion
-            'title'    => 'Oldname ' . ucfirst( $tpl ) . ' (Deprecated)',
-            'supports' => array(),
-            'callback' => 'my_plugin_passthrough_callback',
-            'since'    => '3.0.0',
-            // option_renames / fixed_options if any option names also changed
-        ) );
-    }
-} );
-```
-
-The passthrough callback resolves via the **new** modifier's source. (As of 1.14.0 this callback is no longer invoked to render the old tag name — deprecated tags do not register with GB — so keep it for bookkeeping and future lifecycle use, but old content renders again only after the Migration Tool rewrites it.)
-
-```php
-function my_plugin_passthrough_callback( $options, $block, $instance ) {
-    bws_deprecated_tag_notice( 'oldname_text', 'newname_text', '3.0.0' );
-
-    $source = \BWS\DynamicTags\SourceRegistry::get_source( 'newname' );
-    $id     = $source ? $source->resolve_id( $options, $instance ) : false;
-
-    return newname_text_core( $id, $options, $instance );
-}
-```
-
 ### Converter behavior
 
 The admin **Migration Tool** (separate section on the settings page) scans all non-revision posts for any deprecated tag matching a registered `old_tag`. The results table shows post title + type + per-row issue list (deprecated tags + option migrations). Per-row **Migrate** rewrites stored content via `MigrationRegistry::transform_tag()` — applying `option_renames`, `value_renames`, `combine_options`, `source_inject`, `fixed_options`, `datetime_transforms` in the documented order. **Bulk Migrate Selected** processes the checked rows in sequence with a progress bar.
@@ -742,7 +634,7 @@ Posts whose content does not change after transformation are not rewritten. Each
 
 ### Alias status and retiring a prefix
 
-Your deprecated aliases are **context modifiers over tags this plugin owns** — e.g. `newname_title` is a live modifier and `oldname_title` is an old-prefix alias of it. Because the target tag is ours, its status is authoritative here: while the target renders, your alias is a **deprecated** name for it, not a removed one.
+Your deprecated aliases are **old names for tags this plugin owns** — e.g. `oldname_title` is an old-prefix alias of a tag whose target is ours. Because the target tag is ours, its status is authoritative here: while the target renders, your alias is a **deprecated** name for it, not a removed one.
 
 The settings page sorts deprecated tags into two boxes:
 
@@ -752,6 +644,16 @@ The settings page sorts deprecated tags into two boxes:
 Set `prefix_removed` when you consider an old prefix generation fully retired (for example, two prefix renames later). Existing content still using that name is not broken by the flag — the Migration Tool still finds and rewrites it — the flag only changes which box the entry is filed under and signals "this generation is history, not a currently-recommended deprecation."
 
 Migration available only for deprecated entries that declare `new_tag` plus at least one of `source_inject`, `option_renames`, or `fixed_options`. `DeprecatedTagRegistry::has_migration_path( $old_tag )` returns whether a path exists.
+
+---
+
+## 8. Renaming a Modifier Prefix
+
+> **Withdrawn in 1.21.0, along with [§2](#2-registering-a-context-modifier).** There is no supported way to mint a prefixed tag family any more, so there is no new prefix to rename one to.
+
+If you are here with old notes and a prefix you wanted to move off: **do not rename it — exit it.** [§9 Migrating a Modifier Family to a Base Tag](#9-migrating-a-modifier-family-to-a-base-tag) rewrites your stored `{{oldname_text}}` wire into base tags rooted at your source, in a single converter run, and chains older prefixes into it automatically. That is the same one run a rename would have cost you, and it lands on a tag surface that is still supported.
+
+Registering a plain old-name → new-name wrapper is still a live mechanism in its own right — [§7 Registering Deprecated Tag Wrappers](#7-registering-deprecated-tag-wrappers) owns it, including the Migration Tool's conversion behavior and the `prefix_removed` flag that files an entry under **Removed Tags**. Only the modifier-family framing this section carried is gone.
 
 ---
 

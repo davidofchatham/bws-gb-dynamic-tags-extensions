@@ -2,8 +2,9 @@
 /**
  * Taxonomy term core functions.
  *
- * Term modifier tags (term_text, term_title, term_image, etc.) are registered
- * via TagTemplateRegistry::register_modifier() in base-tags.php.
+ * These cores served the `term_` modifier family until FW-129 unregistered it in
+ * 1.21.0. They stay because the modifier TEMPLATES still name them (`term_fn`) and
+ * `try_` slots dispatch through the same descriptors.
  *
  * @package BWS_Dynamic_Tags
  * @since 1.0.0

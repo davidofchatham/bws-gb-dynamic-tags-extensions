@@ -17,8 +17,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 class TagTemplateRegistry {
 
 	/**
-	 * @var array[] Modifier template descriptors used by register_modifier() (term_ constructor)
-	 *              and generate_base_try_tags() (try_ constructor).
+	 * @var array[] Base template descriptors used by generate_base_try_tags() (try_ constructor)
+	 *              and, through get_modifier_templates(), by the converter's per-template
+	 *              migration-entry generator. The `modifier` in the name is historical: the
+	 *              term_ constructor was the second consumer until register_modifier() was
+	 *              withdrawn in 1.21.0.
 	 *
 	 * Each entry shape:
 	 *   key              string    Template key (e.g. 'text', 'image').
@@ -63,7 +66,7 @@ class TagTemplateRegistry {
 	 *                    the carry-over); neither → no per-slot read at all, the tag-level
 	 *                    `use`/`key` govern every slot.
 	 *   try_use_no_key_values array    use values where key is not required (e.g. ['featured'] for image).
-	 *   is_image              bool     Image template — custom as/size/fallback controls; register_modifier() builds own option set.
+	 *   is_image              bool     Image template — custom as/size/fallback controls.
 	 *   takes_first_usable    bool     The tag emits at most ONE result: the read of the FIRST
 	 *                    USABLE source its chain produces — usable is the engine gate's
 	 *                    question and bws_source_gate() states it, NEVER field-populated,
@@ -93,10 +96,15 @@ class TagTemplateRegistry {
 	// ===
 
 	/**
-	 * Register a base template descriptor for use by modifier + try_ constructors.
+	 * Register a base template descriptor for use by the try_ constructor.
 	 *
 	 * Called once per base template (from bws_register_base_tags()) after the GB tag is registered.
-	 * Stores metadata needed by register_modifier() and generate_base_try_tags().
+	 * Stores metadata needed by generate_base_try_tags() and by the converter's per-template
+	 * migration-entry generator, which reads the same list through get_modifier_templates().
+	 *
+	 * NOT AFFECTED BY THE 1.21.0 WITHDRAWAL. register_modifier() was the second consumer and
+	 * is now a stub; this one stays, and external callers registering a template still get a
+	 * try_-prefixed tag out of it.
 	 *
 	 * @since 1.6.0
 	 */
@@ -115,209 +123,50 @@ class TagTemplateRegistry {
 	}
 
 	/**
-	 * Register a context modifier group (e.g. the term_ modifier).
+	 * Register a context modifier group — WITHDRAWN, registers nothing.
 	 *
-	 * Generates one GB tag per modifier template: prefix + '_' + template_key.
-	 * The modifier entity is resolved by the base_source_key source (via unset) or by the
-	 * traversal_source_key source (via:'ref'). Modifier tags include 'source' support unless
-	 * excluded_supports contains 'source'.
+	 * Minted a prefixed family of GB tags (prefix + '_' + template_key) backed by one
+	 * entity-resolution strategy. A registered chain root supersedes it: a source that
+	 * wants to be a starting point registers a root and gets the whole base-tag surface
+	 * (source paths, per-step limits, field pickers, previews) rather than a second copy
+	 * of it that every new capability has to be built into by hand.
 	 *
-	 * Link wrap: templates with supports_link_wrap=true get linkTo/linkKey/newTab appended
-	 * after trailing field/fallback options. Entity type for URL resolution is determined by
-	 * dispatch path: term for base-source, post for src:ref traversal, term for srcTermIn step.
-	 * Templates without supports_link_wrap (content, permalink, image) never receive link options.
+	 * NO GRACE FAMILY, DELIBERATELY. Minting a reduced family would keep alive the exact
+	 * duplicate-capability surface the withdrawal exists to remove. The method survives
+	 * as a warn-and-return only so a stale caller gets a notice instead of a fatal —
+	 * five lines is a cheap price for that, and the hard delete lands in 1.22.0.
 	 *
-	 * Registers nothing when the family's settings toggle is off, and the toggle key IS
-	 * the prefix (`term` → the `term_ tags` checkbox). A family a settings row never
-	 * mentions is on.
+	 * Integrator-facing route out: docs/plugin-integration.md §1a (offer the source as a
+	 * chain root) and §9 (convert stored prefixed tags to base tags in one converter run).
+	 *
+	 * TWO DIFFERENT VERSIONS RIDE THIS METHOD, and neither is a typo for the other.
+	 * `@deprecated` takes the release that DEPRECATED it — 1.20.0, where the CHANGELOG
+	 * announced it under `### Deprecated` and the method still minted a full family.
+	 * `_doing_it_wrong()`'s third argument is WordPress's own `$version`, documented as
+	 * the version the MESSAGE was added in, and the message is new in 1.21.0 because
+	 * that is when the method stopped registering anything.
 	 *
 	 * @since 1.6.0
-	 * @since 1.20.0 Gated on the family's settings toggle; `gb_type` per tag is overridden
-	 *               by the tag's migration-registry entry when it has one.
+	 * @deprecated 1.20.0 Register a chain root instead. Mints nothing since 1.21.0; deleted in 1.22.0.
 	 *
-	 * @param array $config {
-	 *     @type string $prefix               Tag prefix, e.g. 'term' → produces 'term_text'.
-	 *     @type string $gb_type              GB type for modifier tags with no migration entry,
-	 *                                        e.g. 'term'. A tag the migration registry already
-	 *                                        claims takes that entry's stamp instead.
-	 *     @type string $modifier_label       Parenthetical appended to the tag title, e.g. 'term-based'.
-	 *     @type string $traversal_source_key Source key for the 'ref' traversal (e.g. 'term_related_post').
-	 *     @type string $base_source_key      Source key for direct entity resolution (e.g. 'term').
-	 *     @type array  $excluded_supports    Supports to exclude; omit to keep 'source' (GB entity picker).
-	 * }
+	 * @param array $config Former modifier config. Ignored.
 	 */
 	public static function register_modifier( array $config ): void {
-		if ( ! class_exists( 'GenerateBlocks_Register_Dynamic_Tag' ) ) {
-			return;
-		}
-
-		$prefix            = $config['prefix']               ?? '';
-		$gb_type           = $config['gb_type']              ?? 'post';
-		$modifier_label    = $config['modifier_label']        ?? '';
-		$traversal_src_key = $config['traversal_source_key'] ?? '';
-		$base_src_key      = $config['base_source_key']      ?? '';
-		$excl              = $config['excluded_supports']     ?? [];
-
-		// A family switched off in settings registers nothing — the same gate the try_
-		// constructor carries below, reading the same absent-key default of true, so an
-		// install that never saved its settings keeps every tag it already had.
-		if ( ! SettingsPage::is_modifier_enabled( $prefix ) ) {
-			return;
-		}
-
-		// THE DEPRECATED STAMP IS READ OFF THE MIGRATION REGISTRY, NEVER MINTED HERE. A tag
-		// with a type:'tag' entry takes its GB type from that entry; what such an entry
-		// carries, and why, is MigrationRegistry::register()'s to say. A `deprecated` flag
-		// on $config would be a second producer of the same stamp, free to drift out of
-		// step with the registry that governs it. Two consequences for a caller: a family
-		// with converter entries lands in GB's deprecated group, and this call therefore
-		// has to run AFTER those entries are registered. [FW-39 D25/D26]
-		$entry_gb_type = [];
-		foreach ( MigrationRegistry::get_by_type( 'tag' ) as $entry ) {
-			$claimed = (string) ( $entry['match_tag'] ?? '' );
-			if ( '' !== $claimed && ! empty( $entry['gb_type'] ) ) {
-				$entry_gb_type[ $claimed ] = (string) $entry['gb_type'];
-			}
-		}
-
-		// Include 'source' support (GB entity picker) unless explicitly excluded.
-		$base_supports = in_array( 'source', $excl, true ) ? [] : [ 'source' ];
-
-		// Snapshot existing tags for the dup-check inside the template loop.
-		//
-		// AXIS - A MODIFIER TAG WHOSE NAME IS ALREADY TAKEN IS NOT REGISTERED. We yield to
-		// whoever registered it first. A modifier family is an optional extra over the base
-		// tags, so losing one member to a name clash costs an editor affordance and leaves
-		// published pages alone; overwriting a stranger's tag to gain it would be the worse
-		// trade.
-		//
-		// THE BASE HALF DOES THE OPPOSITE, ON PURPOSE - it registers OVER a taken name and
-		// reports the collision, because a base tag that stood down would stop rendering on
-		// pages already using it. Do not make the two consistent. The reasoning is at
-		// bws_gb_register_tag() in includes/helpers/gb-registration-boundary.php.
-		//
-		// THE YIELD IS REPORTED, THOUGH - see the note call below. Yielding costs an
-		// affordance, and an affordance that vanishes without a word is indistinguishable
-		// from one that was never built. The whole registry is kept, not just its keys,
-		// because the report names who holds the name and where their code lives.
-		$existing_tags = \GenerateBlocks_Register_Dynamic_Tag::get_tags() ?? [];
-		$existing      = array_keys( $existing_tags );
-
-		// Reuse canonical source + traversal definitions from base-tags.php so labels stay
-		// unified across base and modifier tags. Option key 'src' (not 'source') — GB's
-		// DynamicTagSelect destructures 'source' before spreading into extraTagParams.
-		$source_opt     = function_exists( 'bws_base_source_option' )
-			? bws_base_source_option()
-			: array();
-
-		// Filter `site` out of the rooting-modifier source list — a rooting modifier
-		// (term_*, view_*) surfaces ENTITY-DISTINCT data; an entity-blind site read
-		// there just duplicates the unrooted base tag (fails the I4 gate both arms).
-		// Unconditional; no template re-allows it. Helper sits beside the option
-		// builder in base-tags.php (testable + parallel to the slot-side filter). [#37]
-		if ( function_exists( 'bws_filter_site_from_src' ) ) {
-			$source_opt = bws_filter_site_from_src( $source_opt );
-		}
-		$traversal_opts = function_exists( 'bws_base_traversal_options' )
-			? bws_base_traversal_options()
-			: array();
-
-		$link_options = function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array();
-
-		// Detect term-context base source. Term entities are themselves terms — `srcTermIn`
-		// (term-step on the resolved post) only makes sense after a post traversal (src=ref),
-		// not when the entity already IS the term (src=current).
-		$base_src_obj         = $base_src_key ? SourceRegistry::get_source( $base_src_key ) : null;
-		$base_is_term_context = $base_src_obj && 'term' === $base_src_obj->get_context_type();
-
-		// For term-context base sources, gate srcTermIn visibility to src=ref only.
-		// Default (post or unknown context): srcTermIn always visible.
-		$tag_traversal_opts = $traversal_opts;
-		if ( $base_is_term_context && isset( $tag_traversal_opts['srcTermIn'] ) ) {
-			$tag_traversal_opts['srcTermIn']['show_if'] = array( 'src' => 'ref' );
-		}
-
-		foreach ( self::$modifier_templates as $tpl ) {
-			$tag_name = $prefix . '_' . $tpl['key'];
-
-			if ( in_array( $tag_name, $existing, true ) ) {
-				bws_gb_note_tag_yielded( $tag_name, $existing_tags[ $tag_name ] ?? null );
-				continue;
-			}
-			$existing[] = $tag_name;
-
-			$term_fn          = $tpl['term_fn'];
-			$post_fn          = $tpl['post_fn'];
-			$is_image         = ! empty( $tpl['is_image'] );
-			$supports_link    = ! $is_image && ! empty( $tpl['supports_link_wrap'] ) && ! empty( $link_options );
-
-			// Inject source + traversal after leading format controls. `fallback` is lifted
-			// out of the template's options and re-appended LAST — it is global and closes
-			// every panel (canonical control order, and what base tags register). It rode the
-			// trailing part until 1.17.0, which put it ahead of the link cluster on exactly
-			// the templates that have both (term_text, term_datetime_*); the try_ constructor
-			// had the same bug from the same cause.
-			$tpl_options  = $tpl['options'] ?? [];
-			$leading_keys = array_keys( $tpl['leading_options'] ?? [] );
-
-			$fallback_part = array_intersect_key( $tpl_options, [ 'fallback' => null, 'fallback_text' => null ] );
-			$tpl_options   = array_diff_key( $tpl_options, $fallback_part );
-
-			// The `key` control is meaningless whenever `use` selects one of the
-			// template's no-key values — the same fact try_'s own per-slot key
-			// picker already qualifies on (try_use_no_key_values, read by the
-			// folded-slot control). Derived here rather than hand-typed on each
-			// template's `key` definition, so a template can't drift the way
-			// text/content did (#88): a `use` value existed with nothing wired to
-			// read it AND nothing hiding the now-inert `key` control either.
-			$no_key_values = $tpl['try_use_no_key_values'] ?? [];
-			if ( $no_key_values && isset( $tpl_options['key'] ) ) {
-				$tpl_options['key']['show_if'] = array( 'use' => 'not_in:' . implode( ',', $no_key_values ) );
-			}
-
-			if ( $is_image && isset( $tpl_options['as'] ) ) {
-				$as_opt = [ 'as' => $tpl_options['as'] ];
-				unset( $tpl_options['as'] );
-				$options = array_merge( $as_opt, $source_opt, $tag_traversal_opts, $tpl_options );
-			} elseif ( $supports_link && ! empty( $leading_keys ) ) {
-				// Split tpl_options into leading and trailing; link options appended after trailing.
-				$leading_part  = array_intersect_key( $tpl_options, array_flip( $leading_keys ) );
-				$trailing_part = array_diff_key( $tpl_options, array_flip( $leading_keys ) );
-				$options = array_merge( $leading_part, $source_opt, $tag_traversal_opts, $trailing_part, $link_options );
-			} elseif ( $supports_link ) {
-				// No leading options — source/traversal then field options then link options.
-				$options = array_merge( $source_opt, $tag_traversal_opts, $tpl_options, $link_options );
-			} else {
-				$options = array_merge( $source_opt, $tag_traversal_opts, $tpl_options );
-			}
-
-			$options = array_merge( $options, $fallback_part );
-
-			// Per-tag supports (do not mutate the shared $base_supports across templates).
-			// Image tags no longer declare native 'image-size' (as+size fold, FW-52):
-			// size folds into the `as` value (bws-as-size composite), so GB renders no
-			// native size control. No image-family tag carries extra supports now.
-			$tag_supports = $base_supports;
-
-			$callback = self::make_modifier_callback( $base_src_key, $traversal_src_key, $term_fn, $post_fn, $tag_name, $is_image, $supports_link );
-
-			// Title: plain label when in its own gb_type group (modifier tags appear under their
-			// own group in GB's picker, identified by gb_type). No cross-source parenthetical needed
-			// because the type already distinguishes the group.
-			$title = $modifier_label
-				? ( $tpl['title'] ?? $tag_name ) . ' (' . $modifier_label . ')'
-				: ( $tpl['title'] ?? $tag_name );
-
-			// Thread the template's visibility gate to the modifier (term_*) tag — same
-			// VE3/VP-vis gate the standalone email/phone tags carry. Empty otherwise.
-			$visibility = $tpl['visibility'] ?? [];
-
-			self::register_gb_tag( $title, $tag_name, $entry_gb_type[ $tag_name ] ?? $gb_type, $tag_supports, $options, $callback, $visibility );
-		}
+		_doing_it_wrong(
+			__METHOD__,
+			'Context modifier families are withdrawn. Register a chain root instead (see docs/plugin-integration.md §1a), and use §9 to convert stored tags. No tags were registered.',
+			'1.21.0'
+		);
 	}
 
 	/**
 	 * Build a modifier tag callback that dispatches to term_fn (via unset) or post_fn (via:'ref').
+	 *
+	 * ORPHANED SINCE 1.21.0 — register_modifier() was its only caller and now mints nothing,
+	 * so nothing reaches this. It goes with the stub in 1.22.0, which is FW-129's remaining
+	 * step. Left standing until then because its dispatch is cited by docs/adr/0005,
+	 * docs/future-work.md's row on the base-source seam, and several in-tree comments — a
+	 * deletion that has to repoint those is its own change, not a side effect of stubbing.
 	 *
 	 * Under the traversal pipeline (SPEC §T7/§V5) the modifier resolves its BASE
 	 * source via base_source_key (term_ → TaxonomyTerm term-kind, view_ →

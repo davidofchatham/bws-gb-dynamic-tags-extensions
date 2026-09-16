@@ -5,7 +5,16 @@
  * What no pure harness can reach: the converter reading REAL stored content, rewriting it,
  * and the rewritten wire RENDERING through the real source factory against a real field
  * read. modifier-base-migration-test.php owns the transform and the generated entries as
- * strings; this owns "the same bytes come out of the page afterwards".
+ * strings; this owns "the page renders after the run".
+ *
+ * NO PRE-CONVERSION SIDE, since the fixture stood down from `register_modifier()` ahead of
+ * FW-129 withdrawing it — the seeded
+ * `fixture_*` wire is unregistered and renders its own braces, so there is no "before" to
+ * compare against and byte-identity is not a property this can measure. That is the accepted
+ * cost recorded on the registrar in schema.php. What is left is the shape that matters after
+ * a prefix is retired: the converter still finds the wire, still rewrites it, and what it
+ * writes still renders. The expected VALUES of the converted wire are pinned in verify.php,
+ * which renders each FR3 target directly.
  *
  * MUTATES THE CORPUS ON PURPOSE. It converts /matrix-fixture-roots/ in place, exactly as an
  * admin clicking Migrate would — and its reach probe (§5) then runs over every OTHER post
@@ -25,12 +34,10 @@
  *            is the failure mode the shared match rule exists to prevent.
  *   RUN      migrate_post() rewrites every one of them, and a SECOND scan no longer sees
  *            the page — report and run agreeing is stated as "nothing left to report".
- *   RENDER   each converted tag renders BYTE-IDENTICALLY to the modifier tag it replaced.
- *            One documented exception, FR3.6 (`src:site` with inert sidecars): the modifier
- *            returned before reading either sidecar, so it rendered empty and its migrated
- *            form renders the site read. Asserted as a DIVERGENCE so a correct conversion
- *            can never be read as a regression here (verify.php pins the same pair
- *            pre-conversion).
+ *   RENDER   every converted tag renders something, and the wire it replaced renders its own
+ *            braces. Both halves are needed: the first is the non-vacuity the byte-identity
+ *            check used to supply, and the second is the statement the whole FW-129 gate
+ *            rests on — unconverted wire on a published page is visible breakage.
  *
  * Also pinned: the converted wire states its source ONCE — the retired flat controls
  * (`ref`, `srcTermIn`, the legacy `source` spelling) are gone, which is the authoring
@@ -103,19 +110,15 @@ $before_tags = $modifier_tags( $before );
 
 $check( 'corpus holds the FR3 modifier tags', count( $before_tags ) >= 6, 'found=' . count( $before_tags ) );
 
-// The one row whose OUTPUT the migration changes, identified by its wire rather than by its
-// position — a row added above it must not silently re-point this exception at another row.
-$site_shape = static fn( string $tag ): bool => false !== strpos( $tag, 'src:site' );
-
+// THE STATE THE CONVERTER IS FOR, asserted at the top so nothing below can be read as
+// measuring a registered family: unconverted `fixture_*` wire renders its own braces. GB
+// hands an unknown tag back untouched, so "renders literally" is the tag string itself.
 $before_render = array();
 foreach ( $before_tags as $tag ) {
 	$before_render[ $tag ] = $render( $tag );
 }
-
-// Non-vacuity: if every row rendered empty, every byte-identity check below would pass
-// while proving nothing. FR3.6 is empty BY DESIGN and is excluded from the count.
-$non_empty = count( array_filter( $before_render, static fn( $v ) => '' !== $v ) );
-$check( 'the modifier rows actually render before conversion', $non_empty >= count( $before_tags ) - 1, "non-empty={$non_empty}/" . count( $before_tags ) );
+$rendered_live = array_keys( array_filter( $before_render, static fn( $v, $t ) => $v !== $t, ARRAY_FILTER_USE_BOTH ) );
+$check( 'every seeded modifier tag renders LITERALLY before conversion', array() === $rendered_live, 'not literal: ' . implode( ' ', $rendered_live ) );
 
 // ---------------------------------------------------------------------------
 // 1. REPORT — the converter's scan.
@@ -197,20 +200,14 @@ $check(
 	'missing=' . implode( ' ', array_filter( $converted, static fn( $c ) => false === strpos( $after, $c ) ) )
 );
 
+// NON-VACUITY, and the only render property left once there is no "before" to compare with:
+// every converted row renders a value, and none of them renders braces. A conversion that
+// produced wire the renderer does not recognize would otherwise pass §2 and §4 untouched.
+// The VALUES are verify.php's, which renders each of these targets directly.
 foreach ( $converted as $old => $new ) {
 	$out   = $render( $new );
 	$label = "{$old}  →  {$new}";
-
-	if ( $site_shape( $old ) ) {
-		// THE KNOWN DIVERGENCE (#85 FR3.6). The modifier returned on `site` before reading
-		// either sidecar, so it rendered empty; the migrated wire renders the site read.
-		// A conversion that changes this row is correct — asserted as inequality so it can
-		// never be mistaken for a regression, and so a future "fix" that re-blanked it fails.
-		$check( 'KNOWN divergence renders where the modifier was empty: ' . $label, '' === $before_render[ $old ] && '' !== $out, 'before=' . var_export( $before_render[ $old ], true ) . ' after=' . var_export( $out, true ) );
-		continue;
-	}
-
-	$check( 'byte-identical render: ' . $label, $before_render[ $old ] === $out, 'before=' . var_export( $before_render[ $old ], true ) . ' after=' . var_export( $out, true ) );
+	$check( 'the converted wire renders: ' . $label, '' !== $out && $out !== $new, 'after=' . var_export( $out, true ) );
 }
 
 // ---------------------------------------------------------------------------
@@ -230,7 +227,7 @@ $check( 'the retired flat source controls are gone from every converted tag', ar
 // ---------------------------------------------------------------------------
 // 5. REACH — asserted, not merely stated. scan() is a POSTS-table query, so a tag living
 // in the OPTIONS table (a block widget) is out of reach: it is neither reported nor
-// rewritten, and it keeps rendering indefinitely because the old tags stay registered.
+// rewritten, and once the prefix is retired it renders its own braces there forever.
 // Probed with a real option rather than described in a comment, because "the converter
 // does not reach it" and "the converter reached it and left it alone" are the same picture
 // from the outside and only one of them is true.
@@ -249,8 +246,11 @@ foreach ( $widget_ids as $id ) {
 // over everything the converter reports leaves it byte-identical.
 $check( 'a modifier tag in the OPTIONS table survives a full converter run byte-identical', $widget_wire === get_option( $widget_option ), 'stored=' . var_export( get_option( $widget_option ), true ) . ' ran over ' . count( $widget_ids ) . ' reported posts' );
 
+// THE COST OF BEING OUT OF REACH, now that the prefix is retired: it does not go on
+// rendering, it renders its own braces on a published surface with nothing left to fix it.
+// This is FW-129's gate stated as a measurement rather than as a paragraph.
 $widget_render = $render( get_option( $widget_option ) );
-$check( 'and it goes on rendering — unconverted is a permanent state, not a deadline', 'Fixture Root Role' === $widget_render, 'out=' . var_export( $widget_render, true ) );
+$check( 'and it renders its own braces — out of reach is permanent, and after retirement it is visible', $widget_wire === $widget_render, 'out=' . var_export( $widget_render, true ) );
 
 delete_option( $widget_option );
 

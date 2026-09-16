@@ -95,7 +95,7 @@ deliberately not the same rule.
   off a rooting modifier is a judgement about an ENTITY-BLIND source, which a registered entity
   root is not.
 - **Never on the shared base builder.** `bws_base_source_option()` does not grow these rows — the
-  derived families (`term_*`, `try_*`, `{{table}}`, `{{call}}`) build their own surfaces from its
+  derived families (`try_*`, `{{table}}`, `{{call}}`) build their own surfaces from its
   rows, so a leak there would offer a root inside its own modifier family's Source dropdown and
   widen `{{call}}`'s deliberate allowlist.
 - **Registered roots offered through the `bws_dynamic_tags_chain_roots` filter route declare no
@@ -153,7 +153,7 @@ once an author converts it or the Tag Converter rewrites it.
 - **`rows` is not offered on a base tag.** The step type exists and runs, but no base arm
   consumes a `meta_row` — that is the gap `{{table}}` fills with its own assembly. Authoring one
   needs a hand edit, and it renders nothing.
-- **The derived families keep the flat select.** `term_*`, `try_*` and `{{table}}` build their own
+- **The derived families keep the flat select.** `try_*` and `{{table}}` build their own
   surfaces from the root enum's rows; a slot authors its chain inside its folded value instead
   (see [§Folded slot wire](#folded-slot-wire-multislot-containers)).
 
@@ -255,12 +255,11 @@ The one place tagline *might* earn its keep is as **feedstock for a multi-slot t
 
 Modifiers wrap base tag templates with a context-shifting prefix. Registered via `TagTemplateRegistry::register_modifier()`. See [`docs/plugin-integration.md`](plugin-integration.md) §2 for the registration API.
 
-**This whole route is deprecated (2026-09-08) and slated for removal** — a modifier family duplicates the base tags and has to be taught every capability separately, which the [chain root](#root-enum-membership-1170-83) makes unnecessary. No external plugin registers one any more. `term_` is the only remaining family and is on its own deprecation path. Tracked as [`future-work.md`](future-work.md) FW-129; the integrator-facing notice is [`plugin-integration.md` §2](plugin-integration.md#2-registering-a-context-modifier).
+**This whole route is deprecated (2026-09-08) and slated for removal** — a modifier family duplicates the base tags and has to be taught every capability separately, which the [chain root](#root-enum-membership-1170-83) makes unnecessary. No external plugin registers one any more. **`term_`, the last family, was removed in v1.21.0** — it is history now, and [`deprecated-tags-options.md` §The `term_` modifier family](deprecated-tags-options.md#the-term_-modifier-family-removed-in-v1210) owns what it was. Tracked as [`future-work.md`](future-work.md) FW-129; the integrator-facing notice is [`plugin-integration.md` §2](plugin-integration.md#2-registering-a-context-modifier).
 
 | Prefix | GB type | Modifier label | Starting context | Registered by |
 |---|---|---|---|---|
 | (no prefix — base) | `'cross-source'` | — | Current entity (post in post loop, term on term archive) | Built-in |
-| `term_` | `'term'` | (term-based) | User-selected term via GB native taxonomy/term picker | Built-in |
 | `try_` | `'first-available'` | — | Per-slot — see [§Try_ tags](#try_-tags) | Built-in |
 | *(external prefix)* | *(plugin-defined)* | *(plugin-defined)* | External entity | External plugin via `register_modifier()` |
 
@@ -271,7 +270,7 @@ The Tag Converter rewrites the first into the second where the owning plugin reg
 its prefix. The mapping table and its rules live in
 [`deprecated-tags-options.md` §Modifier prefix → base tag](deprecated-tags-options.md#modifier-prefix--base-tag-with-a-registered-root-1170);
 the registration call is [`plugin-integration.md` §9](plugin-integration.md#9-migrating-a-modifier-family-to-a-base-tag).
-No in-repo family is migrated — `term_` is deferred.
+`term_` is the one in-repo family that took this route, and its entries outlived its tags — they still ship (see the forward-ref above).
 
 ### Source classes
 
@@ -280,7 +279,7 @@ PHP entity resolvers used by base tag callbacks and modifier dispatch. Not surfa
 | Source class | Context | Use |
 |---|---|---|
 | `CurrentPost` | post | the resolved starting entity in post context (`src:''` / `src:current`) |
-| `TaxonomyTerm` | term | term_ modifier base; the term the factory resolves on a term archive |
+| `TaxonomyTerm` | term | the term the factory resolves on a term archive, and the `term` chain root's target (it was the `term_` family's base until FW-129 removed the family in v1.21.0) |
 | *(external source class)* | post or term | External modifier base, registered via `SourceRegistry::register_source()` |
 
 **A source resolves a STARTING entity; it never traverses.** Since 1.14.0 the relationship hop
@@ -373,7 +372,7 @@ Positional, not `terms`-specific: `refs` takes the `N` when `refs` is the last f
 | `email` | ✅ | Terms (when `srcTermIn`) or related posts (when `src:ref`) — each valid address wrapped individually, joined by `sep` |
 | `phone` | ✅ | Terms (when `srcTermIn`) or related posts (when `src:ref`) — each valid number wrapped individually, joined by `sep` |
 
-Term-modifier tags (`term_text`, `term_title`, etc.) inherit the same list-mode rule applied at their `src:ref` traversal.
+A chain step fans the same way wherever it sits: the rule above is the step's, not the tag's.
 
 **List collection is ONE fold (FW-49, 1.16.0):** every list-mode branch — text/title srcTermIn + src:ref, `datetime_single`/`datetime_range` per-term / per-ref-target (shipped with [#30](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/30) via a datetime-local fold, converged 1.16.0) — collects through `bws_collect_value_list()` (field-helpers.php): empty items are skipped, the list is sliced to `limit` and joined with `sep`, the `fallback` is suppressed per item and fires once on all-empty output, and link-wrap applies only when exactly one result renders — each collected value carries a link identity (`{kind,id}` or none; CONTEXT.md I12), and the single-result rule is a join constraint, not a linking one. Two separators on the range tag: `sep` between whole ranges, `rangeSep` between each start and end.
 
@@ -420,7 +419,7 @@ future opt-in ("search past empty fields"), called by nothing shipped; the track
 
 In v1.6.0 the per-source×template matrix was removed from the admin settings page. Default-enabled state is now controlled at two levels:
 
-**Modifier group toggles** — `term_` and `try_` each have an on/off toggle in the admin settings page. Disabling a modifier group removes all its tags from the GB editor picker. `try_` defaults to enabled; `term_` is seeded OFF on installs activated at v1.20.0 or later, because the family is deprecated. A settings row that never mentioned a group reads that group as enabled, which is what leaves an existing install rendering what it always rendered — the activation seed is the only place a new install is told apart from an untouched old one. An externally registered modifier group would not be surfaced in the toggle UI; none exists (the route is deprecated, see FW-129).
+**Modifier group toggles** — `try_` has an on/off toggle in the admin settings page; disabling the group removes all its tags from the GB editor picker. It defaults to enabled, and a settings row that never mentioned the group reads it as enabled, which is what leaves an existing install rendering what it always rendered — the activation seed is the only place a new install is told apart from an untouched old one. `term_` had the second toggle until the family was removed in v1.21.0, and its history is in [`deprecated-tags-options.md` §The `term_` modifier family](deprecated-tags-options.md#the-term_-modifier-family-removed-in-v1210). An externally registered modifier group would not be surfaced in the toggle UI; none exists (the route is deprecated, see FW-129).
 
 **Deprecated wrapper tags** — GB registration and runtime callbacks for all current deprecated tags were removed entirely (no longer conditional on any setting). Migration data (`MigrationRegistry` entries) and the admin Tag Converter / settings-page list stay intact for detection and migration of old content. The settings page still shows a Keep/Suppress/Disable radio per group (Has migration path, No migration path), but it no longer has any effect — pending a settings-page redesign to reflect that these are removed, not merely deprecated (tracked `docs/future-work.md`).
 
@@ -455,9 +454,9 @@ The `use` rows restate what `BWS_USE_STRIPPED_DEFAULTS` ([`registration-helpers.
 
 **Required for try_ slot 2+:** the slot-2+ "Same as Previous" semantic must be distinguishable from "explicit default". By stripping the slot-1 default to `''` and reserving an explicit `current` token, slot 2+ can use `''` for carry-over and `current` for "override back to current".
 
-**Boolean presence-flag convention:** Boolean options designed so unset = false / default behavior, present (as bare key) = true / non-default. Fits GB's boolean serialization (true → bare key, false → dropped) and the no-serialize-defaults rule simultaneously. Examples: `showCurrentYear`, `showMidnight`, `srcTermIn` (checkbox half of the combined control).
+**Boolean presence-flag convention:** Boolean options designed so unset = false / default behavior, present (as bare key) = true / non-default. Fits GB's boolean serialization (true → bare key, false → dropped) and the no-serialize-defaults rule simultaneously. Examples: `showCurrentYear`, `showMidnight`. `srcTermIn` was a third until its control was retired in v1.21.0 (the checkbox half of a combined control).
 
-### `as` serialization opt-out + `as`+`size` fold (`image`, `term_image`, `try_image`)
+### `as` serialization opt-out + `as`+`size` fold (`image`, `try_image`)
 
 For image tags, the `as` option is **always serialized** — `{{image as:url,full|...}}` even when unmodified. Not stripped at registration. Justification: `as` controls the output mode (image src vs. alt text vs. caption vs. ID). Surfacing it in the saved tag makes the return mode immediately visible when copying a tag instance between fields, so a user can change `as:url` → `as:alt` in one edit instead of inspecting the option panel.
 
@@ -529,7 +528,7 @@ constructors do not answer a taken name the same way:
 | Constructor | A name another plugin registered first |
 |---|---|
 | `bws_register_base_tags()`, plus the standalone base tags (`{{email}}`, `{{phone}}`, `{{table}}`, `{{call}}`) | Registered OVER, and the collision reported |
-| `TagTemplateRegistry::register_modifier()` (the `term_*` half) | Skipped; the first registrar keeps the name, and the skip is reported |
+| `TagTemplateRegistry::register_modifier()` (no in-repo caller since v1.21.0 removed `term_*`) | Skipped; the first registrar keeps the name, and the skip is reported |
 | `TagTemplateRegistry::generate_base_try_tags()` (the `try_*` half) | Skipped; the first registrar keeps the name, and the skip is reported |
 
 A collision is detected three times, because it can go three ways and the DEVELOPER remedies differ:
@@ -538,7 +537,7 @@ A collision is detected three times, because it can go three ways and the DEVELO
 |---|---|---|
 | Something already held one of our base-tag names when our pass reached it | `bws_gb_register_tag()`, during registration | `kept` — we own the name, the other tag of that name does not render |
 | Something takes one of our names after our pass | `bws_gb_recheck_tag_ownership()`, once on `wp_loaded` | `lost` — every block already using our tag now renders through their callback |
-| Something already held a `term_*` / `try_*` name, so that constructor stood down | `bws_gb_note_tag_yielded()`, at either constructor's dup-check | `yielded` — no tag of ours by that name exists and nothing of ours renders under it |
+| Something already held a `try_*` name (or, before v1.21.0, a `term_*` one), so that constructor stood down | `bws_gb_note_tag_yielded()`, at either constructor's dup-check | `yielded` — no tag of ours by that name exists and nothing of ours renders under it |
 
 **A `yielded` outcome means this doc does not describe that tag on that site.** The tag simply is
 not there, so a page describing it — this one included — is describing something the reader cannot
@@ -573,16 +572,15 @@ Registered via the `generateblocks.editor.tagSpecificControls` JS filter. Each e
 
 | Control type | Renders | Source file | Used by |
 |---|---|---|---|
-| `bws-media-picker` | `wp.media()` modal; persists attachment ID (re-fetches preview URL via `wp.data` `core` `getMedia(id)`) | `assets/js/image-tag-controls.js` | `image`, `term_image`, `try_image` fallback |
-| `bws-as-size` | Composite: return-mode `SelectControl` + a size `SelectControl` shown only under `url`. Owns the whole `as` token, folding size into its value (`as:url,medium`; nullary modes serialize bare). Size enum + pretty labels localized from PHP (`window.bwsImageSizes` ← `bws_get_image_size_options()`). Last-picked size stashed in React state so `url→alt→url` restores it (wire stays model-pure). Replaces GB's native `as` select AND `image-size` control. | `assets/js/as-size-control.js` | `as` on `image`, `term_image`, `try_image` |
-| `bws-term-hop` | CheckboxControl + ComboboxControl over public taxonomies (via `wp.data` `core`). Reads `pickLabel` / `pickHelp` from PHP option config in addition to `label` / `help` | `assets/js/term-hop-control.js` | `srcTermIn` option on base + modifier tags + per-slot in try_ tags |
+| `bws-media-picker` | `wp.media()` modal; persists attachment ID (re-fetches preview URL via `wp.data` `core` `getMedia(id)`) | `assets/js/image-tag-controls.js` | `image`, `try_image` fallback |
+| `bws-as-size` | Composite: return-mode `SelectControl` + a size `SelectControl` shown only under `url`. Owns the whole `as` token, folding size into its value (`as:url,medium`; nullary modes serialize bare). Size enum + pretty labels localized from PHP (`window.bwsImageSizes` ← `bws_get_image_size_options()`). Last-picked size stashed in React state so `url→alt→url` restores it (wire stays model-pure). Replaces GB's native `as` select AND `image-size` control. | `assets/js/as-size-control.js` | `as` on `image`, `try_image` |
 | `bws-format-input` | TextControl that escapes `:` / `\|` on save and unescapes for display, so format strings containing colons (e.g. `g:i A` time tokens) survive GB's JS `parseTag()` round-trip | `assets/js/format-input-control.js` | `format` option on `datetime_single`, `datetime_range` |
 | `bws-slot-fold` | The slot REPEATER: owns one folded slot value whole (source chain + field read + per-slot options), parsing and emitting it only through the grammar twin `assets/js/slot-fold-grammar.js`. Explicit add/remove slot count; removal compacts, materializing carried axes first so a `same` backreference cannot silently re-point. Renders `bws-field-combo` against a synthetic context for the field pickers (the shipped control is unmodified; it takes the repeater scope as an explicit `scopeKey` prop). Every enum, label and noun arrives on the PHP option definition's `fold` sub-array from `bws_build_fold_slot_options()` — the control hand-authors no vocabulary. Recovers legacy flat keys at mount and rewrites the slot on first commit. | `assets/js/slot-fold-control.js` | folded slot keys `A`, `B`, … on `{{join}}` and `try_*` (v1.17.0); `{{table}}` arrives folded. Three read SHAPES, all read off the derived config rather than the container name: kind enum + picker, picker alone (a key axis with no `use` enum), or no read at all. See [§Folded slot wire](#folded-slot-wire-multislot-containers) |
-| `bws-src-chain` | The BASE tag's source chain: a root plus ordered fanning steps, each with an optional per-step limit. Renders the SAME step component the folded-slot control uses (`window.bwsSlotFoldRepeater.chainSteps`) — a second renderer is where a hand-authored third spelling of `terms` gets in. Every enum, label, noun and slug map arrives on the PHP option definition's `fold` sub-array from `bws_build_src_chain_option()`. Reads a legacy tag's flat `src`/`ref`/`srcTermIn` as the chain they describe (display only, so a cancelled modal leaves stored wire untouched); the first commit writes chain wire, deletes the flat siblings, and carries the limit the old spelling implied onto the STEPS (`limit(1)` on each fanning step, visible in the step's own Limit field; an author's tag-level `limit` MOVES onto the last fanning step rather than staying behind) — because chain wire defaults to unlimited and a conversion that wrote nothing would fan the tag out under the author's hands. One mapping, `bws_fold_chain_apply_legacy_limit()`, shared with both migration paths so a converted tag and a scanned one are byte-identical. Edits the SOURCE only; the base tag keeps its own `use`/`key`. | `assets/js/src-chain-control.js` | `src` on `text`, `content`, `title`, `permalink`, `image`, `email`, `phone`, `datetime_single`, `datetime_range`. NOT on `term_*`/`try_*`/`{{table}}` — those derive their own surfaces from the root enum, and a slot authors its chain inside its folded value |
+| `bws-src-chain` | The BASE tag's source chain: a root plus ordered fanning steps, each with an optional per-step limit. Renders the SAME step component the folded-slot control uses (`window.bwsSlotFoldRepeater.chainSteps`) — a second renderer is where a hand-authored third spelling of `terms` gets in. Every enum, label, noun and slug map arrives on the PHP option definition's `fold` sub-array from `bws_build_src_chain_option()`. Reads a legacy tag's flat `src`/`ref`/`srcTermIn` as the chain they describe (display only, so a cancelled modal leaves stored wire untouched); the first commit writes chain wire, deletes the flat siblings, and carries the limit the old spelling implied onto the STEPS (`limit(1)` on each fanning step, visible in the step's own Limit field; an author's tag-level `limit` MOVES onto the last fanning step rather than staying behind) — because chain wire defaults to unlimited and a conversion that wrote nothing would fan the tag out under the author's hands. One mapping, `bws_fold_chain_apply_legacy_limit()`, shared with both migration paths so a converted tag and a scanned one are byte-identical. Edits the SOURCE only; the base tag keeps its own `use`/`key`. | `assets/js/src-chain-control.js` | `src` on `text`, `content`, `title`, `permalink`, `image`, `email`, `phone`, `datetime_single`, `datetime_range`. NOT on `try_*`/`{{table}}` — those derive their own surfaces from the root enum, and a slot authors its chain inside its folded value |
 | `bws-fanning-advisory` | Display-only, group-end advisory for the collapsing tags: one line at the end of the source box, shown only when the tag's chain actually fans (the grammar twin of `bws_fold_chain_fanning_steps()`). The copy arrives on the PHP option definition (`help`); the control writes nothing and its option (`srcFanNote`) is never serialized. The filter nulls it on a non-fanning chain so the group wrapper never draws an empty member. Mechanism: [`editor-controls.md` §Group-end fanning advisory](editor-controls.md#group-end-fanning-advisory). | `assets/js/src-chain-control.js` | `srcFanNote` on `content`, `permalink`, `image` (the `takes_first_usable` templates — [§Collapsing tags](#collapsing-tags-first-usable-source)) |
 | `bws-field-combo` | Discovery-backed field picker: a searchable `ComboboxControl` over the field envelope inlined as `window.bwsFieldEnvelope` (assembled once per editor load from the REST route `bws-dynamic-tags/v1/fields`, no runtime fetch), plus two `SelectControl` filters above it (**location** — a path tree `Post/Term/Site fields › group › container`, container fields flagged `(repeater)`/`(group)`; **type** — ACF type or "Loop fields"). Flat list, one row per `(kind, key, label)`; a key in several groups collapses and shows under each, distinct labels stay separate. Serializes the **bare key** as a plain string (option `value` is a private merge key; the `valueToKey` map strips it in `onChange`), so it is a pure render swap for the old `text` input. Free-text via a synthetic "Use custom key" option; clear via `allowReset`. Reads optional `dynamicLabel` (label tracks the active location's group/kind) and `labelPrefix` from PHP option config. Composes with the conditional-options filter (`if (!element) return element`). Offered keys are filtered through `GenerateBlocks_Dynamic_Tag_Security::DISALLOWED_KEYS` server-side (offered ⟺ resolvable). | `assets/js/field-combo-control.js` + `includes/rest/field-discovery.php` | `key` (base/content/email/phone), `ref`, `linkKey` (`labelPrefix:'URL'`), datetime `key`/`timeKey`/`startKey`/`startTimeKey`/`endKey`/`endTimeKey`, and their `N-` per-slot try_ equivalents |
 
-Image size selection is the `bws-as-size` composite (above) as of v1.16.0 — GB's native `image-size` support is dropped and size folds into the `as` value (see [§`as` serialization opt-out + `as`+`size` fold](#as-serialization-opt-out--assize-fold-image-term_image-try_image)). (History: a `bws-img-size` ComboboxControl was tried then retired mid-1.6.0 for GB's native support; the fold now retires the GB control in turn.)
+Image size selection is the `bws-as-size` composite (above) as of v1.16.0 — GB's native `image-size` support is dropped and size folds into the `as` value (see [§`as` serialization opt-out + `as`+`size` fold](#as-serialization-opt-out--assize-fold-image-try_image)). (History: a `bws-img-size` ComboboxControl was tried then retired mid-1.6.0 for GB's native support; the fold now retires the GB control in turn.)
 
 ---
 
@@ -606,35 +604,35 @@ The per-tag control lists in Part II are stated in **control order**. Show/hide 
 
 **Two orders, defined against two references.** The **control order** — how controls stack top-to-bottom in the editor panel — is independent of the **serialization order** — how options appear left-to-right in the saved tag string. GB drives both from the same `extraTagParams` object, and the plugin decouples them with a per-tag reorder normalizer (built v1.16.0 — FW-52). The GB fact that makes this possible (GB's own `post_date` renders format above link yet serializes link before format) lives in [`gb-constraints.md` §Serialization order is independent of control order](gb-constraints.md#serialization-order-is-independent-of-control-render-order--gb-itself-proves-it). This section defines the canonical orders both axes aim at.
 
-**Which GB-native controls the plugin actually uses — only ONE.** GB gates every native control on a registered `supports` value (`tagSupports(tagData, X)`, `DynamicTagSelect.jsx:193`, `:269-274`): a control renders (and its reserved key serializes) ONLY when the tag registers support `X`. GB reserves the key names `source`, `id`, `key`, `link`, `size`, `dateFormat`, `required`, `tax` — but reserving a name and *using* the machinery are different. The plugin's tags register **empty `supports` arrays** (`base-tags.php:69,131,177,211,290,303,320`) except `image`/`term_image` = `['image-size']` (`:234`); and it does not register any source into GB's `sourcesInOptions` filter (default `[]`, so GB never serializes `source:`/`id:` for our tags either). So:
+**Which GB-native controls the plugin actually uses — NONE, since v1.21.0.** (It was ONE until then: the `term_` family's native term source, retired with the family — see below.) GB gates every native control on a registered `supports` value (`tagSupports(tagData, X)`, `DynamicTagSelect.jsx:193`, `:269-274`): a control renders (and its reserved key serializes) ONLY when the tag registers support `X`. GB reserves the key names `source`, `id`, `key`, `link`, `size`, `dateFormat`, `required`, `tax` — but reserving a name and *using* the machinery are different. The plugin's tags register **empty `supports` arrays** (`base-tags.php:69,131,177,211,290,303,320`) except `image` = `['image-size']` (`:234`, itself retired by the v1.16.0 `as`+`size` fold below); and it does not register any source into GB's `sourcesInOptions` filter (default `[]`, so GB never serializes `source:`/`id:` for our tags either). So:
 
 | GB-native mechanism | Gated by | Plugin uses it? | What the plugin uses instead |
 |---|---|---|---|
 | Source selector, `source:` / `id:` serialize | `'source'` support / `sourcesInOptions` | **No** | custom `src` control |
 | Meta key control, `key:` serialize | `'meta'` support | **No** | custom `key` option |
 | Link controls, `link:` serialize | `'link'` support | **No** | custom `linkTo` / `linkKey` / `newTab` |
-| Taxonomy control, `tax:` serialize | `'taxonomy'` support | **No** | custom `srcTermIn` |
+| Taxonomy control, `tax:` serialize | `'taxonomy'` support | **No** | a `terms` step inside the source chain (the custom `srcTermIn` control it replaced was retired in v1.21.0) |
 | Date Format control, `dateFormat:` serialize | `'date'` support | **No** | custom `as:date\|time\|both` + format tokens |
 | Image Size control, `size:` serialize | `'image-size'` support | **No** (as of v1.16.0) | custom `bws-as-size` (`size` folded into `as`) |
 
 Verified 2026-07-22 (`base-tags.php` supports arrays + `DynamicTagSelect.jsx:269-274`, `:513`, `:695-817`; no plugin reference to `sourcesInOptions`). **As of v1.16.0 the plugin uses NO GB-native reserved control at all** — the last one, Image Size, was retired by the `as`+`size` fold (below). **Every option this plugin uses is a CUSTOM option** → all within the reorder normalizer's reach. The reorder governs 100% of the custom-option surface (source/field/link/format/fallback). Everything below is the canonical order for those custom options.
 
-**`size` folded into `as` (v1.16.0).** The `as`+`size` composite (`bws-as-size`) removed `'image-size'` from image's supports arrays and folded size into the custom `as:url,medium` value — so `size` is now a custom option and no GB-native reserved control remains anywhere. See [§`as` serialization opt-out + `as`+`size` fold](#as-serialization-opt-out--assize-fold-image-term_image-try_image).
+**`size` folded into `as` (v1.16.0).** The `as`+`size` composite (`bws-as-size`) removed `'image-size'` from image's supports arrays and folded size into the custom `as:url,medium` value — so `size` is now a custom option and no GB-native reserved control remains anywhere. See [§`as` serialization opt-out + `as`+`size` fold](#as-serialization-opt-out--assize-fold-image-try_image).
 
-**One transient source exception — `term_*` tags.** The `term_*` modifier tags register with GB **type `'term'`**, which triggers GB's native term source + taxonomy machinery (`'term' === dynamicTagType` paths serialize `id:`/`tax:` and render the native term/taxonomy pickers without a `supports` entry). So on `term_*` specifically, source IS partly GB-native. This is the lone remaining GB-native usage, and it is **temporary — `term_*` is on the deprecation glide-path** (base tags + context modifiers subsume it; see [`docs/future-work.md`](future-work.md) term_ deprecation). Dropping `term_*` removes the native term source, after which the plugin uses NO GB-native controls at all.
+**The last GB-native source went with the `term_` family (v1.21.0).** Those tags registered under GB type `'term'`, which triggered GB's native term source + taxonomy machinery (`'term' === dynamicTagType` paths serialize `id:`/`tax:` and render the native term/taxonomy pickers without a `supports` entry), so on `term_*` specifically source was partly GB-native. It was recorded here as the lone remaining GB-native usage and as temporary; FW-129 ended it. **The plugin now uses NO GB-native controls at all.**
 
 **Control order — author custom controls at GB's single injection point.** Since the plugin registers almost no GB-native supports (table above), all the plugin's own controls inject together at GB's single `tagSpecificControls` slot (`DynamicTagSelect.jsx:819`). So the control order is essentially the plugin's to define wholesale — GB contributes only the tag selector (top) and the Required checkbox + Insert button (bottom). **Canonical control order: `source → format → link → fallback`** — the author picks *what to read* (source/field) before *how to display it* (format), then link, then fallback. Format renders early in the panel, matching GB's own `post_date` (Date Format renders ABOVE Link To). Note this is the INVERSE of the serialization order below, where format leads and link precedes it.
 
 **Control order IS registration order, and since v1.17.0 it is a correctness property.** GB renders `options` as declared; nothing reorders them (the FW-52 normalizer moves the *serialized* key order only, inside `setState`). So the registration arrays in [`base-tags.php`](../includes/tags/base-tags.php) and the two constructors in [`class-tag-template-registry.php`](../includes/classes/class-tag-template-registry.php) *are* the panel. [Option grouping](editor-controls.md#option-grouping-visual) draws a box around the controls that describe one decision, and a group boxes as ONE box only where its members register **contiguously** — the CSS joins adjacent siblings and can see nothing else. A group registered in two pieces draws two boxes for one decision; a member stranded away from its group draws a box of its own with nothing to name it. Both are pinned by [`tools/test/control-order-test.php`](../tools/test/control-order-test.php), which asserts contiguity across every registered tag.
 
-The three constructors may legitimately place a group differently — `term_*` leads with its format cluster, base and `try_*` do not — but none may split one. Until v1.17.0 the `try_` constructor did: it registered format FIRST (i.e. in *serialization* order, on the one family that renders a format cluster), put `fallback` ahead of `link`, and appended the chain-level `limit`/`sep` last of all, where — being source-group options — they drew a captionless box at the foot of the panel. `term_*` carried the `fallback`-before-`link` half of the same bug. Both fixed in v1.17.0; the harness is what keeps them fixed.
+A constructor may legitimately place a group differently from another — the `term_` constructor led with its format cluster where base and `try_*` do not — but none may split one. Until v1.17.0 the `try_` constructor did: it registered format FIRST (i.e. in *serialization* order, on the one family that renders a format cluster), put `fallback` ahead of `link`, and appended the chain-level `limit`/`sep` last of all, where — being source-group options — they drew a captionless box at the foot of the panel. `term_*` carried the `fallback`-before-`link` half of the same bug. Both fixed in v1.17.0; the harness is what keeps them fixed, and it reads two constructors now that FW-129 has removed the third.
 
 <a id="option-grouping-visual"></a>
 **Option grouping (visual)** — moved to [`docs/editor-controls.md` §Option grouping (visual)](editor-controls.md#option-grouping-visual): the four visual groups, their owners (`bws_option_visual_groups()`, `option-group.js`), the lead-boxes-alone rule, and captions-belong-to-controls.
 
 **Serialization order — `format` group leads, among custom options only.** The canonical serialized order for the custom options is (corrected 2026-07-23 — link moved after source, see below):
 
-1. **`format`** group — `as` (image: the folded `as:url,<size>` — see [§`as` serialization opt-out + `as`+`size` fold](#as-serialization-opt-out--assize-fold-image-term_image-try_image)), format/separator tokens (serialize-early so the return mode is visible up front when copying a tag).
+1. **`format`** group — `as` (image: the folded `as:url,<size>` — see [§`as` serialization opt-out + `as`+`size` fold](#as-serialization-opt-out--assize-fold-image-try_image)), format/separator tokens (serialize-early so the return mode is visible up front when copying a tag).
 2. **`source`** group, **per slot, contiguous** — for slot *N*: `N-src`, `N-ref`, `N-srcTermIn`, `N-limit`, `N-sep`, `N-use`, `N-key`, then the datetime field keys (`N-timeKey`, `N-startKey`, `N-startTimeKey`, `N-endKey`, `N-endTimeKey`) — canonical within-slot order (`limit`/`sep` precede the field keys: list length is a source property). Each slot's keys stay adjacent; slots ascend `1-…`, `2-…`, … Global (non-`N-`) source keys sort as slot 0. A **folded slot key** (`A`, `B`, … — [§Folded slot wire](#folded-slot-wire-multislot-containers)) ranks here too, at its own slot and ahead of every named source key: the folded value IS the slot's whole source-and-read, so it holds the position `src` would. Tag-level source keys are slot 0, so they still precede it.
 3. **`link`** group — the `linkTo`/`linkKey`/`newTab` cluster (custom — NOT GB's reserved `link`) OR, on email/phone, the own-anchor set `subject → noLink`. A role-based group (link-affecting controls, whichever mechanism); one set per tag. Placed **after source** because link is source-relative (`linkTo:post/term` links the resolved entity; `linkKey` reads a field off it) — matching GB's own `post_meta`/`post_date` `source → field → link` serialize chain.
 4. **`fallback`** group — `fallback`, last.
@@ -732,41 +730,27 @@ Harnesses: `php tools/test/slot-fold-test.php` (grammar + legacy mapping + rende
 
 In the source-agnostic architecture, each template has one GB tag registration. Type names settled (2026-04-14): base tags use `'cross-source'`; try_ tags use `'first-available'`. Both are hyphenated English compounds confirmed valid as GB type strings.
 
-**Tag title** (`title`) is shown in the GB tag picker and is the last-resort editor fallback when a tag can't resolve and no preview label is available. The term_ modifier appends `'(term-based)'` to the base title.
+**Tag title** (`title`) is shown in the GB tag picker and is the last-resort editor fallback when a tag can't resolve and no preview label is available.
 
-| Template key | Tag title | Term modifier title | GB type | Link wrap | Notes |
-|---|---|---|---|---|---|
-| `text` | `'Text Fields'` | `+ '(term-based)'` | `'cross-source'` | ✅ | |
-| `content` | `'Content/Description'` | `+ '(term-based)'` | `'cross-source'` | ❌ | Long-form; may already contain links |
-| `title` | `'Title/Name'` | `+ '(term-based)'` | `'cross-source'` | ✅ | Zero options aside from link; shares pipeline with `text use:title`. |
-| `permalink` | `'Permalink'` | `+ '(term-based)'` | `'cross-source'` | ❌ | Output is already a URL |
-| `image` | `'Image Fields'` | `+ '(term-based)'` | `'cross-source'` | ❌ | URL output nonsensical to wrap; image linking deferred |
-| `datetime_single` | `'Format Date/Time Fields'` | `+ '(term-based)'` | `'cross-source'` | ✅ | |
-| `datetime_range` | `'Format Date/Time Fields as Range'` | `+ '(term-based)'` | `'cross-source'` | ✅ | |
-| `email` | `'Email'` | *(no term_ variant)* | `'cross-source'` | `mailto:` (own anchor, not `linkTo`) | Default-ON mailto wrap toggled by `noLink`; `visibility`-gated off `a`/`button`/`img`/`picture`. See [§Email tag](#email-tag). |
-| `phone` | `'Phone'` | *(no term_ variant)* | `'cross-source'` | `tel:` (own anchor, not `linkTo`) | Default-ON tel wrap toggled by `noLink`; href rebuilt from stored value (author separators preserved); 2-tier country code; `visibility`-gated off `a`/`button`/`img`/`picture`. See [§Phone tag](#phone-tag). |
-| `join` | `'Join Fields'` | *(no term_ variant)* | `'cross-source'` | ❌ | **Structural outlier — not a base tag.** Standalone COMBINING tag: absorbs up to 10 base `text` reads as slots and assembles all non-empty values (separator or template mode). No read of its own; no per-slot link-wrap. See [§join](#join). |
-| `call` | `'Call Custom Function'` | *(no term_ variant)* | `'post'` | ❌ | **Structural outlier — not a base tag.** Binds the loop-correct post (L1 only), then delegates to an allowlisted site PHP function; output is the function's return string, verbatim + unescaped. Type `'post'` (NOT `'cross-source'`) — no term/site/media/taxonomy features; `src` offers Current + Ref only. Ships with an empty allowlist. See [§Call tag](#call-tag). |
+| Template key | Tag title | GB type | Link wrap | Notes |
+|---|---|---|---|---|
+| `text` | `'Text Fields'` | `'cross-source'` | ✅ | |
+| `content` | `'Content/Description'` | `'cross-source'` | ❌ | Long-form; may already contain links |
+| `title` | `'Title/Name'` | `'cross-source'` | ✅ | Zero options aside from link; shares pipeline with `text use:title`. |
+| `permalink` | `'Permalink'` | `'cross-source'` | ❌ | Output is already a URL |
+| `image` | `'Image Fields'` | `'cross-source'` | ❌ | URL output nonsensical to wrap; image linking deferred |
+| `datetime_single` | `'Format Date/Time Fields'` | `'cross-source'` | ✅ | |
+| `datetime_range` | `'Format Date/Time Fields as Range'` | `'cross-source'` | ✅ | |
+| `email` | `'Email'` | `'cross-source'` | `mailto:` (own anchor, not `linkTo`) | Default-ON mailto wrap toggled by `noLink`; `visibility`-gated off `a`/`button`/`img`/`picture`. See [§Email tag](#email-tag). |
+| `phone` | `'Phone'` | `'cross-source'` | `tel:` (own anchor, not `linkTo`) | Default-ON tel wrap toggled by `noLink`; href rebuilt from stored value (author separators preserved); 2-tier country code; `visibility`-gated off `a`/`button`/`img`/`picture`. See [§Phone tag](#phone-tag). |
+| `join` | `'Join Fields'` | `'cross-source'` | ❌ | **Structural outlier — not a base tag.** Standalone COMBINING tag: absorbs up to 10 base `text` reads as slots and assembles all non-empty values (separator or template mode). No read of its own; no per-slot link-wrap. See [§join](#join). |
+| `call` | `'Call Custom Function'` | `'post'` | ❌ | **Structural outlier — not a base tag.** Binds the loop-correct post (L1 only), then delegates to an allowlisted site PHP function; output is the function's return string, verbatim + unescaped. Type `'post'` (NOT `'cross-source'`) — no term/site/media/taxonomy features; `src` offers Current + Ref only. Ships with an empty allowlist. See [§Call tag](#call-tag). |
 
-The term_ modifier produces additional tags: `term_text`, `term_image`, `term_title`, `term_permalink`. `src` unset = user-selected term (never serialized); `src:'ref'` = term→related post traversal. `as` and `size` are registered as custom options on `term_image` (same pattern as base `image` — `'media'` type not used on any image tag). `as` serialization exception applies to `term_image` as well — default `as:url` is always written to the tag string.
-
-**The family's GB type is `'deprecated'` as of v1.20.0, so every `term_*` tag sits in GenerateBlocks' deprecated group** rather than in a `'term'` group of its own. The type is not written at the registration: each tag takes it from that tag's migration-registry entry (`MigrationRegistry::register()` owns what an entry carries). The family is also **switched off on new installs** (the settings page's `term_ tags` toggle seeds unchecked — an install that predates v1.20.0, or one whose settings row never mentioned the family, is unaffected). Nothing is unregistered: removal is a separate later decision, and an unregistered tag would render its own braces on the page. Tracked as FW-129; the replacement is a base tag with its source set to a term.
-
-**WHETHER A GIVEN `term_*` TAG IS OURS DEPENDS ON THE SITE, AND THIS DOC CANNOT KNOW.** Where
-another plugin already holds one of these names, the tag of that name is theirs and nothing
-described here applies to it — [§Tag name collisions](#tag-name-collisions) owns why and what the
-outcome means, and the reader's own site answers which case it is: the rows reading *another
-plugin's tag is active* in the settings page's **Tag Name Conflicts** subsection, under Diagnostics.
-Measured on the reference fixture site 2026-08-26: GB
-Query Enhancements holds `term_title` there, so no `{{term_title}}` of ours exists on it — while the
-examples using that tag elsewhere in this doc and in [`editor-controls.md`](editor-controls.md) hold
-on a site without that plugin.
-
-**`term_image use:featured` gating:** `use:featured` only valid on `term_image` when `src:ref` set. Term entities have no featured image; gate hides the option until a post-context traversal is selected.
+**The `term_` modifier family is REMOVED as of v1.21.0** (FW-129) and registers no tag on any install. Its tags, its option surface, what a `{{term_*}}` string still stored in content does now that nothing registers the name, and the site-dependent question of whose tag a given `term_*` name ever was: [`deprecated-tags-options.md` §The `term_` modifier family](deprecated-tags-options.md#the-term_-modifier-family-removed-in-v1210). The replacement is a base tag with its source set to a term, and the Migration Tool writes it.
 
 **try_ modifier** produces `try_text`, `try_image`, etc. with GB type `'first-available'`. Up to 5 slots, one folded option key each; the slot count is explicit (add/remove), not revealed by configuration progress.
 
-See [§Default serialization strategy](#default-serialization-strategy) for the registration-boundary mechanism that controls which option defaults survive into the saved tag string (and the intentional `as` opt-out for `image` / `term_image`).
+See [§Default serialization strategy](#default-serialization-strategy) for the registration-boundary mechanism that controls which option defaults survive into the saved tag string (and the intentional `as` opt-out for `image`).
 
 ---
 
@@ -854,7 +838,7 @@ serialization](editor-controls.md#source-control--per-slot-ui-and-serialization)
 | Option name | Option label | Help text | Shown when | Notes |
 |---|---|---|---|---|
 | `ref` | Relationship Field Key | ACF relationship or post object field key. | `src` = `ref` | ACF relationship/relational field key for the traversal step. **Required** when `src:ref` selected. |
-| `srcTermIn` | Get from taxonomy term? | Field is in a taxonomy term on this source. | Always; hidden for `term_` modifier tags (entity already a term) at `src:current`; shown at `src:ref` | The VALUE is a taxonomy slug and encodes both facts: empty/unset = no term step, a slug = term step on, in that taxonomy (so the slug is **required** when the step is on). Rendered by a combined control — [§Source control](editor-controls.md#source-control--per-slot-ui-and-serialization). |
+| `srcTermIn` | ~~Get from taxonomy term?~~ *(HISTORICAL label — no control registers it)* | Field is in a taxonomy term on this source. | **No control on any tag** since v1.21.0 (FW-67) — every chain source had absorbed it, and the two families that authored it flat (`term_*`, `{{table}}`) are gone. The key is still READ wherever it is written, so unmigrated and hand-edited wire keeps rendering. | VALUE is a taxonomy slug encoding both facts: empty/unset = no term step, slug = term step on, in that taxonomy. On a read, the chain compiler appends a `terms` step for a stored slug to a chain that has none of its own, and the fold migration converts it. Authored today as a `terms` step inside the source chain — [§Source control](editor-controls.md#source-control--per-slot-ui-and-serialization). |
 | `limit` | ~~Result Limit~~ *(HISTORICAL label — no control registers it)* | Maximum number of results to return. Default: 1 on flat wire, unlimited on a source chain. Enter 0 for no limit. | **No control on any tag** as of v1.17.0 ([#62](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/62)) — the key is still READ wherever it is written, so unmigrated and hand-edited wire keeps rendering. Why the control was retired rather than gated: [§Source control](editor-controls.md#source-control--per-slot-ui-and-serialization) | Placeholder `1`; not serialized when unset; **`0` (or a hand-typed `-1`) = UNLIMITED** since 1.17.0, non-numeric reads as unset — see [§List mode](#list-mode-limit--sep). Bounds the WHOLE list; a chain's per-step limits are a different quantity (per-input) and live in the source value, not in an option key — [§Chain step controls](editor-controls.md#chain-step-controls). |
 | `sep` | Result Separator | Separator between results (defaults to “, “). | `srcTermIn` set, or `src` = `ref` or a fanning chain (`chain_fans`) — unlike `limit` it DOES ask `chain_fans`, because it joins printed output whatever the source spelling; unconditional on a multislot container, where the list axis sits inside a slot value that `show_if` cannot inspect | `text`, `title`, `email`, `phone`, `datetime_single`, `datetime_range` and the `try_` list templates (`try_text`, `try_title`, `try_email`, `try_phone`) |
 
@@ -894,8 +878,8 @@ keys.
 
 ### Link wrap group
 
-Available on `text`, `title`, `datetime_single`, `datetime_range` (base, `term_` modifier, and
-`try_` variants). Excluded: `content`, `permalink`, `image`. (`email`/`phone` have their own
+Available on `text`, `title`, `datetime_single`, `datetime_range` (base and `try_` variants).
+Excluded: `content`, `permalink`, `image`. (`email`/`phone` have their own
 `mailto:`/`tel:` link mechanism — `noLink` — NOT the `linkTo` family; see their sections.) The
 `link` group renders after `format` in control order, after `source` in serialization order.
 
@@ -915,8 +899,7 @@ Available on `text`, `title`, `datetime_single`, `datetime_range` (base, `term_`
 
 Link wrap is applied **after fallback resolves** — fallback text is also wrapped if a link resolves.
 On `try_` tags, the single `linkTo`/`linkKey`/`newTab` applies to the winning slot's entity (post or
-term). `term_` modifier tags resolve entity type from dispatch path (term entity for base-source
-dispatch; post entity for `src:ref` dispatch).
+term). On a base tag it is the entity the chain lands on.
 
 **`email`/`phone` are the exception — their link is NOT a `linkTo` option.** They do not participate
 in the `linkTo`/`linkKey`/`newTab` family above (those wrap an *entity URL*). Their only link is the
@@ -1001,7 +984,7 @@ Control order `source → format → fallback` (no `link` group on `image`; `for
 | 1 | source | | `[source options]` | [Source group](#source-group); no `sep` for image (and no tag-level `limit` control on any of them since v1.17.0) |
 | 2 | source | | `use` | `key` (unset default in single-slot tags); `featured` — `featured` disabled for term-context entities unless `src` = `ref`; under `src:site` `use:featured` = logo |
 | 3 | source | | `key` | shown when `use` unset [in single-slot tags] or `use:key` — **`key` required** in key-mode |
-| 4 | format | Return As | `as` | folded return-mode + size (`bws-as-size` composite): `url,<size>` / `id` / `alt` / `title` / `caption`. Size sub-slot shown/serialized only under `url`. **Always serialized** (see [§`as` serialization opt-out + `as`+`size` fold](#as-serialization-opt-out--assize-fold-image-term_image-try_image)) |
+| 4 | format | Return As | `as` | folded return-mode + size (`bws-as-size` composite): `url,<size>` / `id` / `alt` / `title` / `caption`. Size sub-slot shown/serialized only under `url`. **Always serialized** (see [§`as` serialization opt-out + `as`+`size` fold](#as-serialization-opt-out--assize-fold-image-try_image)) |
 | — | format | Image Size | *(sub-slot of `as`)* | Rendered by the same composite under Return As when it is `url`; folds into the `as` value (`as:url,medium`). Not a separate option key as of v1.16.0. |
 | 6 | fallback | | `[fallback option]` | media picker → image ID; see [Fallback group](#fallback-group) + `custom-image-controls.md` |
 
@@ -1344,9 +1327,9 @@ translation, `'0'`, full-name dense/sparse collapse). Integration: standing matr
 
 ---
 
-## Email/phone modifier tags — `try_` and `term_` (1.11.0)
+## Email/phone modifier tags — `try_` (1.11.0)
 
-`email` and `phone` are registered as modifier templates, so the shared machinery generates the `try_` and `term_` variants for both — full parity with the standalone tags.
+`email` and `phone` are registered as modifier templates, so the shared machinery generates the `try_` variants for both — full parity with the standalone tags. It generated `term_email` / `term_phone` the same way until FW-129 removed that family in v1.21.0; both are described in [`deprecated-tags-options.md` §The `term_` modifier family](deprecated-tags-options.md#the-term_-modifier-family-removed-in-v1210).
 
 **`try_email` / `try_phone`** — fallback chains (up to 5 slots, first non-empty wins). Each slot resolves an email/phone field **exactly as the standalone tag would** and returns the finished `mailto:`/`tel:` (or plain) string; the chain surfaces the first slot that produces output. Per [I6 transparency](../CONTEXT.md), all composition (link-wrap, obfuscation, `tel:` rebuild, list-join) happens inside the slot's own resolve — the chain only picks the winning slot and joins its list.
 
@@ -1356,9 +1339,7 @@ translation, `'0'`, full-name dense/sparse collapse). Integration: standing matr
 - **List mode** (`limit`/`sep`) — a slot in list mode (a `terms` step, or `src:ref`) joins its finished per-item strings, same as the base tag's list mode.
 - **`visibility`** — the same `tagName NOT_IN ['a','button','img','picture']` gate plus a **runtime media-block backstop**: a media block's empty `tagName` slips the native gate, so the `try_` callback returns `''` inside a media block rather than corrupting the `<img src>` with a `mailto:`/`tel:` anchor. (The tag still *appears* in the media source picker — same documented limitation as the base tags.)
 
-**`term_email` / `term_phone`** — read the email/phone field off a taxonomy-term entity (the term itself at `src:current`, or a related post at `src:ref`). Same compose path as `{{email}}`/`{{phone}}`.
-
-> **No `src:site` on `term_*`:** the `term_` source dropdown deliberately omits `site`. A rooting modifier exists to surface entity-distinct data; a site read is entity-blind, so `term_email src:site` would just duplicate `{{email src:site}}` while discarding the term rooting (fails the [qualifying test](#qualifying-test-for-new-use-values) on both arms). For a site-option read use the base tag (`{{email src:site}}`) or a `try_email`/`try_phone` site slot. (`site` was filtered before 1.11.0 was tagged — it never shipped as an offered `term_` source. [#37](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/37).)
+For a site-option read use the base tag (`{{email src:site}}`) or a `try_email`/`try_phone` site slot. The `term_` source dropdown deliberately omitted `site` on the same reasoning, and the verdict that settled it is the source-level row in [§Qualifying test](#qualifying-test-for-new-use-values) ([#37](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/37)).
 
 ---
 

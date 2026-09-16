@@ -60,12 +60,7 @@ Note: For context-modifier tags, the modifier label is prepended as a context se
 `[Title from Term]` for `{{term_title}}`, `[Content from Term Ref 'rel_post']` for `{{term_content
 src:ref|ref:rel_post}}`. See [`editor-tag-previews.md`](editor-tag-previews.md) for assembly rules.
 
-**Control composition.** `srcTermIn` renders as the combined `bws-term-hop` control (CheckboxControl
-+ ComboboxControl) — one key, two widgets, the composite pattern this doc's preamble names. It
-replaced the prior `srcTerm` + `tax` pair in v1.6.0: the slug encodes both "term step on" and which
-taxonomy, so empty/unset is disabled and a slug is enabled-with-that-taxonomy. `sep` is alone in the
-source group on a `try_` tag, so it renders **unboxed** there: the attempts are that tag's source and
-draw their own boxes.
+**Control composition.** The composite pattern this doc's preamble names — one key, two widgets — is currently unexercised. `srcTermIn` was its instance: a combined `bws-term-hop` control (CheckboxControl + ComboboxControl) whose taxonomy slug encoded both "term step on" and which taxonomy, replacing the prior `srcTerm` + `tax` pair in v1.6.0. The control was retired in v1.21.0 (FW-67) once every chain source had absorbed the key and the two families that authored it flat were gone; the key itself is still read, and is authored today as a `terms` step inside the source chain. `sep` is alone in the source group on a `try_` tag, so it renders **unboxed** there: the attempts are that tag's source and draw their own boxes.
 
 **The tag-level `limit` is a LIVE READ with a RETIRED CONTROL.** No control on any chain-authoring
 tag registers it (v1.17.0,

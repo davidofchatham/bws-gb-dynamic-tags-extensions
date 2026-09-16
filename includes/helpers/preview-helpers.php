@@ -1261,14 +1261,14 @@ function bws_try_preview_datetime_part( string $base_template, array $options ):
 if ( ! function_exists( 'bws_build_preview_label' ) ) {
 function bws_build_preview_label( array $options, string $template ): string {
 	// Detect modifier prefix → base template.
-	// Built-in modifier prefixes; external plugins register their own via the
-	// `bws_dynamic_tags_preview_modifier_map` filter (see plugin-integration.md §2).
+	// A CLOSED LIST SINCE 1.21.0. The `bws_dynamic_tags_preview_modifier_map` filter that
+	// used to open this map is gone: its only population was prefixes minted by
+	// TagTemplateRegistry::register_modifier(), which now mints nothing, so the filter had
+	// no producer left. `term_` stays as the map's one entry: the family's own removal is
+	// FW-129's, and the term-modifier branches below go with it, not with this filter.
 	$modifier_label = '';
 	$base_template  = $template;
-	$modifier_map   = apply_filters(
-		'bws_dynamic_tags_preview_modifier_map',
-		[ 'term_' => 'Term' ]
-	);
+	$modifier_map   = [ 'term_' => 'Term' ];
 	foreach ( $modifier_map as $prefix => $label ) {
 		if ( str_starts_with( $template, $prefix ) ) {
 			$modifier_label = $label;

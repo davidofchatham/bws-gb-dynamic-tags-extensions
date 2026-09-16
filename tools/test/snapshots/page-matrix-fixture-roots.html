@@ -94,20 +94,19 @@
 </div>
 
 <div>
-<h2 class="wp-block-heading">FR3 &#8211; fixture_ MODIFIER corpus (the migration&#8217;s six shapes, pre-conversion)</h2>
+<h2 class="wp-block-heading">FR3 &#8211; retired-prefix corpus (the migration&#8217;s six shapes, pre-conversion — all render LITERALLY)</h2>
 
-<p class="gb-text">FR3.1 bare, no source stated (-> Fixture Root Role): Fixture Root Role</p>
+<p class="gb-text">FR3.1 bare, no source stated — prints its own braces; migrates to Fixture Root Role: {{fixture_text key:role}}</p>
 
-<p class="gb-text">FR3.2 src:current — on a modifier that named ITS entity, so same as FR3.1 (-> Fixture Root Role): Fixture Root Role</p>
+<p class="gb-text">FR3.2 src:current — prints its own braces; migrates to the same wire as FR3.1, so Fixture Root Role: {{fixture_text src:current|key:role}}</p>
 
-<p class="gb-text">FR3.3 relationship hop (-> Fixture Ref Role, the hop target&#8217;s own field): Fixture Ref Role</p>
+<p class="gb-text">FR3.3 relationship hop — prints its own braces; migrates to Fixture Ref Role: {{fixture_text src:ref|ref:related_staff|key:role|limit:1}}</p>
 
-<p class="gb-text">FR3.4 taxonomy sidecar (-> sales@example.test, the ROOT&#8217;s term): sales@example.test</p>
+<p class="gb-text">FR3.4 taxonomy sidecar — prints its own braces; migrates to sales@example.test, the ROOT&#8217;s term: {{fixture_text srcTermIn:department|key:email}}</p>
 
-<p class="gb-text">FR3.5 both sidecars: hop then drop into terms (-> warehouse@example.test, the hop TARGET&#8217;s term): warehouse@example.test</p>
+<p class="gb-text">FR3.5 both sidecars — prints its own braces; migrates to warehouse@example.test, the hop TARGET&#8217;s term: {{fixture_text src:ref|ref:related_staff|srcTermIn:department|key:email}}</p>
 
-<p class="gb-text">FR3.6 src:site with inert sidecars — EMPTY today (the modifier returns before reading them); migrates to a site read that renders:</p>
-
+<p class="gb-text">FR3.6 src:site with inert sidecars — prints its own braces; migrates to info@example.test with the sidecars DROPPED: {{fixture_text src:site|ref:related_staff|srcTermIn:department|use:key|key:organization_email}}</p>
 </div>
 
 <div>
@@ -122,14 +121,6 @@
 <p class="gb-text">FR4.5 == FR3.5 (-> warehouse@example.test): warehouse@example.test</p>
 
 <p class="gb-text">FR4.6 what FR3.6 becomes — sidecars DROPPED (-> info@example.test): info@example.test</p>
-</div>
-
-<div>
-<h2 class="wp-block-heading">FR7 &#8211; modifier use dispatch (#88)</h2>
-
-<p class="gb-text">FR7.1 text family, use:title (-> Fixture Root Entity): Fixture Root Entity</p>
-
-<p class="gb-text">FR7.2 content family, use:key (-> Fixture Root Role): Fixture Root Role</p>
 </div>
 		</div>
 

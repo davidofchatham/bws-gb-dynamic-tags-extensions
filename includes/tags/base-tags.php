@@ -363,11 +363,13 @@ function bws_register_base_tags(): void {
 	) );
 
 	// =========================================================
-	// Register modifier templates for the term_ constructor.
+	// Register the base template descriptors.
 	//
-	// Each descriptor is stored in TagTemplateRegistry::$modifier_templates
-	// and consumed by both register_modifier() (generates term_* GB tags)
-	// and generate_base_try_tags() (generates try_* GB tags).
+	// Each descriptor is stored in TagTemplateRegistry::$modifier_templates and consumed by
+	// generate_base_try_tags() (generates try_* GB tags) and, through
+	// get_modifier_templates(), by the converter's per-template migration entries. The
+	// term_ constructor was the other consumer until register_modifier() was withdrawn
+	// in 1.21.0; the list and the key name outlived it.
 	//
 	// 'leading_options' — Group 1 options (as, size, format, etc.) prepended before slots in try_ tags.
 	// 'options'         — template-specific options; for try_ tags, keys matching leading_options are
@@ -389,9 +391,8 @@ function bws_register_base_tags(): void {
 		'options'               => array_merge(
 			// Same LEAF the base {{text}} registration consumes — the template is a
 			// different COMPOSITION, not a second definition. No LITERAL `show_if`
-			// here: register_modifier() derives the `key` control's show_if from
-			// try_use_no_key_values below (#88), the same fact try_'s per-slot
-			// picker already qualifies on — one source, not a third hand-typed copy.
+			// here: try_'s per-slot picker qualifies on try_use_no_key_values below
+			// (#88), so the fact is declared once and derived, never hand-copied.
 			$text_field,
 			array(
 				'fallback' => array(
@@ -426,8 +427,8 @@ function bws_register_base_tags(): void {
 		'title'                 => __( 'Content', 'generateblocks' ),
 		'options'               => array_merge(
 			// Same LEAF the base {{content}} registration consumes; no LITERAL `show_if`
-			// overlay here — register_modifier() derives it from try_use_no_key_values
-			// below (#88), same as the text template.
+			// overlay here — try_ derives it from try_use_no_key_values below (#88),
+			// same as the text template.
 			$content_field,
 			array(
 				'fallback' => array(
@@ -491,8 +492,7 @@ function bws_register_base_tags(): void {
 		'takes_first_usable' => true,
 	) );
 
-	// image: register_modifier() (is_image=true) builds its own option set and ignores 'options'.
-	// generate_base_try_tags(): 'leading_options' (as, size) → slots → trailing from 'options' minus leading/per-slot keys.
+	// image: generate_base_try_tags(): 'leading_options' (as, size) → slots → trailing from 'options' minus leading/per-slot keys.
 	// 'use' kept in 'options' so generate_base_try_tags() reads its options for per-slot use selectors.
 	TagTemplateRegistry::register_modifier_template( array(
 		'key'                   => 'image',
@@ -528,8 +528,8 @@ function bws_register_base_tags(): void {
 				),
 			),
 			// Same LEAF the base {{image}} registration consumes. No literal `show_if`
-			// here either (#88): register_modifier() derives it from
-			// try_use_no_key_values below, same as text/content.
+			// here either (#88): try_ derives it from try_use_no_key_values below,
+			// same as text/content.
 			'use'      => $image_field['use'],
 			'key'      => $image_field['key'],
 			'fallback' => array(
@@ -658,10 +658,10 @@ function bws_register_base_tags(): void {
 		'is_image'     => false,
 	) );
 
-	// Register the email/phone modifier TEMPLATES (descriptors) before the term_
-	// modifier pass + try_ generation, so term_email/term_phone and try_email/
-	// try_phone fall out of the shared machinery. The standalone {{email}}/{{phone}}
-	// GB tags register separately (bws_register_email_tag/_phone_tag). [SPEC §32]
+	// Register the email/phone modifier TEMPLATES (descriptors) before try_ generation,
+	// so try_email/try_phone fall out of the shared machinery. The standalone
+	// {{email}}/{{phone}} GB tags register separately
+	// (bws_register_email_tag/_phone_tag). [SPEC §32]
 	if ( function_exists( 'bws_register_email_template' ) ) {
 		bws_register_email_template();
 	}
@@ -669,27 +669,6 @@ function bws_register_base_tags(): void {
 		bws_register_phone_template();
 	}
 
-}
-
-/**
- * Generate the term_ modifier tags (term_text, term_image, etc.).
- *
- * SEPARATE FROM bws_register_base_tags() SO IT CAN RUN LATER. The constructor reads each
- * tag's `gb_type` off the migration registry, so the family's converter entries have to be
- * registered first — and those are generated from the modifier TEMPLATES this function's
- * former host registers. Templates, then converter entries, then this. [FW-39 D25]
- *
- * @since 1.20.0 Split out of bws_register_base_tags().
- */
-function bws_register_term_modifier_tags() {
-	TagTemplateRegistry::register_modifier( array(
-		'prefix'               => 'term',
-		'gb_type'              => 'term',
-		'modifier_label'       => 'term-based',
-		'traversal_source_key' => 'term_related_post',
-		'base_source_key'      => 'term',
-		'excluded_supports'    => array(),
-	) );
 }
 
 // ===============================================

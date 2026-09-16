@@ -110,11 +110,13 @@ run `php tools/test/control-order-test.php` (stubs GB, registers every tag, read
 
 ## Modifier-family registration gate or GB-type stamp
 
-**Fires on:** Modifier-family REGISTRATION GATE or GB-TYPE STAMP change — the settings gate and the migration-registry `gb_type` read at the top of `TagTemplateRegistry::register_modifier()`, the ORDER of `bws_register_modifier_root_migrations()` against `bws_register_term_modifier_tags()` in the init pass, or the `modifiers` array in `bws_dynamic_tags_activate()`'s seed
+**Fires on:** Modifier-family REGISTRATION GATE or GB-TYPE STAMP change — the settings gate and the migration-registry `gb_type` read at the top of `TagTemplateRegistry::register_modifier()`, the `bws_register_modifier_root_migrations()` call in the init pass, or the `modifiers` array in `bws_dynamic_tags_activate()`'s seed
 
-run `php tools/test/control-order-test.php` (§C4 reads every `term_` tag's registered type back and compares it to the stamp on that tag's own migration entry, so a second producer of the stamp inside the constructor fails there rather than on a page), then measure the two arms no harness can reach, on the testbed.
+run `php tools/test/control-order-test.php` (§C3 asserts that NO `term_*` tag is registered while every modifier template still has its converter entry, stamped `deprecated` — the two halves the removal's minor-not-major claim rests on), then measure the seed arm no harness can reach, on the testbed.
 
-**What a green run does NOT prove, and the two failures look identical from inside the harness.** A family whose entries never ran registers under the type its own config named, and every assertion about its options still passes — §C4 exists for that case alone, and it is why the harness's bootstrap runs the generator before the constructor rather than beside it. It says nothing about the ORDER in the shipped init pass: a reordering there fails nothing here. And no harness reaches `register_activation_hook` or can vary the settings row (`SettingsPage::$settings` caches on first read, with no reset), so BOTH seed arms are testbed-only — activate against a site with the option row deleted and read the checkbox, then restore a row with no `modifiers.term` key and confirm the family still registers. The absent-key default of `true` in `is_modifier_enabled()` is the whole reason an untouched old install keeps rendering; changing it is not a way to pass either arm.
+**What a green run does NOT prove.** §C3's entry half reads the migration registry, never a GB registration, so it says nothing about the shipped init pass's ORDER: a reordering there fails nothing here. And no harness reaches `register_activation_hook` or can vary the settings row (`SettingsPage::$settings` caches on first read, with no reset), so the seed arm is testbed-only — activate against a site with the option row deleted and read the `try_` checkbox back. The absent-key default of `true` in `is_modifier_enabled()` is the whole reason an untouched old install keeps rendering; changing it is not a way to pass that arm.
+
+**Since 1.21.0 the `term_` half of this trigger is history, not mechanism.** FW-129 unregistered the family, so the gate has one member (`try_`) and the `gb_type` read at the top of `register_modifier()` has no caller inside this plugin. An orphaned `modifiers.term` key on an existing settings row is read by nothing and is dropped the next time the page saves.
 
 ## Registration-pass change
 
@@ -352,7 +354,7 @@ run `php tools/test/page-snapshots.php` against the testbed. If output moved and
 
 **Read the version comparison before the hunks.** `verify.php` prints it first for a reason `env-versions.php`'s header owns — that file states why the record exists, why our own version is excluded, and why a re-capture and a re-record share a commit.
 
-**The fixture site is the only corpus this covers.** Running the same question over the harvest corpus — real wire from real sites, our build and the wire both held fixed — is the **dependency replay**, named and reserved but not built ([`harvest-replay/README.md`](../tools/harvest-replay/README.md), FW-96). A clean snapshot run says nothing about wire shapes the fixture pages do not contain.
+**The fixture site is the only corpus this covers.** Running the same question over the harvest corpus — real wire from real sites, our build and the wire both held fixed — is the **dependency replay**, built on both sides since 2026-08 but exercised live for GenerateBlocks only ([`harvest-replay/README.md`](../tools/harvest-replay/README.md) §The replays owns the coverage limit, FW-96). A clean snapshot run says nothing about wire shapes the fixture pages do not contain, and for a dependency the replay has never been run against, neither instrument has said anything.
 
 ## GB trust-model consumption change
 

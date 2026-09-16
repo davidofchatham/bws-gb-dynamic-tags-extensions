@@ -101,11 +101,9 @@ Properly registered functions will appear in the tag's **Function** dropdown for
 
 A security gate blocks adding PHP built-ins (`system`, `unlink`, `eval`, and the like) or anything that isn't a real function. All functions registered via the filter are shown, along with their security-gate status, on the admin settings page. Manually inserting an unregistered or blocked function will cause the tag to return its fallback text or return empty.
 
-## `term_` tags (deprecated)
+## `term_` tags (removed) **[UNRELEASED]**
 
-The `term_*` modifier wraps base tags, allowing term-context resolution using GenerateBlock's built-in taxonomy/term selector.
-
-Deprecated as of 1.20.0. Set a base tag's source to a term instead: it does the same job and gets source paths, per-step limits, the field picker and the configuration preview along with it. The Migration Tool converts saved `{{term_*}}` tags for you. Existing tags keep rendering and nothing has been removed, but the family now appears in GenerateBlocks' Deprecated group, and it is switched off by default on sites installed from 1.20.0 onward (the `term_ tags` toggle on the settings page turns it back on).
+Deprecated in 1.20.0 and removed in 1.21.0. The nine `{{term_*}}` tags no longer register, so one still saved in your content renders as literal text on the page. **Run the Migration Tool**, which converts every one of them: the replacement is a base tag with its source set to a term, which does the same job and gets source paths, per-step limits, the field picker and the configuration preview along with it. What the family was, and what a stored `{{term_*}}` string does now, are in [`docs/deprecated-tags-options.md`](docs/deprecated-tags-options.md).
 
 ## Requirements
 
@@ -120,7 +118,7 @@ Deprecated as of 1.20.0. Set a base tag's source to a term instead: it does the 
 - [`docs/editor-tag-previews.md`](docs/editor-tag-previews.md) — editor-time tag configuration preview text
 - [`CONTEXT.md`](CONTEXT.md) — cross-cutting design invariants (source-analog model, `use`-dispatch, qualifying gate)
 - [`docs/deprecated-tags-options.md`](docs/deprecated-tags-options.md) — N×M historical reference + migration tracker
-- [`docs/plugin-integration.md`](docs/plugin-integration.md) — external plugin API (`register_modifier()`, deprecated wrappers)
+- [`docs/plugin-integration.md`](docs/plugin-integration.md) — external plugin API (source classes, chain roots, deprecated wrappers)
 - [`docs/gb-constraints.md`](docs/gb-constraints.md) — GB editor/runtime constraint catalog
 
 ## Acknowledgements

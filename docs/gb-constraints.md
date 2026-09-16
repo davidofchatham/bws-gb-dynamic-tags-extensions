@@ -55,7 +55,7 @@ Re-emit conditions:
 - `tagSupportsTaxonomy` requires `'taxonomy'` in the tag's `supports` array.
 - `source` → tag-type-specific re-emit; safer to use a non-reserved name (`src`).
 
-**Workaround pattern — "two controls, one key":** present multiple UI controls (checkbox + selector) but persist a single non-reserved key whose presence/value encodes both signals. See `srcTermIn` (slug = enabled + slug, empty = disabled) implemented via `bws-term-hop` custom control type.
+**Workaround pattern — "two controls, one key":** present multiple UI controls (checkbox + selector) but persist a single non-reserved key whose presence/value encodes both signals. The worked instance was `srcTermIn` (slug = enabled + slug, empty = disabled) via the `bws-term-hop` custom control type, retired in v1.21.0 once the source chain absorbed the key; the pattern itself is still the answer to a reserved-key clash.
 
 **Already-renamed keys to avoid GB conflicts:**
 - `source` → `src` (registered as option migration)

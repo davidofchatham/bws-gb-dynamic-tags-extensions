@@ -81,8 +81,8 @@ so the callback's arms are covered in one place rather than scattered across fam
 Different code path from the rest of this file — `register_modifier()`/`make_modifier_callback()`
 (class-tag-template-registry.php), not `bws_base_content_callback()`. Belongs here rather than a
 third file because it is the same TAG family this matrix already covers, and the defect it pins
-is entity-independent (it reproduces identically on `term_`/`view_`/`fixture_`; term_/fixture_ are
-the two live in this repo).
+is entity-independent (it reproduced identically on `term_`/`view_`/`fixture_`; `term_` is the only one
+still minted in this repo, the fixture having stood down from its own family ahead of FW-129).
 
 Through 1.19.1, `register_modifier()` wired `term_content`'s `post_fn`/`term_fn` straight to
 `bws_post_content_core`/`bws_term_description_core`, which read `$options['type']`, never `use` —
@@ -104,4 +104,5 @@ section's job is only the MODIFIER wiring, not re-proving the excerpt core itsel
 | # | Tag | Expected |
 |---|---|---|
 | CT7.1 | `{{term_content use:key\|key:email}}` on `/department/support/` | `support@example.test` — the term's own field. **Before the fix: empty** (the modifier's `use` was never read, so the read fell to the term-description branch, which is empty for this term). Render-tag-only: a term-archive ambient context, same exception as T4 in `text-test-matrix.md` |
-| CT7.2 | `{{fixture_content use:key\|key:role}}` on `/matrix-fixture-roots/` | `Fixture Root Role` — same defect, the class route. **Before the fix: empty**, same reason. **Visible** — [`registered-roots-test-matrix.md`](registered-roots-test-matrix.md) §FR7.2, `blocks.php`'s `matrix_fixture_roots` builder |
+
+CT7.2 read the same defect on `{{fixture_content}}`, the class route, and is **retired**: the fixture stood down from `register_modifier()` ahead of FW-129, so that prefix mints nothing and there is no dispatch there to measure. `term_` is the only family still minted, which is why this section is down to one row — and it goes when FW-129 takes the constructor.

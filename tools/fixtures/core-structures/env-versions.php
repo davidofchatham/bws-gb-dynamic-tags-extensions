@@ -61,23 +61,30 @@ return array(
 	// The date the baseline under `tools/test/snapshots/` was captured. Prose only —
 	// nothing compares it; it is here so a reader can place the record in time.
 	//
-	// THIS RE-CAPTURE IS WOOCOMMERCE JOINING THE FIXTURE SITE, and every one of the 297 added
-	// and 50 removed lines is its chrome: the `sourcebuster` and `wc-order-attribution` footer
-	// scripts, the `woocommerce-no-js` body class with the inline script that swaps it, and an
-	// `aria-label="Page N"` on every paginated archive. That last one comes from
-	// `wc_add_aria_label_to_pagination_numbers()` on `paginate_links_output`, which is a
-	// SITE-WIDE filter and not scoped to Woo's own pages. The remainder is line-packing
-	// shifting around the inserted scripts.
+	// THIS RE-CAPTURE IS THE §C-TERM/CT REWRITE (FW-129, 1.21.0) — the ticket the previous
+	// capture's second note said was coming. Six dead `term_*` rows left the blueprint and
+	// one base-spelled row replaced them: C-TERM1/C-TERM2 off the context element (their
+	// base spellings were already there as C-X1 and C-CONV11), CT-A/CT-B off
+	// `page-matrix-post-meta` (already on `page-matrix-pinned-roots` as F20.2/F20.1), QL1.5
+	// off `page-matrix-loops` (its convert-side twin QL1.6 was already under it), and CT-C
+	// rewritten in place as `{{text src:terms,department,limit(1)|key:phone}}`, which is the
+	// only genuinely new row. Nine pages moved: the seven `ctx-*`, `page-matrix-post-meta`
+	// and `page-matrix-loops`. Most of the line count is packing — a removed row displaces
+	// everything below it and the rest of the document reports as changed.
 	//
-	// NO RENDERED TAG MOVED, and that was measured rather than assumed: every changed line was
-	// bucketed by category with none left unclassified, and the slim-seo schema pair on each of
-	// the 19 pages was compared byte-for-byte — the JSON is identical, only its adjacency to the
-	// next `<script` changed. Woo's footprint on our output is nil. That is why this capture is
-	// a commit of its own: a later change that does move a tag gets a readable diff.
+	// The `term_*` rows THAT REMAIN are §C-CONV's before-halves, and they stay deliberately:
+	// a row rendering its own braces is what unconverted stored wire looks like after the
+	// removal, which is the versioning axis's whole premise rather than a row gone stale.
 	//
-	// The previous capture (2026-09-03) is where the head-deletion rule arrived — a reader
-	// hitting an ~800-line deletion further back in `git log` is looking at that, not at this.
-	'captured' => '2026-09-14',
+	// The PREVIOUS capture (same date) is the removal itself, where those braces first
+	// appeared. ACF Pro moved 6.8.9 -> 6.8.10 there and is recorded below; it is NOT
+	// attributable for any line, because the pre-change run passed against the 6.8.9-era
+	// baseline with 6.8.10 already installed.
+	//
+	// The 2026-09-14 capture is WooCommerce joining the fixture site (chrome only, no
+	// rendered tag moved); the 2026-09-03 one is where the head-deletion rule arrived — a
+	// reader hitting an ~800-line deletion further back in `git log` is looking at that.
+	'captured' => '2026-09-16',
 
 	// EVERY PLUGIN THAT WAS RUNNING, not only the four this record requires. The version
 	// list below answers "were the dependencies the same"; this answers "what else was in
@@ -143,7 +150,7 @@ return array(
 		),
 		'advanced-custom-fields-pro/acf.php' => array(
 			'label'    => 'ACF Pro',
-			'version'  => '6.8.9',
+			'version'  => '6.8.10',
 			'required' => true,
 		),
 		// Recorded for the same reason as GB Query Enhancements above: it supplies no fixture

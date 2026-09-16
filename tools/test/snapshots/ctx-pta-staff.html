@@ -62,15 +62,13 @@
 
 <p class="gb-text">C-DT2 datetime_range WITH a fallback (-> TBA, same reasoning as C-DT1): TBA</p>
 
-<p class="gb-text">C-TERM1 unpinned term_text -> the queried term name (Sales) on a TERM archive, EMPTY on every other context here (author, PTA, date, search, 404, latest-home). Before 1.20.0 it read whatever id the page had queried as if it were a term id, so /author/fixture-author/ (user 2) rendered the term All Users:</p>
-
-<p class="gb-text">C-TERM2 term_text NAMING its own term -> Support on EVERY context, term archive included. A pin is not an ambient read, so the guard must not touch it; this row is what says so, and it is also what stops C-TERM1 passing on a tag that resolves nowhere: Support</p>
-
-<p class="gb-text">C-CONV1 the CONVERTED form of C-TERM1, unpinned -> read the two together: EQUAL on the term archive (Sales), and empty-vs-value everywhere else. This is C-X1 above under a second name, and the duplicate is the point - the PAIR is the measurement:</p>
+<p class="gb-text">C-CONV1 the CONVERTED form of the unpinned arm -> Sales on the term archive, this context own heading everywhere else. Its before-half was the C-TERM1 row deleted with the family (FW-129); what it converted FROM is now the recorded value in context-test-matrix.md, not a row beside it. Still byte-identical to C-X1 above, and kept under this name so the C-CONV table keeps a row to point at:</p>
 
 <p class="gb-text">Staff</p>
 
 <p class="gb-text">C-CONV2 unpinned term_content, the BEFORE half of the collapsing template -> the Sales term description on the term archive, EMPTY on all six others:</p>
+
+<p class="gb-text">{{term_content}}</p>
 
 <p class="gb-text">C-CONV3 what C-CONV2 converts to -> the SAME term description on the term archive; on the six others it renders the page own analog (PTA description, author bio, 404 borrow) where C-CONV2 renders nothing. Empty->value, never value->value: that direction is the whole exemption:</p>
 
@@ -79,23 +77,31 @@
 
 <p class="gb-text">C-CONV4 the CHAINED unpinned arm, before -> Tom Associate on the term archive (the Sales term dept_lead relationship), EMPTY on all six others:</p>
 
+<p class="gb-text">{{term_text src:ref|ref:dept_lead|use:title}}</p>
+
 <p class="gb-text">C-CONV5 what C-CONV4 converts to -> Tom Associate on the term archive, EMPTY on all six others. Identical to C-CONV4 in BOTH directions on every context: the ambient root is the only thing that moved, and a chained tag states its own steps:</p>
 
 <p class="gb-text">C-CONV6 a SKIPPED shape, `tax` with no `id` -> the phone of the term the page is about ((987) 333-4444 on the Sales archive; the stated taxonomy is ignored), EMPTY elsewhere. The converter leaves it byte-identical: its only faithful rewrite renders empty here, which is the direction the exemption does not cover:</p>
+
+<p class="gb-text">{{term_text tax:department|key:phone}}</p>
 
 <p class="gb-text">C-CONV7 what C-CONV6 would convert to if it were converted -> EMPTY on the term archive (a terms hop needs a post input) and (987) 333-4444 on nothing here. Value->empty is why C-CONV6 is skipped, and this row is what shows it:</p>
 
 <p class="gb-text">C-CONV8 an INERT srcTermIn, the before half -> (987) 333-4444 on the Sales archive (the term this page is about; the stated taxonomy is ignored, because a terms step needs a post input this family only supplies through ref), EMPTY on every other context:</p>
 
+<p class="gb-text">{{term_text srcTermIn:department|key:phone}}</p>
+
 <p class="gb-text">C-CONV9 what C-CONV8 converts to -> (987) 333-4444 on the Sales archive, EQUAL to C-CONV8 on all seven contexts. The inert key leaves with the source axis it belonged to; folding it into a terms step instead rendered empty here, which is C-CONV7 one root over:</p>
 
-<p class="gb-text">C-CONV10 a PINNED tag, the before half -> Support on EVERY context, term archive included (a pin is not an ambient read). Deliberately NOT the term the archive is about: a row pinned at Sales would pass here whether the pin resolved or not: Support</p>
+<p class="gb-text">C-CONV10 a PINNED tag, the before half -> Support on EVERY context, term archive included (a pin is not an ambient read). Deliberately NOT the term the archive is about: a row pinned at Sales would pass here whether the pin resolved or not: {{term_text id:6|use:title}}</p>
 
 <p class="gb-text">C-CONV11 what C-CONV10 converts to -> Support on all seven contexts, EQUAL to C-CONV10 on every one. The pinned direction is the only one in this section with no exemption to claim: a tag that named its own term still names it: Support</p>
 
-<p class="gb-text">C-CONV12 the SAME pin carrying a `tax` -> Support, identical to C-CONV10 everywhere. It converts to C-CONV11 with the taxonomy GONE: a term id is globally unique, so the key adds nothing to a pinned read. This is the one shape `tax` is dropped from - with no `id` beside it the same key is C-CONV6, skipped whole: Support</p>
+<p class="gb-text">C-CONV12 the SAME pin carrying a `tax` -> Support, identical to C-CONV10 everywhere. It converts to C-CONV11 with the taxonomy GONE: a term id is globally unique, so the key adds nothing to a pinned read. This is the one shape `tax` is dropped from - with no `id` beside it the same key is C-CONV6, skipped whole: {{term_text id:6|tax:department|use:title}}</p>
 
 <p class="gb-text">C-CONV13 a DEAD pin, the before half -> Sales on the TERM ARCHIVE and empty on the other six. A pin naming a term that no longer exists does not render blank: the family falls through to the ambient term and shows whichever term the page is about, as if the author had picked it:</p>
+
+<p class="gb-text">{{term_text id:999999|use:title}}</p>
 
 <p class="gb-text">C-CONV14 what C-CONV13 converts to -> EMPTY on all seven, term archive included. THE ONE ROW IN THIS SECTION THAT RUNS value->empty: the conversion is not output-neutral for a dead pin, and that is the decided outcome - a broken pin reads as broken (and as `(missing)` in the editor) instead of silently borrowing the page term. Every other pinned row above is byte-identical in both directions:</p>
 

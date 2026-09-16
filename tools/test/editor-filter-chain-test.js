@@ -285,10 +285,12 @@ console.log( '\nlist-mode reveal — flat and chain spellings answer alike\n' );
 
 load( 'assets/js/editor-conditional-options.js' );
 
+// `srcTermIn` is STORED WIRE with no control of its own since 1.20.0 (FW-67), so it
+// is absent from the options map while a legacy tag still carries the key in state —
+// which is exactly the shape the FLAT srcTermIn row below drives.
 const LIST_OPTIONS = {
 	src:       PLAIN,
 	ref:       PLAIN,
-	srcTermIn: { type: 'bws-term-hop' },
 	limit:     { type: 'number', show_if_any: { srcTermIn: 'not_empty', src: [ 'ref', 'chain_fans' ] } },
 	sep:       { type: 'text', show_if_any: { srcTermIn: 'not_empty', src: [ 'ref', 'chain_fans' ] } },
 	key:       PLAIN
