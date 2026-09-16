@@ -352,7 +352,7 @@ run `php tools/test/page-snapshots.php` against the testbed. If output moved and
 
 **Read the version comparison before the hunks.** `verify.php` prints it first for a reason `env-versions.php`'s header owns — that file states why the record exists, why our own version is excluded, and why a re-capture and a re-record share a commit.
 
-**The fixture site is the only corpus this covers.** Running the same question over the harvest corpus — real wire from real sites, our build and the wire both held fixed — is the **dependency replay**, named and reserved but not built ([`harvest-replay/README.md`](../tools/harvest-replay/README.md), FW-96). A clean snapshot run says nothing about wire shapes the fixture pages do not contain.
+**The fixture site is the only corpus this covers.** Running the same question over the harvest corpus — real wire from real sites, our build and the wire both held fixed — is the **dependency replay**, built on both sides since 2026-08 but exercised live for GenerateBlocks only ([`harvest-replay/README.md`](../tools/harvest-replay/README.md) §The replays owns the coverage limit, FW-96). A clean snapshot run says nothing about wire shapes the fixture pages do not contain, and for a dependency the replay has never been run against, neither instrument has said anything.
 
 ## GB trust-model consumption change
 
