@@ -47,20 +47,6 @@ The old rule banned tracking phase, commit, or percent-done in a cell, because t
 
 Committed build work. **Pointer-only, like every other item** — the branch / plan / unreleased CHANGELOG own the real build state; an item here names only that the work is live, what it touches, where to read it, and its target version. An item lands here from a future section when build starts and leaves for Closed / Retired on ship. **An item may sit here with no Target** — no release carries a harness or an instrument fix, so `Target: —` is the honest statement ("no release carries this"), not a gap.
 
-#### FW-78 — Migration-replay diff can't tell a repaired row from a vanished one
-
-Pattern-cache repair removes stale shadow wire, so a migration run's B-side census legitimately holds fewer rows than the A side rendered — the diff reads every removed string as a hard failure rather than a repair.
-
-Detail home: GH #117; `harvest-replay/README.md` §The replays
-
-Target: —
-
-Progress: Removal-artifact half fixed, measured on real wire (Site H: fewer strings recorded with the trigger firing than deferred, confirming the defect).
-
-Open: Render half needs a full two-clone replay re-run (replay-A, converter, replay-C, diff --map --removed) — ENV-repo work, not yet driven.
-
-Blocked by: —  •  Interacts with: FW-96
-
 #### FW-96 — Dependency replay over the harvest corpus
 
 The third replay axis: our build and the wire both held fixed, one DEPENDENCY's version varied between the two renders (`tools/harvest-replay/README.md` §The replays).
@@ -1168,6 +1154,7 @@ Append-only ledger of closed, shipped, or cut work — both `FW-N` items deleted
 | FW-71 | Multi-step slot sources — a slot's SOURCE *is* a base tag's source | Shipped 1.17.0 (2026-08-15, #104 closed): `bws_fold_slot_flat_options()` deleted, replaced by chain wire in `$slot_opts['src']`. Both containers converted in the same move. Two replay-driven catches beyond the design (a legacy term-step parity gap and an inherited-hop default) were fixed before ship; the full replay obligation (build + migration + #112, closed) discharged 2026-08-18 with numbers matching prediction exactly | CHANGELOG 1.17.0; invariant `CONTEXT.md` I16; `docs/design-history/multi-step-slot-sources.md` |
 | FW-72 | Pure harness for the field-selector control | Shipped, closed 2026-08-28: `tools/test/field-combo-control-test.js` — 41 assertions over the display layer, reached with no new exports, mutation-checked | `tools/test/field-combo-control-test.js`; `docs/update-triggers.md` §Field-discovery change |
 | FW-77 | Reexamine the docs/future-work.md trackers themselves | Closed 2026-09-01. Taxonomy half done 2026-08-28 (FW-66 moved section, §Docs & vocabulary split out of §Testing & infrastructure, FW-42 retired). Format half shipped 2026-09-01: table rows became heading blocks with Description/Detail home/Progress/Open/Blocked by/Interacts with, `row:`-prose evicted, section/item heading levels corrected (h3/h4), and every "row" reference to a tracker entry renamed to "item". Last open question decided (user): the Closed / Retired ledger stays in this file | commits `46a73b3`, `267d9a2`, `0b6f563`, `5d0fdaf` |
+| FW-78 | Migration-replay diff can't tell a repaired row from a vanished one | Closed 2026-09-15. Both halves of the differ change landed 2026-08-28 (`137f9b6`); the live reproduction the ticket asked for was driven on the Site H clone 2026-09-15 and closes it — a full four-step migration replay against a genuine pre-1.17.0 snapshot, 210 one-sided pairs, every one reported as a repair rather than a hard failure, beside 13,805 identical and 120 volatile. The run's 40 CHANGED are the `{{image}}` fallback fix released in 1.19.1 (a build-axis change, the clone's live copy sat two patch releases behind dev), not a migration finding | GH [#117](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/117) (closed); `tools/harvest-replay/README.md` §The replays, which carries the measurement |
 | FW-79 | Re-base the tag-string preview tool on shipped chain wire | Closed 2026-09-01, [PR #131](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/pull/131): chain/folded wire now labelled and shown as current, the pre-1.17 flat sibling wire (confirmed read-only, never author-producible again) as legacy; two of three stale "no shipped form" notes retired, third's citation fixed FW-32→FW-39; FW-71/#104 `same`-merge multi-step coverage added; the long-unused Configure tab removed. Also rebuilt {{table}}'s section against table-tag.md's REOPENED D1-D4/Q1-Q8 (its never-shipped flat prototype deleted, folded model gained a D2a and a D4(a) example), beyond the row's own original scope | CHANGELOG — none (tools/ is fully `.distignore`d, never ships); `docs/design-history/tag-string-preview-rebase.md` |
 | FW-83 | `entries` carries two senses, and one has shipped | Decided 2026-08-22: the STEP slug renamed `entries`→`rows`, freeing the word for the relationship-field copy that shipped in 1.17.0. No CHANGELOG entry (no shipped control could write the old token, so the delta is zero) | `docs/deprecated-tags-options.md` §Option name renaming; `.scratch/plans/table-tag.md` §SETTLED 2026-08-22 |
 | FW-84 | `src:site` slot for the two `datetime_` try_ tags | Shipped 1.18.0 as a FIX: 1.15.0's own CHANGELOG entry claimed this and silently omitted the two datetime `try_` tags. Byte-parity with the base tag confirmed on all five probed shapes | CHANGELOG 1.18.0; `src-site-test-matrix.md` §R8; `docs/design-history/src-site-stage-bc.md` |
