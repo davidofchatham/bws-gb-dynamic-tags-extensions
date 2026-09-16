@@ -58,38 +58,15 @@ function bws_get_term_image_and_return_type_options() {
 }
 
 /**
- * Is the AMBIENT entity a term? (The queried object, by type — not by its id.)
- *
- * @invariant A QUERIED-OBJECT ID IS ONLY A TERM ID WHEN THE QUERIED OBJECT IS A TERM.
- * This is the axis; every ambient term read gates on it. `get_queried_object_id()`
- * answers for whatever WP queried — a post on a singular page, a WP_User on an author
- * archive — and those ids share one number space with terms. Trusting the number alone
- * does not fail loudly: it lands on a real, unrelated term whenever one carries that
- * number, and renders that term's data as if it were the right answer. Measured on the
- * fixture site: a page with id 22 read `mc_flag:Priority`, and an author archive for user
- * 2 read `portal_visibility:All Users`.
- *
- * TYPE, NOT EXISTENCE. `term_exists()` is not a substitute and was tried first — both
- * colliding ids above pass it, because the terms genuinely exist. What is wrong is that
- * the page is not about them.
- *
- * A tag that names its own term (an explicit `id`) is NOT subject to this: it is not
- * reading the ambient entity at all. Callers gate that arm separately.
- *
- * @since 1.20.0
- * @return bool
- */
-if ( ! function_exists( 'bws_queried_object_is_term' ) ) {
-function bws_queried_object_is_term(): bool {
-	return get_queried_object() instanceof WP_Term;
-}
-}
-
-/**
  * Reliable term context detection with multiple fallback methods.
  *
+ * TIER NAMES ARE STABLE, AND THE GAP BELOW IS DELIBERATE. The quaternary tier (a bare
+ * archive read, gated on the queried object's type) went with the `term_*` family in
+ * 1.21.0 — see the Quinary comment. Renumbering the survivors would silently restate
+ * every citation that names a tier by number; leave the numbering alone.
+ *
  * @since 1.1.0
- * @since 1.20.0 Tier 4 gates on bws_queried_object_is_term() — see that function.
+ * @since 1.21.0 Tier 4 removed with the `term_*` family (FW-129).
  * @param array $options Tag options that may contain specific term ID.
  * @return int|false Term ID or false if not found.
  */
@@ -124,16 +101,15 @@ function bws_reliable_term_context_detection( $options = array() ) {
 		}
 	}
 
-	// Quaternary: Archive context. An archive whose queried object is NOT a term (author,
-	// post type, date) never answers here — bws_queried_object_is_term() owns why.
-	if ( is_archive() && bws_queried_object_is_term() ) {
-		$term_id = get_queried_object_id();
-		if ( $term_id && is_numeric( $term_id ) ) {
-			return $term_id;
-		}
-	}
-
-	// Quinary: Check for first term from current post (if taxonomy specified).
+	// Quinary: Check for first term from current post (if taxonomy specified). The
+	// quaternary tier that used to sit above it read a bare `get_queried_object_id()` on any
+	// archive, which is why it needed a type gate at all; it went in 1.21.0 with its last
+	// consumer (FW-129). Its removal moved no rendered output — the seven `ctx-*` page
+	// snapshots, a term archive among them, were byte-unchanged by it.
+	//
+	// The tertiary tier above gates on `is_tax() || is_category() || is_tag()`, which is the
+	// same predicate bws_capture_ambient_signals() claims a term archive by; what that
+	// predicate covers is that function's question, not this one's.
 	$taxonomy = $options['tax'] ?? $options['taxonomy'] ?? '';
 	if ( $taxonomy && ! is_admin() ) {
 		$post_id = get_the_ID();

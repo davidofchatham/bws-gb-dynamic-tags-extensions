@@ -287,13 +287,11 @@ The collapsing tags (`content` / `permalink` / `image`) ignore every limit at ev
 
 Decision record: [ADR 0007](docs/adr/0007-a-limit-counts-usable-sources.md) — what a limit COUNTS, companion to [ADR 0005](docs/adr/0005-limits-are-stated-where-the-source-is-stated.md), which owns WHERE a limit is stated.
 
-## I20 — `term_*` is kind-LOCKED; a base tag is kind-AGNOSTIC
+## Retired invariants
 
-A `{{term_*}}` tag can address a TERM and nothing else: every read routes through `TaxonomyTerm::resolve_id()`, and where the ambient entity is not a term the tag has nothing to address and renders empty. A bare base tag addresses whatever the page is about — post, term, user or query context, resolved by CONTEXT ([I9]). **The two therefore coincide only where the ambient entity IS a term.** On a singular page, an author or post-type archive, a date archive, a search or a 404, the `term_*` tag is empty and the base tag reads the ambient entity. Measured 2026-09-10 across all seven contexts, after the guard that stopped the family reading a colliding non-term id.
+**A retired number is never reissued.** Records elsewhere cite invariants by number, and those citations are not repointed (`docs/cross-link-rules.md` — a design-history record naming a dead path is the record working). Reusing a number would silently redirect them at an unrelated rule, so the next invariant is I21.
 
-Neither side is wrong and nothing closes the gap: it is the capability difference between a family locked to one kind and one that follows the page. It is recorded because the opposite reads as true from the code — a guard clause showing that one tier cannot fire on a tag with no taxonomy option supports a claim about that TIER, never about the two families, and the equivalence derived that way was refuted by the measurement above. Consequence for any rewrite of a `term_*` tag into a base tag: the difference surfaces as empty→value. Whether such a rewrite may ship is the migration's decision, recorded with that migration and not here. Retires with the family (FW-129), not before.
-
-The guard keeping the `term_*` half honest states its own rule at `bws_queried_object_is_term()`'s PHPDoc (`includes/helpers/taxonomy-helpers.php`); this invariant neither restates nor depends on it. Tests: `tools/test/context-test-matrix.md` §C-TERM/CT (the rows come in PAIRS, and the matrix owns why) + the seven `ctx-*` page snapshots. Related: [I9] (ambient resolution by context), [I15] (an ambient read is SPELLED, never reached by fallback), [I18].
+- **I20 — `term_*` is kind-LOCKED; a base tag is kind-AGNOSTIC.** Live 1.20.0–1.21.0. Retired with the family it compared against (FW-129); it said so itself. The text, and what the retirement did and did not change, are in [`docs/design-history/term-family-kind-lock.md`](docs/design-history/term-family-kind-lock.md). The capability difference it records still governs the migration entries, which outlive the family.
 
 ---
 

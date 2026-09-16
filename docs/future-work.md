@@ -89,11 +89,11 @@ Blocked by: decision:cores take a resolved base  •  Interacts with: FW-8, FW-7
 
 #### FW-8 — Fold bws_reliable_term_context_detection into bws_capture_ambient_signals
 
-Two term-detection implementations coexist — a 5-tier one in taxonomy-helpers and the ambient-signal factory — and the factory is the intended single home.
+Two term-detection implementations coexist — a 4-tier one in taxonomy-helpers and the ambient-signal factory — and the factory is the intended single home.
 
 Detail home: `docs/design-history/traversal-pipeline.md` §Post-Phase-1 convergence
 
-Progress: Not started; excluded from Phase 1 because `TaxonomyTerm::resolve_id` and the `term_` modifiers depend on it, which would have widened the blast radius mid-refactor. Read in full 2026-09-07 for FW-39, with two findings for whoever takes this: **tier 5 ("first term of the current post") is an implicit `terms` hop**, guarded on a taxonomy read from the tag's own options, so the chain grammar already spells it better and a truly bare tag never reaches it; and **tiers 3-4 give the same answer a bare base tag has given since the term kind shipped in 1.14.0**, which is what lets FW-39 migrate an argless `term_*` to a bare base tag by equivalence. FW-39 leaves this item's surface unchanged: bare `term` is never offered there, so no new authored wire depends on the detector.
+Progress: Not started; excluded from Phase 1 because `TaxonomyTerm::resolve_id` and the `term_` modifiers depend on it, which would have widened the blast radius mid-refactor. Read in full 2026-09-07 for FW-39, with two findings for whoever takes this: **tier 5 ("first term of the current post") is an implicit `terms` hop**, guarded on a taxonomy read from the tag's own options, so the chain grammar already spells it better and a truly bare tag never reaches it; and **tier 3 gives the same answer a bare base tag has given since the term kind shipped in 1.14.0**, which is what lets FW-39 migrate an argless `term_*` to a bare base tag by equivalence. FW-39 leaves this item's surface unchanged: bare `term` is never offered there, so no new authored wire depends on the detector. **FW-129 (1.21.0) removed tier 4 and the `term_` modifiers**, so one of the two blockers named above is gone and the tier numbering is now 1, 2, 3, 5 — deliberately, so that citations naming a tier by number stay true.
 
 Blocked by: row:FW-7  •  Interacts with: — (FW-33 and FW-39 both closed with 1.20.0; what they found about this detector is recorded in Progress above)
 

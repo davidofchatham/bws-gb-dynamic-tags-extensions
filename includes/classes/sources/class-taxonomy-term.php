@@ -57,43 +57,39 @@ class TaxonomyTerm extends AbstractSource {
 	 * Uses GB's canonical term resolver first (consistent with GB Pro's term_meta),
 	 * then falls back to our multi-method detection for broader context support.
 	 *
-	 * GB'S ANSWER IS NOT SELF-VALIDATING, AND ONLY ONE OF ITS ARMS IS DOUBTED.
-	 * GenerateBlocks_Dynamic_Tags::get_id( …, 'term' ) answers from an explicit `id` option,
-	 * from the `generateblocks_dynamic_tag_id` filter (how a query loop hands down the row's
-	 * term), or failing both from a bare `get_queried_object_id()` — and nothing in the
-	 * answer says which of the three replied. That GB fact, and the measurement behind it,
-	 * are docs/gb-constraints.md §"`generateblocks_dynamic_tag_id` is not told WHICH entity
-	 * the id was a fallback for". The first two arms are somebody STATING a term and are
-	 * honoured. The third is a raw id for whatever WP queried, of whatever kind, and it is
-	 * the one that must be checked — see bws_queried_object_is_term(), which owns the rule
-	 * this site applies.
+	 * NO AMBIENT ARM SINCE 1.21.0. GenerateBlocks_Dynamic_Tags::get_id( …, 'term' ) answers
+	 * from an explicit `id` option, from the `generateblocks_dynamic_tag_id` filter (how a
+	 * query loop hands down the row's term), or failing both from a bare
+	 * `get_queried_object_id()` — and nothing in the answer says which of the three replied.
+	 * That GB fact, and the measurement behind it, are docs/gb-constraints.md
+	 * §"`generateblocks_dynamic_tag_id` is not told WHICH entity the id was a fallback for".
+	 * The first two arms are somebody STATING a term. The third is a raw id for whatever WP
+	 * queried, of whatever kind, and its ids share one number space with terms, so a page
+	 * whose own id happens to be a real term's id reads that unrelated term's data. Through
+	 * 1.20.0 that arm was gated on the queried object's TYPE; the gate had exactly one
+	 * consumer, the `term_*` family, and went out with it in 1.21.0 (FW-129).
 	 *
-	 * WHICH ARM ANSWERED IS READ OFF THE VALUE, not off the context. An answer that differs
-	 * from `get_queried_object_id()` cannot have come from the bare arm, so it was stated
-	 * and is honoured. That keeps this guard out of the business of knowing which foreign
-	 * plugin sets which context key — a term loop is recognised by what it produces.
+	 * WHAT REPLACED THE GATE IS NOT A WEAKER GATE — it is refusing the arm. An answer equal
+	 * to `get_queried_object_id()` and not stated as an `id` option is treated as the bare
+	 * arm and declined here, which drops the type question rather than answering it. The
+	 * cost is the arm's one honest case: a stated term id that COINCIDES with the queried
+	 * object's id now falls through instead of returning early, to the detector below.
+	 * WHAT THAT COSTS IS NOT ASSERTED HERE, because nothing measures it — this method is
+	 * unreachable through the factory (see is_selectable_root()), so no fixture row and no
+	 * snapshot exercises the fall-through, and a sentence about what it yields would rest on
+	 * the code's shape alone.
 	 *
-	 * ponytail: reading the arm off the value is a SHORTCUT, and it was taken knowingly. A
-	 * stated term id that COINCIDES with the queried object's id reads as the ambient arm
-	 * and is refused on a non-term page. Narrow, and it fails to empty rather than to
-	 * another entity's data. The exact fix is to stop inferring and read the loop's context
-	 * keys directly — priced and declined twice over: it is a block-context census
-	 * obligation (CLAUDE.md) taken on for a numeric coincidence, and this whole method goes
-	 * away with the `term_*` family (FW-129). DO NOT close it; it is scheduled for deletion,
-	 * not repair.
-	 *
-	 * EXISTENCE IS CHECKED TOO, as a SECOND and independent condition. A trusted id still has
+	 * EXISTENCE IS CHECKED TOO, as a SECOND and independent condition. A stated id still has
 	 * to name a term that is there, and the old unguarded `if ( $id )` never asked. It is not
-	 * what closed the collision and it is not a cheaper stand-in for the gate above — both
-	 * colliding ids named real terms — so it is stated here rather than folded into the type
-	 * rule. bws_get_validated_term() owns what valid means.
+	 * a cheaper stand-in for the arm test above — both ids in the 1.20.0 collision named real
+	 * terms — so it is stated separately. bws_get_validated_term() owns what valid means.
 	 *
 	 * FAILING THIS GUARD IS NOT THE END OF RESOLUTION — it falls through to the detector
-	 * below, whose tiers still answer from the tag's own options (`term_id`, `id`) and from
-	 * `tax` + the current post. That last tier was previously unreachable in most contexts,
-	 * because the unguarded read above returned first.
+	 * below, whose tiers still answer from the tag's own options (`term_id`, `id`), from a
+	 * term archive, and from `tax` + the current post.
 	 *
 	 * @since 1.20.0 The ambient arm gates on the queried object's TYPE.
+	 * @since 1.21.0 The ambient arm is refused outright; the type gate retired with `term_*`.
 	 * @param array  $options  Tag options from GenerateBlocks.
 	 * @param object $instance Block instance.
 	 * @return int|false Term ID or false if unresolvable.
@@ -102,10 +98,9 @@ class TaxonomyTerm extends AbstractSource {
 		if ( class_exists( 'GenerateBlocks_Dynamic_Tags' ) ) {
 			$id = \GenerateBlocks_Dynamic_Tags::get_id( $options, 'term', $instance );
 
-			$stated  = ! empty( $options['id'] ) || (int) $id !== (int) get_queried_object_id();
-			$trusted = $stated || bws_queried_object_is_term();
+			$stated = ! empty( $options['id'] ) || (int) $id !== (int) get_queried_object_id();
 
-			if ( $id && $trusted && bws_get_validated_term( (int) $id ) ) {
+			if ( $id && $stated && bws_get_validated_term( (int) $id ) ) {
 				return (int) $id;
 			}
 		}
@@ -124,12 +119,20 @@ class TaxonomyTerm extends AbstractSource {
 	 * already does (the ambient term on a term archive), so there is no second meaning for
 	 * it to carry, and the factory refuses it rather than resolving one.
 	 *
-	 * THAT REFUSAL DOES NOT REACH resolve_id() BELOW, and must not be moved into it: the
-	 * `term_*` modifier family calls that method on every request and reads the ambient term
-	 * forever. The root policy is enforced at the factory seam, which the modifier family
-	 * does not go through. This says where the ROOT policy lives — it is not a claim that
-	 * resolve_id() never changes, and since 1.20.0 it has: its ambient arm gates on the
-	 * queried object's TYPE, a different axis, owned by bws_queried_object_is_term().
+	 * THAT REFUSAL DOES NOT REACH resolve_id() ABOVE, and the two say different things. The
+	 * root policy is enforced at the factory seam and is about wire that NAMES a root; what
+	 * resolve_id() answers is a separate question that has moved twice since (1.20.0 gated
+	 * the ambient arm on the queried object's type, 1.21.0 refused the arm outright). The
+	 * `term_*` family was the caller that kept the two apart; with it gone the refusal makes
+	 * resolve_id() unreachable for this source, which is a consequence of the declaration
+	 * being REQUIRED and not a license to fold one site into the other.
+	 *
+	 * UNREACHABLE IS A MEASURED CLAIM, and here is what it rests on (2026-09-16): a census of
+	 * every `->resolve_id(` call site under includes/ leaves two, the factory above and an
+	 * orphan inside make_modifier_callback() that register_modifier() stopped feeding in
+	 * 1.21.0; and on the testbed both `{{text src:term|use:title}}` and
+	 * `{{text src:term,999999|use:title}}` render empty on /department/sales/, where reaching
+	 * resolve_id() would have returned the page's own term.
 	 *
 	 * @since 1.20.0
 	 * @return bool

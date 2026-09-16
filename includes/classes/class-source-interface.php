@@ -252,11 +252,10 @@ interface SourceInterface {
 	 * returning false.
 	 *
 	 * SEPARATE FROM resolve_id(), not a third parameter on it. resolve_id() answers from
-	 * AMBIENT CONTEXT and has callers that must keep doing exactly that forever — the
-	 * `term_*` modifier family reaches TaxonomyTerm::resolve_id() on every request. A
-	 * read from a named entity is a different question with a different input, and widening the ambient
-	 * method's signature would put both behind one implementation that has to tell them
-	 * apart.
+	 * AMBIENT CONTEXT, which every source that does not declare an argument still relies on.
+	 * A read from a named entity is a different question with a different input, and widening
+	 * the ambient method's signature would put both behind one implementation that has to
+	 * tell them apart.
 	 *
 	 * A FALSE RETURN IS TERMINAL. The factory does not then fall back to resolve_id():
 	 * an argument naming a deleted entity renders nothing, it does not quietly become the

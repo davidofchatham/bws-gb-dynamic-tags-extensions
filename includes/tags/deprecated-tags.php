@@ -1733,8 +1733,9 @@ function bws_modifier_skip_reason_for_tag( string $tag_string ): string {
  * The population is a modifier tag whose family roots at a DECLARING root and which names
  * no entity: the tag read the ambient entity, the rewrite makes it a bare base tag, and where
  * the ambient entity is not of the family's kind the base tag reads something the stored tag
- * could not (CONTEXT.md [I20]). Empty→value, disclosed as a LINE in the scan report beside
- * the conversion preview, never as a second confirmation gate.
+ * could not — the capability difference the exemption was granted against, recorded in
+ * docs/design-history/term-family-kind-lock.md. Empty→value, disclosed as a LINE in the scan
+ * report beside the conversion preview, never as a second confirmation gate.
  *
  * FAMILY-AGNOSTIC, derived from the root's own declaration rather than from the `term_`
  * prefix, so a second family with a declaring root is counted with no rule added here. The
@@ -1862,7 +1863,8 @@ function bws_modifier_entry_root( string $tag_string ): string {
  * it is here and not in a hand-written entry riding the generator's never-overwrites door.
  *
  * NOT OUTPUT-NEUTRAL, and decided rather than overlooked. A kind-locked family rewritten
- * into a kind-agnostic one surfaces as empty→value off a term page (CONTEXT.md [I20]);
+ * into a kind-agnostic one surfaces as empty→value off a term page — the difference this
+ * transform was hardened against, recorded in docs/design-history/term-family-kind-lock.md;
  * FW-39 owns the direction bound, the seven-context measurement and the disclosure.
  *
  * THE NAMED-ENTITY ARM ADDS A SECOND DIVERGENCE, AND IT RUNS THE OTHER WAY. A tag whose entity has
@@ -1910,8 +1912,9 @@ function bws_modifier_base_options( array $options, string $root ) {
 	// added and none of this knows the word "term".
 	//
 	// The tag is NOT output-neutral across this rewrite, and that is decided rather than
-	// overlooked: kind-locked to kind-agnostic surfaces as empty→value off a term page
-	// (CONTEXT.md [I20]). The direction bound, the evidence and the disclosure are FW-39's.
+	// overlooked: kind-locked to kind-agnostic surfaces as empty→value off a term page (the
+	// difference recorded in docs/design-history/term-family-kind-lock.md). The direction
+	// bound, the evidence and the disclosure are FW-39's.
 	//
 	// A DECLARING ROOT GIVEN AN ARGUMENT STATES THE ROOT AND THAT ARGUMENT — `src:<root>,<id>`
 	// (FW-39, D30). GB's `id` is the same key on EVERY modifier family, so the reading lives

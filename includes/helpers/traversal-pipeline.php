@@ -819,11 +819,14 @@ function bws_capture_ambient_signals( $instance ) {
  * here: a half-configured root must look broken rather than look right with the wrong
  * values, because a plausible wrong answer is the failure an author cannot see.
  *
- * THE POLICY LIVES HERE AND NOT IN THE SOURCE. TaxonomyTerm::resolve_id() has a permanent
- * second caller — the `term_*` modifier family, whose registrations never retire — and
- * that caller must keep reading the ambient term forever. Putting the refusal in the
- * source would blank every stored `{{term_*}}` tag on the site; putting it here reaches
- * only wire that names a root, which is the only wire the policy is about.
+ * THE POLICY LIVES HERE AND NOT IN THE SOURCE, and it did not move when its reason
+ * expired. Through 1.20.0 the reason was a second caller: the `term_*` modifier family
+ * reached TaxonomyTerm::resolve_id() on every request and had to keep reading the ambient
+ * term, so putting the refusal in the source would have blanked every stored `{{term_*}}`
+ * tag on the site. That family is gone (1.21.0, FW-129). The policy stays here because it
+ * is about wire that NAMES a root, which is a different question from what a source
+ * resolves for a tag that names none — the source has no way to tell the two apart, and
+ * the next root to declare an argument gets the rule without writing it.
  *
  * AN ARGUMENT THAT NAMES NOTHING IS ALSO TERMINAL. resolve_root_argument() returning false does
  * not fall back to resolve_id(): `term,34` after term 34 is deleted renders blank, it does
