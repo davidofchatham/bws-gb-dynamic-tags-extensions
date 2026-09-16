@@ -804,8 +804,16 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
 		return bws_meta_handler_read( (int) $post_id, $key, $single_only, 'get_post_meta' );
 	}
 
-	// Term archive fallback — non-REST only.
-	if ( ! ( defined( 'REST_REQUEST' ) && REST_REQUEST ) ) {
+	// Term archive fallback. bws_wp_is_term_archive() owns the criterion — this branch
+	// used to ask a bare get_queried_object() instead, which claimed a term the page was
+	// not about, and the REST_REQUEST guard below was standing in for the real gate.
+	//
+	// THE GUARD IS KEPT ON PURPOSE, THOUGH IT IS NOW SUBSUMED: the predicate already refuses
+	// under a REST render on its own. It is dead rather than load-bearing,
+	// and nothing measures REST behaviour here (text-test-matrix.md §T4 runs through
+	// `bws render-tag`, which is CLI). Deleting dead code with no pin buys nothing; it goes
+	// when FW-7 deletes the whole branch.
+	if ( ! ( defined( 'REST_REQUEST' ) && REST_REQUEST ) && bws_wp_is_term_archive() ) {
 		$queried = get_queried_object();
 		if ( $queried instanceof WP_Term ) {
 			return bws_meta_handler_read( (int) $queried->term_id, $key, $single_only, 'get_term_meta' );

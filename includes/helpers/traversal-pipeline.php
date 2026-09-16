@@ -553,7 +553,7 @@ function bws_resolve_base_source( array $options, $instance, $signals = null ) {
 
 		// 2b. A TERM item — an extension looping over terms. The arms need nothing:
 		//     bws_base_ambient_analog() gates on the WIRE kind plus this kind, never
-		//     on is_tax(), so a term reached through a loop takes the same analog read
+		//     on the term-archive criterion, so a term reached through a loop takes the same analog read
 		//     as a term reached through an archive (FW-63 pre-paid for it).
 		if ( 'term' === $item_kind && $item_id ) {
 			return array( 'kind' => 'term', 'id' => $item_id );
@@ -699,9 +699,9 @@ function bws_capture_ambient_signals( $instance ) {
 	$query_context           = '';
 	$query_payload           = array();
 
-	// Term archive detection — gate on is_tax/category/tag so we only claim a
-	// term when WP actually queried one (mirrors bws_reliable_term_context_detection).
-	if ( function_exists( 'is_tax' ) && ( is_tax() || is_category() || is_tag() ) ) {
+	// Term archive detection — bws_wp_is_term_archive() owns the criterion; see its
+	// PHPDoc for why a bare queried-object check is not it.
+	if ( bws_wp_is_term_archive() ) {
 		$qo = get_queried_object();
 		if ( $qo instanceof WP_Term ) {
 			$queried_kind = 'term';

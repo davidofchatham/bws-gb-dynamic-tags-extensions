@@ -422,8 +422,6 @@ These functions are available once `bws-gb-dynamic-tags-extensions` is active. A
 | `bws_get_related_posts_data( $post_id, $field_key )` | ACF relationship/post_object field resolution |
 | `bws_extract_post_id( $post_data )` | Extract post ID from various ACF return formats |
 | `bws_is_valid_meta_key( $meta_key )` | Validate meta key format |
-| `bws_read_field( $post_id, $key )` | Canonical post-meta/ACF read (routes through `GenerateBlocks_Meta_Handler`) |
-| `bws_read_term_field( $term_id, $key )` | Canonical term-meta/ACF read |
 | `bws_get_loop_item_context()` | Detect a GB query-loop item and its shape (a post, a term, a user or a repeater row — see the contract note below) |
 | `bws_loop_item_is_post_or_row()` | **(v1.19.0)** True when the loop item is one a post-meta/repeater read can be served from. Ask this, not the in-loop flag, before skipping a "no entity" bail |
 

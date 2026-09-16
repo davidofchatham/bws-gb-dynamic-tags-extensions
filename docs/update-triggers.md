@@ -80,6 +80,16 @@ run `node tools/test/editor-preview-context-test.js`. It is a CENSUS, not a test
 
 **Verify by MUTATION:** put the plain `{ ...context, bwsEditorPreview: true }` back and confirm the suite fails (measured 2026-09-04: 4 of 13 checks, including the chain-level one). A caching fix that is not actually caching passes every other check in the file. The absent-context branch takes its own mutation — empty its shared object and the flag check fails alone (1 of 13), because stability and doing the filter's job are separate properties on that path.
 
+## Term-archive criterion change
+
+**Fires on:** `bws_wp_is_term_archive()` (`includes/helpers/taxonomy-helpers.php`), or a call site moving on or off it — `bws_capture_ambient_signals()`'s term arm (`traversal-pipeline.php`) and `bws_read_field()`'s term-archive branch (`field-helpers.php`), the two askers as of 1.21.0.
+
+**What the run proves:** `loop-item-classify-test.php` §C8.4/§C8.4b pin the branch's two outcomes against a stubbed predicate, and §C8.4b is the one that fails if the criterion degrades back to a bare queried-object check — verified by mutation 2026-09-16 (drop `&& bws_wp_is_term_archive()` from the branch and C8.4b alone goes red). `traversal-pipeline-test.php` does NOT reach the predicate: it hands `bws_resolve_base_source()` pre-built signals, so `bws_capture_ambient_signals()` never runs there and its `is_tax` key is a signal name, not this function. Run it to catch a signature break, not for coverage of the criterion. `text-test-matrix.md` §T4 is the only end-to-end read of a real term archive.
+
+**What NO run here proves — the REST half.** The branch also carries a `! REST_REQUEST` guard, and nothing in the repo measures REST behaviour on this path: §T4 runs through `bws render-tag`, which is CLI, and the pure harnesses stub the predicate outright. The guard is believed subsumed by the criterion, which refuses under REST on its own, rather than load-bearing, and that belief is DERIVED FROM CODE SHAPE, not measured. It is kept for exactly that reason and goes when FW-7 deletes the branch. Anyone deleting it earlier owes a measurement first.
+
+**Why this is one owner and not two comparisons.** The two askers held the criterion separately until 1.21.0 and drifted apart for five weeks unobserved — the factory asked whether WP had queried an archive, from 1.14.0, while the read branch asked only what the queried object happened to be and used the REST guard as a stand-in. Nothing failed, because no instrument compared them. A second inline copy of the predicate is the defect, not a convenience.
+
 ## Block-CONTEXT key change
 
 **Fires on:** `bws_is_query_loop_setup_phase()` (`includes/helpers/content-helpers.php`), or ANY new read of a key off `$instance->context` anywhere in shipped PHP

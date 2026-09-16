@@ -134,6 +134,16 @@ if ( ! function_exists( 'get_queried_object' ) ) {
 		return $GLOBALS['stub_queried_object'];
 	}
 }
+// The two stubs below are deliberately INDEPENDENT of one another. The term-archive read
+// asks bws_wp_is_term_archive() (did WP query an archive) BEFORE it asks what the queried
+// object is, and C8.7 exists to hold that ordering: a stub that derived one from the other
+// would agree with the pre-1.21.0 bare queried-object check and pin nothing.
+$GLOBALS['stub_is_term_archive'] = false;
+if ( ! function_exists( 'bws_wp_is_term_archive' ) ) {
+	function bws_wp_is_term_archive(): bool {
+		return (bool) $GLOBALS['stub_is_term_archive'];
+	}
+}
 
 require __DIR__ . '/../../includes/helpers/field-helpers.php';
 
@@ -330,9 +340,19 @@ assert_same( 'C8.2 a loop post the gate REFUSES reads nothing', null, bws_read_f
 // SURROUNDING term's meta — a plausible value from an entity the wire never named.
 // C8.4 is what stops C8.3 passing for the wrong reason: without it, a term-archive
 // fallback that was simply broken would satisfy C8.3.
-$GLOBALS['stub_queried_object'] = new WP_Term( 7, 'department' );
+$GLOBALS['stub_queried_object']  = new WP_Term( 7, 'department' );
+$GLOBALS['stub_is_term_archive'] = true;
 assert_same( 'C8.3 HARD STOP - a refused loop post does NOT fall through to the term archive', null, bws_read_field( 'name', inst( new WP_Post( 6 ) ), false ) );
 assert_same( 'C8.4 CONTROL - the same archive DOES answer when there is no loop at all', 'term7:name', bws_read_field( 'name', inst( null ), false ) );
+
+// C8.4b holds the criterion the branch reads the archive BY (1.21.0). A queried object that
+// happens to be a WP_Term is not enough — WP must have queried the archive. Secondary
+// queries hand back a term the rendered page is not about, and the read must refuse it.
+// Flip bws_wp_is_term_archive() to true here and this row serves term 7's meta from a page
+// that is not term 7's archive, which is the defect this criterion replaced.
+$GLOBALS['stub_is_term_archive'] = false;
+assert_same( 'C8.4b a WP_Term queried object is NOT read when WP did not query an archive', null, bws_read_field( 'name', inst( null ), false ) );
+
 $GLOBALS['stub_queried_object'] = null;
 
 // Mode 2b. A repeater row has no post identity, so this branch never reaches the gate at
