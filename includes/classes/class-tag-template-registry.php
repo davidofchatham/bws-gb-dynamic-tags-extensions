@@ -139,8 +139,15 @@ class TagTemplateRegistry {
 	 * Integrator-facing route out: docs/plugin-integration.md §1a (offer the source as a
 	 * chain root) and §9 (convert stored prefixed tags to base tags in one converter run).
 	 *
+	 * TWO DIFFERENT VERSIONS RIDE THIS METHOD, and neither is a typo for the other.
+	 * `@deprecated` takes the release that DEPRECATED it — 1.20.0, where the CHANGELOG
+	 * announced it under `### Deprecated` and the method still minted a full family.
+	 * `_doing_it_wrong()`'s third argument is WordPress's own `$version`, documented as
+	 * the version the MESSAGE was added in, and the message is new in 1.21.0 because
+	 * that is when the method stopped registering anything.
+	 *
 	 * @since 1.6.0
-	 * @deprecated 1.21.0 Register a chain root instead; this mints nothing and is deleted in 1.22.0.
+	 * @deprecated 1.20.0 Register a chain root instead. Mints nothing since 1.21.0; deleted in 1.22.0.
 	 *
 	 * @param array $config Former modifier config. Ignored.
 	 */
