@@ -9,22 +9,9 @@
 > **SITE-A / SITE-B are pseudonyms** for the two real client clones this record was measured
 > against, substituted before publication. The measurements are unchanged; only the names are.
 
-**Archived 2026-08-19 with the 1.17.0 release, with NOTHING left open in this repo.** Both halves
-shipped 2026-08-12 — root offering ([#83](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/83))
-with its fixtures ([#85](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/85) +
-[#87](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/87)), and migration
-([#84](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/84) +
-[#86](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/86)). The external half
-shipped in the integrating plugin and was exercised end to end in Experiment M2.
+**Archived 2026-08-19 with the 1.17.0 release, with NOTHING left open in this repo.** Both halves shipped 2026-08-12 — root offering ([#83](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/83)) with its fixtures ([#85](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/85) + [#87](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/87)), and migration ([#84](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/84) + [#86](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/86)). The external half shipped in the integrating plugin and was exercised end to end in Experiment M2.
 
-**Read this as the record of how the work was decided, not as a statement of how anything currently
-works.** §SETTLED is the grill's output and every row of §OPEN is now closed: the sunset question
-resolved to a PROGRESSION (see its row, and FW-67 for where retirement is parked), the advisory
-channel was answered in the negative, and request context inside a testbed run went to
-the integrator's own ticket. §Facts that shaped the spec
-is the part still worth reading — each entry changed the work rather than confirming it, and two of
-them (the registry keeps its dead by policy; the flat era cannot express "root here AND hop a
-relationship") are load-bearing well beyond this ticket.
+**Read this as the record of how the work was decided, not as a statement of how anything currently works.** §SETTLED is the grill's output and every row of §OPEN is now closed: the sunset question resolved to a PROGRESSION (see its row, and FW-67 for where retirement is parked), the advisory channel was answered in the negative, and request context inside a testbed run went to the integrator's own ticket. §Facts that shaped the spec is the part still worth reading — each entry changed the work rather than confirming it, and two of them (the registry keeps its dead by policy; the flat era cannot express "root here AND hop a relationship") are load-bearing well beyond this ticket.
 
 ---
 
@@ -38,27 +25,9 @@ were reached.
 Tracker rows **FW-69** (roots + registration routes) and **FW-70** (`view_*` migration). **FW-67**
 parks behind the eventual family retirement, which is out of #80's scope.
 
-> **BUILT 2026-08-12 — the ROOT-OFFERING half ([#83](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/83)),
-> on `feat/registered-source-roots`.** Both routes, one appender, the preview, and coverage in
-> `slot-options-build-test.php` / `traversal-pipeline-test.php` / `preview-label-test.php` (the
-> registry bootstrap they share is `tools/test/lib-source-registry.php`). Four §SETTLED rows below
-> are dated 2026-08-12 — they were decided during the build, not in the grill.
+> **BUILT 2026-08-12 — the ROOT-OFFERING half ([#83](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/83)), on `feat/registered-source-roots`.** Both routes, one appender, the preview, and coverage in `slot-options-build-test.php` / `traversal-pipeline-test.php` / `preview-label-test.php` (the registry bootstrap they share is `tools/test/lib-source-registry.php`). Four §SETTLED rows below are dated 2026-08-12 — they were decided during the build, not in the grill.
 >
-> **#80 IS CLOSED AND EVERY IN-REPO HALF SHIPPED** (corrected 2026-08-18 — this banner still read
-> "Still pending on #80: the migration half (FW-70), and the in-repo fixture source + visible
-> testbed rows", which had been true for six hours). The migration half landed 2026-08-12
-> ([#84](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/84) +
-> [#86](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/86)) as a
-> WHOLE-STRING transform with a template-enumerating entry generator, and the fixture source +
-> visible rows with it ([#85](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/85) +
-> [#87](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/87)) — both fixture
-> roots resolve from SEEDED content, which is what lets a row state its own expected value.
-> **What is left is not in this repo:** the integrating plugin registers its own `is_selectable_root()`
-> and one `bws_register_modifier_root_migrations( 'view', 'view' )` call
-> (tracked in that plugin's own repo), which
-> shipped in its 5.7.0 and was exercised end to end on the SITE-B clone in Experiment M2
-> (2026-08-18): `{{view_title}}` → `{{title src:view}}`, 10 tag strings rewritten, CHANGED 0.
-> Family retirement stays parked behind FW-67.
+> **#80 IS CLOSED AND EVERY IN-REPO HALF SHIPPED** (corrected 2026-08-18 — this banner still read "Still pending on #80: the migration half (FW-70), and the in-repo fixture source + visible testbed rows", which had been true for six hours). The migration half landed 2026-08-12 ([#84](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/84) + [#86](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/86)) as a WHOLE-STRING transform with a template-enumerating entry generator, and the fixture source + visible rows with it ([#85](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/85) + [#87](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/87)) — both fixture roots resolve from SEEDED content, which is what lets a row state its own expected value. **What is left is not in this repo:** the integrating plugin registers its own `is_selectable_root()` and one `bws_register_modifier_root_migrations( 'view', 'view' )` call (tracked in that plugin's own repo), which shipped in its 5.7.0 and was exercised end to end on the SITE-B clone in Experiment M2 (2026-08-18): `{{view_title}}` → `{{title src:view}}`, 10 tag strings rewritten, CHANGED 0. Family retirement stays parked behind FW-67.
 
 ---
 

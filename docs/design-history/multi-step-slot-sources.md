@@ -357,12 +357,7 @@ of this gets built, and it should run before the build starts.
 3. Harvest again → `B-wire` (changed — that is the point), replay → `C-render`
 4. **Assert `A-render ≡ C-render`.** Diff `A-wire` vs `B-wire` as reviewable output.
 
-**Step 2 was written wrong and the correction matters.** This plugin's converter is
-admin-triggered (`wp_ajax_bws_scan_tags` / `wp_ajax_bws_migrate_tags`); there is no
-version-gated upgrade routine and NOTHING fires on a page load. Swapping in a newer build and
-loading a page migrates nothing — that is the integrating plugin's behaviour, which is what
-`dev-plugin.sh`'s header describes, and reading it as this plugin's is how the step got
-written. `tools/run-converter.php` invokes it the way the admin button does.
+**Step 2 was written wrong and the correction matters.** This plugin's converter is admin-triggered (`wp_ajax_bws_scan_tags` / `wp_ajax_bws_migrate_tags`); there is no version-gated upgrade routine and NOTHING fires on a page load. Swapping in a newer build and loading a page migrates nothing — that is the integrating plugin's behaviour, which is what `dev-plugin.sh`'s header describes, and reading it as this plugin's is how the step got written. `tools/run-converter.php` invokes it the way the admin button does.
 
 **Step 4 needs a translation the plan did not have.** Migration REWRITES the wire, so `A-render`
 and `C-render` hold different tag strings and cannot be keyed against each other at all. The
@@ -434,8 +429,7 @@ the FILE SWAP.
 
 **BUILT 2026-08-14**, smoke-tested end to end on `testbed` (4 URLs × 293 tags, all byte-identical):
 
-- **Harvest — env repo.** `bin/harvest-tags.sh` + `fixtures/harvest/harvest-tags.php`.
-  Plugin-agnostic; the integrating plugin wants it too.
+- **Harvest — env repo.** `bin/harvest-tags.sh` + `fixtures/harvest/harvest-tags.php`. Plugin-agnostic; the integrating plugin wants it too.
 - **Replay — this repo.** `tools/replay-tags.php`, one URL per invocation.
 - **Diff — this repo.** `tools/diff-replays.php`, plain PHP, no WP. Exits non-zero on any change.
 
@@ -556,9 +550,7 @@ No fresh pull — `dev-plugin.sh --live` restores the paired `predev` snapshot a
 and both clones still held theirs from 2026-08-14. Confirmed genuinely pre-1.17.0 before starting:
 zero rows of migrated chain wire, 40 (SITE-B) and 34 (SITE-A) legacy flat.
 
-**SITE-B ran STAGED, because two plugins migrate here.** The integrating plugin registers
-`view_*` → base root migrations (its #71), so an unstaged run would cross two boundaries at once and
-a failure would need bisecting afterwards.
+**SITE-B ran STAGED, because two plugins migrate here.** The integrating plugin registers `view_*` → base root migrations (its #71), so an unstaged run would cross two boundaries at once and a failure would need bisecting afterwards.
 
 | | SITE-B C1 (this plugin) | SITE-B C2 (+ the integrator) | SITE-A |
 |---|---|---|---|
@@ -573,16 +565,7 @@ a failure would need bisecting afterwards.
 End to end (A → C2, mappings composed) SITE-B is 5,104 identical, CHANGED 0. Every `view_*` rewrite
 was what #71 promised, `{{view_title}}` → `{{title src:view}}` included.
 
-**#111 got its first real-wire exercise here, and it needed an external plugin to get one.** No
-occurrence of either external prefix exists in either census, and nothing this plugin ships chains two
-renames — so the fix stayed vacuous on stored wire. But the integrator registers an older prefix and
-`views_*` → `view_*` as plain renames and 5.7.0 registers `view_*` → base, which makes
-its older prefix in exactly #111's shape: an OPTION-LESS intermediate. A throwaway probe on the
-SITE-B clone put all four cases through one `migrate_post()` — the two-generation title tag and
-`{{views_title}}` both reached `{{title src:view}}`, the optioned sibling reached
-`{{text src:view|key:home_introduction}}`, and a second run changed nothing. That closes the item
-the integrator's own commit left open ("asserted upstream but NOT against this repo's alias table,
-marked unverified in situ").
+**#111 got its first real-wire exercise here, and it needed an external plugin to get one.** No occurrence of either external prefix exists in either census, and nothing this plugin ships chains two renames — so the fix stayed vacuous on stored wire. But the integrator registers an older prefix and `views_*` → `view_*` as plain renames and 5.7.0 registers `view_*` → base, which makes its older prefix in exactly #111's shape: an OPTION-LESS intermediate. A throwaway probe on the SITE-B clone put all four cases through one `migrate_post()` — the two-generation title tag and `{{views_title}}` both reached `{{title src:view}}`, the optioned sibling reached `{{text src:view|key:home_introduction}}`, and a second run changed nothing. That closes the item the integrator's own commit left open ("asserted upstream but NOT against this repo's alias table, marked unverified in situ").
 
 **SITE-A: 13,445 comparable pairs identical, CHANGED 0, and 212 pairs the diff could not compare.**
 All 212 are one shape — two pre-1.6 `{{post_acf_date_time_range …}}` strings × 106 URLs — and the

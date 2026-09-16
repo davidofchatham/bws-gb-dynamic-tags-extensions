@@ -346,20 +346,7 @@ not wrapper surgery.
 
 ## Migration Path
 
-**Release slicing (grill 2026-07-06, Q5): Phase 1 ships steps 1–4 in ONE
-release; step 5 = Phase 1b (own release, can follow immediately — the integrator is
-ours, parallel work fine); step 6 opportunistic.** Rationale: 3–4 are the
-payoff (N×M retirement + fork collapse) and share one manual-test sweep with
-1–2; step 5 ships NEW user-facing tags (`try_view_*`) + a coordinated (tiny)
-integrator release — its own CHANGELOG story. **The integrator is NOT stranded
-by Phase 1:** `base_source_key:'view'` resolves through the factory's
-`SourceRegistry` delegation, the `ref` step replaces its per-combination traversal class's
-traversal, and `traversal_source_key` is **accepted-but-ignored** (NOT
-removed) — its tags render identically with zero changes on its side; one
-release of a registered-but-unused traversal class is the only dead weight.
-The integrator's 1b diff: drop `traversal_source_key` + that class
-registration, add `'supports_try' => true`. `plugin-integration.md` documents
-`traversal_source_key` as no-op-deprecated in Phase 1.
+**Release slicing (grill 2026-07-06, Q5): Phase 1 ships steps 1–4 in ONE release; step 5 = Phase 1b (own release, can follow immediately — the integrator is ours, parallel work fine); step 6 opportunistic.** Rationale: 3–4 are the payoff (N×M retirement + fork collapse) and share one manual-test sweep with 1–2; step 5 ships NEW user-facing tags (`try_view_*`) + a coordinated (tiny) integrator release — its own CHANGELOG story. **The integrator is NOT stranded by Phase 1:** `base_source_key:'view'` resolves through the factory's `SourceRegistry` delegation, the `ref` step replaces its per-combination traversal class's traversal, and `traversal_source_key` is **accepted-but-ignored** (NOT removed) — its tags render identically with zero changes on its side; one release of a registered-but-unused traversal class is the only dead weight. The integrator's 1b diff: drop `traversal_source_key` + that class registration, add `'supports_try' => true`. `plugin-integration.md` documents `traversal_source_key` as no-op-deprecated in Phase 1.
 
 1. Build pipeline engine (`bws_run_traversal`, `bws_run_step`) + source factory.
 2. Rewrite `bws_resolve_post_by_source()` (base-tags.php) to delegate to the factory + pipeline.
