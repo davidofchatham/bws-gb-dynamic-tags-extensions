@@ -457,8 +457,12 @@ function bws_build_src_chain_option( array $args = array() ): array {
  * a site read is entity-blind, so offering `site` there merely duplicates the
  * unrooted base tag (`{{email src:site}}`) while discarding the rooting — it fails
  * the qualifying gate on both arms (CONTEXT.md I4 source-level application;
- * tag-reference.md §Qualifying test). register_modifier() routes its source dropdown
- * through this before injecting it into every term_/view_ tag.
+ * tag-reference.md §Qualifying test).
+ *
+ * NO PRODUCTION CALLER SINCE 1.21.0 — its one consumer was register_modifier(), withdrawn
+ * with the modifier families. Held only by slot-options-build-test.php
+ * §bws_filter_site_from_src. It goes with the constructor's hard delete in 1.22.0 (FW-129),
+ * unless a later rooting surface takes it up first.
  *
  * Mirrors the slot-side filter in bws_build_slot_traversal_options() (which omits
  * `site` from derived try_ slot src unless a template opts back in via
@@ -666,8 +670,8 @@ function bws_get_content_field_options(): array {
  * The image `use` + `key` field-option LEAF — bws_get_text_field_options()'s sibling.
  *
  * Same contract. The base registration overlays `show_if` on `key` (`use:not:featured`)
- * literally and additionally gates `use` itself on `srcTermIn:empty`; the modifier
- * consumer (register_modifier(), #88) derives the same `key` overlay generically from
+ * literally and additionally gates `use` itself on `srcTermIn:empty`; the try_ consumer
+ * (#88) derives the same `key` overlay generically from
  * `try_use_no_key_values` instead of a second hand-typed copy. The leaf carries neither,
  * because which conditions apply is the consumer's composition, not the enum's.
  *

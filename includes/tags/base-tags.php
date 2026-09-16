@@ -363,11 +363,13 @@ function bws_register_base_tags(): void {
 	) );
 
 	// =========================================================
-	// Register modifier templates for the term_ constructor.
+	// Register the base template descriptors.
 	//
-	// Each descriptor is stored in TagTemplateRegistry::$modifier_templates
-	// and consumed by both register_modifier() (generates term_* GB tags)
-	// and generate_base_try_tags() (generates try_* GB tags).
+	// Each descriptor is stored in TagTemplateRegistry::$modifier_templates and consumed by
+	// generate_base_try_tags() (generates try_* GB tags) and, through
+	// get_modifier_templates(), by the converter's per-template migration entries. The
+	// term_ constructor was the other consumer until register_modifier() was withdrawn
+	// in 1.21.0; the list and the key name outlived it.
 	//
 	// 'leading_options' — Group 1 options (as, size, format, etc.) prepended before slots in try_ tags.
 	// 'options'         — template-specific options; for try_ tags, keys matching leading_options are
@@ -389,9 +391,8 @@ function bws_register_base_tags(): void {
 		'options'               => array_merge(
 			// Same LEAF the base {{text}} registration consumes — the template is a
 			// different COMPOSITION, not a second definition. No LITERAL `show_if`
-			// here: register_modifier() derives the `key` control's show_if from
-			// try_use_no_key_values below (#88), the same fact try_'s per-slot
-			// picker already qualifies on — one source, not a third hand-typed copy.
+			// here: try_'s per-slot picker qualifies on try_use_no_key_values below
+			// (#88), so the fact is declared once and derived, never hand-copied.
 			$text_field,
 			array(
 				'fallback' => array(
@@ -426,8 +427,8 @@ function bws_register_base_tags(): void {
 		'title'                 => __( 'Content', 'generateblocks' ),
 		'options'               => array_merge(
 			// Same LEAF the base {{content}} registration consumes; no LITERAL `show_if`
-			// overlay here — register_modifier() derives it from try_use_no_key_values
-			// below (#88), same as the text template.
+			// overlay here — try_ derives it from try_use_no_key_values below (#88),
+			// same as the text template.
 			$content_field,
 			array(
 				'fallback' => array(
@@ -491,8 +492,7 @@ function bws_register_base_tags(): void {
 		'takes_first_usable' => true,
 	) );
 
-	// image: register_modifier() (is_image=true) builds its own option set and ignores 'options'.
-	// generate_base_try_tags(): 'leading_options' (as, size) → slots → trailing from 'options' minus leading/per-slot keys.
+	// image: generate_base_try_tags(): 'leading_options' (as, size) → slots → trailing from 'options' minus leading/per-slot keys.
 	// 'use' kept in 'options' so generate_base_try_tags() reads its options for per-slot use selectors.
 	TagTemplateRegistry::register_modifier_template( array(
 		'key'                   => 'image',
@@ -528,8 +528,8 @@ function bws_register_base_tags(): void {
 				),
 			),
 			// Same LEAF the base {{image}} registration consumes. No literal `show_if`
-			// here either (#88): register_modifier() derives it from
-			// try_use_no_key_values below, same as text/content.
+			// here either (#88): try_ derives it from try_use_no_key_values below,
+			// same as text/content.
 			'use'      => $image_field['use'],
 			'key'      => $image_field['key'],
 			'fallback' => array(

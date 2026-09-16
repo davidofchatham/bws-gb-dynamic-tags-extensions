@@ -46,16 +46,16 @@ if ( ! defined( 'ABSPATH' ) ) {
  *   happened by accident: base tags register at init priority 20, later than most
  *   extensions, so we won every collision without anyone being told there was one.
  *
- * THE ASYMMETRY WITH THE OTHER TWO CONSTRUCTORS IS DELIBERATE — DO NOT "FIX" IT.
- * TagTemplateRegistry::register_modifier() (the `term_` half) and
- * TagTemplateRegistry::generate_base_try_tags() (the `try_` half) each read GB's registry
- * before building a tag and SKIP a name that is taken, yielding to the first registrar.
- * That is right for them and stays: those families are optional extras over the base tags,
+ * THE ASYMMETRY WITH THE FAMILY CONSTRUCTOR IS DELIBERATE — DO NOT "FIX" IT.
+ * TagTemplateRegistry::generate_base_try_tags() (the `try_` half, and since 1.21.0 the only
+ * family constructor left) reads GB's registry before building a tag and SKIPS a name that
+ * is taken, yielding to the first registrar.
+ * That is right for it and stays: that family is an optional extra over the base tags,
  * so losing one to a name clash degrades the editor rather than breaking published pages.
- * Each of those two sites owns that rule and states it where it is enforced. Because they
- * skip before reaching here, a collision this function sees is a base-tag collision.
+ * That site owns the rule and states it where it is enforced. Because it
+ * skips before reaching here, a collision this function sees is a base-tag collision.
  *
- * WHAT CHANGED IN THE YIELD IS THAT IT SPEAKS, NOT THAT IT YIELDS. Each of those two sites
+ * WHAT CHANGED IN THE YIELD IS THAT IT SPEAKS, NOT THAT IT YIELDS. That site
  * calls bws_gb_note_tag_yielded() at its dup-check, so a name we stand down from is recorded
  * and reported like the other two directions. Standing down silently meant a documented tag
  * simply did not exist with nothing anywhere saying why.

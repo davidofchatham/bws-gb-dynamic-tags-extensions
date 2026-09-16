@@ -892,9 +892,10 @@ assert_same( 'a free name records no collision', false, isset( bws_gb_tag_name_c
 // now runs on the `try_` constructor, which enforces the same rule at the same boundary.
 // §F carries every assertion that stood here, plus the re-entry guard it already owned.
 //
-// The lettering below is unchanged on purpose: register_modifier() is still live and C2-C4
-// still read what it BUILDS for `term_`, which is a different subject from what a
-// constructor stands down from.
+// The lettering below is unchanged on purpose. register_modifier() is a stub since 1.21.0 and
+// builds nothing, but neither surviving section read its output: C2 censuses the TEMPLATE
+// DESCRIPTORS off get_modifier_templates(), and C3 reads GB's live registry against the
+// migration entries. Both are different subjects from what a constructor stands down from.
 
 // --- C2. every modifier template's dispatch wiring matches its try_ twin ----
 //

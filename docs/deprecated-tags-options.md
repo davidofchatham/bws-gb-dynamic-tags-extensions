@@ -124,9 +124,7 @@ fallback, link, format, `as`) is carried through untouched and the result is re-
 base-tag chain entry absorbs it onto the fanning step in the converter's later pass, so the two
 routes land on identical wire.
 
-A row above states one entry's rewrite. An older prefix pointing at a newer one (`portal_` → `view_`)
-also reaches the base tag in a single run, since the converter re-reads the tag name after each
-rewrite; see §8 and §9 in [`plugin-integration.md`](plugin-integration.md#8-renaming-a-modifier-prefix).
+A row above states one entry's rewrite. An older prefix pointing at a newer one (`portal_` → `view_`) also reaches the base tag in a single run, since the converter re-reads the tag name after each rewrite; see [§9 in `plugin-integration.md`](plugin-integration.md#9-migrating-a-modifier-family-to-a-base-tag).
 
 ---
 
