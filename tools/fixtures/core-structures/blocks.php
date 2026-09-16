@@ -1293,12 +1293,13 @@ function bws_fixture_page_content_matrix_content() {
  *           on a base tag and inside a folded slot. Open any of these in the editor to
  *           see both rows in the Source control — the enum is the other half of the
  *           assertion, and only the editor shows it.
- *  FR3      the fixture MODIFIER family in the six shapes #84's transform maps. This is
- *           the reseedable corpus the converter runs against (#86); after a run the rows
- *           are base tags, and a reseed puts them back.
- *  FR4      each modifier shape beside the base-tag wire it must become, so the property
- *           the migration promises — same bytes out — is eyeballable BEFORE any converter
- *           exists to be trusted.
+ *  FR3      seeded wire for a RETIRED prefix, in the six shapes #84's transform maps. This
+ *           is the reseedable corpus the converter runs against (#86); after a run the rows
+ *           are base tags, and a reseed puts them back. Nothing mints `fixture_*` since
+ *           FW-129, so every FR3 row prints its own braces until it is converted — which is
+ *           the visible cost of unconverted wire, and the reason the converter exists.
+ *  FR4      each shape beside the base-tag wire it must become, so what the migration
+ *           produces is eyeballable against what the retired spelling asked for.
  *
  * The page carries its own ambient values (role, main_line, Support term) that are unlike
  * the root's (Sales) and unlike the hop target's (Warehouse). A rooted row landing on the
@@ -1328,13 +1329,6 @@ function bws_fixture_page_content_matrix_fixture_roots() {
 		bws_fixture_gb_row( 'FR2.4 join mixes both roots in one string (-> Fixture Root Role of Chatham)', '{{join mode:template|A:src(fixture);use(key);key(role)|B:src(fixture_alt);use(key);key(venue_city)|format:%A of %B}}' ),
 	) );
 
-	// EVERY ROW READS A FIELD KEY, and none of them reads `use:title`. That is not a
-	// stylistic choice: a modifier template's text core reads `key` and ignores `use`
-	// entirely (bws_post_custom_text_core), so `use:title` renders empty on `fixture_`,
-	// `term_` and `view_` alike — a control that is offered and does nothing (issue #88;
-	// PRE-EXISTING, not this fixture's). Rows here must read something the
-	// modifier family actually renders, or an equivalence pair would compare '' to ''
-	// and pass whatever the migration did.
 	// FR2b (#112) - THE NON-VACUITY HALF of the fold matrix's F11a.4.
 	//
 	// `fixture_scoped` refuses on /matrix-post-meta/, where F11a.4 reads it and expects
@@ -1347,25 +1341,28 @@ function bws_fixture_page_content_matrix_fixture_roots() {
 		bws_fixture_gb_row( 'FR2b.2 the ambient contrast, same key, no root (-> Ambient Page Role)', '{{text key:role}}' ),
 	) );
 
-	$sections[] = bws_fixture_gb_section( 'FR3 - fixture_ MODIFIER corpus (the migration\'s six shapes, pre-conversion)', array(
-		bws_fixture_gb_row( 'FR3.1 bare, no source stated (-> Fixture Root Role)', '{{fixture_text key:role}}' ),
-		bws_fixture_gb_row( 'FR3.2 src:current — on a modifier that named ITS entity, so same as FR3.1 (-> Fixture Root Role)', '{{fixture_text src:current|key:role}}' ),
-		bws_fixture_gb_row( 'FR3.3 relationship hop (-> Fixture Ref Role, the hop target\'s own field)', '{{fixture_text src:ref|ref:related_staff|key:role|limit:1}}' ),
-		bws_fixture_gb_row( 'FR3.4 taxonomy sidecar (-> sales@example.test, the ROOT\'s term)', '{{fixture_text srcTermIn:department|key:email}}' ),
-		bws_fixture_gb_row( 'FR3.5 both sidecars: hop then drop into terms (-> warehouse@example.test, the hop TARGET\'s term)', '{{fixture_text src:ref|ref:related_staff|srcTermIn:department|key:email}}' ),
-		// HAND-WIRE ONLY, and that is not an oversight: `site` is filtered out of every
-		// rooting-modifier Source dropdown (#37), so this shape cannot be re-authored
-		// through the control the rest of the page exercises. It is stored wire a site
-		// can hold, which is exactly the population a migration has to answer for.
-		//
-		// The ONE shape whose rendered output the migration CHANGES, and the row exists
-		// to make that visible rather than to assert a value. The modifier callback
-		// returns on `site` BEFORE reading either sidecar (the #37 guard), so this
-		// renders EMPTY today; its migrated form ({{text src:site|use:key|
-		// key:organization_email}}, sidecars dropped) renders the org email. Empty is the
-		// expectation here, so it uses the split-label row — a single block would take
-		// its own label down with it and read as missing fixture.
-		bws_fixture_gb_empty_row( 'FR3.6 src:site with inert sidecars — EMPTY today (the modifier returns before reading them); migrates to a site read that renders', '{{fixture_text src:site|ref:related_staff|srcTermIn:department|use:key|key:organization_email}}' ),
+	// FR3 - THE RETIRED-PREFIX CORPUS. The fixture stands down from register_modifier()
+	// ahead of FW-129's withdrawal of it, so nothing mints a `fixture_*` tag and every row
+	// here renders its own braces: this is seeded wire for a prefix whose family is gone,
+	// which is the population the converter exists for and the state a retirement leaves on
+	// a published page. Each label states the
+	// literal it must print, per the visible-row mandate, and names the value its migrated
+	// form renders (FR4 shows that side live).
+	//
+	// FR3.6 is HAND-WIRE ONLY, and that is not an oversight: `site` was filtered out of
+	// every rooting-modifier Source dropdown (#37), so this shape could never be authored
+	// through a control. It is stored wire a site can hold, which is exactly the population
+	// a migration has to answer for.
+	$sections[] = bws_fixture_gb_section( 'FR3 - retired-prefix corpus (the migration\'s six shapes, pre-conversion — all render LITERALLY)', array(
+		// NO TAG BRACES IN A LABEL, here or anywhere on this page: the converter rewrites
+		// every `{{fixture_…}}` string in the post body, a label included, so a label
+		// quoting its own tag is rewritten out from under itself by §FR6's run.
+		bws_fixture_gb_row( 'FR3.1 bare, no source stated — prints its own braces; migrates to Fixture Root Role', '{{fixture_text key:role}}' ),
+		bws_fixture_gb_row( 'FR3.2 src:current — prints its own braces; migrates to the same wire as FR3.1, so Fixture Root Role', '{{fixture_text src:current|key:role}}' ),
+		bws_fixture_gb_row( 'FR3.3 relationship hop — prints its own braces; migrates to Fixture Ref Role', '{{fixture_text src:ref|ref:related_staff|key:role|limit:1}}' ),
+		bws_fixture_gb_row( 'FR3.4 taxonomy sidecar — prints its own braces; migrates to sales@example.test, the ROOT\'s term', '{{fixture_text srcTermIn:department|key:email}}' ),
+		bws_fixture_gb_row( 'FR3.5 both sidecars — prints its own braces; migrates to warehouse@example.test, the hop TARGET\'s term', '{{fixture_text src:ref|ref:related_staff|srcTermIn:department|key:email}}' ),
+		bws_fixture_gb_row( 'FR3.6 src:site with inert sidecars — prints its own braces; migrates to info@example.test with the sidecars DROPPED', '{{fixture_text src:site|ref:related_staff|srcTermIn:department|use:key|key:organization_email}}' ),
 	) );
 
 	$sections[] = bws_fixture_gb_section( 'FR4 - each shape beside the base-tag wire it must become', array(
@@ -1379,13 +1376,13 @@ function bws_fixture_page_content_matrix_fixture_roots() {
 		bws_fixture_gb_row( 'FR4.6 what FR3.6 becomes — sidecars DROPPED (-> info@example.test)', '{{text src:site|use:key|key:organization_email}}' ),
 	) );
 
-	// FR7 (#88) — register_modifier()'s `use` dispatch, not the root/migration property
-	// FR1-FR4 test. Lives here because `fixture_` is the one live modifier prefix this
-	// repo can render outside a term-archive context, reusing FR3's own entity.
-	$sections[] = bws_fixture_gb_section( 'FR7 - modifier use dispatch (#88)', array(
-		bws_fixture_gb_row( 'FR7.1 text family, use:title (-> Fixture Root Entity)', '{{fixture_text use:title}}' ),
-		bws_fixture_gb_row( 'FR7.2 content family, use:key (-> Fixture Root Role)', '{{fixture_content use:key|key:role}}' ),
-	) );
+	// FR7 (#88) is GONE, not moved. Its two rows measured register_modifier()'s `use`
+	// dispatch on a minted `fixture_*` tag, and this fixture no longer mints one — there is
+	// no dispatch left to observe on this prefix. (The constructor itself is still live and
+	// still mints `term_`; FW-129 takes that away later, and `term_`'s own rows go with it.)
+	// The base tags' own `use` dispatch is
+	// covered by text-test-matrix.md §T1 and content-test-matrix.md §CT3, which never rode
+	// the modifier path.
 
 	return implode( "\n\n", $sections );
 }

@@ -171,7 +171,7 @@ Different code path from the rest of this file — `register_modifier()`/`make_m
 (class-tag-template-registry.php), not `bws_base_text_resolve_value()`/`bws_base_text_callback()`.
 Lives here rather than a third file for the same reason `content-test-matrix.md` §CT7 does: same
 tag family this matrix already covers, defect reproduces identically across `term_`/`view_`/
-`fixture_` (`term_`/`fixture_` are the two live in this repo). `content-test-matrix.md` §CT7 is
+`fixture_` (`term_` is the only one still minted in this repo — the fixture stood down from its own family ahead of FW-129). `content-test-matrix.md` §CT7 is
 the sibling row set for `{{content}}`'s modifier family — same fix, same commit, same cause.
 
 Through 1.19.1, `register_modifier()` wired `term_text`'s `post_fn`/`term_fn` straight to
@@ -184,7 +184,8 @@ unaffected. Fixed by pointing `term_fn`/`post_fn` at the same `try_text_term_dis
 | # | Tag | Expected |
 |---|---|---|
 | T10.1 | `{{term_text use:title}}` on `/department/support/` | `Support` — the term's own title. **Before the fix: empty.** Render-tag-only: a term-archive ambient context, same exception as T4 above |
-| T10.2 | `{{fixture_text use:title}}` on `/matrix-fixture-roots/` | `Fixture Root Entity` — same defect, the class route. **Before the fix: empty.** **Visible** — [`registered-roots-test-matrix.md`](registered-roots-test-matrix.md) §FR7.1, `blocks.php`'s `matrix_fixture_roots` builder |
+
+T10.2 read the same defect on `{{fixture_text}}`, the class route, and is **retired**: the fixture stood down from `register_modifier()` ahead of FW-129, so that prefix mints nothing and there is no dispatch there to measure. `term_` is the only family still minted, which is why this section is down to one row — and it goes when FW-129 takes the constructor.
 
 ## Fail triage
 

@@ -143,7 +143,7 @@ $check(
 
 // -----------------------------------------------------------------------------
 // External-source contract (#85): the two registered roots, the fixture source's
-// deterministic resolution, and the modifier family.
+// deterministic resolution, and the migration entries the FR3 corpus converts through.
 //
 // These read through the ROOT, not through the ambient page, so they are valid
 // under this file's --url even though that url is matrix-post-meta: a registered
@@ -192,45 +192,52 @@ if ( $corpus_page instanceof WP_Post ) {
 	$check( 'the unrooted read on that same post is DIFFERENT (so the row is not vacuous)', 'Ambient Page Role' === trim( (string) $fx4 ), 'out=' . var_export( $fx4, true ) );
 }
 
+// THE POST-REMOVAL SHAPE, asserted rather than assumed (FW-129). No `fixture_*` tag is
+// minted any more — the fixture stands down from `register_modifier()` ahead of FW-129
+// withdrawing it — so the seeded FR3 wire is unregistered wire, which is precisely the
+// state the converter has to keep working in.
+// Asserted as a NEGATIVE because the whole corpus below is about strings the converter
+// matches, and a family that quietly came back would make every one of them vacuous.
 $tags = class_exists( 'GenerateBlocks_Register_Dynamic_Tag' ) ? array_keys( GenerateBlocks_Register_Dynamic_Tag::get_tags() ?? [] ) : array();
-$check( 'fixture modifier family registered (fixture_text)', in_array( 'fixture_text', $tags, true ) );
-// The WHOLE family, counted against the TEMPLATE LIST it is generated from rather than
-// against a literal nine — a template added later must mint a fixture tag too, and a
-// hardcoded count would go stale silently. Not counted against the `term_` family, which
-// carries two pre-template legacy tags (`term_list`, `term_meta`) that no template makes.
-$fx_count  = count( preg_grep( '/^fixture_/', $tags ) );
+$fx_family = preg_grep( '/^fixture_/', $tags );
+$check( 'no fixture_* tag family is registered', array() === $fx_family, 'found=' . implode( ',', $fx_family ) );
+
+// And the entries ARE, counted against the TEMPLATE LIST they are generated from rather
+// than against a literal nine — a template added later must mint a fixture entry too, and a
+// hardcoded count would go stale silently.
+$fx_entries = array();
+if ( class_exists( 'BWS\DynamicTags\MigrationRegistry' ) ) {
+	foreach ( \BWS\DynamicTags\MigrationRegistry::get_by_type( 'tag' ) as $entry ) {
+		if ( 0 === strpos( (string) ( $entry['match_tag'] ?? '' ), 'fixture_' ) ) {
+			$fx_entries[] = (string) $entry['match_tag'];
+		}
+	}
+}
 $tpl_count = class_exists( 'BWS\DynamicTags\TagTemplateRegistry' )
 	? count( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() )
 	: 0;
-$check( 'fixture family has one tag per modifier template', $tpl_count > 0 && $fx_count === $tpl_count, "fixture_={$fx_count} templates={$tpl_count}" );
+$check( 'fixture family has one MIGRATION ENTRY per modifier template', $tpl_count > 0 && count( $fx_entries ) === $tpl_count, 'entries=' . count( $fx_entries ) . " templates={$tpl_count}" );
 
-// The migration's promise, assertable before any converter runs: the modifier tag
-// and the base tag it must become render the same bytes.
-$mod  = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{fixture_text key:role}}', [], $instance );
-$check( 'fixture_text renders == its migrated base-tag wire', trim( (string) $mod ) === trim( (string) $fx1 ), 'modifier=' . var_export( $mod, true ) . ' base=' . var_export( $fx1, true ) );
-
-// The pairs read a FIELD KEY rather than `use:title`, because a modifier template's
-// text core ignores `use` entirely — `use:title` renders empty on every modifier
-// family (pre-existing, issue #88), and a pair of empties would agree
-// whatever the migration did.
-$mod2  = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{fixture_text src:ref|ref:related_staff|key:role|limit:1}}', [], $instance );
+// THE FOUR FR3 SHAPES, read through the wire each one MIGRATES TO. This is the half of the
+// old pair that survives the family: verify-migration.php pins that the converter produces
+// exactly these strings from the seeded wire, and these pin that they render the values the
+// matrix rows claim. The `fixture_*` side is gone — unregistered wire renders its own
+// braces, which is the accepted cost recorded on the registrar in schema.php.
 $base2 = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{text src:fixture;refs,related_staff|key:role|limit:1}}', [], $instance );
-$check( 'relationship-hop shape: modifier == chain wire', trim( (string) $mod2 ) === trim( (string) $base2 ) && 'Fixture Ref Role' === trim( (string) $mod2 ), 'modifier=' . var_export( $mod2, true ) . ' chain=' . var_export( $base2, true ) );
+$check( 'relationship-hop shape: the migrated chain wire renders', 'Fixture Ref Role' === trim( (string) $base2 ), 'chain=' . var_export( $base2, true ) );
 
-$mod3  = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{fixture_text srcTermIn:department|key:email}}', [], $instance );
 $base3 = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{text src:fixture;terms,department|key:email|limit:1}}', [], $instance );
-$check( 'taxonomy-sidecar shape: modifier == chain wire (-> the ROOT\'s term)', trim( (string) $mod3 ) === trim( (string) $base3 ) && 'sales@example.test' === trim( (string) $mod3 ), 'modifier=' . var_export( $mod3, true ) . ' chain=' . var_export( $base3, true ) );
+$check( 'taxonomy-sidecar shape: the migrated chain wire renders (-> the ROOT\'s term)', 'sales@example.test' === trim( (string) $base3 ), 'chain=' . var_export( $base3, true ) );
 
-$mod4  = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{fixture_text src:ref|ref:related_staff|srcTermIn:department|key:email}}', [], $instance );
 $base4 = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{text src:fixture;refs,related_staff;terms,department|key:email|limit:1}}', [], $instance );
-$check( 'both-sidecars shape: modifier == chain wire (-> the hop TARGET\'s term)', trim( (string) $mod4 ) === trim( (string) $base4 ) && 'warehouse@example.test' === trim( (string) $mod4 ), 'modifier=' . var_export( $mod4, true ) . ' chain=' . var_export( $base4, true ) );
+$check( 'both-sidecars shape: the migrated chain wire renders (-> the hop TARGET\'s term)', 'warehouse@example.test' === trim( (string) $base4 ), 'chain=' . var_export( $base4, true ) );
 
-// The one shape whose OUTPUT the migration changes, asserted as a DIVERGENCE so it
-// cannot be mistaken for a regression later: the modifier returns on `site` before
-// reading either sidecar, while the wire it migrates to renders the site read.
-$mod5  = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{fixture_text src:site|ref:related_staff|srcTermIn:department|use:key|key:organization_email}}', [], $instance );
+// FR3.6's target. The modifier it replaced returned on `site` before reading either
+// sidecar and rendered EMPTY; that divergence is no longer measurable here (there is no
+// modifier left to render), so what stays is the half that still means something: the
+// migrated wire renders the site read, and a future change that re-blanked it fails.
 $base5 = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{text src:site|use:key|key:organization_email}}', [], $instance );
-$check( 'site shape renders EMPTY today and its migrated wire renders (a KNOWN divergence)', '' === trim( (string) $mod5 ) && 'info@example.test' === trim( (string) $base5 ), 'modifier=' . var_export( $mod5, true ) . ' migrated=' . var_export( $base5, true ) );
+$check( 'site shape: the migrated wire renders the site read', 'info@example.test' === trim( (string) $base5 ), 'migrated=' . var_export( $base5, true ) );
 
 // ---------------------------------------------------------------------------
 // SOURCE GATE corpus (v13, ADR 0007) — fold matrix §F17.

@@ -888,81 +888,15 @@ assert_same( 'a free name records no collision', false, isset( bws_gb_tag_name_c
 
 // --- C. the OTHER half of the asymmetry: a template constructor yields ------
 
-// The base half's rule is only half a rule without this. register_modifier() is driven with
-// a synthetic prefix whose first template name has already been taken, so the skip is
-// measured on the same run as the overwrite rather than asserted about another file. A
-// second member of the same family must still register, or "yielded" would be
-// indistinguishable from "the constructor did nothing".
+// MEASURED IN §F, not here. This arm used to drive register_modifier() with a synthetic
+// prefix whose first template name was pre-taken. That driver is scheduled for withdrawal
+// (FW-129) and this harness detached from it ahead of the removal, so the whole yield arm
+// now runs on the `try_` constructor, which enforces the same rule at the same boundary.
+// §F carries every assertion that stood here, plus the re-entry guard it already owned.
 //
-// THE YIELD SPEAKS NOW, AND THAT IS WHAT THIS ARM CHANGED. Through 1.18.0 it asserted
-// SILENCE here, which was true and was the defect: GB Query Enhancements holds `term_title`
-// on any site running it, so our {{term_title}} does not exist there while two docs still
-// describe it as ours, and nothing on the site said so. The yield itself is unchanged and
-// still correct — only its silence was wrong.
-
-$probe_prefix = 'bws_yield_probe';
-$tpl_keys     = array_values( array_filter( array_map(
-	static function ( $tpl ) { return (string) ( $tpl['key'] ?? '' ); },
-	\BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates()
-) ) );
-$taken_name   = $probe_prefix . '_' . ( $tpl_keys[0] ?? 'text' );
-
-new GenerateBlocks_Register_Dynamic_Tag( array(
-	'tag'    => $taken_name,
-	'title'  => 'Stranger Modifier',
-	'type'   => 'term',
-	'return' => static function () { return 'theirs'; },
-) );
-
-$GLOBALS['bws_doing_it_wrong'] = array();
-\BWS\DynamicTags\TagTemplateRegistry::register_modifier( array(
-	'prefix'               => $probe_prefix,
-	'gb_type'              => 'term',
-	'modifier_label'       => 'yield-probe',
-	'traversal_source_key' => 'term_related_post',
-	'base_source_key'      => 'term',
-	'excluded_supports'    => array(),
-) );
-
-$probe_family = array_filter(
-	array_keys( GenerateBlocks_Register_Dynamic_Tag::get_tags() ),
-	static function ( $t ) use ( $probe_prefix ) { return 0 === strpos( (string) $t, $probe_prefix . '_' ); }
-);
-assert_same(
-	'the modifier constructor YIELDS a name already taken',
-	'Stranger Modifier',
-	GenerateBlocks_Register_Dynamic_Tag::get_tags()[ $taken_name ]['title'] ?? null
-);
-assert_same( 'and it registered its other members, so the yield is a skip not a no-op', true, count( $probe_family ) > 1 );
-
-$yielded = bws_gb_tag_name_collisions()[ $taken_name ] ?? array();
-assert_same( 'a yielded name IS recorded', true, array() !== $yielded );
-assert_same( 'the record says we YIELDED the name', 'yielded', $yielded['outcome'] ?? null );
-assert_same( 'the record names who holds it', 'Stranger Modifier', $yielded['previous_title'] ?? null );
-assert_same(
-	'the record locates the holder by file',
-	true,
-	(bool) preg_match( '~control-order-test\.php$~', (string) ( $yielded['previous_source'] ?? '' ) )
-);
-// We never built a registration, so there is no title of ours to report. An empty string
-// here is the record saying that, and a status surface printing our title would be inventing
-// a tag that does not exist.
-assert_same( 'and carries no title of ours, because we never built one', '', $yielded['title'] ?? null );
-
-assert_same( 'exactly one notice fired for one yielded name', 1, count( $GLOBALS['bws_doing_it_wrong'] ) );
-$yield_notice = $GLOBALS['bws_doing_it_wrong'][0] ?? array( '', '', '' );
-assert_same(
-	'the yield subject says the tag was NOT REGISTERED',
-	"BWS GB dynamic tag '{$taken_name}' not registered",
-	$yield_notice[0]
-);
-// The three subjects must stay distinguishable at a glance: this one is neither the
-// collision we won nor the takeover we lost, and its remedy is different from both.
-assert_same( 'a yield subject is not a winning subject', false, false !== strpos( (string) $yield_notice[0], 'collision' ) );
-assert_same( 'a yield subject is not a losing subject', false, false !== strpos( (string) $yield_notice[0], 'taken over' ) );
-assert_same( 'the yield message names who held the name', true, false !== strpos( (string) $yield_notice[1], 'Stranger Modifier' ) );
-assert_same( 'the yield message says our tag does not exist', true, false !== strpos( (string) $yield_notice[1], 'does not exist on this site' ) );
-assert_same( 'the yield message does not claim we registered over anyone', false, false !== strpos( (string) $yield_notice[1], 'has registered over it' ) );
+// The lettering below is unchanged on purpose: register_modifier() is still live and C2-C4
+// still read what it BUILDS for `term_`, which is a different subject from what a
+// constructor stands down from.
 
 // --- C2. every modifier template's dispatch wiring matches its try_ twin ----
 //
@@ -1012,9 +946,8 @@ foreach ( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() as $cen
 // whether the `key` control's `show_if` (derived from try_use_no_key_values in
 // register_modifier(), replacing a hand-typed literal) actually renders the right
 // condition. Read off the REAL `term_*` tags bws_register_base_tags() registered at this
-// file's bootstrap (line ~155) — not the §C yield-probe family: its `_text` member is
-// the one that YIELDS on purpose (the probe prefix's first template name is deliberately
-// pre-taken, §C's own subject), so it never registers and carries no options at all.
+// file's bootstrap (line ~155), which is the only family the constructor mints in this
+// process.
 $live_tags = \GenerateBlocks_Register_Dynamic_Tag::get_tags();
 assert_same(
 	"census: 'term_text' key control hides on use:title",
@@ -1171,12 +1104,9 @@ $plain_parties = bws_gb_collision_other_parties( bws_gb_tag_name_collisions()['b
 assert_same( 'a plain takeover names nobody before us', null, array_key_exists( 'before', $plain_parties ) ? $plain_parties['before'] : 'absent' );
 assert_same( 'and still names who took it', 'Late Stranger', $plain_parties['after']['title'] ?? null );
 
-// The other direction, on arm C's yielded record -- the kept one above has since become the
-// merged one, which is the whole point of it.
-$yield_parties = bws_gb_collision_other_parties( bws_gb_tag_name_collisions()[ $taken_name ] ?? array() );
-assert_same( 'a yielded name is about who was here first', 'before', $yield_parties['subject'] ?? null );
-assert_same( 'and it names them', 'Stranger Modifier', $yield_parties['before']['title'] ?? null );
-assert_same( 'with nobody having taken it since', null, array_key_exists( 'after', $yield_parties ) ? $yield_parties['after'] : 'absent' );
+// The THIRD direction — a yielded record read as parties — is in §F, beside the constructor
+// that produces one. It cannot run here: the only yield this process makes takes a real
+// `try_` name away from us, which §D's whole-registration re-read would then report.
 
 assert_same( 'exactly two notices fired, for the two lost names', 2, count( $GLOBALS['bws_doing_it_wrong'] ) );
 
@@ -1256,11 +1186,20 @@ assert_same(
 	$GLOBALS['bws_doing_it_wrong'][1][0] ?? null
 );
 
-// --- F. the SECOND yielding constructor, and the re-entry guard -------------
+// --- F. the yielding constructor, its record, and the re-entry guard --------
 
-// Arm C drives register_modifier(); this drives generate_base_try_tags(), because two sites
-// enforce the yield and a rule pinned at one of them is pinned at one of them. It runs LAST
-// on purpose: it takes a real try_ name away from us, which arms D and E would have read.
+// THE WHOLE YIELD ARM, and the only one now: it drives generate_base_try_tags() against a
+// real `try_` name a stranger has taken. register_modifier() enforces the same rule and is
+// still live for `term_`, but this harness no longer drives it — its probe was detached
+// ahead of FW-129's withdrawal, so the rule is pinned at the constructor that will outlive
+// it. It runs LAST on purpose: taking a real try_ name away from us is exactly what arms D
+// and E would otherwise have read as a loss of ours.
+//
+// THE YIELD SPEAKS, AND THAT IS WHAT THIS ARM ONCE CHANGED. Through 1.18.0 the assertion was
+// SILENCE, which was true and was the defect: GB Query Enhancements holds `term_title` on any
+// site running it, so our {{term_title}} does not exist there while two docs still described
+// it as ours, and nothing on the site said so. The yield itself is unchanged and still
+// correct — only its silence was wrong.
 //
 // IT ALSO MEASURES THE GUARD, which is why re-running the whole constructor is the right
 // shape rather than a probe family. Every other try_ name is still ours from §1's pass, so a
@@ -1284,13 +1223,53 @@ assert_same(
 	'Stranger Fallback',
 	GenerateBlocks_Register_Dynamic_Tag::get_tags()['try_text']['title'] ?? null
 );
+// A second member of the same family must still be ours, or "yielded" would be
+// indistinguishable from "the constructor did nothing".
+assert_same(
+	'and its other members are still registered, so the yield is a skip not a no-op',
+	true,
+	count( array_filter(
+		array_keys( GenerateBlocks_Register_Dynamic_Tag::get_tags() ),
+		static function ( $t ) { return 0 === strpos( (string) $t, 'try_' ) && 'try_text' !== $t; }
+	) ) > 1
+);
 assert_same( 'exactly one notice fired, for the one name that is not ours', 1, count( $GLOBALS['bws_doing_it_wrong'] ) );
 assert_same(
 	'and it is the try_ name a stranger took',
 	"BWS GB dynamic tag 'try_text' not registered",
 	$GLOBALS['bws_doing_it_wrong'][0][0] ?? null
 );
-assert_same( 'the try_ yield is recorded too', 'yielded', bws_gb_tag_name_collisions()['try_text']['outcome'] ?? null );
+
+$yielded = bws_gb_tag_name_collisions()['try_text'] ?? array();
+assert_same( 'a yielded name IS recorded', true, array() !== $yielded );
+assert_same( 'the try_ yield is recorded too', 'yielded', $yielded['outcome'] ?? null );
+assert_same( 'the record names who holds it', 'Stranger Fallback', $yielded['previous_title'] ?? null );
+assert_same(
+	'the record locates the holder by file',
+	true,
+	(bool) preg_match( '~control-order-test\.php$~', (string) ( $yielded['previous_source'] ?? '' ) )
+);
+// We never built a registration, so there is no title of ours to report. An empty string
+// here is the record saying that, and a status surface printing our title would be inventing
+// a tag that does not exist.
+assert_same( 'and carries no title of ours, because we never built one', '', $yielded['title'] ?? null );
+
+// The three subjects must stay distinguishable at a glance: this one is neither the
+// collision we won nor the takeover we lost, and its remedy is different from both.
+$yield_notice = $GLOBALS['bws_doing_it_wrong'][0] ?? array( '', '', '' );
+assert_same( 'a yield subject is not a winning subject', false, false !== strpos( (string) $yield_notice[0], 'collision' ) );
+assert_same( 'a yield subject is not a losing subject', false, false !== strpos( (string) $yield_notice[0], 'taken over' ) );
+assert_same( 'the yield message names who held the name', true, false !== strpos( (string) $yield_notice[1], 'Stranger Fallback' ) );
+assert_same( 'the yield message says our tag does not exist', true, false !== strpos( (string) $yield_notice[1], 'does not exist on this site' ) );
+assert_same( 'the yield message does not claim we registered over anyone', false, false !== strpos( (string) $yield_notice[1], 'has registered over it' ) );
+
+// The THIRD direction the parties reader answers, and the only one a yield can show: a record
+// whose subject is who was here FIRST. §E covers the other two (a plain takeover, and a merged
+// keep-then-lose) on names of its own.
+$yield_parties = bws_gb_collision_other_parties( $yielded );
+assert_same( 'a yielded name is about who was here first', 'before', $yield_parties['subject'] ?? null );
+assert_same( 'and it names them', 'Stranger Fallback', $yield_parties['before']['title'] ?? null );
+assert_same( 'with nobody having taken it since', null, array_key_exists( 'after', $yield_parties ) ? $yield_parties['after'] : 'absent' );
 
 // The guard, stated as the thing it prevents: re-entering the constructor must not report
 // the family it registered itself as yielded to a stranger.

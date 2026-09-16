@@ -872,60 +872,32 @@ function bws_fixture_core_structures_chain_roots( $roots ) {
 }
 
 /**
- * The fixture MODIFIER family — `fixture_text`, `fixture_image`, … (#85).
+ * The fixture family's MIGRATION entries — `fixture_text` → `{{text src:fixture|…}}` (#86).
  *
- * Backed by the class-route source, so the family's prefix and its root key are the SAME
- * string, exactly as the real external family's are. That is what makes the seeded corpus
- * a faithful rehearsal of the migration: `{{fixture_text key:role}}` must become
- * `{{text src:fixture|key:role}}`, and both must render the same bytes.
+ * ENTRIES ONLY. No `fixture_*` tag family is minted. The constructor still exists and still
+ * mints the built-in `term_` family; this fixture stands down from it AHEAD of FW-129's
+ * withdrawal, which it can do because the converter matches STORED STRINGS and never needed
+ * the old tag registered. That is what makes this the rehearsal worth having — it is the
+ * POST-removal world, the one that has to keep working once a prefix owner retires a family.
  *
- * Registers at init:21 — after bws_register_base_tags() populates the modifier templates
- * at init:20, which is where the family's nine tags come from.
+ * The prefix and its root key are the SAME string, exactly as the real external family's
+ * were: `{{fixture_text key:role}}` must become `{{text src:fixture|key:role}}`. The
+ * pre-conversion wire is hand-seeded into blocks.php (the FR3 rows) and a reseed puts it
+ * back, so verify-migration.php is repeatable rather than one-shot.
+ *
+ * KNOWN COST of the entries-only shape, accepted at FW-129's grilling: seeded `fixture_*`
+ * wire renders LITERALLY, so the pre/post byte-identity comparison is gone. What the
+ * corpus still measures is the converter's own three properties (report, run, reach) plus
+ * the migrated wire rendering — see verify-migration.php.
+ *
+ * Registers at init:21, after bws_register_base_tags() populates the modifier templates at
+ * init:20 — the template list is what the entries are generated from, one call, no list of
+ * tag names to maintain. See docs/plugin-integration.md §9.
  */
-function bws_fixture_core_structures_register_modifier() {
-	if ( ! class_exists( 'BWS\DynamicTags\TagTemplateRegistry' ) ) {
-		return;
-	}
-	\BWS\DynamicTags\TagTemplateRegistry::register_modifier( array(
-		'prefix'            => 'fixture',
-		'gb_type'           => 'fixture-based',
-		'modifier_label'    => 'Fixture-based',
-		'base_source_key'   => 'fixture',
-		// No traversal_source_key: accepted-but-ignored since 1.14.0 — the src:ref hop is
-		// a generic `ref` step off base_source_key.
-		'excluded_supports' => array( 'source' ),
-	) );
-
-	// The family's MIGRATION entries (#86), generated from the same template list the
-	// registration above iterates — one call, no list of tag names. This is the seam an
-	// external plugin owning a retired prefix uses verbatim, which is the whole reason the
-	// fixture family exists: the path runs end to end in-repo, against seeded wire, with no
-	// second plugin installed.
-	//
-	// The family stays REGISTERED after migrating. Retiring it is the owner's decision on
-	// the owner's schedule (`prefix_removed`), and the FR3 corpus needs the tags rendering
-	// to be a migration corpus at all — a reseed puts the pre-conversion wire back.
-	//
-	// AFTER the registration above, deliberately — the opposite of the built-in `term_`
-	// family's order. A prefix owner who registers entries first hands the constructor a
-	// deprecated stamp for every tag and the family moves into GB's deprecated group; this
-	// fixture is rehearsing the MIGRATION, not the deprecation, and its tags need to stay
-	// in their own group where the seeded rows read them. See docs/plugin-integration.md §9.
+function bws_fixture_core_structures_register_migrations() {
 	if ( function_exists( 'bws_register_modifier_root_migrations' ) ) {
 		bws_register_modifier_root_migrations( 'fixture', 'fixture', array( 'since' => '1.17.0' ) );
 	}
-}
-
-/**
- * The editor preview's prefix label for the fixture family (#85) — named rather than
- * inline, like every other registration in this file, so it can be unhooked.
- *
- * @param array $map Prefix => label.
- * @return array
- */
-function bws_fixture_core_structures_preview_map( $map ) {
-	$map['fixture_'] = 'Fixture';
-	return $map;
 }
 
 /**
@@ -950,19 +922,15 @@ if ( function_exists( 'add_action' ) && ! defined( 'BWS_FIXTURE_SEEDING' ) ) {
 	add_action( 'init', 'bws_fixture_core_structures_register_meta', 5 );
 	add_action( 'acf/init', 'bws_fixture_core_structures_register_acf', 5 );
 
-	// The external-source contract's in-repo corpus (#85). Both routes plus the modifier
-	// family the migration rehearses against; the seeded rows live on
+	// The external-source contract's in-repo corpus (#85). Both routes plus the migration
+	// entries the converter rehearses against; the seeded rows live on
 	// /matrix-fixture-roots/ (blocks.php) and the entities they read in manifest.php.
 	//
 	// Registered from the mu-plugin at FILE LOAD, which is what puts the listener in
 	// place before the source registry fires at plugins_loaded:20.
 	add_action( 'bws_dynamic_tags_register_sources', 'bws_fixture_core_structures_register_source' );
 	add_filter( 'bws_dynamic_tags_chain_roots', 'bws_fixture_core_structures_chain_roots' );
-	add_action( 'init', 'bws_fixture_core_structures_register_modifier', 21 );
-
-	// The preview's prefix map, so an unresolvable fixture_* tag previews as "Fixture …"
-	// rather than as its raw tag name — the same registration the real family makes.
-	add_filter( 'bws_dynamic_tags_preview_modifier_map', 'bws_fixture_core_structures_preview_map' );
+	add_action( 'init', 'bws_fixture_core_structures_register_migrations', 21 );
 
 	// The 404-borrow override arm (C5). Title only — the text filter stays bare so
 	// C16 measures the default arm of the same borrow.
