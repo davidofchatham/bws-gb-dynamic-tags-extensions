@@ -58,13 +58,7 @@
 
 <p class="gb-text">C-DT2 datetime_range WITH a fallback (-> TBA, same reasoning as C-DT1): TBA</p>
 
-<p class="gb-text">C-TERM1 unpinned term_text -> the queried term name (Sales) on a TERM archive, EMPTY on every other context here (author, PTA, date, search, 404, latest-home). Before 1.20.0 it read whatever id the page had queried as if it were a term id, so /author/fixture-author/ (user 2) rendered the term All Users:</p>
-
-<p class="gb-text">{{term_text use:title}}</p>
-
-<p class="gb-text">C-TERM2 term_text NAMING its own term -> Support on EVERY context, term archive included. A pin is not an ambient read, so the guard must not touch it; this row is what says so, and it is also what stops C-TERM1 passing on a tag that resolves nowhere: {{term_text id:6|use:title}}</p>
-
-<p class="gb-text">C-CONV1 the CONVERTED form of C-TERM1, unpinned -> read the two together: EQUAL on the term archive (Sales), and empty-vs-value everywhere else. This is C-X1 above under a second name, and the duplicate is the point - the PAIR is the measurement:</p>
+<p class="gb-text">C-CONV1 the CONVERTED form of the unpinned arm -> Sales on the term archive, this context own heading everywhere else. Its before-half was the C-TERM1 row deleted with the family (FW-129); what it converted FROM is now the recorded value in context-test-matrix.md, not a row beside it. Still byte-identical to C-X1 above, and kept under this name so the C-CONV table keeps a row to point at:</p>
 
 <p class="gb-text">BWS Testbed</p>
 

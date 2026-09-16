@@ -518,14 +518,14 @@ return array(
 			'body_class' => 'author',
 		),
 		'ctx-term'        => array(
-			// The one context where an ambient term read is SUPPOSED to answer, and the
-			// only page here that can hold the C-TERM rows' positive arm. Every other
-			// context asserts empty, and a set of all-empty rows cannot tell a working
-			// guard from a tag that stopped resolving anywhere.
+			// The one context where an ambient read has a TERM to find, which is what makes
+			// it the only page here that can tell an ambient read apart from a stated term
+			// source at all — everywhere else the two differ in kind, not just in value
+			// (context-test-matrix.md §C-TERM/CT).
 			//
-			// `tax-department` and not `archive`: the guard's whole subject is WHICH KIND
-			// of archive this is, so the row has to fail if the page degrades into some
-			// other archive rather than pass on the generic class they all share.
+			// `tax-department` and not `archive`: WHICH KIND of archive this is, is the
+			// whole reason the page is in the set, so the row has to fail if it degrades
+			// into some other archive rather than pass on the generic class they all share.
 			'path'       => '/department/sales/',
 			'body_class' => 'tax-department',
 		),

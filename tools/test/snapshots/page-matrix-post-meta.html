@@ -1012,15 +1012,9 @@
 </div>
 
 <div>
-<h2 class="wp-block-heading">Term ambient guard CT &#8211; a term_ tag on a page that is NOT about a term (1.20.0)</h2>
+<h2 class="wp-block-heading">Term context CT &#8211; a term source on a page that is NOT about a term</h2>
 
-<p class="gb-text">CT-A unpinned term_text on this PAGE -> EMPTY. Before 1.20.0 it read this page&#8217;s own id as a term id and rendered whichever term happened to carry that number (mc_flag:Priority on the reference site):</p>
-
-<p class="gb-text">{{term_text use:title}}</p>
-
-<p class="gb-text">CT-B the same tag NAMING term 6 -> Support. Non-vacuity for CT-A: without this, CT-A passes on a term_text that resolves nothing anywhere: {{term_text id:6|use:title}}</p>
-
-<p class="gb-text">CT-C term_text with a TAXONOMY -> the first department term on this page, its phone field ((987) 333-4444). Unreachable before 1.20.0: the unchecked ambient read answered first, so this tier never ran: {{term_text tax:department|key:phone}}</p>
+<p class="gb-text">CT-C first department term of THIS post, its phone field (-> (987) 333-4444). Sales leads, so the step limit is what makes this one value rather than both ((987) 333-4444, (987) 111-2222): (987) 333-4444</p>
 </div>
 		</div>
 

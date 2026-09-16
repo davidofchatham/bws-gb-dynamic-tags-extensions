@@ -61,23 +61,25 @@ return array(
 	// The date the baseline under `tools/test/snapshots/` was captured. Prose only —
 	// nothing compares it; it is here so a reader can place the record in time.
 	//
-	// THIS RE-CAPTURE IS THE `term_` FAMILY'S REMOVAL (FW-129, 1.21.0). Nine tags stopped
-	// being registered, so every stored `{{term_*}}` on a fixture page now renders its own
-	// braces — which is the removal's whole user-visible consequence, measured here rather
-	// than asserted. Nine pages moved: the six `ctx-*` pages carrying the context element's
-	// C-TERM/C-CONV rows, `ctx-term`, `page-matrix-post-meta` and `page-matrix-loops`. Most
-	// of the line count is packing — one literal line displaces the row below it and the
-	// rest of the document reports as changed.
+	// THIS RE-CAPTURE IS THE §C-TERM/CT REWRITE (FW-129, 1.21.0) — the ticket the previous
+	// capture's second note said was coming. Six dead `term_*` rows left the blueprint and
+	// one base-spelled row replaced them: C-TERM1/C-TERM2 off the context element (their
+	// base spellings were already there as C-X1 and C-CONV11), CT-A/CT-B off
+	// `page-matrix-post-meta` (already on `page-matrix-pinned-roots` as F20.2/F20.1), QL1.5
+	// off `page-matrix-loops` (its convert-side twin QL1.6 was already under it), and CT-C
+	// rewritten in place as `{{text src:terms,department,limit(1)|key:phone}}`, which is the
+	// only genuinely new row. Nine pages moved: the seven `ctx-*`, `page-matrix-post-meta`
+	// and `page-matrix-loops`. Most of the line count is packing — a removed row displaces
+	// everything below it and the rest of the document reports as changed.
 	//
-	// THE ROW LABELS STILL STATE THE OLD EXPECTATIONS on purpose. Rewriting the context
-	// matrix's `term_`-vs-base PAIRS against `{{text src:term,N}}` is a separate ticket in
-	// the same sweep; capturing here keeps each commit's baseline green rather than leaving
-	// two commits red, which is the state that trains people to ignore a red baseline.
+	// The `term_*` rows THAT REMAIN are §C-CONV's before-halves, and they stay deliberately:
+	// a row rendering its own braces is what unconverted stored wire looks like after the
+	// removal, which is the versioning axis's whole premise rather than a row gone stale.
 	//
-	// ACF Pro moved 6.8.9 -> 6.8.10 and is re-recorded below. It is NOT attributable for
-	// any line: the pre-change run of this instrument passed against the 6.8.9-era baseline
-	// with 6.8.10 already installed, so the new version had already been shown to produce
-	// the old output before this capture was taken.
+	// The PREVIOUS capture (same date) is the removal itself, where those braces first
+	// appeared. ACF Pro moved 6.8.9 -> 6.8.10 there and is recorded below; it is NOT
+	// attributable for any line, because the pre-change run passed against the 6.8.9-era
+	// baseline with 6.8.10 already installed.
 	//
 	// The 2026-09-14 capture is WooCommerce joining the fixture site (chrome only, no
 	// rendered tag moved); the 2026-09-03 one is where the head-deletion rule arrived — a
