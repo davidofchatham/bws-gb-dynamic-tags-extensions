@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * Uses simplified option keys (key, key2, as, format, …) rather than the
  * legacy keys used by template-generated datetime tags. Callbacks remap
- * these to the existing core function keys via bws_base_map_datetime_options().
+ * these to the existing core function keys via bws_normalize_datetime_options().
  *
  * @since 1.6.0
  * @return array
@@ -456,7 +456,7 @@ function bws_term_date_range_core( $term_id, $options, $instance ) {
  * @since 1.0.0
  * @since 1.15.0 First arg accepts a resolved-source payload (FW-3a); legacy
  *               scalars (post id / 'option' / "{tax}_{id}") still coerced —
- *               bws-portal-system + try_/term_ closures pin the scalar forms.
+ *               the registry template closures pin the scalar forms.
  * @param array|int|string|false $target   Resolved source (or legacy scalar).
  * @param array                  $options  Tag options.
  * @param object                 $instance Block instance.
@@ -521,7 +521,7 @@ function bws_datetime_single_core( $target, $options, $instance ) {
  * @since 1.0.0
  * @since 1.15.0 First arg accepts a resolved-source payload (FW-3a); legacy
  *               scalars (post id / 'option' / "{tax}_{id}") still coerced —
- *               bws-portal-system + try_/term_ closures pin the scalar forms.
+ *               the registry template closures pin the scalar forms.
  * @param array|int|string|false $target   Resolved source (or legacy scalar).
  * @param array                  $options  Tag options.
  * @param object                 $instance Block instance.
@@ -693,7 +693,10 @@ function bws_term_datetime_range_core( $term_id, $options, $instance ) {
  * authoritative over their public twins).
  *
  * @since 1.6.0 As bws_base_map_datetime_options()/…_range_options().
- * @since 1.15.0 Collapsed into the single normalizer (FW-2, #48).
+ * @since 1.15.0 Collapsed into the single normalizer (FW-2, #48); the two
+ *               wrappers kept their names as external API.
+ * @since 1.21.0 Those wrappers deleted — their only known caller, an
+ *               integrating plugin's template map, dropped the pin.
  * @param array $options Raw tag options from GenerateBlocks.
  * @param bool  $range   Range-tag mapping (startKey/endKey family) when true.
  * @return array Options with canonical core keys populated.
@@ -760,34 +763,6 @@ function bws_normalize_datetime_options( array $options, bool $range = false ): 
 	}
 
 	return $mapped;
-}
-
-/**
- * Back-compat wrapper over bws_normalize_datetime_options() — single mapping.
- *
- * External API: bws-portal-system pins this name in its template map. Internal
- * call sites use the normalizer directly; do not add parsing here.
- *
- * @since 1.6.0
- * @param array $options Raw tag options from GenerateBlocks.
- * @return array Remapped options for existing core functions.
- */
-function bws_base_map_datetime_options( array $options ): array {
-	return bws_normalize_datetime_options( $options, false );
-}
-
-/**
- * Back-compat wrapper over bws_normalize_datetime_options() — range mapping.
- *
- * External API: bws-portal-system pins this name in its template map. Internal
- * call sites use the normalizer directly; do not add parsing here.
- *
- * @since 1.6.0
- * @param array $options Raw tag options from GenerateBlocks.
- * @return array Remapped options for existing range core functions.
- */
-function bws_base_map_datetime_range_options( array $options ): array {
-	return bws_normalize_datetime_options( $options, true );
 }
 
 /**

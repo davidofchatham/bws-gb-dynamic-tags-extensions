@@ -223,13 +223,19 @@ function bws_value_looks_time_only( $value ) {
  *
  * FW-3(a) compat shim: the datetime cores' public signatures historically took
  * a bare post id, the `'option'` site sentinel, or an ACF term object-id string
- * ("{taxonomy}_{term_id}") in their first arg. External callers still pass
- * those forms (bws-portal-system maps `bws_datetime_*_core` by name; try_/term_
- * template closures pass scalars), so every legacy shape maps here onto the
- * payload shape the source factory emits (`bws_resolve_base_source()`), and the
- * cores + parse layer branch on `kind` — never on string-shape sniffing. This
- * shim is FW-3 residue: it dies when portal-system and the registry closures
- * thread resolved sources themselves (FW-38 coordination).
+ * ("{taxonomy}_{term_id}") in their first arg. Callers still pass those forms
+ * (the registry's template closures — `post_fn` / `term_fn` / `try_core_fn` /
+ * `try_term_fn` — pass scalars, and the callbacks pass the `'option'`
+ * sentinel), so every legacy shape maps here onto the payload shape the source
+ * factory emits (`bws_resolve_base_source()`), and the cores + parse layer
+ * branch on `kind` — never on string-shape sniffing. This shim is FW-3 residue:
+ * it dies when those closures thread resolved sources themselves.
+ *
+ * NO EXTERNAL CALLER REMAINS. One integrating plugin mapped `bws_datetime_*_core`
+ * by name in its template map until 2026-09-08, when it deleted that map along
+ * with the whole prefixed tag family it generated; its only surviving
+ * integration is a registered chain root. Retiring this shim is therefore an
+ * in-repo refactor, not the cross-plugin coordination it was scoped for.
  *
  * Payload: `['kind' => 'post'|'term'|'site', 'id' => int|false, 'taxonomy' => string]`
  * — 'taxonomy' on term kind only; a false 'id' means no entity (a repeater row

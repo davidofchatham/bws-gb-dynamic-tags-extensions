@@ -1115,7 +1115,7 @@ Append-only ledger of closed, shipped, or cut work — both `FW-N` items deleted
 | ID | Item | Outcome | Landed / detail home |
 |---|---|---|---|
 | FW-1 | Deprecated tag removal | Shipped 1.14.0 | CHANGELOG 1.14.0; `deprecated-tags.php` PHPDoc; memory `project_deprecated_tags_no_migration_path` |
-| FW-2 | Datetime option-key cleanup | Shipped 1.15.0: single normalizer `bws_normalize_datetime_options()` — the ONLY parse point; mappers kept as portal-system compat wrappers | CHANGELOG 1.15.0; normalizer PHPDoc (datetime-tags.php); `tools/test/datetime-format-test.php` N-group |
+| FW-2 | Datetime option-key cleanup | Shipped 1.15.0: single normalizer `bws_normalize_datetime_options()` — the ONLY parse point; mappers kept as compat wrappers for one integrating plugin, deleted 1.21.0 once it dropped the pin | CHANGELOG 1.15.0; normalizer PHPDoc (datetime-tags.php); `tools/test/datetime-format-test.php` N-group |
 | FW-4 | `src:site` slot for the remaining `try_` tags | Shipped 1.15.0 — pure wiring: a `try_site_fn` descriptor leg, five thin closures over `bws_site_resolve_value`, single-result site link-wrap for I6/C9 parity | CHANGELOG 1.15.0; registry PHPDoc (`try_site_fn`); `src-site-test-matrix.md` R7 |
 | FW-5 | Collapse the `try_core_fn`/`try_term_fn` fork | Retired 2026-08-15 by #103 (closed) — the four hand-written `try_` arms collapsed onto one dispatch keyed by resolved source kind, through the pure table in `includes/helpers/try-slot-arms.php` | FW-71 |
 | FW-6 | Datetime list mode | Shipped 1.15.0: `limit`/`sep` on both datetime tags, text/title V14 parity, `src:ref` plural fan-out | CHANGELOG 1.15.0; `tag-reference.md` §List mode; `tools/test/datetime-test-matrix.md` D4 |

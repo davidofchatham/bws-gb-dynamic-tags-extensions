@@ -16,8 +16,9 @@
  *   - bws_build_single_format() / bws_build_range_format() — format assembly
  *   - bws_datetime_coerce_read_target() — FW-3a legacy-scalar → resolved-source shim
  *   - the option-key normalizer        — public→core key mapping (FW-2 baseline;
- *     calls bws_normalize_datetime_options() when it exists, else the pre-FW-2
- *     mappers — expectations survive the rewrite)
+ *     bws_normalize_datetime_options(), the one parse site. The pre-FW-2
+ *     mapper fallback went with the wrappers themselves in 1.21.0 —
+ *     expectations survived both the rewrite and the delete, unchanged)
  *
  * Baseline discipline (#48 Stage 0a): expectations were captured from CURRENT
  * behavior before the FW-2/#25/#30 pass; behavior-preserving stages must keep
@@ -84,18 +85,14 @@ function dt( string $str ): DateTime {
 	return new DateTime( $str, new DateTimeZone( 'UTC' ) );
 }
 
-/** Normalize single-tag options: normalizer when present (FW-2+), else mapper. */
+/** Normalize single-tag options through the one parse site. */
 function norm_single( array $options ): array {
-	return function_exists( 'bws_normalize_datetime_options' )
-		? bws_normalize_datetime_options( $options, false )
-		: bws_base_map_datetime_options( $options );
+	return bws_normalize_datetime_options( $options, false );
 }
 
-/** Normalize range-tag options: normalizer when present (FW-2+), else mapper. */
+/** Normalize range-tag options through the one parse site. */
 function norm_range( array $options ): array {
-	return function_exists( 'bws_normalize_datetime_options' )
-		? bws_normalize_datetime_options( $options, true )
-		: bws_base_map_datetime_range_options( $options );
+	return bws_normalize_datetime_options( $options, true );
 }
 
 /** Pick a key subset for comparison (missing keys reported as '(unset)'). */
