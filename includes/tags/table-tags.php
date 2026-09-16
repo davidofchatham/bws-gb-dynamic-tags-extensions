@@ -119,12 +119,6 @@ function bws_get_table_options(): array {
 	$source_opt     = function_exists( 'bws_base_source_option' ) ? bws_base_source_option() : array();
 	$traversal_opts = function_exists( 'bws_base_traversal_options' ) ? bws_base_traversal_options() : array();
 
-	// Drop the flat term-hop carrier the traversal leaf offers: bws_table_callback()
-	// never applies it, so the control would do nothing. The scope decision is
-	// recorded there. A plain unset — bws_drop_chain_flat_options() leaves this tag
-	// alone, as its own docblock says.
-	unset( $traversal_opts['srcTermIn'] );
-
 	$tag_level = array_merge(
 		$source_opt,
 		$traversal_opts,

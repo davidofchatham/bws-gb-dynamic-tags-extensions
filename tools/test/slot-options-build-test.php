@@ -4,7 +4,7 @@
  * includes/tags/base-shared.php — the #26 slot-option derive (V7/V9 auto-gate).
  *
  * Pure fn of (slot ordinal, base src options, base traversal options). No WP
- * beyond __() (shimmed). Asserts the DERIVED slot src/ref/srcTermIn defs against
+ * beyond __() (shimmed). Asserts the DERIVED slot src/ref defs against
  * the byte-exact pre-derive inline shapes (V7), EXCEPT the two intentional ref
  * drift-fixes (placeholder related_post→related_posts, fuller help) — those are
  * asserted at their NEW base values (C4/V7 carve-out, V10).
@@ -13,7 +13,7 @@
  *   V1  — slot src derives from base, `site` filtered, slot ≥2 prepends `same`.
  *   V5  — `_strip_default` persists on derived src.
  *   V6  — `site` ∉ derived src options.
- *   V2  — ref/srcTermIn derive from base traversal, re-keyed show_if.
+ *   V2  — ref derives from base traversal, re-keyed show_if.
  *   V10 — only `N: ` label/pickLabel prefix overlaid; body/placeholder/help = base.
  *   V7  — current/ref slot JSON identical to pre-derive EXCEPT ref drift-fix.
  *
@@ -107,19 +107,8 @@ assert_same(
 	$s1['ref']
 );
 
-// srcTermIn — derived: new not:site guard, "1: " label+pickLabel prefix.
-assert_same(
-	'slot1 srcTermIn derived (not:site guard, prefixed labels, base help)',
-	array(
-		'type'      => 'bws-term-hop',
-		'label'     => '1: Get from taxonomy term?',
-		'help'      => 'Field is in a taxonomy term on this source.',
-		'pickLabel' => '1: Taxonomy',
-		'pickHelp'  => 'Pick the taxonomy.',
-		'show_if'   => array( 'src' => 'not:site' ),
-	),
-	$s1['srcTermIn']
-);
+// The term-hop control was the second derived sibling until 1.20.0 (FW-67). Its
+// absence is asserted at the LEAF instead — see the base-traversal section below.
 
 // ============ Slot 2 ============
 $s2 = bws_build_slot_traversal_options( 2, $base_src, $base_trav );
@@ -139,10 +128,6 @@ assert_same( 'slot2 src label "2: Source"', '2: Source', $s2['src']['label'] );
 // V2: ref show_if re-keyed to 2-src.
 assert_same( 'slot2 ref show_if re-keyed 2-src:ref', array( '2-src' => 'ref' ), $s2['ref']['show_if'] );
 assert_same( 'slot2 ref label "2: ..."', '2: Relationship Field Key', $s2['ref']['label'] );
-
-// V2: srcTermIn show_if re-keyed to 2-src.
-assert_same( 'slot2 srcTermIn show_if re-keyed 2-src:not:site', array( '2-src' => 'not:site' ), $s2['srcTermIn']['show_if'] );
-assert_same( 'slot2 srcTermIn pickLabel "2: Taxonomy"', '2: Taxonomy', $s2['srcTermIn']['pickLabel'] );
 
 // V6 explicit: no 'site' value anywhere in derived src options (any slot).
 $has_site = false;
@@ -596,8 +581,8 @@ assert_same(
 // through, so two things ride it: the visual group stamp, and dropping the flat source
 // options a chain control has taken over. Both are gated — the stamp on our registrations
 // (a name-keyed map applied in JS would also wrap GB core tags' `key`/`source`), the drop
-// on the control TYPE (a `term_`/`table`/`call` source is a plain select and still
-// authors the flat pair).
+// on the control TYPE (a `{{table}}`/`{{call}}` source is a plain select and still
+// authors the flat `ref`).
 //
 // The drop is asserted DERIVED, not by name: it reads the chain option's own `flatAxes`,
 // the same list the control deletes by, so a change to what the chain absorbs cannot
@@ -612,7 +597,6 @@ $chain_tag = bws_prepare_registration_options(
 	array_merge( bws_build_src_chain_option(), bws_base_traversal_options(), bws_get_text_field_options() )
 );
 assert_same( 'chain tag: the absorbed `ref` control is gone', false, isset( $chain_tag['ref'] ) );
-assert_same( 'chain tag: the absorbed `srcTermIn` control is gone', false, isset( $chain_tag['srcTermIn'] ) );
 assert_same( 'chain tag: the source itself survives', 'bws-src-chain', $chain_tag['src']['type'] );
 assert_same( 'chain tag: unabsorbed options survive', true, isset( $chain_tag['use'], $chain_tag['key'] ) );
 
@@ -696,7 +680,15 @@ $flat_tag = bws_prepare_registration_options(
 	array_merge( bws_base_source_option(), bws_base_traversal_options() )
 );
 assert_same( 'plain-select tag: `ref` KEPT', true, isset( $flat_tag['ref'] ) );
-assert_same( 'plain-select tag: `srcTermIn` KEPT', true, isset( $flat_tag['srcTermIn'] ) );
+
+// FW-67, the deletion's pin. The term-hop CONTROL is offered by nothing: the leaf no
+// longer defines it, so neither spelling can carry one, and the drop above has nothing
+// left to do for it. Asserted at BOTH spellings because the chain arm would hide a
+// re-added definition (it absorbs whatever `flatAxes` names) while the plain-select arm
+// would paint it — a leaf regression shows up on one side only.
+assert_same( 'the term-hop control is gone from the traversal leaf', false, isset( bws_base_traversal_options()['srcTermIn'] ) );
+assert_same( 'chain tag: ...so no term-hop control to absorb', false, isset( $chain_tag['srcTermIn'] ) );
+assert_same( 'plain-select tag: ...and none to paint either', false, isset( $flat_tag['srcTermIn'] ) );
 
 // The stamp. `key` leads its group as well as `use`, because on {{email}}/{{phone}}/
 // {{table}} the field key IS the whole read and a lone-member opt-out would leave the
