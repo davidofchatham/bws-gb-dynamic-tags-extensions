@@ -150,9 +150,7 @@ once an author converts it or the Tag Converter rewrites it.
   ambient entity. The rule and what decides it are [I15]'s (`CONTEXT.md`); the author-facing
   consequence for an integrator is in
   [`plugin-integration.md`](plugin-integration.md#what-a-non-resolving-source-renders).
-- **`rows` is not offered on a base tag.** The step type exists and runs, but no base arm
-  consumes a `meta_row` — that is the gap `{{table}}` fills with its own assembly. Authoring one
-  needs a hand edit, and it renders nothing.
+- **`rows` is not offered on a base tag, and since 1.21.0 it still RENDERS.** `{{text}}` reads a `meta_row` chain — one named sub-field per row, with the tag's own `limit` and `sep` applying across the rows — and every container that absorbs the text read (`{{join}}` slots, `try_` attempts) came with it. The other keyed families still fall through and render empty. An ANALOG refuses on a row (`use:title` renders nothing): a row is not an entity, and the hop that spelling implies is already sayable — `src:rows,team_members;refs,lead_ref|use:title`. What `{{table}}` owns is ASSEMBLY — a row across many columns — not the read. The step is on no offer, so authoring one still needs a hand edit.
 - **The derived families keep the flat select.** `try_*` and `{{table}}` build their own
   surfaces from the root enum's rows; a slot authors its chain inside its folded value instead
   (see [§Folded slot wire](#folded-slot-wire-multislot-containers)).

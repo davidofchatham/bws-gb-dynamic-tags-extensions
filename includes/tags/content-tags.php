@@ -217,3 +217,36 @@ function bws_post_custom_text_core( $post_id, $options, $instance ) {
 		$instance
 	);
 }
+
+/**
+ * Repeater-ROW custom text core — the `meta_row` sibling of the post/term pair (FW-74).
+ *
+ * Takes the whole RESOLVED SOURCE rather than an entity id, because a repeater row has
+ * none: it carries its own `row` array, plus the provenance the producer records on it
+ * (`parent_kind`/`parent_id`/`repeater`/`index`, unread here — the field-object read
+ * that wants them is FW-3's). The read itself is the L2 seam's own `meta_row` arm, so a
+ * row reached through a chain and a row reached through the query loop read one key by
+ * one rule.
+ *
+ * NO `id` IS MERGED INTO $options and no fallback is emitted. A row is not an entity
+ * (CONTEXT.md I12: it has no link identity), and this core is only ever reached from a
+ * LIST arm, where bws_collect_value_list() has already unset `fallback` so the tag emits
+ * it once on all-empty output instead of per row (GH #51).
+ *
+ * @since 1.21.0
+ * @param array  $source   Resolved source of kind `meta_row`.
+ * @param array  $options  Tag options. 'key' is the sub-field name.
+ * @param object $instance Block instance.
+ * @return string
+ */
+function bws_row_custom_text_core( array $source, $options, $instance ) {
+	$key = sanitize_text_field( $options['key'] ?? '' );
+
+	if ( '' === $key || ! bws_is_valid_meta_key( $key ) ) {
+		return '';
+	}
+
+	$value = bws_read_resolved_source( $source, $key, $instance );
+
+	return '' === $value ? '' : bws_gb_tag_output( $value, $options, $instance );
+}

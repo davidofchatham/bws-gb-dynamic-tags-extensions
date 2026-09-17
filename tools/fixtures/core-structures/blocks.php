@@ -861,10 +861,14 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F9.3b non-vacuity control for F9.3 (-> NOHOP; proves the chain resolved and found nothing)', '{{text src:refs,related_staff;terms,department|use:title|fallback:NOHOP}}' ),
 		bws_fixture_gb_row( 'F9.4 site read (-> info@example.test)', '{{text src:site|key:organization_email}}' ),
 		bws_fixture_gb_row( 'F9.4 site read still WINS over a hand-edited term hop - the pair is hand-edit only, and every arm has always let site win (-> info@example.test, the same value)', '{{text src:site|srcTermIn:department|key:organization_email}}' ),
-		// NB the label says "the table tag", not the tag SPELLING — a `{{…}}` inside
-		// a label is live wire, and GB renders it. Spelled out here, the empty
-		// {{table}} it produced hid this row's whole label block.
-		bws_fixture_gb_empty_row( 'F9.5 STILL DIVERGENT by decision: no base arm consumes a meta_row source (-> empty; the table tag fills this gap, not the text arm)', '{{text src:rows,team_members|use:key|key:name|limit:0}}' ),
+		// LIVE since FW-74 — the base text arm consumes a meta_row now, so this row
+		// stopped being an empty one and takes the ordinary row form.
+		bws_fixture_gb_row( 'F9.5 a rows chain reads its repeater rows (-> Alice Adams, Bob Brown; rendered EMPTY before FW-74)', '{{text src:rows,team_members|use:key|key:name|limit:0}}' ),
+		bws_fixture_gb_row( 'F9.5b the tag list seam applies across rows - limit slices the row list (-> Alice Adams, one of two)', '{{text src:rows,team_members|use:key|key:name|limit:1}}' ),
+		// The ANALOG half of the same arm, stated because "renders empty" has two
+		// causes and only one of them is right: a row is not an entity and has no
+		// title, so the analog refuses rather than reading some other entity's.
+		bws_fixture_gb_empty_row( 'F9.5c an ANALOG refuses on a row (-> empty; a row has no title, and a wrong entity read would print one)', '{{text src:rows,team_members|use:title|limit:0}}' ),
 		// The one flat-wire behaviour change, shown rather than hidden. It uses
 		// portal_visibility, NOT department: jane and tom carry no department terms,
 		// so that taxonomy makes the row empty either way and it asserts nothing.
@@ -900,7 +904,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F9b.7 control for F9b.5: the plain site attempt, which never broke (-> the same number)', '{{try_phone src:site|key:org_phone}}' ),
 		bws_fixture_gb_row( 'F9b.8 the ambient-TERM attempt is a branch off the root-only kind now, not a src:current test (-> the ambient page title here; Sales on /department/sales/)', '{{try_title}}' ),
 		bws_fixture_gb_row( 'F9b.9 per-arm link-wrap survived the merge into one emit (-> the term title, LINKED)', '{{try_text srcTermIn:department|use:title|linkTo:term}}' ),
-		bws_fixture_gb_row( 'F9b.11 a repeater-row source is still refused, and the next attempt still runs (-> Captain)', '{{try_text A:src(rows,team_members);use(key);key(name)|B:key(role)}}' ),
+		bws_fixture_gb_row( 'F9b.11 a repeater-row source RESOLVES since FW-74, so attempt 1 wins and attempt 2 never runs (-> Alice Adams, Bob Brown; was Captain, slot 2)', '{{try_text A:src(rows,team_members);use(key);key(name)|B:key(role)}}' ),
 		bws_fixture_gb_row( 'F9b.12 an inexpressible chain still skips at the SEAM, which #103 did not touch (-> Captain)', '{{try_text A:src(refs,related_staff;terms,department);use(title)|B:key(role)}}' ),
 		// F9b.13 IS NOT HERE, and the omission is the stated exception: the I6 parity
 		// defect needs an AUTHOR ARCHIVE as ambient context, which has no page
@@ -914,11 +918,12 @@ function bws_fixture_page_content_matrix_post_meta() {
 	//
 	// (1) `meta_row` names ONE resolved-source kind and a slot can arrive at it two
 	// ways. Off the WIRE (`src(rows,…)`) the author asked for repeater rows, and
-	// no try_ arm assembles those — refuse, {{table}} owns it. Off the AMBIENT
-	// CONTEXT (silent wire, standing inside a repeater row) the author asked for
-	// "here", and refusing would blank an ordinary tag — so it continues to the post
-	// arm, resolves no id, and the core fn reads $loop_item[$key] instead. F9c.4 is
-	// the row where both meet on one page and stay apart.
+	// since FW-74 the row arm consumes them — a NESTED repeater, read from the row
+	// the loop is standing in. Off the AMBIENT CONTEXT (silent wire, standing inside
+	// a repeater row) the author asked for "here", and refusing would blank an
+	// ordinary tag — so it continues to the post arm, resolves no id, and the core fn
+	// reads $loop_item[$key] instead. F9c.4 is the row where both meet on one page and
+	// stay apart, and the arm landing did not move its output: what moved is WHY.
 	//
 	// (2) The gate that keeps (1) working is `'current' === $last_src` — a literal
 	// FLAT-TOKEN test, of exactly the kind #104 replaces when the seam starts handing
@@ -933,10 +938,28 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_post_meta_loop( 'team_members', 'F9c.2 the try_ twin, which is the loop fallthrough (-> the SAME two names): {{try_text A:key(name)}}', 'f9c2-try' ),
 		bws_fixture_gb_post_meta_loop( 'team_members', 'F9c.3 the attempt chain still advances inside a row: slot 1 misses, slot 2 hits (-> Engineering / Operations): {{try_text A:key(nope)|B:key(role)}}', 'f9c3-advance' ),
 		// The row that proves the two arrival routes do not collide. Slot 1 names a
-		// repeater source ON THE WIRE while STANDING IN a repeater row: it is refused
-		// as a chain kind, and slot 2's ambient read still takes the fallthrough.
-		bws_fixture_gb_post_meta_loop( 'team_members', 'F9c.4 a WIRE-stated repeater source is refused even from inside a repeater row, and the ambient attempt still resolves (-> Engineering / Operations): {{try_text A:src(rows,team_members);use(key);key(name)|B:key(role)}}', 'f9c4-axes' ),
+		// repeater source ON THE WIRE while STANDING IN a repeater row: since FW-74
+		// that is a real attempt at a NESTED `team_members`, which no row carries, so
+		// it finds nothing and slot 2's ambient read still takes the fallthrough. The
+		// output did not move when the arm landed; the reason did.
+		bws_fixture_gb_post_meta_loop( 'team_members', 'F9c.4 a WIRE-stated repeater source reads a NESTED repeater from inside a row, finds none, and the ambient attempt still resolves (-> Engineering / Operations): {{try_text A:src(rows,team_members);use(key);key(name)|B:key(role)}}', 'f9c4-axes' ),
 		bws_fixture_gb_post_meta_loop( 'team_members', 'F9c.5 a sub-field that is a relationship still hops out of the row (-> Jane Partner / empty; row 2 leaves lead_ref blank): {{try_text A:src(refs,lead_ref);use(title)}}', 'f9c5-hop' ),
+		// F9c.6 IS THE ROW THAT FAILS WHEN THE TWO AXES ARE CONFLATED, and it was added
+		// with the FW-74 arm because nothing here failed for it. MEASURED 2026-09-16,
+		// both mutation shapes, front end:
+		//
+		//   (a) the base text arm's row branch reads $base['kind'] IN PLACE — F9c.1-5 do
+		//       not move AT ALL, and neither does this row: the wire's entity branches
+		//       still run first, so nothing reaches the mutated test. What fails is F9.5
+		//       and its siblings, which go empty. That is the axis pin.
+		//   (b) the row branch is hoisted AHEAD of the entity branches and dispatches off
+		//       $base — the shape "dispatch on the resolved source" naturally produces.
+		//       F9c.1-5 STILL do not move, because a bare tag's meta_row base carries the
+		//       row and the row branch reads the very value the post-arm fallthrough
+		//       would. THIS ROW IS THE ONLY ONE THAT FAILS: its wire says `post`, so a
+		//       base-kind branch filters the chain's POST output to meta_row, finds none,
+		//       and the hop out of the row disappears.
+		bws_fixture_gb_post_meta_loop( 'team_members', 'F9c.6 the BASE twin of F9c.5, and the conflation pin: a chain inside a row follows the WIRE (-> Jane Partner / empty; EMPTY on both rows if the branch dispatches on the resolved base kind): {{text src:refs,lead_ref|use:title}}', 'f9c6-base-hop' ),
 	) );
 
 	// F10 INVERTED at #104: the seam stopped re-spelling a slot's chain as a flat
@@ -957,8 +980,8 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F10.1 BASE twin - the identity under test (-> same)', '{{text src:refs,related_staff;terms,portal_visibility|use:title}}' ),
 		bws_fixture_gb_row( 'F10.2 try_ slot, same chain; slot 2 must NOT run because slot 1 resolved (-> All Users, All Users)', '{{try_text A:src(refs,related_staff;terms,portal_visibility);use(title)|B:key(role)}}' ),
 		bws_fixture_gb_row( 'F10.3 a SECOND ref hop now runs and finds nothing (staff carry no related_staff of their own), so slot 2 answers (-> Captain, as it did when slot 1 was SKIPPED)', '{{join A:src(refs,related_staff;refs,related_staff);use(title)|B:key(role)}}' ),
-		bws_fixture_gb_row( 'F10.4 a rows step resolves and renders nothing - no join/try_ arm assembles a repeater row, which is why it is on no step offer (-> Captain)', '{{join A:src(rows,team_members);use(key);key(name)|B:key(role)}}' ),
-		bws_fixture_gb_empty_row( 'F10.4 BASE twin - the refusal belongs to the CONTAINER, not to the slot spelling, so the plain tag is empty too (-> EMPTY; F9.5 is the same fact stated on the base tag)', '{{text src:rows,team_members|use:key|key:name}}' ),
+		bws_fixture_gb_row( 'F10.4 a rows step resolves and its rows JOIN with the next slot since FW-74 (-> Alice Adams, Bob Brown, Captain; was Captain alone)', '{{join A:src(rows,team_members);use(key);key(name)|B:key(role)}}' ),
+		bws_fixture_gb_row( 'F10.4 BASE twin - a slot absorbs the row read through the text seam, so the plain tag reads the same rows (-> Alice Adams, Bob Brown; F9.5 is the same fact stated on the base tag)', '{{text src:rows,team_members|use:key|key:name}}' ),
 		bws_fixture_gb_row( 'F10.5 ref+term on department - expressible before #104 too, empty then and now (-> Captain)', '{{join A:src(refs,related_staff;terms,department);use(title)|B:key(role)}}' ),
 		bws_fixture_gb_row( 'F10.6 a SITE root never takes the legacy term step, on the slot as on the base tag (-> the org number)', '{{join src:site|srcTermIn:department|key:org_phone}}' ),
 		// F10.6b - the shape #104's first draft deleted. The old editor authored this pair
@@ -1866,9 +1889,10 @@ function bws_fixture_page_content_matrix_pinned_roots() {
 		// ...and its NON-VACUITY partner: the same step type off a pinned POST root DOES
 		// run. Without this row, F22.5 reads identically to "the terms step is broken".
 		bws_fixture_gb_row( "F22.5b the SAME step type off a pinned POST root (-> All Users) - F22.5 is a KIND refusal, not a broken step", "{{text src:post,{$tom_id};terms,portal_visibility|use:title}}" ),
-		// A `rows` step off a pin, shown through {{table}} because no base/join/try_ arm
-		// assembles a repeater row (F9.5/F10.4 - a decided divergence, not a gap here). The
-		// pinned page is matrix-post-meta, which OWNS the repeater; this page does not.
+		// A `rows` step off a pin, shown through {{table}} because that is the container
+		// that ASSEMBLES a row into cells - the base/join/try_ arms read one key per row
+		// (F9.5/F10.4) rather than tabulating. The pinned page is matrix-post-meta, which
+		// OWNS the repeater; this page does not.
 		bws_fixture_gb_block_host_row( "F22.6 a `rows` step off a pinned POST root: the team_members repeater read off matrix-post-meta, from this page (-> 2-row table: Alice Adams/Engineering, Bob Brown/Operations)", "{{table src:post,{$meta_id}|key:team_members|1-label:Name|1-key:name|2-label:Role|2-key:role}}" ),
 	) );
 

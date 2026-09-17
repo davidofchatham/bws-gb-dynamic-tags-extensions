@@ -960,9 +960,10 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 				$term_args[] = $arg;
 			}
 		} elseif ( 'rows' === $slug && '' === $arg ) {
-			// Reported but never NAMED: a repeater step has no author-facing segment yet
-			// (the arm that consumes one is FW-74). Unfinished is unfinished under any
-			// future arm, so the missing argument speaks now.
+			// Reported but never NAMED: a repeater step has no author-facing segment yet.
+			// An arm consumes one since FW-74, but the step is on no OFFER, so nothing
+			// authors it and there is no segment wording to write until that changes.
+			// Unfinished is unfinished either way, so the missing argument speaks now.
 			$missing['rows'] = true;
 		}
 	}

@@ -1693,6 +1693,54 @@ eq(
 	bws_base_ambient_analog( 'title', $refusal, array(), null )
 );
 
+// ── THE SOURCES/IDS SPLIT (FW-74) ────────────────────────────────────────────
+//
+// bws_base_source_ids_of_kind() is a MAP over bws_base_sources_of_kind() since 1.21.0,
+// and the pair below is what says the map is lossy in exactly one direction. A chainless
+// base is the whole run here — no steps, so the traversal is the gate plus a passthrough,
+// which is all that is needed to state the relationship.
+//
+// A REPEATER ROW IS WHY THE SPLIT EXISTS: it carries its values and its provenance and
+// never an id, so the ids selector drops it entirely while the sources selector hands it
+// back whole. An arm reading ids can therefore not reach a row at all, which is the hole
+// the text arm's `meta_row` branch fills.
+$row_src = array(
+	'kind'        => 'meta_row',
+	'row'         => array( 'name' => 'Alice Adams' ),
+	'parent_kind' => 'post',
+	'parent_id'   => 7,
+	'repeater'    => 'team_members',
+	'index'       => 0,
+);
+eq(
+	'FW-74: the sources selector returns the row WHOLE, provenance included',
+	array( $row_src ),
+	bws_base_sources_of_kind( $row_src, array(), 'meta_row' )
+);
+eq(
+	'FW-74: …while the ids selector drops it, having no id to keep',
+	array(),
+	bws_base_source_ids_of_kind( $row_src, array(), 'meta_row' )
+);
+// And on a kind that HAS ids the two agree, which is the half that must not have moved:
+// every entity arm still calls the ids selector and must be byte-identical to before.
+eq(
+	'FW-74: on an entity kind the ids are the sources\' ids, same order',
+	array( array( post_src( 11 ) ), array( 11 ) ),
+	array(
+		bws_base_sources_of_kind( post_src( 11 ), array(), 'post' ),
+		bws_base_source_ids_of_kind( post_src( 11 ), array(), 'post' ),
+	)
+);
+eq(
+	'FW-74: …and a kind the chain did not produce is empty on both',
+	array( array(), array() ),
+	array(
+		bws_base_sources_of_kind( post_src( 11 ), array(), 'term' ),
+		bws_base_source_ids_of_kind( post_src( 11 ), array(), 'term' ),
+	)
+);
+
 // ── THE SIXTH CONSUMER IS NOT A CONSTRUCTION REFUSAL, AND ASSUMING IT WAS IS THE
 //    MISTAKE THIS ROW EXISTS TO STOP ───────────────────────────────────────────
 //

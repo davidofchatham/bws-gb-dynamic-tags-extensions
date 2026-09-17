@@ -787,7 +787,11 @@
 
 <p class="gb-text">F9.4 site read still WINS over a hand-edited term hop &#8211; the pair is hand-edit only, and every arm has always let site win (-> info@example.test, the same value): info@example.test</p>
 
-<p class="gb-text">F9.5 STILL DIVERGENT by decision: no base arm consumes a meta_row source (-> empty; the table tag fills this gap, not the text arm):</p>
+<p class="gb-text">F9.5 a rows chain reads its repeater rows (-> Alice Adams, Bob Brown; rendered EMPTY before FW-74): Alice Adams, Bob Brown</p>
+
+<p class="gb-text">F9.5b the tag list seam applies across rows &#8211; limit slices the row list (-> Alice Adams, one of two): Alice Adams</p>
+
+<p class="gb-text">F9.5c an ANALOG refuses on a row (-> empty; a row has no title, and a wrong entity read would print one):</p>
 
 <p class="gb-text">F9.6 flat ref+term with an EXPLICIT limit now fans across every ref-d post (-> All Users, All Users; was All Users): All Users, All Users</p>
 
@@ -819,7 +823,7 @@
 
 <p class="gb-text">F9b.9 per-arm link-wrap survived the merge into one emit (-> the term title, LINKED): Sales</p>
 
-<p class="gb-text">F9b.11 a repeater-row source is still refused, and the next attempt still runs (-> Captain): Captain</p>
+<p class="gb-text">F9b.11 a repeater-row source RESOLVES since FW-74, so attempt 1 wins and attempt 2 never runs (-> Alice Adams, Bob Brown; was Captain, slot 2): Alice Adams, Bob Brown</p>
 
 <p class="gb-text">F9b.12 an inexpressible chain still skips at the SEAM, which #103 did not touch (-> Captain): Captain</p>
 </div>
@@ -859,17 +863,25 @@
 
 <div><ol >
 <li class="gb-loop-item">
-<p class="gb-text">F9c.4 a WIRE-stated repeater source is refused even from inside a repeater row, and the ambient attempt still resolves (-> Engineering / Operations): Engineering</p>
+<p class="gb-text">F9c.4 a WIRE-stated repeater source reads a NESTED repeater from inside a row, finds none, and the ambient attempt still resolves (-> Engineering / Operations): Engineering</p>
 </li>
 
 <li class="gb-loop-item">
-<p class="gb-text">F9c.4 a WIRE-stated repeater source is refused even from inside a repeater row, and the ambient attempt still resolves (-> Engineering / Operations): Operations</p>
+<p class="gb-text">F9c.4 a WIRE-stated repeater source reads a NESTED repeater from inside a row, finds none, and the ambient attempt still resolves (-> Engineering / Operations): Operations</p>
 </li>
 </ol></div>
 
 <div><ol >
 <li class="gb-loop-item">
 <p class="gb-text">F9c.5 a sub-field that is a relationship still hops out of the row (-> Jane Partner / empty; row 2 leaves lead_ref blank): Jane Partner</p>
+</li>
+
+<li class="gb-loop-item"></li>
+</ol></div>
+
+<div><ol >
+<li class="gb-loop-item">
+<p class="gb-text">F9c.6 the BASE twin of F9c.5, and the conflation pin: a chain inside a row follows the WIRE (-> Jane Partner / empty; EMPTY on both rows if the branch dispatches on the resolved base kind): Jane Partner</p>
 </li>
 
 <li class="gb-loop-item"></li>
@@ -887,9 +899,9 @@
 
 <p class="gb-text">F10.3 a SECOND ref hop now runs and finds nothing (staff carry no related_staff of their own), so slot 2 answers (-> Captain, as it did when slot 1 was SKIPPED): Captain</p>
 
-<p class="gb-text">F10.4 a rows step resolves and renders nothing &#8211; no join/try_ arm assembles a repeater row, which is why it is on no step offer (-> Captain): Captain</p>
+<p class="gb-text">F10.4 a rows step resolves and its rows JOIN with the next slot since FW-74 (-> Alice Adams, Bob Brown, Captain; was Captain alone): Alice Adams, Bob Brown, Captain</p>
 
-<p class="gb-text">F10.4 BASE twin &#8211; the refusal belongs to the CONTAINER, not to the slot spelling, so the plain tag is empty too (-> EMPTY; F9.5 is the same fact stated on the base tag):</p>
+<p class="gb-text">F10.4 BASE twin &#8211; a slot absorbs the row read through the text seam, so the plain tag reads the same rows (-> Alice Adams, Bob Brown; F9.5 is the same fact stated on the base tag): Alice Adams, Bob Brown</p>
 
 <p class="gb-text">F10.5 ref+term on department &#8211; expressible before #104 too, empty then and now (-> Captain): Captain</p>
 

@@ -413,6 +413,7 @@ function bws_register_base_tags(): void {
 		'try_site_fn'           => static fn( $opts, $inst ) => bws_site_resolve_value( 'text', (array) $opts, $inst ),
 		'try_user_fn'           => static fn( $user_id, $opts, $inst ) => bws_base_user_analog_read( 'text', (int) $user_id, (array) $opts, $inst ),
 		'try_query_fn'          => static fn( $base, $opts, $inst ) => bws_base_query_context_analog_read( 'text', (array) $base, (array) $opts, $inst ),
+		'try_row_fn'            => 'bws_try_text_row_dispatch',
 		'try_allow_site_slot'   => true,
 		'supports_try'          => true,
 		'try_per_slot_key'      => true,
@@ -686,6 +687,11 @@ function bws_register_base_tags(): void {
  * srcTerm + use:title   → bws_term_title_core()        (per-term; limit/sep applied)
  * post    + use unset   → bws_post_custom_text_core()
  * post    + use:title   → bws_post_title_core()
+ * rows    + use unset   → bws_row_custom_text_core()  (per-row; limit/sep applied)
+ * rows    + use:title   → '' (analogs refuse on a row — it is not an entity)
+ *
+ * The rows arm dispatches the `use` fork through bws_try_text_row_dispatch(), which is
+ * the try_ row arm's function too — one owner for the fork, as with the term/post pair.
  *
  * ABSORB INVARIANT: the returned value must stay byte-equivalent to what
  * {{text}} renders before link-wrap — including the src:site arm, the
@@ -696,6 +702,7 @@ function bws_register_base_tags(): void {
  *
  * @since 1.14.1 Extracted from bws_base_text_callback().
  * @since 1.16.0 List branches ride the shared bws_collect_value_list fold (FW-49).
+ * @since 1.21.0 The `meta_row` list branch — a `rows` chain reads its rows (FW-74).
  *
  * @param array $options  Tag options.
  * @param mixed $instance GB tag instance.
@@ -796,6 +803,31 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 			$link_id   = (int) $collected['link']['id'];
 			$link_type = $collected['link']['kind'];
 		}
+	} elseif ( 'meta_row' === $res['kind'] ) {
+		// REPEATER-ROW LIST (FW-74). The third list branch, and the one that reads
+		// SOURCES rather than ids: a row has no entity behind it, so
+		// bws_base_source_ids_of_kind() — which drops `id <= 0` — cannot express it.
+		//
+		// THE KIND TESTED HERE IS THE WIRE'S ($res), NEVER THE RESOLVED BASE'S. The two
+		// share the noun and need opposite answers: `src(rows,…)` means the author asked
+		// for repeater rows and this branch consumes them, while a $base of the same kind
+		// means the query loop positioned us INSIDE a row and the read must keep falling
+		// through to the post tail, whose core re-infers the row through bws_read_field()'s
+		// own loop inference. Conflating them deletes a live shipped path
+		// (fold-test-matrix.md §F9c, mutation-verified).
+		//
+		// The per-row read is bws_try_text_row_dispatch(), the SAME function the try_ row
+		// arm runs — reused rather than duplicated, exactly as the term and post branches
+		// reuse their own try_ dispatchers above. It owns the `use` fork, including the
+		// analog refusal: a row is not an entity and has no title, so `use:title` renders
+		// empty here (an already-supported state) rather than reading some other entity's.
+		// Link identity stays 0/'post' — a row has none (CONTEXT.md I12).
+		$collected = bws_collect_value_list(
+			bws_base_sources_of_kind( $base, $options, 'meta_row' ),
+			static fn( $row_source, array $item_opts ) => bws_try_text_row_dispatch( $row_source, $item_opts, $instance ),
+			$options
+		);
+		$value = $collected['value'];
 	} elseif ( 'title' === $use ) {
 		$post_id   = bws_base_post_id_from_source( $base, $options );
 		$value     = bws_post_title_core( $post_id, $options, $instance );
@@ -927,8 +959,10 @@ function bws_get_join_options(): array {
 				// A slot's source is a base tag's source (#104, [I16]), so the offer is the
 				// base tag's: the seam hands the whole chain on as depth-0 chain wire and
 				// the arms dispatch on what it resolves to, so nothing here truncates it.
-				// `rows` stays out for the reason it stays out of the base offer — no
-				// join arm assembles a repeater row; that is `{{table}}`'s.
+				// `rows` stays out for the reason it stays out of the base offer, and
+				// that reason changed with FW-74: a slot's read absorbs through the text
+				// seam, which consumes a `meta_row` now. The OFFER is its own change,
+				// landing on every authoring surface at once.
 				'steps'            => array( 'refs', 'terms' ),
 				// One noun, both surfaces: "+ Add field" and the header "Field A"
 				// (bws_build_fold_slot_options derives the header — no label parameter).
@@ -1671,6 +1705,26 @@ function bws_try_text_post_dispatch( $post_id, $options, $instance ) {
 		return bws_post_title_core( $post_id, $options, $instance );
 	}
 	return bws_post_custom_text_core( $post_id, $options, $instance );
+}
+
+/**
+ * Try-tag repeater-ROW-slot dispatch for `text` template (FW-74).
+ *
+ * The `use` fork's third arm, and the one where `title` has nowhere to go: a row is not
+ * an entity, so the ANALOG REFUSES and the slot renders empty — an already-supported
+ * state, not a gap. The hop a `use:title` would imply is spellable with no new
+ * vocabulary (`rows,team_members;refs,lead_ref` then `use:title`).
+ *
+ * Takes the resolved SOURCE, not an id (a row has none). Used as `try_row_fn`.
+ *
+ * @since 1.21.0
+ */
+function bws_try_text_row_dispatch( $source, $options, $instance ) {
+	$use = $options['use'] ?? 'key';
+	if ( 'title' === $use ) {
+		return '';
+	}
+	return bws_row_custom_text_core( (array) $source, $options, $instance );
 }
 
 /**

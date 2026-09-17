@@ -179,10 +179,7 @@ is what the list is built to. Three things therefore **never** flag:
 - **A registered but UNOFFERED root.** Offering is not resolving; a source an integrator stopped
   offering still renders. (Gating this on `is_selectable_root()` is the named trap, pinned by
   mutation in the harness.)
-- **A well-formed source no arm consumes YET** — a `rows` step with its repeater field set,
-  today. Unimplemented is not inert: `{{table}}` wants a repeater row as its read context, and on
-  a fanning tag it would concatenate like any other step. Flagging it would encode a per-template
-  fact with a shelf life. The arm is FW-74.
+- **A well-formed source no arm consumes YET** — a `rows` step with its repeater field set, on a family whose arm has not landed. Unimplemented is not inert: `{{table}}` wants a repeater row as its read context, and on a fanning tag it concatenates like any other step. Flagging it would encode a per-template fact with a shelf life, and that shelf life has now expired once — `{{text}}` consumes a `rows` step since 1.21.0 (FW-74), and no sentence here had to move.
 
 The internal tokens `current`, `site` and `ref` never flag — they resolve. `post` and `term` are internal tokens too, but BOTH are also declaring roots (1.20.0, FW-39): a *bare* `post`/`term` is that argument left unfilled, and the row above (`A DECLARING root with no argument`) is what fires for it — not this silence.
 

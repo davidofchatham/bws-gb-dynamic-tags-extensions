@@ -45,17 +45,21 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * Columns:
  *
- *   `ids`        Which entity ids the arm reads off the slot's source.
- *                'term' → bws_base_term_ids_from_source()
- *                'post' → bws_base_post_ids_from_source()
- *                'user' → bws_base_user_ids_from_source()
- *                'none' → no entity at all (the site store carries a namespace, not an
- *                         id — ADR 0002)
- *                ''     → nothing to read; the slot is skipped
- *   `fn`         Which of the template's three functions renders one entity.
+ *   `ids`        What the arm reads off the slot's source, one read target per entry.
+ *                'term'    → bws_base_term_ids_from_source()
+ *                'post'    → bws_base_post_ids_from_source()
+ *                'user'    → bws_base_user_ids_from_source()
+ *                'sources' → bws_base_sources_of_kind() — the resolved SOURCES, not ids,
+ *                            for a kind that has none (FW-74; `meta_row` is the only one)
+ *                'none'    → no entity at all (the site store carries a namespace, not an
+ *                            id — ADR 0002)
+ *                ''        → nothing to read; the slot is skipped
+ *   `fn`         Which of the template's functions renders one read target.
  *                'term' → try_term_fn, 'core' → try_core_fn, 'site' → try_site_fn (with
  *                try_core_fn( 0, … ) as the documented fallback leg, FW-4), 'user' →
- *                try_user_fn, a thin closure over the base user analog. '' → no consumer.
+ *                try_user_fn, a thin closure over the base user analog, 'row' →
+ *                try_row_fn, which takes a resolved SOURCE where the others take an id.
+ *                '' → no consumer.
  *   `link`       The entity type bws_wrap_with_link() is handed for a SINGLE-result
  *                output. '' → this arm never link-wraps.
  *   `list`       Whether the slot's limit slice + `sep` join seam applies.
@@ -135,20 +139,29 @@ const BWS_TRY_SLOT_ARMS = array(
 		'list'       => false,
 		'branchable' => true,
 	),
-	// A repeater `rows` step. NO `try_` arm consumes a meta_row and none should — that
-	// is `{{table}}`'s assembly, not a fallback attempt's. Skipped, with every column
-	// empty, so the skip is a property of the table rather than of a branch somewhere.
+	// A repeater `rows` step. LIVE since FW-74 (1.21.0) on the templates carrying a
+	// try_row_fn; the rest render empty there, as their base tags do — the dispatcher's
+	// fn-absent fallthrough, stated where it is enforced (generate_base_try_tags()).
 	//
-	// `meta_row` NAMES TWO DIFFERENT THINGS and this table only ever means the first: as a
-	// CHAIN kind (a slot's own `rows` step, refused HERE) it is a repeater-row SOURCE;
+	// THE ONLY id-LESS PLURAL ROW. `site` and `query_context` are id-less too, but both
+	// are singletons; a `rows` step fans, and each row is a read target with no entity
+	// behind it. Hence `ids: 'sources'` — the arm reads the resolved SOURCES of this kind
+	// (bws_base_sources_of_kind) instead of ids, because the ids selector drops `id <= 0`
+	// and a row has no id at all. Empty `link` for the same reason the query-context row
+	// has one: bws_source_link_identity() maps this kind to null by name (CONTEXT.md I12).
+	//
+	// `meta_row` NAMES TWO DIFFERENT THINGS and this row is only ever the first: as a
+	// CHAIN kind (a slot's own `rows` step, consumed HERE) it is a repeater-row SOURCE;
 	// as a RESOLVED BASE kind (bws_try_slot_base_branch_kind()'s `$base_kind`, the flat
 	// repeater ROW a query-loop hands the callback) it is not a source at all and must
 	// reach the post arm below, or the repeater row's loop fallthrough disappears.
+	// THAT is why `branchable` STAYS false, and it did not move when the chain half went
+	// live: the two halves were always separate decisions sharing a noun.
 	'meta_row' => array(
-		'ids'        => '',
-		'fn'         => '',
+		'ids'        => 'sources',
+		'fn'         => 'row',
 		'link'       => '',
-		'list'       => false,
+		'list'       => true,
 		'branchable' => false,
 	),
 );

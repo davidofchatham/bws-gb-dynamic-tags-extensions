@@ -2,6 +2,10 @@
 
 ## [1.21.0] — unreleased
 
+### Added
+
+- **A `{{text}}` tag can now read a repeater field's rows.** Point a text tag's source at a repeater and it renders one named sub-field from every row, joined with the tag's separator and bounded by its limit, the same way it already reads a list of posts or terms. `{{join}}` fields and `{{try_*}}` attempts get it too, since they read through the same path. Previously this rendered nothing at all. Two things to know: the row itself has no title, address or date of its own, so the Title/Name setting renders nothing on a row and a field key is what you want there; and a repeater step is still not offered in the source builder, so reaching this today means typing the tag by hand. The other tag families still render nothing from a row, and are next.
+
 ### Removed
 
 - **The `{{term_*}}` tags are removed.** `{{term_text}}`, `{{term_content}}`, `{{term_title}}`, `{{term_permalink}}`, `{{term_image}}`, `{{term_datetime_single}}`, `{{term_datetime_range}}`, `{{term_email}}`, and `{{term_phone}}` are no longer registered, and the `term_ tags` toggle has gone from the settings page with them. *Run the Migration Tool, either before you upgrade or straight afterwards;* GenerateBlocks prints a tag it does not recognize as literal text, braces and all, on the published page. The Migration Tool still converts every one of them, exactly as it did in 1.20.0. The replacement is a base tag with its source set to a term, which does the same job and gets source paths, per-step limits, the field picker and the configuration preview along with it. Deprecated in 1.20.0.

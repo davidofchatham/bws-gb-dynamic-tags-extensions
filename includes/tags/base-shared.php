@@ -360,10 +360,10 @@ function bws_fold_step_offer( array $steps, array $vocab ): array {
  *                             Default bws_base_source_option().
  *     @type array $steps       WIRE step slugs offered as steps, in offer order.
  *                             Default ['refs','terms'] — `rows` is deliberately
- *                             absent: the step type exists and runs, but no base-tag
- *                             arm consumes a meta_row, so offering it would author a
- *                             chain that renders nothing. It belongs with the table
- *                             authoring pass.
+ *                             absent, and since FW-74 that is no longer because the
+ *                             chain renders nothing: the text arm consumes a meta_row.
+ *                             The OFFER is its own change, landing on every authoring
+ *                             surface at once; until it does, `rows` is hand-edited wire.
  *     @type bool  $takes_first_usable The template's collapsing capability (ADR 0007):
  *                             the step renderer suppresses the limit control
  *                             where it is set. Default false.
@@ -1377,9 +1377,9 @@ function bws_base_post_id_from_source( array $base, array $options ) {
 }
 
 /**
- * Ids of the resolved sources a base tag's chain produces, filtered to one KIND.
+ * The resolved SOURCES a base tag's chain produces, filtered to one KIND.
  *
- * The plural read behind both list arms. Runs the tag's WHOLE compiled chain — not
+ * The plural read behind every list arm. Runs the tag's WHOLE compiled chain — not
  * the wrapper's leading run of ref steps — because the arm has already established
  * what the chain resolves to (bws_base_src_resolution), so every step in it is one
  * the caller asked for. That is what closes the §F9.3 hole, where a `terms` step
@@ -1393,9 +1393,43 @@ function bws_base_post_id_from_source( array $base, array $options ) {
  * UNBOUNDED fan and the compile strips every step limit. Every other caller leaves
  * the default and is byte-identical to before the parameter existed.
  *
+ * SOURCES, NOT IDS, is the whole point of the split (FW-74): an id-less kind has no
+ * other way through. A repeater row carries its `row` array and never an id, so
+ * bws_base_source_ids_of_kind() below — which drops `id <= 0` — cannot express it.
+ * Every entity arm keeps asking for ids; the row arm asks here.
+ *
+ * @since 1.21.0 Split out of bws_base_source_ids_of_kind(), which maps over it.
+ * @param array  $base          Base resolved source.
+ * @param array  $options       Tag options.
+ * @param string $kind          Resolved-source kind to keep ('post'|'term'|'meta_row'|…).
+ * @param bool   $ignore_limits Compile the chain with every step limit stripped.
+ * @return array[] Resolved sources in document order (may be empty).
+ */
+function bws_base_sources_of_kind( array $base, array $options, string $kind, bool $ignore_limits = false ): array {
+	if ( ! function_exists( 'bws_run_traversal' ) || ! function_exists( 'bws_field_values_assemble_steps' ) ) {
+		return array();
+	}
+	$sources = bws_run_traversal( array( $base ), bws_field_values_assemble_steps( $options, $ignore_limits ) );
+	$kept    = array();
+	foreach ( $sources as $src ) {
+		if ( is_array( $src ) && $kind === ( $src['kind'] ?? '' ) ) {
+			$kept[] = $src;
+		}
+	}
+	return $kept;
+}
+
+/**
+ * Ids of the resolved sources a base tag's chain produces, filtered to one KIND.
+ *
+ * bws_base_sources_of_kind() with the ids taken off it and `id <= 0` dropped — a
+ * source with no usable entity behind it is not a read target for an entity arm.
+ * Signature and return unchanged since 1.18.0; every caller is byte-identical.
+ *
  * @since 1.14.0
  * @since 1.17.0 Compiles the whole chain and takes a $kind; was ref-only steps.
  * @since 1.18.0 $ignore_limits threaded to the compile (collapsing tags).
+ * @since 1.21.0 A map over bws_base_sources_of_kind().
  * @param array  $base          Base resolved source.
  * @param array  $options       Tag options.
  * @param string $kind          Resolved-source kind to keep ('post'|'term'|…).
@@ -1403,17 +1437,11 @@ function bws_base_post_id_from_source( array $base, array $options ) {
  * @return int[] Entity ids in document order (may be empty).
  */
 function bws_base_source_ids_of_kind( array $base, array $options, string $kind, bool $ignore_limits = false ): array {
-	if ( ! function_exists( 'bws_run_traversal' ) || ! function_exists( 'bws_field_values_assemble_steps' ) ) {
-		return array();
-	}
-	$sources = bws_run_traversal( array( $base ), bws_field_values_assemble_steps( $options, $ignore_limits ) );
-	$ids     = array();
-	foreach ( $sources as $src ) {
-		if ( is_array( $src ) && $kind === ( $src['kind'] ?? '' ) ) {
-			$id = (int) ( $src['id'] ?? 0 );
-			if ( $id > 0 ) {
-				$ids[] = $id;
-			}
+	$ids = array();
+	foreach ( bws_base_sources_of_kind( $base, $options, $kind, $ignore_limits ) as $src ) {
+		$id = (int) ( $src['id'] ?? 0 );
+		if ( $id > 0 ) {
+			$ids[] = $id;
 		}
 	}
 	return $ids;

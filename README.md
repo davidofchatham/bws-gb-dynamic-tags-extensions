@@ -20,6 +20,8 @@ Not only can you start from post, loop, term, and author contexts without changi
 
 Each step that can return several results carries its own optional limit, meaning at most that many *from each* incoming result. For example, limiting a taxonomy step to 1 gives you one term from the current post or each previous step's posts, not one term overall. Pick an ACF Relationship or Post Object field for a source step and you get a short note about its current configuration, including bidirectionality and entry limits, to help you decide whether and how to configure that step's limit. Leave it blank for all results.
 
+**[UNRELEASED]** A repeater field is a source too. Point a `text` tag at one and it renders a named sub-field from every row, joined and bounded by the same Result Separator and limit the tag uses everywhere else, and `join` fields and `try_` attempts read a repeater the same way. A row is not a post or a term, so it has no title, address or date of its own: name the sub-field you want. Repeater steps are not in the source builder yet, so this is hand-typed wire for now (`{{text src:rows,team_members|key:name}}`), and the other tag families still return nothing from a row.
+
 #### Select one specific term or post as a tag's source
 
 Every source above answers "whatever this page is about". Sometimes you want the opposite: this tag, this term, every page. Set a tag's source to Term or Post and you get a picker listing every term or post, grouped by taxonomy or post type, searchable, with the ID shown beside the name so two similarly named entries are never a guess. A draft is pickable and labelled as one, and you only ever see what you could already see in the admin.

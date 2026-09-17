@@ -53,6 +53,14 @@ class TagTemplateRegistry {
 	 *                    six, which take the same fn-absent fallthrough as try_user_fn — the
 	 *                    post arm resolves no id off a query-context base and the loop read
 	 *                    cannot serve on an archive, so they render EMPTY, not wrong.
+	 *   try_row_fn       callable|null  fn($source, $opts, $inst): string — try_ repeater-row
+	 *                    slot handler (FW-74, 1.21.0). Takes the resolved SOURCE, not an
+	 *                    entity id (a row has none — it carries its own `row` array plus the
+	 *                    producer's provenance). Present on the KEYED templates; absent on the
+	 *                    analog-only ones (title/permalink), which take the same fn-absent
+	 *                    fallthrough as try_user_fn's six — the post arm resolves no id off a
+	 *                    `rows` chain and the loop read is gated on the slot stating no source
+	 *                    of its own, so they render EMPTY, not wrong.
 	 *   supports_try     bool      Whether this template generates a try_ tag.
 	 *   leading_options       array    Global formatting options (as, size, the datetime format
 	 *                    cluster). Named for the term_ constructor, where they LEAD; the try_
@@ -476,6 +484,7 @@ class TagTemplateRegistry {
 			$try_site_fn     = $tpl['try_site_fn'] ?? null;
 			$try_user_fn     = $tpl['try_user_fn'] ?? null;
 			$try_query_fn    = $tpl['try_query_fn'] ?? null;
+			$try_row_fn      = $tpl['try_row_fn'] ?? null;
 			$per_slot_key    = ! empty( $tpl['try_per_slot_key'] );
 			$per_slot_use    = ! empty( $tpl['try_per_slot_use'] );
 			$no_key_uses     = $tpl['try_use_no_key_values'] ?? [];
@@ -522,9 +531,11 @@ class TagTemplateRegistry {
 			// flatten stood — the triple had no spelling for a second relationship step,
 			// so a wider offer would have authored wire that skipped.
 			//
-			// `rows` is still absent, for the same reason it is absent from the base
-			// offer: no `try_` arm assembles a repeater row (try-slot-arms.php refuses the
-			// `meta_row` kind), so offering it would author a chain that renders nothing.
+			// `rows` is still absent, and the reason it USED to be absent is gone: the
+			// arm consumes a `meta_row` now (FW-74). What remains is that the OFFER is
+			// its own change, landing on both authoring surfaces together — this list
+			// and the base tags' — so hand-edited wire is the only way to reach the arm
+			// until it does.
 			//
 			// The append-by-key below is a habit worth keeping, but no longer a trap:
 			// while slot keys were all-digit, PHP stored them as INTEGERS and
@@ -637,6 +648,7 @@ class TagTemplateRegistry {
 			$sf   = $try_site_fn;
 			$uf   = $try_user_fn;
 			$qf   = $try_query_fn;
+			$rf   = $try_row_fn;
 			$psk  = $per_slot_key;
 			$psu  = $per_slot_use;
 			$nku  = $no_key_uses;
@@ -656,7 +668,7 @@ class TagTemplateRegistry {
 
 			$tpl_key = $tpl['key'];
 
-			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $sf, $uf, $qf, $psk, $psu, $nku, $slnk, $media_guard, $default_use, $tpl_key, $collapse, $is_image ) {
+			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $sf, $uf, $qf, $rf, $psk, $psu, $nku, $slnk, $media_guard, $default_use, $tpl_key, $collapse, $is_image ) {
 				if ( $media_guard && function_exists( 'bws_tag_blocked_on_media_block' ) && bws_tag_blocked_on_media_block( $b ) ) {
 					return '';
 				}
@@ -795,11 +807,10 @@ class TagTemplateRegistry {
 					$kind = bws_base_src_resolution( $slot_opts )['kind'];
 					$arm  = bws_try_slot_arm( $kind );
 					if ( null === $arm || '' === $arm['fn'] ) {
-						// No `try_` arm consumes this kind — an unknown step slug (the
-						// engine answers empty for it) or a repeater row, which is
-						// {{table}}'s assembly and not a fallback attempt's. SKIP, never
-						// guess: the nearest consumable arm would read the ambient entity
-						// and hand back a plausible WRONG value instead of an empty one.
+						// No `try_` arm consumes this kind — an unknown step slug, for
+						// which the engine answers empty. SKIP, never guess: the nearest
+						// consumable arm would read the ambient entity and hand back a
+						// plausible WRONG value instead of an empty one.
 						continue;
 					}
 
@@ -868,6 +879,14 @@ class TagTemplateRegistry {
 								? static fn( $id, $o, $i ) => $qf( $base, $o, $i )
 								: null;
 							break;
+						case 'row':
+							// A repeater-row source off the slot's own `rows` step (FW-74).
+							// The read target handed to this fn is a resolved SOURCE, not an
+							// id — a row has none — so the `ids` leg below hands the emit
+							// arrays and this fn takes them verbatim. Templates without a
+							// try_row_fn fall through below exactly as try_user_fn's six.
+							$render_fn = $rf;
+							break;
 					}
 					if ( null === $render_fn ) {
 						// This TEMPLATE has no function for the arm — a family with no
@@ -903,6 +922,13 @@ class TagTemplateRegistry {
 							// WITHOUT this case `user` took `default:` — post ids — and read
 							// the wrong entity as soon as the fn arm above started resolving.
 							$ids = bws_base_user_ids_from_source( $base, $slot_opts );
+							break;
+						case 'sources':
+							// The one id-LESS PLURAL arm (FW-74): the read targets are the
+							// resolved sources themselves, because the ids selector drops
+							// `id <= 0` and a repeater row has no id to keep. $kind is the
+							// arm key, so this leg needs no second name for the kind.
+							$ids = bws_base_sources_of_kind( $base, $slot_opts, $kind, $collapse );
 							break;
 						case 'none':
 							$ids = [ 0 ];   // the site store carries a namespace, not an id (ADR 0002).
@@ -970,7 +996,11 @@ class TagTemplateRegistry {
 							$rendered = function_exists( 'bws_try_normalize_items' )
 								? bws_try_normalize_items( $render_fn( $entity_id, $slot_opts, $inst ) )
 								: array_filter( [ $render_fn( $entity_id, $slot_opts, $inst ) ], static fn( $v ) => '' !== $v && false !== $v );
-							if ( $rendered && ! $first_id ) {
+							// is_scalar, because the row arm's read targets are resolved
+							// SOURCE ARRAYS. They carry no link identity (CONTEXT.md I12)
+							// and their arm's `link` is empty, so there is nothing to
+							// capture — casting one to int would be a warning and a 1.
+							if ( $rendered && ! $first_id && is_scalar( $entity_id ) ) {
 								$first_id = (int) $entity_id;
 							}
 							return $rendered;

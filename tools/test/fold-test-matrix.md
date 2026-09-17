@@ -412,6 +412,9 @@ fine" is not evidence.
 | F9.3 | — | `{{text src:refs,related_staff;terms,department\|use:title}}` | EMPTY (jane and tom carry no department terms). Pre-1.17.0 it rendered `Jane Partner`: the post-semantic wrapper took the chain's LEADING RUN of `ref` steps and stopped, so a non-leading hop was silently dropped and the tag read the ref'd POST. **Negative control below** |
 | F9.3b | — | `{{text src:refs,related_staff;terms,department\|use:title\|fallback:NOHOP}}` | `NOHOP` — the row that makes F9.3 non-vacuous. An empty read and a dropped hop both print nothing, so F9.3 alone cannot tell them apart; this pins that the tag resolved and found nothing |
 | F9.4 | `{{text src:site\|key:organization_email}}` | — | `info@example.test`. **`src:site` still wins over a hand-edited `srcTermIn`** (`{{text src:site\|srcTermIn:department\|key:organization_email}}` renders the same): the pair is hand-edit only (`show_if src: not:site`) and every arm has always let the site read win, so the compiler does not fold that hop in. **The key must be one the blueprint SEEDS** — this row read `org_name` until 2026-08-17, which `core-structures` has never carried, so both spellings rendered empty and the row asserted nothing while looking green. The visible rows in `blocks.php` had the seeded key all along; only the matrix text drifted |
+| F9.5 | — | `{{text src:rows,team_members\|use:key\|key:name\|limit:0}}` | `Alice Adams, Bob Brown`. **A `rows` chain reads its repeater rows (FW-74, 1.21.0); this rendered EMPTY before**, and the empty was pinned here as a decided divergence for two releases. The arm reads resolved SOURCES rather than ids, because a row has no id — `bws_base_sources_of_kind()` is that selector. No legacy spelling exists: `rows` has never had a flat key |
+| F9.5b | — | `{{text src:rows,team_members\|use:key\|key:name\|limit:1}}` | `Alice Adams` — the tag's own list seam applies across rows, exactly as it does across posts and terms. `sep` likewise (`sep: / ` over `key:role` renders `Engineering / Operations`, measured through `render-tag`) |
+| F9.5c | — | `{{text src:rows,team_members\|use:title\|limit:0}}` | EMPTY, and the emptiness is the assertion: **an ANALOG REFUSES on a row.** A row is not an entity and has no title, permalink, date or author, so the analog arms get no row fn at all. The hop a `use:title` would imply is already spellable with no new vocabulary — `src:rows,team_members;refs,lead_ref\|use:title`. The failure this pins is the other one: a row branch that fell back to some entity's title would print a plausible wrong value |
 
 ### §F9a — per-family equivalence
 
@@ -444,7 +447,6 @@ family with no list mode takes a different branch from one that has. One `refs` 
 
 | # | Tag | Renders | Cause |
 |---|---|---|---|
-| F9.5 | `{{text src:rows,team_members\|use:key\|key:name}}` | empty | **NOT IMPLEMENTED YET — FW-74 — rather than unsupported** (reason rewritten 2026-08-15, #105). The wire is well formed, the chain compiles, the engine runs the step and `bws_fold_chain_resolution()` answers kind `meta_row`; both `bws_read_resolved_source()` and `traversal-pipeline.php` already carry a live `case 'meta_row'`. What is missing is the ARM — `bws_base_text_resolve_value()` dispatches on `site`/ambient-term/ambient-user/`term`/`post` and this kind falls through. `{{table}}` wants a repeater row as its cells' read CONTEXT and a fanning tag would concatenate it like any other step, so nothing here is an author error, which is why the inert-chain warning deliberately does NOT flag it. `rows` stays off the base chain control's step enum until the arm lands; authoring it requires a hand edit. Design: `.scratch/repeater-row-arm/spec.md` |
 | F9.6 | `{{text src:ref\|ref:related_staff\|srcTermIn:portal_visibility\|use:title\|limit:0}}` | `All Users, All Users` (was `All Users`) | **A flat-wire behaviour change, stated rather than hidden — and MEASURED, both sides.** The term arm used to collapse the relationship step to its FIRST post (`bws_get_srcterm_terms` took one post id) and read that post's terms; it now runs the whole compiled chain, which fans (§V6). Reachable ONLY with an explicit `limit` above one: drop the `limit:0` and both `main` and this branch render `All Users`, which is the compatibility floor holding. The surveyed corpus contains **zero** explicit `limit` values. Accepted because the alternative is keeping a first-only collapse the plural source model already calls a defect, in the one arm still performing it. **`department` will NOT do for this row** — jane and tom carry none, so the pair is empty either way and asserts nothing; `portal_visibility` is the taxonomy the blueprint actually puts on them |
 
 **The contrast this matrix used to draw** — F9.1 and F1.7 as one term hop with two answers, decided
@@ -483,7 +485,7 @@ rather than an empty one, so a single green row proves very little.
 | F9b.8 | `{{try_title}}` on `/department/sales/` | `Sales` — the ambient-term arm, which is now a BRANCH off the root-only `render_time` kind rather than a `'current' === $last_src` test |
 | F9b.9 | `{{try_title linkTo:post}}` on `/staff/jane-partner/` | the linked title — per-arm link-wrap entity survived the merge into one emit |
 | F9b.10 | `{{try_text srcTermIn:department\|use:title\|linkTo:term}}` | the linked term title — the same, on the arm with a different entity type |
-| F9b.11 | `{{try_text A:src(rows,team_members);use(key);key(name)\|B:key(role)}}` | `Captain` — a repeater-row source is still refused, and slot 2 still runs |
+| F9b.11 | `{{try_text A:src(rows,team_members);use(key);key(name)\|B:key(role)}}` | ~~`Captain`~~ → `Alice Adams, Bob Brown`. **MOVED WITH FW-74** (1.21.0) and belongs in the stated-changes table above now: the row arm consumes a `meta_row` chain, so attempt 1 RESOLVES and attempt 2 never runs. Kept at its own number because its point survives the change — the attempt chain's advance is decided by whether a slot resolves, and the row is now the case where it does |
 | F9b.12 | `{{try_text A:src(refs,related_staff;terms,department);use(title)\|B:key(role)}}` | `Captain` — an inexpressible chain still skips at the SEAM, which #103 did not touch (#104 dissolves it) |
 | F9b.13 | `{{try_text use:title}}` / `{{try_title}}` / `{{try_content}}` on `/author/fixture-author/` | **RENDER-TAG ONLY, stated exception** (an author ARCHIVE is the ambient context and has no page content to hang a fixture row on — the same exception text T4 takes for a term archive). EMPTY, all three — the [I6] parity defect is deliberately still open here. The `user` row exists in the arm table and is `branchable`; no template carries a user function yet, so the dispatcher's fn-absent fallthrough sends it to the post arm exactly as the token arms did. **#108 is what flips these three**, with its own replay run whose expected diff is exactly these rows |
 
@@ -493,8 +495,9 @@ rather than an empty one, so a single green row proves very little.
 opposite answers, which is the whole content of this section:
 
 - **Off the WIRE** — `src(rows,…)`, so `bws_fold_chain_resolution()` answers `meta_row`
-  at parse time, before anything renders. The author asked for repeater rows, and no `try_` arm
-  assembles those. **Refuse**; `{{table}}` owns that.
+  at parse time, before anything renders. The author asked for repeater rows. **Read them**
+  (FW-74, 1.21.0) — from inside a row that means a NESTED repeater, which is legal wire
+  (`BWS_TRAVERSAL_STEP_INPUT_KINDS['rows']` accepts `meta_row`) and is what F9c.4 exercises.
 - **Off the AMBIENT CONTEXT** — the wire is silent (`src:current`), the chain kind is `render_time`, and
   the factory comes back with a `meta_row` because the tag is standing inside a GB Pro repeater
   loop. The author asked for *here*. **Continue to the post arm**, which resolves no id, at which
@@ -516,16 +519,15 @@ seeded `team_members` repeater.
 | F9c.1 | `{{text key:name}}` | `Alice Adams` / `Bob Brown`, one per repeater row — the BASE tag's own path, which is a control rather than the subject |
 | F9c.2 | `{{try_text A:key(name)}}` | the SAME two names. This is the `try_` fallthrough |
 | F9c.3 | `{{try_text A:key(nope)\|B:key(role)}}` | `Engineering` / `Operations` — the attempt chain still advances inside a row: slot 1 takes the fallthrough and finds nothing, slot 2 takes it and hits |
-| F9c.4 | `{{try_text A:src(rows,team_members);use(key);key(name)\|B:key(role)}}` | `Engineering` / `Operations` — **the row where both arrival routes meet and stay apart.** Slot 1 states a repeater source ON THE WIRE while STANDING IN a repeater row: refused as a chain kind. Slot 2's silent wire takes the fallthrough and resolves |
+| F9c.4 | `{{try_text A:src(rows,team_members);use(key);key(name)\|B:key(role)}}` | `Engineering` / `Operations` — **the row where both arrival routes meet and stay apart.** Slot 1 states a repeater source ON THE WIRE while STANDING IN a repeater row: since FW-74 that is a REAL attempt at a NESTED `team_members`, which no row carries, so it finds nothing. Slot 2's silent wire takes the fallthrough and resolves. **The output did not move when the arm landed; the reason did** — it used to pass because slot 1 was refused as a chain kind |
 | F9c.5 | `{{try_text A:src(refs,lead_ref);use(title)}}` | `Jane Partner`, then EMPTY — a relationship sub-field still hops out of the row. Row 2 leaves `lead_ref` blank, and GB hides the empty block, so only one row shows |
+| F9c.6 | `{{text src:refs,lead_ref\|use:title}}` | `Jane Partner`, then EMPTY — F9c.5's BASE twin, **and the only row in this section that a conflated branch breaks.** Added with FW-74 because nothing here failed for it: a chained base tag inside a row follows the WIRE (`post`), so a branch dispatching on the resolved BASE (`meta_row`) filters the chain's post output to rows, finds none, and this hop disappears |
 
-> **F9c.4 STOPS PINNING ITS STATED REASON WHEN FW-74 LANDS, and it must be rewritten in that
-> commit.** `BWS_TRAVERSAL_STEP_INPUT_KINDS['rows']` accepts `meta_row`, so slot 1 here is legal
-> wire meaning a NESTED repeater. Today it is refused as a chain kind and the row passes for that
-> reason; once the repeater-row arm exists slot 1 becomes a real attempt, finds no nested
-> `team_members`, and the row passes for a different one. The output never moves, so nothing goes
-> red — which is exactly why this note exists rather than a test. A row exercising a genuine nested
-> repeater lands with the arm, and takes over what F9c.4 is claiming here.
+> **F9c.4's REASON WAS REWRITTEN WHEN FW-74 LANDED** (1.21.0), in the arm's own commit, exactly as
+> the note that stood here required. Slot 1 makes a real attempt at a nested repeater now and finds
+> none; the output never moved, so nothing went red — which is why this was a note rather than a
+> test. **A row exercising a GENUINE nested repeater is still outstanding** (it needs fixture state
+> no blueprint post carries yet) and takes over what F9c.4 claims when it lands.
 
 
 > **VERIFIED BY MUTATION, and the first attempt was an ARTIFACT.** Two were run and both blank the
@@ -533,6 +535,22 @@ seeded `team_members` repeater.
 > shows the base tag has its own path), and refusing a `meta_row` BASE in
 > `bws_try_slot_base_branch_kind()` instead of branching it to the post arm (every row goes, and
 > `try-slot-arms-test.php` §A4.4 fails beside it).
+>
+> **TWO MORE WERE RUN WITH FW-74, and what they measured is why F9c.6 exists.** Both are the
+> wire-vs-base conflation this section's opening states, and NEITHER moves F9c.1–F9c.5:
+>
+> - the base text arm's row branch reads `$base['kind']` IN PLACE — nothing here moves at all,
+>   because the wire's entity branches still run ahead of it and nothing reaches the mutated test.
+>   §F9.5/§F9.5b/§F10.4/§F9b.11 go empty instead: **that quartet is the axis pin, not this section**;
+> - the row branch is HOISTED ahead of the entity branches and dispatches off `$base` — the shape
+>   "dispatch on the resolved source" produces naturally. F9c.1–5 still hold, because a bare tag's
+>   `meta_row` base CARRIES the row and the row branch reads the same value the post-arm fallthrough
+>   would. **F9c.6 is the only row that fails**, and it fails on value.
+>
+> Making the arm-table row `branchable` was run too and moves nothing, for the same coincidence: the
+> branch target now renders what the post arm rendered. `branchable: false` is still the correct
+> statement and is pinned purely (`try-slot-arms-test.php` §A5.4/§A5.5) — it is no longer pinned
+> HERE, and a note claiming otherwise would be a claim nobody measured.
 >
 > **Both mutations first appeared to change NOTHING, and the reason is worth carrying:** the
 > container runs `opcache.revalidate_freq = 120`, so a front-end request inside two minutes of an
@@ -571,7 +589,7 @@ tell "resolved correctly" from "resolved plausibly".
 | F10.1 | `{{join A:src(refs,related_staff;terms,portal_visibility);use(title)}}` | `{{text src:refs,related_staff;terms,portal_visibility\|use:title}}` | `All Users, All Users` — two hops, both taken. Pre-1.17.0 the slot printed nothing (skipped); `department` will NOT do here, since jane and tom carry none and the row would be empty either way |
 | F10.2 | `{{try_text A:src(refs,related_staff;terms,portal_visibility);use(title)\|B:key(role)}}` | as F10.1 | `All Users, All Users` — the selecting container, same chain. Slot 2 must NOT run: slot 1 resolved |
 | F10.3 | `{{join A:src(refs,related_staff;refs,related_staff);use(title)\|B:key(role)}}` | — | slot 1 resolves and finds nothing (staff carry no `related_staff` of their own), so `Captain`. The MECHANISM changed and the output did not: `slot-fold-test.php` §P13.5 is what says the chain was run rather than refused |
-| F10.4 | `{{join A:src(rows,team_members);use(key);key(name)\|B:key(role)}}` | `{{text src:rows,team_members\|use:key\|key:name}}` | `Captain` / empty. `rows` still returns nothing on both — **not implemented yet (FW-74), not unsupported** (§F9.5 carries the full reason). The refusal MOVED out of the flattening and into the container that consumes the kind (`try-slot-arms.php`), which is why it survived the inversion. When the arm lands this row stops being an empty one |
+| F10.4 | `{{join A:src(rows,team_members);use(key);key(name)\|B:key(role)}}` | `{{text src:rows,team_members\|use:key\|key:name}}` | `Alice Adams, Bob Brown, Captain` / `Alice Adams, Bob Brown`. **WAS `Captain` / empty until FW-74** (1.21.0). The join slot needed no arm of its own — it absorbs the read through the text seam, so wiring the base arm wired the slot, which is the [I16] identity this section exists to state. The base twin is §F9.5 |
 | F10.5 | `{{join A:src(refs,related_staff;terms,department);use(title)\|B:key(role)}}` | — | `Captain` — the row that was the negative control and is now just a row. Expressible before, resolved before, empty because jane and tom carry no department terms |
 | F10.6 | `{{join src:site\|srcTermIn:department\|key:org_phone}}` | `{{phone src:site\|srcTermIn:department\|key:org_phone}}` | the site number, on BOTH. A site root never takes the legacy term step, which is what §F9b.5 closed one release earlier — and #104 briefly re-opened from the other side, because the mapping that builds a slot's chain from its flat keys appended the step and the retired flatten used to drop it again. `slot-fold-test.php` §P18.6 is the pin, mutation-verified |
 | F10.6b | `{{join srcTermIn:department\|use:title\|2-src:same\|2-srcTermIn:portal_visibility\|2-use:title}}` | — | on `/matrix-terms-valid/`: `Sales, All Users`. **A carried hop is a DEFAULT, so slot 2's own hop REPLACES it rather than following it** — and this pair is what the old editor authored directly (leave slot 2's source alone, pick a different taxonomy). #104's first draft appended: `terms,department;terms,office` hops off a TERM input, which has no post to read, so slot 2 resolved EMPTY and vanished from the join. Measured both ways; the folded twin `A:src(terms,department);use(title)\|B:src(same;terms,portal_visibility);use(title)` reads `Sales, Support, All Users` and must move with it. **The COUNTS differ on purpose** — flat wire bounds at 1 and chain wire does not (`bws_limit_default`), so slot 1 contributes one term in the legacy spelling and both in the folded one. What must match is that slot 2 RESOLVES in each; a row read as a count comparison fails for the wrong reason |
@@ -1000,7 +1018,7 @@ The ids below are resolved at BUILD TIME (`bws_fixture_seeded_term_id()` / `bws_
 | F22.4 | `{{join mode:template\|A:src(term,<sales-id>;refs,dept_lead;refs,reports_to);use(title)\|B:src(current);use(title)\|format:%A / %B}}` | `Jane Partner / Matrix: Pinned Entity Roots` — the same chain inside a `{{join}}` field, composed with the ambient title. F22.1/F22.3/F22.4 together are the "same chain on a base tag, in a `{{join}}` field and in a `try_` attempt" criterion |
 | F22.5 | `{{text src:term,<sales-id>;terms,department\|use:title}}` (hand-wire only — the editor does not offer this step off a term-kind root) | **empty** — there is no term→term edge. §F20.1 already proves the root itself resolves, so this row is the STEP being refused, not the root failing |
 | F22.5b | `{{text src:post,<tom-id>;terms,portal_visibility\|use:title}}` | `All Users` — F22.5's non-vacuity partner: the SAME step type off a specific POST root runs. Without it F22.5 reads identically to "the `terms` step is broken" |
-| F22.6 | `{{table src:post,<matrix-post-meta-id>\|key:team_members\|1-label:Name\|1-key:name\|2-label:Role\|2-key:role}}` | a 2-row table (`Alice Adams`/`Engineering`, `Bob Brown`/`Operations`) — a `rows` step off a specific POST root, reading a repeater that lives on a DIFFERENT page. Through `{{table}}` because no base/join/try_ arm assembles a repeater row (§F9.5/§F10.4, a decided divergence rather than a gap here) |
+| F22.6 | `{{table src:post,<matrix-post-meta-id>\|key:team_members\|1-label:Name\|1-key:name\|2-label:Role\|2-key:role}}` | a 2-row table (`Alice Adams`/`Engineering`, `Bob Brown`/`Operations`) — a `rows` step off a specific POST root, reading a repeater that lives on a DIFFERENT page. Through `{{table}}` because that is the container that ASSEMBLES a row across columns; the base/join/try_ arms read ONE key per row (§F9.5/§F10.4, live since FW-74) and would concatenate rather than tabulate |
 
 **The editor half is pinned PURE, not here.** That the offer off a root argument is computed with no render having occurred is exactly what makes it unobservable on a rendered page: `slot-fold-repeater-test.js` drives the control off the shipped config alone (no query, no resolver) and asserts `refs` offered off a specific term root, `terms` NOT offered off it, `terms` offered off a specific POST root, and `terms` offered one `refs` hop later — the F22.1/F22.2 chain, offered a step at a time. `fold-chain-compile-test.php` holds the other side: the refused step still COMPILES, so the refusal stays the engine's answer at run rather than a grammar error at parse.
 
