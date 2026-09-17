@@ -1975,6 +1975,49 @@ function bws_fixture_page_content_matrix_pinned_roots() {
 	return implode( "\n\n", $sections );
 }
 
+/**
+ * Page content: matrix-repeaters (page-matrix-repeaters).
+ *
+ * Split axis is REPEATER DEPTH, not source-state: every row here reads the `duty_roster`
+ * repeater seeded on this page, and what separates them is how many `rows` steps the
+ * chain takes. The visible half of fold-test-matrix.md §F23.
+ *
+ * WHY A PAGE OF ITS OWN, when the repeater corpus otherwise lives on matrix-post-meta.
+ * The nested read is a TWO-STEP chain, and on a page carrying every family's state a
+ * failed second step still meets something that answers; here the page holds nothing
+ * else, so an unexpected value has one possible source. It also keeps the field the
+ * chain-step control is driven against openable in the editor without loading the ~380
+ * blocks matrix-post-meta carries.
+ *
+ * WHAT THIS PAGE TAKES OVER. §F9c.4 states a repeater source from inside a repeater row
+ * — a nested read by construction — and passes by finding NOTHING, because until this
+ * blueprint no post carried a repeater inside a repeater. A miss reads identically
+ * whether the nested read works or is broken, so these rows are the ones that say it
+ * works; F9c.4 keeps its own job, which is that the two arrival routes stay apart.
+ *
+ * The ORDER is the assertion in F23.1/F23.2: the seeded days interleave across the two
+ * parent rows (Mon/Thu, then Tue/Fri), so a read reaching only the first parent, or
+ * flattening the parents together, prints a different sequence rather than the same one.
+ */
+function bws_fixture_page_content_matrix_repeaters() {
+	$sections = array();
+
+	$sections[] = bws_fixture_gb_section( 'Fold F23 - a GENUINE nested repeater (row inside a row)', array(
+		// The non-vacuity control. This page holds ONE repeater and nothing else, so
+		// without a row that reads the page itself, a page rendering no dynamic tags at
+		// all would look exactly like a nested read returning nothing.
+		bws_fixture_gb_row( 'F23.0 the ambient control: this page renders our tags at all (-> Matrix: Nested Repeaters)', '{{text use:title}}' ),
+		bws_fixture_gb_row( 'F23.1 THE nested read: two rows steps, inner sub-field, document order across BOTH parents (-> Monday, Thursday, Tuesday, Friday)', '{{text src:rows,duty_roster;rows,shifts|use:key|key:shift_day|limit:0}}' ),
+		bws_fixture_gb_row( 'F23.2 the same chain on the OTHER inner sub-field, so a read returning the row rather than the named cell cannot pass on one key (-> 8am to 4pm, 10am to 6pm, 7am to 3pm, 12pm to 8pm)', '{{text src:rows,duty_roster;rows,shifts|use:key|key:shift_hours|limit:0}}' ),
+		bws_fixture_gb_row( 'F23.3 the list seam slices ACROSS the parent boundary: three of the four inner rows, which is both of the first parent and one of the second (-> Monday, Thursday, Tuesday)', '{{text src:rows,duty_roster;rows,shifts|use:key|key:shift_day|limit:3}}' ),
+		bws_fixture_gb_row( 'F23.4 the ONE-step control: the outer repeater on its own, so an empty F23.1 separates "the second step" from "the repeater" (-> Priya Raman, Luis Ortega)', '{{text src:rows,duty_roster|use:key|key:member|limit:0}}' ),
+		bws_fixture_gb_empty_row( 'F23.5 a nested repeater the rows do NOT carry - the shape F9c.4 has been passing on, here beside a nested read that works (-> EMPTY)', '{{text src:rows,duty_roster;rows,nope|use:key|key:shift_day|limit:0}}' ),
+		bws_fixture_gb_row( 'F23.6 the try_ slot spelling of F23.1, which is the container F9c.4 states its claim in (-> the SAME four days)', '{{try_text A:src(rows,duty_roster;rows,shifts);use(key);key(shift_day);limit(0)}}' ),
+	) );
+
+	return implode( "\n\n", $sections );
+}
+
 /** Dispatcher: manifest content_builder name → page content. */
 /**
  * matrix-products — the PRODUCT LOOP corpus (FW-100; blueprint v21, flipped in v22).
@@ -2137,6 +2180,7 @@ function bws_fixture_build_page_content( $builder ) {
 		'matrix_products'      => 'bws_fixture_page_content_matrix_products',
 		'product_single'       => 'bws_fixture_page_content_product_single',
 		'matrix_pinned_roots'  => 'bws_fixture_page_content_matrix_pinned_roots',
+		'matrix_repeaters'     => 'bws_fixture_page_content_matrix_repeaters',
 		'pattern_legacy_wire'  => 'bws_fixture_pattern_content_legacy_wire',
 		'context_header'       => 'bws_fixture_element_content_context_header',
 		'home_lead'            => 'bws_fixture_page_content_home_lead',

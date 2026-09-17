@@ -545,11 +545,9 @@ seeded `team_members` repeater.
 | F9c.7 | `{{image key:photo\|as:url}}` | the alice photo URL, then the bob one, one per row — the image family's half of the fallthrough, added with its row arm (ticket 05). A CONTROL of the same shape as F9c.1: it had no rendered coverage until the photo sub-fields existed |
 | F9c.8 | `{{datetime_single key:contract_start}}` | `March 4, 2029`, then `June 10, 2030`, one per row — the datetime family's half, added with its row arm (ticket 06), and the path both datetime cores' INVARIANT is written about (issue #22: do not hard-bail on a falsy id when the field read can still be served off the loop item). A CONTROL, **measured to be one**: both mutation shapes were run against it and NEITHER moves it (see below) |
 
-> **F9c.4's REASON WAS REWRITTEN WHEN FW-74 LANDED** (1.21.0), in the arm's own commit, exactly as
-> the note that stood here required. Slot 1 makes a real attempt at a nested repeater now and finds
-> none; the output never moved, so nothing went red — which is why this was a note rather than a
-> test. **A row exercising a GENUINE nested repeater is still outstanding** (it needs fixture state
-> no blueprint post carries yet) and takes over what F9c.4 claims when it lands.
+> **F9c.4's REASON WAS REWRITTEN WHEN FW-74 LANDED** (1.21.0), in the arm's own commit, exactly as the note that stood here required. Slot 1 makes a real attempt at a nested repeater now and finds none; the output never moved, so nothing went red — which is why this was a note rather than a test. **The GENUINE nested repeater is now §F23**, on its own page with its own fixture state (blueprint v26). That is where "a nested read works" is measured; F9c.4 keeps the job it has always had, which is that the two arrival routes meet on one page and stay apart.
+
+> **THE NOTE THIS REPLACED PROMISED A HANDOVER, AND WHAT SHIPPED IS NARROWER — said here because the doc moved toward the code rather than the other way.** The old wording was that the genuine nested row "takes over what F9c.4 claims when it lands", and read literally that retires this row. It was not retired, and the reason is that F9c.4 carries TWO claims, only one of which was ever §F23's to take: that a nested read WORKS (which F9c.4 could only ever assert by finding nothing, and which §F23 now measures against real nested state), and that the two arrival routes meet on one page and stay apart (which needs a tag standing INSIDE a repeater row, something §F23's page has no loop to provide). Retiring the row would have deleted the second claim to satisfy the wording of the first. The narrowing was decided in ticket 08 rather than when the promise was written, so it is recorded here rather than left for a reader to infer from a row that outlived its own retirement notice.
 
 
 > **VERIFIED BY MUTATION, and the first attempt was an ARTIFACT.** Two were run and both blank the
@@ -1057,6 +1055,28 @@ The ids below are resolved at BUILD TIME (`bws_fixture_seeded_term_id()` / `bws_
 **Verified live** (`render-tag`, admin user, 2026-09-08, blueprint v20): every row above against real seeded content, each string measured rather than predicted.
 
 **The `term_*` MIGRATION's rows are not here.** Converting an argless `{{term_*}}` tag to a base tag emits chain wire every section above already covers; what the migration has to show is something else entirely — that the old tag and the tag it becomes differ in ONE DIRECTION, across every page context. That is a context-indexed measurement, so it lives with the context rows: [`context-test-matrix.md`](context-test-matrix.md) §C-CONV.
+
+## §F23 — a REAL nested repeater, row inside a row (FW-74, ticket 08)
+
+**Its own page** (`/matrix-repeaters/`, blueprint v26) carrying `duty_roster`: two member rows, each holding a `shifts` repeater of two. The engine has admitted `meta_row` as a `rows` input since 1.17.0 and the base arm has read rows since 1.21.0, but no blueprint post carried a repeater inside a repeater, so the nested case was only ever reachable as a MISS — §F9c.4 states a nested source and passes by finding nothing, which reads identically whether the nested read works or is broken. These rows are the ones that say it works.
+
+**The seeded days INTERLEAVE across the two parents** (Mon/Thu under Priya, Tue/Fri under Luis), so the fan-out order is readable off the string: a read that reached only the first parent, or that grouped the parents wrongly, prints a different sequence rather than the same one. The page carries no other fixture state, which is why F23.0 is there — on a page with one repeater, "the nested read returned nothing" and "this page renders no tags at all" look the same.
+
+| # | Tag | Expected |
+|---|---|---|
+| F23.0 | `{{text use:title}}` | `Matrix: Nested Repeaters` — the non-vacuity control, and the only row here that does not touch the repeater |
+| F23.1 | `{{text src:rows,duty_roster;rows,shifts\|use:key\|key:shift_day\|limit:0}}` | `Monday, Thursday, Tuesday, Friday` — **THE nested read**: two `rows` steps, the second running off a row rather than a post, in document order across BOTH parents |
+| F23.2 | `{{text src:rows,duty_roster;rows,shifts\|use:key\|key:shift_hours\|limit:0}}` | `8am to 4pm, 10am to 6pm, 7am to 3pm, 12pm to 8pm` — the same chain on the other inner sub-field. A read returning the ROW rather than the named cell cannot pass on one key alone |
+| F23.3 | `{{text src:rows,duty_roster;rows,shifts\|use:key\|key:shift_day\|limit:3}}` | `Monday, Thursday, Tuesday` — the tag's list seam slices ACROSS the parent boundary: both of the first parent's rows and one of the second's. The inner rows are ONE flat list in document order, not a list per parent |
+| F23.4 | `{{text src:rows,duty_roster\|use:key\|key:member\|limit:0}}` | `Priya Raman, Luis Ortega` — the ONE-step control. Without it, an empty F23.1 cannot separate "the second step" from "the repeater" |
+| F23.5 | `{{text src:rows,duty_roster;rows,nope\|use:key\|key:shift_day\|limit:0}}` | **empty** — a nested repeater the rows do not carry, i.e. the shape §F9c.4 has been passing on, here beside a nested read that works |
+| F23.6 | `{{try_text A:src(rows,duty_roster;rows,shifts);use(key);key(shift_day);limit(0)}}` | the SAME four days — the `try_` slot spelling, which is the container §F9c.4 states its claim in |
+
+**`limit` is written on every fanning row and that is not decoration.** Chain wire selects an unset default of 0 (§L4), so these rows would fan with no `limit` at all; spelling it keeps each row's slice its own statement rather than a consequence of which spelling the `src` happened to take.
+
+**PROVENANCE IS NOT HERE, because no rendered row can show it.** The four keys a row carries (`parent_kind`, `parent_id`, `repeater`, `index`) are consumed by nothing until FW-3, so the assertion that an inner row's parent is the OUTER ROW rather than the post lives in `verify.php`, reading the real store through `bws_run_step()`. `traversal-pipeline-test.php` pins the same shape against a synthetic reader; what only the testbed reaches is the custom-fields plugin's own nested read, which decides whether the inner repeater arrives as an array of rows at all.
+
+**Verified live** (`render-tag`, 2026-09-17, blueprint v26): every row above measured against real seeded content. F23.3's original spelling was an unset `limit` expecting one value; the measurement said four, §L4 says why, and the row was rewritten to state a slice it actually makes.
 
 ## Fail triage
 

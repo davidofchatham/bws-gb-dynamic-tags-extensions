@@ -125,6 +125,10 @@ $field_keys = array(
 		'subtitle'         => 'field_bwsfx_subtitle',
 		'escape_probe'     => 'field_bwsfx_escape_probe',
 		'team_members'     => 'field_bwsfx_team_members',
+		// The NESTED repeater (manifest v26). Only the OUTER field is keyed here:
+		// update_field() writes a nested repeater from the same array-of-rows the
+		// manifest spells, reading the inner field's key off the parent's sub_fields.
+		'duty_roster'      => 'field_bwsfx_duty_roster',
 		'feature_list'     => 'field_bwsfx_feature_list',
 		// FW-52 image editor rows.
 		'feature_image'    => 'field_bwsfx_feature_image',

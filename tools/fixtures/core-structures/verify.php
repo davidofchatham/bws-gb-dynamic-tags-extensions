@@ -736,6 +736,55 @@ if ( $trust_ready ) {
 }
 
 /* ---------------------------------------------------------------------------
+ * THE NESTED REPEATER's provenance, read off the real store (blueprint v26, §F23).
+ *
+ * The four provenance keys are recorded by `bws_pipeline_rows_to_sources()` and consumed
+ * by nothing yet (FW-3), so no rendered row can show them — §F23's page proves the nested
+ * VALUES arrive, and this proves the row knows where it came from. The pure harness pins
+ * the same shape against a synthetic reader; what it cannot reach is the custom-fields
+ * plugin's own nested read, which is the half that decides whether a row's inner repeater
+ * arrives as an array of rows at all.
+ *
+ * `parent_kind` is the key under test: an inner row's parent is the OUTER ROW, not the
+ * post the outer repeater hangs on. `parent_id` 0 is not a failure here and is asserted
+ * as such — a row carries no id, so the kind is the only thing distinguishing this from
+ * a site-parented row.
+ * ------------------------------------------------------------------------ */
+$roster_page = get_page_by_path( 'matrix-repeaters' );
+$check( 'page matrix-repeaters exists', $roster_page instanceof WP_Post );
+
+if ( $roster_page instanceof WP_Post && function_exists( 'bws_run_step' ) ) {
+	$outer_rows = bws_run_step(
+		array( 'type' => 'rows', 'field' => 'duty_roster' ),
+		array( 'kind' => 'post', 'id' => $roster_page->ID )
+	);
+	$check( 'duty_roster seeded: two outer rows', 2 === count( $outer_rows ), 'rows=' . count( $outer_rows ) );
+
+	$inner_rows = $outer_rows ? bws_run_step( array( 'type' => 'rows', 'field' => 'shifts' ), $outer_rows[0] ) : array();
+	$check( 'nested shifts read off the first outer row: two inner rows', 2 === count( $inner_rows ), 'rows=' . count( $inner_rows ) );
+
+	$first_inner = $inner_rows[0] ?? array();
+	$check(
+		'nested row provenance names the OUTER ROW as parent (not the post)',
+		'meta_row' === ( $first_inner['parent_kind'] ?? '' ) && 0 === ( $first_inner['parent_id'] ?? -1 ),
+		'parent_kind=' . var_export( $first_inner['parent_kind'] ?? null, true ) . ' parent_id=' . var_export( $first_inner['parent_id'] ?? null, true )
+	);
+	$check(
+		'nested row provenance names the INNER repeater and its own index',
+		'shifts' === ( $first_inner['repeater'] ?? '' ) && 0 === ( $first_inner['index'] ?? -1 ),
+		'repeater=' . var_export( $first_inner['repeater'] ?? null, true ) . ' index=' . var_export( $first_inner['index'] ?? null, true )
+	);
+	// The OUTER row's own provenance, as the contrast: same keys, post parent, real id.
+	// Without it, a coercer that stamped `meta_row`/0 on everything would pass above.
+	$first_outer = $outer_rows[0] ?? array();
+	$check(
+		'outer row provenance names the POST as parent, with its real id',
+		'post' === ( $first_outer['parent_kind'] ?? '' ) && $roster_page->ID === ( $first_outer['parent_id'] ?? 0 ),
+		'parent_kind=' . var_export( $first_outer['parent_kind'] ?? null, true ) . ' parent_id=' . var_export( $first_outer['parent_id'] ?? null, true )
+	);
+}
+
+/* ---------------------------------------------------------------------------
  * PAGE SNAPSHOTS + the dependency-version record.
  *
  * RUNS ON EVERY VERIFICATION, not only when something looks suspicious. A baseline

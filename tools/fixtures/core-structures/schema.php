@@ -551,6 +551,73 @@ function bws_fixture_core_structures_register_acf() {
 		)
 	);
 
+	// --- Duty Roster (page) — the NESTED repeater (FW-74 ticket 08, fold matrix §F23).
+	//
+	// ITS OWN GROUP RATHER THAN A SUB-REPEATER ON `team_members`, for two reasons that
+	// are both about not moving existing rows. A repeater sub-field becomes a {{table}}
+	// COLUMN (the TB rows collect columns off the row's keys), so nesting one inside
+	// `team_members` would rewrite the table rows' output; and the whole F9c/TB corpus
+	// reads that repeater on /matrix-post-meta/, where the nested case would arrive as a
+	// change to the page every other family is measured on. Here it arrives as new state
+	// on a new page, and nothing already seeded moves.
+	//
+	// The values are four shifts across two members, DISTINCT and INTERLEAVED (Monday,
+	// Thursday under the first member; Tuesday, Friday under the second), so the fan-out
+	// order is readable off the rendered string rather than asserted: an inner read that
+	// grouped wrongly, or that only reached the first parent row, would print a different
+	// sequence rather than the same one.
+	acf_add_local_field_group(
+		array(
+			'key'      => 'group_bwsfx_roster',
+			'title'    => 'Duty Roster',
+			'fields'   => array(
+				array(
+					'key'        => 'field_bwsfx_duty_roster',
+					'name'       => 'duty_roster',
+					'label'      => 'Duty Roster',
+					'type'       => 'repeater',
+					'sub_fields' => array(
+						array(
+							'key'   => 'field_bwsfx_roster_member',
+							'name'  => 'member',
+							'label' => 'Member',
+							'type'  => 'text',
+						),
+						// THE NESTED REPEATER. A row reached through this one has a ROW
+						// for a parent, which is the only shape in the blueprint that
+						// does; every other repeater here hangs off a post.
+						array(
+							'key'        => 'field_bwsfx_roster_shifts',
+							'name'       => 'shifts',
+							'label'      => 'Shifts',
+							'type'       => 'repeater',
+							'sub_fields' => array(
+								array(
+									'key'   => 'field_bwsfx_roster_shift_day',
+									'name'  => 'shift_day',
+									'label' => 'Day',
+									'type'  => 'text',
+								),
+								// A SECOND inner sub-field, so a row read that returned
+								// the row rather than the named cell still prints
+								// something and would read as a pass on one key alone.
+								array(
+									'key'   => 'field_bwsfx_roster_shift_hours',
+									'name'  => 'shift_hours',
+									'label' => 'Hours',
+									'type'  => 'text',
+								),
+							),
+						),
+					),
+				),
+			),
+			'location' => array(
+				array( array( 'param' => 'post_type', 'operator' => '==', 'value' => 'page' ) ),
+			),
+		)
+	);
+
 	// --- Product Features (post + page) — collision repeater #2.
 	// M3.1: `name` here is "Feature Name" (different label → two rows).
 	// M3.2: `description` here is "Description" again (same label → one merged row).
