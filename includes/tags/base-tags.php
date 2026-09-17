@@ -733,7 +733,7 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 	// which absorb their read through this seam rather than through an arm of their own —
 	// a combining tag drops that field from the composite rather than substituting the
 	// current entry's value.
-	if ( bws_base_read_refused( $res, $base ) ) {
+	if ( bws_base_read_refused( $res, $base, array( 'meta_row' ) ) ) {
 		return array( 'value' => '', 'link_id' => 0, 'link_type' => 'post' );
 	}
 
@@ -1171,7 +1171,7 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 	// preview half is the tail below, but the fallback half lives inside
 	// bws_post_content_core(), which the refusal must not call. Both halves are
 	// therefore stated here, in the tail's own preview-outranks-fallback order.
-	if ( bws_base_read_refused( $res, $base ) ) {
+	if ( bws_base_read_refused( $res, $base, array( 'meta_row' ) ) ) {
 		return $is_preview && function_exists( 'bws_build_preview_label' )
 			? bws_build_preview_label( $options, 'content' )
 			: bws_base_stated_fallback( $options, $instance );

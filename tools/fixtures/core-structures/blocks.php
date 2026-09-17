@@ -886,6 +886,21 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F9.5h try_email on a row slot (-> both addresses as mailto links; rendered EMPTY before FW-74)', '{{try_email A:src(rows,team_members);key(email)}}' ),
 		bws_fixture_gb_row( 'F9.5h try_phone on a row slot, limit(1) slices (-> (617) 555-0142 alone; rendered EMPTY before FW-74)', '{{try_phone A:src(rows,team_members);key(phone);limit(1)}}' ),
 		bws_fixture_gb_row( 'F9.5i a refusing row slot ADVANCES the attempt chain (-> (987) 654-3210 from slot B, the ambient page field)', '{{try_content A:src(rows,team_members);use(content)|B:use(key);key(main_line)}}' ),
+		// FAMILIES WITH NO ROW ARM (FW-74 ticket 04b). Each refusal is PAIRED with its
+		// bare-tag control, and the pair is the whole point: the control shows what the
+		// refusing row printed before 1.21.0, so a reader can tell a refusal from a
+		// coincidence. Before the unserved-kind refusal these all read the SURROUNDING
+		// PAGE off the post tail's empty-fan leg.
+		bws_fixture_gb_empty_row( 'F9.5j title has NO row arm and REFUSES (-> empty; printed "Matrix: Post Meta" before FW-74)', '{{title src:rows,team_members}}' ),
+		bws_fixture_gb_row( 'F9.5j CONTROL, the bare tag on the same page (-> Matrix: Post Meta - what the row above used to print)', '{{title}}' ),
+		bws_fixture_gb_empty_row( 'F9.5k permalink has NO row arm and REFUSES (-> empty; printed this page URL before FW-74)', '{{permalink src:rows,team_members}}' ),
+		bws_fixture_gb_row( 'F9.5k CONTROL (-> https://testbed.test/matrix-post-meta/ - what the row above used to print)', '{{permalink}}' ),
+		bws_fixture_gb_empty_row( 'F9.5l a KEYED read leaks the same way an analog does, and now refuses (-> empty; printed this page feature_image before FW-74)', '{{image src:rows,team_members|use:key|key:feature_image|as:url}}' ),
+		bws_fixture_gb_row( 'F9.5l CONTROL (-> the fixture photo URL - what the row above used to print)', '{{image use:key|key:feature_image|as:url}}' ),
+		bws_fixture_gb_empty_row( 'F9.5m datetime_single refuses on a rows chain (-> empty; printed 15/08/2030 before FW-74)', '{{datetime_single src:rows,team_members|key:event_date_dmy}}' ),
+		bws_fixture_gb_row( 'F9.5m CONTROL (-> 15/08/2030 - what the row above used to print)', '{{datetime_single key:event_date_dmy}}' ),
+		bws_fixture_gb_empty_row( 'F9.5n datetime_range is a SEPARATE family with its own refusal site (-> empty; printed this page range before FW-74)', '{{datetime_range startKey:event_start_date|endKey:event_end_date|src:rows,team_members}}' ),
+		bws_fixture_gb_row( 'F9.5n CONTROL (-> August 1–9, 2030 - what the row above used to print)', '{{datetime_range startKey:event_start_date|endKey:event_end_date}}' ),
 		// The one flat-wire behaviour change, shown rather than hidden. It uses
 		// portal_visibility, NOT department: jane and tom carry no department terms,
 		// so that taxonomy makes the row empty either way and it asserts nothing.

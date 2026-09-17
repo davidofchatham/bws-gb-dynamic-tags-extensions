@@ -246,6 +246,18 @@ run `php tools/test/fold-chain-compile-test.php` (compile + limit — equivalenc
 
 run `php tools/test/try-slot-arms-test.php` (the table) + `php tools/test/try-join-seam-test.php` + `php tools/test/limit-clamp-test.php` + `php tools/test/control-order-test.php`, **and sweep `tools/test/fold-test-matrix.md` §F9b against the testbed as a before/after DIFF** — a wrong arm renders a plausible value, not an empty one, so a single green row proves very little. Dispatch goes by the resolved source KIND, and the seam does not re-spell a slot's chain as a flat triple, so both containers' registered `steps` offer matches the base tag's — see `try-slot-arms.php`'s file header and `CONTEXT.md` [I16]. `meta_row`'s two meanings (a refused chain kind vs. the resolved base kind reaching the post arm), the [I15] unconsumable-kind-is-skipped rule, the consumer-vs-implementation distinction, and the collect-then-slice rule are documented in `try-slot-arms.php` and `class-tag-template-registry.php` at their respective sites
 
+## Base-tag REFUSAL TEST change
+
+**Fires on:** anything in the arms' refusal test — `bws_base_read_refused()` in `includes/tags/base-shared.php`, the `BWS_BASE_WIRE_KINDS_ALWAYS_SERVED` constant beside it, or the `$serves` list at any of its seven call sites (five in `base-tags.php`, two in `datetime-tags.php`).
+
+run `php tools/test/traversal-pipeline-test.php` (the refusal cases live at its tail), then against the testbed `fold-test-matrix.md` §F9.5j–§F9.5n — the five refusal-plus-control pairs on `/matrix-post-meta/` — and `php tools/test/page-snapshots.php`.
+
+**§F9c DOES NOT PIN THIS TEST'S WIRE-VS-BASE AXIS, and the shape of the code says it does.** Measured 2026-09-17 (FW-74 ticket 04b): mutate the unserved-kind predicate to read `$base['kind']` in place of `$res['kind']` and every §F9c row survives, because each is `{{text}}` or `{{try_text}}` and `{{text}}` declares `meta_row` in `$serves` — no conflation can refuse a family that serves the kind. What the mutation does move is 7 of the 21 snapshot pages, roughly 550 lines each: `ctx-404`, `ctx-author`, `ctx-date-202607`, `ctx-home-latest`, `ctx-pta-staff`, `ctx-search` and `page-matrix-loops`, where an ambient `user` or `query_context` base kind is in nobody's served set. **The page snapshots are this test's pin. The fold matrix is not, and a run of §F9c alone proves nothing about the axis.**
+
+**A `$serves` list that is too WIDE fails nothing at all.** The harnesses check that refusals happen, never that they are the only ones: naming a kind whose arm does not exist restores the ambient-entity leak silently, and the only rows that would catch it are §F9.5j–n going non-empty, which covers five families and no others. Adding a kind to a list is therefore a claim to measure on the testbed, not a change a green suite can bless.
+
+**`term` is in the always-served constant ON A CONDITION**, stated at the constant: every caller of this test today is a cross-source family, and cross-source means the post/term pair. A family that is not cross-source calling this test makes the constant wrong, that family reads the ambient post off a `src:terms,…` chain, and nothing in the tree detects it — `{{call}}` is the shape to watch for (GB type `post`, resolves at L1, does not call this today).
+
 ## ANY fold change that moves rendered output or the editor slot UI
 
 **Fires on:** ANY fold change that can move rendered output or the editor's slot UI (i.e. any of the five fold rows above)

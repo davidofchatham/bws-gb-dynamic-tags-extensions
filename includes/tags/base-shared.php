@@ -1279,6 +1279,28 @@ function bws_base_src_resolution( array $options ): array {
 }
 
 /**
+ * The wire kinds EVERY base family serves, whatever arms it has (FW-74).
+ *
+ * `post` is the tail every family ends in, and `render_time` is the ambient root whose
+ * kind is not knowable from the wire — refusing either would refuse the bare tag.
+ *
+ * `term` IS HERE ON A CONDITION, AND THE CONDITION IS CHECKABLE. Every caller of
+ * bws_base_read_refused() today is a cross-source base family (GB type `cross-source`:
+ * text, content, title, permalink, image, datetime_single, datetime_range), and
+ * cross-source means the post/term entity pair by definition (CONTEXT.md I1) — so all
+ * seven branch `term` ahead of their post tail and a list naming it per family would be
+ * the entity pair restated seven times. A POST-ONLY family is possible in this plugin —
+ * {{call}} is GB type `post`, offers Current + Ref only, and is the shape to look for —
+ * but it resolves its post at L1 and never reaches this test. **The day a family that is
+ * not cross-source calls bws_base_read_refused(), move `term` out of here and into that
+ * family's $serves**, or it reads the ambient post off a `src:terms,…` chain, which is
+ * the exact defect FW-74 ticket 04b closed for `meta_row`.
+ *
+ * @since 1.21.0
+ */
+const BWS_BASE_WIRE_KINDS_ALWAYS_SERVED = array( 'post', 'render_time', 'term' );
+
+/**
  * Whether a base arm must REFUSE this tag rather than read anything (GH #75/#76/#109).
  *
  * THE ARMS' REFUSAL TEST — one call per arm, and the only place either refusal is
@@ -1287,10 +1309,27 @@ function bws_base_src_resolution( array $options ): array {
  * (bws_fold_chain_resolution() for the chain kind, BWS_SOURCE_KIND_UNRESOLVED for the
  * factory's).
  *
- * TWO REFUSALS, ONE TEST, and they are disjoint rather than alternatives: "the root
- * named a source this render cannot use" and "a later step named vocabulary nothing
- * recognises" cannot be the same fault, because a root is not a step ([I14], which owns
- * why). Both mean the read does not happen.
+ * THREE REFUSALS, ONE TEST, and they are disjoint rather than alternatives: "the root
+ * named a source this render cannot use", "a later step named vocabulary nothing
+ * recognises" (a root is not a step — [I14], which owns why), and "the chain resolves
+ * to a kind this FAMILY has no arm for". All three mean the read does not happen.
+ *
+ * THE THIRD IS THE UNSERVED-KIND REFUSAL, AND ITS AXIS IS HERE: a wire kind is refused
+ * unless it is one of BWS_BASE_WIRE_KINDS_ALWAYS_SERVED or one the call site NAMES in
+ * $serves. Default-refuse, opt-in-to-serve — so a kind added to the wire vocabulary
+ * later, or a family that stops branching one, renders empty instead of leaking. The
+ * inverse (serve by default, refuse where listed) is what shipped before FW-74 ticket
+ * 04b and it leaked four families at once: `meta_row` reached a post tail nobody had
+ * written a branch for, the post fan came back empty, and the collapsing selector's
+ * empty-fan leg read the SURROUNDING PAGE — `{{title src:rows,team_members}}` printed
+ * the page's own title. `site` is deliberately absent from the always-served set: every
+ * callback returns its site read BEFORE the factory runs, so a `site` kind cannot reach
+ * this test, and a family that ever let one through has no site arm at this point.
+ *
+ * WHY NOT AT bws_base_post_id_from_source() / bws_base_post_first_usable(), which is
+ * where the empty-fan leg actually is: refusing there can only hand back a falsy id,
+ * and a falsy id does not stop — see the paragraph below. The read has to be skipped
+ * ABOVE the core, which is here.
  *
  * The consequence each arm implements: the read does not happen, the arm's own empty
  * path runs, and a stated fallback fires. Refusing is NOT the same as reading and
@@ -1318,15 +1357,21 @@ function bws_base_src_resolution( array $options ): array {
  * bws_post_excerpt_core()'s unguarded context swap.
  *
  * @since 1.17.0
- * @param array $res  A bws_base_src_resolution() result (the CHAIN's answer).
- * @param array $base A bws_base_resolve_source_for_callback() result (the FACTORY's).
+ * @since 1.21.0 The unserved-kind refusal and its $serves list (FW-74).
+ * @param array $res    A bws_base_src_resolution() result (the CHAIN's answer).
+ * @param array $base   A bws_base_resolve_source_for_callback() result (the FACTORY's).
+ * @param array $serves Wire kinds this family branches beyond the always-served set —
+ *                      `meta_row` at the two families with a row arm, today's only use.
  * @return bool True when no arm may read this tag.
  */
-function bws_base_read_refused( array $res, array $base ): bool {
+function bws_base_read_refused( array $res, array $base, array $serves = array() ): bool {
 	if ( '' === ( $res['kind'] ?? '' ) ) {
 		return true;
 	}
-	return BWS_SOURCE_KIND_UNRESOLVED === ( $base['kind'] ?? '' );
+	if ( BWS_SOURCE_KIND_UNRESOLVED === ( $base['kind'] ?? '' ) ) {
+		return true;
+	}
+	return ! in_array( (string) $res['kind'], array_merge( BWS_BASE_WIRE_KINDS_ALWAYS_SERVED, $serves ), true );
 }
 
 /**
