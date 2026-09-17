@@ -451,6 +451,7 @@ function bws_register_base_tags(): void {
 		'try_site_fn'           => static fn( $opts, $inst ) => bws_site_resolve_value( 'content', (array) $opts, $inst ),
 		'try_user_fn'           => static fn( $user_id, $opts, $inst ) => bws_base_user_analog_read( 'content', (int) $user_id, (array) $opts, $inst ),
 		'try_query_fn'          => static fn( $base, $opts, $inst ) => bws_base_query_context_analog_read( 'content', (array) $base, (array) $opts, $inst ),
+		'try_row_fn'            => 'bws_try_content_row_dispatch',
 		'try_allow_site_slot'   => true,
 		'supports_try'          => true,
 		'try_per_slot_key'      => true,
@@ -1139,8 +1140,12 @@ function bws_join_callback( $options, $block, $instance ): string {
  * post    + use unset   → bws_post_content_core()
  * post    + use:excerpt → bws_post_excerpt_core()
  * post    + use:key     → bws_post_content_core() with type:custom_field
+ * rows    + use:key     → bws_row_custom_text_core()  (FIRST row; collapsing)
+ * rows    + use unset   → '' (analogs refuse on a row — it is not an entity)
+ * rows    + use:excerpt → '' (same)
  *
  * @since 1.6.0
+ * @since 1.21.0 The `meta_row` branch — a `rows` chain reads its rows (FW-74).
  */
 function bws_base_content_callback( $options, $block, $instance ): string {
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
@@ -1189,7 +1194,32 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 			return bws_build_preview_label( $options, 'content' );
 		}
 	}
-	if ( 'term' === $res['kind'] ) {
+	if ( 'meta_row' === $res['kind'] ) {
+		// REPEATER-ROW READ (FW-74). Collapsing, not listing: {{content}} is
+		// takes_first_usable, so the whole fan is compiled with step limits stripped
+		// and the FIRST row's read is the output — the same rule the term and post
+		// routes below take, applied to rows. {{content}} registers no `limit` and no
+		// `sep`; the listing twin of this read is {{text}}'s §F9.5.
+		//
+		// THE KIND TESTED HERE IS THE WIRE'S ($res), NEVER THE RESOLVED BASE'S — the
+		// trap this area sets, stated in full at the {{text}} branch above and pinned
+		// by fold-test-matrix.md §F9c.
+		//
+		// This branch is where use:content and use:excerpt STOP READING THE AMBIENT
+		// POST. Before it, a `rows` chain fell into the post route, resolved no row to
+		// a post id, and the collapsing selector's empty-fan leg read the current post
+		// — so {{content src:rows,…}} printed the whole surrounding page. A row is not
+		// an entity and has no content or excerpt of its own, so the analog arms REFUSE
+		// here and only use:key reads. bws_try_content_row_dispatch()
+		// owns that fork and is the try_ row arm's function too, the same reuse the
+		// term and post routes make of their own try_ dispatchers.
+		$found = bws_read_bounded_sources(
+			bws_base_sources_of_kind( $base, $options, 'meta_row', true ),
+			static fn( $row_source ) => bws_try_content_row_dispatch( $row_source, $opts, $instance ),
+			1
+		);
+		$value = $found ? (string) $found[0] : '';
+	} elseif ( 'term' === $res['kind'] ) {
 		// takes_first_usable (ADR 0007): search the WHOLE fan — every step limit is
 		// stripped at compile — and output the first usable read.
 		$value = bws_base_term_first_usable(
@@ -1758,6 +1788,29 @@ function bws_try_content_post_dispatch( $post_id, $options, $instance ) {
 		return bws_post_content_core( $post_id, $opts, $instance );
 	}
 	return bws_post_content_core( $post_id, $options, $instance );
+}
+
+/**
+ * Try-tag repeater-ROW-slot dispatch for `content` template (FW-74).
+ *
+ * The `use` fork with BOTH analog arms refusing: a row is not an entity, so it has no
+ * post content and no excerpt, and only use:key has anywhere to go — the same refusal
+ * bws_try_text_row_dispatch() makes of `use:title`, on the family that had been reading
+ * the AMBIENT post instead of refusing (see the base branch in
+ * bws_base_content_callback()). The keyed read is bws_row_custom_text_core() rather than
+ * a content-shaped twin, because {{content|use:key}} and {{text|use:key}} already read one key by one rule —
+ * bws_post_content_core()'s custom_field branch is bws_post_custom_text_core() with a
+ * different empty-read fallback, and a LIST arm has no per-item fallback to emit (GH #51).
+ *
+ * Takes the resolved SOURCE, not an id (a row has none). Used as `try_row_fn`.
+ *
+ * @since 1.21.0
+ */
+function bws_try_content_row_dispatch( $source, $options, $instance ) {
+	if ( 'key' !== ( $options['use'] ?? 'content' ) ) {
+		return '';
+	}
+	return bws_row_custom_text_core( (array) $source, $options, $instance );
 }
 
 /**

@@ -869,6 +869,23 @@ function bws_fixture_page_content_matrix_post_meta() {
 		// causes and only one of them is right: a row is not an entity and has no
 		// title, so the analog refuses rather than reading some other entity's.
 		bws_fixture_gb_empty_row( 'F9.5c an ANALOG refuses on a row (-> empty; a row has no title, and a wrong entity read would print one)', '{{text src:rows,team_members|use:title|limit:0}}' ),
+		// The remaining keyed families (FW-74 ticket 04). F9.5d COLLAPSES where
+		// F9.5 fans - {{content}} is takes_first_usable and carries no limit/sep.
+		bws_fixture_gb_row( 'F9.5d a COLLAPSING family reads the FIRST row only (-> Founding partner, not both rows; rendered EMPTY before)', '{{content src:rows,team_members|use:key|key:description}}' ),
+		// Not a new refusal - a wrong-entity FIX. This printed the whole page's
+		// content before the arm landed, which is why it is worth looking at.
+		bws_fixture_gb_empty_row( 'F9.5e content analog refuses on a row (-> empty; printed the WHOLE PAGE CONTENT before FW-74)', '{{content src:rows,team_members}}' ),
+		bws_fixture_gb_empty_row( 'F9.5e excerpt analog, same assertion (-> empty; printed the page excerpt before FW-74)', '{{content src:rows,team_members|use:excerpt}}' ),
+		// email/phone base tags read rows through the kind-agnostic value resolver
+		// and did so BEFORE ticket 04 - nothing pinned it, which is the gap.
+		bws_fixture_gb_row( 'F9.5f the email tag on rows, needed no arm (-> alice@example.test, bob@example.test as mailto links)', '{{email src:rows,team_members|key:email}}' ),
+		bws_fixture_gb_row( 'F9.5g the phone tag on rows, needed no arm (-> (617) 555-0142, (617) 555-0187 as tel links)', '{{phone src:rows,team_members|key:phone}}' ),
+		// The try_ half IS what ticket 04 wired: a template with no try_row_fn fell
+		// through to the post arm and rendered empty on a rows slot.
+		bws_fixture_gb_row( 'F9.5h try_content on a row slot (-> Founding partner; rendered EMPTY before FW-74)', '{{try_content A:src(rows,team_members);use(key);key(description)}}' ),
+		bws_fixture_gb_row( 'F9.5h try_email on a row slot (-> both addresses as mailto links; rendered EMPTY before FW-74)', '{{try_email A:src(rows,team_members);key(email)}}' ),
+		bws_fixture_gb_row( 'F9.5h try_phone on a row slot, limit(1) slices (-> (617) 555-0142 alone; rendered EMPTY before FW-74)', '{{try_phone A:src(rows,team_members);key(phone);limit(1)}}' ),
+		bws_fixture_gb_row( 'F9.5i a refusing row slot ADVANCES the attempt chain (-> (987) 654-3210 from slot B, the ambient page field)', '{{try_content A:src(rows,team_members);use(content)|B:use(key);key(main_line)}}' ),
 		// The one flat-wire behaviour change, shown rather than hidden. It uses
 		// portal_visibility, NOT department: jane and tom carry no department terms,
 		// so that taxonomy makes the row empty either way and it asserts nothing.

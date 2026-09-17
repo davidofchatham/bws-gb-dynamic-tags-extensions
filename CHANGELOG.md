@@ -4,7 +4,7 @@
 
 ### Added
 
-- **A `{{text}}` tag can now read a repeater field's rows.** Point a text tag's source at a repeater and it renders one named sub-field from every row, joined with the tag's separator and bounded by its limit, the same way it already reads a list of posts or terms. `{{join}}` fields and `{{try_*}}` attempts get it too, since they read through the same path. Previously this rendered nothing at all. Two things to know: the row itself has no title, address or date of its own, so the Title/Name setting renders nothing on a row and a field key is what you want there; and a repeater step is still not offered in the source builder, so reaching this today means typing the tag by hand. The other tag families still render nothing from a row, and are next.
+- **A tag can now read a repeater field's rows.** Point a `{{text}}`, `{{content}}`, `{{email}}` or `{{phone}}` tag's source at a repeater and it renders one named sub-field from the rows, the same way it already reads a list of posts or terms. `{{join}}` fields and `{{try_*}}` attempts get it too, since they read through the same path. Previously this rendered nothing at all. A few things to know: the row itself has no title, address or date of its own, so the Title/Name setting renders nothing on a row and a field key is what you want there; `{{text}}`, `{{email}}` and `{{phone}}` render every row joined by the tag's separator and bounded by its limit, while `{{content}}` renders the first row, which is what it does with a list of posts too; and a repeater step is still not offered in the source builder, so reaching this today means typing the tag by hand. `{{image}}` and the two `{{datetime_*}}` tags still render nothing from a row, and are next.
 
 ### Removed
 
@@ -14,6 +14,7 @@
 
 ### Fixed
 
+- **A `{{content}}` tag pointed at a repeater no longer prints the surrounding page.** Asking a content tag for a repeater's rows without naming a sub-field used to fall back to the post the tag was sitting on and print its whole content or excerpt: a real value from the wrong place, which is worse than nothing because it looks like it worked. A repeater row has no content of its own, so it now renders nothing there, and a field key is what reads the row.
 - **A tag with a field key no longer reads a term's fields from a page that is not that term's archive.** Two parts of the plugin decide "which thing is this page about", and they had drifted apart: one asked whether WordPress had actually queried a category, tag or custom taxonomy archive, while the field read asked only whether a term happened to be lying around, which is a question a page can answer yes to without being that term's archive. Both now ask the same way. On an ordinary term archive nothing changes, and no report prompted this; it was found while reviewing the two against each other.
 
 ## [1.20.0] — 2026-09-15

@@ -793,6 +793,24 @@
 
 <p class="gb-text">F9.5c an ANALOG refuses on a row (-> empty; a row has no title, and a wrong entity read would print one):</p>
 
+<p class="gb-text">F9.5d a COLLAPSING family reads the FIRST row only (-> Founding partner, not both rows; rendered EMPTY before): Founding partner</p>
+
+<p class="gb-text">F9.5e content analog refuses on a row (-> empty; printed the WHOLE PAGE CONTENT before FW-74):</p>
+
+<p class="gb-text">F9.5e excerpt analog, same assertion (-> empty; printed the page excerpt before FW-74):</p>
+
+<p class="gb-text">F9.5f the email tag on rows, needed no arm (-> alice@example.test, bob@example.test as mailto links): <a href="mailto:alice@example.test">alice@example.test</a>, <a href="mailto:bob@example.test">bob@example.test</a></p>
+
+<p class="gb-text">F9.5g the phone tag on rows, needed no arm (-> (617) 555-0142, (617) 555-0187 as tel links): <a href="tel:+1-617-555-0142">(617) 555-0142</a>, <a href="tel:+1-617-555-0187">(617) 555-0187</a></p>
+
+<p class="gb-text">F9.5h try_content on a row slot (-> Founding partner; rendered EMPTY before FW-74): Founding partner</p>
+
+<p class="gb-text">F9.5h try_email on a row slot (-> both addresses as mailto links; rendered EMPTY before FW-74): <a href="mailto:alice@example.test">alice@example.test</a>, <a href="mailto:bob@example.test">bob@example.test</a></p>
+
+<p class="gb-text">F9.5h try_phone on a row slot, limit(1) slices (-> (617) 555-0142 alone; rendered EMPTY before FW-74): <a href="tel:+1-617-555-0142">(617) 555-0142</a></p>
+
+<p class="gb-text">F9.5i a refusing row slot ADVANCES the attempt chain (-> (987) 654-3210 from slot B, the ambient page field): (987) 654-3210</p>
+
 <p class="gb-text">F9.6 flat ref+term with an EXPLICIT limit now fans across every ref-d post (-> All Users, All Users; was All Users): All Users, All Users</p>
 
 <p class="gb-text">F9.6b the compatibility FLOOR: same tag, limit unset (-> All Users, unchanged from before): All Users</p>

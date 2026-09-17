@@ -458,6 +458,23 @@ function bws_fixture_core_structures_register_acf() {
 							'label' => 'Quantity',
 							'type'  => 'text',
 						),
+						// The COMPOSING tags' row targets (FW-74 ticket 04). {{email}} and
+						// {{phone}} validate what they read, so a row sub-field they can
+						// accept is the only way to tell "the arm read the row" from "the
+						// arm read something the finisher then dropped" — every existing
+						// sub-field is prose and would be dropped either way.
+						array(
+							'key'   => 'field_bwsfx_team_email',
+							'name'  => 'email',
+							'label' => 'Email',
+							'type'  => 'text',
+						),
+						array(
+							'key'   => 'field_bwsfx_team_phone',
+							'name'  => 'phone',
+							'label' => 'Phone',
+							'type'  => 'text',
+						),
 					),
 				),
 			),
