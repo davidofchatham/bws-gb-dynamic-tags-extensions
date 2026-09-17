@@ -1206,6 +1206,15 @@ check(
 	bws_build_preview_label( [ 'src' => 'rows,team_members;refs,lead_ref', 'use' => 'key', 'key' => 'name' ], 'text' ),
 	"['name' from Ref 'lead_ref' Rows 'team_members']"
 );
+// The term step's ARROW is positional — ANY preceding segment turns it on, and a repeater
+// segment is now one of the things that can precede. Hand-wire only (the engine refuses a
+// `terms` step off a `meta_row`), which is exactly why the preview has to describe it:
+// ADR 0004 makes the shape reachable and the namer describes what the wire says.
+check(
+	'base: a `Rows` segment turns the term step\'s arrow on, like any other preceding segment',
+	bws_build_preview_label( [ 'src' => 'rows,team_members;terms,category', 'use' => 'key', 'key' => 'name' ], 'text' ),
+	"['name' from Rows 'team_members' → Category Term]"
+);
 // NEGATIVES — the internal spellings of the ambient entity and of a relationship hop all
 // resolve, so none of them flags.
 check( 'negative: bare tag',   bws_build_preview_label( [ 'use' => 'key', 'key' => 'sku' ], 'text' ), "['sku']" );
