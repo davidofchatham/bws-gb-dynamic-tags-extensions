@@ -432,8 +432,12 @@ const CHAIN_FOLD = {
 		terms: { label: 'In Taxonomy Term', arg: 'slug', accepts: [ 'post' ], produces: 'term' },
 		rows: { label: 'In Repeater Rows', arg: 'field', accepts: [ 'post', 'term', 'user', 'meta_row', 'site' ], produces: 'meta_row' }
 	},
-	offer: [ 'terms', 'refs' ],
+	offer: [ 'terms', 'refs', 'rows' ],
 	roots: { site: 'site' },
+	// The `rows` step's ARG picker, shipped since 1.21.0 wherever the step is offered
+	// (bws_fold_rows_picker_def). Without it the control paints a field combo with no
+	// label at all, which is the failure the offer made reachable.
+	rowsOption: { label: 'Repeater Field Key', placeholder: 'team_members', typeDefault: 'repeater' },
 	defaultRoot: 'current',
 	// Shaped exactly as bws_fold_wire_vocabulary() ships it (#95). Supplied as DATA
 	// because that is the property: the control authors none of these strings, and the
@@ -596,6 +600,44 @@ check(
 // step refused, an Add could only produce a dead step.
 const siteOnly = renderChain( [ { slug: 'site', arg: null, limit: null } ], false );
 check( 'Add step is still offered off site (refs applies)', hasAddStep( siteOnly ), true );
+
+// ── The `rows` step's ARG picker (1.21.0, FW-74 ticket 07) ──────────────────
+// The offer made this reachable: before it, `rows` was hand-edited wire and nothing
+// rendered its argument control, so a missing `rowsOption` cost nothing. Now the control
+// paints a field combo per stored `rows` step, and an absent config paints it with no
+// label — which is why the picker definition ships from ONE owner beside the offer.
+
+/** The ARG controls in a rendered tree, in step order (keyed `arg`, unlike `limit`). */
+function argsIn( nodes ) {
+	const out = [];
+	( function walk( n, inArg ) {
+		if ( ! n ) { return; }
+		if ( Array.isArray( n ) ) { n.forEach( function ( c ) { walk( c, inArg ); } ); return; }
+		const here = inArg || ( n.props && 'arg' === n.props.key );
+		if ( here && ( n.type === global.wp.components.TextControl || n.type === global.wp.components.ComboboxControl ) ) {
+			out.push( n.props );
+			return;
+		}
+		( n.children || [] ).forEach( function ( c ) { walk( c, here ); } );
+	}( nodes, false ) );
+	return out;
+}
+
+const rowsStep = argsIn( renderChain( [ { slug: 'rows', arg: 'team_members', limit: null } ], false ) );
+// The TextControl FALLBACK is what renders here (no field-combo global in this fixture),
+// so the LABEL is the half both branches share and the half asserted. The `typeDefault`
+// preset rides the combo branch only, and is pinned on the shipped config instead
+// (slot-options-build-test.php) — asserting it here would pin the fallback, not the seam.
+check( 'a `rows` step renders its argument picker with the shipped label', rowsStep[ 0 ] && rowsStep[ 0 ].label, 'Repeater Field Key' );
+
+// A NESTED repeater is legal wire (`rows` accepts `meta_row`), so the second one is
+// offered off the first. The engine's list is what says so; nothing here restates it.
+const afterRows = renderChain( [ { slug: 'rows', arg: 'team_members', limit: null }, { slug: 'refs', arg: 'lead_ref', limit: null } ], false );
+check(
+	'a `rows` step IS offered after a `rows` step (a nested repeater)',
+	lastPickerValues( afterRows ).indexOf( 'rows' ) !== -1,
+	true
+);
 
 const TERMS_ONLY = rep.foldConfig( { fold: Object.assign( {}, {
 	container: 'try',
@@ -1110,14 +1152,14 @@ check(
 	pinLastValues( afterPinnedTerm ).indexOf( 'refs' ) !== -1,
 	true
 );
-// `rows` is absent from that offer too — but for the CONTAINER's reason, not the pin's: no
-// join/try_ arm assembles a repeater row, so `rows` is on no slot offer at all
-// (fold-test-matrix.md §F10.4). Said here so the absence is never read back as a kind
-// refusal alongside the `terms` row below. The engine's own admission of `rows` off a term
-// is pinned in traversal-pipeline-test.php; its RENDER off a pin rides {{table}} in §F22.
-check( '`rows` is absent off the pin for the CONTAINER reason — it is on no slot offer', CHAIN_FOLD.offer.indexOf( 'rows' ), -1 );
+// `rows` IS offered off the pin, and it is the same rule answering: the engine accepts a
+// term input for `rows`, so the pin's kind admits it exactly as it admits `refs`. Until
+// 1.21.0 it was absent here for a CONTAINER reason instead — no arm assembled a repeater
+// row, so `rows` was on no offer at all — and that absence was never a kind refusal. Both
+// halves stay asserted so the row below is read as the kind rule it is.
+check( '`rows` IS offered off the pin — the offer carries it since 1.21.0', pinLastValues( afterPinnedTerm ).indexOf( 'rows' ) !== -1, true );
 check(
-	'...so that absence is NOT a kind refusal — the engine accepts a term input for `rows`',
+	'...and that is a KIND answer — the engine accepts a term input for `rows`',
 	CHAIN_FOLD.steps.rows.accepts.indexOf( 'term' ) !== -1,
 	true
 );

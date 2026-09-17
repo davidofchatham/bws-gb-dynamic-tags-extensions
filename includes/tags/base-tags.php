@@ -979,11 +979,11 @@ function bws_get_join_options(): array {
 				// A slot's source is a base tag's source (#104, [I16]), so the offer is the
 				// base tag's: the seam hands the whole chain on as depth-0 chain wire and
 				// the arms dispatch on what it resolves to, so nothing here truncates it.
-				// `rows` stays out for the reason it stays out of the base offer, and
-				// that reason changed with FW-74: a slot's read absorbs through the text
-				// seam, which consumes a `meta_row` now. The OFFER is its own change,
-				// landing on every authoring surface at once.
-				'steps'            => array( 'refs', 'terms' ),
+				// `rows` joins it in 1.21.0 for that same reason — a slot's read absorbs
+				// through the text seam, which consumes a `meta_row` — and it lands here
+				// in the same change as the base tag's, since the two lists are asserted
+				// equal (control-order-test.php §7).
+				'steps'            => array( 'refs', 'terms', 'rows' ),
 				// One noun, both surfaces: "+ Add field" and the header "Field A"
 				// (bws_build_fold_slot_options derives the header — no label parameter).
 				'noun'            => __( 'field', 'generateblocks' ),

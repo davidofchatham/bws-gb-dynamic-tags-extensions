@@ -194,6 +194,33 @@ function bws_fold_picker_config( array $def ): array {
 }
 
 /**
+ * The `rows` step's ARGUMENT picker, shipped to every container that offers the step.
+ *
+ * The sibling of `bws_base_traversal_options()['ref']` for the repeater step, and here
+ * rather than there because `ref` is also a registered flat OPTION and this is not: the
+ * repeater name has only ever lived inside the chain value, so it needs a picker
+ * definition without an option key to hang it on.
+ *
+ * `typeDefault` pre-scopes the picker to repeater fields while leaving the filter
+ * controls visible, so an author can widen to a plain-meta repeater, whose type
+ * discovery cannot see (the same axis {{table}}'s tag-level `key` uses).
+ *
+ * ONE definition, both builders. A second copy is how the image tag's `Return type:` /
+ * `Return image as:` labels drifted.
+ *
+ * @since 1.21.0
+ * @return array A picker definition, bws_fold_picker_config()-shaped.
+ */
+function bws_fold_rows_picker_def(): array {
+	return array(
+		'label'       => __( 'Repeater Field Key', 'generateblocks' ),
+		'help'        => __( 'ACF repeater (or meta) field key. The tag reads each row of this repeater.', 'generateblocks' ),
+		'placeholder' => 'team_members',
+		'typeDefault' => 'repeater',
+	);
+}
+
+/**
  * The chain-config keys that are properties of the WIRE, not of a container.
  *
  * A base tag, a `{{join}}` slot and a `try_` attempt disagree about nearly everything in
@@ -349,21 +376,21 @@ function bws_fold_step_offer( array $steps, array $vocab ): array {
  * fold into one value.
  *
  * NOT applied to the derived families. `bws_base_source_option()` stays a plain
- * select because `term_*`/`try_*`/`{{table}}` read its `options` rows to build their
- * own surfaces (bws_pick_src_values, bws_filter_site_from_src,
- * bws_build_slot_traversal_options); a slot authors its chain inside its folded
- * value instead.
+ * select because `try_*` and `{{table}}` read its `options` rows to build their
+ * own surfaces (bws_pick_src_values, bws_build_slot_traversal_options); a slot
+ * authors its chain inside its folded value instead. The rooting modifiers
+ * (`term_*`, `view_*`) were the third reader through 1.20.x and are withdrawn.
  *
  * @since 1.17.0
  * @param array $args {
  *     @type array $source_opt A bws_base_source_option()-shaped array to upgrade.
  *                             Default bws_base_source_option().
  *     @type array $steps       WIRE step slugs offered as steps, in offer order.
- *                             Default ['refs','terms'] — `rows` is deliberately
- *                             absent, and since FW-74 that is no longer because the
- *                             chain renders nothing: the text arm consumes a meta_row.
- *                             The OFFER is its own change, landing on every authoring
- *                             surface at once; until it does, `rows` is hand-edited wire.
+ *                             Default ['refs','terms','rows'] — `rows` joined the offer
+ *                             in 1.21.0, once every keyed arm read a repeater row
+ *                             (FW-74). It was held back while no arm consumed a
+ *                             meta_row, because a step nothing reads authors a chain
+ *                             that renders empty.
  *     @type bool  $takes_first_usable The template's collapsing capability (ADR 0007):
  *                             the step renderer suppresses the limit control
  *                             where it is set. Default false.
@@ -372,7 +399,7 @@ function bws_fold_step_offer( array $steps, array $vocab ): array {
  */
 function bws_build_src_chain_option( array $args = array() ): array {
 	$source_opt = $args['source_opt'] ?? bws_base_source_option();
-	$steps       = $args['steps'] ?? array( 'refs', 'terms' );
+	$steps       = $args['steps'] ?? array( 'refs', 'terms', 'rows' );
 
 	if ( ! isset( $source_opt['src'] ) ) {
 		return $source_opt;
@@ -431,6 +458,7 @@ function bws_build_src_chain_option( array $args = array() ): array {
 		'offer'       => $offer,
 		'taxonomies'  => $tax_rows,
 		'refOption'   => bws_fold_picker_config( $base_trav['ref'] ),
+		'rowsOption'  => bws_fold_picker_config( bws_fold_rows_picker_def() ),
 		// The flat keys a commit REPLACES. Their meaning moves into the chain value,
 		// so leaving them beside it would store one source two ways — and the flat
 		// pair is what the retired arms used to dispatch on.
@@ -769,7 +797,7 @@ function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same
  *     exactly the containers whose resolver honors it.
  *   - `steps` names which traversal steps this container OFFERS. It is a CAPABILITY
  *     list, not decoration: a step no arm consumes authors a chain that renders nothing
- *     (which is why `rows` is on no offer). It was also once the CONTAINER's ceiling —
+ *     (which is why `rows` was on no offer until 1.21.0 armed it). It was also once the CONTAINER's ceiling —
  *     the retired flatten re-spelled a slot as one relationship step plus one term step —
  *     and since #104 the seam hands the whole chain on, so a slot offers what a base tag
  *     offers ([I16]).
@@ -940,9 +968,12 @@ function bws_build_fold_slot_options( array $args ): array {
 	if ( ! empty( $base_key ) ) {
 		$fold['keyOption'] = bws_fold_picker_config( $base_key );
 	}
-	if ( ! empty( $args['rows_option'] ) ) {
-		$fold['rowsOption'] = bws_fold_picker_config( (array) $args['rows_option'] );
-	}
+	// The `rows` step's argument picker. A container may override it — {{table}} scopes
+	// the picker differently — but every container that offers the step ships one, or the
+	// control renders the field combo with no label at all.
+	$fold['rowsOption'] = bws_fold_picker_config(
+		! empty( $args['rows_option'] ) ? (array) $args['rows_option'] : bws_fold_rows_picker_def()
+	);
 	if ( ! empty( $args['field_scope'] ) ) {
 		$fold['fieldScope'] = (string) $args['field_scope'];
 	}

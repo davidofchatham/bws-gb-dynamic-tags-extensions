@@ -627,10 +627,21 @@ assert_same(
 	$base_chain['src']['options'][0]['value'],
 	$base_fold['defaultRoot']
 );
-// The base tag OFFERS both steps (`rows` deliberately absent — no base-tag arm
-// consumes a meta_row), and the vocabulary record it ships is BYTE-IDENTICAL to the
-// slot builder's: container-invariant by construction, both consuming one helper (#70).
-assert_same( 'base chain: offer = refs,terms in offer order', array( 'refs', 'terms' ), $base_fold['offer'] );
+// The base tag OFFERS all three steps — `rows` joined in 1.21.0, once every keyed arm
+// read a repeater row (FW-74); it was held out while no arm consumed a meta_row, because
+// a step nothing reads authors a chain that renders empty. The vocabulary record it ships
+// is BYTE-IDENTICAL to the slot builder's: container-invariant by construction, both
+// consuming one helper (#70).
+assert_same( 'base chain: offer = refs,terms,rows in offer order', array( 'refs', 'terms', 'rows' ), $base_fold['offer'] );
+// The `rows` step's ARG picker ships wherever the step is offered, or the control paints
+// a field combo with no label. One definition, both builders (bws_fold_rows_picker_def).
+assert_same( 'base chain: the offered `rows` step ships its argument picker', true, ! empty( $base_fold['rowsOption']['label'] ) );
+assert_same( 'slot: ...and so does the slot builder', $base_fold['rowsOption'], $fold['rowsOption'] );
+// The picker opens on repeater fields and keeps its filter controls, so a plain-meta
+// repeater (no discovered type) is still reachable — the same axis {{table}}'s tag-level
+// `key` takes. Pinned here because the rendering harness exercises the TextControl
+// fallback, which carries no type filter to observe.
+assert_same( 'the `rows` picker pre-scopes its type filter to repeaters', 'repeater', $base_fold['rowsOption']['typeDefault'] ?? '' );
 assert_same( 'the step vocabulary is container-invariant (base ≡ slot record)', $fold['steps'], $base_fold['steps'] );
 assert_same( '...and so is roots', $fold['roots'], $base_fold['roots'] );
 assert_same( '...and so is the per-step limit control (#95)', $fold['limitOption'], $base_fold['limitOption'] );
