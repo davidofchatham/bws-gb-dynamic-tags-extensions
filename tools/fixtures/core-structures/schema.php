@@ -504,6 +504,43 @@ function bws_fixture_core_structures_register_acf() {
 							'type'          => 'image',
 							'return_format' => 'url',
 						),
+						// The DATETIME row targets (FW-74 ticket 06). A pair, because
+						// {{datetime_range}} is a separate family with its own refusal
+						// call site and a single date field could not exercise it.
+						array(
+							'key'            => 'field_bwsfx_team_contract_start',
+							'name'           => 'contract_start',
+							'label'          => 'Contract Start',
+							'type'           => 'date_picker',
+							'return_format'  => 'Y-m-d',
+							'display_format' => 'F j, Y',
+						),
+						array(
+							'key'            => 'field_bwsfx_team_contract_end',
+							'name'           => 'contract_end',
+							'label'          => 'Contract End',
+							'type'           => 'date_picker',
+							'return_format'  => 'Y-m-d',
+							'display_format' => 'F j, Y',
+						),
+						// THE FORMAT BOUNDARY, seeded on purpose. A row reaches no
+						// sub-field config (the object id a base tag derives cannot
+						// address one), so every row date parses format-agnostically —
+						// the common-format walk in bws_parse_acf_date_value(), which
+						// tries `m/d/Y` before `d/m/Y`. This field's return format is
+						// `d/m/Y`, and the two rows' values are chosen so ONE is
+						// ambiguous under that walk and the other is not: row 1 reads
+						// as the wrong month, row 2 reads correctly. Matrix §F9.5m4
+						// states which is which. When FW-3 exposes the field object
+						// this row moves, which is the signal, not a regression.
+						array(
+							'key'            => 'field_bwsfx_team_review_dmy',
+							'name'           => 'review_dmy',
+							'label'          => 'Next Review (d/m/Y)',
+							'type'           => 'date_picker',
+							'return_format'  => 'd/m/Y',
+							'display_format' => 'd/m/Y',
+						),
 					),
 				),
 			),

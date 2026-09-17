@@ -84,7 +84,7 @@ return array(
 	// The 2026-09-14 capture is WooCommerce joining the fixture site (chrome only, no
 	// rendered tag moved); the 2026-09-03 one is where the head-deletion rule arrived — a
 	// reader hitting an ~800-line deletion further back in `git log` is looking at that.
-	'captured' => '2026-09-16',
+	'captured' => '2026-09-17',
 
 	// EVERY PLUGIN THAT WAS RUNNING, not only the four this record requires. The version
 	// list below answers "were the dependencies the same"; this answers "what else was in

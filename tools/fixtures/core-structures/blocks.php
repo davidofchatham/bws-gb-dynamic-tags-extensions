@@ -906,10 +906,25 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F9.5l3 same picture through the ACF url format, the one the string seam could always carry (-> the SAME URL again)', '{{image src:rows,team_members|use:key|key:photo_url|as:url}}' ),
 		bws_fixture_gb_empty_row( 'F9.5l4 the image analog refuses on a row (-> empty; a row has no featured image, and reading the one on the surrounding post would be a plausible wrong value)', '{{image src:rows,team_members|use:featured|as:url}}' ),
 		bws_fixture_gb_row( 'F9.5l5 try_image on a row slot (-> the same fixture-photo-alice.png; rendered EMPTY before FW-74)', '{{try_image A:src(rows,team_members);use(key);key(photo)}}' ),
-		bws_fixture_gb_empty_row( 'F9.5m datetime_single refuses on a rows chain (-> empty; printed 15/08/2030 before FW-74)', '{{datetime_single src:rows,team_members|key:event_date_dmy}}' ),
-		bws_fixture_gb_row( 'F9.5m CONTROL (-> 15/08/2030 - what the row above used to print)', '{{datetime_single key:event_date_dmy}}' ),
-		bws_fixture_gb_empty_row( 'F9.5n datetime_range is a SEPARATE family with its own refusal site (-> empty; printed this page range before FW-74)', '{{datetime_range startKey:event_start_date|endKey:event_end_date|src:rows,team_members}}' ),
-		bws_fixture_gb_row( 'F9.5n CONTROL (-> August 1–9, 2030 - what the row above used to print)', '{{datetime_range startKey:event_start_date|endKey:event_end_date}}' ),
+		// The datetime families' row arms (FW-74 ticket 06). TWO families, two refusal
+		// call sites, so both halves are shown - a $serves list wrong on one of them
+		// goes unpinned by the other. The CONTROL stays beside each read for the reason
+		// it stood beside the refusal: the page carries its own date fields, so a row
+		// read that printed one of those is the pre-1.21.0 leak wearing the arm's clothes.
+		bws_fixture_gb_row( 'F9.5m a date sub-field inside a row, fanning across both rows (-> March 4, 2029, June 10, 2030; REFUSED before FW-74, and printed the 15/08/2030 below before that)', '{{datetime_single src:rows,team_members|key:contract_start}}' ),
+		bws_fixture_gb_row( 'F9.5m CONTROL (-> 15/08/2030, the date field on THIS page - a row read that printed this one is the old leak)', '{{datetime_single key:event_date_dmy}}' ),
+		bws_fixture_gb_row( 'F9.5m2 a step limit bounds the row fan (-> March 4, 2029 alone)', '{{datetime_single src:rows,team_members,limit(1)|key:contract_start}}' ),
+		bws_fixture_gb_row( 'F9.5m3 the tag sep joins the row fan (-> March 4, 2029 / June 10, 2030)', '{{datetime_single src:rows,team_members|key:contract_start|sep: / }}' ),
+		// THE FORMAT BOUNDARY, shown rather than described. A row reaches no sub-field
+		// config, so the parse falls to the common-format walk, which tries m/d/Y before
+		// d/m/Y. Row 1 (04/03/2030) is ambiguous under that and reads as the wrong month;
+		// row 2 (22/11/2030) is not and reads correctly. FW-3 is what closes it, and when
+		// it does THIS ROW MOVES - that is the signal, not a regression.
+		bws_fixture_gb_row( 'F9.5m4 a d/m/Y sub-field is parsed format-agnostically on a row, a KNOWN BOUNDARY (-> April 3, 2030, November 22, 2030; row 1 means 4 March and reads as the wrong month, row 2 is unambiguous and is right)', '{{datetime_single src:rows,team_members|key:review_dmy}}' ),
+		bws_fixture_gb_row( 'F9.5m5 try_datetime_single on a row slot, tag-level key as always (-> the same two dates as F9.5m; rendered EMPTY before FW-74)', '{{try_datetime_single A:src(rows,team_members)|key:contract_start}}' ),
+		bws_fixture_gb_row( 'F9.5n datetime_range is a SEPARATE family with its own refusal site, and reads a row pair (-> March 4, 2029–March 3, 2031, June 10, 2030–June 9, 2032; REFUSED before FW-74)', '{{datetime_range src:rows,team_members|startKey:contract_start|endKey:contract_end}}' ),
+		bws_fixture_gb_row( 'F9.5n CONTROL (-> August 1–9, 2030, the range on THIS page - what the row above printed before FW-74)', '{{datetime_range startKey:event_start_date|endKey:event_end_date}}' ),
+		bws_fixture_gb_row( 'F9.5n2 try_datetime_range on a row slot (-> the same two ranges as F9.5n; rendered EMPTY before FW-74)', '{{try_datetime_range A:src(rows,team_members)|startKey:contract_start|endKey:contract_end}}' ),
 		// The one flat-wire behaviour change, shown rather than hidden. It uses
 		// portal_visibility, NOT department: jane and tom carry no department terms,
 		// so that taxonomy makes the row empty either way and it asserts nothing.
@@ -1008,6 +1023,19 @@ function bws_fixture_page_content_matrix_post_meta() {
 		// photo sub-fields existed, and it is the path the new row branch would delete if
 		// it tested the resolved base's kind instead of the wire's.
 		bws_fixture_gb_post_meta_loop( 'team_members', 'F9c.7 a bare image tag in a repeater row takes the loop fallthrough (-> the alice photo URL then the bob one, one per row): {{image key:photo|as:url}}', 'f9c7-image-loop' ),
+		// The datetime family's half of (1), added with its row arm (FW-74 ticket 06).
+		// This is the path both datetime cores' INVARIANT is written about (issue #22 -
+		// do not hard-bail on a falsy id when the field read can still be served off the
+		// loop item), and until this row the family had no rendered coverage of it.
+		//
+		// IT IS A CONTROL, NOT A CONFLATION PIN, and that was MEASURED rather than
+		// assumed: both mutation shapes were run against it (2026-09-17) and NEITHER
+		// moves it. In place, the wire's post branch catches a bare tag first and the
+		// mutated test is never reached; hoisted, the row branch reads the very value the
+		// post-arm fallthrough would, because a bare tag's meta_row base CARRIES the row
+		// - the same coincidence F9c.1-5 record for {{text}}. The datetime axis pin is
+		// §F9.5m/m2/m3/m4, which go empty under both shapes.
+		bws_fixture_gb_post_meta_loop( 'team_members', 'F9c.8 a bare datetime tag in a repeater row takes the loop fallthrough (-> March 4, 2029 then June 10, 2030, one per row): {{datetime_single key:contract_start}}', 'f9c8-datetime-loop' ),
 	) );
 
 	// F10 INVERTED at #104: the seam stopped re-spelling a slot's chain as a flat

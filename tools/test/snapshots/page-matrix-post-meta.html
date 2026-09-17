@@ -831,13 +831,23 @@
 
 <p class="gb-text">F9.5l5 try_image on a row slot (-> the same fixture-photo-alice.png; rendered EMPTY before FW-74): /wp-content/uploads/2026/09/fixture-photo-alice.png</p>
 
-<p class="gb-text">F9.5m datetime_single refuses on a rows chain (-> empty; printed 15/08/2030 before FW-74):</p>
+<p class="gb-text">F9.5m a date sub-field inside a row, fanning across both rows (-> March 4, 2029, June 10, 2030; REFUSED before FW-74, and printed the 15/08/2030 below before that): March 4, 2029, June 10, 2030</p>
 
-<p class="gb-text">F9.5m CONTROL (-> 15/08/2030 &#8211; what the row above used to print): 15/08/2030</p>
+<p class="gb-text">F9.5m CONTROL (-> 15/08/2030, the date field on THIS page &#8211; a row read that printed this one is the old leak): 15/08/2030</p>
 
-<p class="gb-text">F9.5n datetime_range is a SEPARATE family with its own refusal site (-> empty; printed this page range before FW-74):</p>
+<p class="gb-text">F9.5m2 a step limit bounds the row fan (-> March 4, 2029 alone): March 4, 2029</p>
 
-<p class="gb-text">F9.5n CONTROL (-> August 1–9, 2030 &#8211; what the row above used to print): August 1–9, 2030</p>
+<p class="gb-text">F9.5m3 the tag sep joins the row fan (-> March 4, 2029 / June 10, 2030): March 4, 2029 / June 10, 2030</p>
+
+<p class="gb-text">F9.5m4 a d/m/Y sub-field is parsed format-agnostically on a row, a KNOWN BOUNDARY (-> April 3, 2030, November 22, 2030; row 1 means 4 March and reads as the wrong month, row 2 is unambiguous and is right): April 3, 2030, November 22, 2030</p>
+
+<p class="gb-text">F9.5m5 try_datetime_single on a row slot, tag-level key as always (-> the same two dates as F9.5m; rendered EMPTY before FW-74): March 4, 2029, June 10, 2030</p>
+
+<p class="gb-text">F9.5n datetime_range is a SEPARATE family with its own refusal site, and reads a row pair (-> March 4, 2029–March 3, 2031, June 10, 2030–June 9, 2032; REFUSED before FW-74): March 4, 2029–March 3, 2031, June 10, 2030–June 9, 2032</p>
+
+<p class="gb-text">F9.5n CONTROL (-> August 1–9, 2030, the range on THIS page &#8211; what the row above printed before FW-74): August 1–9, 2030</p>
+
+<p class="gb-text">F9.5n2 try_datetime_range on a row slot (-> the same two ranges as F9.5n; rendered EMPTY before FW-74): March 4, 2029–March 3, 2031, June 10, 2030–June 9, 2032</p>
 
 <p class="gb-text">F9.6 flat ref+term with an EXPLICIT limit now fans across every ref-d post (-> All Users, All Users; was All Users): All Users, All Users</p>
 
@@ -940,6 +950,16 @@
 
 <li class="gb-loop-item">
 <p class="gb-text">F9c.7 a bare image tag in a repeater row takes the loop fallthrough (-> the alice photo URL then the bob one, one per row): /wp-content/uploads/2026/09/fixture-photo-bob.png</p>
+</li>
+</ol></div>
+
+<div><ol >
+<li class="gb-loop-item">
+<p class="gb-text">F9c.8 a bare datetime tag in a repeater row takes the loop fallthrough (-> March 4, 2029 then June 10, 2030, one per row): March 4, 2029</p>
+</li>
+
+<li class="gb-loop-item">
+<p class="gb-text">F9c.8 a bare datetime tag in a repeater row takes the loop fallthrough (-> March 4, 2029 then June 10, 2030, one per row): June 10, 2030</p>
 </li>
 </ol></div>
 </div>

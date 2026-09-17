@@ -609,6 +609,17 @@ function bws_register_base_tags(): void {
 				: $opts;
 			return bws_datetime_single_core( 'option', $mapped, $inst );
 		},
+		// A repeater-row source off the slot's own `rows` step (FW-74). Takes the
+		// resolved SOURCE, not an id — a row has none — and the core consumes it
+		// verbatim (bws_datetime_coerce_read_target() passes a kind-carrying array
+		// through). No dispatcher function of its own, unlike text/content/image:
+		// datetime has no `use` fork, so there is no analog to refuse on a row.
+		'try_row_fn'   => static function ( $source, $opts, $inst ) {
+			$mapped = function_exists( 'bws_normalize_datetime_options' )
+				? bws_normalize_datetime_options( $opts )
+				: $opts;
+			return bws_datetime_single_core( (array) $source, $mapped, $inst );
+		},
 		'try_allow_site_slot' => true,
 		'supports_try' => true,
 		'is_image'     => false,
@@ -655,6 +666,13 @@ function bws_register_base_tags(): void {
 				? bws_normalize_datetime_options( $opts, true )
 				: $opts;
 			return bws_datetime_range_core( 'option', $mapped, $inst );
+		},
+		// The range pair's row leg — see the datetime_single note above.
+		'try_row_fn'   => static function ( $source, $opts, $inst ) {
+			$mapped = function_exists( 'bws_normalize_datetime_options' )
+				? bws_normalize_datetime_options( $opts, true )
+				: $opts;
+			return bws_datetime_range_core( (array) $source, $mapped, $inst );
 		},
 		'try_allow_site_slot' => true,
 		'supports_try' => true,
