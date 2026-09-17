@@ -552,6 +552,7 @@ function bws_register_base_tags(): void {
 		'try_core_fn'           => 'bws_try_image_post_dispatch',
 		'try_term_fn'           => 'bws_term_custom_image_core',
 		'try_site_fn'           => static fn( $opts, $inst ) => bws_site_resolve_value( 'image', (array) $opts, $inst ),
+		'try_row_fn'            => 'bws_try_image_row_dispatch',
 		'try_allow_site_slot'   => true,
 		'supports_try'          => true,
 		'try_per_slot_key'      => true,
@@ -1462,7 +1463,7 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 	// half is the tail, the fallback half lives inside the image cores
 	// (bws_image_stated_fallback, their shared owner), which the refusal must not reach
 	// through a core. Preview outranks the fallback image, matching the tail.
-	if ( bws_base_read_refused( $res, $base ) ) {
+	if ( bws_base_read_refused( $res, $base, array( 'meta_row' ) ) ) {
 		return $is_preview && function_exists( 'bws_build_preview_label' )
 			? bws_build_preview_label( $options, 'image' )
 			: bws_image_stated_fallback( $options, $instance );
@@ -1481,7 +1482,35 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 		}
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'image' ) : '';
 	}
-	if ( 'term' === $res['kind'] ) {
+	if ( 'meta_row' === $res['kind'] ) {
+		// REPEATER-ROW READ (FW-74 ticket 05). Collapsing, not listing, exactly as
+		// {{content}}'s row branch is: {{image}} is takes_first_usable (ADR 0007), so the
+		// whole fan is compiled with step limits stripped and the FIRST row's photo is the
+		// output. It registers no `limit` and no `sep`, so there is no list seam to honor
+		// here; {{text}}'s §F9.5 is the fanning twin of this read.
+		//
+		// THE KIND TESTED HERE IS THE WIRE'S ($res), NEVER THE RESOLVED BASE'S — the trap
+		// this area sets, stated in full at the {{text}} branch above and pinned by
+		// fold-test-matrix.md §F9c.
+		//
+		// THE READ IS THE RAW SEAM'S, and this family is why that seam was split out:
+		// an ACF image sub-field is an ARRAY under the default return_format, and the
+		// string seam every other row arm reads through drops arrays. The row core owns
+		// that read; the analog refuses, since a row has no featured image of its own.
+		//
+		// THE FALLBACK IS EMITTED HERE rather than inside the core, which is the one
+		// place this branch differs in shape from the post route below. There the cores
+		// emit it per read (they have an id to merge, a row has none), and an empty fan
+		// still reaches one through the selector's falsy-id leg. Stating it on the empty
+		// result gives a `rows` chain the same two fallback occasions the post route has:
+		// a row that carries no image, and a repeater with no rows at all.
+		$found = bws_read_bounded_sources(
+			bws_base_sources_of_kind( $base, $options, 'meta_row', true ),
+			static fn( $row_source ) => bws_try_image_row_dispatch( $row_source, $options, $instance ),
+			1
+		);
+		$value = $found ? (string) $found[0] : bws_image_stated_fallback( $options, $instance );
+	} elseif ( 'term' === $res['kind'] ) {
 		// takes_first_usable (ADR 0007): search the WHOLE fan — every step limit is
 		// stripped at compile — and output the first usable term image. The cores
 		// keep their per-read stated-fallback semantics untouched: a stated fallback
@@ -1840,4 +1869,26 @@ function bws_try_image_post_dispatch( $post_id, $options, $instance ) {
 		return bws_featured_image_core( $post_id, $options, $instance );
 	}
 	return bws_custom_image_core( $post_id, $options, $instance );
+}
+
+/**
+ * Try-tag repeater-ROW-slot dispatch for `image` template (FW-74).
+ *
+ * The `use` fork's row arm, with `featured` REFUSING for the reason
+ * bws_try_text_row_dispatch() refuses `title`: a row is not an entity, so it has no
+ * featured image, and reading one would print the surrounding post's picture — a
+ * plausible wrong value where an empty one is the honest answer. The hop that spelling
+ * implies needs no new vocabulary (`rows,team_members;refs,lead_ref` then `use:featured`).
+ *
+ * Takes the resolved SOURCE, not an id (a row has none). Used as `try_row_fn`, and by the
+ * BASE arm too — the same reuse the term and post routes make of their own try_
+ * dispatchers, and what keeps the base tag and its try_ twin reading one way.
+ *
+ * @since 1.21.0
+ */
+function bws_try_image_row_dispatch( $source, $options, $instance ) {
+	if ( 'featured' === ( $options['use'] ?? 'key' ) ) {
+		return '';
+	}
+	return bws_row_custom_image_core( (array) $source, $options, $instance );
 }

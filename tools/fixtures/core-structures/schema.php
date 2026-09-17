@@ -475,6 +475,35 @@ function bws_fixture_core_structures_register_acf() {
 							'label' => 'Phone',
 							'type'  => 'text',
 						),
+						// The IMAGE row targets (FW-74 ticket 05). THREE fields for ONE
+						// picture, because the RETURN FORMAT is the axis under test: ACF
+						// formats a sub-field on the way out of get_field(), so the same
+						// attachment reaches the row read as an array, an int or a URL
+						// string depending on which of these was asked. The `array` one is
+						// the shape the string read seam drops and the raw seam exists for;
+						// a fixture carrying one format would pass while the read that
+						// needed the split stayed broken.
+						array(
+							'key'           => 'field_bwsfx_team_photo',
+							'name'          => 'photo',
+							'label'         => 'Photo',
+							'type'          => 'image',
+							'return_format' => 'array',
+						),
+						array(
+							'key'           => 'field_bwsfx_team_photo_id',
+							'name'          => 'photo_id',
+							'label'         => 'Photo (ID)',
+							'type'          => 'image',
+							'return_format' => 'id',
+						),
+						array(
+							'key'           => 'field_bwsfx_team_photo_url',
+							'name'          => 'photo_url',
+							'label'         => 'Photo (URL)',
+							'type'          => 'image',
+							'return_format' => 'url',
+						),
 					),
 				),
 			),

@@ -895,8 +895,17 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F9.5j CONTROL, the bare tag on the same page (-> Matrix: Post Meta - what the row above used to print)', '{{title}}' ),
 		bws_fixture_gb_empty_row( 'F9.5k permalink has NO row arm and REFUSES (-> empty; printed this page URL before FW-74)', '{{permalink src:rows,team_members}}' ),
 		bws_fixture_gb_row( 'F9.5k CONTROL (-> https://testbed.test/matrix-post-meta/ - what the row above used to print)', '{{permalink}}' ),
-		bws_fixture_gb_empty_row( 'F9.5l a KEYED read leaks the same way an analog does, and now refuses (-> empty; printed this page feature_image before FW-74)', '{{image src:rows,team_members|use:key|key:feature_image|as:url}}' ),
-		bws_fixture_gb_row( 'F9.5l CONTROL (-> the fixture photo URL - what the row above used to print)', '{{image use:key|key:feature_image|as:url}}' ),
+		// The image family's row arm (FW-74 ticket 05). The CONTROL stays beside the read
+		// for the reason it stood beside the refusal: the page carries its own image, so
+		// the two URLs next to each other are what say the read is the ROW's. Three
+		// formats because ACF formats a sub-field on the way out and only the array one
+		// needed the raw read seam.
+		bws_fixture_gb_row( 'F9.5l an image sub-field inside a row, ACF array format (-> fixture-photo-alice.png, the FIRST row photo; REFUSED before FW-74, and printed the feature_image of THIS page before that)', '{{image src:rows,team_members|use:key|key:photo|as:url}}' ),
+		bws_fixture_gb_row( 'F9.5l CONTROL (-> fixture-photo.png, the image on THIS page - a row read that printed this one is the old leak)', '{{image use:key|key:feature_image|as:url}}' ),
+		bws_fixture_gb_row( 'F9.5l2 same picture through the ACF id format (-> the SAME fixture-photo-alice.png URL)', '{{image src:rows,team_members|use:key|key:photo_id|as:url}}' ),
+		bws_fixture_gb_row( 'F9.5l3 same picture through the ACF url format, the one the string seam could always carry (-> the SAME URL again)', '{{image src:rows,team_members|use:key|key:photo_url|as:url}}' ),
+		bws_fixture_gb_empty_row( 'F9.5l4 the image analog refuses on a row (-> empty; a row has no featured image, and reading the one on the surrounding post would be a plausible wrong value)', '{{image src:rows,team_members|use:featured|as:url}}' ),
+		bws_fixture_gb_row( 'F9.5l5 try_image on a row slot (-> the same fixture-photo-alice.png; rendered EMPTY before FW-74)', '{{try_image A:src(rows,team_members);use(key);key(photo)}}' ),
 		bws_fixture_gb_empty_row( 'F9.5m datetime_single refuses on a rows chain (-> empty; printed 15/08/2030 before FW-74)', '{{datetime_single src:rows,team_members|key:event_date_dmy}}' ),
 		bws_fixture_gb_row( 'F9.5m CONTROL (-> 15/08/2030 - what the row above used to print)', '{{datetime_single key:event_date_dmy}}' ),
 		bws_fixture_gb_empty_row( 'F9.5n datetime_range is a SEPARATE family with its own refusal site (-> empty; printed this page range before FW-74)', '{{datetime_range startKey:event_start_date|endKey:event_end_date|src:rows,team_members}}' ),
@@ -992,6 +1001,13 @@ function bws_fixture_page_content_matrix_post_meta() {
 		//       base-kind branch filters the chain's POST output to meta_row, finds none,
 		//       and the hop out of the row disappears.
 		bws_fixture_gb_post_meta_loop( 'team_members', 'F9c.6 the BASE twin of F9c.5, and the conflation pin: a chain inside a row follows the WIRE (-> Jane Partner / empty; EMPTY on both rows if the branch dispatches on the resolved base kind): {{text src:refs,lead_ref|use:title}}', 'f9c6-base-hop' ),
+		// The image family's half of (1), added with its row arm (FW-74 ticket 05). The
+		// loop fallthrough is what a BARE image tag inside a repeater row rides — the
+		// factory resolves a meta_row, no post id comes out, and bws_custom_image_core()
+		// reads the row off the loop item anyway. It had no rendered coverage until the
+		// photo sub-fields existed, and it is the path the new row branch would delete if
+		// it tested the resolved base's kind instead of the wire's.
+		bws_fixture_gb_post_meta_loop( 'team_members', 'F9c.7 a bare image tag in a repeater row takes the loop fallthrough (-> the alice photo URL then the bob one, one per row): {{image key:photo|as:url}}', 'f9c7-image-loop' ),
 	) );
 
 	// F10 INVERTED at #104: the seam stopped re-spelling a slot's chain as a flat

@@ -625,10 +625,18 @@ foreach ( $manifest['post_fields'] as $slug => $fields ) {
 		// fixture slug → post ID. The generic related_staff resolver above is
 		// top-level-only; the repeater's rows are one level down, so map each row's
 		// lead_ref slug here. Empty/unknown slugs → '' (proves the empty-cell path).
+		// The same one level down for the row PHOTO sub-fields (FW-74 ticket 05):
+		// an image field stores the attachment id whatever its return_format is, so
+		// all three resolve through one map and the format only shows up on the READ.
 		if ( 'team_members' === $name && is_array( $value ) ) {
-			$value = array_map( function ( $row ) use ( $post_ids ) {
+			$value = array_map( function ( $row ) use ( $post_ids, $attachment_ids ) {
 				if ( is_array( $row ) && isset( $row['lead_ref'] ) && is_string( $row['lead_ref'] ) ) {
 					$row['lead_ref'] = isset( $post_ids[ $row['lead_ref'] ] ) ? $post_ids[ $row['lead_ref'] ] : '';
+				}
+				foreach ( array( 'photo', 'photo_id', 'photo_url' ) as $photo_key ) {
+					if ( is_array( $row ) && isset( $row[ $photo_key ] ) && is_string( $row[ $photo_key ] ) ) {
+						$row[ $photo_key ] = isset( $attachment_ids[ $row[ $photo_key ] ] ) ? $attachment_ids[ $row[ $photo_key ] ] : '';
+					}
 				}
 				return $row;
 			}, $value );

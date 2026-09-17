@@ -819,9 +819,17 @@
 
 <p class="gb-text">F9.5k CONTROL (-> /matrix-post-meta/ &#8211; what the row above used to print): /matrix-post-meta/</p>
 
-<p class="gb-text">F9.5l a KEYED read leaks the same way an analog does, and now refuses (-> empty; printed this page feature_image before FW-74):</p>
+<p class="gb-text">F9.5l an image sub-field inside a row, ACF array format (-> fixture-photo-alice.png, the FIRST row photo; REFUSED before FW-74, and printed the feature_image of THIS page before that): /wp-content/uploads/2026/09/fixture-photo-alice.png</p>
 
-<p class="gb-text">F9.5l CONTROL (-> the fixture photo URL &#8211; what the row above used to print): /wp-content/uploads/2026/07/fixture-photo.png</p>
+<p class="gb-text">F9.5l CONTROL (-> fixture-photo.png, the image on THIS page &#8211; a row read that printed this one is the old leak): /wp-content/uploads/2026/07/fixture-photo.png</p>
+
+<p class="gb-text">F9.5l2 same picture through the ACF id format (-> the SAME fixture-photo-alice.png URL): /wp-content/uploads/2026/09/fixture-photo-alice.png</p>
+
+<p class="gb-text">F9.5l3 same picture through the ACF url format, the one the string seam could always carry (-> the SAME URL again): /wp-content/uploads/2026/09/fixture-photo-alice.png</p>
+
+<p class="gb-text">F9.5l4 the image analog refuses on a row (-> empty; a row has no featured image, and reading the one on the surrounding post would be a plausible wrong value):</p>
+
+<p class="gb-text">F9.5l5 try_image on a row slot (-> the same fixture-photo-alice.png; rendered EMPTY before FW-74): /wp-content/uploads/2026/09/fixture-photo-alice.png</p>
 
 <p class="gb-text">F9.5m datetime_single refuses on a rows chain (-> empty; printed 15/08/2030 before FW-74):</p>
 
@@ -923,6 +931,16 @@
 </li>
 
 <li class="gb-loop-item"></li>
+</ol></div>
+
+<div><ol >
+<li class="gb-loop-item">
+<p class="gb-text">F9c.7 a bare image tag in a repeater row takes the loop fallthrough (-> the alice photo URL then the bob one, one per row): /wp-content/uploads/2026/09/fixture-photo-alice.png</p>
+</li>
+
+<li class="gb-loop-item">
+<p class="gb-text">F9c.7 a bare image tag in a repeater row takes the loop fallthrough (-> the alice photo URL then the bob one, one per row): /wp-content/uploads/2026/09/fixture-photo-bob.png</p>
+</li>
 </ol></div>
 </div>
 
