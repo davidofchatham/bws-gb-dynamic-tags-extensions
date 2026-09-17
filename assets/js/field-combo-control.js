@@ -24,9 +24,10 @@
  * - TWO filter selectors ABOVE the field combobox, AND-composed:
  *     Filter 1 Location — searchable combobox, flat path-strings
  *       (All detected fields / Post fields / Post fields › Group A / …),
- *       prefix-match. Preset from SAFE source tokens only (srcTermIn→Term,
- *       src:site→Site, src:ref→Post) else "All detected fields" — NEVER assume
- *       the editor's current context is a post (that is the GB bug we escape).
+ *       prefix-match. Preset from the sibling `src` chain where that chain proves
+ *       where the read lands, else "All detected fields" — NEVER assume the
+ *       editor's current context is a post (that is the GB bug we escape).
+ *       `presetKind()` owns which tails prove it and is the only place that says.
  *     Filter 2 Field type — plain select
  *       (All field types / Loop fields / <ACF types>).
  * - Free-text entry via synthetic option (ComboboxControl does NOT accept off-list
@@ -49,6 +50,7 @@
  * @package BWS_Dynamic_Tags
  * @since   1.13.0
  * @since   1.20.0 Root-argument scope narrowing (FW-39 D22).
+ * @since   1.21.0 Location preset from the repeater a chain ends on (FW-74).
  */
 ( function () {
 	'use strict';
@@ -230,10 +232,99 @@
 	}
 
 	/**
-	 * Safe source-token -> kind preset for the Location filter (NEVER assume post
-	 * from the editor context — only when the src TOKEN proves the kind). Reads the
-	 * sibling tokens of the SAME slot (prefix-aware) so per-slot try_ keys track
-	 * their own source.
+	 * The sibling `src` chain's LAST step, or null (FW-74).
+	 *
+	 * The read applies to whatever the chain resolved to last, so the tail is the only
+	 * position that can say anything about where the offerable fields live — both what
+	 * KIND they are (`presetKind()`) and, when the tail names a container, exactly which
+	 * one (`containerRowPath()`). Parsed through the shipped grammar for the reason
+	 * `rootArgFromState()` gives: the chain's spelling is `window.bwsSlotFold`'s, and a
+	 * local split on `,` is the second spelling that goes stale the first time the
+	 * grammar grows a token.
+	 *
+	 * @param {Object} state     extraTagParams.
+	 * @param {string} optionKey The key control's own option key (for the slot prefix).
+	 * @return {Object|null} `{ slug, arg }` with `arg` normalized to a string, or null.
+	 */
+	function chainTail( state, optionKey ) {
+		var fold = window.bwsSlotFold;
+		if ( ! state || ! fold || 'function' !== typeof fold.parseChain ) { return null; }
+		var wire = String( state[ slotPrefix( optionKey ) + 'src' ] || '' ).trim();
+		if ( '' === wire ) { return null; }
+		var chain = fold.parseChain( wire );
+		if ( ! Array.isArray( chain ) || ! chain.length ) { return null; }
+		var tail = chain[ chain.length - 1 ];
+		if ( ! tail || ! tail.slug ) { return null; }
+		return { slug: String( tail.slug ), arg: tail.arg ? String( tail.arg ) : '' };
+	}
+
+	/**
+	 * The Location path a container field's children sit under, or '' (FW-74).
+	 *
+	 * A container's children hang one segment below the container's own home, under its
+	 * label — exactly the breadcrumb `bws_field_discovery_flatten_fields()` builds. So the
+	 * path is read off the CONTAINER'S OWN record rather than off a child's: a merged
+	 * record (one key reached through two homes) would answer for whichever home sorted
+	 * first, which need not be this one.
+	 *
+	 * A key naming no discovered CONTAINER answers '' — a `refs` or `terms` tail carries a
+	 * relationship field key or a taxonomy slug, and neither owns a container record. That
+	 * test is stated here AND enforced again at the caller, where a preset path absent from
+	 * the option set is dropped: nothing hangs below a non-container, so the path a
+	 * non-container would produce cannot exist. Two spellings of one refusal, kept because
+	 * only the local one says which question was being asked.
+	 *
+	 * @param {Array}  records      Flat merged field records.
+	 * @param {string} containerKey Resolution key of a repeater/group/flexible field.
+	 * @return {string} Full location path, or ''.
+	 */
+	function containerRowPath( records, containerKey ) {
+		if ( ! containerKey ) { return ''; }
+		for ( var i = 0; i < records.length; i++ ) {
+			var rec = records[ i ];
+			if ( rec.key !== containerKey || ! rec.paths.length ) { continue; }
+			var isContainer = rec.types.some( function ( t ) { return '' !== containerHint( t ); } );
+			if ( isContainer ) { return rec.paths[ 0 ] + BREAD + rec.label; }
+		}
+		return '';
+	}
+
+	/**
+	 * Source-token -> kind preset for the Location filter, or null (=> All detected).
+	 *
+	 * NEVER assume post from the editor context — the kind is presetted only where a token
+	 * PROVES it, which is the GB bug this control exists to escape. Reads the sibling tokens
+	 * of the SAME slot (prefix-aware) so per-slot try_ keys track their own source.
+	 *
+	 * THE CHAIN IS THE SOURCE OF THE ANSWER, not the legacy flat keys. This used to read
+	 * `srcTermIn` and a literal `src === 'site'`, both of which predate chain wire: the flat
+	 * axes were absorbed by the chain control in 1.17.0 and are dropped at registration, so
+	 * the term preset was reachable only from stored legacy wire while `terms,<tax>` — the
+	 * spelling that replaced it — presetted nothing. `site` kept working by coincidence,
+	 * its root taking no argument and so serializing as the bare slug the equality matched.
+	 *
+	 * The question asked is `bws_fold_chain_resolution()`'s — the tail STEP's produced kind,
+	 * or the ROOT's where that answers at parse time — and both maps arrive from PHP on
+	 * `window.bwsChainKinds`, so a step type or root added there presets here with no edit.
+	 * A kind the picker has no root label for (`meta_row`) presets nothing through this
+	 * path; `containerRowPath()` is that kind's specific and better answer.
+	 *
+	 * NO STEP IS EXEMPT, `refs` INCLUDED. It carried an exemption from 1.13.0 (`22bddf1`),
+	 * on the ground that a `refs` argument names the field stepped THROUGH rather than the
+	 * post it lands on, so the target's type is unknown. That reasoning is about post TYPE
+	 * and the preset is about KIND: `refs` produces `post` unconditionally — the engine
+	 * forces it, `BWS_FOLD_STEP_KINDS` records it — so refusing to say `post` here withheld
+	 * a fact the render already commits to, and left the author a list holding term and site
+	 * fields that a post read cannot reach. The exemption would be owed again only if `refs`
+	 * could produce MORE THAN ONE kind (a relationship reaching a term or a user), and that
+	 * breaks the single-valued map first: fix it there and this follows, which is the whole
+	 * reason the derivation is not a table here.
+	 *
+	 * The two LEGACY flat arms STAY. Registration dropping an option does not drop a stored
+	 * VALUE — GB seeds `extraTagParams` from the parsed tag string — so an untouched legacy
+	 * tag still presents one, and it still describes that tag's read until the chain
+	 * control's first commit folds it into a `terms` / `refs` step. They answer what those
+	 * steps answer, so a tag presets the same before and after that commit.
 	 *
 	 * @param {Object} state     extraTagParams.
 	 * @param {string} optionKey The key control's own option key (for slot prefix).
@@ -243,12 +334,19 @@
 		if ( ! state ) { return null; }
 		var p = slotPrefix( optionKey );
 		if ( state[ p + 'srcTermIn' ] ) { return 'term'; }
-		if ( 'site' === state[ p + 'src' ] ) { return 'site'; }
-		// src:ref is deliberately NOT preset. Under src:ref the ref-hop target
-		// post type is not reliably known (parity unbuilt), so `key`-under-src:ref
-		// stays UNSCOPED — all groups + free-text — with the source-agnostic
-		// "Meta/Option Field" label rather than falsely asserting "Post". (SPEC V3.)
-		return null;
+		if ( 'ref' === state[ p + 'src' ] ) { return 'post'; }
+
+		var tail = chainTail( state, optionKey );
+		if ( ! tail ) { return null; }
+
+		var vocab = window.bwsChainKinds || {};
+		var kind  = ( vocab.steps || {} )[ tail.slug ];
+		if ( undefined === kind ) { kind = ( vocab.roots || {} )[ tail.slug ]; }
+
+		// A kind with no root label of its own is not a Location the filter can open on.
+		// That is the honest answer for `meta_row` and for anything a later step type
+		// produces that this list does not carry — never a guess at the nearest kind.
+		return ( -1 !== KINDS.indexOf( kind ) ) ? kind : null;
 	}
 
 	/**
@@ -741,13 +839,36 @@
 			return buildTypeOptions( records );
 		}, [ records ] );
 
-		// Effective location: explicit override, else safe-token preset path, else All.
+		// Effective location: explicit override, else the preset path, else All.
+		//
+		// TWO PRESETS, most-specific first. A chain ending on a repeater names the exact
+		// home of every field the read can reach, so it beats the sibling token's KIND,
+		// which is that same home three segments shallower. Either way this is a starting
+		// view and not a lock — the selector stays visible and widens back to All.
 		var preset       = presetKind( state, key );
-		var presetPath   = preset ? kindRootLabel( preset ) : ALL_LOC;
-		// Only use the preset path if it actually exists in the options (fields of
-		// that kind were discovered); otherwise fall back to All.
-		var presetExists = locationOptions.some( function ( o ) { return o.value === presetPath; } );
-		var activeLoc    = locOverride !== null ? locOverride : ( presetExists ? presetPath : ALL_LOC );
+		var tail         = chainTail( state, key );
+		var rowPath      = containerRowPath( records, tail ? tail.arg : '' );
+		// Only use a preset path that actually exists in the options — fields of that kind,
+		// or children of that container, were discovered. Otherwise fall back: a repeater
+		// nobody discovered sub-fields for still leaves the sibling token's kind to say
+		// something, and a kind with no fields at all falls through to All.
+		function locExists( p ) {
+			return locationOptions.some( function ( o ) { return o.value === p; } );
+		}
+		//
+		// A DECLARING ROOT presets the LABEL and not the FILTER. Its scope narrowing (D22)
+		// has already answered which fields are readable off that entity, and it answers
+		// with a rule the kind filter cannot see: an UNSCOPED group is reachable under any
+		// entity of its kind, so the narrowed pool legitimately holds records whose kind
+		// root the filter would drop (§F13.2 is that rule). Two narrowings derived from one
+		// token, and the finer one wins — the coarser must not silently overrule it, least
+		// of all on a selection that failed to resolve, where narrowing to nothing and
+		// "this entity has no fields" look identical (§F13.7). The kind still reaches the
+		// label, which describes the read without claiming anything about the list.
+		var presetPath   = ( rowPath && locExists( rowPath ) )
+			? rowPath
+			: ( ( preset && ! rootArg ) ? kindRootLabel( preset ) : ALL_LOC );
+		var activeLoc    = locOverride !== null ? locOverride : ( locExists( presetPath ) ? presetPath : ALL_LOC );
 
 		// Effective type: explicit override, else the option's typeDefault (e.g. the
 		// {{table}} tag-level `key` pre-scopes to 'repeater' so the picker opens showing

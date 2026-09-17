@@ -1279,8 +1279,57 @@ const deepStepArg = fieldPickersIn( renderPinChainWithPicker( [
 	{ slug: 'rows', arg: 'team_members', limit: null }
 ] ) );
 check(
-	'a step at position 2 gets NO pin — its input is the step before it, not the root',
+	'a step after a `refs` hop gets nothing — a refs argument names the field stepped THROUGH, not what it lands on',
 	deepStepArg.length === 2 && deepStepArg[ 1 ].props.context.state.src,
+	undefined
+);
+
+// A `rows` STEP names what it resolved to — the property the root and `rows` share and
+// `refs` and `terms` lack. So its successor is handed it at ANY position: the rule is what
+// the predecessor SAYS, never how far along it sits, and the row above is the contrast that
+// makes that readable — same position, different predecessor, opposite answer.
+const afterRowsArg = fieldPickersIn( renderPinChainWithPicker( [
+	{ slug: 'rows', arg: 'duty_roster', limit: null },
+	{ slug: 'rows', arg: 'shifts', limit: null }
+] ) );
+check(
+	'a step after a `rows` step gets that repeater as a `src` token',
+	afterRowsArg.length === 2 && afterRowsArg[ 1 ].props.context.state.src,
+	'rows,duty_roster'
+);
+check(
+	"...carrying the successor's own field key, as the root hand-off does",
+	afterRowsArg[ 1 ].props.context.state.key,
+	'shifts'
+);
+check(
+	'...and the `rows` step at position 0 gets nothing — it HAS no predecessor',
+	afterRowsArg[ 0 ].props.context.state.src,
+	undefined
+);
+
+// Position 3, behind two hops that name nothing, still gets its IMMEDIATE predecessor.
+const deepAfterRows = fieldPickersIn( renderPinChainWithPicker( [
+	{ slug: 'term', arg: '34', limit: null },
+	{ slug: 'refs', arg: 'dept_lead', limit: null },
+	{ slug: 'rows', arg: 'team_members', limit: null },
+	{ slug: 'refs', arg: 'lead_ref', limit: null }
+] ) );
+check(
+	'a step deep in a chain reads its immediate predecessor, not the root',
+	deepAfterRows[ deepAfterRows.length - 1 ].props.context.state.src,
+	'rows,team_members'
+);
+
+// An ARGLESS `rows` names no repeater, so it hands over nothing — the same test the root
+// arm applies, asked at the other naming position.
+const arglessRows = fieldPickersIn( renderPinChainWithPicker( [
+	{ slug: 'rows' },
+	{ slug: 'refs', arg: 'lead_ref', limit: null }
+] ) );
+check(
+	'an ARGLESS `rows` step hands over nothing — it names no repeater to narrow against',
+	arglessRows[ arglessRows.length - 1 ].props.context.state.src,
 	undefined
 );
 

@@ -93,8 +93,9 @@ assert_same( 'slot1 src label "1: Source"', '1: Source', $s1['src']['label'] );
 assert_same( 'slot1 src type select', 'select', $s1['src']['type'] );
 
 // V7 ref — derived from base verbatim (label prefixed). type is bws-field-combo:
-// the ref key uses the field-discovery combobox control (unscoped for src:ref;
-// SPEC V3), not a plain text input.
+// the ref key uses the field-discovery combobox control, not a plain text input.
+// What that control OPENS on is `presetKind()`'s and is pinned by
+// field-combo-control-test.js §F15; nothing below checks it, so nothing here says it.
 assert_same(
 	'slot1 ref derived (label prefixed, base body/help/placeholder, show_if bare src:ref)',
 	array(

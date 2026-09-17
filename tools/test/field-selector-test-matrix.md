@@ -5,7 +5,7 @@
 to the field-selector invariants so they stay valid past the SPEC's post-ship
 truncation.
 
-> **Re-run trigger:** after any change to `assets/js/field-combo-control.js`, `includes/rest/field-discovery.php`, the enqueue/inline block in the main plugin file, a flip of any `key`/`ref`/datetime-key option to (or from) `bws-field-combo`, or either half of the pinned-root narrowing (the `scope` slug on `includes/rest/entity-lookup.php`'s row shapers, and the `window.bwsRootArgKinds` inline the enqueue path emits).
+> **Re-run trigger:** after any change to `assets/js/field-combo-control.js`, `includes/rest/field-discovery.php`, the enqueue/inline block in the main plugin file, a flip of any `key`/`ref`/datetime-key option to (or from) `bws-field-combo`, either half of the pinned-root narrowing (the `scope` slug on `includes/rest/entity-lookup.php`'s row shapers, and the `window.bwsRootArgKinds` inline the enqueue path emits), or either half of the Location PRESET (the `window.bwsChainKinds` inline, and `predecessorContext()` in `assets/js/slot-fold-control.js` — the seam a chain step hands its successor's picker through).
 >
 > **Two layers:**
 > - **Discovery logic (pure, automated):** `php tools/test/field-discovery-test.php`
@@ -82,7 +82,7 @@ field/group names in the rows are that blueprint's fixture names (`schema.php` /
 | M4.3 | Location narrowed to a group `… › Event Details` | "Event Details Field" |
 | M4.4 | `srcTermIn` set (term tag) | Presets location to Term fields → "Term Meta Field" |
 | M4.5 | `src:site` | Presets location to Site fields → "Site Option Field" |
-| M4.5b | `src:ref` set | Location stays **"All detected fields"** (NOT preset to Post), label stays generic **"Meta/Option Field"**; ref-hop target PT is unknown, so no auto-scope (V3) |
+| M4.5b | `src:ref` set | Location presets to **"Post fields"**, label reads **"Post Meta Field"** — a ref hop lands on a post and the plugin forces that kind. The target's post TYPE is still unknown, so nothing narrows to one post type (M11) |
 | M4.6 | Datetime key controls | Keep static labels ("Start Date/Time Field Key" etc.) — NOT the kind pair |
 | M4.7 | `ref` (relationship key) | Static "Relationship Field Key" |
 
@@ -150,11 +150,13 @@ M3.5-3.7; kept here as the focused reopen pass.)
 | M10.2 | Save a key that maps to TWO fields with different labels (same key, e.g. `name` = "Name" and "Feature Name"), reopen | Combobox shows the **raw key** `name` selected, NOT a guessed label (V12/B4) |
 | M10.3 | Type into the combobox after reopen | Filtering still works on every keystroke (synthetic `Use custom key` appears/disappears as you type) — memoization did not freeze the filter |
 
-## M11 — src:ref scope + label (V3)
+## M11 — src:ref scope + label
 
 | # | Action | Expect |
 |---|---|---|
-| M11.1 | Set a base tag to `src:ref`, open its `key` picker | Location filter defaults to **"All detected fields"** (NOT preset to Post), control label reads generic **"Meta/Option Field"** — ref-hop target is unknown, so unscoped (V3). Post fields still reachable by choosing them |
+| M11.1 | Set a base tag to `src:ref`, open its `key` picker | Location filter presets to **"Post fields"**, control label reads **"Post Meta Field"**. A ref hop lands on a post and the plugin forces that kind, so saying so withholds nothing the render is not already committed to. **This REVERSED in 1.21.0** — it read "All detected fields" / "Meta/Option Field" from 1.13.0, on a reason about the target's post TYPE being unknown, which is a different axis from the kind the filter states. Term and site fields are no longer offered here, because a post read cannot reach them; widen to "All detected fields" and free text still commits any key |
+| M11.2 | Same tag, but authored as a chain (`In Reference/Relational Field`) | Identical to M11.1. The flat spelling and the chain spelling of one hop preset the same, so a tag does not change picker when the chain control folds the flat keys on first commit |
+| M11.3 | Any `src:ref` tag, then narrow to a single post TYPE | Not offered — no post-type scoping exists on a ref hop. That is the part the 1.21.0 reversal did NOT take, and it stays FW-13's (`src:ref` stepped-to-PT scope) |
 
 ---
 
@@ -172,8 +174,45 @@ M12.1 and M12.2 are the side-by-side pair: same tag, same field list underneath,
 | M12.4 | Same tag, Source = **Post**, select a `staff` post (e.g. Jane Partner) | NARROWED to the `staff`-scoped fields — `Contact Email ('contact_email')`, `Related Staff ('related_staff')` — and the `department`-only fields are gone. Same rule, other kind |
 | M12.5 | Select a post of a type NO field group is scoped to | Only the unscoped fields are offered. NOT the full list, and not an error — an entity with no fields of its own is the answer the narrowing exists to give. Free-typing a key still commits |
 | M12.6 | Select a term, then add a `refs` step after it, and open the STEP's field picker | Narrowed to the selected term's taxonomy — the step's field is read off that term, which is the entity just before it |
-| M12.7 | Add a SECOND step and open ITS field picker | UNNARROWED — its input is the previous step's target, whose type nothing knows at parse time (same reason M11.1 presets nothing under `src:ref`) |
+| M12.7 | Add a SECOND step after a `refs` step and open ITS field picker | Not narrowed to an ENTITY — a `refs` argument names the field stepped THROUGH, so which post it lands on, and of what type, is unknown at parse time. (It still presets Post fields by KIND, M11.1: that is the filter, not the scope.) A `rows` predecessor is the contrast, M13.9 |
 | M12.8 | With a selected entity and a `refs` step, open the tag's own `key` picker | UNNARROWED — the read applies to the step's target, not to it |
 | M12.9 | `try_text` slot 2: select a term on slot 2 while slot 1 names a POST | Slot 2's field picker narrows to slot 2's taxonomy, independently of slot 1 (the same per-slot independence M6.3 asserts for the location preset) |
 | M12.10 | `{{join}}` field with a selected entity, open its field picker | Narrows identically to the base tag's — one rule, all three containers (D11) |
 | M12.11 | Select a term, then DELETE that term in another tab and reopen the picker | The list is UNNARROWED, never empty: a selection that will not resolve must not hide every scoped field, because a transient failure and "this taxonomy has no fields" would look identical |
+
+---
+
+## M13 — Location preset from a chain's terminal repeater (FW-74)
+
+A source chain ending on **In Repeater Rows** names the exact home of every field the read can reach, so the Location filter opens there instead of on the kind root. It is a STARTING VIEW, not a lock — both selectors stay visible and widen back, which is what separates this from the `{{table}}` column auto-scope (M2/§F8), where the filters are hidden because the scope IS the filter.
+
+The recognition is machine-readable at both ends: the chain is parsed through the shipped grammar, and whether the tail's argument names a repeater is asked of the discovery envelope's own container record. So a step type this matrix never mentions presets correctly the day it is added, and a repeater nobody discovered presets nothing rather than opening on an empty list.
+
+| # | Action | Expect |
+|---|---|---|
+| M13.1 | Base `{{text}}` on a post, Source = **Current Context › In Repeater Rows** with `team_members` chosen, open the `key` picker | Location filter reads **"Post fields › Team › Team Members (repeater)"**, and the list holds that repeater's sub-fields only (`Name`, `Description`, `Role`, …). The control label reads **"Team Members Field"** |
+| M13.2 | Widen the Location filter back to "All detected fields" | The full list returns — the preset is a starting view, and both selectors were visible the whole time |
+| M13.3 | Add a step BEFORE the repeater step (e.g. Post → In Repeater Rows) | Unchanged from M13.1: the preset comes off the chain's TAIL, which is the step the read applies to |
+| M13.4 | Chain the NESTED repeater — `duty_roster` then `shifts` (page fixture) — and open the `key` picker | Presets to **"Post fields › Duty Roster › Duty Roster › Shifts"**, offering `Day` and `Hours`. Nesting needs no special case: the tail is still a repeater and its children still hang one segment below it |
+| M13.5 | Set the tail step to **In Reference/Relational Field** or **In Taxonomy Term** instead | Location presets to the KIND that step produces — "Post fields" and "Term fields" respectively (M14) — never to a repeater path. Neither argument names a container, so this section's rule declines and the kind rule answers |
+| M13.6 | Hand-type a repeater key that no field group defines | No preset, and the FULL list — never an empty view. Free-typing the sub-field key still commits |
+| M13.7 | `try_text` slot 2: give slot 2 a repeater chain while slot 1 has none | Slot 2's picker presets off slot 2's own chain (the per-slot independence M6.3 and M12.9 assert on the other two axes) |
+| M13.8 | `{{join}}` field with a repeater chain, open its field picker | Presets identically to the base tag's — the fold containers hand the picker their terminal step, so one rule serves all three (D11) |
+| M13.9 | Chain **In Repeater Rows** `duty_roster`, then add a SECOND **In Repeater Rows** step and open THAT step's own field picker | Offers only the repeaters nested inside `duty_roster` (`shifts`), not every repeater on the site. The predecessor names what it resolved to, so it is handed over at any position — contrast M12.7, where a `refs` predecessor names nothing and the picker stays wide |
+
+---
+
+## M14 — the kind preset follows the CHAIN (FW-13 nibble)
+
+The Location filter's kind preset asks what `bws_fold_chain_resolution()` asks: the tail step's produced kind, or the root's where that answers at parse time. Both maps come from PHP on `window.bwsChainKinds`, assembled by `bws_fold_wire_vocabulary()` from the same constants the render seam dispatches on — **if a row here fails, check that global is present in the page source** before suspecting the picker.
+
+Before 1.21.0 the derivation read the LEGACY FLAT keys only. `srcTermIn` has been dropped at registration since 1.17.0, so the only term preset in the plugin sat on wire that can no longer be authored, while `terms,<tax>` — the chain spelling that replaced it — presetted nothing. M14.1 and M14.2 are that pair.
+
+| # | Action | Expect |
+|---|---|---|
+| M14.1 | Open a tag saved before 1.17.0 carrying a flat `srcTermIn`, without touching its source | Location presets to **"Term fields"**, label reads **"Term Meta Field"**. A dropped option is not a dropped value: the tag still reads a term until the chain control's first commit folds the key into a `terms` step |
+| M14.2 | Base `{{text}}`, Source = **Current Context › In Taxonomy Term** with a taxonomy chosen | Identical to M14.1. This is the regression the flat-only derivation left behind |
+| M14.3 | Source = **Site** | "Site fields" / "Site Option Field", as before. It used to match by a literal equality on the token and now comes off the root map; the visible answer is unchanged |
+| M14.4 | Source = **In Reference/Relational Field** with a field chosen | "Post fields" / "Post Meta Field" — no slug is exempt from the map. See M11.1 for the reversal this was |
+| M14.5 | Source = a selected **Term** or **Post** | Label reads "Term/Post Meta Field", and the Location filter stays on **"All detected fields"**. The entity's own scope narrowing (M12) has already answered which fields are readable, including unscoped groups of another kind that a kind filter would drop (M12.2), and on a selection that will not resolve a kind filter would empty the list (M12.11) |
+| M14.6 | `try_text` slot 2 with a different source kind from slot 1 | Slot 2 presets off slot 2's chain (per-slot independence, as M6.3 / M12.9 / M13.7) |

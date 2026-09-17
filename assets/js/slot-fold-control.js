@@ -673,31 +673,44 @@
 		}
 
 		/**
-		 * Hand a step's field picker the ROOT ARGUMENT its own argument is read off, when
-		 * there is one (FW-39 D22).
+		 * Hand a step's field picker what the PRECEDING position says about the entity its
+		 * own argument is read off, when that position says anything (FW-39 D22, FW-74).
 		 *
-		 * Only position 1 qualifies, and for the reason `fieldContext()` states: the
-		 * entity a step's field is read off is whatever the chain resolved to just
-		 * BEFORE it, and only at position 1 is that the root itself. The picker does its
-		 * own recognizing from the `src` token — this only makes sure the token is there
-		 * and spelled as the wire spells it, which is what keeps ONE narrowing rule
-		 * serving the base tag and both fold containers.
+		 * The entity a step's field is read off is whatever the chain resolved to just
+		 * BEFORE it. So the question is always the predecessor's, and the only thing that
+		 * varies is whether the predecessor NAMES what it resolved to. Two do:
 		 *
-		 * `rootArgOf()` is the test for whether a root takes an argument, not a slug list:
-		 * a root declares its own argument, so an integrator's declaring root narrows here
-		 * without this file knowing its name.
+		 * - a DECLARING ROOT at position 0, which names one entity of a known kind. Tested
+		 *   with `rootArgOf()` rather than a slug list — a root declares its own argument,
+		 *   so an integrator's declaring root narrows here without this file knowing its
+		 *   name. Position 1 only, because only there is the predecessor the root itself.
+		 * - a `rows` STEP at any position, which names the repeater whose rows follow. Its
+		 *   sub-fields are discoverable from that name alone, so its successor's picker can
+		 *   open on them.
+		 *
+		 * `refs` and `terms` name neither: a `refs` argument is the field stepped THROUGH,
+		 * and the post it lands on has a type nothing here knows at parse time. That is the
+		 * asymmetry, and it is why this is not simply "hand over the previous step".
+		 *
+		 * The picker does its own recognizing from the `src` token — this only makes sure
+		 * the token is there and spelled as the wire spells it, which is what keeps ONE
+		 * narrowing rule serving the base tag and both fold containers.
 		 *
 		 * @param {Object} ctx The synthetic context the caller built.
 		 * @param {number} idx This step's position in the chain.
-		 * @return {Object} The same context, or one carrying the root argument's `src` token.
+		 * @return {Object} The same context, or one carrying the predecessor's `src` token.
 		 */
-		function rootArgContext( ctx, idx ) {
-			var root = ( 1 === idx ) ? chain[ 0 ] : null;
-			if ( ! root || ! root.arg || ! rootArgOf( conf, root.slug ) ) {
+		function predecessorContext( ctx, idx ) {
+			var prev = ( idx > 0 ) ? chain[ idx - 1 ] : null;
+			if ( ! prev || ! prev.arg ) {
+				return ctx;
+			}
+			var names = ( 1 === idx && rootArgOf( conf, prev.slug ) ) || 'rows' === prev.slug;
+			if ( ! names ) {
 				return ctx;
 			}
 			return {
-				state: Object.assign( {}, ctx.state, { src: root.slug + ',' + root.arg } ),
+				state: Object.assign( {}, ctx.state, { src: prev.slug + ',' + prev.arg } ),
 				setState: ctx.setState
 			};
 		}
@@ -903,7 +916,7 @@
 							help: argCfg.help,
 							placeholder: argCfg.placeholder,
 							typeDefault: argCfg.typeDefault,
-							context: rootArgContext( stepContext( stepObj, commitArg ), i )
+							context: predecessorContext( stepContext( stepObj, commitArg ), i )
 						} )
 						: el( TextControl, {
 							label: argCfg.label,

@@ -574,11 +574,12 @@ function bws_base_traversal_options(): array {
 			'label'       => __( 'Relationship Field Key', 'generateblocks' ),
 			'help'        => __( 'ACF relationship or post object field key.', 'generateblocks' ),
 			'placeholder' => 'related_posts',
-			// ref names the SOURCE-post relationship field. The control does NOT
-			// preset a kind for src:ref (presetKind returns null): the ref-step target
-			// post type is not reliably known, so the key list stays UNSCOPED with the
-			// generic "Meta/Option Field" label (SPEC V3). v2 will type-filter this to
-			// relationship/post_object.
+			// ref names the SOURCE-post relationship field. What the sibling KEY picker
+			// then opens on is `presetKind()`'s (assets/js/field-combo-control.js), which
+			// owns that rule for every source spelling alike; this option states no part
+			// of it. It said the opposite of what ships between 1.13.0 and 1.21.0 — the
+			// axis was named here, moved there, and nothing connected the two. v2 will
+			// type-filter this control to relationship/post_object (FW-13).
 			// This is the FLAT spelling's relationship key, so it belongs to `src:ref`
 			// alone — a flat tag has one `src`, and site and ref are alternative
 			// values of it. A site-rooted relationship is a CHAIN (`src:site;refs,x`),

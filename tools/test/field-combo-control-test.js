@@ -285,6 +285,18 @@ global.window.bwsFieldEnvelope.post[ 0 ].fields.push( { name: 'email', label: 'E
 // absent from the map, which is what `current` below asserts.
 global.window.bwsRootArgKinds = { term: 'term', post: 'post' };
 
+// WHAT KIND EACH CHAIN TOKEN RESOLVES TO — inlined from bws_fold_wire_vocabulary() on a real
+// editor page, which assembles it from BWS_FOLD_STEP_KINDS + BWS_FOLD_PARSE_TIME_ROOT_KINDS.
+// Spelled here EXACTLY as those two constants read, every entry included. `refs => post` is
+// what §F15.5 presets through, and it must be present rather than trimmed: with it absent, a
+// `refs` tail would preset nothing for the wrong reason and the row would pass while asserting
+// the opposite of its name. `meta_row` likewise stays, so §F15.7 measures a produced kind the
+// picker has no Location for rather than one nothing ships.
+global.window.bwsChainKinds = {
+	steps: { refs: 'post', terms: 'term', rows: 'meta_row' },
+	roots: { site: 'site', term: 'term', post: 'post' },
+};
+
 // The SHIPPED chain grammar, not a stub of it: the control recognizes a pin by parsing
 // the sibling `src` through `window.bwsSlotFold`, and a hand-rolled split here would be
 // the second spelling of the chain grammar that this repo's twin harnesses exist to
@@ -924,16 +936,40 @@ async function main() {
 		baseLabels
 	);
 
-	// The read applies to the STEP's target, not to the pin, and nothing here knows that
-	// target's type — the same reason `src:ref` presets no location (matrix M11.1).
+	// The read applies to the STEP's target, not to the pin. The target's post TYPE is still
+	// unknown, so the pin's scope must not reach past the hop — but its KIND is known and the
+	// Location filter says so since 1.21.0 (§F15.5), which is why this is asserted as "the pin
+	// changed nothing" rather than against the unfiltered list: same hop with and without a
+	// pin, byte-identical. A scope narrowing leaking past the hop would drop the `staff`-scoped
+	// rows from the first list and not the second.
+	const hoppedUnpinned = labels( combo( await render( FieldComboControl, {
+		optionKey: 'key',
+		label: 'Field',
+		context: ctx( { src: 'current;refs,related' } ),
+	} ) ).options );
 	check(
-		'F13.6 a chain that HOPS past the pin narrows nothing',
+		'F13.6 a chain that HOPS past the pin narrows nothing — the hop offers its own list either way',
 		labels( combo( await render( FieldComboControl, {
 			optionKey: 'key',
 			label: 'Field',
 			context: ctx( { src: 'term,34;refs,related' } ),
 		} ) ).options ),
-		baseLabels
+		hoppedUnpinned
+	);
+	check(
+		'F13.6b ...and that list is the POST-kind one the hop lands on, so the row above is not two empties agreeing',
+		hoppedUnpinned,
+		[
+			"City (Text, 'venue_city')",
+			"Email (Email, 'email')",
+			'event_date (Date)',
+			"Feature Name (Text, 'name')",
+			"Name (Text, 'name')",
+			"Photo (Image, 'photo')",
+			"Role (Text, 'role')",
+			"Staff List (Repeater, 'staff_list')",
+			'_gb_internal (Text)',
+		]
 	);
 
 	check(
@@ -979,6 +1015,212 @@ async function main() {
 		entityRequests[ 0 ],
 		ENTITY_ROUTE + '?kind=term&mode=resolve&id=34'
 	);
+
+	/* =====================================================================
+	 * §F14 — the Location preset from a chain's terminal repeater (FW-74)
+	 *
+	 * A chain ending on a repeater step names the exact home of every field the read can
+	 * reach, so the Location filter opens THERE rather than on the kind root or on All.
+	 * The recognition is machine-readable both ways: the chain is parsed through the
+	 * shipped grammar, and whether the tail's argument names a repeater is asked of the
+	 * discovery envelope's own container record — this file carries no list of which step
+	 * slugs produce rows, which is why F14.4 and F14.5 preset nothing without naming
+	 * `refs` or `terms` as the reason.
+	 *
+	 * ASSERTED AS THE FILTER VALUE **AND** THE RESULTING LIST. The value alone would pass
+	 * on a preset that pointed at a path holding nothing, which is the failure mode the
+	 * `locExists` guard exists for.
+	 * ================================================================== */
+
+	const rowsChain = await render( FieldComboControl, {
+		optionKey: 'key',
+		label: 'Field',
+		context: ctx( { src: 'rows,staff_list' } ),
+	} );
+
+	check(
+		'F14.1 a chain ending on a repeater presets Location to that repeater\'s own path',
+		selects( rowsChain )[ 0 ].value,
+		'Post fields › Event Details › Staff List'
+	);
+	check(
+		'F14.2 ...and the list that opens is that repeater\'s sub-fields',
+		labels( combo( rowsChain ).options ),
+		[ "Role (Text, 'role')" ]
+	);
+
+	// THE TAIL, not the root: the read applies to whatever the chain resolved to last, so
+	// a multi-step chain presets off its final step exactly as a one-step chain does. This
+	// is also the shape a BASE tag serializes, where the fold containers hand the picker
+	// their terminal step alone.
+	check(
+		'F14.3 a multi-step chain presets off its TAIL, not its root',
+		selects( await render( FieldComboControl, {
+			optionKey: 'key',
+			label: 'Field',
+			context: ctx( { src: 'current;rows,staff_list' } ),
+		} ) )[ 0 ].value,
+		'Post fields › Event Details › Staff List'
+	);
+
+	// A `refs` argument names a relationship field, not a container, so the repeater path must
+	// decline and let the KIND path answer. Asserting the kind's own value rather than "not a
+	// repeater path" is what makes the decline visible: a container path winning here would
+	// read as a location three segments deeper.
+	check(
+		'F14.4 a tail whose argument names no discovered CONTAINER falls through to the kind preset',
+		selects( await render( FieldComboControl, {
+			optionKey: 'key',
+			label: 'Field',
+			context: ctx( { src: 'current;refs,related' } ),
+		} ) )[ 0 ].value,
+		'Post fields'
+	);
+	check(
+		'F14.5 ...and a repeater key nothing discovered presets nothing either, rather than an empty view',
+		labels( combo( await render( FieldComboControl, {
+			optionKey: 'key',
+			label: 'Field',
+			context: ctx( { src: 'rows,never_registered' } ),
+		} ) ).options ),
+		baseLabels
+	);
+
+	// Same slot prefix `presetKind()` and the root-argument narrowing read by: a try_ slot's
+	// key control presets off ITS OWN slot's source, not off slot 1's.
+	check(
+		'F14.6 a slot-prefixed key presets off its own slot\'s chain',
+		selects( await render( FieldComboControl, {
+			optionKey: '2-key',
+			label: 'Field',
+			context: ctx( { src: 'current', '2-src': 'rows,staff_list' } ),
+		} ) )[ 0 ].value,
+		'Post fields › Event Details › Staff List'
+	);
+
+	// The dynamic label follows the ACTIVE location, which is already its rule — so naming
+	// the repeater is a consequence of the preset landing, not a second mechanism.
+	check(
+		'F14.7 the dynamic label names the repeater the preset landed on',
+		combo( await render( FieldComboControl, {
+			optionKey: 'key',
+			dynamicLabel: true,
+			context: ctx( { src: 'rows,staff_list' } ),
+		} ) ).label,
+		'Staff List Field'
+	);
+
+	/* =====================================================================
+	 * §F15 — the KIND preset follows the chain, not the legacy flat keys
+	 *
+	 * The question is `bws_fold_chain_resolution()`'s: the tail STEP's produced kind, or the
+	 * ROOT's where that answers at parse time. Both maps arrive from PHP on
+	 * `window.bwsChainKinds`, so this section asserts the WIRING, not a table of slugs — add
+	 * a step type in PHP and it presets here with no edit to the shipped file or to this one.
+	 *
+	 * WHAT THIS REPLACED, and why the rows read as a pair: the derivation used to be
+	 * `srcTermIn` plus a literal `src === 'site'`. Both predate chain wire. `srcTermIn` is
+	 * dropped at registration on every chain-source tag (1.17.0), so the ONLY term preset in
+	 * the plugin sat on wire nothing can author, while `terms,<tax>` — its replacement —
+	 * presetted nothing. F15.1 and F15.2 are that pair, and they must agree.
+	 *
+	 * ASSERTED AS THE FILTER VALUE AND THE LABEL TOGETHER. The label is derived from the
+	 * active location, so a preset that landed without the label following it would be a
+	 * half-applied kind, which is what the old `src:ref` behaviour was.
+	 * ================================================================== */
+
+	async function presetOf( state ) {
+		const t = await render( FieldComboControl, {
+			optionKey: 'key',
+			dynamicLabel: true,
+			context: ctx( state ),
+		} );
+		return [ selects( t )[ 0 ].value, combo( t ).label ];
+	}
+
+	check(
+		'F15.1 a LEGACY flat srcTermIn still presets Term — a dropped option is not a dropped value',
+		await presetOf( { srcTermIn: 'department' } ),
+		[ 'Term fields', 'Term Meta Field' ]
+	);
+	check(
+		'F15.2 ...and the chain spelling that REPLACED it presets identically',
+		await presetOf( { src: 'terms,department' } ),
+		[ 'Term fields', 'Term Meta Field' ]
+	);
+	check(
+		'F15.3 a multi-step chain presets off its tail step',
+		await presetOf( { src: 'current;terms,department' } ),
+		[ 'Term fields', 'Term Meta Field' ]
+	);
+	// A declaring root is the one tail whose kind is known AND whose pool is already narrowed
+	// by something finer. It presets the LABEL and leaves the FILTER alone: the D22 narrowing
+	// keeps unscoped groups of other kinds (§F13.2), which a "Term fields" filter would drop,
+	// and on a selection that failed to resolve it would narrow to nothing (§F13.7). The pair
+	// below is the whole property — the label moved, the list did not.
+	check(
+		'F15.4 a DECLARING root presets its LABEL from the kind but leaves the Location filter alone',
+		await presetOf( { src: 'term,34' } ),
+		[ '__all_locations', 'Term Meta Field' ]
+	);
+	// The LIST half of that property is §F13.1 and §F13.7, which assert the scope-narrowed
+	// lists literally. A row here re-rendering `term,34` and comparing it to §F13's own
+	// `term,34` would compare a render to itself and pass under any narrowing at all, so the
+	// pointer is the assertion: drop the gate and those two go red.
+
+	// `refs` PRESETS, and it is the derivation doing it — no step is exempt. It held an
+	// exemption from 1.13.0 (`22bddf1`) on the ground that the target's post TYPE is unknown,
+	// which is true and is about a different axis: `refs` produces `post` unconditionally,
+	// and the list it used to offer held term and site fields a post read cannot reach. The
+	// exemption comes back only if `refs` can produce more than ONE kind, and that fails
+	// `BWS_FOLD_STEP_KINDS` before it reaches here.
+	check(
+		'F15.5 a refs tail presets Post from the vocabulary like any other step — no slug is exempt',
+		await presetOf( { src: 'refs,lead' } ),
+		[ 'Post fields', 'Post Meta Field' ]
+	);
+	check(
+		'F15.6 ...and the legacy flat spelling of the same hop presets identically',
+		await presetOf( { src: 'ref', ref: 'lead' } ),
+		[ 'Post fields', 'Post Meta Field' ]
+	);
+	// The pair above is the point of keeping a legacy arm at all: one tag, presetting the same
+	// before and after the chain control folds `src:ref|ref:lead` into `refs,lead`.
+
+	// `rows` produces `meta_row`, which is not a Location the filter can open on. The kind
+	// path must decline rather than round to the nearest kind — the repeater path (§F14) is
+	// what answers here, and F14.1 proves it still does.
+	check(
+		'F15.7 a kind with no Location of its own presets nothing through the KIND path',
+		await presetOf( { src: 'rows,never_registered' } ),
+		[ '__all_locations', 'Meta/Option Field' ]
+	);
+	check(
+		'F15.8 an argless root presets nothing — `current` has no kind until render',
+		await presetOf( { src: 'current' } ),
+		[ '__all_locations', 'Meta/Option Field' ]
+	);
+	check(
+		'F15.9 `site` presets through the ROOT map now, not through a literal equality',
+		await presetOf( { src: 'site' } ),
+		[ 'Site fields', 'Site Option Field' ]
+	);
+
+	// The maps are PHP's. With none delivered the control presets nothing rather than
+	// falling back to a built-in table — the fallback is what would let the two drift.
+	const savedKinds = global.window.bwsChainKinds;
+	global.window.bwsChainKinds = undefined;
+	check(
+		'F15.10 with no vocabulary delivered, the chain presets nothing (no built-in table)',
+		await presetOf( { src: 'terms,department' } ),
+		[ '__all_locations', 'Meta/Option Field' ]
+	);
+	check(
+		'F15.11 ...while the legacy flat key, which needs no vocabulary, still does',
+		await presetOf( { srcTermIn: 'department' } ),
+		[ 'Term fields', 'Term Meta Field' ]
+	);
+	global.window.bwsChainKinds = savedKinds;
 
 	console.log( '' );
 	if ( fail ) {
