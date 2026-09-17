@@ -1311,7 +1311,7 @@ const BWS_BASE_WIRE_KINDS_ALWAYS_SERVED = array( 'post', 'render_time', 'term' )
  *
  * THREE REFUSALS, ONE TEST, and they are disjoint rather than alternatives: "the root
  * named a source this render cannot use", "a later step named vocabulary nothing
- * recognises" (a root is not a step — [I14], which owns why), and "the chain resolves
+ * recognizes" (a root is not a step — [I14], which owns why), and "the chain resolves
  * to a kind this FAMILY has no arm for". All three mean the read does not happen.
  *
  * THE THIRD IS THE UNSERVED-KIND REFUSAL, AND ITS AXIS IS HERE: a wire kind is refused

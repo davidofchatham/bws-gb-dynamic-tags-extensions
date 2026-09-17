@@ -1778,6 +1778,38 @@ eq(
 	bws_base_read_refused( array( 'kind' => 'render_time', 'fans' => false ), array( 'kind' => 'meta_row', 'row' => array( 'name' => 'x' ) ) )
 );
 
+// ── THE UNSERVED-KIND REFUSAL (FW-74 ticket 04b) ────────────────────────────
+//
+// A wire kind no family arm serves must refuse ABOVE the core, for the reason the
+// block above states: a falsy id does not stop the read. Before this refusal existed,
+// {{title}}/{{permalink}}/{{image}}/{{datetime_*}} on a `rows` chain reached the post
+// tail, resolved nothing, and printed the SURROUNDING PAGE.
+//
+// THE FOUR BELOW PIN THE WIRE-VS-BASE AXIS MECHANICALLY, which is why this comment may
+// name it: the last one fails if the predicate is switched to read $base['kind'], and
+// the page snapshots are the only other thing that catches that (fold-test-matrix.md
+// §F9c does NOT — every row there is {{text}}, which SERVES meta_row).
+eq(
+	'FW-74: an unserved wire kind refuses (a rows chain on a family with no row arm)',
+	true,
+	bws_base_read_refused( array( 'kind' => 'meta_row', 'fans' => true ), array( 'kind' => 'post', 'id' => 7 ) )
+);
+eq(
+	'FW-74: …and the SAME wire kind is read once the call site names it in $serves',
+	false,
+	bws_base_read_refused( array( 'kind' => 'meta_row', 'fans' => true ), array( 'kind' => 'post', 'id' => 7 ), array( 'meta_row' ) )
+);
+eq(
+	'FW-74: `term` is always served, so no call site has to name it',
+	false,
+	bws_base_read_refused( array( 'kind' => 'term', 'fans' => true ), array( 'kind' => 'post', 'id' => 7 ) )
+);
+eq(
+	'FW-74: a BASE of the unserved kind is NOT refused — the wire decides, not the factory',
+	false,
+	bws_base_read_refused( array( 'kind' => 'post', 'fans' => true ), array( 'kind' => 'meta_row', 'row' => array( 'name' => 'x' ) ) )
+);
+
 // ── report ───────────────────────────────────────────────────────────────────
 echo "\n";
 echo 'traversal-pipeline: ' . $GLOBALS['pass'] . ' passed, ' . $GLOBALS['fail'] . " failed\n";
