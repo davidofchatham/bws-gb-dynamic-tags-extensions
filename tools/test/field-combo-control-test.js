@@ -761,7 +761,7 @@ async function main() {
 	check(
 		'F10.2 with dynamicLabel and a sibling source preset, the label names the kind',
 		combo( dynamic ).label,
-		'Site Option Field'
+		'Site Option Field Key'
 	);
 
 	const prefixed = await render( FieldComboControl, {
@@ -770,7 +770,7 @@ async function main() {
 		labelPrefix: 'URL',
 		context: ctx( { src: 'site' } ),
 	} );
-	check( 'F10.3 ...and labelPrefix is honored', combo( prefixed ).label, 'URL Site Option Field' );
+	check( 'F10.3 ...and labelPrefix is honored', combo( prefixed ).label, 'URL Site Option Field Key' );
 
 	/* =====================================================================
 	 * §F11 — what onChange commits
@@ -1107,7 +1107,7 @@ async function main() {
 			dynamicLabel: true,
 			context: ctx( { src: 'rows,staff_list' } ),
 		} ) ).label,
-		'Staff List Field'
+		'Staff List Field Key'
 	);
 
 	/* =====================================================================
@@ -1141,17 +1141,17 @@ async function main() {
 	check(
 		'F15.1 a LEGACY flat srcTermIn still presets Term — a dropped option is not a dropped value',
 		await presetOf( { srcTermIn: 'department' } ),
-		[ 'Term fields', 'Term Meta Field' ]
+		[ 'Term fields', 'Term Meta Field Key' ]
 	);
 	check(
 		'F15.2 ...and the chain spelling that REPLACED it presets identically',
 		await presetOf( { src: 'terms,department' } ),
-		[ 'Term fields', 'Term Meta Field' ]
+		[ 'Term fields', 'Term Meta Field Key' ]
 	);
 	check(
 		'F15.3 a multi-step chain presets off its tail step',
 		await presetOf( { src: 'current;terms,department' } ),
-		[ 'Term fields', 'Term Meta Field' ]
+		[ 'Term fields', 'Term Meta Field Key' ]
 	);
 	// A declaring root is the one tail whose kind is known AND whose pool is already narrowed
 	// by something finer. It presets the LABEL and leaves the FILTER alone: the D22 narrowing
@@ -1161,7 +1161,16 @@ async function main() {
 	check(
 		'F15.4 a DECLARING root presets its LABEL from the kind but leaves the Location filter alone',
 		await presetOf( { src: 'term,34' } ),
-		[ '__all_locations', 'Term Meta Field' ]
+		[ '__all_locations', 'Term Meta Field Key' ]
+	);
+	// SAME ANSWER WITH NO ARGUMENT YET, and that is the property rather than a second case
+	// of the first. Gating on a RESOLVED argument gave the empty state a "Term fields"
+	// preset and the filled state "All detected fields", so the filter loosened as the
+	// author supplied information. The test is what the ROOT is, not whether it is filled.
+	check(
+		'F15.4b ...and an UNFILLED declaring root answers identically — the filter never loosens on selection',
+		await presetOf( { src: 'term' } ),
+		[ '__all_locations', 'Term Meta Field Key' ]
 	);
 	// The LIST half of that property is §F13.1 and §F13.7, which assert the scope-narrowed
 	// lists literally. A row here re-rendering `term,34` and comparing it to §F13's own
@@ -1177,15 +1186,19 @@ async function main() {
 	check(
 		'F15.5 a refs tail presets Post from the vocabulary like any other step — no slug is exempt',
 		await presetOf( { src: 'refs,lead' } ),
-		[ 'Post fields', 'Post Meta Field' ]
+		[ 'Post fields', 'Post Meta Field Key' ]
 	);
 	check(
 		'F15.6 ...and the legacy flat spelling of the same hop presets identically',
 		await presetOf( { src: 'ref', ref: 'lead' } ),
-		[ 'Post fields', 'Post Meta Field' ]
+		[ 'Post fields', 'Post Meta Field Key' ]
 	);
-	// The pair above is the point of keeping a legacy arm at all: one tag, presetting the same
-	// before and after the chain control folds `src:ref|ref:lead` into `refs,lead`.
+	// The pair above is HARNESS-ONLY on a healthy stack, and deliberately so: the base tag's
+	// mount migrator folds a flat `src:ref|ref:lead` before an author can look at the panel,
+	// so no manual row drives F15.6 and none claims to. What it pins is that the flat arm and
+	// the step it folds into answer the SAME, which is what makes the fold invisible rather
+	// than merely fast — and on a stack where the grammar failed to load, the fold does not
+	// happen and this arm is the only preset there is (§F15.10/§F15.11).
 
 	// `rows` produces `meta_row`, which is not a Location the filter can open on. The kind
 	// path must decline rather than round to the nearest kind — the repeater path (§F14) is
@@ -1193,17 +1206,17 @@ async function main() {
 	check(
 		'F15.7 a kind with no Location of its own presets nothing through the KIND path',
 		await presetOf( { src: 'rows,never_registered' } ),
-		[ '__all_locations', 'Meta/Option Field' ]
+		[ '__all_locations', 'Meta/Option Field Key' ]
 	);
 	check(
 		'F15.8 an argless root presets nothing — `current` has no kind until render',
 		await presetOf( { src: 'current' } ),
-		[ '__all_locations', 'Meta/Option Field' ]
+		[ '__all_locations', 'Meta/Option Field Key' ]
 	);
 	check(
 		'F15.9 `site` presets through the ROOT map now, not through a literal equality',
 		await presetOf( { src: 'site' } ),
-		[ 'Site fields', 'Site Option Field' ]
+		[ 'Site fields', 'Site Option Field Key' ]
 	);
 
 	// The maps are PHP's. With none delivered the control presets nothing rather than
@@ -1213,12 +1226,12 @@ async function main() {
 	check(
 		'F15.10 with no vocabulary delivered, the chain presets nothing (no built-in table)',
 		await presetOf( { src: 'terms,department' } ),
-		[ '__all_locations', 'Meta/Option Field' ]
+		[ '__all_locations', 'Meta/Option Field Key' ]
 	);
 	check(
 		'F15.11 ...while the legacy flat key, which needs no vocabulary, still does',
 		await presetOf( { srcTermIn: 'department' } ),
-		[ 'Term fields', 'Term Meta Field' ]
+		[ 'Term fields', 'Term Meta Field Key' ]
 	);
 	global.window.bwsChainKinds = savedKinds;
 

@@ -215,7 +215,11 @@ function bws_fold_rows_picker_def(): array {
 	return array(
 		'label'       => __( 'Repeater Field Key', 'generateblocks' ),
 		'help'        => __( 'ACF repeater (or meta) field key. The tag reads each row of this repeater.', 'generateblocks' ),
-		'placeholder' => 'team_members',
+		// GENERIC, like the `key` leaf's `field_name` — never a name that exists anywhere.
+		// This shipped as `team_members`, which is the `core-structures` fixture's own
+		// repeater: a placeholder naming live test data, on a combobox that also takes free
+		// text, so the grey string reads as a value an author might think is already set.
+		'placeholder' => 'repeater_name',
 		'typeDefault' => 'repeater',
 	);
 }

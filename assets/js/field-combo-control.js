@@ -320,11 +320,19 @@
 	 * breaks the single-valued map first: fix it there and this follows, which is the whole
 	 * reason the derivation is not a table here.
 	 *
-	 * The two LEGACY flat arms STAY. Registration dropping an option does not drop a stored
-	 * VALUE — GB seeds `extraTagParams` from the parsed tag string — so an untouched legacy
-	 * tag still presents one, and it still describes that tag's read until the chain
-	 * control's first commit folds it into a `terms` / `refs` step. They answer what those
-	 * steps answer, so a tag presets the same before and after that commit.
+	 * The two LEGACY flat arms STAY, and what they are FOR is narrower than it looks. GB seeds
+	 * `extraTagParams` from the parsed tag string, so a pre-1.17.0 tag does arrive carrying
+	 * one — but `BaseSrcMountMigrator` (slot-fold-migrate.js) commits the fold from a mount
+	 * `useEffect`, so on a healthy stack the flat key is gone within the same tick and these
+	 * arms answer for one render pass nobody sees. They are NOT the observable path and no
+	 * manual row can drive them.
+	 *
+	 * They earn their place on a DEGRADED stack. `chainTail()` needs `window.bwsSlotFold` and
+	 * the mount migrator needs `bwsSlotFoldMigrate`; where either failed to load, the fold
+	 * never happens AND the chain cannot be parsed, so a legacy tag would preset nothing at
+	 * all. These arms are what it presets from instead, and they answer what the steps they
+	 * fold into answer. §F15.10/§F15.11 are that pair — the vocabulary withdrawn, the flat
+	 * key still landing.
 	 *
 	 * @param {Object} state     extraTagParams.
 	 * @param {string} optionKey The key control's own option key (for slot prefix).
@@ -352,14 +360,14 @@
 	/**
 	 * Dynamic control label — meta/option storage-backend subtype pair (V4).
 	 * Uses the preset kind (safe-token) when known, else the source-agnostic fallback.
+	 *
+	 * NAMES THE FIELD, NOT THE CONTROL — the caller appends the noun. See `labelNoun()`.
 	 */
-	function kindLabel( kind, prefix ) {
-		var base;
-		if ( 'post' === kind ) { base = __( 'Post Meta Field', 'generateblocks' ); }
-		else if ( 'term' === kind ) { base = __( 'Term Meta Field', 'generateblocks' ); }
-		else if ( 'site' === kind ) { base = __( 'Site Option Field', 'generateblocks' ); }
-		else { base = __( 'Meta/Option Field', 'generateblocks' ); }
-		return prefix ? prefix + ' ' + base : base;
+	function kindLabel( kind ) {
+		if ( 'post' === kind ) { return __( 'Post Meta Field', 'generateblocks' ); }
+		if ( 'term' === kind ) { return __( 'Term Meta Field', 'generateblocks' ); }
+		if ( 'site' === kind ) { return __( 'Site Option Field', 'generateblocks' ); }
+		return __( 'Meta/Option Field', 'generateblocks' );
 	}
 
 	/**
@@ -857,17 +865,23 @@
 		}
 		//
 		// A DECLARING ROOT presets the LABEL and not the FILTER. Its scope narrowing (D22)
-		// has already answered which fields are readable off that entity, and it answers
-		// with a rule the kind filter cannot see: an UNSCOPED group is reachable under any
-		// entity of its kind, so the narrowed pool legitimately holds records whose kind
-		// root the filter would drop (§F13.2 is that rule). Two narrowings derived from one
-		// token, and the finer one wins — the coarser must not silently overrule it, least
-		// of all on a selection that failed to resolve, where narrowing to nothing and
-		// "this entity has no fields" look identical (§F13.7). The kind still reaches the
-		// label, which describes the read without claiming anything about the list.
+		// already answers which fields are readable off that entity, and it answers with a
+		// rule the kind filter cannot see: an UNSCOPED group stays offered, so the narrowed
+		// pool holds records whose kind root the filter would drop (§F13.2 is that rule).
+		// Two narrowings derived from one token, and the finer one wins — the coarser must
+		// not silently overrule it, least of all on a selection that failed to resolve,
+		// where narrowing to nothing and "this entity has no fields" look identical
+		// (§F13.7). The kind still reaches the LABEL, which describes the read without
+		// claiming anything about the list.
+		//
+		// THE TEST IS THE ROOT, NOT ITS ARGUMENT. Gating on a RESOLVED argument instead made
+		// the filter LOOSEN as the author supplied information — an empty Term source preset
+		// "Term fields" (nothing to defer to yet), and choosing a term dropped it back to
+		// "All detected fields". One source, one answer, whichever state it is in.
+		var isDeclaringRoot = tail && ( window.bwsRootArgKinds || {} )[ tail.slug ];
 		var presetPath   = ( rowPath && locExists( rowPath ) )
 			? rowPath
-			: ( ( preset && ! rootArg ) ? kindRootLabel( preset ) : ALL_LOC );
+			: ( ( preset && ! isDeclaringRoot ) ? kindRootLabel( preset ) : ALL_LOC );
 		var activeLoc    = locOverride !== null ? locOverride : ( locExists( presetPath ) ? presetPath : ALL_LOC );
 
 		// Effective type: explicit override, else the option's typeDefault (e.g. the
@@ -983,14 +997,20 @@
 		var label;
 		if ( props.dynamicLabel ) {
 			var groupLbl = locationGroupLabel( activeLoc );
-			if ( groupLbl ) {
-				// "<Group> Field" (e.g. "Client Details Field"). Group names are ACF
-				// author-supplied, so a simple concat reads correctly across locales.
-				var base = groupLbl + ' ' + __( 'Field', 'generateblocks' );
-				label = props.labelPrefix ? props.labelPrefix + ' ' + base : base;
-			} else {
-				label = kindLabel( kindFromLocation( activeLoc ) || preset, props.labelPrefix );
-			}
+			// "<Group> Field" (e.g. "Client Details Field"). Group names are ACF
+			// author-supplied, so a simple concat reads correctly across locales.
+			var base = groupLbl
+				? groupLbl + ' ' + __( 'Field', 'generateblocks' )
+				: kindLabel( kindFromLocation( activeLoc ) || preset );
+			// "KEY" IS WHAT MAKES THIS A CONTROL LABEL RATHER THAN A RESTATEMENT. Every
+			// static label this replaces ends in it ("Meta/Option Field Key"), and the
+			// dynamic path used to drop it — which put the word-for-word string
+			// "Meta/Option Field" directly under the `use` select's own VALUE of the same
+			// name, one as a chosen option and one as the next control's label. The noun
+			// is appended HERE, once, rather than carried in `kindLabel()` and again in the
+			// group branch, because both name the FIELD and neither names the control.
+			base = base + ' ' + __( 'Key', 'generateblocks' );
+			label = props.labelPrefix ? props.labelPrefix + ' ' + base : base;
 		} else {
 			label = props.label;
 		}
