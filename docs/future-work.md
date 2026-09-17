@@ -71,7 +71,7 @@ Detail home: `.scratch/plans/fw3-datetime-seam.md` (half (a) shipped record + ha
 
 Progress: Half (a) shipped 1.15.0 — term-ambient parity, the resolved-source rethread, and the `bws_datetime_coerce_read_target()` compat shim for legacy scalars; bare datetime tags on a term archive read the term's date field. The payload half of (b) shipped 1.16.0 as part of FW-49 — the four datetime call sites ride the shared `bws_collect_value_list()` fold and `bws_datetime_collect_list()` is deleted.
 
-Open: Full seam routing (datetime VALUE reads going through `bws_resolve_field_values` rather than the cores) still needs the field-object-formats read the seam does not currently expose.
+Open: Full seam routing (datetime VALUE reads going through `bws_resolve_field_values` rather than the cores) still needs the field-object-formats read the seam does not currently expose. For a REPEATER-ROW source the inputs that read needs are now recorded — FW-74 ticket 02 (1.21.0) stamps `parent_kind`, `parent_id`, `repeater` and `index` on every row a `rows` step produces — but the read itself is still this item's, and datetime on a wire row ships format-agnostic until it lands.
 
 Blocked by: decision:field-object formats through the seam  •  Interacts with: FW-43, FW-35
 
@@ -145,7 +145,7 @@ Blocked by: `decision:image-avatar-analog`  •  Interacts with: FW-9, FW-48, FW
 
 Detail home: `.scratch/repeater-row-arm/spec.md`
 
-Progress: The read layer already carries a live `case 'meta_row'`; only the arm is missing. Scoped 2026-09-04 — reach, the read seam's decomposition, and the four provenance keys the producer records are all settled in the detail home, as is the one design rule (branch on the WIRE kind, never `$base['kind']`) and the mutation that proves it. **The seam's decomposition landed 1.21.0** (ticket 01): `bws_read_resolved_source_value()` returns what the store holds, `bws_read_resolved_source()` is the string coercion over it with its signature unchanged, and the array-preserving post read is `bws_read_field_preserving_arrays()`, which the meta-image getter now shares rather than owning. That lifts FW-7's gate as a side effect (see its row).
+Progress: The read layer already carries a live `case 'meta_row'`; only the arm is missing. Scoped 2026-09-04 — reach, the read seam's decomposition, and the four provenance keys the producer records are all settled in the detail home, as is the one design rule (branch on the WIRE kind, never `$base['kind']`) and the mutation that proves it. **The seam's decomposition landed 1.21.0** (ticket 01): `bws_read_resolved_source_value()` returns what the store holds, `bws_read_resolved_source()` is the string coercion over it with its signature unchanged, and the array-preserving post read is `bws_read_field_preserving_arrays()`, which the meta-image getter now shares rather than owning. That lifts FW-7's gate as a side effect (see its row). **The producer's four provenance keys landed 1.21.0** (ticket 02): a row produced by a `rows` step carries `parent_kind`, `parent_id`, `repeater` and `index`, stamped by `bws_pipeline_rows_to_sources()` off arguments `bws_run_step()` already held — nothing consumes them yet, and FW-3 is what will.
 
 Open: Nothing in the design. The field-object read a wire row needs for ACF return formats is FW-3's, not this — datetime on a wire row ships format-agnostic until that closes.
 

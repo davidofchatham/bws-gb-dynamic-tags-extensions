@@ -1218,26 +1218,93 @@ eq( 'LI empty source -> null', null, bws_source_link_identity( array() ) );
 
 // meta_row convenience + a reader that returns a fixture repeater for the `rows`
 // step and a sub-field value for a following ref step off the produced meta_row.
+//
+// TWO helpers, because a row is two things here: row_src() is an INPUT (a row handed
+// to a step, provenance-free — the ambient shape), row_prov() is what the coercer
+// PRODUCES. Key order matters: eq() is ===, which compares array key order.
 function row_src( $row ) { return array( 'kind' => 'meta_row', 'row' => $row ); }
+function row_prov( $row, $parent_kind, $parent_id, $repeater, $index ) {
+	return array(
+		'kind'        => 'meta_row',
+		'row'         => $row,
+		'parent_kind' => $parent_kind,
+		'parent_id'   => $parent_id,
+		'repeater'    => $repeater,
+		'index'       => $index,
+	);
+}
 
 // --- coercer (bws_pipeline_rows_to_sources) ---------------------------------
 eq(
 	'rows coercer: array-of-rows -> meta_row[]',
-	array( row_src( array( 'a' => 1 ) ), row_src( array( 'a' => 2 ) ) ),
-	bws_pipeline_rows_to_sources( array( array( 'a' => 1 ), array( 'a' => 2 ) ) )
+	array( row_prov( array( 'a' => 1 ), 'post', 4, 'team', 0 ), row_prov( array( 'a' => 2 ), 'post', 4, 'team', 1 ) ),
+	bws_pipeline_rows_to_sources( array( array( 'a' => 1 ), array( 'a' => 2 ) ), post_src( 4 ), 'team' )
 );
 eq( 'rows coercer: non-array -> []', array(), bws_pipeline_rows_to_sources( 'nope' ) );
 eq( 'rows coercer: empty array -> []', array(), bws_pipeline_rows_to_sources( array() ) );
 eq( 'rows coercer: null -> []', array(), bws_pipeline_rows_to_sources( null ) );
+// The blank row's index is 2, not 1: `index` names the position in the STORE, so a
+// skipped entry still consumes one. Verified by MUTATION 2026-09-16 — moving the
+// coercer's increment inside its is_array() guard fails THIS row and only this row.
 eq(
 	'rows coercer: skips non-array rows, keeps blank row',
-	array( row_src( array( 'a' => 1 ) ), row_src( array() ) ),
-	bws_pipeline_rows_to_sources( array( array( 'a' => 1 ), 'scalar', array() ) )
+	array( row_prov( array( 'a' => 1 ), 'post', 4, 'team', 0 ), row_prov( array(), 'post', 4, 'team', 2 ) ),
+	bws_pipeline_rows_to_sources( array( array( 'a' => 1 ), 'scalar', array() ), post_src( 4 ), 'team' )
 );
 eq(
 	'rows coercer: order preserved',
-	array( row_src( array( 'n' => 'x' ) ), row_src( array( 'n' => 'y' ) ), row_src( array( 'n' => 'z' ) ) ),
-	bws_pipeline_rows_to_sources( array( array( 'n' => 'x' ), array( 'n' => 'y' ), array( 'n' => 'z' ) ) )
+	array(
+		row_prov( array( 'n' => 'x' ), 'post', 4, 'team', 0 ),
+		row_prov( array( 'n' => 'y' ), 'post', 4, 'team', 1 ),
+		row_prov( array( 'n' => 'z' ), 'post', 4, 'team', 2 ),
+	),
+	bws_pipeline_rows_to_sources( array( array( 'n' => 'x' ), array( 'n' => 'y' ), array( 'n' => 'z' ) ), post_src( 4 ), 'team' )
+);
+
+// --- PROVENANCE (FW-74 ticket 02) -------------------------------------------
+//
+// Four keys per row: parent kind, parent id, repeater name, store index. NOTHING
+// consumes them yet — FW-3's field-object read is what will — so these rows are the
+// only thing holding the shape, which is why they pin each key rather than the set.
+//
+// The parent is passed in, never derived: this coercer performs NO read and NO entity
+// lookup (acceptance criterion 4). It cannot — it has no reader and no WP symbol in
+// reach, which is what makes that criterion structural here rather than measured.
+$prov = bws_pipeline_rows_to_sources( array( array( 'n' => 'x' ), array( 'n' => 'y' ) ), post_src( 12 ), 'team_members' );
+eq( 'prov: parent_kind off a post parent', 'post', $prov[0]['parent_kind'] );
+eq( 'prov: parent_id off a post parent', 12, $prov[0]['parent_id'] );
+eq( 'prov: repeater name is the step field', 'team_members', $prov[0]['repeater'] );
+eq( 'prov: index is zero-based', 0, $prov[0]['index'] );
+eq( 'prov: the second row indexes differently', 1, $prov[1]['index'] );
+
+// Every parent kind the `rows` step accepts records ITS OWN kind. site and a parent
+// ROW carry no id, so parent_id is 0 and the KIND is what tells them apart.
+$prov_parent = function ( $parent ) {
+	$row = bws_pipeline_rows_to_sources( array( array() ), $parent, 'r' )[0];
+	return array( $row['parent_kind'], $row['parent_id'] );
+};
+eq( 'prov: term parent', array( 'term', 34 ), $prov_parent( term_src( 34 ) ) );
+eq( 'prov: user parent', array( 'user', 7 ), $prov_parent( user_src( 7 ) ) );
+eq( 'prov: site parent -> kind site, id 0', array( 'site', 0 ), $prov_parent( array( 'kind' => 'site' ) ) );
+
+// A NESTED repeater records the parent ROW, not the outer entity — the row it stepped
+// off is a meta_row, and that is the kind that lands. Driven through bws_run_step so
+// the recorded parent is the one the engine actually hands over, not one the test picked.
+$nested = bws_run_step(
+	array( 'type' => 'rows', 'field' => 'shifts' ),
+	row_prov( array( 'shifts' => array( array( 'day' => 'Mon' ) ) ), 'post', 12, 'team_members', 3 ),
+	function ( $step, $source ) { return $source['row'][ $step['field'] ] ?? array(); }
+);
+eq( 'prov: nested repeater parent is the ROW', 'meta_row', $nested[0]['parent_kind'] );
+eq( 'prov: nested repeater parent has no id', 0, $nested[0]['parent_id'] );
+eq( 'prov: nested repeater names the INNER repeater', 'shifts', $nested[0]['repeater'] );
+eq( 'prov: nested row index is its own', 0, $nested[0]['index'] );
+
+// Provenance-free calls stay non-fatal: an absent parent is empty/0, not a warning.
+eq(
+	'prov: no parent passed -> empty kind, id 0, empty repeater',
+	array( '', 0, '' ),
+	array_values( array_intersect_key( bws_pipeline_rows_to_sources( array( array() ) )[0], array( 'parent_kind' => 1, 'parent_id' => 1, 'repeater' => 1 ) ) )
 );
 
 // --- step input-kind gate (bws_run_step case 'rows') ------------------------
@@ -1247,9 +1314,12 @@ $rows_reader = function ( $step, $source ) {
 	return array( array( 'c' => 'p' ), array( 'c' => 'q' ) );
 };
 foreach ( array( 'post' => post_src( 5 ), 'term' => term_src( 5 ), 'user' => user_src( 5 ), 'meta_row' => row_src( array( 'r' => array() ) ), 'site' => array( 'kind' => 'site' ) ) as $kname => $src ) {
+	// The produced rows also carry the parent's kind/id — the step is where provenance
+	// is stamped, so the gate rows double as the per-parent-kind stamp check.
+	$pid = ( 'meta_row' === $kname || 'site' === $kname ) ? 0 : 5;
 	eq(
 		"rows step accepts {$kname} input",
-		array( row_src( array( 'c' => 'p' ) ), row_src( array( 'c' => 'q' ) ) ),
+		array( row_prov( array( 'c' => 'p' ), $kname, $pid, 'rep', 0 ), row_prov( array( 'c' => 'q' ), $kname, $pid, 'rep', 1 ) ),
 		bws_run_step( array( 'type' => 'rows', 'field' => 'rep' ), $src, $rows_reader )
 	);
 }
@@ -1280,9 +1350,9 @@ $rows_out = bws_run_traversal( array( post_src( 9 ) ), array( array( 'type' => '
 eq(
 	'rows fold: post -> 3 meta_rows',
 	array(
-		row_src( array( 'name' => 'Ann', 'role' => 'Lead' ) ),
-		row_src( array( 'name' => 'Bo',  'role' => 'Dev' ) ),
-		row_src( array( 'name' => 'Cy',  'role' => '' ) ),
+		row_prov( array( 'name' => 'Ann', 'role' => 'Lead' ), 'post', 9, 'team', 0 ),
+		row_prov( array( 'name' => 'Bo',  'role' => 'Dev' ), 'post', 9, 'team', 1 ),
+		row_prov( array( 'name' => 'Cy',  'role' => '' ), 'post', 9, 'team', 2 ),
 	),
 	$rows_out
 );
@@ -1462,7 +1532,7 @@ eq(
 // would pass the row above and fail both of these.
 eq(
 	'D3: a `rows` step is admitted off a pinned TERM root (rows accepts every entity kind)',
-	array( array( 'kind' => 'meta_row', 'row' => array( 'name' => 'Alice' ) ) ),
+	array( row_prov( array( 'name' => 'Alice' ), 'term', 68, 'team_members', 0 ) ),
 	bws_run_traversal(
 		array( array( 'kind' => 'term', 'id' => 68 ) ),
 		array( array( 'type' => 'rows', 'field' => 'team_members' ) ),

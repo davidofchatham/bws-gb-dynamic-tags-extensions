@@ -19,6 +19,11 @@
  *   array( 'kind' => 'term',       'id'  => 34 )       // entity kind — traversable
  *   array( 'kind' => 'user',       'id'  => 7 )        // entity kind — traversable
  *   array( 'kind' => 'meta_row',   'row' => array() )  // entity kind — traversable
+ *                                                      // + provenance when a `rows`
+ *                                                      // step produced it (1.21.0):
+ *                                                      // parent_kind, parent_id,
+ *                                                      // repeater, index — see
+ *                                                      // bws_pipeline_rows_to_sources()
  *   array( 'kind' => 'site' )                          // terminal — namespace implicit
  *   array( 'kind' => 'unresolved' )                    // terminal — refusal, see below
  *
@@ -351,8 +356,11 @@ function bws_run_step( array $step, array $source, $reader = null ) {
 			// held in a parent row). site is terminal — a site-option repeater is
 			// read directly by the reader's 'option' selector, but a { kind:'site' }
 			// still carries no id, so allow it: the reader switches on kind.
+			// The coercer takes the PARENT source and the repeater name as well as the
+			// raw value: this is the one place both are in hand, so provenance costs
+			// nothing here and a lookup everywhere else (see the coercer's PHPDoc).
 			$raw = call_user_func( $reader, $step, $source );
-			return bws_pipeline_rows_to_sources( $raw );
+			return bws_pipeline_rows_to_sources( $raw, $source, (string) ( $step['field'] ?? '' ) );
 
 		default:
 			return array(); // Unknown step type.
@@ -434,7 +442,7 @@ function bws_pipeline_terms_to_sources( $raw ) {
  *
  * The `rows` step core (structural twin of bws_pipeline_terms_to_sources): a
  * repeater field is an array-of-rows, each row an assoc array of sub-field
- * values. Every array row becomes one { kind:'meta_row', row } — preserving
+ * values. Every array row becomes one { kind:'meta_row', row, … } — preserving
  * document order (append order), NO first-only collapse. A column step then
  * reads sub-fields off each meta_row via the existing meta_row reader arm
  * (bws_pipeline_default_reader case 'meta_row') or steps a ref sub-field to a
@@ -445,20 +453,64 @@ function bws_pipeline_terms_to_sources( $raw ) {
  * meta_row); a row that is an empty array is a legitimate blank row and is kept so
  * cell-level blanks read as empty, not as a dropped row.
  *
+ * ── PROVENANCE: four keys, recorded here because here is where they are free ──
+ *
+ * A row records WHERE IT CAME FROM: `parent_kind`, `parent_id`, `repeater`, `index`.
+ * Nothing in the tree consumes them yet — the field-object read that will (FW-3,
+ * whose own Open line is this missing exposure) needs them to ask the custom-fields
+ * plugin for a sub-field's configuration, and without them a custom return format
+ * falls through to format-agnostic parsing, which is issue #22's failure mode reached
+ * by a new route.
+ *
+ * FOUR rather than three because ACF's sub-field config is reachable two ways: by the
+ * flat meta-key convention (`{repeater}_{index}_{sub}` against the parent selector,
+ * which needs the index) or by sub-field key. `have_rows`/`get_sub_field` is off the
+ * table — a stateful cursor breaks the pure fold.
+ *
+ * They are recorded at the PRODUCER because bws_run_step()'s `rows` case already holds
+ * the parent source and the repeater name at the moment it calls this coercer, so
+ * widening costs no lookup and no extra read, and a shipped source shape is expensive
+ * to widen after the fact.
+ *
+ * `index` counts EVERY entry in $raw, skipped rows included, because it names the
+ * position in the STORE (what the flat meta-key convention indexes by), not the
+ * position in the output. A parent with no id — `site`, or a parent ROW for a nested
+ * repeater — records `parent_id` 0; the kind is what distinguishes those.
+ *
+ * The AMBIENT meta_row (a query loop's repeater row, bws_resolve_base_source step 2d)
+ * carries NO provenance and is not meant to: GB Pro positions it and this coercer never
+ * sees it. Those are the two axes that share the `meta_row` noun.
+ *
  * @since 1.17.0
- * @param mixed $raw Raw repeater value (array-of-rows) or anything else.
- * @return array[] Zero or more { kind:'meta_row', row } sources, order preserved.
+ * @since 1.21.0 The four provenance keys (FW-74).
+ * @param mixed  $raw      Raw repeater value (array-of-rows) or anything else.
+ * @param array  $parent   The resolved source the repeater was read off (optional —
+ *                         absent yields empty/0 provenance, never a fatal).
+ * @param string $repeater The repeater field name the step named.
+ * @return array[] Zero or more { kind:'meta_row', row, parent_kind, parent_id,
+ *                 repeater, index } sources, order preserved.
  */
 if ( ! function_exists( 'bws_pipeline_rows_to_sources' ) ) {
-function bws_pipeline_rows_to_sources( $raw ) {
+function bws_pipeline_rows_to_sources( $raw, array $parent = array(), $repeater = '' ) {
 	if ( ! is_array( $raw ) || array() === $raw ) {
 		return array();
 	}
-	$out = array();
+	$parent_kind = (string) ( $parent['kind'] ?? '' );
+	$parent_id   = (int) ( $parent['id'] ?? 0 );
+	$out         = array();
+	$index       = 0;
 	foreach ( $raw as $row ) {
 		if ( is_array( $row ) ) {
-			$out[] = array( 'kind' => 'meta_row', 'row' => $row );
+			$out[] = array(
+				'kind'        => 'meta_row',
+				'row'         => $row,
+				'parent_kind' => $parent_kind,
+				'parent_id'   => $parent_id,
+				'repeater'    => (string) $repeater,
+				'index'       => $index,
+			);
 		}
+		$index++;
 	}
 	return $out;
 }
