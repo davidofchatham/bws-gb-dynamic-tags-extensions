@@ -26,6 +26,12 @@
  * Loads the SHIPPED files (grammar twin, order normalizer, control) against stubbed
  * wp globals and uses the control's own `window.bwsSlotFoldRepeater` export.
  *
+ * THE FIELD PICKER IS A STUB HERE, and that bounds what the hand-off rows below prove:
+ * the TOKEN leaves this control, spelled as the wire spells it, and nothing about what
+ * the picker does with it. `slot-fold-picker-seam-test.js` mounts the real picker against
+ * the real control and holds the join — reverting the 1.21.0 `refs` change in
+ * `fieldContext()` leaves THIS file green and fails five rows there.
+ *
  * @package BWS_Dynamic_Tags
  */
 

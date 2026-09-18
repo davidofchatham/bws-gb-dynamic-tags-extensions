@@ -70,7 +70,9 @@
  * WHAT THIS DOES NOT COVER, stated so a passing run is not read as full coverage of the
  * control: the PHP field-discovery transforms (`field-discovery-test.php` owns those), the
  * REST round trip, the ComboboxControl's own rendering and keyboard behaviour, and anything
- * needing a real DOM. Those stay manual and stay held by
+ * needing a real DOM. Nor WHO builds the context every case below hand-builds — under the
+ * fold that is `slot-fold-control.js`, which this file never loads;
+ * `slot-fold-picker-seam-test.js` mounts the two together and holds that join. Those stay manual and stay held by
  * `tools/test/field-selector-test-matrix.md`.
  *
  * @package BWS_Dynamic_Tags

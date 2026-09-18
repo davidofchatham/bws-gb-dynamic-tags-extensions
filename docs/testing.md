@@ -43,11 +43,22 @@ Run the pure harness always; route integration through the testbed.
    all, and `replay-verdict-test.php` covers the third's.
 
    **Some run under `node`, not `php`** — `slot-fold-repeater-test.js`, `editor-filter-chain-test.js`,
-   `field-combo-control-test.js`, `editor-preview-context-test.js` (pure JS, reach editor-only logic
+   `field-combo-control-test.js`, `slot-fold-picker-seam-test.js`, `editor-preview-context-test.js`
+   (pure JS, reach editor-only logic
    no PHP harness can), and three PHP harnesses that shell out to `node` for a twin-language check
    (`slot-fold-twin-test.php`, `serialization-order-test.php`, `fold-migration-test.php`) — a missing
    `node` FAILS these rather than skipping, since a silent pass would hide exactly the drift each
    exists to catch. Each file's own header has its mechanism.
+
+   **ONE OF THEM IS A SEAM HARNESS, and it is the only one that loads two shipped editor files
+   together.** `slot-fold-picker-seam-test.js` mounts the real fold control against the real field
+   picker, because its two neighbours each hold one side and pass while the join between them is
+   broken: `slot-fold-repeater-test.js` stubs the picker, `field-combo-control-test.js` hand-builds
+   the context, and neither loads the other's file. That gap was not hypothetical — `fieldContext()`
+   in `slot-fold-control.js` had one call site reached by no test at all, and reverting its 1.21.0
+   change fails five rows there while the repeater harness stays green. **Reach for this shape when a
+   property lives in the HAND-OFF rather than in either party**; where one file's behaviour is the
+   subject, its own harness is still the cheaper place to say so.
 
 2. **WordPress integration — the fixture testbed.** The pure harnesses can't reach anything
    WP-dependent (ambient context, ACF/meta reads, GB render, the editor React controls). For that
