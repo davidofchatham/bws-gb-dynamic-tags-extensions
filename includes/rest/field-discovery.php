@@ -423,6 +423,55 @@ function bws_field_discovery_field_note( array $field, string $kind = 'post' ) {
 }
 
 /**
+ * The post TYPES a relationship / post_object field can land on, or empty (FW-13).
+ *
+ * A `refs` step's argument names one of exactly these two field types. The post that step
+ * lands on has a type the EDITOR cannot know at parse time — that is what
+ * `predecessorContext()`'s docblock in `assets/js/slot-fold-control.js` says, and it is
+ * true of the editor. IT IS NOT TRUE HERE: the field declares its own allowed post types
+ * in its config, and this route is already reading that config. Stamping the list is what
+ * lets a `refs` tail narrow its successor's picker past kind `post`, which is the shape
+ * `repeater_key` already takes for a `rows` step.
+ *
+ * READ LIVE, NEVER SERIALIZED. The list is derived off the field config at discovery time
+ * rather than written into the tag, because a post type in the wire goes stale the moment
+ * the field is reconfigured and nothing anywhere would say so.
+ *
+ * AN EMPTY LIST IS THE HONEST ANSWER, twice over: any other field type cannot be stepped
+ * through at all, and an unrestricted relationship means "any post type", which is exactly
+ * what kind `post` alone already says.
+ *
+ * Pure — definitions only, no value read (V5).
+ *
+ * @since 1.21.0
+ * @param array $field ACF field definition array.
+ * @return array<int,string> Allowed post-type slugs, or empty.
+ */
+function bws_field_discovery_ref_post_types( array $field ): array {
+	$type = isset( $field['type'] ) ? (string) $field['type'] : '';
+	if ( 'relationship' !== $type && 'post_object' !== $type ) {
+		return array();
+	}
+
+	// ACF's own setting is an array, but a field registered in PHP through
+	// `acf_add_local_field_group()` may spell a single type as a bare string.
+	$allowed = isset( $field['post_type'] ) ? $field['post_type'] : array();
+	if ( ! is_array( $allowed ) ) {
+		$allowed = array( $allowed );
+	}
+
+	$out = array();
+	foreach ( $allowed as $slug ) {
+		$slug = is_string( $slug ) ? trim( $slug ) : '';
+		if ( '' !== $slug && ! in_array( $slug, $out, true ) ) {
+			$out[] = $slug;
+		}
+	}
+
+	return $out;
+}
+
+/**
  * Flatten ACF fields (recursing sub-fields) into resolvable entries (V8).
  *
  * Surfaces sub-fields with the CORRECT resolution key:
@@ -449,7 +498,7 @@ function bws_field_discovery_field_note( array $field, string $kind = 'post' ) {
  *                            reads it — an options-page field is never bidirectional
  *                            (#96) — so `post` is a safe default for a caller that has
  *                            no group in hand.
- * @return array<int,array{name:string,label:string,type:string,return_format:?string,context_hint:string,parent_path:string,repeater_key:string,note:?array}>
+ * @return array<int,array{name:string,label:string,type:string,return_format:?string,context_hint:string,parent_path:string,repeater_key:string,ref_types:array<int,string>,note:?array}>
  */
 function bws_field_discovery_flatten_fields( $fields, $parent_path = '', $group_key = '', $kind = 'post' ) {
 	$out = array();
@@ -492,6 +541,11 @@ function bws_field_discovery_flatten_fields( $fields, $parent_path = '', $group_
 			// Additive / structured — the shape FU-1 should absorb (FW-14's FU-1),
 			// stamped here for FW-53's row scoping.
 			'repeater_key'  => '',
+			// The post TYPES a `refs` step through THIS field can land on, so its
+			// successor's picker can narrow past kind `post` (FW-13). Empty for every
+			// field nothing can step through, and for an unrestricted relationship.
+			// Same additive, machine-readable shape as `repeater_key` above.
+			'ref_types'     => bws_field_discovery_ref_post_types( $field ),
 			// The FIELD CONFIGURATION NOTE (#96) — ordered segments, or null when the
 			// field has nothing noteworthy. Emitted as TEXT rather than as raw `max` /
 			// `multiple` / bidirectional settings so every user-facing string stays in

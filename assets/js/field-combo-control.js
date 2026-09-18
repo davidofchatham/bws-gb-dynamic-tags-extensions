@@ -290,6 +290,74 @@
 	}
 
 	/**
+	 * The post TYPES a `refs` tail's own field can land on, or [] (FW-13).
+	 *
+	 * A `refs` argument names the field stepped THROUGH, so the post it reaches has a type
+	 * the wire never states — but the FIELD states it, and the discovery endpoint stamps
+	 * what it says on every record (`ref_types`). This reads it back off the record the
+	 * argument names, the same machine-readable route `containerRowPath()` takes for a
+	 * `rows` tail.
+	 *
+	 * UNIONED ACROSS EVERY RECORD SHARING THE KEY, unlike `containerRowPath()`'s
+	 * first-match. Two distinct fields can share a resolution key under different labels,
+	 * and the wire names only the key, so either could be the one stepped through.
+	 * Widening is the safe direction here: offering a type the step cannot reach is loose,
+	 * refusing one it can is wrong.
+	 *
+	 * @param {Array}  records  Flat merged field records.
+	 * @param {string} fieldKey Resolution key of the relationship / post object stepped through.
+	 * @return {Array} Post-type slugs, or [] when nothing narrows.
+	 */
+	/**
+	 * Records of ONE kind whose scope reaches any of `slugs`, plus that kind's unscoped ones.
+	 *
+	 * THE ONE NARROWING PREDICATE, shared by the two things that narrow a pool: the
+	 * root-argument scope (FW-39 D22 — one slug, off a resolved entity lookup) and the
+	 * refs-tail post types (FW-13 — the list a relationship field allows). Both ask a record
+	 * the same question, "are you mine, and does your scope reach me", and only the kind and
+	 * the slugs differ, so those are the parameters and the rule is written once. A second
+	 * spelling of it is exactly where the two would drift apart.
+	 *
+	 * THE KIND IS TESTED ALONGSIDE THE SLUG, NEVER INSTEAD OF IT. A scope entry is a bare
+	 * slug and a taxonomy may share its spelling with a post type, so a slug match on its own
+	 * would offer a field the read cannot reach. What a group's `scope` reaches — and
+	 * therefore what an EMPTY one reaches — is stated where it is derived, at
+	 * `bws_field_discovery_derive_kind_scope()`; read it there. `scopeless` is that endpoint's
+	 * "any subtype of MY kind", so it passes the scope test and still faces the kind one.
+	 *
+	 * NO FALL-BACK-TO-ALL when the result comes out empty, unlike the repeater auto-scope at
+	 * the call site. There, an empty result means the scope handle matched nothing discovered
+	 * and the author is stranded with no picker; here it means the selection genuinely has no
+	 * fields, which is the answer the narrowing exists to give. Free text still commits any
+	 * key either way.
+	 *
+	 * @param {Array}  records Records to narrow.
+	 * @param {string} kind    Resolved-source kind the narrowing is of.
+	 * @param {Array}  slugs   Subtype slugs of that kind to accept.
+	 * @return {Array} The narrowed records.
+	 */
+	function narrowToScope( records, kind, slugs ) {
+		return records.filter( function ( rec ) {
+			if ( rec.kind !== kind ) { return false; }
+			return rec.scopeless || rec.scopes.some( function ( sc ) {
+				return slugs.indexOf( sc ) !== -1;
+			} );
+		} );
+	}
+
+	function refTailTypes( records, fieldKey ) {
+		var out = [];
+		if ( ! fieldKey ) { return out; }
+		records.forEach( function ( rec ) {
+			if ( rec.key !== fieldKey ) { return; }
+			( rec.refTypes || [] ).forEach( function ( pt ) {
+				if ( out.indexOf( pt ) === -1 ) { out.push( pt ); }
+			} );
+		} );
+		return out;
+	}
+
+	/**
 	 * Source-token -> kind preset for the Location filter, or null (=> All detected).
 	 *
 	 * NEVER assume post from the editor context — the kind is presetted only where a token
@@ -433,6 +501,11 @@
 	 *                a picker scoped to repeater R keeps only records whose
 	 *                repeaterKeys include R. Machine-readable — NOT parsed from the
 	 *                breadcrumb (parent_path), which stays display-only.
+	 *   refTypes     array of post-type slugs a `refs` step THROUGH this field can land
+	 *                on (from the server `ref_types` stamp; empty for anything but a
+	 *                restricted relationship / post object). Drives the refs-tail
+	 *                narrowing (FW-13) — UNIONED across homes like `scopes`, because a
+	 *                merged record reached through two homes reaches both.
 	 *   scopes       array of the entity slugs (taxonomy slugs under kind `term`,
 	 *                post-type slugs under kind `post`) this field is scoped to, from
 	 *                the envelope GROUP's existing `scope`. Drives the root-argument
@@ -491,6 +564,7 @@
 							paths:        [],
 							rowSeen:      false,
 							repeaterKeys: [],
+							refTypes:     [],
 							scopes:       [],
 							scopeless:    false,
 						};
@@ -511,6 +585,16 @@
 					if ( rk && rec.repeaterKeys.indexOf( rk ) === -1 ) {
 						rec.repeaterKeys.push( rk );
 					}
+
+					// Allowed post types of a relationship / post object (server
+					// `ref_types` stamp), accumulated for the same reason `scopes` is:
+					// one merged record can be the same key reached through two homes,
+					// and a step through it reaches whatever either home allows.
+					( field.ref_types || [] ).forEach( function ( pt ) {
+						if ( pt && rec.refTypes.indexOf( pt ) === -1 ) {
+							rec.refTypes.push( pt );
+						}
+					} );
 
 					// Entity scope, UNIONED across the homes a merged record was reached
 					// through — the same conservative widening `paths` and `types` take.
@@ -814,38 +898,61 @@
 		// compose: a `{{table}}` column picker under a specific entity shows that repeater's
 		// sub-fields, of that entity.
 		//
-		// A RECORD OF ANOTHER KIND IS NEVER OFFERED, scoped or not. What a group's `scope`
-		// reaches — and therefore what an EMPTY one reaches — is stated where it is derived,
-		// at `bws_field_discovery_derive_kind_scope()`; read it there. Observed here: a
-		// selected term is no longer offered post-kind unscoped fields, a selected post no
-		// longer term-kind ones, and the picker stops offering a field the render cannot
-		// reach. The test gates the scoped branch too, not only the `scopeless` one, because
-		// a scope entry is a bare slug and a taxonomy may share its spelling with a post type.
+		// A RECORD OF ANOTHER KIND IS NEVER OFFERED, scoped or not — the predicate is
+		// `narrowToScope()`'s and stated there. Observed here: a selected term is no longer
+		// offered post-kind unscoped fields, a selected post no longer term-kind ones, and
+		// the picker stops offering a field the render cannot reach.
 		//
-		// NO FALL-BACK-TO-ALL when the narrowed list comes out empty, unlike the
-		// repeater scope below. There, an empty result means the scope handle matched
-		// nothing discovered and the author is stranded with no picker; here it means
-		// the selected entity genuinely has no fields, which is the answer the narrowing
-		// exists to give. Free text still commits any key either way.
+		// THE SLUG LIST IS ONE LONG, and it is the entity's OWN scope: the taxonomy a
+		// specific term belongs to, the post type a specific post is. An argument that will
+		// not resolve answers '' above, which short-circuits to the unnarrowed list rather
+		// than to an empty one.
 		var scopedRecords = useMemo( function () {
 			if ( '' === argScope ) { return allRecords; }
-			return allRecords.filter( function ( rec ) {
-				if ( rec.kind !== rootArgKind ) { return false; }
-				return rec.scopeless || rec.scopes.indexOf( argScope ) !== -1;
-			} );
+			return narrowToScope( allRecords, rootArgKind, [ argScope ] );
 		}, [ allRecords, argScope, rootArgKind ] );
 
+		// The chain's tail, read once and asked two questions — which post types a `refs`
+		// argument reaches (here), and which container a `rows` argument names (the
+		// Location preset further down). Both are the tail's to answer, and the read sits
+		// up here because the first of them narrows the pool the second reads.
+		var tail = chainTail( state, key );
+
+		// FW-13's refs-tail narrowing, applied ON TOP of D22's rather than instead of it.
+		// The two answer different questions off different positions — D22 narrows by the
+		// entity a ROOT names, this by the post types a `refs` step can LAND on — and a
+		// chain cannot be in both states at once anyway, since a chain carrying a step has
+		// no root argument to resolve. Composed rather than branched so that stays an
+		// observation about today's grammar and not something the code depends on.
+		//
+		// THE KIND IS `post` BECAUSE THE SLUGS ARE POST TYPES, not because `refs` produces
+		// `post`. A post-type slug is a subtype of kind `post` and of nothing else, so
+		// handing this list to `narrowToScope()` under any other kind would be matching
+		// slugs across kinds — the thing that predicate exists to refuse.
+		//
+		// AN UNRESTRICTED FIELD NARROWS NOTHING, and so does one the discovery never saw.
+		// Both answer [], which leaves the list where kind `post` alone already left it —
+		// loose, and honest, because the type genuinely varies per target.
+		var refTypes = useMemo( function () {
+			return ( tail && 'refs' === tail.slug ) ? refTailTypes( allRecords, tail.arg ) : [];
+		}, [ allRecords, tail ] );
+
+		var refScoped = useMemo( function () {
+			if ( ! refTypes.length ) { return scopedRecords; }
+			return narrowToScope( scopedRecords, 'post', refTypes );
+		}, [ scopedRecords, refTypes ] );
+
 		var records = useMemo( function () {
-			if ( ! scopeToRepeater ) { return scopedRecords; }
-			var scoped = scopedRecords.filter( function ( rec ) {
+			if ( ! scopeToRepeater ) { return refScoped; }
+			var scoped = refScoped.filter( function ( rec ) {
 				return rec.repeaterKeys && rec.repeaterKeys.indexOf( scopeRepeaterKey ) !== -1;
 			} );
 			// If the repeater key matched NO discovered sub-fields (an unregistered /
 			// free-typed repeater, or a non-repeater key), do NOT collapse to an empty
 			// list — that would strand the author with no picker and no way back. Fall
 			// through to the full pool; free-text still commits any sub-field name.
-			return scoped.length ? scoped : scopedRecords;
-		}, [ scopedRecords, scopeToRepeater, scopeRepeaterKey ] );
+			return scoped.length ? scoped : refScoped;
+		}, [ refScoped, scopeToRepeater, scopeRepeaterKey ] );
 
 		var locationOptions = useMemo( function () {
 			return buildLocationOptions( records );
@@ -862,7 +969,6 @@
 		// which is that same home three segments shallower. Either way this is a starting
 		// view and not a lock — the selector stays visible and widens back to All.
 		var preset       = presetKind( state, key );
-		var tail         = chainTail( state, key );
 		var rowPath      = containerRowPath( records, tail ? tail.arg : '' );
 		// Only use a preset path that actually exists in the options — fields of that kind,
 		// or children of that container, were discovered. Otherwise fall back: a repeater

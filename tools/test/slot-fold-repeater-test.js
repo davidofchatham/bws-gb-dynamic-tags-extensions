@@ -1273,21 +1273,62 @@ check(
 	'dept_lead'
 );
 
+// A `refs` STEP is handed over too, since 1.21.0. Its argument names the field stepped
+// THROUGH rather than what it lands on — still true — but the FIELD's own config declares
+// the post types it reaches, and discovery stamps them, so the name is enough for the
+// picker to narrow past kind `post`. What the successor does with the token is
+// field-combo-control's; what is asserted here is that the token arrives, spelled as the
+// wire spells it.
 const deepStepArg = fieldPickersIn( renderPinChainWithPicker( [
 	{ slug: 'term', arg: '34', limit: null },
 	{ slug: 'refs', arg: 'dept_lead', limit: null },
 	{ slug: 'rows', arg: 'team_members', limit: null }
 ] ) );
 check(
-	'a step after a `refs` hop gets nothing — a refs argument names the field stepped THROUGH, not what it lands on',
+	'a step after a `refs` hop gets that relationship field as a `src` token',
 	deepStepArg.length === 2 && deepStepArg[ 1 ].props.context.state.src,
+	'refs,dept_lead'
+);
+// The ROOT's pin does not leak past the hop — the entity a step's field is read off is
+// whatever the chain resolved to just BEFORE it, which at position 2 is the hop and not
+// the root. Same rule the `rows` rows below assert, asked where it used to be the reason
+// nothing was handed over at all.
+check(
+	'...and the root pin two positions back is NOT what it gets',
+	deepStepArg[ 1 ].props.context.state.src === 'term,34',
+	false
+);
+
+// An ARGLESS `refs` names no field, so it hands over nothing — the same test the root and
+// `rows` arms apply, asked at the third naming position.
+const arglessRefs = fieldPickersIn( renderPinChainWithPicker( [
+	{ slug: 'refs' },
+	{ slug: 'refs', arg: 'lead_ref', limit: null }
+] ) );
+check(
+	'an ARGLESS `refs` step hands over nothing — it names no field to narrow against',
+	arglessRefs[ arglessRefs.length - 1 ].props.context.state.src,
 	undefined
 );
 
-// A `rows` STEP names what it resolved to — the property the root and `rows` share and
-// `refs` and `terms` lack. So its successor is handed it at ANY position: the rule is what
-// the predecessor SAYS, never how far along it sits, and the row above is the contrast that
-// makes that readable — same position, different predecessor, opposite answer.
+// A `terms` step is the one that still names nothing: its argument is a taxonomy and what
+// it produces is a term, which is the KIND axis the Location preset already answers. This
+// is the contrast row that keeps the rule readable as "what the predecessor SAYS" rather
+// than "every step with an argument".
+const afterTermsArg = fieldPickersIn( renderPinChainWithPicker( [
+	{ slug: 'terms', arg: 'department', limit: null },
+	{ slug: 'refs', arg: 'lead_ref', limit: null }
+] ) );
+check(
+	'a step after a `terms` step gets nothing — a taxonomy names a kind, not an entity',
+	afterTermsArg[ afterTermsArg.length - 1 ].props.context.state.src,
+	undefined
+);
+
+// A `rows` STEP names what it resolved to — the property the root, `rows` and `refs` share
+// and `terms` lacks. So its successor is handed it at ANY position: the rule is what the
+// predecessor SAYS, never how far along it sits, and the rows above are the contrast that
+// makes that readable — same position, different predecessor, different answer.
 const afterRowsArg = fieldPickersIn( renderPinChainWithPicker( [
 	{ slug: 'rows', arg: 'duty_roster', limit: null },
 	{ slug: 'rows', arg: 'shifts', limit: null }

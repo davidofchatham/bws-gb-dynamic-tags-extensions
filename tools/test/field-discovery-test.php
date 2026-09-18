@@ -252,6 +252,52 @@ assert_eq( 'inner repeater scopes to outer', 'outer', $by_name['inner']['repeate
 assert_eq( 'grandchild cell scopes to INNER (not overwritten by outer)', 'inner', $by_name['cell']['repeater_key'] );
 
 // -----------------------------------------------------------------------------
+echo "\n== ref_types: the post types a `refs` step can land on (FW-13) ==\n";
+
+// The stamp is what lets a `refs` tail narrow its successor's picker past kind `post`.
+// The editor cannot derive it — a `refs` argument names the field stepped THROUGH — so it
+// has to arrive on the record, and these rows are the shape the control reads.
+$flat_ref = bws_field_discovery_flatten_fields( array(
+	array( 'name' => 'dept_lead', 'label' => 'Dept Lead', 'type' => 'post_object', 'post_type' => array( 'staff' ) ),
+	array( 'name' => 'partners', 'label' => 'Partners', 'type' => 'relationship', 'post_type' => array( 'staff', 'office' ) ),
+	array( 'name' => 'anything', 'label' => 'Anything', 'type' => 'relationship' ),
+	array( 'name' => 'headline', 'label' => 'Headline', 'type' => 'text', 'post_type' => array( 'staff' ) ),
+) );
+$by_ref = array();
+foreach ( $flat_ref as $r ) { $by_ref[ $r['name'] ] = $r; }
+assert_eq( 'post_object carries its one allowed type', array( 'staff' ), $by_ref['dept_lead']['ref_types'] );
+assert_eq( 'relationship carries the UNION of its allowed types', array( 'staff', 'office' ), $by_ref['partners']['ref_types'] );
+// Unrestricted means "any post type", which is exactly what kind `post` alone already
+// says — so it narrows nothing, and says so by answering empty rather than by omission.
+assert_eq( 'an UNRESTRICTED relationship narrows nothing', array(), $by_ref['anything']['ref_types'] );
+// A `post_type` key on a field nothing can step through is not a scope: the type gate
+// comes first, so a stray setting on a text field cannot narrow anything.
+assert_eq( 'a non-steppable type answers empty whatever it carries', array(), $by_ref['headline']['ref_types'] );
+
+// Shape parity with `repeater_key`: every record carries the key, so a consumer never has
+// to tell "no types" apart from "this endpoint predates the stamp".
+assert_true( 'every flattened record carries ref_types', array_reduce(
+	$flat_top,
+	function ( $carry, $r ) { return $carry && array_key_exists( 'ref_types', $r ); },
+	true
+) );
+
+// A single type spelled as a bare string (hand-registered through acf_add_local_field_group)
+// still reads as a list — ACF's own admin always writes the array, PHP registration need not.
+$flat_ref_str = bws_field_discovery_flatten_fields( array(
+	array( 'name' => 'one', 'label' => 'One', 'type' => 'post_object', 'post_type' => 'staff' ),
+) );
+assert_eq( 'a bare-string post_type reads as a one-entry list', array( 'staff' ), $flat_ref_str[0]['ref_types'] );
+
+// Duplicates and blanks are dropped rather than passed through — the consumer matches this
+// list against a group's scope slugs, where an empty string would match nothing anyway but
+// a duplicate would survive every union it takes part in.
+$flat_ref_dupe = bws_field_discovery_flatten_fields( array(
+	array( 'name' => 'dupe', 'label' => 'Dupe', 'type' => 'relationship', 'post_type' => array( 'staff', '', 'staff', ' office ' ) ),
+) );
+assert_eq( 'duplicates and blanks drop, and slugs trim', array( 'staff', 'office' ), $flat_ref_dupe[0]['ref_types'] );
+
+// -----------------------------------------------------------------------------
 echo "\n== field configuration note (#96) ==\n";
 
 // The note is a pure function of the field DEFINITION plus the resolved-source kind —
