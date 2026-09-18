@@ -930,17 +930,30 @@
 		// handing this list to `narrowToScope()` under any other kind would be matching
 		// slugs across kinds — the thing that predicate exists to refuse.
 		//
-		// AN UNRESTRICTED FIELD NARROWS NOTHING, and so does one the discovery never saw.
-		// Both answer [], which leaves the list where kind `post` alone already left it —
-		// loose, and honest, because the type genuinely varies per target.
+		// AN UNRESTRICTED FIELD NARROWS NO FURTHER, and neither does one the discovery
+		// never saw. Both answer [], and both keep every post type — loose, and honest,
+		// because the type genuinely varies per target.
 		var refTypes = useMemo( function () {
 			return ( tail && 'refs' === tail.slug ) ? refTailTypes( allRecords, tail.arg ) : [];
 		}, [ allRecords, tail ] );
 
+		// THE KIND GATE IS UNCONDITIONAL; only the TYPE narrowing is conditional. `refs`
+		// produces `post` whatever field it steps through — the engine forces it — so a
+		// term or site record is unreachable through this tail either way, and which of
+		// the two arms below runs says nothing about that. Gating in one arm only left the
+		// other offering 16 unreadable fields one click away, behind a Location preset that
+		// is a starting VIEW and widens back; the preset was doing a POOL's job.
+		//
+		// The kind still arrives as a literal here rather than off the vocabulary, which is
+		// the narrow form of the rule: binding the pool to whatever kind the chain resolves
+		// to, for every step type and not just this one, is FW-13's Open item — it has to
+		// stand down for a declaring root whose argument will not resolve (§F13.7), and
+		// that is three rules in conversation rather than this one.
 		var refScoped = useMemo( function () {
-			if ( ! refTypes.length ) { return scopedRecords; }
-			return narrowToScope( scopedRecords, 'post', refTypes );
-		}, [ scopedRecords, refTypes ] );
+			if ( ! tail || 'refs' !== tail.slug ) { return scopedRecords; }
+			if ( refTypes.length ) { return narrowToScope( scopedRecords, 'post', refTypes ); }
+			return scopedRecords.filter( function ( rec ) { return 'post' === rec.kind; } );
+		}, [ scopedRecords, refTypes, tail ] );
 
 		var records = useMemo( function () {
 			if ( ! scopeToRepeater ) { return refScoped; }

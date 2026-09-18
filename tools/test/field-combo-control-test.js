@@ -59,7 +59,13 @@
  * F16.7), passing a kind other than `post` (F16.1, F16.1b, F16.2, F16.2b), taking the first
  * matching RECORD instead of unioning across them (F16.2b), keeping the first HOME's types
  * instead of unioning within a record (F16.2, F16.2b), ignoring the server stamp (five rows),
- * and running the repeater auto-scope's fall-through against the un-narrowed pool (F16.7).
+ * running the repeater auto-scope's fall-through against the un-narrowed pool (F16.7), and
+ * letting the kind gate ride on the types being known (F16.4b alone — which is the whole
+ * reason that row exists: the gate shipped in the types-known arm only and EVERY row in the
+ * section passed, because they all read through a preset that was hiding the survivors).
+ * Widening the gate to any tail rather than a `refs` one fails eleven rows across §F13/§F15
+ * and §F16.4c/§F16.6 — §F13.7 among them, which is the boundary the general form of this
+ * rule (FW-13, Open) has to respect and the reason it is not taken here.
  *
  * WHAT THIS DOES NOT COVER, stated so a passing run is not read as full coverage of the
  * control: the PHP field-discovery transforms (`field-discovery-test.php` owns those), the
@@ -1384,7 +1390,12 @@ async function main() {
 	 * a wrong answer — the read cannot reach it at all. A record of the wrong post TYPE is
 	 * a LOOSE answer — it resolves for some of the posts the step lands on and not others.
 	 * The rows below narrow where the field says so and stay loose where it does not, and
-	 * the last two are the loose cases asserted as deliberate rather than left unstated.
+	 * F16.3/F16.4 are the loose cases asserted as deliberate rather than left unstated.
+	 *
+	 * BOTH SEVERITIES LIVE HERE, THOUGH, and only one of them is about post types. `refs`
+	 * produces `post` whatever field it steps through, so the KIND gate applies to every
+	 * `refs` tail and is not conditional on the types being known — F16.4b is that half, and
+	 * it is a POOL row rather than a list row for the reason F16.1b is.
 	 *
 	 * ASSERTED AS WHOLE LISTS, per the file's own rule. A "does it contain X" row would
 	 * pass under a filter that dropped the wrong half.
@@ -1501,6 +1512,44 @@ async function main() {
 		'F16.4 ...and so does a field the discovery never saw — never an empty list',
 		await refTailList( 'refs,no_such_field' ),
 		hoppedUnpinned
+	);
+
+	// THE KIND GATE IS UNCONDITIONAL, and the two rows above cannot see that. Both read the
+	// list through a Location filter the `refs` tail already presets to "Post fields", so a
+	// term record surviving in the POOL is hidden by the preset and they stay green either
+	// way — which is exactly what happened: the gate ran in the types-known arm only, and
+	// every assertion in this section passed while an unrestricted tail kept 16 unreadable
+	// term and site fields one widening click away. The preset is a starting VIEW; it was
+	// doing a pool's job. Read off the filter's own OPTIONS, as §F16.1b is.
+	check(
+		'F16.4b ...and BOTH still bind the pool to kind `post` — the gate does not ride on the types being known',
+		labels( selects( await render( FieldComboControl, {
+			optionKey: 'key',
+			label: 'Field',
+			context: ctx( { src: 'refs,any_ref' } ),
+		} ) )[ 0 ].options ),
+		[
+			'All detected fields',
+			'Post fields',
+			'Post fields › Event Details',
+			'Post fields › Event Details › Staff List (repeater)',
+			'Post fields › Feature Block',
+			'Post fields › Office Details',
+			'Post fields › Product Details',
+		]
+	);
+	// The contrast that makes the row above an assertion: an ARGLESS root knows no kind, so
+	// its pool keeps all three and every kind root is offered. Same read, opposite answer.
+	check(
+		'F16.4c ...while a source that knows no kind keeps all three, so the row above is not measuring an empty fixture',
+		labels( selects( await render( FieldComboControl, {
+			optionKey: 'key',
+			label: 'Field',
+			context: ctx( { src: 'current' } ),
+		} ) )[ 0 ].options ).filter( function ( l ) {
+			return l === 'Term fields' || l === 'Site fields';
+		} ),
+		[ 'Site fields', 'Term fields' ]
 	);
 
 	// THE NARROWING IS THE TAIL'S, not any step's. A `refs` hop consumed mid-chain has
