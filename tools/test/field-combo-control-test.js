@@ -33,7 +33,7 @@
  * than a count or a joined string. That is the FW-71 / #104 lesson: four defects shipped
  * under a green suite that asserted reductions of the shape instead of the shape.
  *
- * MUTATION-CHECKED 2026-08-28 (and again 2026-09-08 for §F13), because a display-layer
+ * MUTATION-CHECKED 2026-08-28 (and again 2026-09-08 and 2026-09-18 for §F13), because a display-layer
  * harness that asserts the wrong shapes passes forever and nobody looks again. Ten rules
  * were broken one at a time in the shipped file and every one failed here by name: always repeating the key in a row (F1.1, F1.2,
  * F2.2), an equality location filter instead of a prefix one (F5.1), serializing the merge-key
@@ -41,8 +41,10 @@
  * dropping the label from the merge identity (F1.1, F1.4, F6.2), collapsing the auto-scope to
  * an empty list (F8.4), case-folding the custom-key suppression (F7.3), auto-selecting an
  * ambiguous key (F6.2), applying an undiscovered typeDefault (F9.4), and rendering the filters
- * while auto-scoped (F8.1, F8.5). §F13's three: collapsing the `scopeless` flag into an empty
- * scope list (F13.1 through F13.4 — both kinds read the same flag), narrowing off a chain that
+ * while auto-scoped (F8.1, F8.5). §F13's four: collapsing the `scopeless` flag into an empty
+ * scope list (F13.2 + F13.4, which is what the term `icon` reached through one scoped home and
+ * one unscoped one is in the fixture for), dropping the KIND test from the narrowing (F13.1,
+ * F13.1b, F13.3, F13.3b, F13.4), narrowing off a chain that
  * HOPS past its pin (F13.6), and narrowing on a pin that failed to resolve (F13.7, reached by
  * making the resolve fallback answer the pin's KIND instead of ''; deleting the empty-scope
  * guard outright is too coarse — it narrows unpinned tags too and the suite dies before §F13).
@@ -225,6 +227,8 @@ global.window.wp = global.wp;
  *   `role`              — a repeater sub-field: row context, and the auto-scope target
  *   `_gb_internal`      — underscore-prefixed: DEMOTED to the bottom, never hidden
  *   `photo`             — reached through two homes: one merged row listing both paths
+ *   `icon`              — the same two-home shape one kind over: a TERM field reached
+ *                         through a scoped home and an unscoped one
  * ---------------------------------------------------------------------- */
 
 global.window.bwsFieldEnvelope = {
@@ -260,6 +264,19 @@ global.window.bwsFieldEnvelope = {
 			scope: [ 'department' ],
 			fields: [
 				{ name: 'blurb', label: 'Blurb', type: 'textarea' },
+				{ name: 'icon', label: 'Icon', type: 'image' },
+			],
+		},
+		{
+			group_title: 'Term Shared',
+			// NO scope, under kind `term` — the same "any entity of that kind" the post
+			// `Feature Block` group carries, spelled on the OTHER kind. Both are needed:
+			// one unscoped group alone cannot tell "offered under any subtype of its own
+			// kind" apart from "offered under any kind at all", which is the whole §F13
+			// question. Its `icon` is also a Taxonomy Extras field, so the merged row is
+			// reachable both scoped and unscoped — the `scopeless` case, within a kind.
+			fields: [
+				{ name: 'icon', label: 'Icon', type: 'image' },
 			],
 		},
 	],
@@ -410,6 +427,7 @@ async function main() {
 			'Email (Email, \'email\')',
 			'event_date (Date)',
 			'Feature Name (Text, \'name\')',
+			'Icon (Image, \'icon\')',
 			'Name (Text, \'name\')',
 			'Photo (Image, \'photo\')',
 			'Role (Text, \'role\')',
@@ -494,6 +512,7 @@ async function main() {
 			'Site fields › Site Options',
 			'Term fields',
 			'Term fields › Taxonomy Extras',
+			'Term fields › Term Shared',
 		]
 	);
 	check(
@@ -857,6 +876,14 @@ async function main() {
 	 * EXISTING per-field `scope` — nothing is added to discovery, which is where D23
 	 * draws the line.
 	 *
+	 * NARROWING IS WITHIN THE SELECTED ENTITY'S KIND (1.21.0). What an unscoped group reaches
+	 * is stated where it is derived, at `bws_field_discovery_derive_kind_scope()`; what the
+	 * picker DOES about it is what this section holds, and a fixture envelope cannot fail when
+	 * that derivation moves. F13.1b is the row that holds it, and it is the row that CHANGED
+	 * here: before 1.21.0 an unscoped post group's fields were offered under a term, which no
+	 * term read can reach. The fixture carries an unscoped group under BOTH kinds precisely so
+	 * the within-kind rule and the any-kind one produce different lists.
+	 *
 	 * ASSERTED AS WHOLE LISTS, not as membership of one row: the property is what an
 	 * author sees in the picker, and a membership check passes just as happily on a list
 	 * that narrowed nothing.
@@ -868,23 +895,43 @@ async function main() {
 		context: ctx( { src: 'term,34' } ),
 	} ) ).options );
 
+	// Rendered here rather than at F13.4 because F13.2's rule needs it: `icon`'s only
+	// SCOPED home is `department`, so `category` is the pin that excludes it.
+	const pinnedNews = labels( combo( await render( FieldComboControl, {
+		optionKey: 'key',
+		label: 'Field',
+		context: ctx( { src: 'term,77' } ),
+	} ) ).options );
+
 	check(
-		"F13.1 a pinned TERM narrows to that taxonomy's fields, plus every unscoped one",
+		"F13.1 a pinned TERM narrows to that taxonomy's fields, plus every unscoped one OF ITS KIND",
 		pinnedDepartment,
 		[
 			"Blurb (Text Area, 'blurb')",
-			"Email (Email, 'email')",
-			"Feature Name (Text, 'name')",
-			"Photo (Image, 'photo')",
+			"Icon (Image, 'icon')",
 		]
 	);
 
-	// `photo` is reached through a `staff`-scoped group AND an unscoped one. It survives
-	// a `department` pin because ONE unscoped home makes a field reachable anywhere —
-	// the rule a plain union of scope slugs would have lost.
+	// THE ROW THAT MOVED IN 1.21.0, and the reason the fixture needed a second unscoped
+	// group. `Feature Name` is an unscoped POST group's field and the second `Email` an
+	// unscoped SITE one; both used to pass a term narrowing, because `scopeless`
+	// short-circuited before anything consulted kind. A term read reaches neither, so the
+	// picker was offering fields that could not work. Asserted as the ABSENCE of the two
+	// named rows rather than left to F13.1's whole list, so the regression fails by name.
+	check(
+		'F13.1b ...and nothing of another KIND, unscoped or not',
+		pinnedDepartment.filter( function ( l ) {
+			return l.indexOf( 'Feature Name' ) === 0 || l.indexOf( 'Email' ) === 0;
+		} ),
+		[]
+	);
+
+	// `icon` is reached through a `department`-scoped group AND an unscoped one, both under
+	// kind `term`. It survives a `category` pin because ONE unscoped home makes a field
+	// reachable across its kind — the rule a plain union of scope slugs would have lost.
 	check(
 		'F13.2 a field with one unscoped home survives a pin its other home excludes',
-		pinnedDepartment.indexOf( "Photo (Image, 'photo')" ) !== -1,
+		pinnedNews.indexOf( "Icon (Image, 'icon')" ) !== -1,
 		true
 	);
 
@@ -898,7 +945,6 @@ async function main() {
 		[
 			"City (Text, 'venue_city')",
 			"Email (Email, 'email')",
-			"Email (Email, 'email')",
 			'event_date (Date)',
 			"Feature Name (Text, 'name')",
 			"Name (Text, 'name')",
@@ -909,20 +955,28 @@ async function main() {
 		]
 	);
 
+	// Only ONE Email now: the post one. The site `email` shares the key and the label and
+	// is a different kind, which is the same rule F13.1b states from the term side — and
+	// the one place the two-rows-under-two-kinds merge identity (F1.5) is observed being
+	// narrowed back apart.
+	check(
+		'F13.3b ...and the SITE twin of a post key is not among them',
+		labels( combo( await render( FieldComboControl, {
+			optionKey: 'key',
+			label: 'Field',
+			context: ctx( { src: 'post,12' } ),
+		} ) ).options ).filter( function ( l ) { return l === "Email (Email, 'email')"; } ).length,
+		1
+	);
+
 	// Re-narrowing is what "changing the pin re-narrows without a reload" means at this
 	// layer: the scope is derived per render from the sibling token, never cached against
 	// the first pin the control saw.
 	check(
-		'F13.4 changing the pin re-narrows — a taxonomy with no fields of its own leaves only the unscoped ones',
-		labels( combo( await render( FieldComboControl, {
-			optionKey: 'key',
-			label: 'Field',
-			context: ctx( { src: 'term,77' } ),
-		} ) ).options ),
+		'F13.4 changing the pin re-narrows — a taxonomy with no fields of its own leaves only the unscoped ones of its kind',
+		pinnedNews,
 		[
-			"Email (Email, 'email')",
-			"Feature Name (Text, 'name')",
-			"Photo (Image, 'photo')",
+			"Icon (Image, 'icon')",
 		]
 	);
 

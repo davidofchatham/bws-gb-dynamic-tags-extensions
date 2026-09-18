@@ -175,6 +175,15 @@ function bws_field_discovery_get_envelope_json() {
  * custom rule) returns kind `post` with empty scope: post is the safe default
  * resolved-source kind, and an empty scope means "any post type" client-side.
  *
+ * SCOPE IS READ WITHIN KIND, NEVER ACROSS IT. Every group carries both, and `scope`
+ * enumerates SUBTYPES OF `kind` — post-type slugs under `post`, taxonomy slugs under
+ * `term`, options-page slugs under `site`. So an empty `scope` means "any subtype of
+ * MY kind" and never "any kind": the fallback above returns kind `post` precisely
+ * because a group has to belong to one, and a consumer that offered such a group's
+ * fields under a term would be offering a field no term read can reach. A scope slug
+ * is bare, too — a taxonomy and a post type may share a spelling — so a consumer
+ * matching a slug tests the kind alongside it rather than instead of it.
+ *
  * Pure — takes the location array, returns `{ kind, scope[] }`.
  *
  * @since 1.13.0

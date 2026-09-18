@@ -440,10 +440,10 @@
 	 *   scopeless    true if ANY home this record was reached through carried NO scope.
 	 *                An empty group scope is the discovery endpoint's own way of saying
 	 *                "any entity of that kind", so such a record is offered under every
-	 *                root argument — and it is a SEPARATE flag rather than an empty `scopes`
-	 *                because a record merged from one scoped home and one unscoped one
-	 *                has both a slug list and unrestricted reach, and unioning the two
-	 *                into one array would lose the second.
+	 *                root argument OF ITS OWN KIND — and it is a SEPARATE flag rather
+	 *                than an empty `scopes` because a record merged from one scoped home
+	 *                and one unscoped one has both a slug list and unrestricted reach,
+	 *                and unioning the two into one array would lose the second.
 	 *
 	 * @param {Object} envelope { post:[groups], term:[groups], site:[groups] }.
 	 * @return {Array} Flat merged field records.
@@ -812,8 +812,15 @@
 
 		// FW-39 D22's narrowing, applied BEFORE the repeater auto-scope so the two
 		// compose: a `{{table}}` column picker under a specific entity shows that repeater's
-		// sub-fields, of that entity. A field with no scope of its own stays offered
-		// under either kind — that is what an unscoped discovery group means.
+		// sub-fields, of that entity.
+		//
+		// A RECORD OF ANOTHER KIND IS NEVER OFFERED, scoped or not. What a group's `scope`
+		// reaches — and therefore what an EMPTY one reaches — is stated where it is derived,
+		// at `bws_field_discovery_derive_kind_scope()`; read it there. Observed here: a
+		// selected term is no longer offered post-kind unscoped fields, a selected post no
+		// longer term-kind ones, and the picker stops offering a field the render cannot
+		// reach. The test gates the scoped branch too, not only the `scopeless` one, because
+		// a scope entry is a bare slug and a taxonomy may share its spelling with a post type.
 		//
 		// NO FALL-BACK-TO-ALL when the narrowed list comes out empty, unlike the
 		// repeater scope below. There, an empty result means the scope handle matched
@@ -823,9 +830,10 @@
 		var scopedRecords = useMemo( function () {
 			if ( '' === argScope ) { return allRecords; }
 			return allRecords.filter( function ( rec ) {
+				if ( rec.kind !== rootArgKind ) { return false; }
 				return rec.scopeless || rec.scopes.indexOf( argScope ) !== -1;
 			} );
-		}, [ allRecords, argScope ] );
+		}, [ allRecords, argScope, rootArgKind ] );
 
 		var records = useMemo( function () {
 			if ( ! scopeToRepeater ) { return scopedRecords; }
