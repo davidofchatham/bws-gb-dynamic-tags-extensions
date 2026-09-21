@@ -2019,6 +2019,57 @@ function bws_fixture_page_content_matrix_repeaters() {
 	return implode( "\n\n", $sections );
 }
 
+/**
+ * Page content: matrix-links (page-matrix-links).
+ *
+ * Split axis is the LINK DESTINATION, not source-state: every row here is a fanning tag
+ * with Link To set, and what separates them is where each value's anchor points — its
+ * term archive, its permalink, or a URL stored on the entity itself. The visible half of
+ * per-item link wrapping (text matrix §T11, FW-85).
+ *
+ * WHAT THE PAGE IS FOR, since the wrapping is already pinned by a harness: the harness
+ * asserts the markup, and this page asserts the TARGETS. "Each value links to its own
+ * entity" is a claim about hrefs, and an anchor pointing at the wrong sibling renders
+ * character-for-character like one pointing at the right sibling unless the entities
+ * disagree about where they live. So every entity in every list here has a destination
+ * no other entity in that list shares, and the rows are read by following them.
+ *
+ * WHY THE URL-FIELD HREFS LOOK NOTHING LIKE PERMALINKS. `profile_url` holds an external
+ * address on example.test, deliberately unrelated to the staff single's own permalink:
+ * LK.2 and LK.3 print the SAME three names and differ only in where they point, so a
+ * key-mode read that fell through to the permalink route would otherwise produce a row
+ * that still looks entirely correct.
+ *
+ * LK.1b IS NOT DECORATION. Every other row on the page prints anchors, so a build that
+ * wrapped unconditionally — ignoring Link To rather than honouring it — would pass all of
+ * them. The one row with no Link To set is what that build fails.
+ *
+ * WHY THE TERM ROWS TAKE A HOP TO GET THERE. This page is assigned no department term of
+ * its own: the count of every department term is printed on /matrix-loops/ (QL3.2), so
+ * assigning one here moves a baseline this corpus has nothing to say about — measured,
+ * and the manifest's `post_terms` note records the numbers. The rows hop to
+ * /matrix-terms-mixed/ and walk the three departments it already carries, which costs one
+ * chain step and changes no other page. What the row asserts is unaffected: the values are
+ * still terms, and each still has to point at its own archive.
+ */
+function bws_fixture_page_content_matrix_links() {
+	$sections = array();
+
+	$sections[] = bws_fixture_gb_section( 'Links LK - a fanning tag links EACH value, to its OWN entity (FW-85)', array(
+		// The ambient control. This page carries one corpus and nothing else, so without
+		// a row reading the page itself, a page rendering no tags of ours at all would
+		// look the same as every list below coming back empty.
+		bws_fixture_gb_row( 'LK.0 the ambient control: this page renders our tags at all (-> Matrix: Per-Item Links)', '{{text use:title}}' ),
+		bws_fixture_gb_row( 'LK.1 TERM list, each term linked to ITS OWN archive (-> Sales -> /department/sales/, Support -> /department/support/, Warehouse -> /department/warehouse/; three different archives, and the comma sits outside all three anchors)', '{{text src:refs,link_term_host;terms,department|use:title|limit:0|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'LK.1b the same list with NO Link To set (-> Sales, Support, Warehouse as plain text, no anchors anywhere - the row a build that wraps regardless of the setting fails)', '{{text src:refs,link_term_host;terms,department|use:title|limit:0}}' ),
+		bws_fixture_gb_row( 'LK.2 POST list, each post linked to ITS OWN permalink (-> Jane Partner -> /staff/jane-partner/, Tom Associate -> /staff/tom-associate/, Fixture Ref Target -> /staff/fixture-ref/)', '{{text src:refs,link_staff|use:title|limit:0|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'LK.3 the SAME three posts linked through a PER-ENTITY URL field (-> the same three names, each anchored to its own https://example.test/profiles/<slug>/ - three hrefs that are not permalinks, which is what separates this row from LK.2)', '{{text src:refs,link_staff|use:title|limit:0|linkTo:key|linkKey:profile_url}}' ),
+		bws_fixture_gb_row( 'LK.4 MIXED list, exactly one member with no URL to point at (-> Jane Partner anchored, Fixture Root Entity as PLAIN TEXT between two anchors, Tom Associate anchored - one empty field costs its own value its link and nothing else its own)', '{{text src:refs,link_staff_gap|use:title|limit:0|linkTo:key|linkKey:profile_url}}' ),
+	) );
+
+	return implode( "\n\n", $sections );
+}
+
 /** Dispatcher: manifest content_builder name → page content. */
 /**
  * matrix-products — the PRODUCT LOOP corpus (FW-100; blueprint v21, flipped in v22).
@@ -2182,6 +2233,7 @@ function bws_fixture_build_page_content( $builder ) {
 		'product_single'       => 'bws_fixture_page_content_product_single',
 		'matrix_pinned_roots'  => 'bws_fixture_page_content_matrix_pinned_roots',
 		'matrix_repeaters'     => 'bws_fixture_page_content_matrix_repeaters',
+		'matrix_links'         => 'bws_fixture_page_content_matrix_links',
 		'pattern_legacy_wire'  => 'bws_fixture_pattern_content_legacy_wire',
 		'context_header'       => 'bws_fixture_element_content_context_header',
 		'home_lead'            => 'bws_fixture_page_content_home_lead',

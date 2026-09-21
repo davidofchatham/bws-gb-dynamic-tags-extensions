@@ -17,7 +17,7 @@ bin/wp.sh testbed bws render-tag '{{TAG}}' --url=https://testbed.test/CONTEXT/ -
 
 Contexts used: `/matrix-post-meta/` (post arm; carries Support + Sales department terms,
 `related_staff` → Jane Partner, Tom Associate — jane first) and `/department/support/` (term
-archive → term-analog arm). T6 is editor-only (open a block on the testbed editor).
+archive → term-analog arm). T6 is editor-only (open a block on the testbed editor). §T11 is the one section read off a rendered page instead — `/matrix-links/`, for the reason stated there.
 
 > Verified 2026-07-17 against the 1.14.1 extraction: T1, T3, T4, T5, T7 pass via
 > `render-tag`; T6 passes via a direct callback call with a faked preview context.
@@ -183,6 +183,18 @@ unaffected. Fixed by pointing `term_fn`/`post_fn` at the same `try_text_term_dis
 
 T10.2 read the same defect on `{{fixture_text}}`, the class route, and is **retired**: the fixture stood down from `register_modifier()` ahead of FW-129, so that prefix mints nothing and there is no dispatch there to measure. `term_` is the only family still minted, which is why this section is down to one row — and it goes when FW-129 takes the constructor.
 
+## T11 — per-item link destinations (FW-85)
+
+**Read on the page, not through `render-tag`.** T3.2 and T7.3 above already assert the SHAPE per-item wrapping produces — an anchor per value, the separator outside them. What they cannot assert is where each anchor points: on `/matrix-post-meta/` a link to the wrong sibling renders identically to a link to the right one, because nothing there gives each entity in a list a destination of its own. `/matrix-links/` exists for that, and every row below is verified by FOLLOWING the hrefs. The fixture values are the blueprint's (`tools/fixtures/core-structures/manifest.php`, v27) and are not restated here; the page's own row labels state what each should print.
+
+| # | Row on `/matrix-links/` | What it asserts |
+|---|---|---|
+| T11.1 | LK.1 — term list, `linkTo:permalink` | each term is an anchor to ITS OWN archive; three terms, three different archive URLs, the `, ` separator outside all of them |
+| T11.2 | LK.1b — the same list with no `linkTo` | plain text, no anchor anywhere. The row a build that wraps regardless of the setting fails; without it every other row here passes such a build |
+| T11.3 | LK.2 — post list, `linkTo:permalink` | each post is an anchor to ITS OWN permalink; three posts, three different permalinks |
+| T11.4 | LK.3 — the same three posts, `linkTo:key\|linkKey:profile_url` | each value carries the URL stored on ITS OWN entity. The stored URLs are deliberately not permalinks, so this row and T11.3 print the same three names and differ only in the hrefs — which is what a key-mode read falling back to the permalink route would fail |
+| T11.5 | LK.4 — the mixed list | exactly one member has no stored URL and prints as PLAIN TEXT between two anchors. One unresolvable value costs its own link and no sibling's |
+
 ## Fail triage
 
 - **T1.2/T3.3/T4.2/T7.4 value right but unlinked:** shell wrap gate — `link_id`/`link_type` not
@@ -190,6 +202,8 @@ T10.2 read the same defect on `{{fixture_text}}`, the class route, and is **reti
 - **T3.2/T7.3 one anchor around the whole joined list, or no anchor at all:** the per-item wrap
   stopped running inside the shared list fold — either the caller went back to wrapping the joined
   string, or the per-value identities stopped reaching the wrap step.
+- **T11.3/T11.4 anchors present but every href the same:** each value is being wrapped against a shared identity rather than its own — the per-value capture in `bws_collect_value_list()` is feeding one entity's id to the whole list.
+- **T11.5 prints three anchors:** either `staff-fixture-root` gained a `profile_url` (the fixture, not the code — the manifest's own comment says so) or an empty key read is resolving to something.
 - **Site rows (src-site R0.2) unlinked:** sentinel `link_id = 1` lost — site arm must return
   `{link_id:1, link_type:'site'}`.
 - **T4.x reads a post value on the term archive:** term-analog arm bypassed — factory/ambient

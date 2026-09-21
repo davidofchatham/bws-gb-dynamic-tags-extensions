@@ -26,6 +26,7 @@ manual matrices assume:
 - [`tools/test/context-test-matrix.md`](../../test/context-test-matrix.md) §C-PROD (added
   FW-100 — a product OUTSIDE any loop, carried in one product's own description; see §Product
   corpus below; manifest v22)
+- [`tools/test/text-test-matrix.md`](../../test/text-test-matrix.md) §T11 (added FW-85 — the per-item link corpus on its own `matrix-links` page: the arms where each value of a fanning tag carries its own anchor; see §Per-item link corpus below; manifest v27)
 
 Holds the SHARED schema (CPTs, taxonomies, field groups) for the plugin family;
 later blueprints (e.g. an integrating plugin's) compose on top and must not redefine keys
@@ -323,6 +324,19 @@ The THIRD loop item shape, on its own `matrix-products` page ([§QLP](../../test
 Requires WooCommerce ACTIVE. Absent, `seed.php` skips the products with a log line and the page renders an empty loop.
 
 **Two pieces of WooCommerce state are load-bearing and invisible from the pages they serve** (both v22, both measured 2026-09-14 and both recorded in [`docs/coresident/woocommerce.md`](../../../docs/coresident/woocommerce.md)). Coming-soon mode is switched OFF in `wp_options`: it defaults on for a store whose setup wizard never ran and serves every store URL as a launch placeholder, which `/matrix-products/` cannot see because that is an ordinary page — so a product loop passes while the product's own page shows no product at all. And the related-products block is removed in `schema.php`: it orders by `RAND()` and is shuffled again on top, so the product single reordered its own related list between two consecutive captures and could never hold a baseline.
+
+## Per-item link corpus (manifest v27, FW-85)
+
+The fixture for a fanning tag whose every value is its own anchor (text matrix [§T11](../../test/text-test-matrix.md)). One page, `matrix-links`, and the whole corpus is about DESTINATIONS: a harness can assert that three anchors came out, but only a page can say whether the second one points at the second entity.
+
+| Piece | What it is |
+|---|---|
+| `link_term_host` | The term arm, reached by a HOP. The page carries no department term of its own: `/matrix-loops/` QL3.2 prints every department term's count, so an assignment made here moves that baseline — measured by making it (2026-09-21, Support 6 → 7 and Warehouse 3 → 4 while it stood). The rows hop to `/matrix-terms-mixed/` and walk the three departments it already carries. The manifest's `post_terms` note owns the numbers, including which QL3.2 movement is this one and which is not |
+| `link_staff` | PLAIN meta naming three staff singles, ALL of which carry a `profile_url`. Backs both post arms: the permalink row and the URL-field row print the same three names and differ only in where they point |
+| `link_staff_gap` | The same shape with `staff-fixture-root` in the MIDDLE, the one staff single with no `profile_url`. Middle and not last: a linkless value at either end also passes a build that wraps all-but-one |
+| `profile_url` | An external address per entity, deliberately UNLIKE the staff permalink. A key-mode read that fell through to the permalink route would otherwise print a row that still looks right |
+
+**Give `staff-fixture-root` a `profile_url` and LK.4 stops being a mixed list** — it becomes three anchors, silently, and the row that says an unresolvable value costs only its own link is gone. The manifest states that where the absence lives.
 
 ## Known gaps
 

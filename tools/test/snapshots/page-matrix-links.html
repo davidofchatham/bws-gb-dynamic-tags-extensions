@@ -2,12 +2,12 @@
 <html lang="en-US">
 <head>
 <!-- head not asserted; see bws_page_snapshot_normalize() rule 8 -->
-<title>Matrix: Query Loops &#8211; BWS Testbed</title>
-<meta name="description" content="Loops QL1 - a query loop over TERMS: the id leak Loops QL2 - a query loop over USERS: the same leak, second item shape Loops QL3 - a preserved zero in a term lo">
-<meta property="og:description" content="Loops QL1 - a query loop over TERMS: the id leak Loops QL2 - a query loop over USERS: the same leak, second item shape Loops QL3 - a preserved zero in a term lo">
+<title>Matrix: Per-Item Links &#8211; BWS Testbed</title>
+<meta name="description" content="Links LK - a fanning tag links EACH value, to its OWN entity (FW-85) LK.0 the ambient control: this page renders our tags at all (-&gt; Matrix: Per-Item Links): Ma">
+<meta property="og:description" content="Links LK - a fanning tag links EACH value, to its OWN entity (FW-85) LK.0 the ambient control: this page renders our tags at all (-&gt; Matrix: Per-Item Links): Ma">
 </head>
 
-<body class="wp-singular page-template-default page page-id-1732 wp-embed-responsive wp-theme-generatepress theme-generatepress post-image-above-header post-image-aligned-center secondary-nav-above-header secondary-nav-aligned-right sticky-menu-fade mobile-header woocommerce-no-js right-sidebar nav-float-right separate-containers header-aligned-left dropdown-hover" itemtype="https://schema.org/WebPage" itemscope>
+<body class="wp-singular page-template-default page page-id-2150 wp-embed-responsive wp-theme-generatepress theme-generatepress post-image-above-header post-image-aligned-center secondary-nav-above-header secondary-nav-aligned-right sticky-menu-fade mobile-header woocommerce-no-js right-sidebar nav-float-right separate-containers header-aligned-left dropdown-hover" itemtype="https://schema.org/WebPage" itemscope>
 	<a class="screen-reader-text skip-link" href="#content" title="Skip to content">Skip to content</a>			<nav id="secondary-navigation" aria-label="Secondary" class="secondary-navigation" itemtype="https://schema.org/SiteNavigationElement" itemscope>
 				<div class="inside-navigation grid-container grid-parent">
 										<button class="menu-toggle secondary-menu-toggle">
@@ -49,158 +49,28 @@
 	<div class="content-area" id="primary">
 		<main class="site-main" id="main">
 
-<article id="post-1732" class="post-1732 page type-page status-publish" itemtype="https://schema.org/CreativeWork" itemscope>
+<article id="post-2150" class="post-2150 page type-page status-publish" itemtype="https://schema.org/CreativeWork" itemscope>
 	<div class="inside-article">
 
 			<header class="entry-header">
-				<h1 class="entry-title" itemprop="headline">Matrix: Query Loops</h1>			</header>
+				<h1 class="entry-title" itemprop="headline">Matrix: Per-Item Links</h1>			</header>
 
 		<div class="entry-content" itemprop="text">
 
 <div>
-<h2 class="wp-block-heading">Loops QL1 &#8211; a query loop over TERMS: the id leak</h2>
+<h2 class="wp-block-heading">Links LK &#8211; a fanning tag links EACH value, to its OWN entity (FW-85)</h2>
 
-<div><ol >
-<li class="gb-loop-item">
-<p class="gb-text">QL1.1 BARE tag, and the row the whole page exists for (-> the loop term name, matching the row under it; before item-shape recognition it rendered the post that shares the term id, which on a WordPress install is the first post): Uncategorized</p>
+<p class="gb-text">LK.0 the ambient control: this page renders our tags at all (-> Matrix: Per-Item Links): Matrix: Per-Item Links</p>
 
-<p class="gb-text">QL1.2 the SAME read with an EXPLICIT `src:term` &#8212; EMPTY since v20 (was the loop term name through 1.20.0-pre; D8 now refuses an argless declaring root unconditionally, even where resolve_id() would have found the loop&#8217;s own term):</p>
+<p class="gb-text">LK.1 TERM list, each term linked to ITS OWN archive (-> Sales -> /department/sales/, Support -> /department/support/, Warehouse -> /department/warehouse/; three different archives, and the comma sits outside all three anchors): <a href="/department/sales/">Sales</a>, <a href="/department/support/">Support</a>, <a href="/department/warehouse/">Warehouse</a></p>
 
-<p class="gb-text">QL1.3 the query extension own term tag, correct today (-> the loop term archive URL): /category/uncategorized/</p>
+<p class="gb-text">LK.1b the same list with NO Link To set (-> Sales, Support, Warehouse as plain text, no anchors anywhere &#8211; the row a build that wraps regardless of the setting fails): Sales, Support, Warehouse</p>
 
-<p class="gb-text">QL1.6 the SAME loop term as QL1.1 through the text tag (-> the loop term name; QL1.1 takes the loop item as a bare title, this takes it through the use:title absorb seam, and the two must agree): Uncategorized</p>
-</li>
-</ol></div>
+<p class="gb-text">LK.2 POST list, each post linked to ITS OWN permalink (-> Jane Partner -> /staff/jane-partner/, Tom Associate -> /staff/tom-associate/, Fixture Ref Target -> /staff/fixture-ref/): <a href="/staff/jane-partner/">Jane Partner</a>, <a href="/staff/tom-associate/">Tom Associate</a>, <a href="/staff/fixture-ref/">Fixture Ref Target</a></p>
 
-<div><ol >
-<li class="gb-loop-item">
-<p class="gb-text">QL1.4 the SAME bare tag on fixture terms whose ids no post carries (-> the loop term name, matching the row under it; before item-shape recognition it rendered nothing at all, which was the leak with nowhere to land): Sales</p>
+<p class="gb-text">LK.3 the SAME three posts linked through a PER-ENTITY URL field (-> the same three names, each anchored to its own /profiles/&lt;slug>/ &#8211; three hrefs that are not permalinks, which is what separates this row from LK.2): <a href="/profiles/jane-partner/">Jane Partner</a>, <a href="/profiles/tom-associate/">Tom Associate</a>, <a href="/profiles/fixture-ref/">Fixture Ref Target</a></p>
 
-<p class="gb-text">QL1.4b NON-VACUITY for the row above, and the proof the loop ran (-> the loop term archive URL): /department/sales/</p>
-</li>
-
-<li class="gb-loop-item">
-<p class="gb-text">QL1.4 the SAME bare tag on fixture terms whose ids no post carries (-> the loop term name, matching the row under it; before item-shape recognition it rendered nothing at all, which was the leak with nowhere to land): Support</p>
-
-<p class="gb-text">QL1.4b NON-VACUITY for the row above, and the proof the loop ran (-> the loop term archive URL): /department/support/</p>
-</li>
-
-<li class="gb-loop-item">
-<p class="gb-text">QL1.4 the SAME bare tag on fixture terms whose ids no post carries (-> the loop term name, matching the row under it; before item-shape recognition it rendered nothing at all, which was the leak with nowhere to land): Warehouse</p>
-
-<p class="gb-text">QL1.4b NON-VACUITY for the row above, and the proof the loop ran (-> the loop term archive URL): /department/warehouse/</p>
-</li>
-</ol></div>
-</div>
-
-<div>
-<h2 class="wp-block-heading">Loops QL2 &#8211; a query loop over USERS: the same leak, second item shape</h2>
-
-<div><ol >
-<li class="gb-loop-item">
-<p class="gb-text">QL2.1 BARE tag, the user shape of the row QL1.1 is (-> the loop user display name, matching QL2.3 under it; before item-shape recognition it rendered the post that shares the user id, or nothing where no post carried it): Fixture Author</p>
-
-<p class="gb-text">QL2.2 NO FIRST-PARTY EQUIVALENT EXISTS &#8211; there is no explicit user source token, so the middle read of QL1 cannot be written here. Reaching a user ambiently inside a loop is exactly what QL2.1 now does.</p>
-
-<p class="gb-text">QL2.3 the query extension own user tag, correct throughout (-> the loop user display name): Fixture Author</p>
-
-<p class="gb-text">QL2.4 a URL read leaked the same way and is the one row that does NOT become correct, expect EMPTY (-> nothing: the loop user IS recognized now, and a user has no permalink of ours to give &#8211; a deferred author analog reached by a new route, not a regression; before item-shape recognition it rendered an unrelated post permalink):</p>
-
-</li>
-
-<li class="gb-loop-item">
-<p class="gb-text">QL2.1 BARE tag, the user shape of the row QL1.1 is (-> the loop user display name, matching QL2.3 under it; before item-shape recognition it rendered the post that shares the user id, or nothing where no post carried it): Other Author</p>
-
-<p class="gb-text">QL2.2 NO FIRST-PARTY EQUIVALENT EXISTS &#8211; there is no explicit user source token, so the middle read of QL1 cannot be written here. Reaching a user ambiently inside a loop is exactly what QL2.1 now does.</p>
-
-<p class="gb-text">QL2.3 the query extension own user tag, correct throughout (-> the loop user display name): Other Author</p>
-
-<p class="gb-text">QL2.4 a URL read leaked the same way and is the one row that does NOT become correct, expect EMPTY (-> nothing: the loop user IS recognized now, and a user has no permalink of ours to give &#8211; a deferred author analog reached by a new route, not a regression; before item-shape recognition it rendered an unrelated post permalink):</p>
-
-</li>
-</ol></div>
-</div>
-
-<div>
-<h2 class="wp-block-heading">Loops QL3 &#8211; a preserved zero in a term loop (not the leak)</h2>
-
-<div><ol >
-<li class="gb-loop-item">
-<p class="gb-text">QL3.1 the identity for the count beside it, EMPTY since 1.20.0 (FW-39, D8) — see the note above; was `Sales`/`Support`/`Warehouse`/`Workshop` through 1.20.0-pre:</p>
-
-<p class="gb-text">QL3.2 count (expect real counts for the staffed departments and a bare 0 for Workshop, which is assigned to no post; this whole row goes with the zero if the guard stops covering the tag): 7</p>
-</li>
-
-<li class="gb-loop-item">
-<p class="gb-text">QL3.1 the identity for the count beside it, EMPTY since 1.20.0 (FW-39, D8) — see the note above; was `Sales`/`Support`/`Warehouse`/`Workshop` through 1.20.0-pre:</p>
-
-<p class="gb-text">QL3.2 count (expect real counts for the staffed departments and a bare 0 for Workshop, which is assigned to no post; this whole row goes with the zero if the guard stops covering the tag): 7</p>
-</li>
-
-<li class="gb-loop-item">
-<p class="gb-text">QL3.1 the identity for the count beside it, EMPTY since 1.20.0 (FW-39, D8) — see the note above; was `Sales`/`Support`/`Warehouse`/`Workshop` through 1.20.0-pre:</p>
-
-<p class="gb-text">QL3.2 count (expect real counts for the staffed departments and a bare 0 for Workshop, which is assigned to no post; this whole row goes with the zero if the guard stops covering the tag): 3</p>
-</li>
-
-<li class="gb-loop-item">
-<p class="gb-text">QL3.1 the identity for the count beside it, EMPTY since 1.20.0 (FW-39, D8) — see the note above; was `Sales`/`Support`/`Warehouse`/`Workshop` through 1.20.0-pre:</p>
-
-<p class="gb-text">QL3.2 count (expect real counts for the staffed departments and a bare 0 for Workshop, which is assigned to no post; this whole row goes with the zero if the guard stops covering the tag): 0 </p>
-</li>
-</ol></div>
-</div>
-
-<div>
-<h2 class="wp-block-heading">Loops QL4 &#8211; a POST query nested inside a TERM query loop</h2>
-
-<div><ol >
-<li class="gb-loop-item">
-<p class="gb-text">QL4.1 the OUTER term item, beside the nested query (-> Sales then Warehouse; proves the outer loop ran and that nesting did not move its own reads): Sales</p>
-
-<div><ol >
-<li class="gb-loop-item post-277 staff type-staff status-publish hentry department-sales">
-<p class="gb-text">QL4.2 THE ASSERTION &#8211; a bare tag in the INNER post loop reads that loop item, not the term it is nested inside (-> Fixture Root Entity under Sales, Fixture Ref Target under Warehouse; the outer department name repeated here would be the inherited-context leak): Fixture Root Entity</p>
-</li>
-</ol></div>
-</li>
-
-<li class="gb-loop-item">
-<p class="gb-text">QL4.1 the OUTER term item, beside the nested query (-> Sales then Warehouse; proves the outer loop ran and that nesting did not move its own reads): Warehouse</p>
-
-<div><ol >
-<li class="gb-loop-item post-278 staff type-staff status-publish hentry department-warehouse">
-<p class="gb-text">QL4.2 THE ASSERTION &#8211; a bare tag in the INNER post loop reads that loop item, not the term it is nested inside (-> Fixture Root Entity under Sales, Fixture Ref Target under Warehouse; the outer department name repeated here would be the inherited-context leak): Fixture Ref Target</p>
-</li>
-</ol></div>
-</li>
-</ol></div>
-</div>
-
-<div>
-<h2 class="wp-block-heading">Loops QL5 &#8211; a TERM query nested inside a POST query loop</h2>
-
-<div><ol >
-<li class="gb-loop-item post-278 staff type-staff status-publish hentry department-warehouse">
-<p class="gb-text">QL5.1 the OUTER post item, beside the nested query (-> Fixture Ref Target then Fixture Root Entity; the non-vacuity control, and the reason the inner values below are crossed against QL4 rather than repeated): Fixture Ref Target</p>
-
-<div><ol >
-<li class="gb-loop-item">
-<p class="gb-text">QL5.2 THE ASSERTION &#8211; a bare tag in the INNER term loop reads that term, not the post it is nested inside (-> Warehouse under Fixture Ref Target, Sales under Fixture Root Entity; the outer staff name repeated here would be the live get_the_ID() fallback winning): Warehouse</p>
-</li>
-</ol></div>
-</li>
-
-<li class="gb-loop-item post-277 staff type-staff status-publish hentry department-sales">
-<p class="gb-text">QL5.1 the OUTER post item, beside the nested query (-> Fixture Ref Target then Fixture Root Entity; the non-vacuity control, and the reason the inner values below are crossed against QL4 rather than repeated): Fixture Root Entity</p>
-
-<div><ol >
-<li class="gb-loop-item">
-<p class="gb-text">QL5.2 THE ASSERTION &#8211; a bare tag in the INNER term loop reads that term, not the post it is nested inside (-> Warehouse under Fixture Ref Target, Sales under Fixture Root Entity; the outer staff name repeated here would be the live get_the_ID() fallback winning): Sales</p>
-</li>
-</ol></div>
-</li>
-</ol></div>
+<p class="gb-text">LK.4 MIXED list, exactly one member with no URL to point at (-> Jane Partner anchored, Fixture Root Entity as PLAIN TEXT between two anchors, Tom Associate anchored &#8211; one empty field costs its own value its link and nothing else its own): <a href="/profiles/jane-partner/">Jane Partner</a>, Fixture Root Entity, <a href="/profiles/tom-associate/">Tom Associate</a></p>
 </div>
 		</div>
 
@@ -237,7 +107,7 @@
 <script id="generate-a11y">
 !function(){"use strict";if("querySelector"in document&&"addEventListener"in window){var e=document.body;e.addEventListener("pointerdown",(function(){e.classList.add("using-mouse")}),{passive:!0}),e.addEventListener("keydown",(function(){e.classList.remove("using-mouse")}),{passive:!0})}}();
 </script>
-<script type="application/ld+json" id="slim-seo-schema">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"/#website","url":"/","name":"BWS Testbed","inLanguage":"en-US","potentialAction":{"@id":"/#searchaction"},"publisher":{"@id":"/#organization"}},{"@type":"SearchAction","@id":"/#searchaction","target":"/?s={search_term_string}","query-input":"required name=search_term_string"},{"@type":"BreadcrumbList","name":"Breadcrumbs","@id":"/matrix-loops/#breadcrumblist","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"/"},{"@type":"ListItem","position":2,"name":"Matrix: Query Loops"}]},{"@type":"WebPage","@id":"/matrix-loops/#webpage","url":"/matrix-loops/","inLanguage":"en-US","name":"Matrix: Query Loops – BWS Testbed","description":"Loops QL1 - a query loop over TERMS: the id leak Loops QL2 - a query loop over USERS: the same leak, second item shape Loops QL3 - a preserved zero in a term lo","datePublished":"TIMESTAMP","dateModified":"TIMESTAMP","isPartOf":{"@id":"/#website"},"breadcrumb":{"@id":"/matrix-loops/#breadcrumblist"},"potentialAction":{"@id":"/matrix-loops/#readaction"}},{"@type":"ReadAction","@id":"/matrix-loops/#readaction","target":"/matrix-loops/"},{"@type":"Organization","@id":"/#organization","url":"/","name":"BWS Testbed"}]}</script>	<script>
+<script type="application/ld+json" id="slim-seo-schema">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"/#website","url":"/","name":"BWS Testbed","inLanguage":"en-US","potentialAction":{"@id":"/#searchaction"},"publisher":{"@id":"/#organization"}},{"@type":"SearchAction","@id":"/#searchaction","target":"/?s={search_term_string}","query-input":"required name=search_term_string"},{"@type":"BreadcrumbList","name":"Breadcrumbs","@id":"/matrix-links/#breadcrumblist","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"/"},{"@type":"ListItem","position":2,"name":"Matrix: Per-Item Links"}]},{"@type":"WebPage","@id":"/matrix-links/#webpage","url":"/matrix-links/","inLanguage":"en-US","name":"Matrix: Per-Item Links – BWS Testbed","description":"Links LK - a fanning tag links EACH value, to its OWN entity (FW-85) LK.0 the ambient control: this page renders our tags at all (-> Matrix: Per-Item Links): Ma","datePublished":"TIMESTAMP","dateModified":"TIMESTAMP","isPartOf":{"@id":"/#website"},"breadcrumb":{"@id":"/matrix-links/#breadcrumblist"},"potentialAction":{"@id":"/matrix-links/#readaction"}},{"@type":"ReadAction","@id":"/matrix-links/#readaction","target":"/matrix-links/"},{"@type":"Organization","@id":"/#organization","url":"/","name":"BWS Testbed"}]}</script>	<script>
 		(function () {
 			var c = document.body.className;
 			c = c.replace(/woocommerce-no-js/, 'woocommerce-js');
