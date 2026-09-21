@@ -455,7 +455,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 	) );
 
 	$sections[] = bws_fixture_gb_section( 'Limit L2 - explicit values still behave', array(
-		bws_fixture_gb_row( 'L2.1 (expect BOTH names comma-joined, NO link)', '{{text src:ref|ref:related_staff|use:title|limit:2|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L2.1 (expect BOTH names comma-joined, EACH its own link)', '{{text src:ref|ref:related_staff|use:title|limit:2|linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'L2.2 (expect Jane Partner linked - explicit 1 === unset 1)', '{{text src:ref|ref:related_staff|use:title|limit:1|linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'L2.3 (expect both dept names - no ceiling)', '{{text srcTermIn:department|use:title|limit:99}}' ),
 	) );
@@ -466,18 +466,18 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'L3.3 (expect Jane Partner linked - is_numeric guard, garbage is NOT unlimited)', '{{text src:ref|ref:related_staff|use:title|limit:abc|linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'L3.4 (expect both dept names - try_ dispatch does not break early at 0)', '{{try_text srcTermIn:department|use:title|limit:0}}' ),
 		bws_fixture_gb_row( 'L3.5 (expect both dept event dates)', '{{datetime_single srcTermIn:department|key:event_date|limit:0}}' ),
-		bws_fixture_gb_row( 'L3.6 (expect both names, NO link - unlimited feeds the same count gate)', '{{text srcTermIn:department|use:title|limit:0|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L3.6 (expect both names, EACH its own link - unlimited fans the list and every value it fans to links)', '{{text srcTermIn:department|use:title|limit:0|linkTo:permalink}}' ),
 	) );
 
 	// L4 — the unset default is no longer ONE number. Flat wire bounds at 1, chain
 	// wire does not (bws_limit_default), which is the whole compatibility
 	// mechanism for base-tag source chains: it works on wire no migration can
 	// reach. Rows are PAIRS OF SPELLINGS for the same source, and each asserts the
-	// link too, because the gate is count-based — chain wire defaulting to many
-	// changes link-wrapping as well as output.
+	// link too: chain wire defaulting to many changes how many ANCHORS print as well
+	// as how many values do, now that each value carries its own (FW-85).
 	$sections[] = bws_fixture_gb_section( 'Limit L4 - the SPELLING selects the unset default (1.17.0)', array(
 		bws_fixture_gb_row( 'L4.1 FLAT unset (expect Jane Partner only, linked - the floor)', '{{text src:ref|ref:related_staff|use:title|linkTo:permalink}}' ),
-		bws_fixture_gb_row( 'L4.2 CHAIN unset (expect BOTH names, NO link - unlimited, and the anchor is legitimately gone)', '{{text src:refs,related_staff|use:title|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L4.2 CHAIN unset (expect BOTH names, EACH its own link - unlimited fans the list, and the second anchor is what the fan bought)', '{{text src:refs,related_staff|use:title|linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'L4.3 CHAIN + explicit 1 (expect Jane Partner only, linked - HAND-WRITTEN wire; a converted tag is L4.10, and OPENING this row absorbs the 1 onto the step)', '{{text src:refs,related_staff|use:title|limit:1|linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'L4.4 FLAT term hop unset (expect ONE dept name)', '{{text srcTermIn:department|use:title}}' ),
 		bws_fixture_gb_row( 'L4.5 CHAIN term hop unset (expect Sales, Support)', '{{text src:terms,department|use:title}}' ),
@@ -613,6 +613,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'D4.6', '{{datetime_single src:ref|ref:related_staff|key:event_datetime|limit:5}}' ),
 		bws_fixture_gb_row( 'D4.7', '{{datetime_range src:ref|ref:related_staff|startKey:event_datetime|endKey:event_end_datetime|limit:3|sep:; }}' ),
 		bws_fixture_gb_row( 'D4.8', '{{datetime_single src:ref|ref:related_staff|key:event_datetime|limit:5|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'D4.8b (expect EACH whole range in its own link to its own staff post, the ; separator outside both anchors)', '{{datetime_range src:ref|ref:related_staff|startKey:event_datetime|endKey:event_end_datetime|limit:3|sep:; |linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'D4.9', '{{datetime_single src:ref|ref:related_staff|key:event_datetime|linkTo:permalink}}' ),
 	) );
 

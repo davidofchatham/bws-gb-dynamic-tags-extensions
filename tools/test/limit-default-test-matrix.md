@@ -80,7 +80,7 @@ rows — one anchor, not two.
 
 | Row | Tag | Expected |
 |---|---|---|
-| L2.1 | `{{text src:ref\|ref:related_staff\|use:title\|limit:2\|linkTo:permalink}}` | BOTH names, `, `-joined, **NO** `<a>` (multi-value composite is unwrappable) |
+| L2.1 | `{{text src:ref\|ref:related_staff\|use:title\|limit:2\|linkTo:permalink}}` | BOTH names, `, `-joined, EACH in its own `<a>` to its own staff permalink (FW-85 per-item wrapping) |
 | L2.2 | `{{text src:ref\|ref:related_staff\|use:title\|limit:1\|linkTo:permalink}}` | `Jane Partner`, wrapped — explicit 1 === unset 1 |
 | L2.3 | `{{text srcTermIn:department\|use:title\|limit:99}}` | both dept names — no ceiling, limit > count is not an error |
 
@@ -93,7 +93,7 @@ rows — one anchor, not two.
 | L3.3 | `{{text src:ref\|ref:related_staff\|use:title\|limit:abc\|linkTo:permalink}}` | `Jane Partner` only, wrapped in `<a>` | the `is_numeric()` guard — a typo resolves to the DEFAULT, never to "no limit". `(int)'abc' === 0`, so without the guard this row fans out |
 | L3.4 | `{{try_text srcTermIn:department\|use:title\|limit:0}}` | both dept names, `, `-joined | the try_ dispatch honors unlimited AND does not break out of the term hop after the first item (the `$slot_max &&` guard) |
 | L3.5 | `{{datetime_single srcTermIn:department\|key:event_date\|limit:0}}` | both dept event dates | the list fold slices with `?: null` |
-| L3.6 | `{{text srcTermIn:department\|use:title\|limit:0\|linkTo:permalink}}` | both names, **NO** `<a>` | unlimited feeds the same count gate — it drops the anchor legitimately, because the output really is multi-value |
+| L3.6 | `{{text srcTermIn:department\|use:title\|limit:0\|linkTo:permalink}}` | both names, EACH in its own `<a>` | unlimited fans the list and every value it fans to links to its own term archive — what `limit` widens, per-item wrapping follows |
 
 ## L4 — the SPELLING selects the default (1.17.0, base-tag source chains)
 
@@ -114,9 +114,7 @@ defaulting to many means link-wrapping differs by spelling, on new wire.
 > miscount would show. It also caught L1.10, whose expectation had never been achievable.
 >
 > **MEASURED 2026-08-05** against the branch on `/matrix-post-meta/`; every row below is an
-> observed value. The two that carry the whole rule: L4.1 renders one name wrapped in `<a>`, L4.2
-> renders both names with NO `<a>` — same source, different spelling, and the anchor is legitimately
-> gone because the output really is multi-value.
+> observed value. The two that carry the whole rule: L4.1 renders one name wrapped in `<a>`, L4.2 renders both names, each in its own `<a>` — same source, different spelling, and the second anchor is there because the spelling fanned the list, not because anything about linking changed.
 >
 > **L4.10 / L4.11 measured 2026-08-07 on the testbed**, when the limit moved from the tag onto the
 > steps. They are the rows that pin what migration WRITES, as opposed to what a hand-authored limit
@@ -134,7 +132,7 @@ defaulting to many means link-wrapping differs by spelling, on new wire.
 | Row | Tag | Expected | What it proves |
 |---|---|---|---|
 | L4.1 | `{{text src:ref\|ref:related_staff\|use:title\|linkTo:permalink}}` | `Jane Partner` only, in `<a>` | FLAT, unset — unchanged from L1.2. The floor |
-| L4.2 | `{{text src:refs,related_staff\|use:title\|linkTo:permalink}}` | BOTH names, **NO** `<a>` | CHAIN, unset — unlimited. The anchor is legitimately gone: the output really is multi-value |
+| L4.2 | `{{text src:refs,related_staff\|use:title\|linkTo:permalink}}` | BOTH names, EACH in its own `<a>` | CHAIN, unset — unlimited. The second anchor is what the fan bought: one value became two, and each links to its own staff permalink |
 | L4.3 | `{{text src:refs,related_staff\|use:title\|limit:1\|linkTo:permalink}}` | `Jane Partner` only, in `<a>` | an EXPLICIT tag-level value beats the spelling-selected default — ordinary option precedence. NOT what a migrated tag looks like: since the limit moved onto the steps, a migrated tag is L4.10. This row is hand-authored wire, and it still has to work — until it is OPENED, which absorbs the `1` onto the step and makes it L4.10 (see the note above; reseed to get it back) |
 | L4.4 | `{{text srcTermIn:department\|use:title}}` | ONE dept name | FLAT term hop, unset — still 1 |
 | L4.5 | `{{text src:terms,department\|use:title}}` | `Sales, Support` | CHAIN term hop, unset — unlimited |

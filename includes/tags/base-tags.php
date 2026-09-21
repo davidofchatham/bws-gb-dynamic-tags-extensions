@@ -726,8 +726,9 @@ function bws_register_base_tags(): void {
  *
  * @param array $options  Tag options.
  * @param mixed $instance GB tag instance.
- * @return array{value:string, link_id:int, link_type:string} link_id 0 =
- *                        multi-result output; caller must not link-wrap.
+ * @return array{value:string, link_id:int, link_type:string} link_id 0 = the
+ *                        caller must not link-wrap: either there is no entity, or the
+ *                        value came from a list arm that already wrapped per item.
  */
 function bws_base_text_resolve_value( array $options, $instance ): array {
 	$use = $options['use'] ?? 'key';
@@ -771,15 +772,15 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 	$link_id   = 0;
 	$link_type = 'post';
 
-	// List branches ride the shared fold (FW-49): slice/suppress/drop/link-gate/
-	// join live in bws_collect_value_list. Per-item reads get $item_opts with
-	// 'fallback' unset — it fires ONCE in the callback on all-empty output,
-	// never per item (GH #51: else an empty term/post inside the limit window
-	// injects the fallback text into the list, and a lone fallback would pass
-	// the single-result link gate as though it were a real value). Matches
-	// datetime's contract and try_'s (TagTemplateRegistry). The singular arms
-	// below keep the full $options: no list to pollute, and the cores' own
-	// fallback emit is the shipped behavior there.
+	// List branches ride the shared fold (FW-49): slice/suppress/drop/per-item
+	// link wrap/join live in bws_collect_value_list, which is why these branches
+	// leave link_id at 0 — their values are wrapped already. Per-item reads get
+	// $item_opts with 'fallback' unset — it fires ONCE in the callback on all-empty
+	// output, never per item (GH #51: else an empty term/post inside the limit window
+	// injects the fallback text into the list, and would be linked as though it were
+	// a real value it is not). Matches datetime's contract and try_'s
+	// (TagTemplateRegistry). The singular arms below keep the full $options: no list
+	// to pollute, and the cores' own fallback emit is the shipped behavior there.
 	if ( 'term' === $res['kind'] ) {
 		$collected = bws_collect_value_list(
 			bws_base_term_ids_from_source( $base, $options ),
@@ -795,10 +796,6 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 			$options
 		);
 		$value = $collected['value'];
-		if ( $collected['link'] ) {
-			$link_id   = (int) $collected['link']['id'];
-			$link_type = $collected['link']['kind'];
-		}
 	} elseif ( 'post' === $res['kind'] ) {
 		// Post LIST mode (SPEC §V14): read EVERY fanned-out target, not just the
 		// first. `sep` is offered whenever the chain fans and a stored `limit` still
@@ -819,10 +816,6 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 			$options
 		);
 		$value = $collected['value'];
-		if ( $collected['link'] ) {
-			$link_id   = (int) $collected['link']['id'];
-			$link_type = $collected['link']['kind'];
-		}
 	} elseif ( 'meta_row' === $res['kind'] ) {
 		// REPEATER-ROW LIST (FW-74). The third list branch, and the one that reads
 		// SOURCES rather than ids: a row has no entity behind it, so
@@ -870,8 +863,9 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 /**
  * Callback for the `text` base tag.
  *
- * Shell over bws_base_text_resolve_value(): resolve the value, link-wrap
- * single-result output, then on empty output apply the editor preview label
+ * Shell over bws_base_text_resolve_value(): resolve the value, link-wrap what the
+ * singular arms returned (a list arm wrapped its own values per item and reports
+ * link_id 0), then on empty output apply the editor preview label
  * (editor) or the fallback (front end).
  *
  * The fallback fires HERE, once, on all-empty output — the list loops in
@@ -1348,10 +1342,6 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 			$options
 		);
 		$value = $collected['value'];
-		if ( $collected['link'] ) {
-			$link_id   = (int) $collected['link']['id'];
-			$link_type = $collected['link']['kind'];
-		}
 	} elseif ( 'post' === $res['kind'] ) {
 		// Post LIST mode (SPEC §V14): read EVERY fanned-out target, honoring
 		// limit/sep — mirrors the term branch above.
@@ -1367,10 +1357,6 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 			$options
 		);
 		$value = $collected['value'];
-		if ( $collected['link'] ) {
-			$link_id   = (int) $collected['link']['id'];
-			$link_type = $collected['link']['kind'];
-		}
 	} else {
 		$post_id   = bws_base_post_id_from_source( $base, $options );
 		$value     = bws_post_title_core( $post_id, $options, $instance );

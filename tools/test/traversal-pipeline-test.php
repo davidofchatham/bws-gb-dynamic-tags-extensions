@@ -68,6 +68,40 @@ if ( ! function_exists( 'bws_source_gate' ) ) {
 	function bws_source_gate( array $source ) { return empty( $source['__gated'] ); }
 }
 
+// LINK-WRAP STUB, same treatment and same reason as the gate stub above: defined
+// BEFORE the require so the real file yields to it. The shipped wrapper lives in
+// link-helpers.php and resolves its URL through get_permalink / get_term_link /
+// get_post_meta, so it cannot run WP-free — and it is not what the FW-85 rows are
+// about. What the fold owes it is the CALL: one per value, against that value's own
+// identity, with the separator left outside. The stub makes the destination legible
+// (<kind>/<id> for a permalink; $GLOBALS['stub_link_urls'] keyed '<kind>:<id>' for a
+// linkTo:'key' read) and models an unresolvable URL the way the real one does — an
+// empty URL returns the output UNWRAPPED, which is how a value with an empty URL
+// field prints plain beside its linked siblings.
+if ( ! function_exists( 'bws_wrap_with_link' ) ) {
+	function bws_wrap_with_link( string $output, string $link_to, string $link_key, bool $new_tab, int $id, string $entity_type ): string {
+		if ( '' === $output || 'none' === $link_to || '' === $link_to ) {
+			return $output;
+		}
+		if ( 'permalink' === $link_to ) {
+			$url = '/' . $entity_type . '/' . $id;
+		} elseif ( 'key' === $link_to && '' !== $link_key ) {
+			$url = (string) ( $GLOBALS['stub_link_urls'][ $entity_type . ':' . $id ] ?? '' );
+		} else {
+			$url = '';
+		}
+		if ( '' === $url ) {
+			return $output;
+		}
+		$attrs = ' href="' . $url . '"';
+		if ( $new_tab ) {
+			$attrs .= ' target="_blank" rel="noopener noreferrer"';
+		}
+		return '<a' . $attrs . '>' . $output . '</a>';
+	}
+}
+$GLOBALS['stub_link_urls'] = array();
+
 require __DIR__ . '/../../includes/helpers/traversal-pipeline.php';
 
 // sanitize_key shim — the assemble-steps helper (in field-helpers.php) uses it.
@@ -1091,30 +1125,28 @@ $cv = function ( ...$items ) use ( $cv_render ) {
 	};
 };
 
-// Two values join with default sep; multi-result → top-level link null (I12
-// corollary: the gate is a JOIN constraint).
+// Two values join with default sep. No Link To set → no markup at all: the fold's
+// default, and the {{join}} slot's case (a slot carries no link options, so the wrap
+// step finds nothing to do — by construction, not by a guard).
 $r = $cv( array( 'v' => 'A', 'l' => array( 'kind' => 'post', 'id' => 1 ) ),
           array( 'v' => 'B', 'l' => array( 'kind' => 'post', 'id' => 2 ) ) )( array( 'limit' => 5 ) );
 eq( 'CV join default sep', 'A, B', $r['value'] );
-eq( 'CV multi-result link gate -> null', null, $r['link'] );
+eq( 'CV no linkTo -> no markup', false, str_contains( $r['value'], '<a' ) );
 eq( 'CV per-value links survive multi', array( 'kind' => 'post', 'id' => 2 ), $r['values'][1]['link'] );
 eq( 'CV count', 2, $r['count'] );
+eq( 'CV return has no top-level link key', false, array_key_exists( 'link', $r ) );
 
-// Single result → link passes the gate.
-$r = $cv( array( 'v' => 'A', 'l' => array( 'kind' => 'term', 'id' => 9 ) ) )( array( 'limit' => 3 ) );
-eq( 'CV single-result link', array( 'kind' => 'term', 'id' => 9 ), $r['link'] );
-
-// Empty renders drop; a lone survivor still passes the gate (GH #51 shape: the
-// dropped item must not block the survivor's link).
+// Empty renders drop; the survivor is the whole value (GH #51 shape).
 $r = $cv( array( 'v' => '' ), array( 'v' => 'B', 'l' => array( 'kind' => 'post', 'id' => 4 ) ) )( array( 'limit' => 5 ) );
-eq( 'CV empty dropped, survivor linked', array( 'kind' => 'post', 'id' => 4 ), $r['link'] );
 eq( 'CV empty dropped from value', 'B', $r['value'] );
+eq( 'CV empty dropped from count', 1, $r['count'] );
+eq( 'CV survivor keeps its identity', array( 'kind' => 'post', 'id' => 4 ), $r['values'][0]['link'] );
 
-// Value with NO link identity (meta_row-shaped) is normal: collects, single-result
-// gate yields null, never a sentinel (I12).
+// Value with NO link identity (meta_row-shaped) is normal: collects, carries null,
+// never a sentinel (I12).
 $r = $cv( array( 'v' => 'raw' ) )( array() );
 eq( 'CV linkless value collects', 'raw', $r['value'] );
-eq( 'CV linkless single -> link null not sentinel', null, $r['link'] );
+eq( 'CV linkless entry -> link null not sentinel', null, $r['values'][0]['link'] );
 
 // limit slices BEFORE render (default 1); sep honored.
 $r = $cv( array( 'v' => 'A' ), array( 'v' => 'B' ), array( 'v' => 'C' ) )( array( 'limit' => 2, 'sep' => ' | ' ) );
@@ -1151,20 +1183,103 @@ bws_collect_value_list(
 );
 eq( 'CV fallback suppressed from item opts', false, $seen_fallback );
 
-// All-empty → empty value, count 0, link null (caller's fallback territory).
+// All-empty → empty value, count 0 (caller's fallback territory).
 $r = $cv( array( 'v' => '' ), array( 'v' => '' ) )( array( 'limit' => 5, 'fallback' => 'NOPE' ) );
 eq( 'CV all-empty value', '', $r['value'] );
 eq( 'CV all-empty count', 0, $r['count'] );
-eq( 'CV all-empty link', null, $r['link'] );
 
 // Plain string return accepted as linkless value.
 $r = bws_collect_value_list( array( 'a' ), function ( $i, $o ) { return 'plain'; }, array() );
 eq( 'CV string return = linkless value', 'plain', $r['value'] );
-eq( 'CV string return link null', null, $r['link'] );
+eq( 'CV string return link null', null, $r['values'][0]['link'] );
 
 // Malformed link (non-array) coerces to null, not a crash.
 $r = bws_collect_value_list( array( 'a' ), function ( $i, $o ) { return array( 'value' => 'x', 'link' => 5 ); }, array() );
-eq( 'CV non-array link -> null', null, $r['link'] );
+eq( 'CV non-array link -> null', null, $r['values'][0]['link'] );
+
+// ── FW-85 — per-item link wrap (what replaced the single-result count gate) ───
+//
+// Link To now means what an author setting it already believes: every value the tag
+// prints is its own link to its own entity. The wrap happens INSIDE the fold, between
+// per-value capture and the join, so the separator joins already-wrapped strings and
+// every list arm — term, post, repeater row, both datetime branches — inherits it
+// with no change of its own. bws_wrap_with_link is stubbed at the top of this file.
+
+$link3 = $cv(
+	array( 'v' => 'Alpha', 'l' => array( 'kind' => 'term', 'id' => 11 ) ),
+	array( 'v' => 'Beta',  'l' => array( 'kind' => 'term', 'id' => 22 ) ),
+	array( 'v' => 'Gamma', 'l' => array( 'kind' => 'term', 'id' => 33 ) )
+);
+$r = $link3( array( 'limit' => 5, 'linkTo' => 'permalink' ) );
+eq(
+	'FW85 three values -> three anchors, each its own href',
+	'<a href="/term/11">Alpha</a>, <a href="/term/22">Beta</a>, <a href="/term/33">Gamma</a>',
+	$r['value']
+);
+// The separator sits OUTSIDE the anchors: no sep character inside an href, and none
+// between an anchor's opening tag and its text.
+eq( 'FW85 separator outside the anchors', 0, preg_match( '/href="[^"]*,|<a[^>]*>[^<]*,/', $r['value'] ) );
+eq( 'FW85 per-value entries stay RAW', array( 'Alpha', 'Beta', 'Gamma' ), array_column( $r['values'], 'value' ) );
+
+// A value that addresses nothing prints plain BESIDE its linked siblings — the list
+// does not lose its links over one member with no identity.
+$r = $cv(
+	array( 'v' => 'Alpha', 'l' => array( 'kind' => 'post', 'id' => 1 ) ),
+	array( 'v' => 'Row' ),
+	array( 'v' => 'Gamma', 'l' => array( 'kind' => 'post', 'id' => 3 ) )
+)( array( 'limit' => 5, 'linkTo' => 'permalink' ) );
+eq(
+	'FW85 null identity plain beside linked siblings',
+	'<a href="/post/1">Alpha</a>, Row, <a href="/post/3">Gamma</a>',
+	$r['value']
+);
+
+// A repeater-row list — every value linkless — renders plain text, unchanged.
+eq(
+	'FW85 all-linkless list stays plain',
+	'r1, r2',
+	$cv( array( 'v' => 'r1' ), array( 'v' => 'r2' ) )( array( 'limit' => 5, 'linkTo' => 'permalink' ) )['value']
+);
+
+// ONE value renders exactly what the count gate produced: the caller wrapped the whole
+// string, which for a single value IS the item.
+eq(
+	'FW85 single value, permalink, byte-identical to the gate',
+	'<a href="/post/7">Solo</a>',
+	$cv( array( 'v' => 'Solo', 'l' => array( 'kind' => 'post', 'id' => 7 ) ) )( array( 'linkTo' => 'permalink' ) )['value']
+);
+
+// URL Meta/Option Field is read from EACH value's own entity, not from the first.
+// Distinct URLs per entity, so a wrong-target link shows up as the wrong href rather
+// than being inferred; the entity with no stored URL prints plain.
+$GLOBALS['stub_link_urls'] = array(
+	'post:1' => 'https://one.example',
+	'post:3' => 'https://three.example',
+);
+$r = $cv(
+	array( 'v' => 'Alpha', 'l' => array( 'kind' => 'post', 'id' => 1 ) ),
+	array( 'v' => 'Beta',  'l' => array( 'kind' => 'post', 'id' => 2 ) ),
+	array( 'v' => 'Gamma', 'l' => array( 'kind' => 'post', 'id' => 3 ) )
+)( array( 'limit' => 5, 'linkTo' => 'key', 'linkKey' => 'profile_url' ) );
+eq(
+	'FW85 key mode: each entity own URL, the empty one plain',
+	'<a href="https://one.example">Alpha</a>, Beta, <a href="https://three.example">Gamma</a>',
+	$r['value']
+);
+eq(
+	'FW85 single value, key mode, byte-identical to the gate',
+	'<a href="https://one.example">Solo</a>',
+	$cv( array( 'v' => 'Solo', 'l' => array( 'kind' => 'post', 'id' => 1 ) ) )( array( 'linkTo' => 'key', 'linkKey' => 'profile_url' ) )['value']
+);
+$GLOBALS['stub_link_urls'] = array();
+
+// newTab applies to EVERY link in the list, not to whichever value won a gate.
+$r = $link3( array( 'limit' => 2, 'linkTo' => 'permalink', 'newTab' => true ) );
+eq( 'FW85 newTab on every anchor', 2, substr_count( $r['value'], 'target="_blank"' ) );
+
+// linkTo:'none' and an absent linkTo are the same no-markup case (the canonical value
+// is stripped at registration, so absence is what ships).
+eq( 'FW85 linkTo none -> no markup', 'Alpha, Beta', $link3( array( 'limit' => 2, 'linkTo' => 'none' ) )['value'] );
 
 // ── FW-49 — bws_source_link_identity (resolved source → link identity) ───────
 //

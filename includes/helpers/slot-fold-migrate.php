@@ -376,7 +376,7 @@ function bws_fold_migrate_slots( array $options, array $cfg ) {
  *   Migration changes the SPELLING, the spelling selects the default
  *   (`bws_limit_default`), so migration must carry the default it is leaving behind.
  *   Writing nothing would silently fan out exactly the tags it touched — extra
- *   values, dropped anchors (the link gate is count-based), on live pages, with no
+ *   values, and extra anchors beside them (a list links per item), on live pages, with no
  *   author present to warn. That is what keeps this a pure rewrite with no output
  *   delta, which is the equivalence the harness asserts. The mapping itself —
  *   including why every earlier fanning step is bounded too — belongs to

@@ -84,7 +84,8 @@ Mirrors base text/title list mode: slice to `limit` (default 1), join with `sep`
 | D4.5 | terms-valid | `{{datetime_range srcTermIn:department|startKey:event_date|limit:5|sep:; }}` | `November 12, 2030; October 5, 2030` (`sep` joins whole ranges; `rangeSep` stays intra-range) | `November 12, 2030` |
 | D4.6 | post-meta | `{{datetime_single src:ref|ref:related_staff|key:event_datetime|limit:5}}` | `May 1, 2030 10:00 AM, June 1, 2030 11:00 AM` (jane, tom) | `May 1, 2030 10:00 AM` |
 | D4.7 | post-meta | `{{datetime_range src:ref|ref:related_staff|startKey:event_datetime|endKey:event_end_datetime|limit:3|sep:; }}` | `May 1 10:00 AM–May 3, 2030 3:00 PM; June 1 11:00 AM–June 5, 2030 12:00 PM` | first range only |
-| D4.8 | post-meta | `…|limit:5|linkTo:permalink` | multi-result → **unwrapped** list | single result, wrapped |
+| D4.8 | post-meta | `…|limit:5|linkTo:permalink` | each date in its own `<a>` to the staff post it was read from — the datetime arms inherit per-item wrapping from the shared list fold, not from a datetime edit (FW-85) | single result, wrapped |
+| D4.8b | post-meta | `{{datetime_range src:ref|ref:related_staff|startKey:event_datetime|endKey:event_end_datetime|limit:3|sep:; |linkTo:permalink}}` | each whole RANGE in its own `<a>` to the staff post it was read from, `; ` outside both anchors — the range arm inherits per-item wrapping from the same shared fold as `datetime_single`, which is what makes D4.8 a fold result rather than a single-arm edit | first range only, wrapped |
 | D4.9 | post-meta | `…|linkTo:permalink` (limit 1) | `<a href="…/staff/jane-partner/">May 1, 2030 10:00 AM</a>` (single result stays wrapped) | same |
 
 ## D5 — sources + fallback (`/matrix-post-meta/`)

@@ -872,10 +872,6 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 			$mapped
 		);
 		$value = $collected['value'];
-		if ( $collected['link'] ) {
-			$link_id   = (int) $collected['link']['id'];
-			$link_type = $collected['link']['kind'];
-		}
 	} elseif ( 'post' === $res['kind'] ) {
 		// Post list mode: read EVERY fanned-out target via the shared traversal
 		// engine (plural resolver, not the collapse-to-first wrapper).
@@ -893,10 +889,6 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 			$mapped
 		);
 		$value = $collected['value'];
-		if ( $collected['link'] ) {
-			$link_id   = (int) $collected['link']['id'];
-			$link_type = $collected['link']['kind'];
-		}
 	} elseif ( 'meta_row' === $res['kind'] ) {
 		// REPEATER-ROW LIST (FW-74). The third list branch, and the one that reads
 		// SOURCES rather than ids: a row has no entity behind it, so the ids selector —
@@ -1048,10 +1040,6 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 			$mapped
 		);
 		$value = $collected['value'];
-		if ( $collected['link'] ) {
-			$link_id   = (int) $collected['link']['id'];
-			$link_type = $collected['link']['kind'];
-		}
 	} elseif ( 'post' === $res['kind'] ) {
 		// Post list mode: read EVERY fanned-out target via the shared traversal
 		// engine (plural resolver, not the collapse-to-first wrapper).
@@ -1069,10 +1057,6 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 			$mapped
 		);
 		$value = $collected['value'];
-		if ( $collected['link'] ) {
-			$link_id   = (int) $collected['link']['id'];
-			$link_type = $collected['link']['kind'];
-		}
 	} elseif ( 'meta_row' === $res['kind'] ) {
 		// REPEATER-ROW LIST (FW-74) — see bws_base_datetime_single_callback()'s twin for
 		// the whole reasoning, wire-kind trap included. `sep` joins whole formatted ranges

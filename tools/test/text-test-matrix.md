@@ -5,11 +5,7 @@ the absorb seam extracted 1.14.1) and the link-wrap gate in its shell callback
 (`bws_base_text_callback`). Originated with the 1.14.1 extraction; becomes the re-run pass for
 anything that touches the text value path — including `{{join}}` slots once they absorb it.
 
-> **Re-run trigger:** any change to `bws_base_text_resolve_value()`, `bws_base_text_callback()`,
-> `bws_wrap_with_link()` / `bws_resolve_link_url()`, or a new absorber of the seam (e.g. the
-> `{{join}}` per-slot resolve). Rows target the wrap-gate contract (`link_id` 0 = multi-result =
-> never wrap; sentinel `link_id` 1 = site) and the value invariants (`'0'` preserved, list modes
-> use text's own `sep`/`limit`).
+> **Re-run trigger:** any change to `bws_base_text_resolve_value()`, `bws_base_text_callback()`, `bws_wrap_with_link()` / `bws_resolve_link_url()`, or a new absorber of the seam (e.g. the `{{join}}` per-slot resolve). Rows target the wrap contract (`link_id` 0 = the callback must not wrap — either there is no entity or a list arm already wrapped its values per item; sentinel `link_id` 1 = site) and the value invariants (`'0'` preserved, list modes use text's own `sep`/`limit`).
 
 **How to run:** rows are `render-tag` one-liners against the seeded testbed
 (state: `core-structures` blueprint — `bin/seed.sh testbed core-structures`). From the
@@ -42,12 +38,12 @@ Covered by [`src-site-test-matrix.md`](src-site-test-matrix.md) R0.1–R0.2 / R4
 rows alongside this matrix; the sentinel `link_id = 1` ('site') path lives there. No duplicate
 rows here.
 
-## T3 — srcTermIn list mode: multi never wraps, single wraps
+## T3 — srcTermIn list mode: every value links to its own term
 
 | # | Tag (on `/matrix-post-meta/`) | Expected |
 |---|---|---|
 | T3.1 | `{{text srcTermIn:department\|use:title\|limit:2}}` | `Sales, Support` — text's own `sep` default; term order = WP default (alphabetical by name) |
-| T3.2 | `{{text srcTermIn:department\|use:title\|limit:2\|linkTo:permalink}}` | `Sales, Support` — **NO anchor** (multi-result → `link_id` 0 → wrap suppressed) |
+| T3.2 | `{{text srcTermIn:department\|use:title\|limit:2\|linkTo:permalink}}` | `Sales` and `Support` each wrapped in its OWN term-archive link, the `, ` separator outside both anchors (FW-85 per-item wrapping) |
 | T3.3 | `{{text srcTermIn:department\|use:title\|limit:1\|linkTo:permalink}}` | `Sales` wrapped in the Sales term-archive link (single result → term wrap) |
 
 ## T4 — term-analog arm (bare tag on a term archive)
@@ -105,7 +101,7 @@ bws_base_text_callback( array( 'key' => 'nonexistent_key_xyz' ), array( 'blockNa
 |---|---|---|
 | T7.1 | `{{text src:ref\|ref:related_staff\|use:title}}` | `Jane Partner` — default limit 1, first target only |
 | T7.2 | `{{text src:ref\|ref:related_staff\|use:title\|limit:5}}` | `Jane Partner, Tom Associate` — ALL targets listed |
-| T7.3 | `{{text src:ref\|ref:related_staff\|use:title\|limit:5\|linkTo:permalink}}` | `Jane Partner, Tom Associate` — **NO anchor** (multi-result) |
+| T7.3 | `{{text src:ref\|ref:related_staff\|use:title\|limit:5\|linkTo:permalink}}` | `Jane Partner` and `Tom Associate` each wrapped in its OWN staff permalink, separator outside both anchors (FW-85) |
 | T7.4 | `{{text src:ref\|ref:related_staff\|use:title\|linkTo:permalink}}` | `Jane Partner` wrapped in Jane's staff permalink (single result → post wrap) |
 
 ---
@@ -191,8 +187,9 @@ T10.2 read the same defect on `{{fixture_text}}`, the class route, and is **reti
 
 - **T1.2/T3.3/T4.2/T7.4 value right but unlinked:** shell wrap gate — `link_id`/`link_type` not
   threading out of `bws_base_text_resolve_value` for that arm.
-- **T3.2/T7.3 anchor around a joined list:** multi-result branch leaked a non-zero `link_id` —
-  the `1 === count($out)` single-result guard regressed.
+- **T3.2/T7.3 one anchor around the whole joined list, or no anchor at all:** the per-item wrap
+  stopped running inside the shared list fold — either the caller went back to wrapping the joined
+  string, or the per-value identities stopped reaching the wrap step.
 - **Site rows (src-site R0.2) unlinked:** sentinel `link_id = 1` lost — site arm must return
   `{link_id:1, link_type:'site'}`.
 - **T4.x reads a post value on the term archive:** term-analog arm bypassed — factory/ambient
