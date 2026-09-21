@@ -28,10 +28,11 @@
  * at. It is not a courtesy: since 1.17.0 the DEFAULT limit is selected by the source
  * spelling — flat wire bounds at one, chain wire does not — so a conversion that wrote
  * nothing would silently fan out the tag under the author's hands, adding values and
- * dropping anchors (the link gate is count-based). Writing the default it is leaving
- * behind keeps conversion a pure respelling, and writing it into the step's own field
- * makes the change evidence rather than a surprise — a `1` next to `In Taxonomy Term:
- * Department` says which quantity it bounds, where a tag-level number does not.
+ * the anchors that come with them (linking is per item, FW-85). Writing the default
+ * it is leaving behind keeps conversion a pure respelling, and writing it into the
+ * step's own field makes the change evidence rather than a surprise — a `1` next to
+ * `In Taxonomy Term: Department` says which quantity it bounds, where a tag-level
+ * number does not.
  *
  * One stored shape across every path. The scanner, the mount migrator and this
  * control all produce the identical tag; inline help instead of serialization would

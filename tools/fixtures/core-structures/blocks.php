@@ -434,8 +434,8 @@ function bws_fixture_page_content_matrix_post_meta() {
 
 	// limit-default matrix (limit-default-test-matrix.md, 1.17.0). Cross-cutting
 	// like the FW-52 rows above — named for the PROPERTY, not a tag family. L1
-	// pins the regression floor (unset limit stays 1 AND the count-based link gate
-	// still wraps); L2 pins explicit values; L3 exercises the new `0` = UNLIMITED
+	// pins the regression floor (unset limit stays 1 AND exactly one anchor prints,
+	// linking being per item); L2 pins explicit values; L3 exercises the new `0` = UNLIMITED
 	// semantics. Fixture state: this page carries two valid department terms
 	// (Support, Sales) and related_staff = jane, tom (jane FIRST), so every list
 	// row has ≥2 candidates and a 1→many flip is VISIBLE.
@@ -1298,9 +1298,11 @@ function bws_fixture_page_content_matrix_term_hop() {
 		bws_fixture_gb_row( 'F7a.10b join MIGRATED twin - the 2 lands on the slot own fanning step (-> same as F7a.10)', '{{join A:src(terms,department,limit[2]);use(title)}}' ),
 		bws_fixture_gb_row( 'F7a.11 an explicit legacy limit:0 KEEPS its carrier - unmigrated wire takes the flat default (-> every term)', '{{try_text srcTermIn:department|use:title|limit:0}}' ),
 		bws_fixture_gb_row( 'F7b.4 MIGRATED twin - an explicit unlimited moves onto the step like any other number (-> same as F7a.11)', '{{try_text A:src(terms,department,limit[0]);use(title)}}' ),
-		// The LINK GATE half (limit-default-test-matrix.md L4a). It is count-based, so a
-		// slot that starts returning several values stops being wrappable - eyeball the
-		// anchors, not just the text.
+		// The LINK half (limit-default-test-matrix.md L4a). The try_ emit still gates on
+		// COUNT - per-item wrapping landed on the base list fold only (FW-85), the try_
+		// half is FW-135 - so a slot that starts returning several values stops being
+		// wrappable rather than printing several anchors. Eyeball the anchors, not just
+		// the text.
 		bws_fixture_gb_row( 'L4a.1 flat slot, unset - ONE term, and it IS a link', '{{try_text srcTermIn:department|use:title|linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'L4a.2 chain slot, unset - every term, and NO link (multi-value is not wrappable)', '{{try_text A:src(terms,department);use(title)|linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'L4a.3 MIGRATED twin of L4a.1 - ONE term, link back (-> same as L4a.1)', '{{try_text A:src(terms,department,limit[1]);use(title)|linkTo:permalink}}' ),

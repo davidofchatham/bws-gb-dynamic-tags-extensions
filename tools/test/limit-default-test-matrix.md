@@ -15,12 +15,8 @@ and four code paths, and the regression this matrix guards is cross-cutting.
 | `-1`, `-3` | 1 (silently clamped) | **UNLIMITED** (parse tolerant, emit `0`) |
 | `1`, `5`, `999` | same | same (no ceiling) |
 
-**Why these rows exist.** Opening up `0` moves the meaning of a value that already saves and
-survives on the wire, and the tag families reach the rule by four different paths. The
-regression it invites is quiet: **the top-level link gate is COUNT-BASED** (a single result is
-link-wrapped, a joined multi-value composite is not), so an accidental 1→many flip does not
-merely lengthen output — **it drops the anchor while the text still reads plausibly**.
-⇒ **Every L1 row asserts TWO things: exactly one value AND the link present.**
+**Why these rows exist.** Opening up `0` moves the meaning of a value that already saves and survives on the wire, and the tag families reach the rule by four different paths. The regression it invites is quiet: **linking is PER ITEM** (FW-85, 1.21.0 — each value is wrapped against its own identity), so an accidental 1→many flip does not merely lengthen output — **it multiplies the anchors, and every one of them still reads plausibly**.
+⇒ **Every L1 row asserts TWO things: exactly one value AND exactly one `<a>`.**
 
 **Four code paths, one rule.** A row is worth having per PATH, not per tag:
 
@@ -56,8 +52,7 @@ mandatory or brand-new rows read as missing. Single rows can also be run through
 
 ## L1 — unset `limit` MUST stay 1 (the regression floor)
 
-Each row asserts **one value AND link present**. A row that renders two values has flipped the
-default; a row that renders one value with no `<a>` has broken the count-based gate.
+Each row asserts **one value AND one `<a>`**. A row that renders two values has flipped the default; a row that renders one value with no `<a>` has broken per-item wrapping.
 
 | Row | Tag | Expected | Path |
 |---|---|---|---|
@@ -105,8 +100,7 @@ a block widget the content scanner never sees, a tag stored inside an ACF field.
 So the L1 rows above are only half the floor: they pin that FLAT wire still bounds at one. These
 rows pin the other half, and every one is a **pair of spellings for the same source**.
 
-⇒ **Rows here assert the link too**, for the same count-based reason L1 does — chain wire
-defaulting to many means link-wrapping differs by spelling, on new wire.
+⇒ **Rows here assert the anchors too**, for the same reason L1 does — chain wire defaulting to many means the two spellings print a different NUMBER of anchors, on new wire.
 
 > **RE-MEASURED 2026-08-21** on the 1.18.0 build, `/matrix-post-meta/` — L1, L2, L3 and L4 all
 > render as stated. Worth the re-run rather than trusting the 2026-08-05 stamp: ADR 0007 changed
@@ -152,10 +146,7 @@ selects its default, exactly as a base tag's does. Before, the dispatch read the
 FLATTENED triple, whose `src` is a legacy token on every slot, so every slot answered 1 whatever
 it was spelled as.
 
-**Behaviour rows live in [`fold-test-matrix.md`](fold-test-matrix.md) §F7a** — that file owns the
-fold, and duplicating them here is the copy this matrix has no reason to keep. What belongs HERE is
-the link gate, for the same count-based reason L1 and L4 carry it: a slot that starts returning
-several values stops being wrappable.
+**Behaviour rows live in [`fold-test-matrix.md`](fold-test-matrix.md) §F7a** — that file owns the fold, and duplicating them here is the copy this matrix has no reason to keep. What belongs HERE is the link, for the reason L1 and L4 carry theirs: a silent default flip is visible in the markup before it is visible in the text. The `try_` emit still gates on COUNT (per-item wrapping landed on the base list fold only, FW-85; the `try_` half is FW-135), so here a slot that starts returning several values stops being wrappable at all, rather than printing several anchors.
 
 > **MEASURED 2026-08-07** on the testbed, `/matrix-terms-valid/`.
 

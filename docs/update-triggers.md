@@ -320,7 +320,7 @@ run `php tools/test/converter-ownership-test.php`. §O1 drives the four states, 
 
 **Fires on:** `limit`-default / list-slice change (`bws_clamp_limit` or any of its four call sites; also the `limit` help text, which states the `0` affordance)
 
-run `tools/test/limit-default-test-matrix.md` against the testbed (see [testbed.md](testbed.md)). **Unset `limit` MUST stay 1 on every pre-existing tag** (ADR 0005; L1 rows), and each L1 row asserts single-value AND link-present — the link gate is count-based, so a silent 1→many flip drops anchors while the text still reads fine. L3 rows pin `0`/`-1` = unlimited (ADR 0005) and the `is_numeric()` guard that keeps a typo off that path
+run `tools/test/limit-default-test-matrix.md` against the testbed (see [testbed.md](testbed.md)). **Unset `limit` MUST stay 1 on every pre-existing tag** (ADR 0005; L1 rows), and each L1 row asserts single-value AND a single `<a>` — linking is per item (FW-85), so a silent 1→many flip multiplies the anchors while every one of them still reads fine. L3 rows pin `0`/`-1` = unlimited (ADR 0005) and the `is_numeric()` guard that keeps a typo off that path
 
 ---
 
