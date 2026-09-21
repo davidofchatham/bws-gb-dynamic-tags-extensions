@@ -194,6 +194,37 @@ function bws_fold_picker_config( array $def ): array {
 }
 
 /**
+ * The `rows` step's ARGUMENT picker, shipped to every container that offers the step.
+ *
+ * The sibling of `bws_base_traversal_options()['ref']` for the repeater step, and here
+ * rather than there because `ref` is also a registered flat OPTION and this is not: the
+ * repeater name has only ever lived inside the chain value, so it needs a picker
+ * definition without an option key to hang it on.
+ *
+ * `typeDefault` pre-scopes the picker to repeater fields while leaving the filter
+ * controls visible, so an author can widen to a plain-meta repeater, whose type
+ * discovery cannot see (the same axis {{table}}'s tag-level `key` uses).
+ *
+ * ONE definition, both builders. A second copy is how the image tag's `Return type:` /
+ * `Return image as:` labels drifted.
+ *
+ * @since 1.21.0
+ * @return array A picker definition, bws_fold_picker_config()-shaped.
+ */
+function bws_fold_rows_picker_def(): array {
+	return array(
+		'label'       => __( 'Repeater Field Key', 'generateblocks' ),
+		'help'        => __( 'ACF repeater (or meta) field key. The tag reads each row of this repeater.', 'generateblocks' ),
+		// GENERIC, like the `key` leaf's `field_name` — never a name that exists anywhere.
+		// This shipped as `team_members`, which is the `core-structures` fixture's own
+		// repeater: a placeholder naming live test data, on a combobox that also takes free
+		// text, so the grey string reads as a value an author might think is already set.
+		'placeholder' => 'repeater_name',
+		'typeDefault' => 'repeater',
+	);
+}
+
+/**
  * The chain-config keys that are properties of the WIRE, not of a container.
  *
  * A base tag, a `{{join}}` slot and a `try_` attempt disagree about nearly everything in
@@ -349,21 +380,21 @@ function bws_fold_step_offer( array $steps, array $vocab ): array {
  * fold into one value.
  *
  * NOT applied to the derived families. `bws_base_source_option()` stays a plain
- * select because `term_*`/`try_*`/`{{table}}` read its `options` rows to build their
- * own surfaces (bws_pick_src_values, bws_filter_site_from_src,
- * bws_build_slot_traversal_options); a slot authors its chain inside its folded
- * value instead.
+ * select because `try_*` and `{{table}}` read its `options` rows to build their
+ * own surfaces (bws_pick_src_values, bws_build_slot_traversal_options); a slot
+ * authors its chain inside its folded value instead. The rooting modifiers
+ * (`term_*`, `view_*`) were the third reader through 1.20.x and are withdrawn.
  *
  * @since 1.17.0
  * @param array $args {
  *     @type array $source_opt A bws_base_source_option()-shaped array to upgrade.
  *                             Default bws_base_source_option().
  *     @type array $steps       WIRE step slugs offered as steps, in offer order.
- *                             Default ['refs','terms'] — `rows` is deliberately
- *                             absent: the step type exists and runs, but no base-tag
- *                             arm consumes a meta_row, so offering it would author a
- *                             chain that renders nothing. It belongs with the table
- *                             authoring pass.
+ *                             Default ['refs','terms','rows'] — `rows` joined the offer
+ *                             in 1.21.0, once every keyed arm read a repeater row
+ *                             (FW-74). It was held back while no arm consumed a
+ *                             meta_row, because a step nothing reads authors a chain
+ *                             that renders empty.
  *     @type bool  $takes_first_usable The template's collapsing capability (ADR 0007):
  *                             the step renderer suppresses the limit control
  *                             where it is set. Default false.
@@ -372,7 +403,7 @@ function bws_fold_step_offer( array $steps, array $vocab ): array {
  */
 function bws_build_src_chain_option( array $args = array() ): array {
 	$source_opt = $args['source_opt'] ?? bws_base_source_option();
-	$steps       = $args['steps'] ?? array( 'refs', 'terms' );
+	$steps       = $args['steps'] ?? array( 'refs', 'terms', 'rows' );
 
 	if ( ! isset( $source_opt['src'] ) ) {
 		return $source_opt;
@@ -431,6 +462,7 @@ function bws_build_src_chain_option( array $args = array() ): array {
 		'offer'       => $offer,
 		'taxonomies'  => $tax_rows,
 		'refOption'   => bws_fold_picker_config( $base_trav['ref'] ),
+		'rowsOption'  => bws_fold_picker_config( bws_fold_rows_picker_def() ),
 		// The flat keys a commit REPLACES. Their meaning moves into the chain value,
 		// so leaving them beside it would store one source two ways — and the flat
 		// pair is what the retired arms used to dispatch on.
@@ -546,11 +578,12 @@ function bws_base_traversal_options(): array {
 			'label'       => __( 'Relationship Field Key', 'generateblocks' ),
 			'help'        => __( 'ACF relationship or post object field key.', 'generateblocks' ),
 			'placeholder' => 'related_posts',
-			// ref names the SOURCE-post relationship field. The control does NOT
-			// preset a kind for src:ref (presetKind returns null): the ref-step target
-			// post type is not reliably known, so the key list stays UNSCOPED with the
-			// generic "Meta/Option Field" label (SPEC V3). v2 will type-filter this to
-			// relationship/post_object.
+			// ref names the SOURCE-post relationship field. What the sibling KEY picker
+			// then opens on is `presetKind()`'s (assets/js/field-combo-control.js), which
+			// owns that rule for every source spelling alike; this option states no part
+			// of it. It said the opposite of what ships between 1.13.0 and 1.21.0 — the
+			// axis was named here, moved there, and nothing connected the two. v2 will
+			// type-filter this control to relationship/post_object (FW-13).
 			// This is the FLAT spelling's relationship key, so it belongs to `src:ref`
 			// alone — a flat tag has one `src`, and site and ref are alternative
 			// values of it. A site-rooted relationship is a CHAIN (`src:site;refs,x`),
@@ -769,7 +802,7 @@ function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same
  *     exactly the containers whose resolver honors it.
  *   - `steps` names which traversal steps this container OFFERS. It is a CAPABILITY
  *     list, not decoration: a step no arm consumes authors a chain that renders nothing
- *     (which is why `rows` is on no offer). It was also once the CONTAINER's ceiling —
+ *     (which is why `rows` was on no offer until 1.21.0 armed it). It was also once the CONTAINER's ceiling —
  *     the retired flatten re-spelled a slot as one relationship step plus one term step —
  *     and since #104 the seam hands the whole chain on, so a slot offers what a base tag
  *     offers ([I16]).
@@ -940,9 +973,12 @@ function bws_build_fold_slot_options( array $args ): array {
 	if ( ! empty( $base_key ) ) {
 		$fold['keyOption'] = bws_fold_picker_config( $base_key );
 	}
-	if ( ! empty( $args['rows_option'] ) ) {
-		$fold['rowsOption'] = bws_fold_picker_config( (array) $args['rows_option'] );
-	}
+	// The `rows` step's argument picker. A container may override it — {{table}} scopes
+	// the picker differently — but every container that offers the step ships one, or the
+	// control renders the field combo with no label at all.
+	$fold['rowsOption'] = bws_fold_picker_config(
+		! empty( $args['rows_option'] ) ? (array) $args['rows_option'] : bws_fold_rows_picker_def()
+	);
 	if ( ! empty( $args['field_scope'] ) ) {
 		$fold['fieldScope'] = (string) $args['field_scope'];
 	}
@@ -1279,6 +1315,28 @@ function bws_base_src_resolution( array $options ): array {
 }
 
 /**
+ * The wire kinds EVERY base family serves, whatever arms it has (FW-74).
+ *
+ * `post` is the tail every family ends in, and `render_time` is the ambient root whose
+ * kind is not knowable from the wire — refusing either would refuse the bare tag.
+ *
+ * `term` IS HERE ON A CONDITION, AND THE CONDITION IS CHECKABLE. Every caller of
+ * bws_base_read_refused() today is a cross-source base family (GB type `cross-source`:
+ * text, content, title, permalink, image, datetime_single, datetime_range), and
+ * cross-source means the post/term entity pair by definition (CONTEXT.md I1) — so all
+ * seven branch `term` ahead of their post tail and a list naming it per family would be
+ * the entity pair restated seven times. A POST-ONLY family is possible in this plugin —
+ * {{call}} is GB type `post`, offers Current + Ref only, and is the shape to look for —
+ * but it resolves its post at L1 and never reaches this test. **The day a family that is
+ * not cross-source calls bws_base_read_refused(), move `term` out of here and into that
+ * family's $serves**, or it reads the ambient post off a `src:terms,…` chain, which is
+ * the exact defect FW-74 ticket 04b closed for `meta_row`.
+ *
+ * @since 1.21.0
+ */
+const BWS_BASE_WIRE_KINDS_ALWAYS_SERVED = array( 'post', 'render_time', 'term' );
+
+/**
  * Whether a base arm must REFUSE this tag rather than read anything (GH #75/#76/#109).
  *
  * THE ARMS' REFUSAL TEST — one call per arm, and the only place either refusal is
@@ -1287,10 +1345,27 @@ function bws_base_src_resolution( array $options ): array {
  * (bws_fold_chain_resolution() for the chain kind, BWS_SOURCE_KIND_UNRESOLVED for the
  * factory's).
  *
- * TWO REFUSALS, ONE TEST, and they are disjoint rather than alternatives: "the root
- * named a source this render cannot use" and "a later step named vocabulary nothing
- * recognises" cannot be the same fault, because a root is not a step ([I14], which owns
- * why). Both mean the read does not happen.
+ * THREE REFUSALS, ONE TEST, and they are disjoint rather than alternatives: "the root
+ * named a source this render cannot use", "a later step named vocabulary nothing
+ * recognizes" (a root is not a step — [I14], which owns why), and "the chain resolves
+ * to a kind this FAMILY has no arm for". All three mean the read does not happen.
+ *
+ * THE THIRD IS THE UNSERVED-KIND REFUSAL, AND ITS AXIS IS HERE: a wire kind is refused
+ * unless it is one of BWS_BASE_WIRE_KINDS_ALWAYS_SERVED or one the call site NAMES in
+ * $serves. Default-refuse, opt-in-to-serve — so a kind added to the wire vocabulary
+ * later, or a family that stops branching one, renders empty instead of leaking. The
+ * inverse (serve by default, refuse where listed) is what shipped before FW-74 ticket
+ * 04b and it leaked four families at once: `meta_row` reached a post tail nobody had
+ * written a branch for, the post fan came back empty, and the collapsing selector's
+ * empty-fan leg read the SURROUNDING PAGE — `{{title src:rows,team_members}}` printed
+ * the page's own title. `site` is deliberately absent from the always-served set: every
+ * callback returns its site read BEFORE the factory runs, so a `site` kind cannot reach
+ * this test, and a family that ever let one through has no site arm at this point.
+ *
+ * WHY NOT AT bws_base_post_id_from_source() / bws_base_post_first_usable(), which is
+ * where the empty-fan leg actually is: refusing there can only hand back a falsy id,
+ * and a falsy id does not stop — see the paragraph below. The read has to be skipped
+ * ABOVE the core, which is here.
  *
  * The consequence each arm implements: the read does not happen, the arm's own empty
  * path runs, and a stated fallback fires. Refusing is NOT the same as reading and
@@ -1318,15 +1393,21 @@ function bws_base_src_resolution( array $options ): array {
  * bws_post_excerpt_core()'s unguarded context swap.
  *
  * @since 1.17.0
- * @param array $res  A bws_base_src_resolution() result (the CHAIN's answer).
- * @param array $base A bws_base_resolve_source_for_callback() result (the FACTORY's).
+ * @since 1.21.0 The unserved-kind refusal and its $serves list (FW-74).
+ * @param array $res    A bws_base_src_resolution() result (the CHAIN's answer).
+ * @param array $base   A bws_base_resolve_source_for_callback() result (the FACTORY's).
+ * @param array $serves Wire kinds this family branches beyond the always-served set —
+ *                      `meta_row` at the two families with a row arm, today's only use.
  * @return bool True when no arm may read this tag.
  */
-function bws_base_read_refused( array $res, array $base ): bool {
+function bws_base_read_refused( array $res, array $base, array $serves = array() ): bool {
 	if ( '' === ( $res['kind'] ?? '' ) ) {
 		return true;
 	}
-	return BWS_SOURCE_KIND_UNRESOLVED === ( $base['kind'] ?? '' );
+	if ( BWS_SOURCE_KIND_UNRESOLVED === ( $base['kind'] ?? '' ) ) {
+		return true;
+	}
+	return ! in_array( (string) $res['kind'], array_merge( BWS_BASE_WIRE_KINDS_ALWAYS_SERVED, $serves ), true );
 }
 
 /**
@@ -1377,9 +1458,9 @@ function bws_base_post_id_from_source( array $base, array $options ) {
 }
 
 /**
- * Ids of the resolved sources a base tag's chain produces, filtered to one KIND.
+ * The resolved SOURCES a base tag's chain produces, filtered to one KIND.
  *
- * The plural read behind both list arms. Runs the tag's WHOLE compiled chain — not
+ * The plural read behind every list arm. Runs the tag's WHOLE compiled chain — not
  * the wrapper's leading run of ref steps — because the arm has already established
  * what the chain resolves to (bws_base_src_resolution), so every step in it is one
  * the caller asked for. That is what closes the §F9.3 hole, where a `terms` step
@@ -1393,9 +1474,43 @@ function bws_base_post_id_from_source( array $base, array $options ) {
  * UNBOUNDED fan and the compile strips every step limit. Every other caller leaves
  * the default and is byte-identical to before the parameter existed.
  *
+ * SOURCES, NOT IDS, is the whole point of the split (FW-74): an id-less kind has no
+ * other way through. A repeater row carries its `row` array and never an id, so
+ * bws_base_source_ids_of_kind() below — which drops `id <= 0` — cannot express it.
+ * Every entity arm keeps asking for ids; the row arm asks here.
+ *
+ * @since 1.21.0 Split out of bws_base_source_ids_of_kind(), which maps over it.
+ * @param array  $base          Base resolved source.
+ * @param array  $options       Tag options.
+ * @param string $kind          Resolved-source kind to keep ('post'|'term'|'meta_row'|…).
+ * @param bool   $ignore_limits Compile the chain with every step limit stripped.
+ * @return array[] Resolved sources in document order (may be empty).
+ */
+function bws_base_sources_of_kind( array $base, array $options, string $kind, bool $ignore_limits = false ): array {
+	if ( ! function_exists( 'bws_run_traversal' ) || ! function_exists( 'bws_field_values_assemble_steps' ) ) {
+		return array();
+	}
+	$sources = bws_run_traversal( array( $base ), bws_field_values_assemble_steps( $options, $ignore_limits ) );
+	$kept    = array();
+	foreach ( $sources as $src ) {
+		if ( is_array( $src ) && $kind === ( $src['kind'] ?? '' ) ) {
+			$kept[] = $src;
+		}
+	}
+	return $kept;
+}
+
+/**
+ * Ids of the resolved sources a base tag's chain produces, filtered to one KIND.
+ *
+ * bws_base_sources_of_kind() with the ids taken off it and `id <= 0` dropped — a
+ * source with no usable entity behind it is not a read target for an entity arm.
+ * Signature and return unchanged since 1.18.0; every caller is byte-identical.
+ *
  * @since 1.14.0
  * @since 1.17.0 Compiles the whole chain and takes a $kind; was ref-only steps.
  * @since 1.18.0 $ignore_limits threaded to the compile (collapsing tags).
+ * @since 1.21.0 A map over bws_base_sources_of_kind().
  * @param array  $base          Base resolved source.
  * @param array  $options       Tag options.
  * @param string $kind          Resolved-source kind to keep ('post'|'term'|…).
@@ -1403,17 +1518,11 @@ function bws_base_post_id_from_source( array $base, array $options ) {
  * @return int[] Entity ids in document order (may be empty).
  */
 function bws_base_source_ids_of_kind( array $base, array $options, string $kind, bool $ignore_limits = false ): array {
-	if ( ! function_exists( 'bws_run_traversal' ) || ! function_exists( 'bws_field_values_assemble_steps' ) ) {
-		return array();
-	}
-	$sources = bws_run_traversal( array( $base ), bws_field_values_assemble_steps( $options, $ignore_limits ) );
-	$ids     = array();
-	foreach ( $sources as $src ) {
-		if ( is_array( $src ) && $kind === ( $src['kind'] ?? '' ) ) {
-			$id = (int) ( $src['id'] ?? 0 );
-			if ( $id > 0 ) {
-				$ids[] = $id;
-			}
+	$ids = array();
+	foreach ( bws_base_sources_of_kind( $base, $options, $kind, $ignore_limits ) as $src ) {
+		$id = (int) ( $src['id'] ?? 0 );
+		if ( $id > 0 ) {
+			$ids[] = $id;
 		}
 	}
 	return $ids;

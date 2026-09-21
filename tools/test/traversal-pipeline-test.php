@@ -1014,7 +1014,7 @@ foreach ( array_diff( $ambient_kinds, array( 'term' ) ) as $kind ) {
 //
 // The modifier callback (term_/view_) resolves a BASE source via base_source_key
 // then hops src:ref through the generic ref step — replacing the retired
-// TermRelatedPost / PortalRelatedPost traversal classes. Shape assertion: a term
+// TermRelatedPost and its external twin, the old traversal classes. Shape assertion: a term
 // base hops term->post[] and collapses to first (single-valued modifier link).
 
 // term base + ref step → post[]; first post id (mirrors term_ modifier src:ref).
@@ -1023,7 +1023,7 @@ $stepped = bws_run_traversal( array( term_src( 34 ) ), array( array( 'type' => '
 eq( 'V5 term modifier ref hop -> post[]', array( post_src( 91 ), post_src( 92 ) ), $stepped );
 eq( 'V5 term modifier ref collapses to first', 91, bws_first_post_id_from_sources( $stepped ) );
 
-// post base + ref step → post[] (view_ modifier src:ref: PortalSource post -> rel).
+// post base + ref step → post[] (an external modifier src:ref: its post -> rel).
 $reader = make_reader( array( 'post:70' => 88 ) );
 $stepped = bws_run_traversal( array( post_src( 70 ) ), array( array( 'type' => 'refs', 'field' => 'rel' ) ), $reader );
 eq( 'V5 post modifier ref hop -> first post', 88, bws_first_post_id_from_sources( $stepped ) );
@@ -1218,26 +1218,93 @@ eq( 'LI empty source -> null', null, bws_source_link_identity( array() ) );
 
 // meta_row convenience + a reader that returns a fixture repeater for the `rows`
 // step and a sub-field value for a following ref step off the produced meta_row.
+//
+// TWO helpers, because a row is two things here: row_src() is an INPUT (a row handed
+// to a step, provenance-free — the ambient shape), row_prov() is what the coercer
+// PRODUCES. Key order matters: eq() is ===, which compares array key order.
 function row_src( $row ) { return array( 'kind' => 'meta_row', 'row' => $row ); }
+function row_prov( $row, $parent_kind, $parent_id, $repeater, $index ) {
+	return array(
+		'kind'        => 'meta_row',
+		'row'         => $row,
+		'parent_kind' => $parent_kind,
+		'parent_id'   => $parent_id,
+		'repeater'    => $repeater,
+		'index'       => $index,
+	);
+}
 
 // --- coercer (bws_pipeline_rows_to_sources) ---------------------------------
 eq(
 	'rows coercer: array-of-rows -> meta_row[]',
-	array( row_src( array( 'a' => 1 ) ), row_src( array( 'a' => 2 ) ) ),
-	bws_pipeline_rows_to_sources( array( array( 'a' => 1 ), array( 'a' => 2 ) ) )
+	array( row_prov( array( 'a' => 1 ), 'post', 4, 'team', 0 ), row_prov( array( 'a' => 2 ), 'post', 4, 'team', 1 ) ),
+	bws_pipeline_rows_to_sources( array( array( 'a' => 1 ), array( 'a' => 2 ) ), post_src( 4 ), 'team' )
 );
 eq( 'rows coercer: non-array -> []', array(), bws_pipeline_rows_to_sources( 'nope' ) );
 eq( 'rows coercer: empty array -> []', array(), bws_pipeline_rows_to_sources( array() ) );
 eq( 'rows coercer: null -> []', array(), bws_pipeline_rows_to_sources( null ) );
+// The blank row's index is 2, not 1: `index` names the position in the STORE, so a
+// skipped entry still consumes one. Verified by MUTATION 2026-09-16 — moving the
+// coercer's increment inside its is_array() guard fails THIS row and only this row.
 eq(
 	'rows coercer: skips non-array rows, keeps blank row',
-	array( row_src( array( 'a' => 1 ) ), row_src( array() ) ),
-	bws_pipeline_rows_to_sources( array( array( 'a' => 1 ), 'scalar', array() ) )
+	array( row_prov( array( 'a' => 1 ), 'post', 4, 'team', 0 ), row_prov( array(), 'post', 4, 'team', 2 ) ),
+	bws_pipeline_rows_to_sources( array( array( 'a' => 1 ), 'scalar', array() ), post_src( 4 ), 'team' )
 );
 eq(
 	'rows coercer: order preserved',
-	array( row_src( array( 'n' => 'x' ) ), row_src( array( 'n' => 'y' ) ), row_src( array( 'n' => 'z' ) ) ),
-	bws_pipeline_rows_to_sources( array( array( 'n' => 'x' ), array( 'n' => 'y' ), array( 'n' => 'z' ) ) )
+	array(
+		row_prov( array( 'n' => 'x' ), 'post', 4, 'team', 0 ),
+		row_prov( array( 'n' => 'y' ), 'post', 4, 'team', 1 ),
+		row_prov( array( 'n' => 'z' ), 'post', 4, 'team', 2 ),
+	),
+	bws_pipeline_rows_to_sources( array( array( 'n' => 'x' ), array( 'n' => 'y' ), array( 'n' => 'z' ) ), post_src( 4 ), 'team' )
+);
+
+// --- PROVENANCE (FW-74 ticket 02) -------------------------------------------
+//
+// Four keys per row: parent kind, parent id, repeater name, store index. NOTHING
+// consumes them yet — FW-3's field-object read is what will — so these rows are the
+// only thing holding the shape, which is why they pin each key rather than the set.
+//
+// The parent is passed in, never derived: this coercer performs NO read and NO entity
+// lookup (acceptance criterion 4). It cannot — it has no reader and no WP symbol in
+// reach, which is what makes that criterion structural here rather than measured.
+$prov = bws_pipeline_rows_to_sources( array( array( 'n' => 'x' ), array( 'n' => 'y' ) ), post_src( 12 ), 'team_members' );
+eq( 'prov: parent_kind off a post parent', 'post', $prov[0]['parent_kind'] );
+eq( 'prov: parent_id off a post parent', 12, $prov[0]['parent_id'] );
+eq( 'prov: repeater name is the step field', 'team_members', $prov[0]['repeater'] );
+eq( 'prov: index is zero-based', 0, $prov[0]['index'] );
+eq( 'prov: the second row indexes differently', 1, $prov[1]['index'] );
+
+// Every parent kind the `rows` step accepts records ITS OWN kind. site and a parent
+// ROW carry no id, so parent_id is 0 and the KIND is what tells them apart.
+$prov_parent = function ( $parent ) {
+	$row = bws_pipeline_rows_to_sources( array( array() ), $parent, 'r' )[0];
+	return array( $row['parent_kind'], $row['parent_id'] );
+};
+eq( 'prov: term parent', array( 'term', 34 ), $prov_parent( term_src( 34 ) ) );
+eq( 'prov: user parent', array( 'user', 7 ), $prov_parent( user_src( 7 ) ) );
+eq( 'prov: site parent -> kind site, id 0', array( 'site', 0 ), $prov_parent( array( 'kind' => 'site' ) ) );
+
+// A NESTED repeater records the parent ROW, not the outer entity — the row it stepped
+// off is a meta_row, and that is the kind that lands. Driven through bws_run_step so
+// the recorded parent is the one the engine actually hands over, not one the test picked.
+$nested = bws_run_step(
+	array( 'type' => 'rows', 'field' => 'shifts' ),
+	row_prov( array( 'shifts' => array( array( 'day' => 'Mon' ) ) ), 'post', 12, 'team_members', 3 ),
+	function ( $step, $source ) { return $source['row'][ $step['field'] ] ?? array(); }
+);
+eq( 'prov: nested repeater parent is the ROW', 'meta_row', $nested[0]['parent_kind'] );
+eq( 'prov: nested repeater parent has no id', 0, $nested[0]['parent_id'] );
+eq( 'prov: nested repeater names the INNER repeater', 'shifts', $nested[0]['repeater'] );
+eq( 'prov: nested row index is its own', 0, $nested[0]['index'] );
+
+// Provenance-free calls stay non-fatal: an absent parent is empty/0, not a warning.
+eq(
+	'prov: no parent passed -> empty kind, id 0, empty repeater',
+	array( '', 0, '' ),
+	array_values( array_intersect_key( bws_pipeline_rows_to_sources( array( array() ) )[0], array( 'parent_kind' => 1, 'parent_id' => 1, 'repeater' => 1 ) ) )
 );
 
 // --- step input-kind gate (bws_run_step case 'rows') ------------------------
@@ -1247,9 +1314,12 @@ $rows_reader = function ( $step, $source ) {
 	return array( array( 'c' => 'p' ), array( 'c' => 'q' ) );
 };
 foreach ( array( 'post' => post_src( 5 ), 'term' => term_src( 5 ), 'user' => user_src( 5 ), 'meta_row' => row_src( array( 'r' => array() ) ), 'site' => array( 'kind' => 'site' ) ) as $kname => $src ) {
+	// The produced rows also carry the parent's kind/id — the step is where provenance
+	// is stamped, so the gate rows double as the per-parent-kind stamp check.
+	$pid = ( 'meta_row' === $kname || 'site' === $kname ) ? 0 : 5;
 	eq(
 		"rows step accepts {$kname} input",
-		array( row_src( array( 'c' => 'p' ) ), row_src( array( 'c' => 'q' ) ) ),
+		array( row_prov( array( 'c' => 'p' ), $kname, $pid, 'rep', 0 ), row_prov( array( 'c' => 'q' ), $kname, $pid, 'rep', 1 ) ),
 		bws_run_step( array( 'type' => 'rows', 'field' => 'rep' ), $src, $rows_reader )
 	);
 }
@@ -1280,9 +1350,9 @@ $rows_out = bws_run_traversal( array( post_src( 9 ) ), array( array( 'type' => '
 eq(
 	'rows fold: post -> 3 meta_rows',
 	array(
-		row_src( array( 'name' => 'Ann', 'role' => 'Lead' ) ),
-		row_src( array( 'name' => 'Bo',  'role' => 'Dev' ) ),
-		row_src( array( 'name' => 'Cy',  'role' => '' ) ),
+		row_prov( array( 'name' => 'Ann', 'role' => 'Lead' ), 'post', 9, 'team', 0 ),
+		row_prov( array( 'name' => 'Bo',  'role' => 'Dev' ), 'post', 9, 'team', 1 ),
+		row_prov( array( 'name' => 'Cy',  'role' => '' ), 'post', 9, 'team', 2 ),
 	),
 	$rows_out
 );
@@ -1462,7 +1532,7 @@ eq(
 // would pass the row above and fail both of these.
 eq(
 	'D3: a `rows` step is admitted off a pinned TERM root (rows accepts every entity kind)',
-	array( array( 'kind' => 'meta_row', 'row' => array( 'name' => 'Alice' ) ) ),
+	array( row_prov( array( 'name' => 'Alice' ), 'term', 68, 'team_members', 0 ) ),
 	bws_run_traversal(
 		array( array( 'kind' => 'term', 'id' => 68 ) ),
 		array( array( 'type' => 'rows', 'field' => 'team_members' ) ),
@@ -1623,6 +1693,54 @@ eq(
 	bws_base_ambient_analog( 'title', $refusal, array(), null )
 );
 
+// ── THE SOURCES/IDS SPLIT (FW-74) ────────────────────────────────────────────
+//
+// bws_base_source_ids_of_kind() is a MAP over bws_base_sources_of_kind() since 1.21.0,
+// and the pair below is what says the map is lossy in exactly one direction. A chainless
+// base is the whole run here — no steps, so the traversal is the gate plus a passthrough,
+// which is all that is needed to state the relationship.
+//
+// A REPEATER ROW IS WHY THE SPLIT EXISTS: it carries its values and its provenance and
+// never an id, so the ids selector drops it entirely while the sources selector hands it
+// back whole. An arm reading ids can therefore not reach a row at all, which is the hole
+// the text arm's `meta_row` branch fills.
+$row_src = array(
+	'kind'        => 'meta_row',
+	'row'         => array( 'name' => 'Alice Adams' ),
+	'parent_kind' => 'post',
+	'parent_id'   => 7,
+	'repeater'    => 'team_members',
+	'index'       => 0,
+);
+eq(
+	'FW-74: the sources selector returns the row WHOLE, provenance included',
+	array( $row_src ),
+	bws_base_sources_of_kind( $row_src, array(), 'meta_row' )
+);
+eq(
+	'FW-74: …while the ids selector drops it, having no id to keep',
+	array(),
+	bws_base_source_ids_of_kind( $row_src, array(), 'meta_row' )
+);
+// And on a kind that HAS ids the two agree, which is the half that must not have moved:
+// every entity arm still calls the ids selector and must be byte-identical to before.
+eq(
+	'FW-74: on an entity kind the ids are the sources\' ids, same order',
+	array( array( post_src( 11 ) ), array( 11 ) ),
+	array(
+		bws_base_sources_of_kind( post_src( 11 ), array(), 'post' ),
+		bws_base_source_ids_of_kind( post_src( 11 ), array(), 'post' ),
+	)
+);
+eq(
+	'FW-74: …and a kind the chain did not produce is empty on both',
+	array( array(), array() ),
+	array(
+		bws_base_sources_of_kind( post_src( 11 ), array(), 'term' ),
+		bws_base_source_ids_of_kind( post_src( 11 ), array(), 'term' ),
+	)
+);
+
 // ── THE SIXTH CONSUMER IS NOT A CONSTRUCTION REFUSAL, AND ASSUMING IT WAS IS THE
 //    MISTAKE THIS ROW EXISTS TO STOP ───────────────────────────────────────────
 //
@@ -1658,6 +1776,38 @@ eq(
 	'…and a flat repeater row is a READ, not a refusal',
 	false,
 	bws_base_read_refused( array( 'kind' => 'render_time', 'fans' => false ), array( 'kind' => 'meta_row', 'row' => array( 'name' => 'x' ) ) )
+);
+
+// ── THE UNSERVED-KIND REFUSAL (FW-74 ticket 04b) ────────────────────────────
+//
+// A wire kind no family arm serves must refuse ABOVE the core, for the reason the
+// block above states: a falsy id does not stop the read. Before this refusal existed,
+// {{title}}/{{permalink}}/{{image}}/{{datetime_*}} on a `rows` chain reached the post
+// tail, resolved nothing, and printed the SURROUNDING PAGE.
+//
+// THE FOUR BELOW PIN THE WIRE-VS-BASE AXIS MECHANICALLY, which is why this comment may
+// name it: the last one fails if the predicate is switched to read $base['kind'], and
+// the page snapshots are the only other thing that catches that (fold-test-matrix.md
+// §F9c does NOT — every row there is {{text}}, which SERVES meta_row).
+eq(
+	'FW-74: an unserved wire kind refuses (a rows chain on a family with no row arm)',
+	true,
+	bws_base_read_refused( array( 'kind' => 'meta_row', 'fans' => true ), array( 'kind' => 'post', 'id' => 7 ) )
+);
+eq(
+	'FW-74: …and the SAME wire kind is read once the call site names it in $serves',
+	false,
+	bws_base_read_refused( array( 'kind' => 'meta_row', 'fans' => true ), array( 'kind' => 'post', 'id' => 7 ), array( 'meta_row' ) )
+);
+eq(
+	'FW-74: `term` is always served, so no call site has to name it',
+	false,
+	bws_base_read_refused( array( 'kind' => 'term', 'fans' => true ), array( 'kind' => 'post', 'id' => 7 ) )
+);
+eq(
+	'FW-74: a BASE of the unserved kind is NOT refused — the wire decides, not the factory',
+	false,
+	bws_base_read_refused( array( 'kind' => 'post', 'fans' => true ), array( 'kind' => 'meta_row', 'row' => array( 'name' => 'x' ) ) )
 );
 
 // ── report ───────────────────────────────────────────────────────────────────

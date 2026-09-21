@@ -2,7 +2,7 @@
 /**
  * Backward-compatibility facade over MigrationRegistry for deprecated tag entries.
  *
- * External plugins (e.g. bws-portal-system) call DeprecatedTagRegistry::register() to push
+ * External plugins call DeprecatedTagRegistry::register() to push
  * deprecated tag wrappers. This facade forwards all calls to MigrationRegistry with type:'tag'
  * so the registry is unified without breaking any existing callers.
  *
@@ -10,12 +10,12 @@
  *
  *     add_action( 'bws_dynamic_tags_register_sources', function () {
  *         \BWS\DynamicTags\DeprecatedTagRegistry::register( array(
- *             'old_tag'        => 'portal_post_meta',
+ *             'old_tag'        => 'legacy_post_meta',
  *             'new_tag'        => 'text',
- *             'title'          => 'Portal Post Meta',
+ *             'title'          => 'Legacy Post Meta',
  *             'supports'       => array( 'source' ),
- *             'options'        => portal_get_text_options(),
- *             'callback'       => 'portal_deprecated_post_meta_callback',
+ *             'options'        => acme_get_text_options(),
+ *             'callback'       => 'acme_deprecated_post_meta_callback',
  *             'since'          => '2.0.0',
  *             'source_inject'  => '',
  *             'option_renames' => array( 'field_key' => 'key' ),

@@ -4,9 +4,11 @@
 
 When a base tag can't resolve in the editor, the callback returns this structured preview string instead of an empty string. Built by `bws_build_preview_label( $options, $template )` in `includes/helpers/preview-helpers.php`. (The function name retains the historical `_label` suffix; the text it builds is the configuration-preview described here.)
 
-**Scope:** `text`, `content`, `title`, `email`, `datetime_single`, `datetime_range`, and their `term_` modifier equivalents. Image tags: only when `as:alt` or `as:caption` — excluded for `as:url` and `as:id` (attribute values; bracket string silently breaks the element). `permalink` excluded entirely (URL context — bracket string breaks `<a href>`). The slot-based composing tags have their own builders: `try_*` (§try_ tag previews) and `{{join}}` (§join preview), both below.
+**Scope:** `text`, `content`, `title`, `email`, `datetime_single`, `datetime_range`, and their `term_` modifier equivalents **[WITHDRAWN FAMILY]**. Image tags: only when `as:alt` or `as:caption` — excluded for `as:url` and `as:id` (attribute values; bracket string silently breaks the element). `permalink` excluded entirely (URL context — bracket string breaks `<a href>`). The slot-based composing tags have their own builders: `try_*` (§try_ tag previews) and `{{join}}` (§join preview), both below.
 
 Not on front end — gated by `$instance->context['bwsEditorPreview']`, injected only by the editor JS filter.
+
+**[WITHDRAWN FAMILY] — THE ROOTING MODIFIERS, AND WHY THEIR ROWS ARE MARKED RATHER THAN DELETED.** `view_` went before 1.21.0 and `term_` went with it (FW-129), so no registered tag reaches a modifier branch of `bws_build_preview_label()` any more. The branches themselves are still there and still asserted — `bws_build_preview_label( …, 'term_text' )` runs, returns what the marked rows say, and `preview-label-test.php` pins it — so deleting the rows would leave live, pinned behaviour undescribed. They are not current-state either: nothing a user can author gets here. Read a marked row as *what the builder still does for a caller that names a withdrawn prefix*, and expect it to go in the same change as FW-129's code removal, not before. The modifier map is a closed list since 1.21.0 (`bws_dynamic_tags_preview_modifier_map` went with the constructor that populated it), so the set of reachable prefixes cannot grow back. The marker is per-row; an unmarked row on this page is live for base tags, `{{join}}` and `try_`.
 
 ## Marker conventions
 
@@ -40,13 +42,15 @@ Space-joined segments. The `→` separator precedes the term-step segment only.
 
 | Condition | Segment |
 |---|---|
-| Modifier tag (e.g. `term_`) | Modifier `label` value (e.g. `Term`) |
-| `src:site` (base tags + try_ slots) | `Site` (yields `… from Site`). It COMBINES with a `refs` step since 1.17.0 — an options store holds relationship fields like any other field store, and the engine's `rows` step had always accepted a site source for exactly that reason, so the old refusal was an asymmetry in one allowlist rather than a rule. It still does not combine with `terms`, for a different and permanent reason: a `terms` step names *the terms attached to this entity*, and a site is not an object terms attach to. A taxonomy field on an options page would be a field READ that yields terms, not a `terms` step. Since 1.15.0 every try_ tag offers a site slot (FW-4), previously only try_email/try_phone. On a modifier it is the invalid-combo warning instead |
+| Modifier tag (e.g. `term_`) **[WITHDRAWN FAMILY]** | Modifier `label` value (e.g. `Term`) |
+| `src:site` (base tags + try_ slots) | `Site` (yields `… from Site`). It COMBINES with a `refs` step since 1.17.0 — an options store holds relationship fields like any other field store, and the engine's `rows` step had always accepted a site source for exactly that reason, so the old refusal was an asymmetry in one allowlist rather than a rule. It still does not combine with `terms`, for a different and permanent reason: a `terms` step names *the terms attached to this entity*, and a site is not an object terms attach to. A taxonomy field on an options page would be a field READ that yields terms, not a `terms` step. Since 1.15.0 every try_ tag offers a site slot (FW-4), previously only try_email/try_phone. On a modifier it is the invalid-combo warning instead **[WITHDRAWN FAMILY]** |
 | `src:ref` + `ref:X` set | `Ref 'X'` |
 | `src:ref` + `ref` unset | *(triggers warning — see below)* |
+| a `rows,<field>` step with its repeater field set (1.21.0, FW-74) | `Rows '<field>'` — one segment per step, exactly as a relationship step. NO hop arrow: a repeater is a field on the entity the chain is already standing on, and the arrow marks the post→term hop. Silent before 1.21.0, when the step was on no offer and there was nothing an author could have picked to read back |
+| a `rows` step with no repeater field | *(triggers warning — see below)* |
 | `srcTermIn:X` set | `→ {taxonomy singular label} Term` (live `get_taxonomy()->labels->singular_name`; fallback: `{tax} Term`) |
 | `srcTermIn` set with empty value (legacy `srcTerm` without `tax`) | *(triggers warning — see below)* |
-| `src` names a REGISTERED SOURCE as the chain's root (1.17.0, [#83]) | That source's `get_source_label()` — e.g. `External Post`, yielding `… from External Post`. **Author terms, never the token.** Independent of whether the source is currently OFFERED in the dropdown: the tag is stored, so the preview describes what it says. An UNREGISTERED token adds no segment and, since 1.17.0 ([#105]), raises the inert-chain warning instead — it resolves to nothing, and previewing it as a bare tag hid the likeliest hand-authored fault there is. **The keys the ROOT ENUM refuses are refused here too**, though they ARE registered sources and a bare lookup would name every one: `post`/`term` are internal spellings of the ambient entity — BARE, neither reaches this row at all, since both are also declaring roots (1.20.0, FW-39) and the inert-chain warning above already fires for them; the four retired traversal-substitute tokens are excluded for a different reason, being what the `related_post` migration exists to remove from wire. This is the whole editor experience for such a tag — a source resolving from request state cannot resolve in the editor, and the prefix-keyed modifier map is keyed on TAG NAME so it can never fire for a base tag |
+| `src` names a REGISTERED SOURCE as the chain's root (1.17.0, [#83]) | That source's `get_source_label()` — e.g. `External Post`, yielding `… from External Post`. **Author terms, never the token.** Independent of whether the source is currently OFFERED in the dropdown: the tag is stored, so the preview describes what it says. An UNREGISTERED token adds no segment and, since 1.17.0 ([#105]), raises the inert-chain warning instead — it resolves to nothing, and previewing it as a bare tag hid the likeliest hand-authored fault there is. **The keys the ROOT ENUM refuses are refused here too**, though they ARE registered sources and a bare lookup would name every one: `post`/`term` are internal spellings of the ambient entity — BARE, neither reaches this row at all, since both are also declaring roots (1.20.0, FW-39) and the inert-chain warning above already fires for them; the four retired traversal-substitute tokens are excluded for a different reason, being what the `related_post` migration exists to remove from wire. This is the whole editor experience for such a tag — a source resolving from request state cannot resolve in the editor, and the prefix-keyed modifier map is keyed on TAG NAME so it can never fire for a base tag (a closed one-entry list since 1.21.0, and nothing mints the prefix it holds — **[WITHDRAWN FAMILY]**, and the clause holds all the harder for it) |
 | `src` names a SPECIFIC entity root — `term,<ID>` or `post,<ID>` (1.20.0, FW-39) | The selected entity's own name, not the root's label — `Term: News`, `Post: Hello world!` — read through an INJECTED resolver (`get_term`/`get_post` in production) so the pure harness holds this behaviour with a fake one. A deleted entity reads `term 34 (missing)` / `post 1692 (missing)`; a non-numeric argument (hand-wire only) falls back to the bare token. See [`docs/tag-reference.md`](tag-reference.md#src-option-values) for the wire and [`CONTEXT.md`](../CONTEXT.md) for the root-argument model. |
 | No modifier, `src` unset, no `terms` step | *(omit — no `from` clause)* |
 
@@ -59,9 +63,7 @@ consequences:
 
 - A legacy flat option set and its chain-wire twin preview **identically**
   (`src:ref|ref:rel|srcTermIn:cat` ≡ `src:refs,rel;terms,cat`).
-- A chain that hops more than once emits **one segment per step**, in wire order:
-  `['phone' from Ref 'staff' Ref 'office']`. The flat spelling could hold only one of each, so
-  there is no legacy twin for this shape.
+- A chain that hops more than once emits **one segment per step**: `['phone' from Ref 'staff' Ref 'office']`. The flat spelling could hold only one of each, so there is no legacy twin for this shape. **Stored order holds WITHIN a step kind, and the kinds are GROUPED rather than interleaved** — the namer runs `refs`, then `rows`, then `terms`, so `rows,team_members;refs,lead_ref` reads `Ref 'lead_ref' Rows 'team_members'`. Inherited from the flat era, where a tag held at most one of each and the question could not arise; pinned in `preview-label-test.php` so the grouping is a known shape rather than a surprise. Undoing it is one walk over the steps emitting as it goes, which moves the `terms` arrow rule and every pinned mixed chain with it.
 - An **argless** step warns rather than being described. `src:terms` with no taxonomy renders
   nothing (the engine short-circuits), so it reports `⚠ No taxonomy set` — the same answer its
   flat sibling gives.
@@ -80,10 +82,10 @@ rather than a preference:
 | Switch | Off for | Why |
 |---|---|---|
 | `named_current` | base tags (on for slots) | A slot's source appears in a LIST and needs a visible anchor (`Current, Ref 'rel'`); a base tag's bare source is exactly what "no `from` clause" means |
-| `lead` | a source with nothing before it | The `→` means *hopped from*, so a term step that opens the whole label has nothing to point back at and drops the arrow. A modifier segment preceding it turns it on |
+| `lead` | a source with nothing before it | The `→` means *hopped from*, so a term step that opens the whole label has nothing to point back at and drops the arrow. A modifier segment preceding it turns it on **[WITHDRAWN FAMILY]** — a modifier segment is the only thing that ever did, so on every reachable tag the flag is off |
 | `roots` | slots | A slot's source cannot BE a registered root yet (FW-71), so naming one would print a segment for wire no slot can hold |
-| `site` | rooting modifiers, slots | On a modifier a site root is already the invalid-combo warning; on a `try_email` site slot the site read IS the whole slot, so the segment is noise |
-| `terms` | `term_*` modifiers | A modifier reads GB's native `tax` (the term's OWN taxonomy — descriptive, not a hop) and builds that segment itself |
+| `site` | rooting modifiers **[WITHDRAWN FAMILY]**, slots | On a modifier a site root is already the invalid-combo warning; on a `try_email` site slot the site read IS the whole slot, so the segment is noise. Only the slot half is reachable now |
+| `terms` | `term_*` modifiers **[WITHDRAWN FAMILY]** | A modifier reads GB's native `tax` (the term's OWN taxonomy — descriptive, not a hop) and builds that segment itself. Off on nothing reachable, so a base tag's `terms` steps are always named |
 
 **The switches gate NAMING, never CHECKING.** The inert-chain detection below runs above all five,
 `roots` included — the slot door turns that one off, so a check placed under it would silently stop
@@ -179,10 +181,7 @@ is what the list is built to. Three things therefore **never** flag:
 - **A registered but UNOFFERED root.** Offering is not resolving; a source an integrator stopped
   offering still renders. (Gating this on `is_selectable_root()` is the named trap, pinned by
   mutation in the harness.)
-- **A well-formed source no arm consumes YET** — a `rows` step with its repeater field set,
-  today. Unimplemented is not inert: `{{table}}` wants a repeater row as its read context, and on
-  a fanning tag it would concatenate like any other step. Flagging it would encode a per-template
-  fact with a shelf life. The arm is FW-74.
+- **A well-formed source no arm consumes YET** — a `rows` step with its repeater field set, on a family whose arm has not landed. Unimplemented is not inert: `{{table}}` wants a repeater row as its read context, and on a fanning tag it concatenates like any other step. Flagging it would encode a per-template fact with a shelf life, and that shelf life has now expired once — `{{text}}` consumes a `rows` step since 1.21.0 (FW-74), and no sentence here had to move. The step is NAMED since the same release (the `rows,<field>` segment row above), which is a separate fact: what changed is that the step is offerable, so an author has something to read back.
 
 The internal tokens `current`, `site` and `ref` never flag — they resolve. `post` and `term` are internal tokens too, but BOTH are also declaring roots (1.20.0, FW-39): a *bare* `post`/`term` is that argument left unfilled, and the row above (`A DECLARING root with no argument`) is what fires for it — not this silence.
 
@@ -212,13 +211,15 @@ warning, because the preview text *is* the attribute value and a bracket string 
 element. Pre-existing and unchanged — image already misses `No meta key set` the same way. Only
 an editor-side control notice could reach it, which is a different mechanism.
 
-### Invalid-combo warning (`src:site` on a modifier tag)
+### Invalid-combo warning (`src:site` on a modifier tag) **[WITHDRAWN FAMILY]**
 
-Distinct from the missing-input warnings: a hand-typed `src:site` on a rooting modifier (`term_*`, or an externally registered one) is **invalid, not missing**. The `src` dropdown filters `site` out ([tag-reference §Qualifying test](tag-reference.md#qualifying-test-for-new-use-values)), but a hand-typed value slips the UI. A site read is entity-blind, so the runtime resolves **empty** — the preview warns to match, instead of showing a normal label. Checked before the missing-input pass; fallback still appends. (See [#37](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/37).)
+**The whole of this section is the withdrawn families'** — it describes a branch no registered tag reaches since 1.21.0 (FW-129), kept because the branch and its assertions are still there. The warning's own precedence rule below is the part worth not losing: it is checked BEFORE the missing-input pass and before the inert-chain short-circuit, and a future rooting surface that wants the same refusal inherits that order rather than rediscovering it.
+
+Distinct from the missing-input warnings: a hand-typed `src:site` on a rooting modifier (`term_*`, or an externally registered one) is **invalid, not missing**. The `src` dropdown filtered `site` out ([tag-reference §Qualifying test](tag-reference.md#qualifying-test-for-new-use-values)), but a hand-typed value slipped the UI. A site read is entity-blind, so the runtime resolves **empty** — the preview warns to match, instead of showing a normal label. Checked before the missing-input pass; fallback still appends. (See [#37](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/37).)
 
 | Condition | Warning |
 |---|---|
-| `src:site` on any modifier tag (`{{modifierLabel}}` = `Term`, …) | `⚠ Site source not valid on {ModifierLabel} tag — use the base tag` |
+| `src:site` on any modifier tag (`{{modifierLabel}}` = `Term`, …) **[WITHDRAWN FAMILY]** | `⚠ Site source not valid on {ModifierLabel} tag — use the base tag` |
 
 ## Datetime preview
 
@@ -253,9 +254,9 @@ Datetime tags compute a live preview from the current time rather than a static 
 | `{{text src:terms\|key:sku}}` | `[⚠ No taxonomy set]` |
 | `{{text srcTermIn\|key:body_text}}` | `[⚠ No taxonomy set]` |
 | `{{text src:ref\|srcTermIn\|key:body_text}}` | `[⚠ No ref key or taxonomy set]` |
-| `{{term_text key:bio}}` | `['bio' from Term]` |
-| `{{term_text src:ref\|ref:rel_post\|key:bio}}` | `['bio' from Term Ref 'rel_post']` |
-| `{{term_text src:site\|key:blogdescription}}` | `[⚠ Site source not valid on Term tag — use the base tag]` |
+| `{{term_text key:bio}}` **[WITHDRAWN FAMILY]** | `['bio' from Term]` |
+| `{{term_text src:ref\|ref:rel_post\|key:bio}}` **[WITHDRAWN FAMILY]** | `['bio' from Term Ref 'rel_post']` |
+| `{{term_text src:site\|key:blogdescription}}` **[WITHDRAWN FAMILY]** | `[⚠ Site source not valid on Term tag — use the base tag]` |
 | `{{title src:ref\|ref:rel_post}}` | `[Title from Ref 'rel_post']` |
 | `{{content}}` | `[Content]` |
 | `{{content use:excerpt}}` | `[Content: Excerpt]` |
@@ -462,6 +463,6 @@ php tools/test/preview-label-test.php
 
 Behaviors the harness locks in (correct-by-design, easy to regress):
 
-- **`→` step arrow is positional** — emitted only when the term-step segment *follows* another (modifier label or `Ref 'x'`). Standalone current-post→term drops it: `['sku' from Event Category Term]`, not `… from → …`.
+- **`→` step arrow is positional** — emitted only when the term-step segment *follows* another (`Ref 'x'`, `Rows 'x'`, a named root, or a modifier label **[WITHDRAWN FAMILY]**). Standalone current-post→term drops it: `['sku' from Event Category Term]`, not `… from → …`.
 - **Slot ≥2 key-only override is discarded** — an empty `use` on slot N≥2 wipes that slot's `key` (the `use:same` UI hides the key field). A key override only registers when its `N-use` is also sent.
 - **`text` try "no slots configured" is unreachable** — slot 1 is always default-filled, so a misconfigured slot-1 trips the missing-key warning first.

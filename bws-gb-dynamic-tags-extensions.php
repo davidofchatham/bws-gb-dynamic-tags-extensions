@@ -505,6 +505,38 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 			'before'
 		);
 	}
+	// WHAT KIND A CHAIN RESOLVES TO — the field picker presets its Location filter from the
+	// kind the read will be off, and that is `bws_fold_chain_resolution()`'s question: the
+	// tail STEP's produced kind, or the ROOT's where that answers at parse time.
+	//
+	// SHIPPED, NOT RE-SPELLED. Both maps are already assembled by bws_fold_wire_vocabulary()
+	// and already reach the chain EDITOR through the fold config, where `kindAt()` asks the
+	// same question one position earlier. The picker mounts standalone on a base tag's `key`
+	// and has no fold config to read, so it gets the same two maps as a global rather than a
+	// copy of `BWS_FOLD_STEP_KINDS` / `BWS_FOLD_PARSE_TIME_ROOT_KINDS` written out in JS.
+	//
+	// SEPARATE FROM `bwsRootArgKinds` above, which answers a different question — which roots
+	// TAKE an argument, derived from the root ROWS so an integrator's root is included. This
+	// one answers what kind a token resolves to and covers argless roots (`site`) too.
+	if ( function_exists( 'bws_fold_wire_vocabulary' ) ) {
+		$bws_vocab       = bws_fold_wire_vocabulary();
+		$bws_step_kinds  = array();
+		foreach ( (array) ( $bws_vocab['steps'] ?? array() ) as $bws_slug => $bws_step ) {
+			if ( ! empty( $bws_step['produces'] ) ) {
+				$bws_step_kinds[ (string) $bws_slug ] = (string) $bws_step['produces'];
+			}
+		}
+		wp_add_inline_script(
+			'bws-dynamic-tags-field-combo-control',
+			'window.bwsChainKinds = ' . wp_json_encode(
+				array(
+					'steps' => (object) $bws_step_kinds,
+					'roots' => (object) ( $bws_vocab['roots'] ?? array() ),
+				)
+			) . ';',
+			'before'
+		);
+	}
 	// The entity picker (FW-39) — backs a chain root's ARGUMENT, not an option
 	// key, so it is exposed for composition rather than self-registering (see the
 	// file header). Loads before the slot-fold CONTROL, which mounts it at a chain's

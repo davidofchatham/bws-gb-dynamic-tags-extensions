@@ -230,7 +230,8 @@ function bws_get_attachment_data( $attachment_id, $return_type = 'url', $size = 
 if ( ! function_exists( 'bws_get_meta_image_data' ) ) {
 function bws_get_meta_image_data( $post_id, $meta_key, $return_type = 'url', $size = 'full', $instance = null ) {
 	// "A READ MAY STILL SUCCEED WITH NO POST ID" — a post or a repeater row, never
-	// `in_loop` (bws_loop_item_is_post_or_row()). The read below is bws_read_field(),
+	// `in_loop` (bws_loop_item_is_post_or_row()). The read below is
+	// bws_read_field_preserving_arrays(), whose passes are bws_read_field(),
 	// which serves those two item kinds and nothing else; letting a TERM or USER item
 	// past this bail sends it to that function's term-archive fallback instead.
 	$read_may_serve = bws_loop_item_is_post_or_row( $instance );
@@ -239,16 +240,9 @@ function bws_get_meta_image_data( $post_id, $meta_key, $return_type = 'url', $si
 		return '';
 	}
 
-	// Two-pass meta read to handle all image-meta return formats from ACF and other providers.
-	// Pass 1: single_only=true → returns scalar (URL/ID) but coerces array/object to ''.
-	// Pass 2: single_only=false → returns array/object preserved, but GB Meta_Handler::get_value
-	//   returns fallback ('') for plain scalars when an upstream filter (e.g. ACF pre_value)
-	//   populates the value, so we only fall through here when pass 1 yielded nothing.
-	$meta_value = bws_read_field( $meta_key, $instance, $post_id, true );
-
-	if ( '' === $meta_value || null === $meta_value ) {
-		$meta_value = bws_read_field( $meta_key, $instance, $post_id, false );
-	}
+	// Every image-meta return format ACF and other providers use — the array ones
+	// included. bws_read_field_preserving_arrays() owns how that read is made.
+	$meta_value = bws_read_field_preserving_arrays( $meta_key, $instance, $post_id );
 
 	if ( ! $meta_value ) {
 		return '';

@@ -339,7 +339,7 @@ if ( $dep_replay ) {
 	} elseif ( $a_commit === $b_commit && $a_digest === $b_digest && $map ) {
 		// A MIGRATION BOUNDARY NEED NOT BE THIS PLUGIN'S. The guard below assumes the wire moved
 		// because THIS build moved, which is true of the MIGRATION REPLAY and false the moment a second
-		// plugin migrates tags through this converter — bws-portal-system 5.7.0 rewrites its own
+		// plugin migrates tags through this converter — the integrating plugin rewrites its own
 		// view_* tags onto base tags, so a staged run holds this build fixed on both sides while
 		// the wire changes underneath it. A non-empty mapping is the evidence that distinguishes
 		// the two: an unswapped run has no rewrites to show, because nothing converted anything.

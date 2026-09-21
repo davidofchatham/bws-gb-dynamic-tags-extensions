@@ -344,8 +344,8 @@ condition confirmed.
 **P6 date** (`/2026/`, `/2026/07/17/` on testbed) — **PASS.** `queried_object`
 null; payload = `query_vars.year/monthnum/day` (2026 / 7 / 17), exactly as
 expected. `$post` leaks first row (15) — finding #1 holds. NOTE: first capture
-404'd — the portal-system anonymous query filter emptied the archive
-(fixture posts categorized / portal-invisible); fixed in the core-structures
+404'd — an integrating plugin's anonymous query filter emptied the archive
+(fixture posts categorized / filtered out); fixed in the core-structures
 seed (`sample-event` categoryless + `all-users`). Environmental, not a signal
 change.
 
@@ -357,7 +357,7 @@ planned. `$post` leaks first staff row (30).
 **P7 author** (`/author/admin/`) — **PASS.** `queried_object` = `WP_User` (ID 1),
 `queried_id:1`, `query_vars.author_name:"admin"` / `author:1` — entity-kind id
 payload for `'user_' . $id` field reads confirmed. Bonus: archive had ZERO
-results (its one post portal-filtered) yet `is_author:true`, `is_404:false`,
+results (its one post filtered out) yet `is_author:true`, `is_404:false`,
 `$post` null — zero-result archives don't leak, sharpening finding #1's
 "results-bearing" qualifier.
 

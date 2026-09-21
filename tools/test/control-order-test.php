@@ -573,9 +573,9 @@ echo "\n§7 A slot's STEP OFFER is the base tag's (#104)\n";
 // had no spelling and offering it would have authored wire that skipped. The seam hands
 // the whole chain on now (#104) and the arms dispatch on what it resolves to (#103).
 //
-// `rows` stays OFF every offer, base and slot alike, and that is not an oversight: no
-// arm assembles a repeater row, so offering it would author a chain that renders nothing.
-// {{table}} is where that gap closes, with its own arm.
+// `rows` JOINED every offer in 1.21.0, base and slot alike. It was held out while no arm
+// assembled a repeater row — offering it would have authored a chain that renders
+// nothing — and FW-74 armed every keyed template, which is what let the offer land.
 $base_offer = null;
 foreach ( $registered as $tag => $args ) {
 	foreach ( $args['options'] ?? array() as $name => $opt ) {
@@ -585,7 +585,7 @@ foreach ( $registered as $tag => $args ) {
 		}
 	}
 }
-assert_same( 'a base tag offers refs then terms', array( 'refs', 'terms' ), $base_offer );
+assert_same( 'a base tag offers refs then terms then rows', array( 'refs', 'terms', 'rows' ), $base_offer );
 
 $slot_offers = array();
 foreach ( $registered as $tag => $args ) {

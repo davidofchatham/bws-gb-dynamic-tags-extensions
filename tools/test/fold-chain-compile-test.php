@@ -104,7 +104,7 @@ assert_same( "'' → not wire", false, bws_fold_chain_is_wire( '' ) );
 assert_same( "'current' → token", false, bws_fold_chain_is_wire( 'current' ) );
 assert_same( "'site' → token", false, bws_fold_chain_is_wire( 'site' ) );
 assert_same( "'ref' → token (the LEGACY spelling, singular)", false, bws_fold_chain_is_wire( 'ref' ) );
-assert_same( "'portal_resource' → registry token", false, bws_fold_chain_is_wire( 'portal_resource' ) );
+assert_same( "'ext_resource' → registry token", false, bws_fold_chain_is_wire( 'ext_resource' ) );
 assert_same( "'refs' → one-hop chain (plural)", true, bws_fold_chain_is_wire( 'refs' ) );
 assert_same( "'terms' → one-hop chain", true, bws_fold_chain_is_wire( 'terms' ) );
 assert_same( "'rows' → one-hop chain", true, bws_fold_chain_is_wire( 'rows' ) );
@@ -122,7 +122,7 @@ assert_same( 'site root', 'site', bws_fold_chain_root( chain_of( 'site' ) ) );
 assert_same( 'site root before a hop', 'site', bws_fold_chain_root( chain_of( 'site;rows,rows' ) ) );
 assert_same( 'explicit current root', 'current', bws_fold_chain_root( chain_of( 'current' ) ) );
 // A registry source name is opaque to the compiler — it goes to the factory verbatim.
-assert_same( 'registry root passes through', 'portal_resource', bws_fold_chain_root( chain_of( 'portal_resource' ) ) );
+assert_same( 'registry root passes through', 'ext_resource', bws_fold_chain_root( chain_of( 'ext_resource' ) ) );
 // Slot sentinels are resolved by the container BEFORE compile; the root reader must
 // not interpret one (it would have to know the accumulator to do so).
 assert_same( 'same sentinel is returned verbatim', 'same', bws_fold_chain_root( chain_of( 'same' ) ) );
@@ -228,7 +228,7 @@ $legacy_roots = array(
 	array( 'src' => 'site' ),
 	array( 'srcTermIn' => 'category' ),
 	array( 'source' => 'site' ),
-	array( 'src' => 'portal_resource' ),
+	array( 'src' => 'ext_resource' ),
 );
 foreach ( $legacy_roots as $i => $opts ) {
 	$was = $opts['src'] ?? $opts['source'] ?? '';

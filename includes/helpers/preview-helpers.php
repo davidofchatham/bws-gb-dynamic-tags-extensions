@@ -933,6 +933,7 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 	// Each fanning step's argument, and whether any of them is MISSING one.
 	$ref_args  = array();
 	$term_args = array();
+	$row_args  = array();
 	foreach ( $steps as $step ) {
 		$slug = (string) ( $step['slug'] ?? '' );
 		$arg  = trim( (string) ( $step['arg'] ?? '' ) );
@@ -959,11 +960,12 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 			} else {
 				$term_args[] = $arg;
 			}
-		} elseif ( 'rows' === $slug && '' === $arg ) {
-			// Reported but never NAMED: a repeater step has no author-facing segment yet
-			// (the arm that consumes one is FW-74). Unfinished is unfinished under any
-			// future arm, so the missing argument speaks now.
-			$missing['rows'] = true;
+		} elseif ( 'rows' === $slug ) {
+			if ( '' === $arg ) {
+				$missing['rows'] = true;
+			} else {
+				$row_args[] = $arg;
+			}
 		}
 	}
 
@@ -1045,6 +1047,23 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 	// One segment per relationship step, in wire order — a chain may hop more than once.
 	foreach ( $ref_args as $ref_arg ) {
 		$segments[] = "Ref '" . $ref_arg . "'";
+	}
+
+	// One segment per repeater step, in the order the steps were stored. It NAMES the step
+	// since 1.21.0, because the step is on the offer since 1.21.0 — an author who can pick it
+	// in the editor has to be able to read back what they picked. It takes the
+	// quoted-argument shape `refs` takes rather than the arrowed shape `terms` takes: a
+	// repeater is a field on the entity the chain is already standing on, which is what the
+	// arrow's absence says.
+	//
+	// GROUPED BY KIND, not interleaved — the three loops run refs, then rows, then terms,
+	// so a chain that alternates kinds reads its segments regrouped. Inherited from the flat
+	// era, where a tag held at most one of each and the question could not arise; `rows`
+	// joins the existing shape rather than introducing it. Fixing it means one pass over
+	// `$steps` emitting as it goes, which moves `terms`' arrow rule and every pinned mixed
+	// chain with it — a change of its own, not a rider on the offer.
+	foreach ( $row_args as $row_arg ) {
+		$segments[] = "Rows '" . $row_arg . "'";
 	}
 
 	// A site root has no entity to hop from, so it never combines with the steps around it.

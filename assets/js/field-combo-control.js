@@ -24,9 +24,12 @@
  * - TWO filter selectors ABOVE the field combobox, AND-composed:
  *     Filter 1 Location — searchable combobox, flat path-strings
  *       (All detected fields / Post fields / Post fields › Group A / …),
- *       prefix-match. Preset from SAFE source tokens only (srcTermIn→Term,
- *       src:site→Site, src:ref→Post) else "All detected fields" — NEVER assume
- *       the editor's current context is a post (that is the GB bug we escape).
+ *       prefix-match. Preset from the sibling `src` chain where that chain proves
+ *       where the read lands, else the ALL row — NEVER assume the
+ *       editor's current context is a post (that is the GB bug we escape).
+ *       `presetKind()` owns which tails prove it and is the only place that says.
+ *       The ALL row reads "All detected fields" over the whole pool and names the
+ *       narrowing instead where one is live; `buildLocationOptions()` owns that.
  *     Filter 2 Field type — plain select
  *       (All field types / Loop fields / <ACF types>).
  * - Free-text entry via synthetic option (ComboboxControl does NOT accept off-list
@@ -49,6 +52,8 @@
  * @package BWS_Dynamic_Tags
  * @since   1.13.0
  * @since   1.20.0 Root-argument scope narrowing (FW-39 D22).
+ * @since   1.21.0 Location preset from the repeater a chain ends on (FW-74).
+ * @since   1.21.0 The ALL row names a live pool narrowing.
  */
 ( function () {
 	'use strict';
@@ -230,10 +235,175 @@
 	}
 
 	/**
-	 * Safe source-token -> kind preset for the Location filter (NEVER assume post
-	 * from the editor context — only when the src TOKEN proves the kind). Reads the
-	 * sibling tokens of the SAME slot (prefix-aware) so per-slot try_ keys track
-	 * their own source.
+	 * The sibling `src` chain's LAST step, or null (FW-74).
+	 *
+	 * The read applies to whatever the chain resolved to last, so the tail is the only
+	 * position that can say anything about where the offerable fields live — both what
+	 * KIND they are (`presetKind()`) and, when the tail names a container, exactly which
+	 * one (`containerRowPath()`). Parsed through the shipped grammar for the reason
+	 * `rootArgFromState()` gives: the chain's spelling is `window.bwsSlotFold`'s, and a
+	 * local split on `,` is the second spelling that goes stale the first time the
+	 * grammar grows a token.
+	 *
+	 * @param {Object} state     extraTagParams.
+	 * @param {string} optionKey The key control's own option key (for the slot prefix).
+	 * @return {Object|null} `{ slug, arg }` with `arg` normalized to a string, or null.
+	 */
+	function chainTail( state, optionKey ) {
+		var fold = window.bwsSlotFold;
+		if ( ! state || ! fold || 'function' !== typeof fold.parseChain ) { return null; }
+		var wire = String( state[ slotPrefix( optionKey ) + 'src' ] || '' ).trim();
+		if ( '' === wire ) { return null; }
+		var chain = fold.parseChain( wire );
+		if ( ! Array.isArray( chain ) || ! chain.length ) { return null; }
+		var tail = chain[ chain.length - 1 ];
+		if ( ! tail || ! tail.slug ) { return null; }
+		return { slug: String( tail.slug ), arg: tail.arg ? String( tail.arg ) : '' };
+	}
+
+	/**
+	 * The Location path a container field's children sit under, or '' (FW-74).
+	 *
+	 * A container's children hang one segment below the container's own home, under its
+	 * label — exactly the breadcrumb `bws_field_discovery_flatten_fields()` builds. So the
+	 * path is read off the CONTAINER'S OWN record rather than off a child's: a merged
+	 * record (one key reached through two homes) would answer for whichever home sorted
+	 * first, which need not be this one.
+	 *
+	 * A key naming no discovered CONTAINER answers '' — a `refs` or `terms` tail carries a
+	 * relationship field key or a taxonomy slug, and neither owns a container record. That
+	 * test is stated here AND enforced again at the caller, where a preset path absent from
+	 * the option set is dropped: nothing hangs below a non-container, so the path a
+	 * non-container would produce cannot exist. Two spellings of one refusal, kept because
+	 * only the local one says which question was being asked.
+	 *
+	 * @param {Array}  records      Flat merged field records.
+	 * @param {string} containerKey Resolution key of a repeater/group/flexible field.
+	 * @return {string} Full location path, or ''.
+	 */
+	function containerRowPath( records, containerKey ) {
+		if ( ! containerKey ) { return ''; }
+		for ( var i = 0; i < records.length; i++ ) {
+			var rec = records[ i ];
+			if ( rec.key !== containerKey || ! rec.paths.length ) { continue; }
+			var isContainer = rec.types.some( function ( t ) { return '' !== containerHint( t ); } );
+			if ( isContainer ) { return rec.paths[ 0 ] + BREAD + rec.label; }
+		}
+		return '';
+	}
+
+	/**
+	 * The post TYPES a `refs` tail's own field can land on, or [] (FW-13).
+	 *
+	 * A `refs` argument names the field stepped THROUGH, so the post it reaches has a type
+	 * the wire never states — but the FIELD states it, and the discovery endpoint stamps
+	 * what it says on every record (`ref_types`). This reads it back off the record the
+	 * argument names, the same machine-readable route `containerRowPath()` takes for a
+	 * `rows` tail.
+	 *
+	 * UNIONED ACROSS EVERY RECORD SHARING THE KEY, unlike `containerRowPath()`'s
+	 * first-match. Two distinct fields can share a resolution key under different labels,
+	 * and the wire names only the key, so either could be the one stepped through.
+	 * Widening is the safe direction here: offering a type the step cannot reach is loose,
+	 * refusing one it can is wrong.
+	 *
+	 * @param {Array}  records  Flat merged field records.
+	 * @param {string} fieldKey Resolution key of the relationship / post object stepped through.
+	 * @return {Array} Post-type slugs, or [] when nothing narrows.
+	 */
+	/**
+	 * Records of ONE kind whose scope reaches any of `slugs`, plus that kind's unscoped ones.
+	 *
+	 * THE ONE NARROWING PREDICATE, shared by the two things that narrow a pool: the
+	 * root-argument scope (FW-39 D22 — one slug, off a resolved entity lookup) and the
+	 * refs-tail post types (FW-13 — the list a relationship field allows). Both ask a record
+	 * the same question, "are you mine, and does your scope reach me", and only the kind and
+	 * the slugs differ, so those are the parameters and the rule is written once. A second
+	 * spelling of it is exactly where the two would drift apart.
+	 *
+	 * THE KIND IS TESTED ALONGSIDE THE SLUG, NEVER INSTEAD OF IT. A scope entry is a bare
+	 * slug and a taxonomy may share its spelling with a post type, so a slug match on its own
+	 * would offer a field the read cannot reach. What a group's `scope` reaches — and
+	 * therefore what an EMPTY one reaches — is stated where it is derived, at
+	 * `bws_field_discovery_derive_kind_scope()`; read it there. `scopeless` is that endpoint's
+	 * "any subtype of MY kind", so it passes the scope test and still faces the kind one.
+	 *
+	 * NO FALL-BACK-TO-ALL when the result comes out empty, unlike the repeater auto-scope at
+	 * the call site. There, an empty result means the scope handle matched nothing discovered
+	 * and the author is stranded with no picker; here it means the selection genuinely has no
+	 * fields, which is the answer the narrowing exists to give. Free text still commits any
+	 * key either way.
+	 *
+	 * @param {Array}  records Records to narrow.
+	 * @param {string} kind    Resolved-source kind the narrowing is of.
+	 * @param {Array}  slugs   Subtype slugs of that kind to accept.
+	 * @return {Array} The narrowed records.
+	 */
+	function narrowToScope( records, kind, slugs ) {
+		return records.filter( function ( rec ) {
+			if ( rec.kind !== kind ) { return false; }
+			return rec.scopeless || rec.scopes.some( function ( sc ) {
+				return slugs.indexOf( sc ) !== -1;
+			} );
+		} );
+	}
+
+	function refTailTypes( records, fieldKey ) {
+		var out = [];
+		if ( ! fieldKey ) { return out; }
+		records.forEach( function ( rec ) {
+			if ( rec.key !== fieldKey ) { return; }
+			( rec.refTypes || [] ).forEach( function ( pt ) {
+				if ( out.indexOf( pt ) === -1 ) { out.push( pt ); }
+			} );
+		} );
+		return out;
+	}
+
+	/**
+	 * Source-token -> kind preset for the Location filter, or null (=> All detected).
+	 *
+	 * NEVER assume post from the editor context — the kind is presetted only where a token
+	 * PROVES it, which is the GB bug this control exists to escape. Reads the sibling tokens
+	 * of the SAME slot (prefix-aware) so per-slot try_ keys track their own source.
+	 *
+	 * THE CHAIN IS THE SOURCE OF THE ANSWER, not the legacy flat keys. This used to read
+	 * `srcTermIn` and a literal `src === 'site'`, both of which predate chain wire: the flat
+	 * axes were absorbed by the chain control in 1.17.0 and are dropped at registration, so
+	 * the term preset was reachable only from stored legacy wire while `terms,<tax>` — the
+	 * spelling that replaced it — presetted nothing. `site` kept working by coincidence,
+	 * its root taking no argument and so serializing as the bare slug the equality matched.
+	 *
+	 * The question asked is `bws_fold_chain_resolution()`'s — the tail STEP's produced kind,
+	 * or the ROOT's where that answers at parse time — and both maps arrive from PHP on
+	 * `window.bwsChainKinds`, so a step type or root added there presets here with no edit.
+	 * A kind the picker has no root label for (`meta_row`) presets nothing through this
+	 * path; `containerRowPath()` is that kind's specific and better answer.
+	 *
+	 * NO STEP IS EXEMPT, `refs` INCLUDED. It carried an exemption from 1.13.0 (`22bddf1`),
+	 * on the ground that a `refs` argument names the field stepped THROUGH rather than the
+	 * post it lands on, so the target's type is unknown. That reasoning is about post TYPE
+	 * and the preset is about KIND: `refs` produces `post` unconditionally — the engine
+	 * forces it, `BWS_FOLD_STEP_KINDS` records it — so refusing to say `post` here withheld
+	 * a fact the render already commits to, and left the author a list holding term and site
+	 * fields that a post read cannot reach. The exemption would be owed again only if `refs`
+	 * could produce MORE THAN ONE kind (a relationship reaching a term or a user), and that
+	 * breaks the single-valued map first: fix it there and this follows, which is the whole
+	 * reason the derivation is not a table here.
+	 *
+	 * The two LEGACY flat arms STAY, and what they are FOR is narrower than it looks. GB seeds
+	 * `extraTagParams` from the parsed tag string, so a pre-1.17.0 tag does arrive carrying
+	 * one — but `BaseSrcMountMigrator` (slot-fold-migrate.js) commits the fold from a mount
+	 * `useEffect`, so on a healthy stack the flat key is gone within the same tick and these
+	 * arms answer for one render pass nobody sees. They are NOT the observable path and no
+	 * manual row can drive them.
+	 *
+	 * They earn their place on a DEGRADED stack. `chainTail()` needs `window.bwsSlotFold` and
+	 * the mount migrator needs `bwsSlotFoldMigrate`; where either failed to load, the fold
+	 * never happens AND the chain cannot be parsed, so a legacy tag would preset nothing at
+	 * all. These arms are what it presets from instead, and they answer what the steps they
+	 * fold into answer. §F15.10/§F15.11 are that pair — the vocabulary withdrawn, the flat
+	 * key still landing.
 	 *
 	 * @param {Object} state     extraTagParams.
 	 * @param {string} optionKey The key control's own option key (for slot prefix).
@@ -243,25 +413,32 @@
 		if ( ! state ) { return null; }
 		var p = slotPrefix( optionKey );
 		if ( state[ p + 'srcTermIn' ] ) { return 'term'; }
-		if ( 'site' === state[ p + 'src' ] ) { return 'site'; }
-		// src:ref is deliberately NOT preset. Under src:ref the ref-hop target
-		// post type is not reliably known (parity unbuilt), so `key`-under-src:ref
-		// stays UNSCOPED — all groups + free-text — with the source-agnostic
-		// "Meta/Option Field" label rather than falsely asserting "Post". (SPEC V3.)
-		return null;
+		if ( 'ref' === state[ p + 'src' ] ) { return 'post'; }
+
+		var tail = chainTail( state, optionKey );
+		if ( ! tail ) { return null; }
+
+		var vocab = window.bwsChainKinds || {};
+		var kind  = ( vocab.steps || {} )[ tail.slug ];
+		if ( undefined === kind ) { kind = ( vocab.roots || {} )[ tail.slug ]; }
+
+		// A kind with no root label of its own is not a Location the filter can open on.
+		// That is the honest answer for `meta_row` and for anything a later step type
+		// produces that this list does not carry — never a guess at the nearest kind.
+		return ( -1 !== KINDS.indexOf( kind ) ) ? kind : null;
 	}
 
 	/**
 	 * Dynamic control label — meta/option storage-backend subtype pair (V4).
 	 * Uses the preset kind (safe-token) when known, else the source-agnostic fallback.
+	 *
+	 * NAMES THE FIELD, NOT THE CONTROL — the caller appends the noun. See `labelNoun()`.
 	 */
-	function kindLabel( kind, prefix ) {
-		var base;
-		if ( 'post' === kind ) { base = __( 'Post Meta Field', 'generateblocks' ); }
-		else if ( 'term' === kind ) { base = __( 'Term Meta Field', 'generateblocks' ); }
-		else if ( 'site' === kind ) { base = __( 'Site Option Field', 'generateblocks' ); }
-		else { base = __( 'Meta/Option Field', 'generateblocks' ); }
-		return prefix ? prefix + ' ' + base : base;
+	function kindLabel( kind ) {
+		if ( 'post' === kind ) { return __( 'Post Meta Field', 'generateblocks' ); }
+		if ( 'term' === kind ) { return __( 'Term Meta Field', 'generateblocks' ); }
+		if ( 'site' === kind ) { return __( 'Site Option Field', 'generateblocks' ); }
+		return __( 'Meta/Option Field', 'generateblocks' );
 	}
 
 	/**
@@ -327,6 +504,11 @@
 	 *                a picker scoped to repeater R keeps only records whose
 	 *                repeaterKeys include R. Machine-readable — NOT parsed from the
 	 *                breadcrumb (parent_path), which stays display-only.
+	 *   refTypes     array of post-type slugs a `refs` step THROUGH this field can land
+	 *                on (from the server `ref_types` stamp; empty for anything but a
+	 *                restricted relationship / post object). Drives the refs-tail
+	 *                narrowing (FW-13) — UNIONED across homes like `scopes`, because a
+	 *                merged record reached through two homes reaches both.
 	 *   scopes       array of the entity slugs (taxonomy slugs under kind `term`,
 	 *                post-type slugs under kind `post`) this field is scoped to, from
 	 *                the envelope GROUP's existing `scope`. Drives the root-argument
@@ -334,10 +516,10 @@
 	 *   scopeless    true if ANY home this record was reached through carried NO scope.
 	 *                An empty group scope is the discovery endpoint's own way of saying
 	 *                "any entity of that kind", so such a record is offered under every
-	 *                root argument — and it is a SEPARATE flag rather than an empty `scopes`
-	 *                because a record merged from one scoped home and one unscoped one
-	 *                has both a slug list and unrestricted reach, and unioning the two
-	 *                into one array would lose the second.
+	 *                root argument OF ITS OWN KIND — and it is a SEPARATE flag rather
+	 *                than an empty `scopes` because a record merged from one scoped home
+	 *                and one unscoped one has both a slug list and unrestricted reach,
+	 *                and unioning the two into one array would lose the second.
 	 *
 	 * @param {Object} envelope { post:[groups], term:[groups], site:[groups] }.
 	 * @return {Array} Flat merged field records.
@@ -385,6 +567,7 @@
 							paths:        [],
 							rowSeen:      false,
 							repeaterKeys: [],
+							refTypes:     [],
 							scopes:       [],
 							scopeless:    false,
 						};
@@ -405,6 +588,16 @@
 					if ( rk && rec.repeaterKeys.indexOf( rk ) === -1 ) {
 						rec.repeaterKeys.push( rk );
 					}
+
+					// Allowed post types of a relationship / post object (server
+					// `ref_types` stamp), accumulated for the same reason `scopes` is:
+					// one merged record can be the same key reached through two homes,
+					// and a step through it reaches whatever either home allows.
+					( field.ref_types || [] ).forEach( function ( pt ) {
+						if ( pt && rec.refTypes.indexOf( pt ) === -1 ) {
+							rec.refTypes.push( pt );
+						}
+					} );
 
 					// Entity scope, UNIONED across the homes a merged record was reached
 					// through — the same conservative widening `paths` and `types` take.
@@ -515,8 +708,17 @@
 	 * group / flexible) with a "(repeater)" etc. hint, so the author sees what kind
 	 * of container a path drills into. Container types come from the records
 	 * themselves (a repeater field has its own row, type:'repeater'), keyed by label.
+	 *
+	 * `allLabel` RENAMES THE ALL ROW, never what it selects. The caller passes one when the
+	 * POOL is narrowed, because "All detected fields" over a narrowed pool is a claim about
+	 * the site that the list beside it contradicts. The value stays `ALL_LOC`, so every read
+	 * of the active filter (`kindFromLocation`, `locationGroupLabel`, `applyFilters`) is
+	 * untouched — this row is named here and nowhere else.
+	 *
+	 * @param {Array}  records  Field records.
+	 * @param {string} allLabel Name for the ALL row, '' => "All detected fields".
 	 */
-	function buildLocationOptions( records ) {
+	function buildLocationOptions( records, allLabel ) {
 		// label -> container hint, from any field that IS a container.
 		var containerByLabel = Object.create( null );
 		records.forEach( function ( rec ) {
@@ -544,7 +746,10 @@
 		} );
 		paths.sort( function ( a, b ) { return a < b ? -1 : ( a > b ? 1 : 0 ); } );
 
-		var options = [ { value: ALL_LOC, label: __( 'All detected fields', 'generateblocks' ) } ];
+		var options = [ {
+			value: ALL_LOC,
+			label: allLabel || __( 'All detected fields', 'generateblocks' ),
+		} ];
 		paths.forEach( function ( p ) {
 			// Decorate the LAST segment if it names a container field.
 			var parts = p.split( BREAD );
@@ -706,48 +911,133 @@
 
 		// FW-39 D22's narrowing, applied BEFORE the repeater auto-scope so the two
 		// compose: a `{{table}}` column picker under a specific entity shows that repeater's
-		// sub-fields, of that entity. A field with no scope of its own stays offered
-		// under either kind — that is what an unscoped discovery group means.
+		// sub-fields, of that entity.
 		//
-		// NO FALL-BACK-TO-ALL when the narrowed list comes out empty, unlike the
-		// repeater scope below. There, an empty result means the scope handle matched
-		// nothing discovered and the author is stranded with no picker; here it means
-		// the selected entity genuinely has no fields, which is the answer the narrowing
-		// exists to give. Free text still commits any key either way.
+		// A RECORD OF ANOTHER KIND IS NEVER OFFERED, scoped or not — the predicate is
+		// `narrowToScope()`'s and stated there. Observed here: a selected term is no longer
+		// offered post-kind unscoped fields, a selected post no longer term-kind ones, and
+		// the picker stops offering a field the render cannot reach.
+		//
+		// THE SLUG LIST IS ONE LONG, and it is the entity's OWN scope: the taxonomy a
+		// specific term belongs to, the post type a specific post is. An argument that will
+		// not resolve answers '' above, which short-circuits to the unnarrowed list rather
+		// than to an empty one.
 		var scopedRecords = useMemo( function () {
 			if ( '' === argScope ) { return allRecords; }
-			return allRecords.filter( function ( rec ) {
-				return rec.scopeless || rec.scopes.indexOf( argScope ) !== -1;
-			} );
-		}, [ allRecords, argScope ] );
+			return narrowToScope( allRecords, rootArgKind, [ argScope ] );
+		}, [ allRecords, argScope, rootArgKind ] );
+
+		// The chain's tail, read once and asked two questions — which post types a `refs`
+		// argument reaches (here), and which container a `rows` argument names (the
+		// Location preset further down). Both are the tail's to answer, and the read sits
+		// up here because the first of them narrows the pool the second reads.
+		var tail = chainTail( state, key );
+
+		// FW-13's refs-tail narrowing, applied ON TOP of D22's rather than instead of it.
+		// The two answer different questions off different positions — D22 narrows by the
+		// entity a ROOT names, this by the post types a `refs` step can LAND on — and a
+		// chain cannot be in both states at once anyway, since a chain carrying a step has
+		// no root argument to resolve. Composed rather than branched so that stays an
+		// observation about today's grammar and not something the code depends on.
+		//
+		// THE KIND IS `post` BECAUSE THE SLUGS ARE POST TYPES, not because `refs` produces
+		// `post`. A post-type slug is a subtype of kind `post` and of nothing else, so
+		// handing this list to `narrowToScope()` under any other kind would be matching
+		// slugs across kinds — the thing that predicate exists to refuse.
+		//
+		// AN UNRESTRICTED FIELD NARROWS NO FURTHER, and neither does one the discovery
+		// never saw. Both answer [], and both keep every post type — loose, and honest,
+		// because the type genuinely varies per target.
+		var refTypes = useMemo( function () {
+			return ( tail && 'refs' === tail.slug ) ? refTailTypes( allRecords, tail.arg ) : [];
+		}, [ allRecords, tail ] );
+
+		// THE KIND GATE IS UNCONDITIONAL; only the TYPE narrowing is conditional. `refs`
+		// produces `post` whatever field it steps through — the engine forces it — so a
+		// term or site record is unreachable through this tail either way, and which of
+		// the two arms below runs says nothing about that. Gating in one arm only left the
+		// other offering 16 unreadable fields one click away, behind a Location preset that
+		// is a starting VIEW and widens back; the preset was doing a POOL's job.
+		//
+		// The kind still arrives as a literal here rather than off the vocabulary, which is
+		// the narrow form of the rule: binding the pool to whatever kind the chain resolves
+		// to, for every step type and not just this one, is FW-13's Open item — it has to
+		// stand down for a declaring root whose argument will not resolve (§F13.7), and
+		// that is three rules in conversation rather than this one.
+		var refScoped = useMemo( function () {
+			if ( ! tail || 'refs' !== tail.slug ) { return scopedRecords; }
+			if ( refTypes.length ) { return narrowToScope( scopedRecords, 'post', refTypes ); }
+			return scopedRecords.filter( function ( rec ) { return 'post' === rec.kind; } );
+		}, [ scopedRecords, refTypes, tail ] );
 
 		var records = useMemo( function () {
-			if ( ! scopeToRepeater ) { return scopedRecords; }
-			var scoped = scopedRecords.filter( function ( rec ) {
+			if ( ! scopeToRepeater ) { return refScoped; }
+			var scoped = refScoped.filter( function ( rec ) {
 				return rec.repeaterKeys && rec.repeaterKeys.indexOf( scopeRepeaterKey ) !== -1;
 			} );
 			// If the repeater key matched NO discovered sub-fields (an unregistered /
 			// free-typed repeater, or a non-repeater key), do NOT collapse to an empty
 			// list — that would strand the author with no picker and no way back. Fall
 			// through to the full pool; free-text still commits any sub-field name.
-			return scoped.length ? scoped : scopedRecords;
-		}, [ scopedRecords, scopeToRepeater, scopeRepeaterKey ] );
+			return scoped.length ? scoped : refScoped;
+		}, [ refScoped, scopeToRepeater, scopeRepeaterKey ] );
+
+		// IS THE POOL NARROWED? Either narrowing above answers yes — the entity scope a
+		// declaring root resolved (D22), or a `refs` tail's kind gate (FW-13), which binds
+		// to `post` whether or not the types are known. Both drop records the filter's own
+		// options can then never reach, which is the property the ALL row has to stop
+		// claiming otherwise. The repeater auto-scope is not here: it HIDES both selectors.
+		var poolNarrowed = ( '' !== argScope ) || !! ( tail && 'refs' === tail.slug );
 
 		var locationOptions = useMemo( function () {
-			return buildLocationOptions( records );
-		}, [ records ] );
+			// Naming the narrowing on the ALL row is the whole fix for it reading as a lie.
+			// It is NOT a lever back to the unnarrowed pool and must not grow into one: the
+			// records it dropped are ones the render cannot reach off this source, so the
+			// ways out are the honest ones — clear the entity, or type the key by hand.
+			return buildLocationOptions( records, poolNarrowed
+				? __( 'All available fields', 'generateblocks' )
+				: '' );
+		}, [ records, poolNarrowed ] );
 
 		var typeOptions = useMemo( function () {
 			return buildTypeOptions( records );
 		}, [ records ] );
 
-		// Effective location: explicit override, else safe-token preset path, else All.
+		// Effective location: explicit override, else the preset path, else All.
+		//
+		// TWO PRESETS, most-specific first. A chain ending on a repeater names the exact
+		// home of every field the read can reach, so it beats the sibling token's KIND,
+		// which is that same home three segments shallower. Either way this is a starting
+		// view and not a lock — the selector stays visible and widens back to All.
 		var preset       = presetKind( state, key );
-		var presetPath   = preset ? kindRootLabel( preset ) : ALL_LOC;
-		// Only use the preset path if it actually exists in the options (fields of
-		// that kind were discovered); otherwise fall back to All.
-		var presetExists = locationOptions.some( function ( o ) { return o.value === presetPath; } );
-		var activeLoc    = locOverride !== null ? locOverride : ( presetExists ? presetPath : ALL_LOC );
+		var rowPath      = containerRowPath( records, tail ? tail.arg : '' );
+		// Only use a preset path that actually exists in the options — fields of that kind,
+		// or children of that container, were discovered. Otherwise fall back: a repeater
+		// nobody discovered sub-fields for still leaves the sibling token's kind to say
+		// something, and a kind with no fields at all falls through to All.
+		function locExists( p ) {
+			return locationOptions.some( function ( o ) { return o.value === p; } );
+		}
+		//
+		// A DECLARING ROOT presets the LABEL and not the FILTER. Its scope narrowing (D22)
+		// already answers which fields are readable off that entity, and it answers with a
+		// rule the kind filter cannot see: an UNSCOPED group stays offered, so the narrowed
+		// pool holds records whose kind root the filter would drop (§F13.2 is that rule).
+		// Two narrowings derived from one token, and the finer one wins — the coarser must
+		// not silently overrule it, least of all on a selection that failed to resolve,
+		// where narrowing to nothing and "this entity has no fields" look identical
+		// (§F13.7). The kind still reaches the LABEL, which describes the read without
+		// claiming anything about the list.
+		//
+		// THE TEST IS THE ROOT, NOT ITS ARGUMENT. Gating on a RESOLVED argument instead made
+		// the filter LOOSEN as the author supplied information — an empty Term source preset
+		// "Term fields" (nothing to defer to yet), and choosing a term dropped it back to
+		// "All detected fields". One source, one answer, whichever state it is in.
+		var isDeclaringRoot = tail && ( window.bwsRootArgKinds || {} )[ tail.slug ];
+		var presetPath   = ( rowPath && locExists( rowPath ) )
+			? rowPath
+			: ( ( preset && ! isDeclaringRoot ) ? kindRootLabel( preset ) : ALL_LOC );
+		var activeLoc    = locOverride !== null ? locOverride : ( locExists( presetPath ) ? presetPath : ALL_LOC );
 
 		// Effective type: explicit override, else the option's typeDefault (e.g. the
 		// {{table}} tag-level `key` pre-scopes to 'repeater' so the picker opens showing
@@ -862,14 +1152,20 @@
 		var label;
 		if ( props.dynamicLabel ) {
 			var groupLbl = locationGroupLabel( activeLoc );
-			if ( groupLbl ) {
-				// "<Group> Field" (e.g. "Client Details Field"). Group names are ACF
-				// author-supplied, so a simple concat reads correctly across locales.
-				var base = groupLbl + ' ' + __( 'Field', 'generateblocks' );
-				label = props.labelPrefix ? props.labelPrefix + ' ' + base : base;
-			} else {
-				label = kindLabel( kindFromLocation( activeLoc ) || preset, props.labelPrefix );
-			}
+			// "<Group> Field" (e.g. "Client Details Field"). Group names are ACF
+			// author-supplied, so a simple concat reads correctly across locales.
+			var base = groupLbl
+				? groupLbl + ' ' + __( 'Field', 'generateblocks' )
+				: kindLabel( kindFromLocation( activeLoc ) || preset );
+			// "KEY" IS WHAT MAKES THIS A CONTROL LABEL RATHER THAN A RESTATEMENT. Every
+			// static label this replaces ends in it ("Meta/Option Field Key"), and the
+			// dynamic path used to drop it — which put the word-for-word string
+			// "Meta/Option Field" directly under the `use` select's own VALUE of the same
+			// name, one as a chosen option and one as the next control's label. The noun
+			// is appended HERE, once, rather than carried in `kindLabel()` and again in the
+			// group branch, because both name the FIELD and neither names the control.
+			base = base + ' ' + __( 'Key', 'generateblocks' );
+			label = props.labelPrefix ? props.labelPrefix + ' ' + base : base;
 		} else {
 			label = props.label;
 		}

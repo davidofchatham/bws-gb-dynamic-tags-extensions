@@ -50,7 +50,7 @@ interface SourceInterface {
 	public const ROOT_ARGLESS_OWNER_RESOLVES = 'owner-resolves';
 
 	/**
-	 * Get the unique source key (e.g. 'post', 'term', 'portal').
+	 * Get the unique source key (e.g. 'post', 'term', 'site').
 	 *
 	 * @return string
 	 */
@@ -82,7 +82,7 @@ interface SourceInterface {
 	/**
 	 * Get the tag name prefix for tags generated from this source.
 	 *
-	 * @return string e.g. 'post', 'term', 'portal'.
+	 * @return string e.g. 'post', 'term', 'site'.
 	 */
 	public function get_tag_prefix(): string;
 
@@ -103,7 +103,7 @@ interface SourceInterface {
 	/**
 	 * Get the effective source identifier for try_ tag src_N option values (direct).
 	 *
-	 * @return string Single-word identifier, e.g. 'post', 'portal'.
+	 * @return string Single-word identifier, e.g. 'post', 'site'.
 	 */
 	public function get_effective_source_id(): string;
 

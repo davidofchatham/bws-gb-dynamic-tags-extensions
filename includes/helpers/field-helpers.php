@@ -804,8 +804,16 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
 		return bws_meta_handler_read( (int) $post_id, $key, $single_only, 'get_post_meta' );
 	}
 
-	// Term archive fallback — non-REST only.
-	if ( ! ( defined( 'REST_REQUEST' ) && REST_REQUEST ) ) {
+	// Term archive fallback. bws_wp_is_term_archive() owns the criterion — this branch
+	// used to ask a bare get_queried_object() instead, which claimed a term the page was
+	// not about, and the REST_REQUEST guard below was standing in for the real gate.
+	//
+	// THE GUARD IS KEPT ON PURPOSE, THOUGH IT IS NOW SUBSUMED: the predicate already refuses
+	// under a REST render on its own. It is dead rather than load-bearing,
+	// and nothing measures REST behaviour here (text-test-matrix.md §T4 runs through
+	// `bws render-tag`, which is CLI). Deleting dead code with no pin buys nothing; it goes
+	// when FW-7 deletes the whole branch.
+	if ( ! ( defined( 'REST_REQUEST' ) && REST_REQUEST ) && bws_wp_is_term_archive() ) {
 		$queried = get_queried_object();
 		if ( $queried instanceof WP_Term ) {
 			return bws_meta_handler_read( (int) $queried->term_id, $key, $single_only, 'get_term_meta' );
@@ -839,6 +847,51 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
 }
 
 /**
+ * Read a post-context field without losing an ARRAY value — two passes.
+ *
+ * bws_read_field()'s $single_only = false is not usable on its own. GB's
+ * Meta_Handler answers the fallback ('') for a plain scalar when an upstream
+ * filter (ACF's generateblocks_get_meta_pre_value) populated the value, so a
+ * URL/ID-format ACF image field would read empty. Ask single-only first, and
+ * fall through to the array-preserving pass only when that yields nothing.
+ *
+ * THE ORDER IS NOT LOAD-BEARING, and that was measured rather than assumed:
+ * the passes answer '' for opposite inputs (pass 1 coerces an array away, pass 2
+ * blanks a filter-populated scalar) and no value is both, so either order
+ * recovers the same value — swapping them fails nothing in
+ * tools/test/read-resolved-source-test.php §R3. It reads single-only first
+ * because that is the common case and answers it in one read.
+ *
+ * TWO CALLERS, AND THE SECOND ONE IS WHY THIS IS A FUNCTION RATHER THAN A LINE
+ * INSIDE THE SEAM. FW-74 ticket 01 asked for this read to live in
+ * bws_read_resolved_source_value()'s post arm, with bws_get_meta_image_data()
+ * entering through it. The getter cannot: bws_custom_image_core() calls it with
+ * NO post id at all whenever the block stands in a loop item (its $read_may_serve
+ * branch), and that is a shape the seam's post arm does not serve — its own
+ * guard comment owns why. Routing the getter through the seam would have blanked
+ * every repeater-row image read. Both callers therefore share this, which is what
+ * the ticket wanted from the move: one owner for the read, not two copies.
+ *
+ * @since 1.21.0 Extracted from bws_get_meta_image_data() (which read this way
+ *               since 1.7.1) so the L2 read seam's post arm reads the same way.
+ * @param string    $key      Meta/ACF field key.
+ * @param mixed     $instance Block instance (WP_Block) — bws_read_field context cache.
+ * @param int|false $post_id  Resolved post ID, or false.
+ * @return mixed Field value with arrays preserved, '' on miss, null when no context resolved.
+ */
+if ( ! function_exists( 'bws_read_field_preserving_arrays' ) ) {
+function bws_read_field_preserving_arrays( string $key, $instance, $post_id ) {
+	$value = bws_read_field( $key, $instance, $post_id, true );
+
+	if ( '' === $value || null === $value ) {
+		$value = bws_read_field( $key, $instance, $post_id, false );
+	}
+
+	return $value;
+}
+}
+
+/**
  * Read a meta/ACF field for a term context.
  *
  * Routes through GenerateBlocks_Meta_Handler. GB Pro builds the "term_{$id}"
@@ -868,37 +921,42 @@ function bws_read_term_field( string $key, int $term_id, bool $single_only = tru
 /**
  * Read one resolved source's field value at L2, dispatched by KIND (SPEC §V12).
  *
- * The factory owns source-SELECTION; this owns the READ. site → option read;
- * term → term meta; post → post meta with an EXPLICIT id (triggers the v1.7.1
- * explicit-wins rule in bws_read_field, bypassing ITS own loop/term inference so
- * the factory's resolved source is authoritative — no double resolution).
- * meta_row → the row's own key. user → plain user meta (FW-48 seam half).
- * Returns '' on miss (caller drops empties).
+ * THE KIND DISPATCH LIVES HERE, and so does the post/0 guard. The factory owns
+ * source-SELECTION; this owns the READ. site → option read; term → term meta;
+ * post → post meta with an EXPLICIT id (triggers the v1.7.1 explicit-wins rule
+ * in bws_read_field, bypassing ITS own loop/term inference so the factory's
+ * resolved source is authoritative — no double resolution). meta_row → the row's
+ * own key. user → plain user meta (FW-48 seam half).
  *
- * @since 1.14.0
- * @since 1.16.0 user kind (FW-48 seam half; unreachable until the post→author step).
+ * RETURNS WHAT THE STORE HOLDS, arrays included. bws_read_resolved_source() is
+ * the string coercion over this, and every reader that wants one value takes
+ * that one; a reader that would DROP an array value by asking (image is the
+ * live case — an ACF image sub-field is an array) takes this one.
+ *
+ * The term/site/user arms are single-value reads by their own readers' rules
+ * and are not widened here: an array-preserving term read answers '' for a
+ * filter-populated scalar, which would move what the string seam returns.
+ *
+ * @since 1.21.0 Split out of bws_read_resolved_source(), which keeps its signature.
  * @param array  $source   One resolved source ({kind,id}|{kind:site}|{kind:meta_row,row}).
  * @param string $key      Field key.
  * @param object $instance GB instance (bws_read_field context cache).
- * @return string Raw value, '' on miss.
+ * @return mixed Raw value, '' on miss.
  */
-if ( ! function_exists( 'bws_read_resolved_source' ) ) {
-function bws_read_resolved_source( array $source, string $key, $instance ): string {
+if ( ! function_exists( 'bws_read_resolved_source_value' ) ) {
+function bws_read_resolved_source_value( array $source, string $key, $instance ) {
 	$kind = $source['kind'] ?? '';
 
 	switch ( $kind ) {
 		case 'site':
-			$value = function_exists( 'bws_site_read_option' ) ? bws_site_read_option( $key ) : '';
-			return is_scalar( $value ) ? (string) $value : '';
+			return function_exists( 'bws_site_read_option' ) ? bws_site_read_option( $key ) : '';
 
 		case 'term':
-			$raw = bws_read_term_field( $key, (int) ( $source['id'] ?? 0 ) );
-			return ( is_scalar( $raw ) && '' !== (string) $raw ) ? (string) $raw : '';
+			return bws_read_term_field( $key, (int) ( $source['id'] ?? 0 ) );
 
 		case 'meta_row':
 			$row = $source['row'] ?? array();
-			$raw = is_array( $row ) ? ( $row[ $key ] ?? '' ) : '';
-			return ( is_scalar( $raw ) && '' !== (string) $raw ) ? (string) $raw : '';
+			return is_array( $row ) ? ( $row[ $key ] ?? '' ) : '';
 
 		case 'user':
 			// FW-48 (seam half): plain user-meta read, NOT the analog reader
@@ -912,8 +970,7 @@ function bws_read_resolved_source( array $source, string $key, $instance ): stri
 			if ( $user_id <= 0 || bws_field_key_disallowed( $key ) ) {
 				return '';
 			}
-			$raw = get_user_meta( $user_id, $key, true );
-			return ( is_scalar( $raw ) && '' !== (string) $raw ) ? (string) $raw : '';
+			return get_user_meta( $user_id, $key, true );
 
 		case 'post':
 			// Explicit id → v1.7.1 explicit-wins → bypasses bws_read_field's own
@@ -927,11 +984,33 @@ function bws_read_resolved_source( array $source, string $key, $instance ): stri
 			if ( $post_source_id <= 0 ) {
 				return '';
 			}
-			$raw = bws_read_field( $key, $instance, $post_source_id );
-			return ( is_scalar( $raw ) && '' !== (string) $raw ) ? (string) $raw : '';
+			return bws_read_field_preserving_arrays( $key, $instance, $post_source_id );
 	}
 
 	return '';
+}
+}
+
+/**
+ * The STRING half of the L2 read seam — bws_read_resolved_source_value(), coerced.
+ *
+ * Signature unchanged since 1.14.0: one value per source, '' on miss, caller
+ * drops empties. An array value (an ACF image field) is a miss HERE and is not
+ * one at the raw seam — which is the whole reason the two are separate.
+ *
+ * @since 1.14.0
+ * @since 1.16.0 user kind (FW-48 seam half; unreachable until the post→author step).
+ * @since 1.21.0 The kind dispatch moved to bws_read_resolved_source_value().
+ * @param array  $source   One resolved source ({kind,id}|{kind:site}|{kind:meta_row,row}).
+ * @param string $key      Field key.
+ * @param object $instance GB instance (bws_read_field context cache).
+ * @return string Raw value, '' on miss.
+ */
+if ( ! function_exists( 'bws_read_resolved_source' ) ) {
+function bws_read_resolved_source( array $source, string $key, $instance ): string {
+	$raw = bws_read_resolved_source_value( $source, $key, $instance );
+
+	return ( is_scalar( $raw ) && '' !== (string) $raw ) ? (string) $raw : '';
 }
 }
 

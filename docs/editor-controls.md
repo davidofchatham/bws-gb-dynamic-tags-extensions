@@ -91,18 +91,13 @@ Rendered by one component in both places a chain is authored — the base tag's 
 control and a multislot container's `bws-slot-fold` slot — so a step reads identically on
 `{{text}}` and inside a `{{join}}` field.
 
-**Every string that names a SCHEMA fact arrives on the PHP option definition** — the step enum's
-row labels, the Relationship Field Key picker and the whole of the per-step limit control (its per-step labels and both help forms), all from
-`bws_fold_wire_vocabulary()` / `bws_base_traversal_options()`. The control hand-authors none of
-those; a second copy there is how the image tag's `Return type:` / `Return image as:` labels
-drifted. The two strings it does author — the step picker's own "Source" label and "Taxonomy" —
-name the control rather than anything on the wire, so there is no definition for them to disagree
-with.
+**Every string that names a SCHEMA fact arrives on the PHP option definition** — the step enum's row labels, the Relationship Field Key and Repeater Field Key pickers and the whole of the per-step limit control (its per-step labels and both help forms), all from `bws_fold_wire_vocabulary()` / `bws_base_traversal_options()` / `bws_fold_rows_picker_def()`. The control hand-authors none of those; a second copy there is how the image tag's `Return type:` / `Return image as:` labels drifted. The two strings it does author — the step picker's own "Source" label and "Taxonomy" — name the control rather than anything on the wire, so there is no definition for them to disagree with.
 
 | Control label | Position in the chain value | Help text | Shown when |
 |---|---|---|---|
 | Source | the step's own **slug** — `refs` / `terms` / `rows`, or at step 1 the chain ROOT (`current`, `site`, a registered root, or `same` in a slot ≥2) | — | Every step. The visible label is suppressed on a single-step chain (the group caption already says "Source"); the label still exists for screen readers |
-| Relationship Field Key | the **arg** of a `refs` (or `rows`) step — `refs,<field>` | ACF relationship or post object field key. | Step slug is `refs` or `rows`. Same definition the flat `ref` option ships, so the picker reads alike either side of the fold |
+| Relationship Field Key | the **arg** of a `refs` step — `refs,<field>` | ACF relationship or post object field key. | Step slug is `refs`. Same definition the flat `ref` option ships, so the picker reads alike either side of the fold |
+| Repeater Field Key | the **arg** of a `rows` step — `rows,<field>` | ACF repeater (or meta) field key. The tag reads each row of this repeater. | Step slug is `rows`. Its OWN definition since 1.21.0 (`bws_fold_rows_picker_def()`), not the `refs` one it borrowed while the step was hand-edited wire: a repeater name has only ever lived inside the chain value, so there is no flat option to derive it from. Opens PRE-SCOPED to repeater fields with the filter controls left visible, so a plain-meta repeater (which discovery cannot type) stays reachable |
 | Taxonomy | the **arg** of a `terms` step — `terms,<taxonomy>` | — | Step slug is `terms`. Enum = public taxonomies, shipped with the definition |
 | Limit Posts Read / Limit Terms Read / Limit Repeater Rows Read (per step; *Limit items read* is the fallback) | the step's **`limit(N)` token** — `refs,office,limit(3)` | *How many items this step reads, in stored order. An item with an empty field keeps its place. Leave blank for all.* — or, where an earlier step fans, *How many items this step reads for each previous-step item, in stored order. An item with an empty field keeps its place. Leave blank for all.* | Every step (never a bare root: a source resolving one entity has nothing to bound). Blank = unlimited; `0` is normalized to blank and never serialized, `-1` parses the same way for hand-edited wire |
 

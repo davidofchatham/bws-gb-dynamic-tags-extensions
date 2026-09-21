@@ -787,7 +787,67 @@
 
 <p class="gb-text">F9.4 site read still WINS over a hand-edited term hop &#8211; the pair is hand-edit only, and every arm has always let site win (-> info@example.test, the same value): info@example.test</p>
 
-<p class="gb-text">F9.5 STILL DIVERGENT by decision: no base arm consumes a meta_row source (-> empty; the table tag fills this gap, not the text arm):</p>
+<p class="gb-text">F9.5 a rows chain reads its repeater rows (-> Alice Adams, Bob Brown; rendered EMPTY before FW-74): Alice Adams, Bob Brown</p>
+
+<p class="gb-text">F9.5b the tag list seam applies across rows &#8211; limit slices the row list (-> Alice Adams, one of two): Alice Adams</p>
+
+<p class="gb-text">F9.5c an ANALOG refuses on a row (-> empty; a row has no title, and a wrong entity read would print one):</p>
+
+<p class="gb-text">F9.5d a COLLAPSING family reads the FIRST row only (-> Founding partner, not both rows; rendered EMPTY before): Founding partner</p>
+
+<p class="gb-text">F9.5e content analog refuses on a row (-> empty; printed the WHOLE PAGE CONTENT before FW-74):</p>
+
+<p class="gb-text">F9.5e excerpt analog, same assertion (-> empty; printed the page excerpt before FW-74):</p>
+
+<p class="gb-text">F9.5f the email tag on rows, needed no arm (-> alice@example.test, bob@example.test as mailto links): <a href="mailto:alice@example.test">alice@example.test</a>, <a href="mailto:bob@example.test">bob@example.test</a></p>
+
+<p class="gb-text">F9.5g the phone tag on rows, needed no arm (-> (617) 555-0142, (617) 555-0187 as tel links): <a href="tel:+1-617-555-0142">(617) 555-0142</a>, <a href="tel:+1-617-555-0187">(617) 555-0187</a></p>
+
+<p class="gb-text">F9.5h try_content on a row slot (-> Founding partner; rendered EMPTY before FW-74): Founding partner</p>
+
+<p class="gb-text">F9.5h try_email on a row slot (-> both addresses as mailto links; rendered EMPTY before FW-74): <a href="mailto:alice@example.test">alice@example.test</a>, <a href="mailto:bob@example.test">bob@example.test</a></p>
+
+<p class="gb-text">F9.5h try_phone on a row slot, limit(1) slices (-> (617) 555-0142 alone; rendered EMPTY before FW-74): <a href="tel:+1-617-555-0142">(617) 555-0142</a></p>
+
+<p class="gb-text">F9.5i a refusing row slot ADVANCES the attempt chain (-> (987) 654-3210 from slot B, the ambient page field): (987) 654-3210</p>
+
+<p class="gb-text">F9.5j title has NO row arm and REFUSES (-> empty; printed &#8220;Matrix: Post Meta&#8221; before FW-74):</p>
+
+<p class="gb-text">F9.5j CONTROL, the bare tag on the same page (-> Matrix: Post Meta &#8211; what the row above used to print): Matrix: Post Meta</p>
+
+<p class="gb-text">F9.5k permalink has NO row arm and REFUSES (-> empty; printed this page URL before FW-74):</p>
+
+<p class="gb-text">F9.5k CONTROL (-> /matrix-post-meta/ &#8211; what the row above used to print): /matrix-post-meta/</p>
+
+<p class="gb-text">F9.5l an image sub-field inside a row, ACF array format (-> fixture-photo-alice.png, the FIRST row photo; REFUSED before FW-74, and printed the feature_image of THIS page before that): /wp-content/uploads/2026/09/fixture-photo-alice.png</p>
+
+<p class="gb-text">F9.5l CONTROL (-> fixture-photo.png, the image on THIS page &#8211; a row read that printed this one is the old leak): /wp-content/uploads/2026/07/fixture-photo.png</p>
+
+<p class="gb-text">F9.5l2 same picture through the ACF id format (-> the SAME fixture-photo-alice.png URL): /wp-content/uploads/2026/09/fixture-photo-alice.png</p>
+
+<p class="gb-text">F9.5l3 same picture through the ACF url format, the one the string seam could always carry (-> the SAME URL again): /wp-content/uploads/2026/09/fixture-photo-alice.png</p>
+
+<p class="gb-text">F9.5l4 the image analog refuses on a row (-> empty; a row has no featured image, and reading the one on the surrounding post would be a plausible wrong value):</p>
+
+<p class="gb-text">F9.5l5 try_image on a row slot (-> the same fixture-photo-alice.png; rendered EMPTY before FW-74): /wp-content/uploads/2026/09/fixture-photo-alice.png</p>
+
+<p class="gb-text">F9.5m a date sub-field inside a row, fanning across both rows (-> March 4, 2029, June 10, 2030; REFUSED before FW-74, and printed the 15/08/2030 below before that): March 4, 2029, June 10, 2030</p>
+
+<p class="gb-text">F9.5m CONTROL (-> 15/08/2030, the date field on THIS page &#8211; a row read that printed this one is the old leak): 15/08/2030</p>
+
+<p class="gb-text">F9.5m2 a step limit bounds the row fan (-> March 4, 2029 alone): March 4, 2029</p>
+
+<p class="gb-text">F9.5m3 the tag sep joins the row fan (-> March 4, 2029 / June 10, 2030): March 4, 2029 / June 10, 2030</p>
+
+<p class="gb-text">F9.5m4 a d/m/Y sub-field is parsed format-agnostically on a row, a KNOWN BOUNDARY (-> April 3, 2030, November 22, 2030; row 1 means 4 March and reads as the wrong month, row 2 is unambiguous and is right): April 3, 2030, November 22, 2030</p>
+
+<p class="gb-text">F9.5m5 try_datetime_single on a row slot, tag-level key as always (-> the same two dates as F9.5m; rendered EMPTY before FW-74): March 4, 2029, June 10, 2030</p>
+
+<p class="gb-text">F9.5n datetime_range is a SEPARATE family with its own refusal site, and reads a row pair (-> March 4, 2029–March 3, 2031, June 10, 2030–June 9, 2032; REFUSED before FW-74): March 4, 2029–March 3, 2031, June 10, 2030–June 9, 2032</p>
+
+<p class="gb-text">F9.5n CONTROL (-> August 1–9, 2030, the range on THIS page &#8211; what the row above printed before FW-74): August 1–9, 2030</p>
+
+<p class="gb-text">F9.5n2 try_datetime_range on a row slot (-> the same two ranges as F9.5n; rendered EMPTY before FW-74): March 4, 2029–March 3, 2031, June 10, 2030–June 9, 2032</p>
 
 <p class="gb-text">F9.6 flat ref+term with an EXPLICIT limit now fans across every ref-d post (-> All Users, All Users; was All Users): All Users, All Users</p>
 
@@ -819,7 +879,7 @@
 
 <p class="gb-text">F9b.9 per-arm link-wrap survived the merge into one emit (-> the term title, LINKED): Sales</p>
 
-<p class="gb-text">F9b.11 a repeater-row source is still refused, and the next attempt still runs (-> Captain): Captain</p>
+<p class="gb-text">F9b.11 a repeater-row source RESOLVES since FW-74, so attempt 1 wins and attempt 2 never runs (-> Alice Adams, Bob Brown; was Captain, slot 2): Alice Adams, Bob Brown</p>
 
 <p class="gb-text">F9b.12 an inexpressible chain still skips at the SEAM, which #103 did not touch (-> Captain): Captain</p>
 </div>
@@ -859,11 +919,11 @@
 
 <div><ol >
 <li class="gb-loop-item">
-<p class="gb-text">F9c.4 a WIRE-stated repeater source is refused even from inside a repeater row, and the ambient attempt still resolves (-> Engineering / Operations): Engineering</p>
+<p class="gb-text">F9c.4 a WIRE-stated repeater source reads a NESTED repeater from inside a row, finds none, and the ambient attempt still resolves (-> Engineering / Operations): Engineering</p>
 </li>
 
 <li class="gb-loop-item">
-<p class="gb-text">F9c.4 a WIRE-stated repeater source is refused even from inside a repeater row, and the ambient attempt still resolves (-> Engineering / Operations): Operations</p>
+<p class="gb-text">F9c.4 a WIRE-stated repeater source reads a NESTED repeater from inside a row, finds none, and the ambient attempt still resolves (-> Engineering / Operations): Operations</p>
 </li>
 </ol></div>
 
@@ -873,6 +933,34 @@
 </li>
 
 <li class="gb-loop-item"></li>
+</ol></div>
+
+<div><ol >
+<li class="gb-loop-item">
+<p class="gb-text">F9c.6 the BASE twin of F9c.5, and the conflation pin: a chain inside a row follows the WIRE (-> Jane Partner / empty; EMPTY on both rows if the branch dispatches on the resolved base kind): Jane Partner</p>
+</li>
+
+<li class="gb-loop-item"></li>
+</ol></div>
+
+<div><ol >
+<li class="gb-loop-item">
+<p class="gb-text">F9c.7 a bare image tag in a repeater row takes the loop fallthrough (-> the alice photo URL then the bob one, one per row): /wp-content/uploads/2026/09/fixture-photo-alice.png</p>
+</li>
+
+<li class="gb-loop-item">
+<p class="gb-text">F9c.7 a bare image tag in a repeater row takes the loop fallthrough (-> the alice photo URL then the bob one, one per row): /wp-content/uploads/2026/09/fixture-photo-bob.png</p>
+</li>
+</ol></div>
+
+<div><ol >
+<li class="gb-loop-item">
+<p class="gb-text">F9c.8 a bare datetime tag in a repeater row takes the loop fallthrough (-> March 4, 2029 then June 10, 2030, one per row): March 4, 2029</p>
+</li>
+
+<li class="gb-loop-item">
+<p class="gb-text">F9c.8 a bare datetime tag in a repeater row takes the loop fallthrough (-> March 4, 2029 then June 10, 2030, one per row): June 10, 2030</p>
+</li>
 </ol></div>
 </div>
 
@@ -887,9 +975,9 @@
 
 <p class="gb-text">F10.3 a SECOND ref hop now runs and finds nothing (staff carry no related_staff of their own), so slot 2 answers (-> Captain, as it did when slot 1 was SKIPPED): Captain</p>
 
-<p class="gb-text">F10.4 a rows step resolves and renders nothing &#8211; no join/try_ arm assembles a repeater row, which is why it is on no step offer (-> Captain): Captain</p>
+<p class="gb-text">F10.4 a rows step resolves and its rows JOIN with the next slot since FW-74 (-> Alice Adams, Bob Brown, Captain; was Captain alone): Alice Adams, Bob Brown, Captain</p>
 
-<p class="gb-text">F10.4 BASE twin &#8211; the refusal belongs to the CONTAINER, not to the slot spelling, so the plain tag is empty too (-> EMPTY; F9.5 is the same fact stated on the base tag):</p>
+<p class="gb-text">F10.4 BASE twin &#8211; a slot absorbs the row read through the text seam, so the plain tag reads the same rows (-> Alice Adams, Bob Brown; F9.5 is the same fact stated on the base tag): Alice Adams, Bob Brown</p>
 
 <p class="gb-text">F10.5 ref+term on department &#8211; expressible before #104 too, empty then and now (-> Captain): Captain</p>
 

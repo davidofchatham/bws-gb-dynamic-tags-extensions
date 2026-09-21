@@ -223,13 +223,19 @@ function bws_value_looks_time_only( $value ) {
  *
  * FW-3(a) compat shim: the datetime cores' public signatures historically took
  * a bare post id, the `'option'` site sentinel, or an ACF term object-id string
- * ("{taxonomy}_{term_id}") in their first arg. External callers still pass
- * those forms (bws-portal-system maps `bws_datetime_*_core` by name; try_/term_
- * template closures pass scalars), so every legacy shape maps here onto the
- * payload shape the source factory emits (`bws_resolve_base_source()`), and the
- * cores + parse layer branch on `kind` — never on string-shape sniffing. This
- * shim is FW-3 residue: it dies when portal-system and the registry closures
- * thread resolved sources themselves (FW-38 coordination).
+ * ("{taxonomy}_{term_id}") in their first arg. Callers still pass those forms
+ * (the registry's template closures — `post_fn` / `term_fn` / `try_core_fn` /
+ * `try_term_fn` — pass scalars, and the callbacks pass the `'option'`
+ * sentinel), so every legacy shape maps here onto the payload shape the source
+ * factory emits (`bws_resolve_base_source()`), and the cores + parse layer
+ * branch on `kind` — never on string-shape sniffing. This shim is FW-3 residue:
+ * it dies when those closures thread resolved sources themselves.
+ *
+ * NO EXTERNAL CALLER REMAINS. One integrating plugin mapped `bws_datetime_*_core`
+ * by name in its template map until 2026-09-08, when it deleted that map along
+ * with the whole prefixed tag family it generated; its only surviving
+ * integration is a registered chain root. Retiring this shim is therefore an
+ * in-repo refactor, not the cross-plugin coordination it was scoped for.
  *
  * Payload: `['kind' => 'post'|'term'|'site', 'id' => int|false, 'taxonomy' => string]`
  * — 'taxonomy' on term kind only; a false 'id' means no entity (a repeater row
@@ -282,6 +288,9 @@ function bws_datetime_coerce_read_target( $target ) {
  * @since 3.0.0
  * @since 1.15.0 First arg accepts a resolved-source payload (FW-3a); legacy
  *               scalars still coerced.
+ * @since 1.21.0 `meta_row` VALUE leg (FW-74) — a repeater row reads its sub-field
+ *               through the L2 seam. Format-agnostic by construction; see the
+ *               read closure below for why, and what closes it.
  * @param array|int|string|false $target Resolved source (or legacy post id /
  *                                       'option' / "{tax}_{id}" via the shim)
  * @param string $date_field Primary date/datetime/time field key
@@ -308,6 +317,7 @@ function bws_parse_combined_date_time( $target, $date_field, $time_field, $conte
     $source  = bws_datetime_coerce_read_target( $target );
     $is_term = 'term' === ( $source['kind'] ?? '' );
     $is_site = 'site' === ( $source['kind'] ?? '' );
+    $is_row  = 'meta_row' === ( $source['kind'] ?? '' );
     $term_id = $is_term ? (int) ( $source['id'] ?? 0 ) : 0;
 
     // Resolve ACF object_id for field-config lookups. Term kind builds ACF's
@@ -328,20 +338,39 @@ function bws_parse_combined_date_time( $target, $date_field, $time_field, $conte
     // consumes $value_id.
     $value_id = $is_site ? 'option' : ( $is_term ? false : ( $source['id'] ?? false ) );
 
+    // ONE value read, three-way on kind, for both of this parse's fields. The row leg
+    // (FW-74) takes the L2 seam's string half — a date sub-field is a scalar, so the
+    // seam's own coercion is the read datetime wants, and bws_read_field's loop/entity
+    // inference has nothing to offer a row the chain already resolved.
+    //
+    // THE VALUE HALF ONLY. $acf_object_id above is untouched by this leg, per the
+    // invariant in this function's docblock: the field-config id is a SEPARATE argument
+    // from the value read. A row reaches no sub-field config (the flat-meta convention
+    // needs the repeater name and index, which this layer is not handed), so a row's
+    // $date_format is null and the parse falls to the format-agnostic common-format walk
+    // in bws_parse_acf_date_value(). That is a KNOWN BOUNDARY, not a defect here: the
+    // field-object read that would close it is FW-3's, and until it lands an ambiguous
+    // value (a `d/m/Y` row whose day is <= 12) reads as `m/d/Y`. Visible on the testbed,
+    // both arms of it, at fold-test-matrix.md §F9.5m4.
+    $read_value = static function ( $field ) use ( $is_term, $is_row, $source, $term_id, $value_id, $instance ) {
+        if ( ! $field ) {
+            return null;
+        }
+        if ( $is_term ) {
+            return bws_read_term_field( $field, $term_id, true );
+        }
+        if ( $is_row ) {
+            return bws_read_resolved_source( $source, $field, $instance );
+        }
+        return bws_read_field( $field, $instance, $value_id, true );
+    };
+
     // Get primary field value and format
-    $date_value = $date_field
-        ? ( $is_term
-            ? bws_read_term_field( $date_field, $term_id, true )
-            : bws_read_field( $date_field, $instance, $value_id, true ) )
-        : null;
+    $date_value  = $read_value( $date_field );
     $date_format = bws_get_acf_return_format( $date_field, $acf_object_id );
 
     // Get time field value and format
-    $time_value = $time_field
-        ? ( $is_term
-            ? bws_read_term_field( $time_field, $term_id, true )
-            : bws_read_field( $time_field, $instance, $value_id, true ) )
-        : null;
+    $time_value  = $read_value( $time_field );
     $time_format = bws_get_acf_return_format( $time_field, $acf_object_id );
 
     $utils = bws_format_utils();

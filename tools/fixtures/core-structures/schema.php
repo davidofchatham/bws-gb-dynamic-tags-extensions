@@ -458,11 +458,161 @@ function bws_fixture_core_structures_register_acf() {
 							'label' => 'Quantity',
 							'type'  => 'text',
 						),
+						// The COMPOSING tags' row targets (FW-74 ticket 04). {{email}} and
+						// {{phone}} validate what they read, so a row sub-field they can
+						// accept is the only way to tell "the arm read the row" from "the
+						// arm read something the finisher then dropped" — every existing
+						// sub-field is prose and would be dropped either way.
+						array(
+							'key'   => 'field_bwsfx_team_email',
+							'name'  => 'email',
+							'label' => 'Email',
+							'type'  => 'text',
+						),
+						array(
+							'key'   => 'field_bwsfx_team_phone',
+							'name'  => 'phone',
+							'label' => 'Phone',
+							'type'  => 'text',
+						),
+						// The IMAGE row targets (FW-74 ticket 05). THREE fields for ONE
+						// picture, because the RETURN FORMAT is the axis under test: ACF
+						// formats a sub-field on the way out of get_field(), so the same
+						// attachment reaches the row read as an array, an int or a URL
+						// string depending on which of these was asked. The `array` one is
+						// the shape the string read seam drops and the raw seam exists for;
+						// a fixture carrying one format would pass while the read that
+						// needed the split stayed broken.
+						array(
+							'key'           => 'field_bwsfx_team_photo',
+							'name'          => 'photo',
+							'label'         => 'Photo',
+							'type'          => 'image',
+							'return_format' => 'array',
+						),
+						array(
+							'key'           => 'field_bwsfx_team_photo_id',
+							'name'          => 'photo_id',
+							'label'         => 'Photo (ID)',
+							'type'          => 'image',
+							'return_format' => 'id',
+						),
+						array(
+							'key'           => 'field_bwsfx_team_photo_url',
+							'name'          => 'photo_url',
+							'label'         => 'Photo (URL)',
+							'type'          => 'image',
+							'return_format' => 'url',
+						),
+						// The DATETIME row targets (FW-74 ticket 06). A pair, because
+						// {{datetime_range}} is a separate family with its own refusal
+						// call site and a single date field could not exercise it.
+						array(
+							'key'            => 'field_bwsfx_team_contract_start',
+							'name'           => 'contract_start',
+							'label'          => 'Contract Start',
+							'type'           => 'date_picker',
+							'return_format'  => 'Y-m-d',
+							'display_format' => 'F j, Y',
+						),
+						array(
+							'key'            => 'field_bwsfx_team_contract_end',
+							'name'           => 'contract_end',
+							'label'          => 'Contract End',
+							'type'           => 'date_picker',
+							'return_format'  => 'Y-m-d',
+							'display_format' => 'F j, Y',
+						),
+						// THE FORMAT BOUNDARY, seeded on purpose. A row reaches no
+						// sub-field config (the object id a base tag derives cannot
+						// address one), so every row date parses format-agnostically —
+						// the common-format walk in bws_parse_acf_date_value(), which
+						// tries `m/d/Y` before `d/m/Y`. This field's return format is
+						// `d/m/Y`, and the two rows' values are chosen so ONE is
+						// ambiguous under that walk and the other is not: row 1 reads
+						// as the wrong month, row 2 reads correctly. Matrix §F9.5m4
+						// states which is which. When FW-3 exposes the field object
+						// this row moves, which is the signal, not a regression.
+						array(
+							'key'            => 'field_bwsfx_team_review_dmy',
+							'name'           => 'review_dmy',
+							'label'          => 'Next Review (d/m/Y)',
+							'type'           => 'date_picker',
+							'return_format'  => 'd/m/Y',
+							'display_format' => 'd/m/Y',
+						),
 					),
 				),
 			),
 			'location' => array(
 				array( array( 'param' => 'post_type', 'operator' => '==', 'value' => 'post' ) ),
+				array( array( 'param' => 'post_type', 'operator' => '==', 'value' => 'page' ) ),
+			),
+		)
+	);
+
+	// --- Duty Roster (page) — the NESTED repeater (FW-74 ticket 08, fold matrix §F23).
+	//
+	// ITS OWN GROUP RATHER THAN A SUB-REPEATER ON `team_members`, for two reasons that
+	// are both about not moving existing rows. A repeater sub-field becomes a {{table}}
+	// COLUMN (the TB rows collect columns off the row's keys), so nesting one inside
+	// `team_members` would rewrite the table rows' output; and the whole F9c/TB corpus
+	// reads that repeater on /matrix-post-meta/, where the nested case would arrive as a
+	// change to the page every other family is measured on. Here it arrives as new state
+	// on a new page, and nothing already seeded moves.
+	//
+	// The values are four shifts across two members, DISTINCT and INTERLEAVED (Monday,
+	// Thursday under the first member; Tuesday, Friday under the second), so the fan-out
+	// order is readable off the rendered string rather than asserted: an inner read that
+	// grouped wrongly, or that only reached the first parent row, would print a different
+	// sequence rather than the same one.
+	acf_add_local_field_group(
+		array(
+			'key'      => 'group_bwsfx_roster',
+			'title'    => 'Duty Roster',
+			'fields'   => array(
+				array(
+					'key'        => 'field_bwsfx_duty_roster',
+					'name'       => 'duty_roster',
+					'label'      => 'Duty Roster',
+					'type'       => 'repeater',
+					'sub_fields' => array(
+						array(
+							'key'   => 'field_bwsfx_roster_member',
+							'name'  => 'member',
+							'label' => 'Member',
+							'type'  => 'text',
+						),
+						// THE NESTED REPEATER. A row reached through this one has a ROW
+						// for a parent, which is the only shape in the blueprint that
+						// does; every other repeater here hangs off a post.
+						array(
+							'key'        => 'field_bwsfx_roster_shifts',
+							'name'       => 'shifts',
+							'label'      => 'Shifts',
+							'type'       => 'repeater',
+							'sub_fields' => array(
+								array(
+									'key'   => 'field_bwsfx_roster_shift_day',
+									'name'  => 'shift_day',
+									'label' => 'Day',
+									'type'  => 'text',
+								),
+								// A SECOND inner sub-field, so a row read that returned
+								// the row rather than the named cell still prints
+								// something and would read as a pass on one key alone.
+								array(
+									'key'   => 'field_bwsfx_roster_shift_hours',
+									'name'  => 'shift_hours',
+									'label' => 'Hours',
+									'type'  => 'text',
+								),
+							),
+						),
+					),
+				),
+			),
+			'location' => array(
 				array( array( 'param' => 'post_type', 'operator' => '==', 'value' => 'page' ) ),
 			),
 		)

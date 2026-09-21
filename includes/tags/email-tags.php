@@ -300,6 +300,37 @@ function bws_try_email_post_dispatch( $post_id, $options, $instance ) {
 }
 
 /**
+ * Try-tag repeater-ROW-slot dispatch for the `email` template (try_row_fn, FW-74).
+ *
+ * The row twin of the post dispatch's keyed branch: read the sub-field off the row, then
+ * run it through the SAME finisher (validate, subject, obfuscate, mailto wrap), so a row
+ * address and a post address compose identically. No SITE branch — a `rows` step never
+ * resolves to the site store — and no `use` fork, because {{email}} has no analog.
+ *
+ * NO base arm is its twin, and that is not an omission: base {{email}} reads through
+ * bws_resolve_field_values(), which dispatches nothing on kind and hands every resolved
+ * source to the L2 seam — whose `meta_row` case has been live since 1.17.0. The base tag
+ * therefore read rows before this function existed; only the try_ machinery, which
+ * dispatches per ARM, needed the arm's implementation.
+ *
+ * Takes the resolved SOURCE, not an id (a row has none).
+ *
+ * @since 1.21.0
+ * @param array  $source   Resolved source of kind `meta_row`.
+ * @param array  $options  Slot options (key, noLink, subject).
+ * @param object $instance GB tag instance.
+ * @return string[] Finished per-item strings for this row.
+ */
+function bws_try_email_row_dispatch( $source, $options, $instance ) {
+	$key = sanitize_text_field( $options['key'] ?? '' );
+	if ( '' === $key || ( function_exists( 'bws_is_valid_meta_key' ) && ! bws_is_valid_meta_key( $key ) ) ) {
+		return array();
+	}
+	$raw = bws_read_resolved_source( (array) $source, $key, $instance );
+	return bws_email_finish_values( '' === $raw ? array() : array( $raw ), (array) $options );
+}
+
+/**
  * Modifier post-source reader for the `email` template (post_fn).
  *
  * Reads the field off $post_id, composes finished mailto/plain strings, joins by
@@ -384,6 +415,7 @@ function bws_register_email_template(): void {
 		'post_fn'             => 'bws_email_post_core',
 		'try_core_fn'         => 'bws_try_email_post_dispatch',
 		'try_term_fn'         => 'bws_try_email_term_dispatch',
+		'try_row_fn'          => 'bws_try_email_row_dispatch',
 		'supports_try'        => true,
 		'try_per_slot_key'    => true,
 		'try_per_slot_use'    => false,

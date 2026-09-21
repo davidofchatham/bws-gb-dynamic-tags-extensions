@@ -19,8 +19,8 @@
  *      refused — asserted against the compiler's own vocabulary, never a second literal;
  *   2. an unconsumable kind is SKIPPED rather than guessed (null, not a post-arm default);
  *   3. the `user` and `meta_row` rows exist and say what they say — asserted at #103 before
- *      either was reachable, which is what let #108 wire the user leg without touching the
- *      table. `meta_row` is still reached by no wire on the chain axis, by decision;
+ *      either was reachable, which is what let #108 wire the user leg and FW-74 the row leg
+ *      with a one-row table edit each;
  *   4. the base branch is total — every base kind lands somewhere, and only the
  *      branchable ones land off the post arm.
  *
@@ -30,8 +30,11 @@
  *   2. the `user` row loses `branchable` (§A4.2/§A5.1 — a root-only chain on an author
  *      archive stops reaching the user arm and silently reads the post arm again, i.e. the
  *      I6 defect #108 fixed, restored);
- *   3. `meta_row` is given the post arm's `ids`/`fn` (§A3.3/§A3.5 — a repeater row
- *      silently rendered as the ambient post).
+ *   3. `meta_row` is given the post arm's `ids`/`fn` (§A3.3/§A3.6 — a repeater row
+ *      silently rendered as the ambient post);
+ *   4. `meta_row` is made `branchable` (§A5.4/§A5.5 — the FW-74 trap: a flat repeater row
+ *      from the query loop stops reaching the post arm, and the loop fallthrough that is
+ *      the only thing rendering fold-test-matrix.md §F9c disappears).
  *
  * Both files load inert (definitions only, no load-time WP calls).
  *
@@ -147,7 +150,7 @@ $expected_rows = array(
 	'render_time' => array( 'branch', 'branch', 'branch', true, false ),
 	'user'     => array( 'user', 'user', 'user', false, true ),
 	'query_context' => array( 'none', 'query', '', false, true ),
-	'meta_row' => array( '', '', '', false, false ),
+	'meta_row' => array( 'sources', 'row', '', true, false ),
 );
 
 foreach ( $expected_rows as $kind => $row ) {
@@ -195,22 +198,37 @@ echo "\n§A3 — refusal is null, not a default\n";
 assert_same( 'A3.1 the unknown-vocabulary kind has no arm', null, bws_try_slot_arm( '' ) );
 assert_same( 'A3.2 an invented kind has no arm', null, bws_try_slot_arm( 'wormhole' ) );
 
-// meta_row DOES have a row, and its row is the refusal: every column empty. The two
-// spellings of "skip" are not interchangeable — a missing row means "nobody has decided",
-// an empty row means "decided: no try_ arm consumes this, {{table}} does".
-assert_same( 'A3.3 meta_row is refused by an EMPTY row, not a missing one', '', bws_try_slot_arm( 'meta_row' )['fn'] );
+// meta_row USED to be the refusal row — every column empty — and FW-74 filled it in.
+// The two spellings of "skip" are still not interchangeable, which is what the pair
+// below states now: a missing row means "nobody has decided", and the dispatcher's own
+// skip test reaches an empty `fn` on a row that exists.
+assert_same( 'A3.3 meta_row as a chain kind is CONSUMED, by its own fn', 'row', bws_try_slot_arm( 'meta_row' )['fn'] );
 assert_true( 'A3.4 …and the row is present', is_array( bws_try_slot_arm( 'meta_row' ) ) );
 
-// The dispatcher's skip test is `null === $arm || '' === $arm['fn']`. Assert the two
-// kinds that test must catch, and that no OTHER row is caught by it — a row with an
-// empty `fn` is invisible at dispatch, so an accidental one silently disables an arm.
+// The dispatcher's skip test is `null === $arm || '' === $arm['fn']`. NO ROW IS CAUGHT BY
+// THE SECOND HALF ANY MORE, and that is the assertion: a row with an empty `fn` is
+// invisible at dispatch, so an accidental one silently disables an arm. The half stays
+// live for the unknown-vocabulary kind above, which has no row at all.
 $refused = array();
 foreach ( $arms as $kind => $arm ) {
 	if ( '' === $arm['fn'] ) {
 		$refused[] = $kind;
 	}
 }
-assert_same( 'A3.5 exactly one row is a refusal', array( 'meta_row' ), $refused );
+assert_same( 'A3.5 no row is a refusal — every kind with a row names a consumer', array(), $refused );
+
+// The id-LESS PLURAL combination, stated positively because it is the one genuinely new
+// mechanism FW-74 added: an arm whose read targets are resolved SOURCES rather than ids,
+// with the list seam applying across them. `site` and `query_context` are id-less too and
+// are both singletons; nothing else may quietly acquire `ids: 'sources'` without saying so.
+$source_armed = array();
+foreach ( $arms as $kind => $arm ) {
+	if ( 'sources' === $arm['ids'] ) {
+		$source_armed[] = $kind;
+	}
+}
+assert_same( 'A3.6 exactly one arm reads sources instead of ids', array( 'meta_row' ), $source_armed );
+assert_true( 'A3.7 …and it is the only id-less arm that LISTS', bws_try_slot_arm( 'meta_row' )['list'] );
 
 // ===========================================================================
 // §A4 — the base branch is total
@@ -296,10 +314,13 @@ echo "\n§A5 — user and meta_row\n";
 assert_true( 'A5.1 the user row is branchable', bws_try_slot_arm( 'user' )['branchable'] );
 assert_same( 'A5.2 the user row names its own renderer', 'user', bws_try_slot_arm( 'user' )['fn'] );
 
-// meta_row is refused on the CHAIN axis and reachable on the BASE axis. Both are asserted
-// above; restated together here because reading either alone gets the rule backwards.
-assert_same( 'A5.3 meta_row as a chain kind is refused', '', bws_try_slot_arm( 'meta_row' )['fn'] );
-assert_same( 'A5.4 meta_row as a base kind reaches the post arm', 'post', bws_try_slot_base_branch_kind( 'meta_row' ) );
+// meta_row is CONSUMED on the chain axis (FW-74) and BRANCHES TO THE POST ARM on the base
+// axis, and the second did not move when the first did. Both are asserted above; restated
+// together here because reading either alone gets the rule backwards — they share a noun
+// and need opposite answers, which is the trap this whole area sets.
+assert_same( 'A5.3 meta_row as a chain kind is consumed by the row arm', 'row', bws_try_slot_arm( 'meta_row' )['fn'] );
+assert_same( 'A5.4 meta_row as a base kind still reaches the post arm', 'post', bws_try_slot_base_branch_kind( 'meta_row' ) );
+assert_true( 'A5.5 …because the row is NOT branchable, and stayed that way', ! bws_try_slot_arm( 'meta_row' )['branchable'] );
 
 // ===========================================================================
 // §A6 — the SITE branch is taken by resolved kind, never by token spelling

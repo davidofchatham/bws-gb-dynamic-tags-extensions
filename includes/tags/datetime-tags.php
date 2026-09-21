@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * Uses simplified option keys (key, key2, as, format, …) rather than the
  * legacy keys used by template-generated datetime tags. Callbacks remap
- * these to the existing core function keys via bws_base_map_datetime_options().
+ * these to the existing core function keys via bws_normalize_datetime_options().
  *
  * @since 1.6.0
  * @return array
@@ -456,7 +456,7 @@ function bws_term_date_range_core( $term_id, $options, $instance ) {
  * @since 1.0.0
  * @since 1.15.0 First arg accepts a resolved-source payload (FW-3a); legacy
  *               scalars (post id / 'option' / "{tax}_{id}") still coerced —
- *               bws-portal-system + try_/term_ closures pin the scalar forms.
+ *               the registry template closures pin the scalar forms.
  * @param array|int|string|false $target   Resolved source (or legacy scalar).
  * @param array                  $options  Tag options.
  * @param object                 $instance Block instance.
@@ -470,7 +470,11 @@ function bws_datetime_single_core( $target, $options, $instance ) {
 	// the surrounding archive's term meta — measured 2026-08-26, and the reason this
 	// gate narrowed (bws_loop_item_is_post_or_row()).
 	$read_may_serve = bws_loop_item_is_post_or_row( $instance );
-	$has_entity     = 'site' === $source['kind'] || ! empty( $source['id'] );
+	// `meta_row` counts as having something to read for the same reason `site` does:
+	// the source carries its own store (the row array) instead of an entity id (FW-74).
+	// Only the `rows` ARM below hands this core such a source — a query loop's repeater
+	// row reaches here as a post source with a falsy id, and is what $read_may_serve is for.
+	$has_entity     = 'site' === $source['kind'] || 'meta_row' === $source['kind'] || ! empty( $source['id'] );
 
 	if ( ! $has_entity && ! $read_may_serve ) {
 		return bws_handle_date_time_fallback( $options, $instance, 'single' );
@@ -521,7 +525,7 @@ function bws_datetime_single_core( $target, $options, $instance ) {
  * @since 1.0.0
  * @since 1.15.0 First arg accepts a resolved-source payload (FW-3a); legacy
  *               scalars (post id / 'option' / "{tax}_{id}") still coerced —
- *               bws-portal-system + try_/term_ closures pin the scalar forms.
+ *               the registry template closures pin the scalar forms.
  * @param array|int|string|false $target   Resolved source (or legacy scalar).
  * @param array                  $options  Tag options.
  * @param object                 $instance Block instance.
@@ -529,9 +533,9 @@ function bws_datetime_single_core( $target, $options, $instance ) {
  */
 function bws_datetime_range_core( $target, $options, $instance ) {
 	$source         = bws_datetime_coerce_read_target( $target );
-	// Same predicate as the single core above, same reason.
+	// Same predicate as the single core above, same reason — and the same `meta_row` term.
 	$read_may_serve = bws_loop_item_is_post_or_row( $instance );
-	$has_entity     = 'site' === $source['kind'] || ! empty( $source['id'] );
+	$has_entity     = 'site' === $source['kind'] || 'meta_row' === $source['kind'] || ! empty( $source['id'] );
 
 	if ( ! $has_entity && ! $read_may_serve ) {
 		return bws_handle_date_time_fallback( $options, $instance, 'range' );
@@ -693,7 +697,10 @@ function bws_term_datetime_range_core( $term_id, $options, $instance ) {
  * authoritative over their public twins).
  *
  * @since 1.6.0 As bws_base_map_datetime_options()/…_range_options().
- * @since 1.15.0 Collapsed into the single normalizer (FW-2, #48).
+ * @since 1.15.0 Collapsed into the single normalizer (FW-2, #48); the two
+ *               wrappers kept their names as external API.
+ * @since 1.21.0 Those wrappers deleted — their only known caller, an
+ *               integrating plugin's template map, dropped the pin.
  * @param array $options Raw tag options from GenerateBlocks.
  * @param bool  $range   Range-tag mapping (startKey/endKey family) when true.
  * @return array Options with canonical core keys populated.
@@ -763,34 +770,6 @@ function bws_normalize_datetime_options( array $options, bool $range = false ): 
 }
 
 /**
- * Back-compat wrapper over bws_normalize_datetime_options() — single mapping.
- *
- * External API: bws-portal-system pins this name in its template map. Internal
- * call sites use the normalizer directly; do not add parsing here.
- *
- * @since 1.6.0
- * @param array $options Raw tag options from GenerateBlocks.
- * @return array Remapped options for existing core functions.
- */
-function bws_base_map_datetime_options( array $options ): array {
-	return bws_normalize_datetime_options( $options, false );
-}
-
-/**
- * Back-compat wrapper over bws_normalize_datetime_options() — range mapping.
- *
- * External API: bws-portal-system pins this name in its template map. Internal
- * call sites use the normalizer directly; do not add parsing here.
- *
- * @since 1.6.0
- * @param array $options Raw tag options from GenerateBlocks.
- * @return array Remapped options for existing range core functions.
- */
-function bws_base_map_datetime_range_options( array $options ): array {
-	return bws_normalize_datetime_options( $options, true );
-}
-
-/**
  * Callback for the `datetime_single` base tag.
  *
  * Resolves entity via `source`, applies srcTerm hop when set, then
@@ -813,6 +792,7 @@ function bws_base_map_datetime_range_options( array $options ): array {
  *               Term-ambient parity (FW-3a).
  * @since 1.16.0 List collection via the shared bws_collect_value_list fold
  *               (FW-49) — link identity replaces the first-item kind sniff.
+ * @since 1.21.0 The `meta_row` list branch — a `rows` chain reads its rows (FW-74).
  */
 function bws_base_datetime_single_callback( $options, $block, $instance ): string {
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
@@ -853,7 +833,7 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 
 	// Unguarded, unlike its neighbours above — see bws_base_read_refused(). Those guards
 	// degrade a read; this one would delete a REFUSAL, silently restoring the defect.
-	$refused = bws_base_read_refused( $res, $base );
+	$refused = bws_base_read_refused( $res, $base, array( 'meta_row' ) );
 
 	if ( $refused ) {
 		// REFUSED (GH #75/#76/#109) — read nothing, and skip the core: a datetime core
@@ -917,6 +897,35 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 			$link_id   = (int) $collected['link']['id'];
 			$link_type = $collected['link']['kind'];
 		}
+	} elseif ( 'meta_row' === $res['kind'] ) {
+		// REPEATER-ROW LIST (FW-74). The third list branch, and the one that reads
+		// SOURCES rather than ids: a row has no entity behind it, so the ids selector —
+		// which drops `id <= 0` — cannot express it. Fans exactly as the term and post
+		// branches do, through the same fold, so `limit` and `sep` serve it unchanged.
+		//
+		// THE KIND TESTED HERE IS THE WIRE'S ($res), NEVER THE RESOLVED BASE'S — the trap
+		// every row branch sets, stated at length by bws_base_text_resolve_value()'s and
+		// pinned by fold-test-matrix.md §F9c. What is specific to THIS family: the base
+		// that must keep falling through to the post tail below is the one the cores'
+		// own INVARIANT is written about, the issue #22 repeater row a query loop
+		// positions us inside and bws_read_field() re-infers.
+		//
+		// The core takes the resolved SOURCE (bws_datetime_coerce_read_target() passes a
+		// kind-carrying array through verbatim), and the row's VALUE read is the only half
+		// that changes down there: the field-config object id stays the core's own
+		// derivation, so a row parses format-agnostically — the boundary
+		// bws_parse_combined_date_time() states and FW-3 closes.
+		//
+		// Link identity stays 0/'post' — a row has none (CONTEXT.md I12), and the plain
+		// string return is how the fold is told so.
+		$collected = bws_collect_value_list(
+			function_exists( 'bws_base_sources_of_kind' )
+				? bws_base_sources_of_kind( $base, $options, 'meta_row' )
+				: array(),
+			static fn( $row_source, array $item_opts ) => bws_datetime_single_core( (array) $row_source, $item_opts, $instance ),
+			$mapped
+		);
+		$value = $collected['value'];
 	} else {
 		$post_id   = function_exists( 'bws_base_post_id_from_source' )
 			? bws_base_post_id_from_source( $base, $options )
@@ -969,6 +978,7 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
  *               Term-ambient parity (FW-3a).
  * @since 1.16.0 List collection via the shared bws_collect_value_list fold
  *               (FW-49) — link identity replaces the first-item kind sniff.
+ * @since 1.21.0 The `meta_row` list branch — a `rows` chain reads its rows (FW-74).
  */
 function bws_base_datetime_range_callback( $options, $block, $instance ): string {
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
@@ -1008,7 +1018,7 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 
 	// Unguarded, unlike its neighbours above — see bws_base_read_refused(). Those guards
 	// degrade a read; this one would delete a REFUSAL, silently restoring the defect.
-	$refused = bws_base_read_refused( $res, $base );
+	$refused = bws_base_read_refused( $res, $base, array( 'meta_row' ) );
 
 	if ( $refused ) {
 		// REFUSED (GH #75/#76/#109) — read nothing; the all-empty fallback below fires.
@@ -1063,6 +1073,18 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 			$link_id   = (int) $collected['link']['id'];
 			$link_type = $collected['link']['kind'];
 		}
+	} elseif ( 'meta_row' === $res['kind'] ) {
+		// REPEATER-ROW LIST (FW-74) — see bws_base_datetime_single_callback()'s twin for
+		// the whole reasoning, wire-kind trap included. `sep` joins whole formatted ranges
+		// here, `rangeSep` stays the intra-range separator, exactly as on the post branch.
+		$collected = bws_collect_value_list(
+			function_exists( 'bws_base_sources_of_kind' )
+				? bws_base_sources_of_kind( $base, $options, 'meta_row' )
+				: array(),
+			static fn( $row_source, array $item_opts ) => bws_datetime_range_core( (array) $row_source, $item_opts, $instance ),
+			$mapped
+		);
+		$value = $collected['value'];
 	} else {
 		$post_id   = function_exists( 'bws_base_post_id_from_source' )
 			? bws_base_post_id_from_source( $base, $options )

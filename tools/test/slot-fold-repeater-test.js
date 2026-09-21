@@ -26,6 +26,12 @@
  * Loads the SHIPPED files (grammar twin, order normalizer, control) against stubbed
  * wp globals and uses the control's own `window.bwsSlotFoldRepeater` export.
  *
+ * THE FIELD PICKER IS A STUB HERE, and that bounds what the hand-off rows below prove:
+ * the TOKEN leaves this control, spelled as the wire spells it, and nothing about what
+ * the picker does with it. `slot-fold-picker-seam-test.js` mounts the real picker against
+ * the real control and holds the join — reverting the 1.21.0 `refs` change in
+ * `fieldContext()` leaves THIS file green and fails five rows there.
+ *
  * @package BWS_Dynamic_Tags
  */
 
@@ -432,8 +438,12 @@ const CHAIN_FOLD = {
 		terms: { label: 'In Taxonomy Term', arg: 'slug', accepts: [ 'post' ], produces: 'term' },
 		rows: { label: 'In Repeater Rows', arg: 'field', accepts: [ 'post', 'term', 'user', 'meta_row', 'site' ], produces: 'meta_row' }
 	},
-	offer: [ 'terms', 'refs' ],
+	offer: [ 'terms', 'refs', 'rows' ],
 	roots: { site: 'site' },
+	// The `rows` step's ARG picker, shipped since 1.21.0 wherever the step is offered
+	// (bws_fold_rows_picker_def). Without it the control paints a field combo with no
+	// label at all, which is the failure the offer made reachable.
+	rowsOption: { label: 'Repeater Field Key', placeholder: 'team_members', typeDefault: 'repeater' },
 	defaultRoot: 'current',
 	// Shaped exactly as bws_fold_wire_vocabulary() ships it (#95). Supplied as DATA
 	// because that is the property: the control authors none of these strings, and the
@@ -596,6 +606,44 @@ check(
 // step refused, an Add could only produce a dead step.
 const siteOnly = renderChain( [ { slug: 'site', arg: null, limit: null } ], false );
 check( 'Add step is still offered off site (refs applies)', hasAddStep( siteOnly ), true );
+
+// ── The `rows` step's ARG picker (1.21.0, FW-74 ticket 07) ──────────────────
+// The offer made this reachable: before it, `rows` was hand-edited wire and nothing
+// rendered its argument control, so a missing `rowsOption` cost nothing. Now the control
+// paints a field combo per stored `rows` step, and an absent config paints it with no
+// label — which is why the picker definition ships from ONE owner beside the offer.
+
+/** The ARG controls in a rendered tree, in step order (keyed `arg`, unlike `limit`). */
+function argsIn( nodes ) {
+	const out = [];
+	( function walk( n, inArg ) {
+		if ( ! n ) { return; }
+		if ( Array.isArray( n ) ) { n.forEach( function ( c ) { walk( c, inArg ); } ); return; }
+		const here = inArg || ( n.props && 'arg' === n.props.key );
+		if ( here && ( n.type === global.wp.components.TextControl || n.type === global.wp.components.ComboboxControl ) ) {
+			out.push( n.props );
+			return;
+		}
+		( n.children || [] ).forEach( function ( c ) { walk( c, here ); } );
+	}( nodes, false ) );
+	return out;
+}
+
+const rowsStep = argsIn( renderChain( [ { slug: 'rows', arg: 'team_members', limit: null } ], false ) );
+// The TextControl FALLBACK is what renders here (no field-combo global in this fixture),
+// so the LABEL is the half both branches share and the half asserted. The `typeDefault`
+// preset rides the combo branch only, and is pinned on the shipped config instead
+// (slot-options-build-test.php) — asserting it here would pin the fallback, not the seam.
+check( 'a `rows` step renders its argument picker with the shipped label', rowsStep[ 0 ] && rowsStep[ 0 ].label, 'Repeater Field Key' );
+
+// A NESTED repeater is legal wire (`rows` accepts `meta_row`), so the second one is
+// offered off the first. The engine's list is what says so; nothing here restates it.
+const afterRows = renderChain( [ { slug: 'rows', arg: 'team_members', limit: null }, { slug: 'refs', arg: 'lead_ref', limit: null } ], false );
+check(
+	'a `rows` step IS offered after a `rows` step (a nested repeater)',
+	lastPickerValues( afterRows ).indexOf( 'rows' ) !== -1,
+	true
+);
 
 const TERMS_ONLY = rep.foldConfig( { fold: Object.assign( {}, {
 	container: 'try',
@@ -1110,14 +1158,14 @@ check(
 	pinLastValues( afterPinnedTerm ).indexOf( 'refs' ) !== -1,
 	true
 );
-// `rows` is absent from that offer too — but for the CONTAINER's reason, not the pin's: no
-// join/try_ arm assembles a repeater row, so `rows` is on no slot offer at all
-// (fold-test-matrix.md §F10.4). Said here so the absence is never read back as a kind
-// refusal alongside the `terms` row below. The engine's own admission of `rows` off a term
-// is pinned in traversal-pipeline-test.php; its RENDER off a pin rides {{table}} in §F22.
-check( '`rows` is absent off the pin for the CONTAINER reason — it is on no slot offer', CHAIN_FOLD.offer.indexOf( 'rows' ), -1 );
+// `rows` IS offered off the pin, and it is the same rule answering: the engine accepts a
+// term input for `rows`, so the pin's kind admits it exactly as it admits `refs`. Until
+// 1.21.0 it was absent here for a CONTAINER reason instead — no arm assembled a repeater
+// row, so `rows` was on no offer at all — and that absence was never a kind refusal. Both
+// halves stay asserted so the row below is read as the kind rule it is.
+check( '`rows` IS offered off the pin — the offer carries it since 1.21.0', pinLastValues( afterPinnedTerm ).indexOf( 'rows' ) !== -1, true );
 check(
-	'...so that absence is NOT a kind refusal — the engine accepts a term input for `rows`',
+	'...and that is a KIND answer — the engine accepts a term input for `rows`',
 	CHAIN_FOLD.steps.rows.accepts.indexOf( 'term' ) !== -1,
 	true
 );
@@ -1231,14 +1279,104 @@ check(
 	'dept_lead'
 );
 
+// A `refs` STEP is handed over too, since 1.21.0. Its argument names the field stepped
+// THROUGH rather than what it lands on — still true — but the FIELD's own config declares
+// the post types it reaches, and discovery stamps them, so the name is enough for the
+// picker to narrow past kind `post`. What the successor does with the token is
+// field-combo-control's; what is asserted here is that the token arrives, spelled as the
+// wire spells it.
 const deepStepArg = fieldPickersIn( renderPinChainWithPicker( [
 	{ slug: 'term', arg: '34', limit: null },
 	{ slug: 'refs', arg: 'dept_lead', limit: null },
 	{ slug: 'rows', arg: 'team_members', limit: null }
 ] ) );
 check(
-	'a step at position 2 gets NO pin — its input is the step before it, not the root',
+	'a step after a `refs` hop gets that relationship field as a `src` token',
 	deepStepArg.length === 2 && deepStepArg[ 1 ].props.context.state.src,
+	'refs,dept_lead'
+);
+// The ROOT's pin does not leak past the hop — the entity a step's field is read off is
+// whatever the chain resolved to just BEFORE it, which at position 2 is the hop and not
+// the root. Same rule the `rows` rows below assert, asked where it used to be the reason
+// nothing was handed over at all.
+check(
+	'...and the root pin two positions back is NOT what it gets',
+	deepStepArg[ 1 ].props.context.state.src === 'term,34',
+	false
+);
+
+// An ARGLESS `refs` names no field, so it hands over nothing — the same test the root and
+// `rows` arms apply, asked at the third naming position.
+const arglessRefs = fieldPickersIn( renderPinChainWithPicker( [
+	{ slug: 'refs' },
+	{ slug: 'refs', arg: 'lead_ref', limit: null }
+] ) );
+check(
+	'an ARGLESS `refs` step hands over nothing — it names no field to narrow against',
+	arglessRefs[ arglessRefs.length - 1 ].props.context.state.src,
+	undefined
+);
+
+// A `terms` step is the one that still names nothing: its argument is a taxonomy and what
+// it produces is a term, which is the KIND axis the Location preset already answers. This
+// is the contrast row that keeps the rule readable as "what the predecessor SAYS" rather
+// than "every step with an argument".
+const afterTermsArg = fieldPickersIn( renderPinChainWithPicker( [
+	{ slug: 'terms', arg: 'department', limit: null },
+	{ slug: 'refs', arg: 'lead_ref', limit: null }
+] ) );
+check(
+	'a step after a `terms` step gets nothing — a taxonomy names a kind, not an entity',
+	afterTermsArg[ afterTermsArg.length - 1 ].props.context.state.src,
+	undefined
+);
+
+// A `rows` STEP names what it resolved to — the property the root, `rows` and `refs` share
+// and `terms` lacks. So its successor is handed it at ANY position: the rule is what the
+// predecessor SAYS, never how far along it sits, and the rows above are the contrast that
+// makes that readable — same position, different predecessor, different answer.
+const afterRowsArg = fieldPickersIn( renderPinChainWithPicker( [
+	{ slug: 'rows', arg: 'duty_roster', limit: null },
+	{ slug: 'rows', arg: 'shifts', limit: null }
+] ) );
+check(
+	'a step after a `rows` step gets that repeater as a `src` token',
+	afterRowsArg.length === 2 && afterRowsArg[ 1 ].props.context.state.src,
+	'rows,duty_roster'
+);
+check(
+	"...carrying the successor's own field key, as the root hand-off does",
+	afterRowsArg[ 1 ].props.context.state.key,
+	'shifts'
+);
+check(
+	'...and the `rows` step at position 0 gets nothing — it HAS no predecessor',
+	afterRowsArg[ 0 ].props.context.state.src,
+	undefined
+);
+
+// Position 3, behind two hops that name nothing, still gets its IMMEDIATE predecessor.
+const deepAfterRows = fieldPickersIn( renderPinChainWithPicker( [
+	{ slug: 'term', arg: '34', limit: null },
+	{ slug: 'refs', arg: 'dept_lead', limit: null },
+	{ slug: 'rows', arg: 'team_members', limit: null },
+	{ slug: 'refs', arg: 'lead_ref', limit: null }
+] ) );
+check(
+	'a step deep in a chain reads its immediate predecessor, not the root',
+	deepAfterRows[ deepAfterRows.length - 1 ].props.context.state.src,
+	'rows,team_members'
+);
+
+// An ARGLESS `rows` names no repeater, so it hands over nothing — the same test the root
+// arm applies, asked at the other naming position.
+const arglessRows = fieldPickersIn( renderPinChainWithPicker( [
+	{ slug: 'rows' },
+	{ slug: 'refs', arg: 'lead_ref', limit: null }
+] ) );
+check(
+	'an ARGLESS `rows` step hands over nothing — it names no repeater to narrow against',
+	arglessRows[ arglessRows.length - 1 ].props.context.state.src,
 	undefined
 );
 

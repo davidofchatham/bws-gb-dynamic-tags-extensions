@@ -122,3 +122,53 @@ function bws_custom_image_core( $post_id, $options, $instance ) {
 	return bws_image_stated_fallback( $options, $instance );
 }
 
+/**
+ * Repeater-ROW custom image core — the `meta_row` sibling of bws_custom_image_core() (FW-74).
+ *
+ * Takes the whole RESOLVED SOURCE rather than an entity id, for the reason
+ * bws_row_custom_text_core() states: a repeater row has no id, it carries its own `row`
+ * array. Its text twin is the shape to read this against.
+ *
+ * THE READ IS THE RAW SEAM, AND THAT IS THE WHOLE POINT OF THIS CORE. An image sub-field
+ * arrives formatted by its own ACF return_format — an ARRAY for the default `array`
+ * format, an int for `id`, a URL string for `url` — and bws_read_resolved_source()'s
+ * string coercion drops the array outright. So this one asks
+ * bws_read_resolved_source_value() and hands whatever comes back to
+ * bws_process_meta_image_value(), which is already a pure processor over `mixed` and is
+ * the SAME function the post route reaches through bws_get_meta_image_data(). One
+ * return-format vocabulary, two source kinds.
+ *
+ * NO FALLBACK IS EMITTED HERE, unlike bws_custom_image_core(). A row is not an entity, so
+ * there is no id to merge into $options for the fallback's own render, and the tag's
+ * stated fallback is a property of the TAG rather than of which row missed — the base arm
+ * emits it ONCE on an empty result (bws_base_image_callback()'s `meta_row` branch), which
+ * is what keeps a `rows` chain's fallback behavior identical to the post route's. Under
+ * try_ the question does not arise: the dispatcher strips `fallback` from the options it
+ * evaluates with and emits it itself.
+ *
+ * @since 1.21.0
+ * @param array  $source   Resolved source of kind `meta_row`.
+ * @param array  $options  Tag options. 'key' is the sub-field name; `as` carries mode+size.
+ * @param object $instance Block instance.
+ * @return string
+ */
+function bws_row_custom_image_core( array $source, $options, $instance ) {
+	$field_key = sanitize_text_field( $options['key'] ?? $options['field_key'] ?? $options['meta_key'] ?? '' );
+
+	if ( '' === $field_key || ! bws_is_valid_meta_key( $field_key ) ) {
+		return '';
+	}
+
+	$raw = bws_read_resolved_source_value( $source, $field_key, $instance );
+
+	if ( ! $raw ) {
+		return '';
+	}
+
+	// as+size fold (FW-52): `as` may carry a `,<size>` arg; legacy `size:` falls back.
+	$as     = bws_parse_as_option( $options );
+	$result = bws_process_meta_image_value( $raw, $as['mode'], $as['size'] );
+
+	return '' === $result ? '' : bws_gb_tag_output( $result, $options, $instance );
+}
+

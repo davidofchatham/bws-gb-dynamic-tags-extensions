@@ -413,6 +413,7 @@ function bws_register_base_tags(): void {
 		'try_site_fn'           => static fn( $opts, $inst ) => bws_site_resolve_value( 'text', (array) $opts, $inst ),
 		'try_user_fn'           => static fn( $user_id, $opts, $inst ) => bws_base_user_analog_read( 'text', (int) $user_id, (array) $opts, $inst ),
 		'try_query_fn'          => static fn( $base, $opts, $inst ) => bws_base_query_context_analog_read( 'text', (array) $base, (array) $opts, $inst ),
+		'try_row_fn'            => 'bws_try_text_row_dispatch',
 		'try_allow_site_slot'   => true,
 		'supports_try'          => true,
 		'try_per_slot_key'      => true,
@@ -450,6 +451,7 @@ function bws_register_base_tags(): void {
 		'try_site_fn'           => static fn( $opts, $inst ) => bws_site_resolve_value( 'content', (array) $opts, $inst ),
 		'try_user_fn'           => static fn( $user_id, $opts, $inst ) => bws_base_user_analog_read( 'content', (int) $user_id, (array) $opts, $inst ),
 		'try_query_fn'          => static fn( $base, $opts, $inst ) => bws_base_query_context_analog_read( 'content', (array) $base, (array) $opts, $inst ),
+		'try_row_fn'            => 'bws_try_content_row_dispatch',
 		'try_allow_site_slot'   => true,
 		'supports_try'          => true,
 		'try_per_slot_key'      => true,
@@ -550,6 +552,7 @@ function bws_register_base_tags(): void {
 		'try_core_fn'           => 'bws_try_image_post_dispatch',
 		'try_term_fn'           => 'bws_term_custom_image_core',
 		'try_site_fn'           => static fn( $opts, $inst ) => bws_site_resolve_value( 'image', (array) $opts, $inst ),
+		'try_row_fn'            => 'bws_try_image_row_dispatch',
 		'try_allow_site_slot'   => true,
 		'supports_try'          => true,
 		'try_per_slot_key'      => true,
@@ -606,6 +609,17 @@ function bws_register_base_tags(): void {
 				: $opts;
 			return bws_datetime_single_core( 'option', $mapped, $inst );
 		},
+		// A repeater-row source off the slot's own `rows` step (FW-74). Takes the
+		// resolved SOURCE, not an id — a row has none — and the core consumes it
+		// verbatim (bws_datetime_coerce_read_target() passes a kind-carrying array
+		// through). No dispatcher function of its own, unlike text/content/image:
+		// datetime has no `use` fork, so there is no analog to refuse on a row.
+		'try_row_fn'   => static function ( $source, $opts, $inst ) {
+			$mapped = function_exists( 'bws_normalize_datetime_options' )
+				? bws_normalize_datetime_options( $opts )
+				: $opts;
+			return bws_datetime_single_core( (array) $source, $mapped, $inst );
+		},
 		'try_allow_site_slot' => true,
 		'supports_try' => true,
 		'is_image'     => false,
@@ -653,6 +667,13 @@ function bws_register_base_tags(): void {
 				: $opts;
 			return bws_datetime_range_core( 'option', $mapped, $inst );
 		},
+		// The range pair's row leg — see the datetime_single note above.
+		'try_row_fn'   => static function ( $source, $opts, $inst ) {
+			$mapped = function_exists( 'bws_normalize_datetime_options' )
+				? bws_normalize_datetime_options( $opts, true )
+				: $opts;
+			return bws_datetime_range_core( (array) $source, $mapped, $inst );
+		},
 		'try_allow_site_slot' => true,
 		'supports_try' => true,
 		'is_image'     => false,
@@ -686,6 +707,11 @@ function bws_register_base_tags(): void {
  * srcTerm + use:title   → bws_term_title_core()        (per-term; limit/sep applied)
  * post    + use unset   → bws_post_custom_text_core()
  * post    + use:title   → bws_post_title_core()
+ * rows    + use unset   → bws_row_custom_text_core()  (per-row; limit/sep applied)
+ * rows    + use:title   → '' (analogs refuse on a row — it is not an entity)
+ *
+ * The rows arm dispatches the `use` fork through bws_try_text_row_dispatch(), which is
+ * the try_ row arm's function too — one owner for the fork, as with the term/post pair.
  *
  * ABSORB INVARIANT: the returned value must stay byte-equivalent to what
  * {{text}} renders before link-wrap — including the src:site arm, the
@@ -696,6 +722,7 @@ function bws_register_base_tags(): void {
  *
  * @since 1.14.1 Extracted from bws_base_text_callback().
  * @since 1.16.0 List branches ride the shared bws_collect_value_list fold (FW-49).
+ * @since 1.21.0 The `meta_row` list branch — a `rows` chain reads its rows (FW-74).
  *
  * @param array $options  Tag options.
  * @param mixed $instance GB tag instance.
@@ -725,7 +752,7 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 	// which absorb their read through this seam rather than through an arm of their own —
 	// a combining tag drops that field from the composite rather than substituting the
 	// current entry's value.
-	if ( bws_base_read_refused( $res, $base ) ) {
+	if ( bws_base_read_refused( $res, $base, array( 'meta_row' ) ) ) {
 		return array( 'value' => '', 'link_id' => 0, 'link_type' => 'post' );
 	}
 
@@ -796,6 +823,31 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 			$link_id   = (int) $collected['link']['id'];
 			$link_type = $collected['link']['kind'];
 		}
+	} elseif ( 'meta_row' === $res['kind'] ) {
+		// REPEATER-ROW LIST (FW-74). The third list branch, and the one that reads
+		// SOURCES rather than ids: a row has no entity behind it, so
+		// bws_base_source_ids_of_kind() — which drops `id <= 0` — cannot express it.
+		//
+		// THE KIND TESTED HERE IS THE WIRE'S ($res), NEVER THE RESOLVED BASE'S. The two
+		// share the noun and need opposite answers: `src(rows,…)` means the author asked
+		// for repeater rows and this branch consumes them, while a $base of the same kind
+		// means the query loop positioned us INSIDE a row and the read must keep falling
+		// through to the post tail, whose core re-infers the row through bws_read_field()'s
+		// own loop inference. Conflating them deletes a live shipped path
+		// (fold-test-matrix.md §F9c, mutation-verified).
+		//
+		// The per-row read is bws_try_text_row_dispatch(), the SAME function the try_ row
+		// arm runs — reused rather than duplicated, exactly as the term and post branches
+		// reuse their own try_ dispatchers above. It owns the `use` fork, including the
+		// analog refusal: a row is not an entity and has no title, so `use:title` renders
+		// empty here (an already-supported state) rather than reading some other entity's.
+		// Link identity stays 0/'post' — a row has none (CONTEXT.md I12).
+		$collected = bws_collect_value_list(
+			bws_base_sources_of_kind( $base, $options, 'meta_row' ),
+			static fn( $row_source, array $item_opts ) => bws_try_text_row_dispatch( $row_source, $item_opts, $instance ),
+			$options
+		);
+		$value = $collected['value'];
 	} elseif ( 'title' === $use ) {
 		$post_id   = bws_base_post_id_from_source( $base, $options );
 		$value     = bws_post_title_core( $post_id, $options, $instance );
@@ -927,9 +979,11 @@ function bws_get_join_options(): array {
 				// A slot's source is a base tag's source (#104, [I16]), so the offer is the
 				// base tag's: the seam hands the whole chain on as depth-0 chain wire and
 				// the arms dispatch on what it resolves to, so nothing here truncates it.
-				// `rows` stays out for the reason it stays out of the base offer — no
-				// join arm assembles a repeater row; that is `{{table}}`'s.
-				'steps'            => array( 'refs', 'terms' ),
+				// `rows` joins it in 1.21.0 for that same reason — a slot's read absorbs
+				// through the text seam, which consumes a `meta_row` — and it lands here
+				// in the same change as the base tag's, since the two lists are asserted
+				// equal (control-order-test.php §7).
+				'steps'            => array( 'refs', 'terms', 'rows' ),
 				// One noun, both surfaces: "+ Add field" and the header "Field A"
 				// (bws_build_fold_slot_options derives the header — no label parameter).
 				'noun'            => __( 'field', 'generateblocks' ),
@@ -1105,8 +1159,12 @@ function bws_join_callback( $options, $block, $instance ): string {
  * post    + use unset   → bws_post_content_core()
  * post    + use:excerpt → bws_post_excerpt_core()
  * post    + use:key     → bws_post_content_core() with type:custom_field
+ * rows    + use:key     → bws_row_custom_text_core()  (FIRST row; collapsing)
+ * rows    + use unset   → '' (analogs refuse on a row — it is not an entity)
+ * rows    + use:excerpt → '' (same)
  *
  * @since 1.6.0
+ * @since 1.21.0 The `meta_row` branch — a `rows` chain reads its rows (FW-74).
  */
 function bws_base_content_callback( $options, $block, $instance ): string {
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
@@ -1132,7 +1190,7 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 	// preview half is the tail below, but the fallback half lives inside
 	// bws_post_content_core(), which the refusal must not call. Both halves are
 	// therefore stated here, in the tail's own preview-outranks-fallback order.
-	if ( bws_base_read_refused( $res, $base ) ) {
+	if ( bws_base_read_refused( $res, $base, array( 'meta_row' ) ) ) {
 		return $is_preview && function_exists( 'bws_build_preview_label' )
 			? bws_build_preview_label( $options, 'content' )
 			: bws_base_stated_fallback( $options, $instance );
@@ -1155,7 +1213,32 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 			return bws_build_preview_label( $options, 'content' );
 		}
 	}
-	if ( 'term' === $res['kind'] ) {
+	if ( 'meta_row' === $res['kind'] ) {
+		// REPEATER-ROW READ (FW-74). Collapsing, not listing: {{content}} is
+		// takes_first_usable, so the whole fan is compiled with step limits stripped
+		// and the FIRST row's read is the output — the same rule the term and post
+		// routes below take, applied to rows. {{content}} registers no `limit` and no
+		// `sep`; the listing twin of this read is {{text}}'s §F9.5.
+		//
+		// THE KIND TESTED HERE IS THE WIRE'S ($res), NEVER THE RESOLVED BASE'S — the
+		// trap this area sets, stated in full at the {{text}} branch above and pinned
+		// by fold-test-matrix.md §F9c.
+		//
+		// This branch is where use:content and use:excerpt STOP READING THE AMBIENT
+		// POST. Before it, a `rows` chain fell into the post route, resolved no row to
+		// a post id, and the collapsing selector's empty-fan leg read the current post
+		// — so {{content src:rows,…}} printed the whole surrounding page. A row is not
+		// an entity and has no content or excerpt of its own, so the analog arms REFUSE
+		// here and only use:key reads. bws_try_content_row_dispatch()
+		// owns that fork and is the try_ row arm's function too, the same reuse the
+		// term and post routes make of their own try_ dispatchers.
+		$found = bws_read_bounded_sources(
+			bws_base_sources_of_kind( $base, $options, 'meta_row', true ),
+			static fn( $row_source ) => bws_try_content_row_dispatch( $row_source, $opts, $instance ),
+			1
+		);
+		$value = $found ? (string) $found[0] : '';
+	} elseif ( 'term' === $res['kind'] ) {
 		// takes_first_usable (ADR 0007): search the WHOLE fan — every step limit is
 		// stripped at compile — and output the first usable read.
 		$value = bws_base_term_first_usable(
@@ -1398,7 +1481,7 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 	// half is the tail, the fallback half lives inside the image cores
 	// (bws_image_stated_fallback, their shared owner), which the refusal must not reach
 	// through a core. Preview outranks the fallback image, matching the tail.
-	if ( bws_base_read_refused( $res, $base ) ) {
+	if ( bws_base_read_refused( $res, $base, array( 'meta_row' ) ) ) {
 		return $is_preview && function_exists( 'bws_build_preview_label' )
 			? bws_build_preview_label( $options, 'image' )
 			: bws_image_stated_fallback( $options, $instance );
@@ -1417,7 +1500,35 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 		}
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'image' ) : '';
 	}
-	if ( 'term' === $res['kind'] ) {
+	if ( 'meta_row' === $res['kind'] ) {
+		// REPEATER-ROW READ (FW-74 ticket 05). Collapsing, not listing, exactly as
+		// {{content}}'s row branch is: {{image}} is takes_first_usable (ADR 0007), so the
+		// whole fan is compiled with step limits stripped and the FIRST row's photo is the
+		// output. It registers no `limit` and no `sep`, so there is no list seam to honor
+		// here; {{text}}'s §F9.5 is the fanning twin of this read.
+		//
+		// THE KIND TESTED HERE IS THE WIRE'S ($res), NEVER THE RESOLVED BASE'S — the trap
+		// this area sets, stated in full at the {{text}} branch above and pinned by
+		// fold-test-matrix.md §F9c.
+		//
+		// THE READ IS THE RAW SEAM'S, and this family is why that seam was split out:
+		// an ACF image sub-field is an ARRAY under the default return_format, and the
+		// string seam every other row arm reads through drops arrays. The row core owns
+		// that read; the analog refuses, since a row has no featured image of its own.
+		//
+		// THE FALLBACK IS EMITTED HERE rather than inside the core, which is the one
+		// place this branch differs in shape from the post route below. There the cores
+		// emit it per read (they have an id to merge, a row has none), and an empty fan
+		// still reaches one through the selector's falsy-id leg. Stating it on the empty
+		// result gives a `rows` chain the same two fallback occasions the post route has:
+		// a row that carries no image, and a repeater with no rows at all.
+		$found = bws_read_bounded_sources(
+			bws_base_sources_of_kind( $base, $options, 'meta_row', true ),
+			static fn( $row_source ) => bws_try_image_row_dispatch( $row_source, $options, $instance ),
+			1
+		);
+		$value = $found ? (string) $found[0] : bws_image_stated_fallback( $options, $instance );
+	} elseif ( 'term' === $res['kind'] ) {
 		// takes_first_usable (ADR 0007): search the WHOLE fan — every step limit is
 		// stripped at compile — and output the first usable term image. The cores
 		// keep their per-read stated-fallback semantics untouched: a stated fallback
@@ -1674,6 +1785,26 @@ function bws_try_text_post_dispatch( $post_id, $options, $instance ) {
 }
 
 /**
+ * Try-tag repeater-ROW-slot dispatch for `text` template (FW-74).
+ *
+ * The `use` fork's third arm, and the one where `title` has nowhere to go: a row is not
+ * an entity, so the ANALOG REFUSES and the slot renders empty — an already-supported
+ * state, not a gap. The hop a `use:title` would imply is spellable with no new
+ * vocabulary (`rows,team_members;refs,lead_ref` then `use:title`).
+ *
+ * Takes the resolved SOURCE, not an id (a row has none). Used as `try_row_fn`.
+ *
+ * @since 1.21.0
+ */
+function bws_try_text_row_dispatch( $source, $options, $instance ) {
+	$use = $options['use'] ?? 'key';
+	if ( 'title' === $use ) {
+		return '';
+	}
+	return bws_row_custom_text_core( (array) $source, $options, $instance );
+}
+
+/**
  * Try-tag srcTermIn-slot dispatch for `text` template.
  *
  * @since 1.6.0
@@ -1707,6 +1838,29 @@ function bws_try_content_post_dispatch( $post_id, $options, $instance ) {
 }
 
 /**
+ * Try-tag repeater-ROW-slot dispatch for `content` template (FW-74).
+ *
+ * The `use` fork with BOTH analog arms refusing: a row is not an entity, so it has no
+ * post content and no excerpt, and only use:key has anywhere to go — the same refusal
+ * bws_try_text_row_dispatch() makes of `use:title`, on the family that had been reading
+ * the AMBIENT post instead of refusing (see the base branch in
+ * bws_base_content_callback()). The keyed read is bws_row_custom_text_core() rather than
+ * a content-shaped twin, because {{content|use:key}} and {{text|use:key}} already read one key by one rule —
+ * bws_post_content_core()'s custom_field branch is bws_post_custom_text_core() with a
+ * different empty-read fallback, and a LIST arm has no per-item fallback to emit (GH #51).
+ *
+ * Takes the resolved SOURCE, not an id (a row has none). Used as `try_row_fn`.
+ *
+ * @since 1.21.0
+ */
+function bws_try_content_row_dispatch( $source, $options, $instance ) {
+	if ( 'key' !== ( $options['use'] ?? 'content' ) ) {
+		return '';
+	}
+	return bws_row_custom_text_core( (array) $source, $options, $instance );
+}
+
+/**
  * Try-tag srcTermIn-slot dispatch for `content` template.
  *
  * @since 1.6.0
@@ -1733,4 +1887,26 @@ function bws_try_image_post_dispatch( $post_id, $options, $instance ) {
 		return bws_featured_image_core( $post_id, $options, $instance );
 	}
 	return bws_custom_image_core( $post_id, $options, $instance );
+}
+
+/**
+ * Try-tag repeater-ROW-slot dispatch for `image` template (FW-74).
+ *
+ * The `use` fork's row arm, with `featured` REFUSING for the reason
+ * bws_try_text_row_dispatch() refuses `title`: a row is not an entity, so it has no
+ * featured image, and reading one would print the surrounding post's picture — a
+ * plausible wrong value where an empty one is the honest answer. The hop that spelling
+ * implies needs no new vocabulary (`rows,team_members;refs,lead_ref` then `use:featured`).
+ *
+ * Takes the resolved SOURCE, not an id (a row has none). Used as `try_row_fn`, and by the
+ * BASE arm too — the same reuse the term and post routes make of their own try_
+ * dispatchers, and what keeps the base tag and its try_ twin reading one way.
+ *
+ * @since 1.21.0
+ */
+function bws_try_image_row_dispatch( $source, $options, $instance ) {
+	if ( 'featured' === ( $options['use'] ?? 'key' ) ) {
+		return '';
+	}
+	return bws_row_custom_image_core( (array) $source, $options, $instance );
 }

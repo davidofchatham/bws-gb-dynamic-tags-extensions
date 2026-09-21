@@ -4,8 +4,8 @@ Integration rows for **context-aware base-tag resolution** —
 `.scratch/plans/context-aware-base-tags.md` (#19). Bare `{{title}}` /
 `{{content}}` per WP context, rendered through the testbed
 (`bin/wp.sh testbed bws render-tag '{{...}}' --url=...` — see `docs/testbed.md`). Fixture state: `core-structures` blueprint; the date-archive
-rows additionally assume `sample-event` is categoryless + portal-visible
-(enforced by `seed.php` — the portal-system anonymous query filter otherwise
+rows additionally assume `sample-event` is categoryless + visibility-tagged
+(enforced by `seed.php` — an integrating plugin's anonymous query filter otherwise
 empties the date archive to a 404).
 
 **Staging pattern = FW-3 D7 (expected-fail → flip on ship).** Term kind SHIPPED 1.14.0, author kind 1.15.0, and the five QUERY-CONTEXT kinds (date / PTA / search / 404 / latest-home) SHIPPED 1.19.0 — every row below is flipped to its dispatch value and re-measured (2026-08-29, render-tag + front end). The pre-1.19.0 leak baselines each row used to pin are kept in the "Leaked (pre-1.19.0)" column as the regression direction: a row showing its leak value again means the factory's query-context branch stopped firing.
@@ -169,7 +169,7 @@ the `--loop-item` post wins over author ambient. Same guard spine as the term ki
 
 ## The `{{content}}` leak — declared dead 2026-08-29 and corrected the same day
 
-**First measurement said the leak was gone; it was masked, twice over, and the correction is the useful record here.** With the element rendering a bare `{{content}}` on real requests, output was empty on all five query contexts, `render-tag` agreed, and the finding was written up as "not a leak to fix but an analog to add", with 1.18.0's source gate (`e55602e`, ADR 0007) as the suspected cause. A portal-system A/B (deactivate, measure, reactivate — title as the sensitivity control) exonerated that plugin, and then the actual mechanism fell out:
+**First measurement said the leak was gone; it was masked, twice over, and the correction is the useful record here.** With the element rendering a bare `{{content}}` on real requests, output was empty on all five query contexts, `render-tag` agreed, and the finding was written up as "not a leak to fix but an analog to add", with 1.18.0's source gate (`e55602e`, ADR 0007) as the suspected cause. An A/B on the integrating plugin (deactivate, measure, reactivate — title as the sensitivity control) exonerated it, and then the actual mechanism fell out:
 
 1. **Every post leading any archive carried a 0-byte body.** `Grace Published`, `VPost: Open (all-users)`, `BWSUT Target Post` — other plugins' fixtures, all empty, all sorting ahead of the July corpus. C12's July baseline leaked `Tom Associate` (6,861 bytes) because *he* led `/staff/` then. The leak reads whatever `$post` carries; when that post has no body, the leak renders nothing and looks fixed.
 2. **The one content-bearing post this blueprint added was masking itself.** `post-home-lead`'s body text named the content tag in braces; GB parsed it as a real dynamic tag, the self-reference resolved empty, and GB hid the whole block — so the post built to be non-empty rendered an empty body everywhere, its own singular page included.

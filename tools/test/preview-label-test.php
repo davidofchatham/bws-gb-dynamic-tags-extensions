@@ -1027,9 +1027,9 @@ check(
 	"[Join Title from Ref 'a' Ref 'b', 'role']"
 );
 check(
-	'join: a `rows` step resolves at the seam (the container refuses the kind, not the wire)',
-	bws_build_join_preview_label( [ 'A' => 'src(rows,rows);key(name)' ] ),
-	"[Join 'name']"
+	'join: a `rows` step resolves at the seam, and NAMES the repeater it steps into',
+	bws_build_join_preview_label( [ 'A' => 'src(rows,team_members);key(name)' ] ),
+	"[Join 'name' from Current Rows 'team_members']"
 );
 check(
 	'try_: a second ref hop resolves on a selecting container too',
@@ -1038,8 +1038,8 @@ check(
 );
 check(
 	'try_: a lone `rows` slot is a slot, not "no slots configured"',
-	bws_build_try_preview_label( [ 'A' => 'src(rows,rows);key(name)' ], 'text' ),
-	"[Try 'name']"
+	bws_build_try_preview_label( [ 'A' => 'src(rows,team_members);key(name)' ], 'text' ),
+	"[Try 'name' from Current Rows 'team_members']"
 );
 // A `same` root with nothing to be the same AS gets its OWN wording (#74). Reusing
 // "source not supported" would send the author after the wrong thing: the chain IS
@@ -1182,12 +1182,38 @@ check(
 	bws_build_preview_label( [ 'src' => 'rows', 'use' => 'key' ], 'text' ),
 	'[⚠ No repeater field or meta key set]'
 );
-// A COMPLETE `rows` step is NOT flagged. It is well-formed wire the base arms do not
-// consume yet (FW-74) — flagging it would encode a per-template fact with a shelf life.
+// A COMPLETE `rows` step is NOT flagged — and since 1.21.0 it is NAMED. The step is on
+// the chain-step offer now, so an author picks it in the editor and has to be able to
+// read back what they picked; before the offer there was nothing to read back and no
+// wording to write. The segment takes `refs`' quoted-argument shape and not `terms`'
+// arrow: a repeater is a field on the entity the chain already stands on.
 check(
-	'base: a COMPLETE `rows` step is silent (unimplemented ≠ inert)',
+	'base: a COMPLETE `rows` step names the repeater it steps into',
 	bws_build_preview_label( [ 'src' => 'rows,team_members', 'use' => 'key', 'key' => 'name' ], 'text' ),
-	"['name']"
+	"['name' from Rows 'team_members']"
+);
+// A repeater step BEHIND a relationship hop names both, one segment each. The namer groups
+// by step KIND rather than walking the chain once, so the reverse wire regroups to the same
+// reading — asserted here so the grouping is a known shape and not a surprise the first time
+// someone authors the reverse.
+check(
+	'base: a `rows` step behind a `refs` hop names both',
+	bws_build_preview_label( [ 'src' => 'refs,rel_post;rows,team_members', 'use' => 'key', 'key' => 'name' ], 'text' ),
+	"['name' from Ref 'rel_post' Rows 'team_members']"
+);
+check(
+	'...and the REVERSE wire regroups to the same reading (segments are grouped by kind)',
+	bws_build_preview_label( [ 'src' => 'rows,team_members;refs,lead_ref', 'use' => 'key', 'key' => 'name' ], 'text' ),
+	"['name' from Ref 'lead_ref' Rows 'team_members']"
+);
+// The term step's ARROW is positional — ANY preceding segment turns it on, and a repeater
+// segment is now one of the things that can precede. Hand-wire only (the engine refuses a
+// `terms` step off a `meta_row`), which is exactly why the preview has to describe it:
+// ADR 0004 makes the shape reachable and the namer describes what the wire says.
+check(
+	'base: a `Rows` segment turns the term step\'s arrow on, like any other preceding segment',
+	bws_build_preview_label( [ 'src' => 'rows,team_members;terms,category', 'use' => 'key', 'key' => 'name' ], 'text' ),
+	"['name' from Rows 'team_members' → Category Term]"
 );
 // NEGATIVES — the internal spellings of the ambient entity and of a relationship hop all
 // resolve, so none of them flags.

@@ -9,7 +9,7 @@
  * THIS PLUGIN'S CONVERTER DOES NOT RUN BY ITSELF. It is admin-triggered
  * (`wp_ajax_bws_scan_tags` / `wp_ajax_bws_migrate_tags` on the settings page) — there is no
  * version-gated upgrade routine and nothing fires on a page load. Swapping in a newer build
- * and loading a page migrates NOTHING here, which is the opposite of `bws-portal-system`'s
+ * and loading a page migrates NOTHING here, which is the opposite of the integrating plugin's
  * behaviour that `dev-plugin.sh`'s header describes. So the migration step is an explicit
  * invocation, and this is it: `scan()` then `migrate_post()` over everything reported, then the
  * pattern-cache reconcile the batch ends with — exactly what the admin button does.

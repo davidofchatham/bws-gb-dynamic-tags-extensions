@@ -125,6 +125,10 @@ $field_keys = array(
 		'subtitle'         => 'field_bwsfx_subtitle',
 		'escape_probe'     => 'field_bwsfx_escape_probe',
 		'team_members'     => 'field_bwsfx_team_members',
+		// The NESTED repeater (manifest v26). Only the OUTER field is keyed here:
+		// update_field() writes a nested repeater from the same array-of-rows the
+		// manifest spells, reading the inner field's key off the parent's sub_fields.
+		'duty_roster'      => 'field_bwsfx_duty_roster',
 		'feature_list'     => 'field_bwsfx_feature_list',
 		// FW-52 image editor rows.
 		'feature_image'    => 'field_bwsfx_feature_image',
@@ -382,13 +386,13 @@ foreach ( $manifest['post_terms'] as $slug => $terms ) {
 $log( 'post→term assignments applied' );
 
 // sample-event doubles as the date-archive context fixture (context-test-matrix
-// C-rows): the portal-system front-end query filter drops anonymous-invisible
-// posts (must carry an all-users/no-portal portal_visibility term AND no
+// C-rows): an integrating plugin's front-end query filter drops anonymous-invisible
+// posts (must carry an all-users visibility term AND no
 // category), so a default 'uncategorized' assignment 404s /2026/07/. Keep it
-// categoryless + all-users-visible. portal_visibility belongs to
-// bws-portal-system — guard on taxonomy existence so this blueprint stays
+// categoryless + all-users-visible. That taxonomy belongs to
+// the integrating plugin — guard on taxonomy existence so this blueprint stays
 // loadable without it.
-// Both posts need it for the same reason: the portal-system filter empties an anonymous
+// Both posts need it for the same reason: the integrator's filter empties an anonymous
 // query of anything not marked visible, which would take sample-event out of its date
 // archive and home-lead out of the latest-posts home it exists to lead. Measured rather
 // than assumed the second time — home-lead was seeded without it and simply did not
@@ -625,10 +629,18 @@ foreach ( $manifest['post_fields'] as $slug => $fields ) {
 		// fixture slug → post ID. The generic related_staff resolver above is
 		// top-level-only; the repeater's rows are one level down, so map each row's
 		// lead_ref slug here. Empty/unknown slugs → '' (proves the empty-cell path).
+		// The same one level down for the row PHOTO sub-fields (FW-74 ticket 05):
+		// an image field stores the attachment id whatever its return_format is, so
+		// all three resolve through one map and the format only shows up on the READ.
 		if ( 'team_members' === $name && is_array( $value ) ) {
-			$value = array_map( function ( $row ) use ( $post_ids ) {
+			$value = array_map( function ( $row ) use ( $post_ids, $attachment_ids ) {
 				if ( is_array( $row ) && isset( $row['lead_ref'] ) && is_string( $row['lead_ref'] ) ) {
 					$row['lead_ref'] = isset( $post_ids[ $row['lead_ref'] ] ) ? $post_ids[ $row['lead_ref'] ] : '';
+				}
+				foreach ( array( 'photo', 'photo_id', 'photo_url' ) as $photo_key ) {
+					if ( is_array( $row ) && isset( $row[ $photo_key ] ) && is_string( $row[ $photo_key ] ) ) {
+						$row[ $photo_key ] = isset( $attachment_ids[ $row[ $photo_key ] ] ) ? $attachment_ids[ $row[ $photo_key ] ] : '';
+					}
 				}
 				return $row;
 			}, $value );

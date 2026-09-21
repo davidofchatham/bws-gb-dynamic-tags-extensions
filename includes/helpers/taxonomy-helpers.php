@@ -58,6 +58,34 @@ function bws_get_term_image_and_return_type_options() {
 }
 
 /**
+ * THE term-archive criterion: is the page WP is rendering a term archive?
+ *
+ * AXIS OWNER. A term is claimed only when WP actually QUERIED one — `is_tax()`,
+ * `is_category()` or `is_tag()`. A bare `get_queried_object() instanceof WP_Term`
+ * is NOT the criterion: under a REST request, or any other secondary query, it can
+ * hand back a term the rendered page is not about, and a read gated on that serves
+ * a foreign entity's meta.
+ *
+ * Two sites ask, and they legitimately do different things with the answer, which is
+ * why this is a predicate rather than a term lookup. `bws_capture_ambient_signals()`
+ * needs the archive-claimed-but-no-WP_Term case to stay distinguishable from
+ * not-an-archive, because that degenerate case short-circuits the factory to empty
+ * instead of leaking the current post (SPEC §V17). `bws_read_field()`'s term-archive
+ * branch only needs to bail. A `?WP_Term` return would collapse the two.
+ *
+ * The second caller is temporary. FW-7 deletes `bws_read_field()`'s branch outright
+ * once its callers take a resolved source, leaving the factory as the only asker.
+ *
+ * @since 1.21.0
+ * @return bool True when WP queried a taxonomy, category or tag archive.
+ */
+if ( ! function_exists( 'bws_wp_is_term_archive' ) ) {
+function bws_wp_is_term_archive(): bool {
+	return function_exists( 'is_tax' ) && ( is_tax() || is_category() || is_tag() );
+}
+}
+
+/**
  * Reliable term context detection with multiple fallback methods.
  *
  * TIER NAMES ARE STABLE, AND THE GAP BELOW IS DELIBERATE. The quaternary tier (a bare

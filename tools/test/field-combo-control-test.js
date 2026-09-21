@@ -33,7 +33,7 @@
  * than a count or a joined string. That is the FW-71 / #104 lesson: four defects shipped
  * under a green suite that asserted reductions of the shape instead of the shape.
  *
- * MUTATION-CHECKED 2026-08-28 (and again 2026-09-08 for §F13), because a display-layer
+ * MUTATION-CHECKED 2026-08-28 (and again 2026-09-08, 2026-09-18 for §F13, and 2026-09-18 for §F16), because a display-layer
  * harness that asserts the wrong shapes passes forever and nobody looks again. Ten rules
  * were broken one at a time in the shipped file and every one failed here by name: always repeating the key in a row (F1.1, F1.2,
  * F2.2), an equality location filter instead of a prefix one (F5.1), serializing the merge-key
@@ -41,16 +41,38 @@
  * dropping the label from the merge identity (F1.1, F1.4, F6.2), collapsing the auto-scope to
  * an empty list (F8.4), case-folding the custom-key suppression (F7.3), auto-selecting an
  * ambiguous key (F6.2), applying an undiscovered typeDefault (F9.4), and rendering the filters
- * while auto-scoped (F8.1, F8.5). §F13's three: collapsing the `scopeless` flag into an empty
- * scope list (F13.1 through F13.4 — both kinds read the same flag), narrowing off a chain that
+ * while auto-scoped (F8.1, F8.5). §F13's four: collapsing the `scopeless` flag into an empty
+ * scope list (F13.2 + F13.4, which is what the term `icon` reached through one scoped home and
+ * one unscoped one is in the fixture for), dropping the KIND test from the narrowing (F13.1,
+ * F13.1b, F13.3, F13.3b, F13.4), narrowing off a chain that
  * HOPS past its pin (F13.6), and narrowing on a pin that failed to resolve (F13.7, reached by
  * making the resolve fallback answer the pin's KIND instead of ''; deleting the empty-scope
  * guard outright is too coarse — it narrows unpinned tags too and the suite dies before §F13).
+ * §F16's, and the SHARED PREDICATE both sections now narrow through (`narrowToScope`): dropping
+ * its kind test fails F13.1 / F13.1b / F13.3 / F13.3b / F13.4 and F16.1b — and only F16.1b on
+ * this side, because every list row in §F16 reads through a Location filter the `refs` tail
+ * presets to "Post fields", which hides a surviving term record; the pool has to be read off
+ * the filter's own OPTIONS, which is what that row does. Dropping its `scopeless` arm fails
+ * F13.2 / F13.3 / F13.4 and F16.1 / F16.1b / F16.2 / F16.2b; making its slug test always true
+ * fails F13.3 / F13.4 and four §F16 rows; emptying the D22 slug list fails F13.1 / F13.3 /
+ * F13.3b / F13.9. §F16's own five: never applying the narrowing (F16.1, F16.1b, F16.2, F16.2c,
+ * F16.7), passing a kind other than `post` (F16.1, F16.1b, F16.2, F16.2b), taking the first
+ * matching RECORD instead of unioning across them (F16.2b), keeping the first HOME's types
+ * instead of unioning within a record (F16.2, F16.2b), ignoring the server stamp (five rows),
+ * running the repeater auto-scope's fall-through against the un-narrowed pool (F16.7), and
+ * letting the kind gate ride on the types being known (F16.4b alone — which is the whole
+ * reason that row exists: the gate shipped in the types-known arm only and EVERY row in the
+ * section passed, because they all read through a preset that was hiding the survivors).
+ * Widening the gate to any tail rather than a `refs` one fails eleven rows across §F13/§F15
+ * and §F16.4c/§F16.6 — §F13.7 among them, which is the boundary the general form of this
+ * rule (FW-13, Open) has to respect and the reason it is not taken here.
  *
  * WHAT THIS DOES NOT COVER, stated so a passing run is not read as full coverage of the
  * control: the PHP field-discovery transforms (`field-discovery-test.php` owns those), the
- * REST round trip, the ComboboxControl's own rendering and keyboard behaviour, and anything
- * needing a real DOM. Those stay manual and stay held by
+ * REST round trip, the ComboboxControl's own rendering and keyboard behavior, and anything
+ * needing a real DOM. Nor WHO builds the context every case below hand-builds — under the
+ * fold that is `slot-fold-control.js`, which this file never loads;
+ * `slot-fold-picker-seam-test.js` mounts the two together and holds that join. Those stay manual and stay held by
  * `tools/test/field-selector-test-matrix.md`.
  *
  * @package BWS_Dynamic_Tags
@@ -225,6 +247,20 @@ global.window.wp = global.wp;
  *   `role`              — a repeater sub-field: row context, and the auto-scope target
  *   `_gb_internal`      — underscore-prefixed: DEMOTED to the bottom, never hidden
  *   `photo`             — reached through two homes: one merged row listing both paths
+ *   `icon`              — the same two-home shape one kind over: a TERM field reached
+ *                         through a scoped home and an unscoped one
+ *   `dept_lead`         — a post object restricted to ONE post type: the refs-tail
+ *                         narrowing's subject (§F16)
+ *   `partners`          — a relationship restricted to TWO, so the union is observable
+ *                         as something other than "all of them"
+ *   `any_ref`           — an UNRESTRICTED relationship: narrows nothing, on purpose
+ *   `shared_ref`        — one key reaching BOTH kinds of union: two homes of one record
+ *                         (merged, so the record's own types union), plus a second record
+ *                         under a different label (so the lookup unions across records)
+ *
+ * THREE post-type-scoped groups, not two. A union over two types is only distinguishable
+ * from no narrowing at all when a third type exists to be dropped — with two, `partners`
+ * would return the whole post-kind list and §F16.2 would pass under a deleted filter.
  * ---------------------------------------------------------------------- */
 
 global.window.bwsFieldEnvelope = {
@@ -248,9 +284,42 @@ global.window.bwsFieldEnvelope = {
 			// NO scope — the endpoint's own "any entity of that kind". Its `photo` is
 			// also an Event Details field, so the merged row is reachable both scoped
 			// and unscoped: the case the `scopeless` flag exists for.
+			// The three relationship fields live HERE, unscoped, so a narrowed list reads
+			// as "the scoped fields moved" rather than "everything moved" — and because
+			// the picker that offers them is the one picking a `refs` ARGUMENT, which an
+			// author reaches before any post type is settled.
 			fields: [
 				{ name: 'name', label: 'Feature Name', type: 'text' },
 				{ name: 'photo', label: 'Photo', type: 'image' },
+				{ name: 'dept_lead', label: 'Dept Lead', type: 'post_object', ref_types: [ 'office' ] },
+				{ name: 'partners', label: 'Partners', type: 'relationship', ref_types: [ 'office', 'product' ] },
+				{ name: 'any_ref', label: 'Any Ref', type: 'post_object', ref_types: [] },
+				{ name: 'shared_ref', label: 'Shared Ref', type: 'post_object', ref_types: [ 'office' ] },
+			],
+		},
+		{
+			group_title: 'Office Details',
+			scope: [ 'office' ],
+			fields: [
+				{ name: 'office_phone', label: 'Office Phone', type: 'text' },
+				// The SAME key and label as the Feature Block entry above, allowing a
+				// DIFFERENT post type: one merged record whose allowed types are the union
+				// of both homes. Nothing else in the fixture can tell a union apart from
+				// a first-match (§F16.2b).
+				{ name: 'shared_ref', label: 'Shared Ref', type: 'post_object', ref_types: [ 'product' ] },
+			],
+		},
+		{
+			group_title: 'Product Details',
+			scope: [ 'product' ],
+			fields: [
+				{ name: 'sku', label: 'SKU', type: 'text' },
+				// `shared_ref` again, under a DIFFERENT label — so it is a second RECORD
+				// rather than a third home of the first one (merge identity is kind + key
+				// + label). The wire names only the key, so either could be the field
+				// stepped through, and the types have to union across the two records as
+				// well as within one. Two unions, and §F16.2b fails if either goes.
+				{ name: 'shared_ref', label: 'Shared Ref (Legacy)', type: 'post_object', ref_types: [ 'staff' ] },
 			],
 		},
 	],
@@ -260,6 +329,19 @@ global.window.bwsFieldEnvelope = {
 			scope: [ 'department' ],
 			fields: [
 				{ name: 'blurb', label: 'Blurb', type: 'textarea' },
+				{ name: 'icon', label: 'Icon', type: 'image' },
+			],
+		},
+		{
+			group_title: 'Term Shared',
+			// NO scope, under kind `term` — the same "any entity of that kind" the post
+			// `Feature Block` group carries, spelled on the OTHER kind. Both are needed:
+			// one unscoped group alone cannot tell "offered under any subtype of its own
+			// kind" apart from "offered under any kind at all", which is the whole §F13
+			// question. Its `icon` is also a Taxonomy Extras field, so the merged row is
+			// reachable both scoped and unscoped — the `scopeless` case, within a kind.
+			fields: [
+				{ name: 'icon', label: 'Icon', type: 'image' },
 			],
 		},
 	],
@@ -284,6 +366,18 @@ global.window.bwsFieldEnvelope.post[ 0 ].fields.push( { name: 'email', label: 'E
 // real editor page. Spelled here as the two shipped pinning roots do; an argless root is
 // absent from the map, which is what `current` below asserts.
 global.window.bwsRootArgKinds = { term: 'term', post: 'post' };
+
+// WHAT KIND EACH CHAIN TOKEN RESOLVES TO — inlined from bws_fold_wire_vocabulary() on a real
+// editor page, which assembles it from BWS_FOLD_STEP_KINDS + BWS_FOLD_PARSE_TIME_ROOT_KINDS.
+// Spelled here EXACTLY as those two constants read, every entry included. `refs => post` is
+// what §F15.5 presets through, and it must be present rather than trimmed: with it absent, a
+// `refs` tail would preset nothing for the wrong reason and the row would pass while asserting
+// the opposite of its name. `meta_row` likewise stays, so §F15.7 measures a produced kind the
+// picker has no Location for rather than one nothing ships.
+global.window.bwsChainKinds = {
+	steps: { refs: 'post', terms: 'term', rows: 'meta_row' },
+	roots: { site: 'site', term: 'term', post: 'post' },
+};
 
 // The SHIPPED chain grammar, not a stub of it: the control recognizes a pin by parsing
 // the sibling `src` through `window.bwsSlotFold`, and a hand-rolled split here would be
@@ -392,15 +486,23 @@ async function main() {
 		'F1.1 the full option list, in order — flat alphabetical by label, underscore keys demoted',
 		baseLabels,
 		[
+			'Any Ref (Post Object, \'any_ref\')',
 			'Blurb (Text Area, \'blurb\')',
 			'City (Text, \'venue_city\')',
+			'Dept Lead (Post Object, \'dept_lead\')',
 			'Email (Email, \'email\')',
 			'Email (Email, \'email\')',
 			'event_date (Date)',
 			'Feature Name (Text, \'name\')',
+			'Icon (Image, \'icon\')',
 			'Name (Text, \'name\')',
+			'Office Phone (Text, \'office_phone\')',
+			'Partners (Relationship, \'partners\')',
 			'Photo (Image, \'photo\')',
 			'Role (Text, \'role\')',
+			'Shared Ref (Post Object, \'shared_ref\')',
+			'Shared Ref (Legacy) (Post Object, \'shared_ref\')',
+			'SKU (Text, \'sku\')',
 			'Staff List (Repeater, \'staff_list\')',
 			'_gb_internal (Text)',
 		]
@@ -478,10 +580,13 @@ async function main() {
 			'Post fields › Event Details',
 			'Post fields › Event Details › Staff List (repeater)',
 			'Post fields › Feature Block',
+			'Post fields › Office Details',
+			'Post fields › Product Details',
 			'Site fields',
 			'Site fields › Site Options',
 			'Term fields',
 			'Term fields › Taxonomy Extras',
+			'Term fields › Term Shared',
 		]
 	);
 	check(
@@ -499,7 +604,7 @@ async function main() {
 	check(
 		'F4.1 All and Loop fields lead, then every discovered type, sorted by LABEL',
 		labels( baseSelects[ 1 ].options ),
-		[ 'All field types', 'Loop fields', 'Date', 'Email', 'Image', 'Repeater', 'Text', 'Text Area' ]
+		[ 'All field types', 'Loop fields', 'Date', 'Email', 'Image', 'Post Object', 'Relationship', 'Repeater', 'Text', 'Text Area' ]
 	);
 
 	/* =====================================================================
@@ -749,7 +854,7 @@ async function main() {
 	check(
 		'F10.2 with dynamicLabel and a sibling source preset, the label names the kind',
 		combo( dynamic ).label,
-		'Site Option Field'
+		'Site Option Field Key'
 	);
 
 	const prefixed = await render( FieldComboControl, {
@@ -758,7 +863,7 @@ async function main() {
 		labelPrefix: 'URL',
 		context: ctx( { src: 'site' } ),
 	} );
-	check( 'F10.3 ...and labelPrefix is honored', combo( prefixed ).label, 'URL Site Option Field' );
+	check( 'F10.3 ...and labelPrefix is honored', combo( prefixed ).label, 'URL Site Option Field Key' );
 
 	/* =====================================================================
 	 * §F11 — what onChange commits
@@ -845,6 +950,14 @@ async function main() {
 	 * EXISTING per-field `scope` — nothing is added to discovery, which is where D23
 	 * draws the line.
 	 *
+	 * NARROWING IS WITHIN THE SELECTED ENTITY'S KIND (1.21.0). What an unscoped group reaches
+	 * is stated where it is derived, at `bws_field_discovery_derive_kind_scope()`; what the
+	 * picker DOES about it is what this section holds, and a fixture envelope cannot fail when
+	 * that derivation moves. F13.1b is the row that holds it, and it is the row that CHANGED
+	 * here: before 1.21.0 an unscoped post group's fields were offered under a term, which no
+	 * term read can reach. The fixture carries an unscoped group under BOTH kinds precisely so
+	 * the within-kind rule and the any-kind one produce different lists.
+	 *
 	 * ASSERTED AS WHOLE LISTS, not as membership of one row: the property is what an
 	 * author sees in the picker, and a membership check passes just as happily on a list
 	 * that narrowed nothing.
@@ -856,23 +969,43 @@ async function main() {
 		context: ctx( { src: 'term,34' } ),
 	} ) ).options );
 
+	// Rendered here rather than at F13.4 because F13.2's rule needs it: `icon`'s only
+	// SCOPED home is `department`, so `category` is the pin that excludes it.
+	const pinnedNews = labels( combo( await render( FieldComboControl, {
+		optionKey: 'key',
+		label: 'Field',
+		context: ctx( { src: 'term,77' } ),
+	} ) ).options );
+
 	check(
-		"F13.1 a pinned TERM narrows to that taxonomy's fields, plus every unscoped one",
+		"F13.1 a pinned TERM narrows to that taxonomy's fields, plus every unscoped one OF ITS KIND",
 		pinnedDepartment,
 		[
 			"Blurb (Text Area, 'blurb')",
-			"Email (Email, 'email')",
-			"Feature Name (Text, 'name')",
-			"Photo (Image, 'photo')",
+			"Icon (Image, 'icon')",
 		]
 	);
 
-	// `photo` is reached through a `staff`-scoped group AND an unscoped one. It survives
-	// a `department` pin because ONE unscoped home makes a field reachable anywhere —
-	// the rule a plain union of scope slugs would have lost.
+	// THE ROW THAT MOVED IN 1.21.0, and the reason the fixture needed a second unscoped
+	// group. `Feature Name` is an unscoped POST group's field and the second `Email` an
+	// unscoped SITE one; both used to pass a term narrowing, because `scopeless`
+	// short-circuited before anything consulted kind. A term read reaches neither, so the
+	// picker was offering fields that could not work. Asserted as the ABSENCE of the two
+	// named rows rather than left to F13.1's whole list, so the regression fails by name.
+	check(
+		'F13.1b ...and nothing of another KIND, unscoped or not',
+		pinnedDepartment.filter( function ( l ) {
+			return l.indexOf( 'Feature Name' ) === 0 || l.indexOf( 'Email' ) === 0;
+		} ),
+		[]
+	);
+
+	// `icon` is reached through a `department`-scoped group AND an unscoped one, both under
+	// kind `term`. It survives a `category` pin because ONE unscoped home makes a field
+	// reachable across its kind — the rule a plain union of scope slugs would have lost.
 	check(
 		'F13.2 a field with one unscoped home survives a pin its other home excludes',
-		pinnedDepartment.indexOf( "Photo (Image, 'photo')" ) !== -1,
+		pinnedNews.indexOf( "Icon (Image, 'icon')" ) !== -1,
 		true
 	);
 
@@ -884,33 +1017,44 @@ async function main() {
 			context: ctx( { src: 'post,12' } ),
 		} ) ).options ),
 		[
+			"Any Ref (Post Object, 'any_ref')",
 			"City (Text, 'venue_city')",
-			"Email (Email, 'email')",
+			"Dept Lead (Post Object, 'dept_lead')",
 			"Email (Email, 'email')",
 			'event_date (Date)',
 			"Feature Name (Text, 'name')",
 			"Name (Text, 'name')",
+			"Partners (Relationship, 'partners')",
 			"Photo (Image, 'photo')",
 			"Role (Text, 'role')",
+			"Shared Ref (Post Object, 'shared_ref')",
 			"Staff List (Repeater, 'staff_list')",
 			'_gb_internal (Text)',
 		]
+	);
+
+	// Only ONE Email now: the post one. The site `email` shares the key and the label and
+	// is a different kind, which is the same rule F13.1b states from the term side — and
+	// the one place the two-rows-under-two-kinds merge identity (F1.5) is observed being
+	// narrowed back apart.
+	check(
+		'F13.3b ...and the SITE twin of a post key is not among them',
+		labels( combo( await render( FieldComboControl, {
+			optionKey: 'key',
+			label: 'Field',
+			context: ctx( { src: 'post,12' } ),
+		} ) ).options ).filter( function ( l ) { return l === "Email (Email, 'email')"; } ).length,
+		1
 	);
 
 	// Re-narrowing is what "changing the pin re-narrows without a reload" means at this
 	// layer: the scope is derived per render from the sibling token, never cached against
 	// the first pin the control saw.
 	check(
-		'F13.4 changing the pin re-narrows — a taxonomy with no fields of its own leaves only the unscoped ones',
-		labels( combo( await render( FieldComboControl, {
-			optionKey: 'key',
-			label: 'Field',
-			context: ctx( { src: 'term,77' } ),
-		} ) ).options ),
+		'F13.4 changing the pin re-narrows — a taxonomy with no fields of its own leaves only the unscoped ones of its kind',
+		pinnedNews,
 		[
-			"Email (Email, 'email')",
-			"Feature Name (Text, 'name')",
-			"Photo (Image, 'photo')",
+			"Icon (Image, 'icon')",
 		]
 	);
 
@@ -924,16 +1068,51 @@ async function main() {
 		baseLabels
 	);
 
-	// The read applies to the STEP's target, not to the pin, and nothing here knows that
-	// target's type — the same reason `src:ref` presets no location (matrix M11.1).
+	// The read applies to the STEP's target, not to the pin. The target's post TYPE is still
+	// unknown, so the pin's scope must not reach past the hop — but its KIND is known and the
+	// Location filter says so since 1.21.0 (§F15.5), which is why this is asserted as "the pin
+	// changed nothing" rather than against the unfiltered list: same hop with and without a
+	// pin, byte-identical. A scope narrowing leaking past the hop would drop the `staff`-scoped
+	// rows from the first list and not the second.
+	const hoppedUnpinned = labels( combo( await render( FieldComboControl, {
+		optionKey: 'key',
+		label: 'Field',
+		context: ctx( { src: 'current;refs,related' } ),
+	} ) ).options );
 	check(
-		'F13.6 a chain that HOPS past the pin narrows nothing',
+		'F13.6 a chain that HOPS past the pin narrows nothing — the hop offers its own list either way',
 		labels( combo( await render( FieldComboControl, {
 			optionKey: 'key',
 			label: 'Field',
 			context: ctx( { src: 'term,34;refs,related' } ),
 		} ) ).options ),
-		baseLabels
+		hoppedUnpinned
+	);
+	// `related` names no discovered field, so the refs-tail narrowing (§F16) has no post
+	// types to narrow by and answers the whole post-kind list — every post-type scope in
+	// the fixture is present below. That is §F16.4's rule observed from the other side:
+	// a field whose config cannot be read leaves the list at kind `post`, never empty.
+	check(
+		'F13.6b ...and that list is the POST-kind one the hop lands on, so the row above is not two empties agreeing',
+		hoppedUnpinned,
+		[
+			"Any Ref (Post Object, 'any_ref')",
+			"City (Text, 'venue_city')",
+			"Dept Lead (Post Object, 'dept_lead')",
+			"Email (Email, 'email')",
+			'event_date (Date)',
+			"Feature Name (Text, 'name')",
+			"Name (Text, 'name')",
+			"Office Phone (Text, 'office_phone')",
+			"Partners (Relationship, 'partners')",
+			"Photo (Image, 'photo')",
+			"Role (Text, 'role')",
+			"Shared Ref (Post Object, 'shared_ref')",
+			"Shared Ref (Legacy) (Post Object, 'shared_ref')",
+			"SKU (Text, 'sku')",
+			"Staff List (Repeater, 'staff_list')",
+			'_gb_internal (Text)',
+		]
 	);
 
 	check(
@@ -978,6 +1157,471 @@ async function main() {
 		"F13.10 the scope came from the entity-lookup route's resolve mode, never from discovery",
 		entityRequests[ 0 ],
 		ENTITY_ROUTE + '?kind=term&mode=resolve&id=34'
+	);
+
+	// THE ALL ROW NAMES A LIVE NARROWING, AND ONLY A LIVE ONE. Over a narrowed pool
+	// "All detected fields" is a claim about the site that the list beside it
+	// contradicts — and the author reads the row as the way back, which this narrowing
+	// is not (the records it dropped are ones the render cannot reach off this source).
+	// Asserted as VALUE **and** label: the value stays `__all_locations` throughout, so
+	// every read of the active filter is untouched and this is a rename, not a state.
+	async function allRow( state ) {
+		const opt = selects( await render( FieldComboControl, {
+			optionKey: 'key',
+			label: 'Field',
+			context: ctx( state ),
+		} ) )[ 0 ].options[ 0 ];
+		return [ opt.value, opt.label ];
+	}
+
+	check(
+		'F13.11 a resolved entity narrowed the pool, so the ALL row says so instead of claiming the site',
+		await allRow( { src: 'term,34' } ),
+		[ '__all_locations', 'All available fields' ]
+	);
+	// The contrast, and the reason the row above is not just a string swap: the SAME
+	// source shape with an entity that will not resolve narrows nothing (§F13.7), so the
+	// claim is true again and the row reads it. The name tracks the pool, not the wire.
+	check(
+		'F13.11b ...while an entity that will not resolve narrows nothing, so the row is honest as it stands',
+		await allRow( { src: 'term,999' } ),
+		[ '__all_locations', 'All detected fields' ]
+	);
+
+	/* =====================================================================
+	 * §F14 — the Location preset from a chain's terminal repeater (FW-74)
+	 *
+	 * A chain ending on a repeater step names the exact home of every field the read can
+	 * reach, so the Location filter opens THERE rather than on the kind root or on All.
+	 * The recognition is machine-readable both ways: the chain is parsed through the
+	 * shipped grammar, and whether the tail's argument names a repeater is asked of the
+	 * discovery envelope's own container record — this file carries no list of which step
+	 * slugs produce rows, which is why F14.4 and F14.5 preset nothing without naming
+	 * `refs` or `terms` as the reason.
+	 *
+	 * ASSERTED AS THE FILTER VALUE **AND** THE RESULTING LIST. The value alone would pass
+	 * on a preset that pointed at a path holding nothing, which is the failure mode the
+	 * `locExists` guard exists for.
+	 * ================================================================== */
+
+	const rowsChain = await render( FieldComboControl, {
+		optionKey: 'key',
+		label: 'Field',
+		context: ctx( { src: 'rows,staff_list' } ),
+	} );
+
+	check(
+		'F14.1 a chain ending on a repeater presets Location to that repeater\'s own path',
+		selects( rowsChain )[ 0 ].value,
+		'Post fields › Event Details › Staff List'
+	);
+	check(
+		'F14.2 ...and the list that opens is that repeater\'s sub-fields',
+		labels( combo( rowsChain ).options ),
+		[ "Role (Text, 'role')" ]
+	);
+
+	// THE TAIL, not the root: the read applies to whatever the chain resolved to last, so
+	// a multi-step chain presets off its final step exactly as a one-step chain does. This
+	// is also the shape a BASE tag serializes, where the fold containers hand the picker
+	// their terminal step alone.
+	check(
+		'F14.3 a multi-step chain presets off its TAIL, not its root',
+		selects( await render( FieldComboControl, {
+			optionKey: 'key',
+			label: 'Field',
+			context: ctx( { src: 'current;rows,staff_list' } ),
+		} ) )[ 0 ].value,
+		'Post fields › Event Details › Staff List'
+	);
+
+	// A `refs` argument names a relationship field, not a container, so the repeater path must
+	// decline and let the KIND path answer. Asserting the kind's own value rather than "not a
+	// repeater path" is what makes the decline visible: a container path winning here would
+	// read as a location three segments deeper.
+	check(
+		'F14.4 a tail whose argument names no discovered CONTAINER falls through to the kind preset',
+		selects( await render( FieldComboControl, {
+			optionKey: 'key',
+			label: 'Field',
+			context: ctx( { src: 'current;refs,related' } ),
+		} ) )[ 0 ].value,
+		'Post fields'
+	);
+	check(
+		'F14.5 ...and a repeater key nothing discovered presets nothing either, rather than an empty view',
+		labels( combo( await render( FieldComboControl, {
+			optionKey: 'key',
+			label: 'Field',
+			context: ctx( { src: 'rows,never_registered' } ),
+		} ) ).options ),
+		baseLabels
+	);
+
+	// Same slot prefix `presetKind()` and the root-argument narrowing read by: a try_ slot's
+	// key control presets off ITS OWN slot's source, not off slot 1's.
+	check(
+		'F14.6 a slot-prefixed key presets off its own slot\'s chain',
+		selects( await render( FieldComboControl, {
+			optionKey: '2-key',
+			label: 'Field',
+			context: ctx( { src: 'current', '2-src': 'rows,staff_list' } ),
+		} ) )[ 0 ].value,
+		'Post fields › Event Details › Staff List'
+	);
+
+	// The dynamic label follows the ACTIVE location, which is already its rule — so naming
+	// the repeater is a consequence of the preset landing, not a second mechanism.
+	check(
+		'F14.7 the dynamic label names the repeater the preset landed on',
+		combo( await render( FieldComboControl, {
+			optionKey: 'key',
+			dynamicLabel: true,
+			context: ctx( { src: 'rows,staff_list' } ),
+		} ) ).label,
+		'Staff List Field Key'
+	);
+
+	/* =====================================================================
+	 * §F15 — the KIND preset follows the chain, not the legacy flat keys
+	 *
+	 * The question is `bws_fold_chain_resolution()`'s: the tail STEP's produced kind, or the
+	 * ROOT's where that answers at parse time. Both maps arrive from PHP on
+	 * `window.bwsChainKinds`, so this section asserts the WIRING, not a table of slugs — add
+	 * a step type in PHP and it presets here with no edit to the shipped file or to this one.
+	 *
+	 * WHAT THIS REPLACED, and why the rows read as a pair: the derivation used to be
+	 * `srcTermIn` plus a literal `src === 'site'`. Both predate chain wire. `srcTermIn` is
+	 * dropped at registration on every chain-source tag (1.17.0), so the ONLY term preset in
+	 * the plugin sat on wire nothing can author, while `terms,<tax>` — its replacement —
+	 * presetted nothing. F15.1 and F15.2 are that pair, and they must agree.
+	 *
+	 * ASSERTED AS THE FILTER VALUE AND THE LABEL TOGETHER. The label is derived from the
+	 * active location, so a preset that landed without the label following it would be a
+	 * half-applied kind, which is what the old `src:ref` behaviour was.
+	 * ================================================================== */
+
+	async function presetOf( state ) {
+		const t = await render( FieldComboControl, {
+			optionKey: 'key',
+			dynamicLabel: true,
+			context: ctx( state ),
+		} );
+		return [ selects( t )[ 0 ].value, combo( t ).label ];
+	}
+
+	check(
+		'F15.1 a LEGACY flat srcTermIn still presets Term — a dropped option is not a dropped value',
+		await presetOf( { srcTermIn: 'department' } ),
+		[ 'Term fields', 'Term Meta Field Key' ]
+	);
+	check(
+		'F15.2 ...and the chain spelling that REPLACED it presets identically',
+		await presetOf( { src: 'terms,department' } ),
+		[ 'Term fields', 'Term Meta Field Key' ]
+	);
+	check(
+		'F15.3 a multi-step chain presets off its tail step',
+		await presetOf( { src: 'current;terms,department' } ),
+		[ 'Term fields', 'Term Meta Field Key' ]
+	);
+	// A declaring root is the one tail whose kind is known AND whose pool is already narrowed
+	// by something finer. It presets the LABEL and leaves the FILTER alone: the D22 narrowing
+	// keeps unscoped groups of other kinds (§F13.2), which a "Term fields" filter would drop,
+	// and on a selection that failed to resolve it would narrow to nothing (§F13.7). The pair
+	// below is the whole property — the label moved, the list did not.
+	check(
+		'F15.4 a DECLARING root presets its LABEL from the kind but leaves the Location filter alone',
+		await presetOf( { src: 'term,34' } ),
+		[ '__all_locations', 'Term Meta Field Key' ]
+	);
+	// SAME ANSWER WITH NO ARGUMENT YET, and that is the property rather than a second case
+	// of the first. Gating on a RESOLVED argument gave the empty state a "Term fields"
+	// preset and the filled state "All detected fields", so the filter loosened as the
+	// author supplied information. The test is what the ROOT is, not whether it is filled.
+	check(
+		'F15.4b ...and an UNFILLED declaring root answers identically — the filter never loosens on selection',
+		await presetOf( { src: 'term' } ),
+		[ '__all_locations', 'Term Meta Field Key' ]
+	);
+	// The LIST half of that property is §F13.1 and §F13.7, which assert the scope-narrowed
+	// lists literally. A row here re-rendering `term,34` and comparing it to §F13's own
+	// `term,34` would compare a render to itself and pass under any narrowing at all, so the
+	// pointer is the assertion: drop the gate and those two go red.
+
+	// `refs` PRESETS, and it is the derivation doing it — no step is exempt. It held an
+	// exemption from 1.13.0 (`22bddf1`) on the ground that the target's post TYPE is unknown,
+	// which is true and is about a different axis: `refs` produces `post` unconditionally,
+	// and the list it used to offer held term and site fields a post read cannot reach. The
+	// exemption comes back only if `refs` can produce more than ONE kind, and that fails
+	// `BWS_FOLD_STEP_KINDS` before it reaches here.
+	check(
+		'F15.5 a refs tail presets Post from the vocabulary like any other step — no slug is exempt',
+		await presetOf( { src: 'refs,lead' } ),
+		[ 'Post fields', 'Post Meta Field Key' ]
+	);
+	check(
+		'F15.6 ...and the legacy flat spelling of the same hop presets identically',
+		await presetOf( { src: 'ref', ref: 'lead' } ),
+		[ 'Post fields', 'Post Meta Field Key' ]
+	);
+	// The pair above is HARNESS-ONLY on a healthy stack, and deliberately so: the base tag's
+	// mount migrator folds a flat `src:ref|ref:lead` before an author can look at the panel,
+	// so no manual row drives F15.6 and none claims to. What it pins is that the flat arm and
+	// the step it folds into answer the SAME, which is what makes the fold invisible rather
+	// than merely fast — and on a stack where the grammar failed to load, the fold does not
+	// happen and this arm is the only preset there is (§F15.10/§F15.11).
+
+	// `rows` produces `meta_row`, which is not a Location the filter can open on. The kind
+	// path must decline rather than round to the nearest kind — the repeater path (§F14) is
+	// what answers here, and F14.1 proves it still does.
+	check(
+		'F15.7 a kind with no Location of its own presets nothing through the KIND path',
+		await presetOf( { src: 'rows,never_registered' } ),
+		[ '__all_locations', 'Meta/Option Field Key' ]
+	);
+	check(
+		'F15.8 an argless root presets nothing — `current` has no kind until render',
+		await presetOf( { src: 'current' } ),
+		[ '__all_locations', 'Meta/Option Field Key' ]
+	);
+	check(
+		'F15.9 `site` presets through the ROOT map now, not through a literal equality',
+		await presetOf( { src: 'site' } ),
+		[ 'Site fields', 'Site Option Field Key' ]
+	);
+
+	// The maps are PHP's. With none delivered the control presets nothing rather than
+	// falling back to a built-in table — the fallback is what would let the two drift.
+	const savedKinds = global.window.bwsChainKinds;
+	global.window.bwsChainKinds = undefined;
+	check(
+		'F15.10 with no vocabulary delivered, the chain presets nothing (no built-in table)',
+		await presetOf( { src: 'terms,department' } ),
+		[ '__all_locations', 'Meta/Option Field Key' ]
+	);
+	check(
+		'F15.11 ...while the legacy flat key, which needs no vocabulary, still does',
+		await presetOf( { srcTermIn: 'department' } ),
+		[ 'Term fields', 'Term Meta Field Key' ]
+	);
+	global.window.bwsChainKinds = savedKinds;
+
+	/* =====================================================================
+	 * §F16 — the refs-tail narrowing to post TYPES (FW-13)
+	 *
+	 * §F15.5 takes a `refs` tail as far as kind `post`. This is the axis under it: the
+	 * argument names a relationship or post object, and THAT FIELD declares the post types
+	 * it can land on. The editor cannot derive them — a `refs` argument is the field
+	 * stepped through, not what it reaches — so they arrive stamped on the record
+	 * (`ref_types`, `bws_field_discovery_ref_post_types()`), which is the same shape
+	 * `repeater_key` takes for a `rows` tail.
+	 *
+	 * SEVERITY IS WHY THIS IS A SEPARATE SECTION FROM §F13. A record of the wrong KIND is
+	 * a wrong answer — the read cannot reach it at all. A record of the wrong post TYPE is
+	 * a LOOSE answer — it resolves for some of the posts the step lands on and not others.
+	 * The rows below narrow where the field says so and stay loose where it does not, and
+	 * F16.3/F16.4 are the loose cases asserted as deliberate rather than left unstated.
+	 *
+	 * BOTH SEVERITIES LIVE HERE, THOUGH, and only one of them is about post types. `refs`
+	 * produces `post` whatever field it steps through, so the KIND gate applies to every
+	 * `refs` tail and is not conditional on the types being known — F16.4b is that half, and
+	 * it is a POOL row rather than a list row for the reason F16.1b is.
+	 *
+	 * ASSERTED AS WHOLE LISTS, per the file's own rule. A "does it contain X" row would
+	 * pass under a filter that dropped the wrong half.
+	 * ================================================================== */
+
+	async function refTailList( wire ) {
+		return labels( combo( await render( FieldComboControl, {
+			optionKey: 'key',
+			label: 'Field',
+			context: ctx( { src: wire } ),
+		} ) ).options );
+	}
+
+	// `dept_lead` allows `office` alone. So: Office Details survives, the unscoped Feature
+	// Block survives (an unscoped group means "any subtype of MY kind", and `office` is
+	// one), and Event Details (`staff`) and Product Details (`product`) are gone — along
+	// with every term and site record, which §F13's kind test already removed.
+	//
+	// `Feature Name` and `Name` are the pair that makes this readable: the same key `name`
+	// under two labels, one home unscoped and one scoped to `staff`. Exactly one survives,
+	// so the row cannot pass under a filter keyed on the KEY instead of the home.
+	check(
+		'F16.1 a refs tail over a field restricted to ONE post type offers that type plus the unscoped post-kind fields',
+		await refTailList( 'refs,dept_lead' ),
+		[
+			"Any Ref (Post Object, 'any_ref')",
+			"Dept Lead (Post Object, 'dept_lead')",
+			"Feature Name (Text, 'name')",
+			"Office Phone (Text, 'office_phone')",
+			"Partners (Relationship, 'partners')",
+			"Photo (Image, 'photo')",
+			"Shared Ref (Post Object, 'shared_ref')",
+		]
+	);
+
+	// THE POOL, NOT THE VIEW. Every row in this section reads the list through the Location
+	// filter, which a `refs` tail presets to "Post fields" (§F15.5) — so the KIND half of
+	// the narrowing is invisible in those lists: a term record surviving it would be hidden
+	// by the preset rather than by the filter under test. The Location OPTIONS are built
+	// from the narrowed pool BEFORE that preset applies, so they are where the pool itself
+	// can be read. A record of another kind in there would put its root in this list.
+	check(
+		'F16.1b the narrowed POOL holds post-kind records only — the Location filter has no other kind to offer',
+		labels( selects( await render( FieldComboControl, {
+			optionKey: 'key',
+			label: 'Field',
+			context: ctx( { src: 'refs,dept_lead' } ),
+		} ) )[ 0 ].options ),
+		// Event Details is here on `photo`'s account and not on its own: `photo` is one
+		// merged record reached through Event Details AND the unscoped Feature Block, so
+		// it survives and lists under both homes. Every ROOT in the list is `Post fields`,
+		// which is what the row is about.
+		[
+			// The ALL row NAMES the narrowing instead of claiming the site, because the
+			// pool it opens is this tail's and not every field discovered.
+			'All available fields',
+			'Post fields',
+			'Post fields › Event Details',
+			'Post fields › Feature Block',
+			'Post fields › Office Details',
+		]
+	);
+
+	// `partners` allows `office` AND `product`. The union is what makes this row different
+	// from both F16.1 and F16.3: Product Details joins, Event Details still does not.
+	check(
+		'F16.2 a refs tail over a field allowing SEVERAL types offers the union, and still not the rest',
+		await refTailList( 'refs,partners' ),
+		[
+			"Any Ref (Post Object, 'any_ref')",
+			"Dept Lead (Post Object, 'dept_lead')",
+			"Feature Name (Text, 'name')",
+			"Office Phone (Text, 'office_phone')",
+			"Partners (Relationship, 'partners')",
+			"Photo (Image, 'photo')",
+			"Shared Ref (Post Object, 'shared_ref')",
+			"Shared Ref (Legacy) (Post Object, 'shared_ref')",
+			"SKU (Text, 'sku')",
+		]
+	);
+
+	// TWO UNIONS, ONE KEY. `shared_ref` names one merged record reached through two homes
+	// (`office` + `product`) and a second record under a different label (`staff`) — so
+	// reaching every post type in the fixture takes the union WITHIN a record and the union
+	// ACROSS records, and the row goes red if either degrades to a first match. The wire
+	// names only the key, so either record could be the field stepped through and offering
+	// for one of them alone would hide the other's fields.
+	//
+	// Asserted against the un-narrowed post list rather than a literal: what is being
+	// claimed is "these three types are every type there is", and spelling the list again
+	// would let the claim survive a fixture that grew a fourth.
+	check(
+		'F16.2b a key whose allowed types union to every post type narrows to the whole post-kind list',
+		await refTailList( 'refs,shared_ref' ),
+		hoppedUnpinned
+	);
+	// ...and the same key with either union removed narrows to LESS than that, which is
+	// what makes the row above an assertion rather than a tautology: `office` alone drops
+	// Event Details and Product Details (§F16.1 is that list, one row shorter).
+	check(
+		'F16.2c ...while one of its homes alone reaches strictly fewer, so the row above is not measuring nothing',
+		( await refTailList( 'refs,dept_lead' ) ).length < hoppedUnpinned.length,
+		true
+	);
+
+	// An unrestricted relationship means "any post type", which is exactly what kind
+	// `post` alone already says. Compared against the hop that narrowed nothing at all
+	// (§F13.6b) rather than against a literal, so the claim is "identical to no narrowing"
+	// and not "happens to list these nine".
+	check(
+		'F16.3 an UNRESTRICTED field narrows nothing past kind `post` — loose is the honest answer',
+		await refTailList( 'refs,any_ref' ),
+		hoppedUnpinned
+	);
+	check(
+		'F16.4 ...and so does a field the discovery never saw — never an empty list',
+		await refTailList( 'refs,no_such_field' ),
+		hoppedUnpinned
+	);
+
+	// THE KIND GATE IS UNCONDITIONAL, and the two rows above cannot see that. Both read the
+	// list through a Location filter the `refs` tail already presets to "Post fields", so a
+	// term record surviving in the POOL is hidden by the preset and they stay green either
+	// way — which is exactly what happened: the gate ran in the types-known arm only, and
+	// every assertion in this section passed while an unrestricted tail kept 16 unreadable
+	// term and site fields one widening click away. The preset is a starting VIEW; it was
+	// doing a pool's job. Read off the filter's own OPTIONS, as §F16.1b is.
+	check(
+		'F16.4b ...and BOTH still bind the pool to kind `post` — the gate does not ride on the types being known',
+		labels( selects( await render( FieldComboControl, {
+			optionKey: 'key',
+			label: 'Field',
+			context: ctx( { src: 'refs,any_ref' } ),
+		} ) )[ 0 ].options ),
+		[
+			'All available fields',
+			'Post fields',
+			'Post fields › Event Details',
+			'Post fields › Event Details › Staff List (repeater)',
+			'Post fields › Feature Block',
+			'Post fields › Office Details',
+			'Post fields › Product Details',
+		]
+	);
+	// The contrast that makes the row above an assertion: an ARGLESS root knows no kind, so
+	// its pool keeps all three and every kind root is offered. Same read, opposite answer.
+	check(
+		'F16.4c ...while a source that knows no kind keeps all three, so the row above is not measuring an empty fixture',
+		labels( selects( await render( FieldComboControl, {
+			optionKey: 'key',
+			label: 'Field',
+			context: ctx( { src: 'current' } ),
+		} ) )[ 0 ].options ).filter( function ( l ) {
+			return l === 'Term fields' || l === 'Site fields';
+		} ),
+		[ 'Site fields', 'Term fields' ]
+	);
+
+	// THE NARROWING IS THE TAIL'S, not any step's. A `refs` hop consumed mid-chain has
+	// already been stepped through by the time the read applies, so it says nothing about
+	// where the read lands — the tail does, and here the tail is a different `refs`.
+	check(
+		'F16.5 a refs hop that is NOT the tail does not narrow — the read applies to what the chain last resolved to',
+		await refTailList( 'refs,partners;refs,dept_lead' ),
+		await refTailList( 'refs,dept_lead' )
+	);
+
+	// `terms` is deliberately exempt: its argument is a taxonomy and it produces a term,
+	// which is the KIND axis §F15.2 already answers. A post-type narrowing reaching it
+	// would be narrowing term records by post-type slugs.
+	check(
+		'F16.6 a `terms` tail is untouched by this — its argument is a taxonomy, not a relationship field',
+		await refTailList( 'refs,dept_lead;terms,department' ),
+		[
+			"Blurb (Text Area, 'blurb')",
+			"Icon (Image, 'icon')",
+		]
+	);
+
+	// Composes with the repeater auto-scope, the same way §F13.9 does: the narrowing runs
+	// first and the scope runs on its result.
+	check(
+		'F16.7 the refs narrowing composes with the repeater auto-scope rather than replacing it',
+		labels( combo( await render( FieldComboControl, {
+			optionKey: 'key',
+			label: 'Field',
+			scope: 'row',
+			scopeKey: 'staff_list',
+			context: ctx( { src: 'refs,dept_lead' } ),
+		} ) ).options ),
+		// `staff_list` is an Event Details field, dropped by the `office` narrowing — so
+		// the repeater handle matches nothing and the auto-scope falls through to the
+		// narrowed pool rather than to an empty list, which is F8.4's rule reached from
+		// here. The two narrowings compose; neither one silently overrules the other.
+		await refTailList( 'refs,dept_lead' )
 	);
 
 	console.log( '' );

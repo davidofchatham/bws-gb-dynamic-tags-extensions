@@ -583,6 +583,36 @@ function bws_try_phone_term_dispatch( $term_id, $options, $instance ) {
 }
 
 /**
+ * Try-tag repeater-ROW-slot dispatch for the `phone` template (try_row_fn, FW-74).
+ *
+ * The row twin of the post dispatch's keyed branch: read the sub-field off the row, then
+ * run it through the SAME finisher (normalize-as-validity, cc, tel wrap), so a row number
+ * and a post number compose identically. No SITE branch — a `rows` step never resolves to
+ * the site store — and no `use` fork, because {{phone}} has no analog.
+ *
+ * NO base arm is its twin: base {{phone}} reads through bws_resolve_field_values(), which
+ * dispatches nothing on kind and hands every resolved source to the L2 seam, whose
+ * `meta_row` case has been live since 1.17.0. See bws_try_email_row_dispatch() for the
+ * same note at length — only the try_ machinery, which dispatches per ARM, needed one.
+ *
+ * Takes the resolved SOURCE, not an id (a row has none).
+ *
+ * @since 1.21.0
+ * @param array  $source   Resolved source of kind `meta_row`.
+ * @param array  $options  Slot options (key, noLink).
+ * @param object $instance GB tag instance.
+ * @return string[] Finished per-item strings for this row.
+ */
+function bws_try_phone_row_dispatch( $source, $options, $instance ) {
+	$key = sanitize_text_field( $options['key'] ?? '' );
+	if ( '' === $key || ( function_exists( 'bws_is_valid_meta_key' ) && ! bws_is_valid_meta_key( $key ) ) ) {
+		return array();
+	}
+	$raw = bws_read_resolved_source( (array) $source, $key, $instance );
+	return bws_phone_finish_values( '' === $raw ? array() : array( $raw ), (array) $options );
+}
+
+/**
  * Modifier post-source reader for the `phone` template (post_fn). String contract
  * for make_modifier_callback (term_phone at src:ref).
  *
@@ -652,6 +682,7 @@ function bws_register_phone_template(): void {
 		'post_fn'             => 'bws_phone_post_core',
 		'try_core_fn'         => 'bws_try_phone_post_dispatch',
 		'try_term_fn'         => 'bws_try_phone_term_dispatch',
+		'try_row_fn'          => 'bws_try_phone_row_dispatch',
 		'supports_try'        => true,
 		'try_per_slot_key'    => true,
 		'try_per_slot_use'    => false,

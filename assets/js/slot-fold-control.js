@@ -563,17 +563,21 @@
 	 * That is FW-56's stated editor-UX floor (the terminal step's output kind must be
 	 * computable from the wire at parse time), exercised here for real.
 	 *
-	 * `refs` is deliberately NOT preset: the step target's post type is not reliably
-	 * known until ref-step parity, so presetting would falsely assert a kind. Leaving
-	 * it unmapped matches shipped behaviour and is not an omission.
+	 * `refs` IS handed over, since 1.21.0. It was withheld on the ground that the step
+	 * target's post type is not known at parse time — true, and about a different axis
+	 * than the one the picker was refused. What the picker does with `refs,<field>` is
+	 * `presetKind()`'s and the refs-tail narrowing's, both in field-combo-control.js:
+	 * `refs` produces `post` unconditionally, and the FIELD's own config names the post
+	 * types it reaches. Withholding the token meant the fold answered differently from
+	 * the base tag on identical wire, for no reason an author could see.
 	 *
 	 * A ROOT WITH AN ARGUMENT hands that over as well, spelled the way the base tag's own
 	 * `src` spells it (`term,34`) — the picker's root-argument narrowing (FW-39 D22) reads
 	 * the sibling `src` through the chain grammar, so a folded slot presenting only the
 	 * bare slug would narrow on the base tag and not under the fold, for no reason an
 	 * author could see. It stays a one-step wire because that is what the terminal IS
-	 * here; a chain that hops past the root reaches the `refs` arm above and presets
-	 * nothing, which is the same answer for the same reason.
+	 * here — the read applies to what the chain last resolved to, and every step above
+	 * has already been consumed getting there.
 	 */
 	function fieldContext( slot, commitField ) {
 		var terminal = slot.chain.length ? slot.chain[ slot.chain.length - 1 ] : null;
@@ -583,7 +587,7 @@
 				synth.src = 'site';
 			} else if ( 'terms' === terminal.slug ) {
 				synth.srcTermIn = terminal.arg || '1';
-			} else if ( 'same' !== terminal.slug && 'refs' !== terminal.slug ) {
+			} else if ( 'same' !== terminal.slug ) {
 				synth.src = terminal.slug + ( terminal.arg ? ',' + terminal.arg : '' );
 			}
 		}
@@ -673,31 +677,51 @@
 		}
 
 		/**
-		 * Hand a step's field picker the ROOT ARGUMENT its own argument is read off, when
-		 * there is one (FW-39 D22).
+		 * Hand a step's field picker what the PRECEDING position says about the entity its
+		 * own argument is read off, when that position says anything (FW-39 D22, FW-74).
 		 *
-		 * Only position 1 qualifies, and for the reason `fieldContext()` states: the
-		 * entity a step's field is read off is whatever the chain resolved to just
-		 * BEFORE it, and only at position 1 is that the root itself. The picker does its
-		 * own recognizing from the `src` token — this only makes sure the token is there
-		 * and spelled as the wire spells it, which is what keeps ONE narrowing rule
-		 * serving the base tag and both fold containers.
+		 * The entity a step's field is read off is whatever the chain resolved to just
+		 * BEFORE it. So the question is always the predecessor's, and the only thing that
+		 * varies is whether the predecessor NAMES what it resolved to. Two do:
 		 *
-		 * `rootArgOf()` is the test for whether a root takes an argument, not a slug list:
-		 * a root declares its own argument, so an integrator's declaring root narrows here
-		 * without this file knowing its name.
+		 * - a DECLARING ROOT at position 0, which names one entity of a known kind. Tested
+		 *   with `rootArgOf()` rather than a slug list — a root declares its own argument,
+		 *   so an integrator's declaring root narrows here without this file knowing its
+		 *   name. Position 1 only, because only there is the predecessor the root itself.
+		 * - a `rows` STEP at any position, which names the repeater whose rows follow. Its
+		 *   sub-fields are discoverable from that name alone, so its successor's picker can
+		 *   open on them.
+		 * - a `refs` STEP at any position, which names the relationship field stepped
+		 *   THROUGH. The post it lands on has a type nothing HERE knows at parse time — but
+		 *   the field declares its allowed post types in its own config, and discovery
+		 *   stamps them (`bws_field_discovery_ref_post_types()`), so the picker narrows off
+		 *   the name the same way it does for a repeater. Discoverable from the name alone
+		 *   is the property all three share; what varies is which question it answers.
+		 *
+		 * `terms` names neither: its argument is a taxonomy, and what it produces is a term
+		 * — the KIND axis, which the Location preset already answers. That is the asymmetry,
+		 * and it is why this is not simply "hand over the previous step".
+		 *
+		 * The picker does its own recognizing from the `src` token — this only makes sure
+		 * the token is there and spelled as the wire spells it, which is what keeps ONE
+		 * narrowing rule serving the base tag and both fold containers.
 		 *
 		 * @param {Object} ctx The synthetic context the caller built.
 		 * @param {number} idx This step's position in the chain.
-		 * @return {Object} The same context, or one carrying the root argument's `src` token.
+		 * @return {Object} The same context, or one carrying the predecessor's `src` token.
 		 */
-		function rootArgContext( ctx, idx ) {
-			var root = ( 1 === idx ) ? chain[ 0 ] : null;
-			if ( ! root || ! root.arg || ! rootArgOf( conf, root.slug ) ) {
+		function predecessorContext( ctx, idx ) {
+			var prev = ( idx > 0 ) ? chain[ idx - 1 ] : null;
+			if ( ! prev || ! prev.arg ) {
+				return ctx;
+			}
+			var names = ( 1 === idx && rootArgOf( conf, prev.slug ) ) ||
+				'rows' === prev.slug || 'refs' === prev.slug;
+			if ( ! names ) {
 				return ctx;
 			}
 			return {
-				state: Object.assign( {}, ctx.state, { src: root.slug + ',' + root.arg } ),
+				state: Object.assign( {}, ctx.state, { src: prev.slug + ',' + prev.arg } ),
 				setState: ctx.setState
 			};
 		}
@@ -903,7 +927,7 @@
 							help: argCfg.help,
 							placeholder: argCfg.placeholder,
 							typeDefault: argCfg.typeDefault,
-							context: rootArgContext( stepContext( stepObj, commitArg ), i )
+							context: predecessorContext( stepContext( stepObj, commitArg ), i )
 						} )
 						: el( TextControl, {
 							label: argCfg.label,

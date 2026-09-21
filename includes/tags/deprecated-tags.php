@@ -2755,7 +2755,7 @@ function bws_register_option_migrations(): void {
 	//
 	// `term` is HARDCODED rather than derived from the registered modifier prefixes, and
 	// that is a real limit rather than an oversight: this function runs at init:20 and an
-	// external modifier registers later (bws-portal-system's `view_` is init:21), so a
+	// external modifier registers later (the one that existed was init:21), so a
 	// derived prefix list would hold exactly `term` anyway while promising more. An
 	// external plugin that needs the same repair registers its own entry — the registry
 	// is public API.
