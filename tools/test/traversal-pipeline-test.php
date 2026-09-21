@@ -1067,44 +1067,19 @@ eq( 'V14 empty ref -> empty list', array(), ids_post_kind_only( array() ) );
 // ── FW-49 — bws_collect_value_list (shared L3 combining fold) ────────────────
 //
 // Pure fold (field-helpers.php): slice→suppress→render→drop→link-gate→join.
-// House pattern: copy the shipped function inline, byte-equivalent.
-
-if ( ! function_exists( 'bws_collect_value_list' ) ) {
-	function bws_collect_value_list( array $items, callable $render, array $options ): array {
-		$limit = max( 1, (int) ( $options['limit'] ?? 1 ) );
-		$sep   = $options['sep'] ?? ', ';
-
-		$item_opts = $options;
-		unset( $item_opts['fallback'] );
-
-		$values = array();
-		foreach ( array_slice( $items, 0, $limit ) as $item ) {
-			$result = $render( $item, $item_opts );
-			if ( is_array( $result ) ) {
-				$value = (string) ( $result['value'] ?? '' );
-				$link  = $result['link'] ?? null;
-			} else {
-				$value = (string) $result;
-				$link  = null;
-			}
-			if ( '' === $value ) {
-				continue;
-			}
-			$values[] = array(
-				'value' => $value,
-				'link'  => is_array( $link ) ? $link : null,
-			);
-		}
-
-		$count = count( $values );
-		return array(
-			'value'  => implode( $sep, array_column( $values, 'value' ) ),
-			'values' => $values,
-			'count'  => $count,
-			'link'   => 1 === $count ? $values[0]['link'] : null,
-		);
-	}
-}
+// REAL, not a copy — the file is already required above for
+// bws_source_link_identity, and the fold's own helpers (bws_clamp_limit,
+// bws_limit_default) are pure and come with it. The rows below therefore drive
+// the shipped function.
+//
+// There WAS an inline copy here, and the require made it unreachable the moment
+// it landed: its function_exists guard never fired again, so the copy could and
+// did drift — its own `max( 1, (int) $limit )` in place of the shared clamp, a
+// slice with no unlimited arm — while its comment claimed byte-equivalence and
+// the section went on passing against the shipped rule. Deleted rather than
+// repaired (FW-85 ticket 01); the same lesson already cost this file its two
+// assemble-step copies. The limit rows below are what a re-introduced copy
+// fails on by name.
 
 // Render stub: items are ['v' => value, 'l' => link|null]; '' value = skip source.
 $cv_render = function ( $item, array $item_opts ) {
@@ -1146,6 +1121,22 @@ $r = $cv( array( 'v' => 'A' ), array( 'v' => 'B' ), array( 'v' => 'C' ) )( array
 eq( 'CV limit slice + custom sep', 'A | B', $r['value'] );
 $r = $cv( array( 'v' => 'A' ), array( 'v' => 'B' ) )( array() );
 eq( 'CV default limit 1', 'A', $r['value'] );
+
+// What a WRITTEN limit means is bws_clamp_limit's (its own cases are
+// limit-clamp-test.php); what the fold owes it is routing every slice through
+// it. `0` and `-1` are unlimited, a fractional value truncates, non-numeric
+// falls to the default — the four rows an inline `max( 1, (int) $limit )` gets
+// wrong on the first two.
+$cv3 = $cv( array( 'v' => 'A' ), array( 'v' => 'B' ), array( 'v' => 'C' ) );
+eq( 'CV limit 0 = unlimited', 'A, B, C', $cv3( array( 'limit' => 0 ) )['value'] );
+eq( 'CV limit -1 = unlimited', 'A, B, C', $cv3( array( 'limit' => -1 ) )['value'] );
+eq( 'CV limit 2.7 truncates', 'A, B', $cv3( array( 'limit' => '2.7' ) )['value'] );
+eq( 'CV limit non-numeric = default', 'A', $cv3( array( 'limit' => 'abc' ) )['value'] );
+
+// The DEFAULT the clamp gets is bws_limit_default's, read off the `src`
+// SPELLING — chain wire unlimited, flat wire 1. A stated limit still wins.
+eq( 'CV chain-wire default unlimited', 'A, B, C', $cv3( array( 'src' => 'refs,office' ) )['value'] );
+eq( 'CV chain-wire stated limit wins', 'A, B', $cv3( array( 'src' => 'refs,office', 'limit' => 2 ) )['value'] );
 
 // Fallback suppression: $render must NOT see 'fallback' (GH #51 — fires once in
 // the caller on all-empty, never per item).
