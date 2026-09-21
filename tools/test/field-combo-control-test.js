@@ -1159,6 +1159,35 @@ async function main() {
 		ENTITY_ROUTE + '?kind=term&mode=resolve&id=34'
 	);
 
+	// THE ALL ROW NAMES A LIVE NARROWING, AND ONLY A LIVE ONE. Over a narrowed pool
+	// "All detected fields" is a claim about the site that the list beside it
+	// contradicts — and the author reads the row as the way back, which this narrowing
+	// is not (the records it dropped are ones the render cannot reach off this source).
+	// Asserted as VALUE **and** label: the value stays `__all_locations` throughout, so
+	// every read of the active filter is untouched and this is a rename, not a state.
+	async function allRow( state ) {
+		const opt = selects( await render( FieldComboControl, {
+			optionKey: 'key',
+			label: 'Field',
+			context: ctx( state ),
+		} ) )[ 0 ].options[ 0 ];
+		return [ opt.value, opt.label ];
+	}
+
+	check(
+		'F13.11 a resolved entity narrowed the pool, so the ALL row says so instead of claiming the site',
+		await allRow( { src: 'term,34' } ),
+		[ '__all_locations', 'All available fields' ]
+	);
+	// The contrast, and the reason the row above is not just a string swap: the SAME
+	// source shape with an entity that will not resolve narrows nothing (§F13.7), so the
+	// claim is true again and the row reads it. The name tracks the pool, not the wire.
+	check(
+		'F13.11b ...while an entity that will not resolve narrows nothing, so the row is honest as it stands',
+		await allRow( { src: 'term,999' } ),
+		[ '__all_locations', 'All detected fields' ]
+	);
+
 	/* =====================================================================
 	 * §F14 — the Location preset from a chain's terminal repeater (FW-74)
 	 *
@@ -1451,7 +1480,9 @@ async function main() {
 		// it survives and lists under both homes. Every ROOT in the list is `Post fields`,
 		// which is what the row is about.
 		[
-			'All detected fields',
+			// The ALL row NAMES the narrowing instead of claiming the site, because the
+			// pool it opens is this tail's and not every field discovered.
+			'All available fields',
 			'Post fields',
 			'Post fields › Event Details',
 			'Post fields › Feature Block',
@@ -1531,7 +1562,7 @@ async function main() {
 			context: ctx( { src: 'refs,any_ref' } ),
 		} ) )[ 0 ].options ),
 		[
-			'All detected fields',
+			'All available fields',
 			'Post fields',
 			'Post fields › Event Details',
 			'Post fields › Event Details › Staff List (repeater)',

@@ -25,9 +25,11 @@
  *     Filter 1 Location — searchable combobox, flat path-strings
  *       (All detected fields / Post fields / Post fields › Group A / …),
  *       prefix-match. Preset from the sibling `src` chain where that chain proves
- *       where the read lands, else "All detected fields" — NEVER assume the
+ *       where the read lands, else the ALL row — NEVER assume the
  *       editor's current context is a post (that is the GB bug we escape).
  *       `presetKind()` owns which tails prove it and is the only place that says.
+ *       The ALL row reads "All detected fields" over the whole pool and names the
+ *       narrowing instead where one is live; `buildLocationOptions()` owns that.
  *     Filter 2 Field type — plain select
  *       (All field types / Loop fields / <ACF types>).
  * - Free-text entry via synthetic option (ComboboxControl does NOT accept off-list
@@ -51,6 +53,7 @@
  * @since   1.13.0
  * @since   1.20.0 Root-argument scope narrowing (FW-39 D22).
  * @since   1.21.0 Location preset from the repeater a chain ends on (FW-74).
+ * @since   1.21.0 The ALL row names a live pool narrowing.
  */
 ( function () {
 	'use strict';
@@ -705,8 +708,17 @@
 	 * group / flexible) with a "(repeater)" etc. hint, so the author sees what kind
 	 * of container a path drills into. Container types come from the records
 	 * themselves (a repeater field has its own row, type:'repeater'), keyed by label.
+	 *
+	 * `allLabel` RENAMES THE ALL ROW, never what it selects. The caller passes one when the
+	 * POOL is narrowed, because "All detected fields" over a narrowed pool is a claim about
+	 * the site that the list beside it contradicts. The value stays `ALL_LOC`, so every read
+	 * of the active filter (`kindFromLocation`, `locationGroupLabel`, `applyFilters`) is
+	 * untouched — this row is named here and nowhere else.
+	 *
+	 * @param {Array}  records  Field records.
+	 * @param {string} allLabel Name for the ALL row, '' => "All detected fields".
 	 */
-	function buildLocationOptions( records ) {
+	function buildLocationOptions( records, allLabel ) {
 		// label -> container hint, from any field that IS a container.
 		var containerByLabel = Object.create( null );
 		records.forEach( function ( rec ) {
@@ -734,7 +746,10 @@
 		} );
 		paths.sort( function ( a, b ) { return a < b ? -1 : ( a > b ? 1 : 0 ); } );
 
-		var options = [ { value: ALL_LOC, label: __( 'All detected fields', 'generateblocks' ) } ];
+		var options = [ {
+			value: ALL_LOC,
+			label: allLabel || __( 'All detected fields', 'generateblocks' ),
+		} ];
 		paths.forEach( function ( p ) {
 			// Decorate the LAST segment if it names a container field.
 			var parts = p.split( BREAD );
@@ -967,9 +982,22 @@
 			return scoped.length ? scoped : refScoped;
 		}, [ refScoped, scopeToRepeater, scopeRepeaterKey ] );
 
+		// IS THE POOL NARROWED? Either narrowing above answers yes — the entity scope a
+		// declaring root resolved (D22), or a `refs` tail's kind gate (FW-13), which binds
+		// to `post` whether or not the types are known. Both drop records the filter's own
+		// options can then never reach, which is the property the ALL row has to stop
+		// claiming otherwise. The repeater auto-scope is not here: it HIDES both selectors.
+		var poolNarrowed = ( '' !== argScope ) || !! ( tail && 'refs' === tail.slug );
+
 		var locationOptions = useMemo( function () {
-			return buildLocationOptions( records );
-		}, [ records ] );
+			// Naming the narrowing on the ALL row is the whole fix for it reading as a lie.
+			// It is NOT a lever back to the unnarrowed pool and must not grow into one: the
+			// records it dropped are ones the render cannot reach off this source, so the
+			// ways out are the honest ones — clear the entity, or type the key by hand.
+			return buildLocationOptions( records, poolNarrowed
+				? __( 'All available fields', 'generateblocks' )
+				: '' );
+		}, [ records, poolNarrowed ] );
 
 		var typeOptions = useMemo( function () {
 			return buildTypeOptions( records );
