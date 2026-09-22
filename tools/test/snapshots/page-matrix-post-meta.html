@@ -145,7 +145,7 @@
 
 <p class="gb-text">T3.1: Sales, Support</p>
 
-<p class="gb-text">T3.2: Sales, Support</p>
+<p class="gb-text">T3.2: <a href="/department/sales/">Sales</a>, <a href="/department/support/">Support</a></p>
 
 <p class="gb-text">T3.3: <a href="/department/sales/">Sales</a></p>
 </div>
@@ -189,7 +189,7 @@
 
 <p class="gb-text">T7.2: Jane Partner, Tom Associate</p>
 
-<p class="gb-text">T7.3: Jane Partner, Tom Associate</p>
+<p class="gb-text">T7.3: <a href="/staff/jane-partner/">Jane Partner</a>, <a href="/staff/tom-associate/">Tom Associate</a></p>
 
 <p class="gb-text">T7.4: <a href="/staff/jane-partner/">Jane Partner</a></p>
 </div>
@@ -298,7 +298,7 @@
 <div>
 <h2 class="wp-block-heading">Limit L2 &#8211; explicit values still behave</h2>
 
-<p class="gb-text">L2.1 (expect BOTH names comma-joined, NO link): Jane Partner, Tom Associate</p>
+<p class="gb-text">L2.1 (expect BOTH names comma-joined, EACH its own link): <a href="/staff/jane-partner/">Jane Partner</a>, <a href="/staff/tom-associate/">Tom Associate</a></p>
 
 <p class="gb-text">L2.2 (expect Jane Partner linked &#8211; explicit 1 === unset 1): <a href="/staff/jane-partner/">Jane Partner</a></p>
 
@@ -318,7 +318,7 @@
 
 <p class="gb-text">L3.5 (expect both dept event dates): November 12, 2030, October 5, 2030</p>
 
-<p class="gb-text">L3.6 (expect both names, NO link &#8211; unlimited feeds the same count gate): Sales, Support</p>
+<p class="gb-text">L3.6 (expect both names, EACH its own link &#8211; unlimited fans the list and every value it fans to links): <a href="/department/sales/">Sales</a>, <a href="/department/support/">Support</a></p>
 </div>
 
 <div>
@@ -326,7 +326,7 @@
 
 <p class="gb-text">L4.1 FLAT unset (expect Jane Partner only, linked &#8211; the floor): <a href="/staff/jane-partner/">Jane Partner</a></p>
 
-<p class="gb-text">L4.2 CHAIN unset (expect BOTH names, NO link &#8211; unlimited, and the anchor is legitimately gone): Jane Partner, Tom Associate</p>
+<p class="gb-text">L4.2 CHAIN unset (expect BOTH names, EACH its own link &#8211; unlimited fans the list, and the second anchor is what the fan bought): <a href="/staff/jane-partner/">Jane Partner</a>, <a href="/staff/tom-associate/">Tom Associate</a></p>
 
 <p class="gb-text">L4.3 CHAIN + explicit 1 (expect Jane Partner only, linked &#8211; HAND-WRITTEN wire; a converted tag is L4.10, and OPENING this row absorbs the 1 onto the step): <a href="/staff/jane-partner/">Jane Partner</a></p>
 
@@ -494,7 +494,9 @@
 
 <p class="gb-text">D4.7: May 1 10:00 AM–May 3, 2030 3:00 PM; June 1 11:00 AM–June 5, 2030 12:00 PM</p>
 
-<p class="gb-text">D4.8: May 1, 2030 10:00 AM, June 1, 2030 11:00 AM</p>
+<p class="gb-text">D4.8: <a href="/staff/jane-partner/">May 1, 2030 10:00 AM</a>, <a href="/staff/tom-associate/">June 1, 2030 11:00 AM</a></p>
+
+<p class="gb-text">D4.8b (expect EACH whole range in its own link to its own staff post, the ; separator outside both anchors): <a href="/staff/jane-partner/">May 1 10:00 AM–May 3, 2030 3:00 PM</a>; <a href="/staff/tom-associate/">June 1 11:00 AM–June 5, 2030 12:00 PM</a></p>
 
 <p class="gb-text">D4.9: <a href="/staff/jane-partner/">May 1, 2030 10:00 AM</a></p>
 </div>

@@ -15,12 +15,8 @@ and four code paths, and the regression this matrix guards is cross-cutting.
 | `-1`, `-3` | 1 (silently clamped) | **UNLIMITED** (parse tolerant, emit `0`) |
 | `1`, `5`, `999` | same | same (no ceiling) |
 
-**Why these rows exist.** Opening up `0` moves the meaning of a value that already saves and
-survives on the wire, and the tag families reach the rule by four different paths. The
-regression it invites is quiet: **the top-level link gate is COUNT-BASED** (a single result is
-link-wrapped, a joined multi-value composite is not), so an accidental 1→many flip does not
-merely lengthen output — **it drops the anchor while the text still reads plausibly**.
-⇒ **Every L1 row asserts TWO things: exactly one value AND the link present.**
+**Why these rows exist.** Opening up `0` moves the meaning of a value that already saves and survives on the wire, and the tag families reach the rule by four different paths. The regression it invites is quiet: **linking is PER ITEM** (FW-85, 1.21.0 — each value is wrapped against its own identity), so an accidental 1→many flip does not merely lengthen output — **it multiplies the anchors, and every one of them still reads plausibly**.
+⇒ **Every L1 row asserts TWO things: exactly one value AND exactly one `<a>`.**
 
 **Four code paths, one rule.** A row is worth having per PATH, not per tag:
 
@@ -56,8 +52,7 @@ mandatory or brand-new rows read as missing. Single rows can also be run through
 
 ## L1 — unset `limit` MUST stay 1 (the regression floor)
 
-Each row asserts **one value AND link present**. A row that renders two values has flipped the
-default; a row that renders one value with no `<a>` has broken the count-based gate.
+Each row asserts **one value AND one `<a>`**. A row that renders two values has flipped the default; a row that renders one value with no `<a>` has broken per-item wrapping.
 
 | Row | Tag | Expected | Path |
 |---|---|---|---|
@@ -80,7 +75,7 @@ rows — one anchor, not two.
 
 | Row | Tag | Expected |
 |---|---|---|
-| L2.1 | `{{text src:ref\|ref:related_staff\|use:title\|limit:2\|linkTo:permalink}}` | BOTH names, `, `-joined, **NO** `<a>` (multi-value composite is unwrappable) |
+| L2.1 | `{{text src:ref\|ref:related_staff\|use:title\|limit:2\|linkTo:permalink}}` | BOTH names, `, `-joined, EACH in its own `<a>` to its own staff permalink (FW-85 per-item wrapping) |
 | L2.2 | `{{text src:ref\|ref:related_staff\|use:title\|limit:1\|linkTo:permalink}}` | `Jane Partner`, wrapped — explicit 1 === unset 1 |
 | L2.3 | `{{text srcTermIn:department\|use:title\|limit:99}}` | both dept names — no ceiling, limit > count is not an error |
 
@@ -93,7 +88,7 @@ rows — one anchor, not two.
 | L3.3 | `{{text src:ref\|ref:related_staff\|use:title\|limit:abc\|linkTo:permalink}}` | `Jane Partner` only, wrapped in `<a>` | the `is_numeric()` guard — a typo resolves to the DEFAULT, never to "no limit". `(int)'abc' === 0`, so without the guard this row fans out |
 | L3.4 | `{{try_text srcTermIn:department\|use:title\|limit:0}}` | both dept names, `, `-joined | the try_ dispatch honors unlimited AND does not break out of the term hop after the first item (the `$slot_max &&` guard) |
 | L3.5 | `{{datetime_single srcTermIn:department\|key:event_date\|limit:0}}` | both dept event dates | the list fold slices with `?: null` |
-| L3.6 | `{{text srcTermIn:department\|use:title\|limit:0\|linkTo:permalink}}` | both names, **NO** `<a>` | unlimited feeds the same count gate — it drops the anchor legitimately, because the output really is multi-value |
+| L3.6 | `{{text srcTermIn:department\|use:title\|limit:0\|linkTo:permalink}}` | both names, EACH in its own `<a>` | unlimited fans the list and every value it fans to links to its own term archive — what `limit` widens, per-item wrapping follows |
 
 ## L4 — the SPELLING selects the default (1.17.0, base-tag source chains)
 
@@ -105,8 +100,7 @@ a block widget the content scanner never sees, a tag stored inside an ACF field.
 So the L1 rows above are only half the floor: they pin that FLAT wire still bounds at one. These
 rows pin the other half, and every one is a **pair of spellings for the same source**.
 
-⇒ **Rows here assert the link too**, for the same count-based reason L1 does — chain wire
-defaulting to many means link-wrapping differs by spelling, on new wire.
+⇒ **Rows here assert the anchors too**, for the same reason L1 does — chain wire defaulting to many means the two spellings print a different NUMBER of anchors, on new wire.
 
 > **RE-MEASURED 2026-08-21** on the 1.18.0 build, `/matrix-post-meta/` — L1, L2, L3 and L4 all
 > render as stated. Worth the re-run rather than trusting the 2026-08-05 stamp: ADR 0007 changed
@@ -114,9 +108,7 @@ defaulting to many means link-wrapping differs by spelling, on new wire.
 > miscount would show. It also caught L1.10, whose expectation had never been achievable.
 >
 > **MEASURED 2026-08-05** against the branch on `/matrix-post-meta/`; every row below is an
-> observed value. The two that carry the whole rule: L4.1 renders one name wrapped in `<a>`, L4.2
-> renders both names with NO `<a>` — same source, different spelling, and the anchor is legitimately
-> gone because the output really is multi-value.
+> observed value. The two that carry the whole rule: L4.1 renders one name wrapped in `<a>`, L4.2 renders both names, each in its own `<a>` — same source, different spelling, and the second anchor is there because the spelling fanned the list, not because anything about linking changed.
 >
 > **L4.10 / L4.11 measured 2026-08-07 on the testbed**, when the limit moved from the tag onto the
 > steps. They are the rows that pin what migration WRITES, as opposed to what a hand-authored limit
@@ -134,7 +126,7 @@ defaulting to many means link-wrapping differs by spelling, on new wire.
 | Row | Tag | Expected | What it proves |
 |---|---|---|---|
 | L4.1 | `{{text src:ref\|ref:related_staff\|use:title\|linkTo:permalink}}` | `Jane Partner` only, in `<a>` | FLAT, unset — unchanged from L1.2. The floor |
-| L4.2 | `{{text src:refs,related_staff\|use:title\|linkTo:permalink}}` | BOTH names, **NO** `<a>` | CHAIN, unset — unlimited. The anchor is legitimately gone: the output really is multi-value |
+| L4.2 | `{{text src:refs,related_staff\|use:title\|linkTo:permalink}}` | BOTH names, EACH in its own `<a>` | CHAIN, unset — unlimited. The second anchor is what the fan bought: one value became two, and each links to its own staff permalink |
 | L4.3 | `{{text src:refs,related_staff\|use:title\|limit:1\|linkTo:permalink}}` | `Jane Partner` only, in `<a>` | an EXPLICIT tag-level value beats the spelling-selected default — ordinary option precedence. NOT what a migrated tag looks like: since the limit moved onto the steps, a migrated tag is L4.10. This row is hand-authored wire, and it still has to work — until it is OPENED, which absorbs the `1` onto the step and makes it L4.10 (see the note above; reseed to get it back) |
 | L4.4 | `{{text srcTermIn:department\|use:title}}` | ONE dept name | FLAT term hop, unset — still 1 |
 | L4.5 | `{{text src:terms,department\|use:title}}` | `Sales, Support` | CHAIN term hop, unset — unlimited |
@@ -154,10 +146,7 @@ selects its default, exactly as a base tag's does. Before, the dispatch read the
 FLATTENED triple, whose `src` is a legacy token on every slot, so every slot answered 1 whatever
 it was spelled as.
 
-**Behaviour rows live in [`fold-test-matrix.md`](fold-test-matrix.md) §F7a** — that file owns the
-fold, and duplicating them here is the copy this matrix has no reason to keep. What belongs HERE is
-the link gate, for the same count-based reason L1 and L4 carry it: a slot that starts returning
-several values stops being wrappable.
+**Behaviour rows live in [`fold-test-matrix.md`](fold-test-matrix.md) §F7a** — that file owns the fold, and duplicating them here is the copy this matrix has no reason to keep. What belongs HERE is the link, for the reason L1 and L4 carry theirs: a silent default flip is visible in the markup before it is visible in the text. The `try_` emit still gates on COUNT (per-item wrapping landed on the base list fold only, FW-85; the `try_` half is FW-135), so here a slot that starts returning several values stops being wrappable at all, rather than printing several anchors.
 
 > **MEASURED 2026-08-07** on the testbed, `/matrix-terms-valid/`.
 

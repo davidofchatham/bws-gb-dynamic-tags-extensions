@@ -1,6 +1,8 @@
 # Limits are stated where the source is stated
 
-**Status:** accepted (2026-08-06 grill over the built UI, `docs/design-history/per-step-limit.md` §The grill; regrilled 2026-08-07 after #63's premise was withdrawn).
+**Status:** accepted (2026-08-06 grill over the built UI, `docs/design-history/per-step-limit.md` §The grill; regrilled 2026-08-07 after #63's premise was withdrawn; one stated COST amended 2026-09-21, see §Considered options).
+
+**The DECISION is unamended; one cost it priced has since been repaid.** Both options below priced a count-based link gate — a tag that fanned lost its anchor — and FW-85 removed that gate in 1.21.0: a list now links PER ITEM, so fanning multiplies anchors instead of dropping them (`CONTEXT.md` [I12]). The rule this ADR decides, limits stated on the step they bound, is untouched by that. The two sentences are marked where they sit rather than rewritten, because what an option COST when it was weighed is the record; correcting it in place would invent a deliberation that never happened.
 
 A tag's source is stated as an ordered chain — a root plus fanning steps — so a bound on how far
 a source spreads is stated on the **step** it bounds. Each fanning step carries its own optional
@@ -47,11 +49,7 @@ re-derivation that produced #63.
 
 ## Considered options
 
-- **Limits on steps, no tag-level control, era-selected default for stored wire (accepted).**
-  Costs: the same conceptual source is bounded differently by spelling, which is an
-  [ADR 0004](0004-serialized-tag-string-human-readable.md) readability cost paid to avoid touching
-  a stored row; and the top-level link gate is count-based, so link-wrapping differs by spelling
-  too.
+- **Limits on steps, no tag-level control, era-selected default for stored wire (accepted).** Costs: the same conceptual source is bounded differently by spelling, which is an [ADR 0004](0004-serialized-tag-string-human-readable.md) readability cost paid to avoid touching a stored row; and the top-level link gate is count-based, so link-wrapping differs by spelling too. *(AMENDED 2026-09-21 — that second cost is repaid: FW-85 deleted the count gate in 1.21.0 and a list links per item, so the two spellings now differ in how many ANCHORS they print, not in whether they link at all. The readability cost stands.)*
 - **Keep the tag-level limit as a whole-list bound (rejected).** It fails in both directions and
   is never the useful knob. With ONE fanning step it is redundant — the same setting as that
   step's own limit, written twice. With TWO it is arbitrary: it slices the flattened walk at a
@@ -66,10 +64,7 @@ re-derivation that produced #63.
 - **Force upgrade-time migration (rejected).** Impossible, not merely expensive. The content
   scanner reads `post_content` only, and the site survey found live wire inside an ACF field.
   There is no pass that can visit every tag.
-- **Accept the output change with an Upgrade Notice (rejected).** ~110 authored instances across
-  the surveyed databases would begin rendering extra results silently, with no author present.
-  The link gate is count-based, so those tags would also stop being links. A notice cannot
-  substitute for serialization; it can only accompany it.
+- **Accept the output change with an Upgrade Notice (rejected).** ~110 authored instances across the surveyed databases would begin rendering extra results silently, with no author present. The link gate is count-based, so those tags would also stop being links. A notice cannot substitute for serialization; it can only accompany it. *(AMENDED 2026-09-21 — the gate is gone since 1.21.0, FW-85, so the same ~110 tags would today gain an anchor per extra value rather than lose the one they had. The rejection does not move: silent extra results with no author present was the objection, and a silently BETTER-linked wrong output is still wrong output.)*
 
 ## Precedent: ADR 0003 decided this once already, for one tag
 

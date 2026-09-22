@@ -439,8 +439,8 @@ let out = convert( { src: 'ref', ref: 'office', key: 'name' }, [ st( 'refs', 'of
 check( 'conversion deletes the flat siblings it absorbed', undefined === out.ref, JSON.stringify( out.ref ) );
 check( 'conversion leaves unrelated options alone', 'name' === out.key );
 // THE LOAD-BEARING ROW. Chain wire defaults to unlimited, so a conversion that
-// wrote nothing would fan the tag out under the author's hands -- extra values, and
-// dropped anchors, since the link gate is count-based. The limit goes ON THE STEP, in the
+// wrote nothing would fan the tag out under the author's hands -- extra values, and the
+// extra anchors that come with them, since linking is per item (FW-85). The limit goes ON THE STEP, in the
 // row the author is looking at, and no tag-level `limit` is written at all: a `1` beside
 // `In Reference/Relational Field: office` says which quantity it bounds.
 check( 'conversion writes chain wire, limited on the step', 'refs,office,limit(1)' === out.src, JSON.stringify( out.src ) );

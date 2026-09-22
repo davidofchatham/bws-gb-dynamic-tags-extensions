@@ -434,8 +434,8 @@ function bws_fixture_page_content_matrix_post_meta() {
 
 	// limit-default matrix (limit-default-test-matrix.md, 1.17.0). Cross-cutting
 	// like the FW-52 rows above — named for the PROPERTY, not a tag family. L1
-	// pins the regression floor (unset limit stays 1 AND the count-based link gate
-	// still wraps); L2 pins explicit values; L3 exercises the new `0` = UNLIMITED
+	// pins the regression floor (unset limit stays 1 AND exactly one anchor prints,
+	// linking being per item); L2 pins explicit values; L3 exercises the new `0` = UNLIMITED
 	// semantics. Fixture state: this page carries two valid department terms
 	// (Support, Sales) and related_staff = jane, tom (jane FIRST), so every list
 	// row has ≥2 candidates and a 1→many flip is VISIBLE.
@@ -455,7 +455,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 	) );
 
 	$sections[] = bws_fixture_gb_section( 'Limit L2 - explicit values still behave', array(
-		bws_fixture_gb_row( 'L2.1 (expect BOTH names comma-joined, NO link)', '{{text src:ref|ref:related_staff|use:title|limit:2|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L2.1 (expect BOTH names comma-joined, EACH its own link)', '{{text src:ref|ref:related_staff|use:title|limit:2|linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'L2.2 (expect Jane Partner linked - explicit 1 === unset 1)', '{{text src:ref|ref:related_staff|use:title|limit:1|linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'L2.3 (expect both dept names - no ceiling)', '{{text srcTermIn:department|use:title|limit:99}}' ),
 	) );
@@ -466,18 +466,18 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'L3.3 (expect Jane Partner linked - is_numeric guard, garbage is NOT unlimited)', '{{text src:ref|ref:related_staff|use:title|limit:abc|linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'L3.4 (expect both dept names - try_ dispatch does not break early at 0)', '{{try_text srcTermIn:department|use:title|limit:0}}' ),
 		bws_fixture_gb_row( 'L3.5 (expect both dept event dates)', '{{datetime_single srcTermIn:department|key:event_date|limit:0}}' ),
-		bws_fixture_gb_row( 'L3.6 (expect both names, NO link - unlimited feeds the same count gate)', '{{text srcTermIn:department|use:title|limit:0|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L3.6 (expect both names, EACH its own link - unlimited fans the list and every value it fans to links)', '{{text srcTermIn:department|use:title|limit:0|linkTo:permalink}}' ),
 	) );
 
 	// L4 — the unset default is no longer ONE number. Flat wire bounds at 1, chain
 	// wire does not (bws_limit_default), which is the whole compatibility
 	// mechanism for base-tag source chains: it works on wire no migration can
 	// reach. Rows are PAIRS OF SPELLINGS for the same source, and each asserts the
-	// link too, because the gate is count-based — chain wire defaulting to many
-	// changes link-wrapping as well as output.
+	// link too: chain wire defaulting to many changes how many ANCHORS print as well
+	// as how many values do, now that each value carries its own (FW-85).
 	$sections[] = bws_fixture_gb_section( 'Limit L4 - the SPELLING selects the unset default (1.17.0)', array(
 		bws_fixture_gb_row( 'L4.1 FLAT unset (expect Jane Partner only, linked - the floor)', '{{text src:ref|ref:related_staff|use:title|linkTo:permalink}}' ),
-		bws_fixture_gb_row( 'L4.2 CHAIN unset (expect BOTH names, NO link - unlimited, and the anchor is legitimately gone)', '{{text src:refs,related_staff|use:title|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L4.2 CHAIN unset (expect BOTH names, EACH its own link - unlimited fans the list, and the second anchor is what the fan bought)', '{{text src:refs,related_staff|use:title|linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'L4.3 CHAIN + explicit 1 (expect Jane Partner only, linked - HAND-WRITTEN wire; a converted tag is L4.10, and OPENING this row absorbs the 1 onto the step)', '{{text src:refs,related_staff|use:title|limit:1|linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'L4.4 FLAT term hop unset (expect ONE dept name)', '{{text srcTermIn:department|use:title}}' ),
 		bws_fixture_gb_row( 'L4.5 CHAIN term hop unset (expect Sales, Support)', '{{text src:terms,department|use:title}}' ),
@@ -613,6 +613,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'D4.6', '{{datetime_single src:ref|ref:related_staff|key:event_datetime|limit:5}}' ),
 		bws_fixture_gb_row( 'D4.7', '{{datetime_range src:ref|ref:related_staff|startKey:event_datetime|endKey:event_end_datetime|limit:3|sep:; }}' ),
 		bws_fixture_gb_row( 'D4.8', '{{datetime_single src:ref|ref:related_staff|key:event_datetime|limit:5|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'D4.8b (expect EACH whole range in its own link to its own staff post, the ; separator outside both anchors)', '{{datetime_range src:ref|ref:related_staff|startKey:event_datetime|endKey:event_end_datetime|limit:3|sep:; |linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'D4.9', '{{datetime_single src:ref|ref:related_staff|key:event_datetime|linkTo:permalink}}' ),
 	) );
 
@@ -1297,9 +1298,11 @@ function bws_fixture_page_content_matrix_term_hop() {
 		bws_fixture_gb_row( 'F7a.10b join MIGRATED twin - the 2 lands on the slot own fanning step (-> same as F7a.10)', '{{join A:src(terms,department,limit[2]);use(title)}}' ),
 		bws_fixture_gb_row( 'F7a.11 an explicit legacy limit:0 KEEPS its carrier - unmigrated wire takes the flat default (-> every term)', '{{try_text srcTermIn:department|use:title|limit:0}}' ),
 		bws_fixture_gb_row( 'F7b.4 MIGRATED twin - an explicit unlimited moves onto the step like any other number (-> same as F7a.11)', '{{try_text A:src(terms,department,limit[0]);use(title)}}' ),
-		// The LINK GATE half (limit-default-test-matrix.md L4a). It is count-based, so a
-		// slot that starts returning several values stops being wrappable - eyeball the
-		// anchors, not just the text.
+		// The LINK half (limit-default-test-matrix.md L4a). The try_ emit still gates on
+		// COUNT - per-item wrapping landed on the base list fold only (FW-85), the try_
+		// half is FW-135 - so a slot that starts returning several values stops being
+		// wrappable rather than printing several anchors. Eyeball the anchors, not just
+		// the text.
 		bws_fixture_gb_row( 'L4a.1 flat slot, unset - ONE term, and it IS a link', '{{try_text srcTermIn:department|use:title|linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'L4a.2 chain slot, unset - every term, and NO link (multi-value is not wrappable)', '{{try_text A:src(terms,department);use(title)|linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'L4a.3 MIGRATED twin of L4a.1 - ONE term, link back (-> same as L4a.1)', '{{try_text A:src(terms,department,limit[1]);use(title)|linkTo:permalink}}' ),
@@ -2018,6 +2021,57 @@ function bws_fixture_page_content_matrix_repeaters() {
 	return implode( "\n\n", $sections );
 }
 
+/**
+ * Page content: matrix-links (page-matrix-links).
+ *
+ * Split axis is the LINK DESTINATION, not source-state: every row here is a fanning tag
+ * with Link To set, and what separates them is where each value's anchor points — its
+ * term archive, its permalink, or a URL stored on the entity itself. The visible half of
+ * per-item link wrapping (text matrix §T11, FW-85).
+ *
+ * WHAT THE PAGE IS FOR, since the wrapping is already pinned by a harness: the harness
+ * asserts the markup, and this page asserts the TARGETS. "Each value links to its own
+ * entity" is a claim about hrefs, and an anchor pointing at the wrong sibling renders
+ * character-for-character like one pointing at the right sibling unless the entities
+ * disagree about where they live. So every entity in every list here has a destination
+ * no other entity in that list shares, and the rows are read by following them.
+ *
+ * WHY THE URL-FIELD HREFS LOOK NOTHING LIKE PERMALINKS. `profile_url` holds an external
+ * address on example.test, deliberately unrelated to the staff single's own permalink:
+ * LK.2 and LK.3 print the SAME three names and differ only in where they point, so a
+ * key-mode read that fell through to the permalink route would otherwise produce a row
+ * that still looks entirely correct.
+ *
+ * LK.1b IS NOT DECORATION. Every other row on the page prints anchors, so a build that
+ * wrapped unconditionally — ignoring Link To rather than honouring it — would pass all of
+ * them. The one row with no Link To set is what that build fails.
+ *
+ * WHY THE TERM ROWS TAKE A HOP TO GET THERE. This page is assigned no department term of
+ * its own: the count of every department term is printed on /matrix-loops/ (QL3.2), so
+ * assigning one here moves a baseline this corpus has nothing to say about — measured,
+ * and the manifest's `post_terms` note records the numbers. The rows hop to
+ * /matrix-terms-mixed/ and walk the three departments it already carries, which costs one
+ * chain step and changes no other page. What the row asserts is unaffected: the values are
+ * still terms, and each still has to point at its own archive.
+ */
+function bws_fixture_page_content_matrix_links() {
+	$sections = array();
+
+	$sections[] = bws_fixture_gb_section( 'Links LK - a fanning tag links EACH value, to its OWN entity (FW-85)', array(
+		// The ambient control. This page carries one corpus and nothing else, so without
+		// a row reading the page itself, a page rendering no tags of ours at all would
+		// look the same as every list below coming back empty.
+		bws_fixture_gb_row( 'LK.0 the ambient control: this page renders our tags at all (-> Matrix: Per-Item Links)', '{{text use:title}}' ),
+		bws_fixture_gb_row( 'LK.1 TERM list, each term linked to ITS OWN archive (-> Sales -> /department/sales/, Support -> /department/support/, Warehouse -> /department/warehouse/; three different archives, and the comma sits outside all three anchors)', '{{text src:refs,link_term_host;terms,department|use:title|limit:0|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'LK.1b the same list with NO Link To set (-> Sales, Support, Warehouse as plain text, no anchors anywhere - the row a build that wraps regardless of the setting fails)', '{{text src:refs,link_term_host;terms,department|use:title|limit:0}}' ),
+		bws_fixture_gb_row( 'LK.2 POST list, each post linked to ITS OWN permalink (-> Jane Partner -> /staff/jane-partner/, Tom Associate -> /staff/tom-associate/, Fixture Ref Target -> /staff/fixture-ref/)', '{{text src:refs,link_staff|use:title|limit:0|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'LK.3 the SAME three posts linked through a PER-ENTITY URL field (-> the same three names, each anchored to its own https://example.test/profiles/<slug>/ - three hrefs that are not permalinks, which is what separates this row from LK.2)', '{{text src:refs,link_staff|use:title|limit:0|linkTo:key|linkKey:profile_url}}' ),
+		bws_fixture_gb_row( 'LK.4 MIXED list, exactly one member with no URL to point at (-> Jane Partner anchored, Fixture Root Entity as PLAIN TEXT between two anchors, Tom Associate anchored - one empty field costs its own value its link and nothing else its own)', '{{text src:refs,link_staff_gap|use:title|limit:0|linkTo:key|linkKey:profile_url}}' ),
+	) );
+
+	return implode( "\n\n", $sections );
+}
+
 /** Dispatcher: manifest content_builder name → page content. */
 /**
  * matrix-products — the PRODUCT LOOP corpus (FW-100; blueprint v21, flipped in v22).
@@ -2181,6 +2235,7 @@ function bws_fixture_build_page_content( $builder ) {
 		'product_single'       => 'bws_fixture_page_content_product_single',
 		'matrix_pinned_roots'  => 'bws_fixture_page_content_matrix_pinned_roots',
 		'matrix_repeaters'     => 'bws_fixture_page_content_matrix_repeaters',
+		'matrix_links'         => 'bws_fixture_page_content_matrix_links',
 		'pattern_legacy_wire'  => 'bws_fixture_pattern_content_legacy_wire',
 		'context_header'       => 'bws_fixture_element_content_context_header',
 		'home_lead'            => 'bws_fixture_page_content_home_lead',

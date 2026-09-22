@@ -1132,10 +1132,10 @@ function bws_clamp_limit( $raw, int $default ): int {
  * stored tag rendering exactly as before while new wire gets the honest default.
  *
  * Two costs, both accepted: the same conceptual source is bounded differently by spelling
- * (an ADR-0004 readability cost, paid to avoid touching a stored row), and the
- * link gate is COUNT-BASED, so link-wrapping differs by spelling too — on new wire
- * only, which is why the limit-default matrix needs rows per SPELLING and not just
- * per `limit` value.
+ * (an ADR-0004 readability cost, paid to avoid touching a stored row), and a list links
+ * per item, so the spelling decides how many ANCHORS print as well as how many values
+ * do — on new wire only, which is why the limit-default matrix needs rows per SPELLING
+ * and not just per `limit` value.
  *
  * Resolved ONCE, from the options. No call site is new-or-old — all of them serve
  * both eras — so "new sites pass 0, old sites pass 1" has no referent. A call site
@@ -1255,23 +1255,25 @@ function bws_resolve_field_values( array $options, $instance, ?array &$links = n
  *  1. slice to `limit` (bws_clamp_limit — default 1, `0` = unlimited);
  *  2. per-item fallback suppression — $render receives $options with
  *     'fallback' unset, so the fallback fires ONCE in the caller on all-empty
- *     output, never per item (GH #51: a per-item fallback would pollute the
- *     list AND satisfy the single-result link gate as though it were a value);
+ *     output, never per item (GH #51: a per-item fallback would pollute the list,
+ *     and would have linked as though it were a value it is not);
  *  3. render each item ('' or empty 'value' drops silently);
  *  4. per-value link capture;
- *  5. the single-result link gate (top-level `link` = values[0]['link'] iff
- *     count is exactly 1);
- *  6. `sep` join (default ', ').
+ *  5. per-item link wrap, each value against its OWN identity (FW-85);
+ *  6. `sep` join (default ', ') over the wrapped parts.
  *
  * @invariant (CONTEXT.md I12) Link-wrappability is a property of the VALUE,
  * not of the source kind. Each collected value carries `link` — the {kind,id}
  * pair bws_resolve_link_url consumes (post|term|user|site) — or null. "No link
  * identity" is null, NEVER a sentinel id; kinds with no link identity
  * (meta_row, the #19 query_context kind since 1.19.0) are normal, not
- * exceptional — they collect fine and simply cannot be link-wrapped. The
- * top-level single-result gate is a JOIN constraint, not a linking one: a
- * multi-value composite string is unwrappable as ONE link, while the
- * per-value links remain available in `values` for future per-item wrapping.
+ * exceptional — they collect fine and simply cannot be link-wrapped.
+ *
+ * A LIST LINKS PER ITEM: each value is wrapped against its own identity and
+ * the separator joins already-wrapped strings, so an anchor spans exactly one
+ * entity and no separator ever falls inside one. A value with no identity
+ * prints plain beside its linked siblings rather than costing the list its
+ * links. `values` keeps the RAW strings; only the joined `value` carries markup.
  *
  * The fold never coerces or inspects an item — $render owns the item→value
  * read entirely. Callers keep their raw $options for linkTo/linkKey/newTab
@@ -1291,7 +1293,6 @@ function bws_resolve_field_values( array $options, $instance, ?array &$links = n
  *   value:  string,
  *   values: array<int, array{value:string, link:?array}>,
  *   count:  int,
- *   link:   ?array,
  * }
  */
 if ( ! function_exists( 'bws_collect_value_list' ) ) {
@@ -1321,12 +1322,34 @@ function bws_collect_value_list( array $items, callable $render, array $options 
 		);
 	}
 
-	$count = count( $values );
+	// PER-ITEM link wrap (FW-85), between capture and join: each value is wrapped
+	// against its OWN identity, so the separator joins already-wrapped strings and
+	// can never land inside an anchor. A value with no identity — a repeater row, a
+	// query-context read — stays plain, and so does one whose URL field is empty:
+	// bws_wrap_with_link returns its input unchanged when no URL resolves, which is
+	// why unresolvable items cost no pre-pass. Options absent = no link, so a
+	// {{join}} slot (which carries no link options) finds nothing to wrap.
+	$link_to = (string) ( $options['linkTo'] ?? 'none' );
+	$wrap    = 'none' !== $link_to && '' !== $link_to && function_exists( 'bws_wrap_with_link' );
+
+	$parts = array();
+	foreach ( $values as $entry ) {
+		$parts[] = ( $wrap && $entry['link'] )
+			? bws_wrap_with_link(
+				$entry['value'],
+				$link_to,
+				(string) ( $options['linkKey'] ?? '' ),
+				! empty( $options['newTab'] ),
+				(int) $entry['link']['id'],
+				(string) $entry['link']['kind']
+			)
+			: $entry['value'];
+	}
+
 	return array(
-		'value'  => implode( $sep, array_column( $values, 'value' ) ),
+		'value'  => implode( $sep, $parts ),
 		'values' => $values,
-		'count'  => $count,
-		'link'   => 1 === $count ? $values[0]['link'] : null,
+		'count'  => count( $values ),
 	);
 }
 }

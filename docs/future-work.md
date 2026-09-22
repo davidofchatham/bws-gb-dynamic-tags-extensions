@@ -498,18 +498,6 @@ Open: The enumeration half (a sweep of postmeta/options/termmeta reporting what 
 
 Blocked by: decision:disclosure vs enumeration  •  Interacts with: FW-66 (notice deferral, reopened), FW-128 (the report half of the same instrument — this row is where the walk REACHES, that one is what a walk can answer; whether the enumeration half lands there instead is open on both rows)
 
-#### FW-85 — Per-item link wrapping for list-mode values
-
-A fanning tag's top-level link is gated on count (`bws_collect_value_list()` only returns a link when exactly one value rendered), so each value's own link identity is collected and then discarded — `CONTEXT.md` [I12] already names per-item wrapping as the intended successor.
-
-Detail home: `docs/design-history/deterministic-source-selection.md` §S26 (the disclosure it defers) + `CONTEXT.md` [I12] (the invariant that anticipates it)
-
-Progress: The limit-usable-results fix (FW-87) makes the loss more visible — a tag that used to show 1 of 3 values can now show all 3 and cross the count gate, losing its link on exactly the population that fix targets; that loss is disclosed via `== Upgrade Notice ==` rather than repaired.
-
-Open: Which value receives the link once `sep` has joined several into one string — per-value wrapping means the join must emit markup, which its grammar does not currently do.
-
-Blocked by: —  •  Interacts with: FW-49 (closed; established the per-value payload this consumes), ADR 0003/0005, [I12]
-
 #### FW-86 — Whether a fanning chain deduplicates its resolved sources
 
 Nothing on the fan path removes repeats, so two inputs sharing a target (e.g. two offices in the same region) yield that target twice — ordinary, not exotic, for shared terms like regions/brands/categories.
@@ -518,9 +506,9 @@ Detail home: `docs/design-history/deterministic-source-selection.md` §O12 (the 
 
 Progress: Ruled out of scope for the limit work 2026-08-20 on a structural argument: dedupe across inputs destroys the provenance grouping the per-input terminal limit depends on, and the only safe form (dedupe within one input) cannot reach the motivating case.
 
-Open: Needs a design, not a patch. Revisit when a per-input bound is shipped and someone reports the duplicate, or if per-item link wrapping (FW-85) lands and makes each repeat separately clickable.
+Open: Needs a design, not a patch. Revisit when a per-input bound is shipped and someone reports the duplicate. Per-item link wrapping landed in 1.21.0 (FW-85), so a repeat now renders as two identical links where it used to render two identical strings; that is the same duplicate reading more plainly, not a second defect, and it does not change what the row waits on.
 
-Blocked by: —  •  Interacts with: FW-85, ADR 0005, [I12]
+Blocked by: —  •  Interacts with: FW-85 (closed 1.21.0), ADR 0005, [I12]
 
 #### FW-88 — Opt-in "search past empty fields" for collapsing tags
 
@@ -653,6 +641,20 @@ Progress: Deliberately out of scope for FW-100 (1.20.0), which is why this row e
 Open: Whether it should exist at all, given the other plugin's tags already serve it and `{{text}}` reading a vendor's computed key would be the vendor-vocabulary coupling FW-100 spent its whole design avoiding. If it does, whether the route is a new kind, a `row`-arm fallback on a `post`-classified item, or an opt-in option.
 
 Blocked by: decision:should record-side reads exist at all  •  Interacts with: FW-100 (closed — the recognizer this would layer on), FW-13 (the picker would have to offer these keys from somewhere)
+
+#### FW-135 — Per-item link wrapping for `try_` slots
+
+A `try_` slot whose source fans out prints every value joined and links none of them, which is what a base tag did until 1.21.0. The base half of per-item wrapping shipped there (FW-85) and the `try_` half did not, so the same **Link To** setting now means one thing on `{{text}}` and another on `{{try_text}}`.
+
+Detail home: `CONTEXT.md` [I12] (the rule the `try_` half does not yet keep) + this row; `docs/design-history/per-item-link-wrapping.md` is FW-85's build record, the prior art for the shape and not a design for this one
+
+Progress: Scoped OUT of FW-85 on 2026-09-21 rather than missed, on the cost below. The base half landed at the shared list fold every base list arm already routes through, which is why it reached the term, post, repeater-row and both datetime branches at once; the `try_` slot emit does not route through that fold and inherited nothing.
+
+Disclosed to authors 2026-09-22, which adds a site to the work: the URL Meta/Option Field Key help text now tells an author that a `try_` attempt producing more than one result is not linked, and `docs/tag-reference.md`'s `linkKey` row and `linkTo` prose say the same. Lifting this row means retiring that sentence in all three places, not only changing the emit.
+
+Open: The slot's bounded read returns RENDERED STRINGS and retains ONE entity id — the winning slot's, captured by the reader closure for the single-result wrap — so by the time the values exist nothing can say which value came from which entity. Per-item wrapping needs the identity threaded alongside each read, or that return reshaped to carry one identity per value; which of the two, and what it costs the callers already consuming the flat string return, is undesigned. Whether the count gate then leaves the `try_` emit the way it left the fold is part of the same question.
+
+Blocked by: `code:the slot's bounded read returns rendered strings and retains one entity id, not one per value`  •  Interacts with: FW-85 (closed 1.21.0 — the base half this would bring `try_` level with), FW-86 (a deduplicating fan would change how many ANCHORS a slot prints once this lands, as it already does for a base tag), [I12] (the link-wrappability invariant, whose corollary states the per-item rule)
 
 ### Testing & infrastructure
 
@@ -1158,6 +1160,7 @@ Append-only ledger of closed, shipped, or cut work — both `FW-N` items deleted
 | FW-79 | Re-base the tag-string preview tool on shipped chain wire | Closed 2026-09-01, [PR #131](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/pull/131): chain/folded wire now labelled and shown as current, the pre-1.17 flat sibling wire (confirmed read-only, never author-producible again) as legacy; two of three stale "no shipped form" notes retired, third's citation fixed FW-32→FW-39; FW-71/#104 `same`-merge multi-step coverage added; the long-unused Configure tab removed. Also rebuilt {{table}}'s section against table-tag.md's REOPENED D1-D4/Q1-Q8 (its never-shipped flat prototype deleted, folded model gained a D2a and a D4(a) example), beyond the row's own original scope | CHANGELOG — none (tools/ is fully `.distignore`d, never ships); `docs/design-history/tag-string-preview-rebase.md` |
 | FW-83 | `entries` carries two senses, and one has shipped | Decided 2026-08-22: the STEP slug renamed `entries`→`rows`, freeing the word for the relationship-field copy that shipped in 1.17.0. No CHANGELOG entry (no shipped control could write the old token, so the delta is zero) | `docs/deprecated-tags-options.md` §Option name renaming; `.scratch/plans/table-tag.md` §SETTLED 2026-08-22 |
 | FW-84 | `src:site` slot for the two `datetime_` try_ tags | Shipped 1.18.0 as a FIX: 1.15.0's own CHANGELOG entry claimed this and silently omitted the two datetime `try_` tags. Byte-parity with the base tag confirmed on all five probed shapes | CHANGELOG 1.18.0; `src-site-test-matrix.md` §R8; `docs/design-history/src-site-stage-bc.md` |
+| FW-85 | Per-item link wrapping for list-mode values | Shipped 1.21.0: the count-based single-result link gate is gone and every value in a list is wrapped against its OWN identity inside the shared list fold, between the per-value capture and the `sep` join, so the separator sits between anchors and a value with no identity prints plain beside its linked siblings. Base text/title (term, post and repeater-row branches) and both `datetime_` branches inherited it from the fold rather than from per-caller edits; `{{join}}` is unaffected by construction (it registers no link options), and the `try_` half was scoped out on its bounded read's return shape and is FW-135. The tracker's open question — which value receives the link once `sep` has joined several into one string — dissolved on ORDERING rather than grammar: the join never sees an unwrapped list | CHANGELOG 1.21.0; CONTEXT.md [I12] corollary; `bws_collect_value_list()` PHPDoc (the enforcing site); `docs/design-history/deterministic-source-selection.md` §S26 (the disclosure this repays); `docs/design-history/per-item-link-wrapping.md` (the build record); `tools/test/traversal-pipeline-test.php` §FW-85; `/matrix-post-meta/` rows T3.2, T7.3, L2.1, L3.6, L4.2, D4.8, D4.8b for the SHAPE, `text-test-matrix.md` §T11 on `/matrix-links/` for where each anchor points |
 | FW-87 | Limits bound usable results — the remaining slices | Shipped 1.18.0, reshaped in the build: the 2026-08-21 determinism reversal redefined "usable" as a source property (resolvable × exists × visible, field population removed), retiring slice C outright and folding slice B in. Open residue went to FW-88/FW-89 | CHANGELOG 1.18.0; ADR 0007; [I19]; `docs/design-history/deterministic-source-selection.md` |
 | FW-94 | Loop-context identifiers follow the vocabulary | Shipped 1.19.0: `bws_get_loop_row_context()`→`bws_get_loop_item_context()`, `row_post_id`→`item_post_id`, across 64 sites in one change. Acknowledged break, no shim. Old names deliberately survive in CHANGELOG, design-history, debug-probe transcripts, and this ledger's own record | CHANGELOG 1.19.0; `bws_get_loop_item_context()` PHPDoc; `docs/plugin-integration.md` §Field helpers |
 | FW-103 | Page snapshots shift when a co-resident plugin toggles | Fixed, closed 2026-08-28: the normalizer stopped capturing the document head; `env-versions.php` now records the active plugin set so a toggle is reported as a warning instead of silently absorbed | `tools/test/page-snapshots.php` rule 8; `docs/update-triggers.md` §Page-snapshot instrument |

@@ -323,7 +323,7 @@ The number controls carry **no `min`** deliberately: a control that fights a han
 
 That one rule is the whole compatibility mechanism for [source chains](#source-chains-1170), and it is chosen because it works on wire **no migration can reach**: a draft nobody opens, a block widget the content scanner never sees, a tag stored inside an ACF field. An unmigrated tag gets its default from its own spelling, wherever it lives.
 
-Two costs, both deliberate. The same conceptual source is bounded differently by spelling — an [ADR 0004](adr/0004-serialized-tag-string-human-readable.md) readability cost, paid to avoid touching a stored row, and confined to a spelling no panel can author any more. And the top-level link gate is COUNT-BASED, so link-wrapping differs by spelling too; that is why the regression matrix carries rows per SPELLING, not only per `limit` value.
+Two costs, both deliberate. The same conceptual source is bounded differently by spelling — an [ADR 0004](adr/0004-serialized-tag-string-human-readable.md) readability cost, paid to avoid touching a stored row, and confined to a spelling no panel can author any more. And linking is PER ITEM, so the two spellings print a different NUMBER of anchors as well as a different number of values; that is why the regression matrix carries rows per SPELLING, not only per `limit` value.
 
 **The flat SPELLING is closed; the flat READ is not deprecated.** Two statements that sit next to each other and say different things. An author can no longer write flat `src:ref` / `srcTermIn` from any panel — the chain control absorbed those siblings — but every stored instance is read forever, and so is an explicit tag-level `limit:N`. Neither has a deprecation path in 1.x: the population is unenumerable (a draft nobody opens, a block widget the scanner never sees, a tag inside an ACF field), so removing either read would be a permanent silent output change on tags nobody can find. Revisiting that is a major-version decision. See [ADR 0005](adr/0005-limits-are-stated-where-the-source-is-stated.md).
 
@@ -372,7 +372,7 @@ Positional, not `terms`-specific: `refs` takes the `N` when `refs` is the last f
 
 A chain step fans the same way wherever it sits: the rule above is the step's, not the tag's.
 
-**List collection is ONE fold (FW-49, 1.16.0):** every list-mode branch — text/title srcTermIn + src:ref, `datetime_single`/`datetime_range` per-term / per-ref-target (shipped with [#30](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/30) via a datetime-local fold, converged 1.16.0) — collects through `bws_collect_value_list()` (field-helpers.php): empty items are skipped, the list is sliced to `limit` and joined with `sep`, the `fallback` is suppressed per item and fires once on all-empty output, and link-wrap applies only when exactly one result renders — each collected value carries a link identity (`{kind,id}` or none; CONTEXT.md I12), and the single-result rule is a join constraint, not a linking one. Two separators on the range tag: `sep` between whole ranges, `rangeSep` between each start and end.
+**List collection is ONE fold (FW-49, 1.16.0):** every list-mode branch — text/title srcTermIn + src:ref, `datetime_single`/`datetime_range` per-term / per-ref-target (shipped with [#30](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/30) via a datetime-local fold, converged 1.16.0) — collects through `bws_collect_value_list()` (field-helpers.php): empty items are skipped, the list is sliced to `limit` and joined with `sep`, the `fallback` is suppressed per item and fires once on all-empty output, and link-wrap applies PER ITEM (FW-85) — each collected value carries a link identity (`{kind,id}` or none; CONTEXT.md I12) and is wrapped against its own before the join, so the separator sits between the anchors and a value with no identity prints plain beside its linked siblings. Two separators on the range tag: `sep` between whole ranges, `rangeSep` between each start and end.
 
 ### Collapsing tags (first-usable source)
 
@@ -884,7 +884,7 @@ Excluded: `content`, `permalink`, `image`. (`email`/`phone` have their own
 | Option name | Option label | Notes |
 |---|---|---|
 | `linkTo` | Link To | Link-destination selector. Values enumerated below. First value `none` is the canonical token, stripped at registration per default-strip strategy. |
-| `linkKey` | URL Meta/Option Field Key | Meta or option field key whose value is the URL (post/term meta, or a wp_options / ACF-options key under `src:site`). Shown when `linkTo:key`. If empty, link wrap skipped (never blocks tag output). For `try_` tags, this field is read from the entity that produced the winning slot's output — no per-slot `linkKey`. |
+| `linkKey` | URL Meta/Option Field Key | Meta or option field key whose value is the URL (post/term meta, or a wp_options / ACF-options key under `src:site`). Shown when `linkTo:key`. If empty, link wrap skipped (never blocks tag output). For `try_` tags, this field is read from the entity that produced the winning slot's output — no per-slot `linkKey` — and a winning slot that produced SEVERAL results renders them unlinked (FW-135; the base list fold links per item, the `try_` emit does not). |
 | `newTab` | Open in new tab | Boolean presence-flag. Shown when `linkTo` not empty. Emits `target=”_blank” rel=”noopener noreferrer”` on the anchor. |
 
 **`linkTo` values:**
@@ -897,7 +897,9 @@ Excluded: `content`, `permalink`, `image`. (`email`/`phone` have their own
 
 Link wrap is applied **after fallback resolves** — fallback text is also wrapped if a link resolves.
 On `try_` tags, the single `linkTo`/`linkKey`/`newTab` applies to the winning slot's entity (post or
-term). On a base tag it is the entity the chain lands on.
+term) — and only where that slot produced ONE result; a slot that fanned prints its joined values
+unlinked (FW-135). On a base tag it is the entity the chain lands on, and in list mode each value is
+wrapped against its own identity (§List mode).
 
 **`email`/`phone` are the exception — their link is NOT a `linkTo` option.** They do not participate
 in the `linkTo`/`linkKey`/`newTab` family above (those wrap an *entity URL*). Their only link is the
@@ -990,7 +992,7 @@ Control order `source → format → fallback` (no `link` group on `image`; `for
 
 ## `datetime_single` and `datetime_range`
 
-Format a date/datetime/time field (`datetime_single`) or a start–end **composite string** (`datetime_range`). List mode on `srcTermIn` / `src:ref` (shipped with [#30](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/30) — see [§List mode](#list-mode-limit--sep)). Link-wrappable (single result only). GB types `'cross-source'`; picker titles `'Format Date/Time Fields'` / `'Format Date/Time Fields as Range'`.
+Format a date/datetime/time field (`datetime_single`) or a start–end **composite string** (`datetime_range`). List mode on `srcTermIn` / `src:ref` (shipped with [#30](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/30) — see [§List mode](#list-mode-limit--sep)). Link-wrappable, per item in list mode. GB types `'cross-source'`; picker titles `'Format Date/Time Fields'` / `'Format Date/Time Fields as Range'`.
 
 **Required:** `datetime_single` needs `key`; `datetime_range` needs `startKey` (`endKey` optional). Under `src:site` the keys read ACF options-page date fields via `get_field($key,'option')`. On a taxonomy archive a bare tag reads the ambient **term's** date field (1.15.0, FW-3a — same current-entity rule as text/title; previously post-only, honest-empty there). Uses [Source](#source-group) + `limit`/`sep` + [Link wrap](#link-wrap-group) + [Fallback](#fallback-group).
 
