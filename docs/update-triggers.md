@@ -244,9 +244,21 @@ run `php tools/test/fold-chain-compile-test.php` (compile + limit — equivalenc
 
 ## `try_` slot ARM change
 
-**Fires on:** `try_` slot ARM change — `includes/helpers/try-slot-arms.php` (the kind→arm table plus `bws_try_slot_arm()` / `bws_try_slot_base_branch_kind()`), or the dispatch and shared emit in `TagTemplateRegistry::generate_base_try_tags()`'s callback
+**Fires on:** `try_` slot ARM change — `includes/helpers/try-slot-arms.php` (the kind→arm table plus `bws_try_slot_arm()` / `bws_try_slot_base_branch_kind()`), or the dispatch and shared emit inside `TagTemplateRegistry::try_arm_resolver()`
 
 run `php tools/test/try-slot-arms-test.php` (the table) + `php tools/test/try-join-seam-test.php` + `php tools/test/limit-clamp-test.php` + `php tools/test/control-order-test.php`, **and sweep `tools/test/fold-test-matrix.md` §F9b against the testbed as a before/after DIFF** — a wrong arm renders a plausible value, not an empty one, so a single green row proves very little. Dispatch goes by the resolved source KIND, and the seam does not re-spell a slot's chain as a flat triple, so both containers' registered `steps` offer matches the base tag's — see `try-slot-arms.php`'s file header and `CONTEXT.md` [I16]. `meta_row`'s two meanings (a refused chain kind vs. the resolved base kind reaching the post arm), the [I15] unconsumable-kind-is-skipped rule, the consumer-vs-implementation distinction, and the collect-then-slice rule are documented in `try-slot-arms.php` and `class-tag-template-registry.php` at their respective sites
+
+**The arm path is SHRINKING, and that changes what a green run here means.** FW-136 flips the nine `supports_try` families onto their base tags' own resolve seams one at a time; a flipped family leaves the arm resolver entirely, so from 1.21.0 the harnesses above cover fewer tags each time one lands. Check which families still lack a `resolve_fn` before reading a clean §F9b sweep as coverage of the tag you changed — and when the ninth lands, this whole section goes with the shim.
+
+## `try_` ATTEMPT WALK change
+
+**Fires on:** `try_` ATTEMPT WALK change — `bws_try_run_attempts()` in `includes/helpers/try-slot-loop.php`, or a family's `resolve_fn` descriptor key moving on or off a base resolve seam
+
+run `php tools/test/try-slot-loop-test.php` (the walk, driven with a recorder in place of a family's resolve seam) + `php tools/test/slot-fold-test.php` + `php tools/test/control-order-test.php`, then against the testbed `tools/test/fold-test-matrix.md`, `text-test-matrix.md` §T8 and `php tools/test/page-snapshots.php`.
+
+**What the pure harness does NOT prove.** It drives the walk with a recorder, so every row below the walk — which arm or seam a family actually reads through, and what that read returns — is outside it by construction. That is the point of the split and it is also its cost: a `resolve_fn` pointed at the wrong function passes every row in that file. The page snapshots are what catch it, and a flip's output movement is EXPECTED rather than a failure — re-capture the baseline in the same commit as the flip, never once at the end of the branch, or nine families' worth of movement arrives as one indistinguishable diff.
+
+**A family's flip is measured against the PREVIOUS BUILD, not against the matrices' prose.** Several matrix rows record FW-135's pre-fix behavior as their expectation (a multi-result attempt printing unlinked), because that is what was measured when they were written. A flip moves those rows by design; the row's label and its `Expected` column move with it, in the same commit.
 
 ## Base-tag REFUSAL TEST change
 

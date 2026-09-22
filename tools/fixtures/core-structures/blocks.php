@@ -1298,13 +1298,13 @@ function bws_fixture_page_content_matrix_term_hop() {
 		bws_fixture_gb_row( 'F7a.10b join MIGRATED twin - the 2 lands on the slot own fanning step (-> same as F7a.10)', '{{join A:src(terms,department,limit[2]);use(title)}}' ),
 		bws_fixture_gb_row( 'F7a.11 an explicit legacy limit:0 KEEPS its carrier - unmigrated wire takes the flat default (-> every term)', '{{try_text srcTermIn:department|use:title|limit:0}}' ),
 		bws_fixture_gb_row( 'F7b.4 MIGRATED twin - an explicit unlimited moves onto the step like any other number (-> same as F7a.11)', '{{try_text A:src(terms,department,limit[0]);use(title)}}' ),
-		// The LINK half (limit-default-test-matrix.md L4a). The try_ emit still gates on
-		// COUNT - per-item wrapping landed on the base list fold only (FW-85), the try_
-		// half is FW-135 - so a slot that starts returning several values stops being
-		// wrappable rather than printing several anchors. Eyeball the anchors, not just
-		// the text.
+		// The LINK half (limit-default-test-matrix.md L4a). Since FW-136 flipped try_text
+		// onto the base resolve seam, an attempt reads through the same list fold a base
+		// tag does, so a slot returning several values wraps each of them against its OWN
+		// identity (FW-85) instead of dropping the anchor on count. Eyeball the anchors,
+		// not just the text.
 		bws_fixture_gb_row( 'L4a.1 flat slot, unset - ONE term, and it IS a link', '{{try_text srcTermIn:department|use:title|linkTo:permalink}}' ),
-		bws_fixture_gb_row( 'L4a.2 chain slot, unset - every term, and NO link (multi-value is not wrappable)', '{{try_text A:src(terms,department);use(title)|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L4a.2 chain slot, unset - every term, EACH its own link', '{{try_text A:src(terms,department);use(title)|linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'L4a.3 MIGRATED twin of L4a.1 - ONE term, link back (-> same as L4a.1)', '{{try_text A:src(terms,department,limit[1]);use(title)|linkTo:permalink}}' ),
 	) )
 	// datetime matrix D4 (#30) — srcTermIn list rows. The page's assigned terms

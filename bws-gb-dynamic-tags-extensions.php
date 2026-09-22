@@ -144,6 +144,11 @@ function bws_dynamic_tags_init() {
 	// owns that vocabulary. Read at render only; position relative to the tag files is
 	// immaterial.
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/try-slot-arms.php';
+	// The `try_` ATTEMPT WALK (FW-136) — the selecting fold, lifted out of the tag
+	// constructor's closure so it is one named function over a resolve callable rather
+	// than a second renderer. Loads after the grammar and the compiler it drives the
+	// per-attempt source through; read at render only.
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/try-slot-loop.php';
 	// Fold MIGRATOR (legacy flat slot keys → folded values). Consumed by the
 	// type:'option' migration entries in deprecated-tags.php; loads after the grammar
 	// it adapts and after serialization-order.php (it canonicalizes emitted key order).

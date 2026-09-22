@@ -409,6 +409,13 @@ function bws_register_base_tags(): void {
 		'term_fn'               => 'bws_try_text_term_dispatch',
 		'post_fn'               => 'bws_try_text_post_dispatch',
 		'try_core_fn'           => 'bws_try_text_post_dispatch',
+		// THE RESOLVE SEAM (FW-136). An attempt reads through the same function
+		// {{text}} does, so `try_text` inherits whatever the base read gains — per-item
+		// link wrap (FW-85/FW-135) being the first. The try_*_fn entries below are still
+		// read by the base tags themselves (term_fn/post_fn share dispatchers with them)
+		// and by the arm shim the eight un-flipped families stand on; nothing routes
+		// `try_text` through the shim any more.
+		'resolve_fn'            => 'bws_base_text_resolve_value',
 		'try_term_fn'           => 'bws_try_text_term_dispatch',
 		'try_site_fn'           => static fn( $opts, $inst ) => bws_site_resolve_value( 'text', (array) $opts, $inst ),
 		'try_user_fn'           => static fn( $user_id, $opts, $inst ) => bws_base_user_analog_read( 'text', (int) $user_id, (array) $opts, $inst ),

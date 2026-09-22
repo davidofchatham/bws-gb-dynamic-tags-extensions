@@ -126,12 +126,12 @@ to sit outside the loop, and the blueprint has to say so.
 | T8.3 | `{{text key:unseeded_key\|fallback:NOPE}}` | `NOPE` — key miss emits the fallback (term-core-shaped) |
 | T8.4 | `{{text use:title\|linkTo:permalink}}` | `Fixture Author` wrapped in the author-archive URL (user entity type) |
 | T8.5 | `{{join use:title}}` | `Fixture Author` — join slot absorbs the user arm through the seam |
-| T8.6 | `{{try_text use:title}}` | `Fixture Author` — the [I6] parity row. A `try_` slot takes its OWN dispatcher's user arm (`try_user_fn`), never the absorb seam T8.5 rides; empty here through 1.16.0 |
+| T8.6 | `{{try_text use:title}}` | `Fixture Author` — the [I6] parity row; empty here through 1.16.0. It read through `try_text`'s OWN dispatcher (`try_user_fn`) from #108 until FW-136 flipped the family onto the base resolve seam, which is the same seam T8.5 rides — so the row now proves the parity by CONSTRUCTION rather than by a second arm agreeing |
 | T8.7 | `{{try_text key:description}}` | the fixture bio — key-mode parity, T8.2's twin. Not optional scope: the leg's renderer performs the `get_user_meta()` read, and suppressing it would take code base `{{text}}` does not have |
 | T8.8 | `{{try_text A:key(unseeded_key)\|B:use(title)}}` | `Fixture Author` — **attempt fallthrough**: a user key MISS must skip to the next attempt, not consume the tag. Safe because `$eval_opts` strips `fallback`/`fallback_text` before slot options are built; nothing else pins this |
 | T8.9 | `{{try_title}}` | `Fixture Author` — second template |
 | T8.10 | `{{try_content}}` | the fixture bio — third template |
-| T8.11 | `{{try_text use:title\|linkTo:permalink}}` | `<a href="…/author/fixture-author/">Fixture Author</a>` — the arm table's `link:'user'` column's only evidence anywhere |
+| T8.11 | `{{try_text use:title\|linkTo:permalink}}` | `<a href="…/author/fixture-author/">Fixture Author</a>` — user link identity survives an attempt. It was the arm table's `link:'user'` column's only evidence until FW-136 took `try_text` off the table; T8.9's `{{try_title}}` is that evidence now, and this row moved onto the seam's own user analog without moving its output |
 | T8.12 | `{{try_permalink}}` / `{{try_image}}` / `{{try_datetime_single key:event_date}}` | **empty — unchanged**, captured BEFORE (`main@e1bff07`) as well as after. These six families carry no `try_user_fn` and must keep taking the fn-absent fallthrough to the post arm, which is their only route to the no-entity loop read at the foot of the slot loop — the `[ false ]` branch that lets the field read serve itself off the query-loop item. Without the before-capture the row is unfalsifiable — an empty result proves nothing on its own |
 
 T8.1–T8.6 verified 2026-07-21 (build f6f8d1e). T8.6 flipped and T8.7–T8.12 added + verified
@@ -139,11 +139,13 @@ T8.1–T8.6 verified 2026-07-21 (build f6f8d1e). T8.6 flipped and T8.7–T8.12 a
 `main@e1bff07`.
 
 **Coverage note.** T8.6–T8.12 are the ONLY pins on the `try_` user leg. The wiring — which
-template carries which `try_*_fn`, and the fn-absent fallthrough — lives inside
-`generate_base_try_tags()`'s callback closure, which no pure harness reaches: the arm-table
+template carries which `try_*_fn`, and the fn-absent fallthrough — lives in
+`TagTemplateRegistry::try_arm_resolver()`, which no pure harness reaches: the arm-table
 harness sees data, `control-order-test.php` sees registration. Adding a `try_user_fn` to a
 seventh template or reordering that fallthrough fails nothing. Accepted for 1.17.0; the
 extraction is noted on FW-43's row. The same gap covers the `try_query_fn` leg (T9 below + `fold-test-matrix.md` §F19 are its pins).
+
+FW-136 narrowed the gap rather than closing it: the ATTEMPT WALK around that wiring came out into `bws_try_run_attempts()` and is covered by `try-slot-loop-test.php`, and each family flipped onto a base resolve seam leaves the arm resolver entirely (`try_text` was the first). The rows above stay the pins for every family still standing on it.
 
 ---
 

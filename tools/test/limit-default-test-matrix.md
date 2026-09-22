@@ -146,14 +146,14 @@ selects its default, exactly as a base tag's does. Before, the dispatch read the
 FLATTENED triple, whose `src` is a legacy token on every slot, so every slot answered 1 whatever
 it was spelled as.
 
-**Behaviour rows live in [`fold-test-matrix.md`](fold-test-matrix.md) §F7a** — that file owns the fold, and duplicating them here is the copy this matrix has no reason to keep. What belongs HERE is the link, for the reason L1 and L4 carry theirs: a silent default flip is visible in the markup before it is visible in the text. The `try_` emit still gates on COUNT (per-item wrapping landed on the base list fold only, FW-85; the `try_` half is FW-135), so here a slot that starts returning several values stops being wrappable at all, rather than printing several anchors.
+**Behaviour rows live in [`fold-test-matrix.md`](fold-test-matrix.md) §F7a** — that file owns the fold, and duplicating them here is the copy this matrix has no reason to keep. What belongs HERE is the link, for the reason L1 and L4 carry theirs: a silent default flip is visible in the markup before it is visible in the text. Since FW-136 flipped `try_text` onto the base resolve seam it reads through the same list fold a base tag does, so a slot that starts returning several values prints an anchor PER VALUE (FW-85) rather than losing the anchor to a count gate. The families still on the arm shim keep the count gate until their own flip lands.
 
-> **MEASURED 2026-08-07** on the testbed, `/matrix-terms-valid/`.
+> **MEASURED 2026-08-07** on the testbed, `/matrix-terms-valid/`; L4a.2 re-measured 2026-09-22 after the FW-136 text flip.
 
 | Row | Tag | Expected | What it proves |
 |---|---|---|---|
 | L4a.1 | `{{try_text srcTermIn:department\|use:title\|linkTo:permalink}}` | ONE dept name, in `<a>` | FLAT slot, unset — the floor, unchanged |
-| L4a.2 | `{{try_text A:src(terms,department);use(title)\|linkTo:permalink}}` | `Sales, Support`, **NO** `<a>` | CHAIN slot, unset — unlimited, and the anchor legitimately gone. The slot twin of L4.2 |
+| L4a.2 | `{{try_text A:src(terms,department);use(title)\|linkTo:permalink}}` | `Sales, Support`, **each in its own** `<a>` | CHAIN slot, unset — unlimited, and every value wrapped against its own term. The slot twin of L4.2 |
 | L4a.3 | `{{try_text A:src(terms,department,limit[1]);use(title)\|linkTo:permalink}}` | ONE dept name, in `<a>` | what MIGRATION writes for L4a.1 — identical output, anchor included |
 | L4a.4 | `{{join A:src(same);key(x)}}` after a fanning slot 1 | see §F7a.6 | a slot that fans only by CARRYING OVER keeps the flat default: the slot it carries over from stated its own bound, and a limit does not carry forward |
 
