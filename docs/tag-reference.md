@@ -884,7 +884,7 @@ Excluded: `content`, `permalink`, `image`. (`email`/`phone` have their own
 | Option name | Option label | Notes |
 |---|---|---|
 | `linkTo` | Link To | Link-destination selector. Values enumerated below. First value `none` is the canonical token, stripped at registration per default-strip strategy. |
-| `linkKey` | URL Meta/Option Field Key | Meta or option field key whose value is the URL (post/term meta, or a wp_options / ACF-options key under `src:site`). Shown when `linkTo:key`. If empty, link wrap skipped (never blocks tag output). For `try_` tags, this field is read from the entity that produced the winning slot's output — no per-slot `linkKey`. |
+| `linkKey` | URL Meta/Option Field Key | Meta or option field key whose value is the URL (post/term meta, or a wp_options / ACF-options key under `src:site`). Shown when `linkTo:key`. If empty, link wrap skipped (never blocks tag output). For `try_` tags, this field is read from the entity that produced the winning slot's output — no per-slot `linkKey` — and a winning slot that produced SEVERAL results renders them unlinked (FW-135; the base list fold links per item, the `try_` emit does not). |
 | `newTab` | Open in new tab | Boolean presence-flag. Shown when `linkTo` not empty. Emits `target=”_blank” rel=”noopener noreferrer”` on the anchor. |
 
 **`linkTo` values:**
@@ -897,7 +897,9 @@ Excluded: `content`, `permalink`, `image`. (`email`/`phone` have their own
 
 Link wrap is applied **after fallback resolves** — fallback text is also wrapped if a link resolves.
 On `try_` tags, the single `linkTo`/`linkKey`/`newTab` applies to the winning slot's entity (post or
-term). On a base tag it is the entity the chain lands on.
+term) — and only where that slot produced ONE result; a slot that fanned prints its joined values
+unlinked (FW-135). On a base tag it is the entity the chain lands on, and in list mode each value is
+wrapped against its own identity (§List mode).
 
 **`email`/`phone` are the exception — their link is NOT a `linkTo` option.** They do not participate
 in the `linkTo`/`linkKey`/`newTab` family above (those wrap an *entity URL*). Their only link is the
