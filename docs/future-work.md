@@ -193,7 +193,7 @@ Detail home: `.scratch/plans/architecture-review-2026-08.md` §FW-107
 
 Progress: Not started. Fix shape: the arm carries a callable rather than a string another file switches on, with per-slot resolution lifted into a named function. Any fix must absorb `try_query_fn`'s shape asymmetry (it takes `$base`, not an entity id).
 
-Blocked by: —  •  Interacts with: FW-106, FW-113
+Blocked by: —  •  Interacts with: FW-106, FW-113, FW-136 (dissolves this — the closure is the only consumer, and the lifted loop taking a resolve callable IS the fix shape above)
 
 #### FW-108 — deprecated-tags.php: split the public API, declare the migration order
 
@@ -361,6 +361,18 @@ Progress: **The sweep landed in 1.21.0**, on `fw-129-term-removal`. The `term_*`
 **The versioning axis, established with this release.** A MAJOR is warranted when stored content stops rendering and no migration reaches it. Nothing in the repo stated a rule before 1.21.0, and the one precedent cut the other way: `has_related_variant()` plus five related-variant methods were removed from `SourceInterface`/`AbstractSource` and flagged in the entry itself as a "breaking change for external sources", and it shipped as a MINOR ([`CHANGELOG.md`](../CHANGELOG.md) 1.5.0). The axis is chosen because wire lives in other people's databases past the point where anyone can fix it by editing our code, and an unregistered tag renders its own braces on a published page; every other break this repo can ship has an upgrade path or an empty population. Under it the 1.21.0 sweep is a MINOR, because the entries are kept and unconverted content is still convertible, and step 2 above is the major.
 
 Blocked by: —  •  Interacts with: FW-38 (the proxy this API was the last justification for; the stub delete removes the last reason it exists), FW-104 (the enroll-a-live-family trap is a property of this API and is no longer reachable), FW-128 (a tags-in-use report would have made the removal gate checkable without hand-running the converter per site)
+
+#### FW-136 — `try_` is a second renderer, not a configuration of the base one
+
+A `try_` tag resolves through a ~350-line closure in `TagTemplateRegistry::generate_base_try_tags()` that re-does arm dispatch, ids selection and emit over ~40 per-family `try_*_fn` renderers, while a base tag resolves through its own callback and the shared list fold. Every base/`try_` parity defect is that second renderer failing to inherit something the first got. This item replaces the closure with a loop over the BASE resolve seam, first non-empty attempt wins.
+
+Detail home: `.scratch/try-base-renderer-merge/spec.md`
+
+Progress: Designed 2026-09-22 by grilling; every decision is settled in the detail home, and the build has not started. Measured that day: only four of the nine `supports_try` families register link options (text, title, datetime_single, datetime_range), so FW-135 is observable on four and the other five cannot be half-done on that axis; and the fold's `sep`, bound and limit-default handling already agree byte-for-byte with `bws_try_join_items()` plus `bws_read_bounded_sources()`, so those five are expected to move no output at all. The base half of the split already exists on one family — `bws_base_text_resolve_value()` has been the shell/seam shape since 1.14.1 — which is what makes the seam a generalization rather than an invention. FW-135, FW-107 and FW-43's open residue dissolve when it lands rather than being fixed.
+
+Open: Per family, whether the base route reaches the query context before its `try_query_fn` descriptor is deleted — where it does not, that is an FW-9 gap on the base tag and is filed there rather than kept alive as a `try_`-only arm.
+
+Blocked by: —  •  Interacts with: FW-135 (dissolves — the per-item link wrap is inherited from the fold, not threaded through the emit), FW-107 (dissolves — the arm table's only consumer is the closure, and the lifted loop IS its stated fix shape), FW-43 (its open residue is the emit this removes), FW-116 (its contract is a fixed input; three families carry its fix in the callback tail being split), FW-92 (NOT absorbed — registration-side editor work, unchanged by this), FW-60 (standalone from this by decision; after the merge FW-60 has no renderer work left in it), FW-81 (will find two datetime seams rather than two callbacks), FW-9 (where a query-context gap surfaces)
 
 ### Feature follow-ups & UX
 
@@ -652,9 +664,11 @@ Progress: Scoped OUT of FW-85 on 2026-09-21 rather than missed, on the cost belo
 
 Disclosed to authors 2026-09-22, which adds a site to the work: the URL Meta/Option Field Key help text now tells an author that a `try_` attempt producing more than one result is not linked, and `docs/tag-reference.md`'s `linkKey` row and `linkTo` prose say the same. Lifting this row means retiring that sentence in all three places, not only changing the emit.
 
+Superseded as a design question 2026-09-22 by FW-136, which routes a `try_` slot through the base list fold instead: per-item wrapping is then inherited the way every base list arm inherited it, and the identity question below never has to be answered. The paragraph stays as the record of what the standalone fix would have cost.
+
 Open: The slot's bounded read returns RENDERED STRINGS and retains ONE entity id — the winning slot's, captured by the reader closure for the single-result wrap — so by the time the values exist nothing can say which value came from which entity. Per-item wrapping needs the identity threaded alongside each read, or that return reshaped to carry one identity per value; which of the two, and what it costs the callers already consuming the flat string return, is undesigned. Whether the count gate then leaves the `try_` emit the way it left the fold is part of the same question.
 
-Blocked by: `code:the slot's bounded read returns rendered strings and retains one entity id, not one per value`  •  Interacts with: FW-85 (closed 1.21.0 — the base half this would bring `try_` level with), FW-86 (a deduplicating fan would change how many ANCHORS a slot prints once this lands, as it already does for a base tag), [I12] (the link-wrappability invariant, whose corollary states the per-item rule)
+Blocked by: `row:FW-136`  •  Interacts with: FW-85 (closed 1.21.0 — the base half this would bring `try_` level with), FW-86 (a deduplicating fan would change how many ANCHORS a slot prints once this lands, as it already does for a base tag), [I12] (the link-wrappability invariant, whose corollary states the per-item rule)
 
 ### Testing & infrastructure
 
@@ -1028,11 +1042,11 @@ Make "try another source" reachable as a control on a base tag (`{{text}}` growi
 
 Detail home: `.scratch/plans/absorb-try-into-base.md` (new); constraint → `gb-constraints.md` §Switching tag type; label collision → `docs/design-history/src-chain-encoding.md` §Pass 5
 
-Progress: Assessed premature (user, 2026-08-01) — recorded as a possibility, not a plan. Encoding falls out cleanly as a one-way fold (base tags serialize unprefixed until slot-scoped state appears, then fold once and stay folded), which avoids the destructive-collapse and history-dependent-wire costs a bidirectional auto-switch would carry.
+Progress: No longer judged premature (user, 2026-09-22) — the open choice is whether to absorb at all, not whether it is too early, which is why the blocker reads as a bare decision now. Assessed premature (user, 2026-08-01) — recorded as a possibility, not a plan. Encoding falls out cleanly as a one-way fold (base tags serialize unprefixed until slot-scoped state appears, then fold once and stay folded), which avoids the destructive-collapse and history-dependent-wire costs a bidirectional auto-switch would carry.
 
 Open: Whether `try_` is structurally "base + N slots" or carries real structural difference (verify against `generate_base_try_tags()`'s inline resolve + `show_if_any` reveal, which FW-43 targets); the add-slot control (largely answered by FW-45's repeater spike); the slot-noun label ("Add fallback" rejected — collides with the shipped `fallback` option).
 
-Blocked by: `decision:premature — absorb try_ into base at all`  •  Interacts with: FW-57 (closed), FW-45, FW-27, FW-43, FW-24, FW-33 (closed)
+Blocked by: `decision:absorb try_ into base at all`  •  Interacts with: FW-57 (closed), FW-45, FW-27, FW-43, FW-24, FW-33 (closed), FW-136 (standalone from this by decision, and it leaves no renderer work here — it also answers open question 1 above as a build artifact rather than a research task)
 
 #### FW-61 — Per-step sep on a fanning chain
 
@@ -1104,7 +1118,7 @@ Progress: Design converged 2026-08-18, parked — nothing committed, no ticket. 
 
 Open: Whether the verb enum (`key`/`modified`/`now`) also needs `published` — a scalar default can be stripped, but a list position with siblings may force a token; if so, whether that token appears only above cardinality 1 or always.
 
-Blocked by: —  •  Interacts with: FW-60, FW-13, FW-14 (FU-3 stacking), FW-20, FW-24, FW-64, FW-35, FW-134 (its injected keys land on the key controls this collapses), FW-113 (its site 2 seam-join should land on the merged callback, not before)
+Blocked by: —  •  Interacts with: FW-60, FW-13, FW-14 (FU-3 stacking), FW-20, FW-24, FW-64, FW-35, FW-134 (its injected keys land on the key controls this collapses), FW-113 (its site 2 seam-join should land on the merged callback, not before), FW-136 (it extracts a resolve seam from each datetime callback, so this collapses two seams and two shells rather than two callbacks)
 
 #### FW-134 — Pie Calendar event meta is invisible to the field picker
 
