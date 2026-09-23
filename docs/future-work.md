@@ -734,6 +734,18 @@ Open: Everything the original deferral named, plus one the survey added — whet
 
 Blocked by: —  •  Interacts with: FW-97 (the other live half of the same design), FW-119 (the other `seed.php` defect)
 
+#### FW-137 — `{{email}}` has no test home of its own
+
+`{{email}}` is the only shipped base tag whose per-tag invariants are pinned in a matrix section named after a different concern, and the only half of the cross-source contact pair whose read seam routes through no update trigger. Its twin `{{phone}}` has a dedicated matrix and a pure algorithm harness; email's rows are scattered across three files, with the VE1/VE2/VE4 set living in `src-site-test-matrix.md` §R6.
+
+Detail home: `.scratch/plans/email-test-home.md` (new)
+
+Progress: Surfaced and measured 2026-09-22 while flipping both families onto their base resolve seams (FW-136 ticket 02) — the flip produced exact structural twins, and only the phone half had a trigger row to update. Email has 31 matrix rows and 9 visible fixture rows against phone's 63 and 57, no pure harness against phone's `phone-normalize-test.php`, and no `CLAUDE.md` trigger row against phone's. Nothing is uncovered: §R6 already pins VE1 (wrap default-on / inverted `noLink`), VE2 (subject `rawurlencode`d once, escape case included) and VE4 (invalid renders empty; obfuscation off), and is the only place those invariants are named anywhere under `tools/`. Settled the same day: a PURE harness is the wrong instrument — `bws_phone_normalize_tel()` is a nine-step algorithm with no WP symbol in it, while `bws_email_render_one()` is eight lines whose two load-bearing calls are both WordPress, so email's equivalent would be a stub-WP harness over eight lines.
+
+Open: Whether §R6 moves out as `email-test-matrix.md` (mirroring phone, repointing citations in the same edit) or stays and the trigger points into it. The trigger row's Run column depends on that answer, which is why none was added when the gap was found. Separately, that a deliberate VE4 double-encode actually FAILS the page-snapshot run is reasoned from the normalizer's shape and has never been provoked.
+
+Blocked by: —  •  Interacts with: FW-97 (the other "which file does a row live in" question), FW-136 (surfaced it; the seam pair is what made the asymmetry visible)
+
 ### Docs & vocabulary
 
 Repairs to the documentation corpus itself: prose that has outgrown its reader, pointers that no longer resolve, and vocabulary the docs use inconsistently. Split out of §Testing & infrastructure 2026-08-28 — those items had nothing in common with a fixture site beyond "not a feature and not a bug".
