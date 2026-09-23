@@ -492,6 +492,11 @@ function bws_register_base_tags(): void {
 		'options'      => array(),
 		'term_fn'      => 'bws_term_permalink_core',
 		'post_fn'      => 'bws_post_permalink_core',
+		// FW-136 — try_permalink resolves each attempt through the BASE seam. The
+		// try_*_fn entries below stay: they are the plain per-entity cores the term_
+		// machinery and the base seam itself still call, and only the ARM TABLE that
+		// indexed them by kind goes when the ninth family lands.
+		'resolve_fn'   => 'bws_base_permalink_resolve_value',
 		'try_core_fn'  => 'bws_post_permalink_core',
 		'try_term_fn'  => 'bws_term_permalink_core',
 		'try_site_fn'  => static fn( $opts, $inst ) => bws_site_resolve_value( 'permalink', (array) $opts, $inst ),
@@ -1382,19 +1387,44 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 }
 
 /**
- * Callback for the `permalink` base tag.
+ * Resolve the `permalink` base tag's VALUE.
  *
  * Resolves entity via `source`, applies srcTerm step when set.
  * srcTerm returns first non-empty term URL.
  *
- * @since 1.6.0
+ * THE FAMILY'S RESOLVE SEAM (FW-136): `{{try_permalink}}`'s attempts run through this
+ * same function, so an attempt reads exactly as the base tag does and inherits
+ * whatever the base read gains. Registered as `resolve_fn` on the permalink modifier
+ * template; the shells on both sides own what the seam leaves out.
+ *
+ * THE COLLAPSE IS NOT RE-STATED HERE, and this seam reads no `limit` of its own. The
+ * one-result rule is a fact of the family's template record (`takes_first_usable`,
+ * ADR 0007), enforced above this function on both sides.
+ *
+ * NO LINK IDENTITY TO REPORT — `link_id` is a constant 0 and `link_type` the uniform
+ * triple's filler. {{permalink}} registers no link options: the value IS a URL, so
+ * there is nothing for a caller to wrap it in. The triple's shape is uniform across all
+ * nine families precisely so the attempt walk branches on nothing (see
+ * includes/helpers/try-slot-loop.php).
+ *
+ * @since 1.21.0 Extracted from bws_base_permalink_callback().
+ *
+ * @param array $options  Tag options.
+ * @param mixed $instance GB tag instance.
+ * @return array{value:string, link_id:int, link_type:string}
  */
-function bws_base_permalink_callback( $options, $block, $instance ): string {
+function bws_base_permalink_resolve_value( array $options, $instance ): array {
 	$res = bws_base_src_resolution( $options );
+	$out = array(
+		'value'     => '',
+		'link_id'   => 0,
+		'link_type' => 'post',
+	);
 
 	// Site read — site_url/home_url/option via resolver. No link wrap (permalink not link-eligible).
 	if ( 'site' === $res['kind'] ) {
-		return bws_site_resolve_value( 'permalink', $options, $instance );
+		$out['value'] = bws_site_resolve_value( 'permalink', $options, $instance );
+		return $out;
 	}
 
 	// L1 base source (SPEC §V1); ambient term archive → term URL analog (§V7).
@@ -1405,7 +1435,7 @@ function bws_base_permalink_callback( $options, $block, $instance ): string {
 	// (a bracketed placeholder would break the href it usually feeds), so '' is the whole
 	// of it, and it is what the term branch below already returns on an empty read.
 	if ( bws_base_read_refused( $res, $base ) ) {
-		return '';
+		return $out;
 	}
 
 	// Ambient dispatch (term URL analog §V7) through the one kind-dispatching seam.
@@ -1413,26 +1443,48 @@ function bws_base_permalink_callback( $options, $block, $instance ): string {
 	// the whole return, '' included — matching the old bare-return term arm.
 	$ambient = bws_base_ambient_analog( 'permalink', $base, $options, $instance );
 	if ( null !== $ambient ) {
-		return $ambient['value'];
+		$out['value'] = $ambient['value'];
+		return $out;
 	}
 
 	if ( 'term' === $res['kind'] ) {
 		// takes_first_usable (ADR 0007): search the WHOLE fan — every step limit is
 		// stripped at compile — and output the first usable term URL.
-		return bws_base_term_first_usable(
+		$out['value'] = bws_base_term_first_usable(
 			$base,
 			$options,
 			static fn( $tid ) => bws_term_permalink_core( (int) $tid, $options, $instance )
 		);
+		return $out;
 	}
 
 	// POST route: first usable URL off the whole fan — same rule as the term route
 	// (ADR 0007). The helper keeps today's single falsy-id read on an empty fan.
-	return bws_base_post_first_usable(
+	$out['value'] = bws_base_post_first_usable(
 		$base,
 		$options,
 		static fn( $post_id ) => bws_post_permalink_core( $post_id, $options, $instance )
 	);
+	return $out;
+}
+
+/**
+ * Callback for the `permalink` base tag.
+ *
+ * Shell over bws_base_permalink_resolve_value(), and the thinnest of the nine: this
+ * family registers no `fallback` option and emits no preview label (a bracketed
+ * placeholder would break the href it usually feeds — see the refusal note in the
+ * seam), so '' is the whole of its empty path and the seam's value is the whole return.
+ *
+ * @since 1.6.0
+ * @since 1.21.0 Value resolution extracted to bws_base_permalink_resolve_value().
+ * @param array  $options  Tag options.
+ * @param object $block    Block instance (unused).
+ * @param object $instance GB tag instance.
+ * @return string
+ */
+function bws_base_permalink_callback( $options, $block, $instance ): string {
+	return bws_base_permalink_resolve_value( (array) $options, $instance )['value'];
 }
 
 /**
