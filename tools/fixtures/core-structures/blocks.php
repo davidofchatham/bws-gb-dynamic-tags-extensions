@@ -960,7 +960,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F9b.5 site read now WINS over a hand-edited term hop, as it always has on the base tag (-> the org phone; rendered NOTHING before #103)', '{{try_phone src:site|srcTermIn:department|key:org_phone}}' ),
 		bws_fixture_gb_row( 'F9b.7 control for F9b.5: the plain site attempt, which never broke (-> the same number)', '{{try_phone src:site|key:org_phone}}' ),
 		bws_fixture_gb_row( 'F9b.8 the ambient-TERM attempt is a branch off the root-only kind now, not a src:current test (-> the ambient page title here; Sales on /department/sales/)', '{{try_title}}' ),
-		bws_fixture_gb_row( 'F9b.9 per-arm link-wrap survived the merge into one emit (-> the term title, LINKED)', '{{try_text srcTermIn:department|use:title|linkTo:term}}' ),
+		bws_fixture_gb_row( 'F9b.10 per-arm link-wrap survived the merge into one emit (-> the term title, LINKED)', '{{try_text srcTermIn:department|use:title|linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'F9b.11 a repeater-row source RESOLVES since FW-74, so attempt 1 wins and attempt 2 never runs (-> Alice Adams, Bob Brown; was Captain, slot 2)', '{{try_text A:src(rows,team_members);use(key);key(name)|B:key(role)}}' ),
 		bws_fixture_gb_row( 'F9b.12 an inexpressible chain still skips at the SEAM, which #103 did not touch (-> Captain)', '{{try_text A:src(refs,related_staff;terms,department);use(title)|B:key(role)}}' ),
 		// F9b.13 IS NOT HERE, and the omission is the stated exception: the I6 parity
@@ -1226,6 +1226,11 @@ function bws_fixture_page_content_staff_join() {
 		bws_fixture_gb_row( 'F1.10 legacy fallback (jane: em dash / tom: Jr., PhD)', '{{join key:name_generation|2-key:name_credential|fallback:—}}' ),
 		bws_fixture_gb_row( 'F1.10 folded (-> same)', '{{join A:key(name_generation)|B:key(name_credential)|fallback:—}}' ),
 		bws_fixture_gb_row( 'F1.9 folded 7-slot full name (jane: Jane Johnson / tom: Dr. Tom M. Smith Jr., PhD, USN (Ret.))', '{{join mode:template|format:%A %B %C. %D %E, %F, %G|A:key(name_honorific)|B:key(name_first)|C:key(name_middle_initial)|D:key(name_last)|E:key(name_generation)|F:key(name_credential)|G:key(name_service)}}' ),
+		// §F9b.9's visible half, which it never had: the row is on a STAFF SINGLE
+		// because its claim is about the post arm's link identity, and the matrix
+		// pages are the wrong ambient entity for it. Its twin F9b.10 (the term
+		// arm) lives on /matrix-post-meta/.
+		bws_fixture_gb_row( 'F9b.9 per-arm link-wrap survived the merge into one emit (-> this staff single\'s title, LINKED)', '{{try_title linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'F5.7 try_permalink, no-read shape (-> this staff single\'s URL)', '{{try_permalink A:src(current)|B:src(site)}}' ),
 		bws_fixture_gb_row( 'N6 try_text fallback on empty slots (jane: None / tom: Jr.)', '{{try_text A:key(name_generation)|B:key(name_credential)|fallback:None}}' ),
 	) );
