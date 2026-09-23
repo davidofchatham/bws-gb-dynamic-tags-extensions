@@ -760,6 +760,7 @@ function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same
 	}
 
 	$rows = array_values( $read_opts );
+	// Hardcoded `same` row: un-hardcoding it is FW-43's open residue (docs/future-work.md).
 	if ( $n >= 2 && $allow_same ) {
 		array_unshift(
 			$rows,
@@ -1867,6 +1868,11 @@ function bws_base_query_context_analog_read( string $tag, array $base, array $op
  * one owner (CONTEXT.md I12), and a null identity on an entity kind (id 0)
  * returns null, sending the caller down its post path exactly as the retired
  * twins' 0 did.
+ *
+ * The empty-triple-vs-null contract is per-tag carve-outs, not a rule, and its
+ * structural flip is deferred: FW-116 (docs/future-work.md). Adding a (tag, kind)
+ * pair here means checking whether it needs the same carve-out. Every `try_`
+ * attempt passes through this seam too, since FW-136.
  *
  * @since 1.19.0
  * @param string $tag      One of text|content|title|permalink|image.

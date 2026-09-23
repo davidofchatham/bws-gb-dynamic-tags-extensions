@@ -93,6 +93,8 @@ function bws_wp_is_term_archive(): bool {
  * 1.21.0 — see the Quinary comment. Renumbering the survivors would silently restate
  * every citation that names a tier by number; leave the numbering alone.
  *
+ * Folding this into bws_capture_ambient_signals() is FW-8 (docs/future-work.md).
+ *
  * @since 1.1.0
  * @since 1.21.0 Tier 4 removed with the `term_*` family (FW-129).
  * @param array $options Tag options that may contain specific term ID.
