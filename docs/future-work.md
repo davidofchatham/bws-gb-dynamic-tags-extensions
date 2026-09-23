@@ -67,7 +67,7 @@ Blocked by: —  •  Interacts with: FW-78 (closed; the other half of the same 
 
 Route datetime reads through the same L1/L2 source-resolution seam as text/title, retiring the id-arg param-overload contradiction across the four datetime cores.
 
-Detail home: `.scratch/plans/fw3-datetime-seam.md` (half (a) shipped record + half (b) framing); payload half's record `docs/design-history/traversal-convergence-fw49.md`
+Detail home: `.scratch/plans/fw3-datetime-seam.md` (the open decision); half (a)'s record `docs/design-history/fw3-term-ambient-parity.md`; payload half's record `docs/design-history/traversal-convergence-fw49.md`
 
 Progress: Half (a) shipped 1.15.0 — term-ambient parity, the resolved-source rethread, and the `bws_datetime_coerce_read_target()` compat shim for legacy scalars; bare datetime tags on a term archive read the term's date field. The payload half of (b) shipped 1.16.0 as part of FW-49 — the four datetime call sites ride the shared `bws_collect_value_list()` fold and `bws_datetime_collect_list()` is deleted.
 
@@ -1099,6 +1099,42 @@ Progress: Researched 2026-06-30 against the plugin's source, corrected 2026-08-2
 Open: Whether to inject at all, given that FW-13's protected-postmeta question is the general form of the same decision; and whether `bws_parse_combined_date_time` accepts the literal `T` separator, which is likely but unverified.
 
 Blocked by: decision:whether protected keys are offerable at all (FW-13)  •  Interacts with: FW-13 (the general question this is one population of), FW-35 (designed off this plugin's all-day flag), FW-81 (it collapses the datetime key controls this would inject into, so the injection target moves with it)
+
+#### FW-138 — `list:ul` / `list:ol`, a list output shape on multi-result tags
+
+An output-shape option on tags whose source chain can return several values: when set, each value is wrapped in `<li>` inside a `<ul>` or `<ol>`; when unset, the values join with `sep` as they do now. There is no dedicated `{{list}}` tag.
+
+Detail home: `.scratch/plans/structured-output-tags-handoff.md` §0.A
+
+Progress: Key, values and nesting grammar decided 2026-07-27 and parked (user): the key is `list`, the default is the key being absent, `sep` stays a sibling key, and a per-level value mirrors the source chain's fan-out steps. v1 is a bare single-level `list:ul` / `list:ol`. The gate the plan named, preserved fan-out (FW-32), retired in 1.17.0. Filed 2026-09-23; the plan predates the tracker entry.
+
+Open: The plan's render-seam paragraph names `bws_try_join_items()`, which FW-136 deleted, so where the `<li>` wrap branches has to be re-read against current code: text, title and datetime join inside `bws_collect_value_list()`, while `{{email}}` and `{{phone}}` join in their own renderers. Per-level markers and real nesting stay deferred behind v1.
+
+Blocked by: —  •  Interacts with: FW-85 (closed; the per-item link wrap happens where the `sep` join does), FW-139, FW-53
+
+#### FW-139 — `{{dl}}`, a definition-list tag
+
+A dedicated tag that emits paired `<dt>`/`<dd>` rows. It is a sibling to `{{table}}`, not a mode of it, though structurally it is a two-column table with no header.
+
+Detail home: `.scratch/plans/structured-output-tags-handoff.md` §0.B
+
+Progress: Split decided 2026-07-27 (user): `{{dl}}` is its own tag, not absorbed into `{{table}}`, and it takes whatever source shape `{{table}}` settles on rather than inventing its own. Filed 2026-09-23; the plan predates the tracker entry.
+
+Open: The plan's §0-Q3 to Q5: how the two values in a row are sourced, whether it reuses `{{table}}`'s assembly, and where it sits in the tag catalog (a decision to ask, not an append).
+
+Blocked by: row:FW-53  •  Interacts with: FW-138, FW-140
+
+#### FW-140 — Tables and definition lists through GB blocks instead of tags
+
+The routes that leave the markup to GenerateBlocks rather than a tag: let dynamic tags replace inside `core/table` cells, widen GB's `tagName` enums so a query loop can emit table or `dl` markup (or a standalone element can be a table), and a sentinel field-name prefix that lets GB Pro's repeater looper read a source it cannot otherwise reach.
+
+Detail home: `.scratch/plans/structured-output-tags-handoff.md` §4–§8; the GB-owned facts are in `docs/gb-constraints.md` §Replacement is gated on block NAME, §`tagName` enums and §Block appender is suppressible
+
+Progress: Researched 2026-07-23 against GB 2.3.0 and the GB facts recorded. Nothing built and nothing browser-tested. Custom container blocks were struck. Filed 2026-09-23; the plan predates the tracker entry.
+
+Open: The plan's §7 questions, most of them browser tests: whether the `dl` loop map survives the editor (the go/no-go for every query-loop map), whether the table map survives nested foster-parenting with the appender suppressed, whether the sentinel prefix works at all, and whether a `{{` typed into a `core/table` cell survives editor transforms. Allowing tags in `core/table` cells is one filter and independent of all of them.
+
+Blocked by: —  •  Interacts with: FW-53 (a working sentinel plus a table loop map would overlap its repeater rows), FW-139
 
 ## Closed / Retired
 
