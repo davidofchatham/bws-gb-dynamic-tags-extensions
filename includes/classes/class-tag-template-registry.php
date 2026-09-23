@@ -245,7 +245,7 @@ class TagTemplateRegistry {
 
 			// srcTermIn dispatch: resolve target post (current or via ref), then call term_fn
 			// against each taxonomy term on that post; first non-empty wins. Mirrors
-			// bws_base_image_callback's term-step loop. For term-context base sources, the
+			// bws_base_image_resolve_value's term-step loop. For term-context base sources, the
 			// option is hidden when src=current (UI gating), so this only runs when src=ref.
 			// Returns [ 'value' => string, 'term_id' => int ] so caller can apply link wrap.
 			$srcterm_dispatch = static function ( $post_id, $opts, $inst, $tax ) use ( $term_fn ) {

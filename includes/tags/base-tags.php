@@ -572,6 +572,16 @@ function bws_register_base_tags(): void {
 		// in control-order-test.php carries the same exception for the same reason.
 		'term_fn'               => 'bws_term_custom_image_core',
 		'post_fn'               => 'bws_custom_image_core',
+		// FW-136 — try_image resolves each attempt through the BASE seam, so an attempt
+		// reads exactly as {{image}} does: the whole fan searched for its first usable
+		// picture, the repeater-row read that preserves an array return format, and the
+		// cores' own stated-fallback emit. The try_*_fn entries below stay — they are the
+		// plain per-entity cores the term_ machinery and the base seam itself still call,
+		// and only the ARM TABLE that indexed them by kind goes when the ninth family
+		// lands. This family carries no `try_query_fn` to retire: the base seam does not
+		// claim the query-context kind for image either (bws_base_ambient_analog()'s
+		// measurement), so both routes fall through to the post arm as they did.
+		'resolve_fn'            => 'bws_base_image_resolve_value',
 		'try_core_fn'           => 'bws_try_image_post_dispatch',
 		'try_term_fn'           => 'bws_term_custom_image_core',
 		'try_site_fn'           => static fn( $opts, $inst ) => bws_site_resolve_value( 'image', (array) $opts, $inst ),
@@ -1538,33 +1548,64 @@ function bws_base_permalink_callback( $options, $block, $instance ): string {
 }
 
 /**
- * Callback for the `image` base tag.
+ * Resolve the `image` base tag's VALUE — the full read path minus the preview label.
  *
  * Resolves entity via `source`, applies srcTerm step when set, then
  * dispatches based on `use`:
  *
- * srcTerm              → bws_term_custom_image_core() (first non-empty term)
+ * srcTerm              → bws_term_custom_image_core() (first usable term)
  * post + use unset     → bws_custom_image_core()
  * post + use:featured  → bws_featured_image_core()
  *
  * `use:featured` is hidden in the editor when srcTerm is set (terms have no
  * featured image), so that branch is unreachable in normal usage.
  *
- * @since 1.6.0
+ * THE FAMILY'S RESOLVE SEAM (FW-136): `{{try_image}}`'s attempts run through this same
+ * function, so an attempt reads exactly as the base tag does and inherits whatever the
+ * base read gains. Registered as `resolve_fn` on the image modifier template; the shells
+ * on both sides own what the seam leaves out.
+ *
+ * THE COLLAPSE IS NOT RE-STATED HERE, and this seam reads no `limit` of its own. The
+ * one-result rule is a fact of the family's template record (`takes_first_usable`,
+ * ADR 0007), enforced above this function on both sides.
+ *
+ * THE STATED FALLBACK STAYS IN THE VALUE, which is where this family's split parts from
+ * text's. The cores own that emit (bws_image_stated_fallback, image-tags.php, their shared
+ * owner) and fire it on a falsy entity id, so a configured Media Library image is a
+ * NON-EMPTY read: it renders rather than yielding to the next attempt. The two arms that
+ * reach no core state it themselves — the `meta_row` branch for the reason its own comment
+ * gives, the refusal arm because a refusal must not reach a core at all. The shell is left
+ * with the preview label alone, and lifting the fallback up to join it would MOVE OUTPUT:
+ * a site read with no logo and a term fan with no terms call no core either, and both
+ * print nothing today.
+ *
+ * NO LIST SEAM, so nothing here reads `sep` and nothing joins.
+ *
+ * NO LINK IDENTITY TO REPORT — `link_id` is a constant 0 and `link_type` the uniform
+ * triple's filler. {{image}} registers no link options: its value is a URL, an id or an
+ * attachment string, none of which a caller wraps. The triple's shape is uniform across
+ * all nine families precisely so the attempt walk branches on nothing (see
+ * includes/helpers/try-slot-loop.php).
+ *
+ * @since 1.21.0 Extracted from bws_base_image_callback().
+ *
+ * @param array $options  Tag options.
+ * @param mixed $instance GB tag instance.
+ * @return array{value:string, link_id:int, link_type:string}
  */
-function bws_base_image_callback( $options, $block, $instance ): string {
-	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
-
+function bws_base_image_resolve_value( array $options, $instance ): array {
 	$use = $options['use'] ?? 'key';
 	$res = bws_base_src_resolution( $options );
+	$out = array(
+		'value'     => '',
+		'link_id'   => 0,
+		'link_type' => 'post',
+	);
 
 	// Site read — logo/option via resolver (logo already routed through the boundary).
 	if ( 'site' === $res['kind'] ) {
-		$value = bws_site_resolve_value( 'image', $options, $instance );
-		if ( '' !== $value ) {
-			return $value;
-		}
-		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'image' ) : '';
+		$out['value'] = bws_site_resolve_value( 'image', $options, $instance );
+		return $out;
 	}
 
 	// L1 base source (SPEC §V1); ambient term archive → term image field (by key),
@@ -1572,14 +1613,20 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 	// term image analog, but the fallback still applies). §V7.
 	$base = bws_base_resolve_source_for_callback( $options, $instance );
 
-	// REFUSED (GH #75/#76/#109) — read nothing. Same split as {{content}}: the preview
-	// half is the tail, the fallback half lives inside the image cores
-	// (bws_image_stated_fallback, their shared owner), which the refusal must not reach
-	// through a core. Preview outranks the fallback image, matching the tail.
+	// REFUSED (GH #75/#76/#109) — read nothing. The fallback half lives inside the image
+	// cores (bws_image_stated_fallback, their shared owner), which the refusal must not
+	// reach through a core, so this arm emits it directly.
+	//
+	// THE PREVIEW QUESTION IS ASKED HERE AND NOWHERE ELSE IN THIS SEAM, and it is the one
+	// place in the family where it has to be: preview outranks the fallback image, and this
+	// is the ONLY arm where both can apply at once. Every other arm's empty path is the
+	// label or nothing, so the shell's tail can order those with no help. Answering ''
+	// in preview is what hands the shell an empty read to put its label on.
 	if ( bws_base_read_refused( $res, $base, array( 'meta_row' ) ) ) {
-		return $is_preview && function_exists( 'bws_build_preview_label' )
-			? bws_build_preview_label( $options, 'image' )
-			: bws_image_stated_fallback( $options, $instance );
+		$out['value'] = empty( $instance->context['bwsEditorPreview'] )
+			? bws_image_stated_fallback( $options, $instance )
+			: '';
+		return $out;
 	}
 
 	// Ambient dispatch (term image field by key, or the configured Media Library
@@ -1590,10 +1637,11 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 	// below, where the image cores' stated-fallback emit still applies.
 	$ambient = bws_base_ambient_analog( 'image', $base, $options, $instance );
 	if ( null !== $ambient ) {
-		if ( '' !== $ambient['value'] ) {
-			return $ambient['value'];
-		}
-		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'image' ) : '';
+		// The term analog's core already tried the stated fallback on a no-key read
+		// (bws_base_term_analog_read()'s `image` case owns that rule), so an empty value
+		// here has been past the fallback and the shell has only its label to add.
+		$out['value'] = $ambient['value'];
+		return $out;
 	}
 	if ( 'meta_row' === $res['kind'] ) {
 		// REPEATER-ROW READ (FW-74 ticket 05). Collapsing, not listing, exactly as
@@ -1622,33 +1670,54 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 			static fn( $row_source ) => bws_try_image_row_dispatch( $row_source, $options, $instance ),
 			1
 		);
-		$value = $found ? (string) $found[0] : bws_image_stated_fallback( $options, $instance );
-	} elseif ( 'term' === $res['kind'] ) {
+		$out['value'] = $found ? (string) $found[0] : bws_image_stated_fallback( $options, $instance );
+		return $out;
+	}
+
+	if ( 'term' === $res['kind'] ) {
 		// takes_first_usable (ADR 0007): search the WHOLE fan — every step limit is
 		// stripped at compile — and output the first usable term image. The cores
 		// keep their per-read stated-fallback semantics untouched: a stated fallback
 		// image is a non-empty read, exactly as it was for this loop's predecessor.
-		$value = bws_base_term_first_usable(
+		$out['value'] = bws_base_term_first_usable(
 			$base,
 			$options,
 			static fn( $tid ) => bws_term_custom_image_core( (int) $tid, $options, $instance )
 		);
-		if ( '' !== $value ) {
-			return $value;
-		}
-	} else {
-		// POST route: first usable image off the whole fan — same rule as the term
-		// route (ADR 0007). The helper keeps today's single falsy-id read on an
-		// empty fan.
-		$value = bws_base_post_first_usable(
-			$base,
-			$options,
-			static fn( $post_id ) => 'featured' === $use
-				? bws_featured_image_core( $post_id, $options, $instance )
-				: bws_custom_image_core( $post_id, $options, $instance )
-		);
+		return $out;
 	}
 
+	// POST route: first usable image off the whole fan — same rule as the term
+	// route (ADR 0007). The helper keeps today's single falsy-id read on an
+	// empty fan.
+	$out['value'] = bws_base_post_first_usable(
+		$base,
+		$options,
+		static fn( $post_id ) => 'featured' === $use
+			? bws_featured_image_core( $post_id, $options, $instance )
+			: bws_custom_image_core( $post_id, $options, $instance )
+	);
+	return $out;
+}
+
+/**
+ * Callback for the `image` base tag.
+ *
+ * Shell over bws_base_image_resolve_value(): resolve the value, then on empty output the
+ * editor preview label. No link wrap — this family registers no link options.
+ *
+ * NO STATED FALLBACK HERE, unlike bws_base_text_callback(). The fallback is part of the
+ * seam's VALUE on every arm that has one (the seam's PHPDoc says which, and why hoisting it
+ * up here would move output), so a value that arrives empty has already been through
+ * whatever fallback there was to try.
+ *
+ * @since 1.6.0
+ * @since 1.21.0 Value resolution extracted to bws_base_image_resolve_value().
+ */
+function bws_base_image_callback( $options, $block, $instance ): string {
+	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
+
+	$value = bws_base_image_resolve_value( (array) $options, $instance )['value'];
 	if ( '' !== $value ) {
 		return $value;
 	}
