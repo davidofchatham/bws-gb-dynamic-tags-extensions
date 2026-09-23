@@ -1012,16 +1012,38 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 }
 
 /**
- * Callback for the `datetime_range` base tag.
+ * Resolve the `datetime_range` base tag's VALUE — the full read path minus link-wrap
+ * and the preview label.
  *
  * Resolves entity via `source`, applies srcTerm hop when set, then
  * delegates to bws_datetime_range_core() or bws_term_datetime_range_core().
  * Normalizes base tag option keys to the canonical core keys before dispatch.
  *
- * List mode (#30): as bws_base_datetime_single_callback(). `sep` joins whole
- * formatted ranges; `rangeSep` stays the intra-range start↔end separator.
+ * THE FAMILY'S RESOLVE SEAM (FW-136): `{{try_datetime_range}}`'s attempts run through
+ * this same function, so an attempt reads exactly as the base tag does and inherits
+ * whatever the base read gains. Registered as `resolve_fn` on the datetime_range
+ * modifier template; the shells on both sides own what the seam leaves out.
  *
- * Term-ambient parity (FW-3a): as bws_base_datetime_single_callback().
+ * The LAST of the four families that register link options, so this is the last place
+ * FW-135 dissolves: a list arm's values arrive wrapped per item out of
+ * bws_collect_value_list() and report `link_id` 0, while a singular read reports its own
+ * entity and the shell wraps once. `sep` joins whole formatted ranges, exactly as before
+ * — `rangeSep` stays the intra-range start↔end separator, and neither the fold nor the
+ * seam sees it, since the cores own the pair's own assembly.
+ *
+ * THE STATED FALLBACK STAYS HERE, not in the shell, for the reason
+ * bws_base_datetime_single_resolve_value() states at length: the cores emit it on a read
+ * that found nothing, and the compensating tail below exists for exactly the arms where
+ * no core ran — fanning, refused, ambient-claimed — which is a fact only this function
+ * holds. Inert under a `try_` attempt either way, bws_try_run_attempts() having stripped
+ * `fallback` before the resolver is called.
+ *
+ * FW-116's per-tag fix for this family rides the tail's `null !== $ambient` term (see
+ * there). Carried verbatim; the structural flip is FW-116's, not this seam's.
+ *
+ * List mode (#30): as bws_base_datetime_single_resolve_value().
+ *
+ * Term-ambient parity (FW-3a): as bws_base_datetime_single_resolve_value().
  *
  * @since 1.6.0
  * @since 1.15.0 List mode (limit/sep); src:ref fans out through the shared
@@ -1030,34 +1052,35 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
  * @since 1.16.0 List collection via the shared bws_collect_value_list fold
  *               (FW-49) — link identity replaces the first-item kind sniff.
  * @since 1.21.0 The `meta_row` list branch — a `rows` chain reads its rows (FW-74).
+ * @since 1.21.0 Extracted from bws_base_datetime_range_callback().
+ *
+ * @param array $options  Tag options.
+ * @param mixed $instance GB tag instance.
+ * @return array{value:string, link_id:int, link_type:string} link_id 0 = the caller must
+ *                        not link-wrap: either there is no entity, or the value came from
+ *                        a list arm that already wrapped per item.
  */
-function bws_base_datetime_range_callback( $options, $block, $instance ): string {
-	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
-
-	$res      = bws_base_src_resolution( $options );
-	$mapped   = bws_normalize_datetime_options( $options, true );
-	$link_to  = $options['linkTo'] ?? 'none';
-	$link_key = $options['linkKey'] ?? '';
-	$new_tab  = ! empty( $options['newTab'] );
+function bws_base_datetime_range_resolve_value( array $options, $instance ): array {
+	$res    = bws_base_src_resolution( $options );
+	$mapped = bws_normalize_datetime_options( $options, true );
 
 	$link_id   = 0;
 	$link_type = 'post';
 
 	// src:site — ACF options-page date range. 'option' object-id → DT-1 value read +
-	// format chain (bws_build_range_format). Link-wrap sentinel id 1, type 'site'.
+	// format chain (bws_build_range_format). Link identity is the sentinel pair (id 1,
+	// 'site'), reported unconditionally — the shell wraps only what is non-empty, which
+	// is the same test the wrap used to carry here.
 	if ( 'site' === $res['kind'] ) {
-		$value = bws_datetime_range_core( 'option', $mapped, $instance );
-		if ( '' !== $value && function_exists( 'bws_wrap_with_link' ) ) {
-			$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, 1, 'site' );
-		}
-		if ( '' !== $value ) {
-			return $value;
-		}
-		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'datetime_range' ) : '';
+		return array(
+			'value'     => bws_datetime_range_core( 'option', $mapped, $instance ),
+			'link_id'   => 1,
+			'link_type' => 'site',
+		);
 	}
 
 	// L1 — resolve the base source once (SPEC §V1); ambient dispatch through the
-	// one kind-dispatching seam — as bws_base_datetime_single_callback(), which
+	// one kind-dispatching seam — as bws_base_datetime_single_resolve_value(), which
 	// carries the why (value read stays on the cores; a non-term claim is the
 	// seam's own value). Explicit src/loop/id already won inside the factory.
 	$base = function_exists( 'bws_base_resolve_source_for_callback' )
@@ -1073,7 +1096,7 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 
 	if ( $refused ) {
 		// REFUSED (GH #75/#76/#109) — read nothing; the all-empty fallback below fires.
-		// See bws_base_datetime_single_callback() for why the core is skipped.
+		// See bws_base_datetime_single_resolve_value() for why the core is skipped.
 		$value = '';
 	} elseif ( null !== $ambient ) {
 		if ( 'term' === $ambient['link_type'] && $ambient['link_id'] ) {
@@ -1117,9 +1140,9 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 		);
 		$value = $collected['value'];
 	} elseif ( 'meta_row' === $res['kind'] ) {
-		// REPEATER-ROW LIST (FW-74) — see bws_base_datetime_single_callback()'s twin for
-		// the whole reasoning, wire-kind trap included. `sep` joins whole formatted ranges
-		// here, `rangeSep` stays the intra-range separator, exactly as on the post branch.
+		// REPEATER-ROW LIST (FW-74) — see bws_base_datetime_single_resolve_value()'s twin
+		// for the whole reasoning, wire-kind trap included. `sep` joins whole formatted
+		// ranges here, `rangeSep` stays the intra-range separator, as on the post branch.
 		$collected = bws_collect_value_list(
 			function_exists( 'bws_base_sources_of_kind' )
 				? bws_base_sources_of_kind( $base, $options, 'meta_row' )
@@ -1140,15 +1163,50 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 	// List-mode all-empty → the fallback fires once, unwrapped. A chain that FANS
 	// is exactly the old ( srcTermIn || src:ref ) test, stated on the wire instead
 	// of on two tokens (FW-63). A REFUSED tag joins it whether or not it fans, and
-	// so does an ambient claim — see bws_base_datetime_single_callback().
+	// so does an ambient claim — see bws_base_datetime_single_resolve_value(), whose
+	// tail states the whole of it, this family's FW-116 term included.
 	if ( '' === $value && ( $res['fans'] || $refused || null !== $ambient ) ) {
 		$value   = bws_handle_date_time_fallback( $mapped, $instance, 'range' );
 		$link_id = 0;
 	}
 
+	return array(
+		'value'     => $value,
+		'link_id'   => $link_id,
+		'link_type' => $link_type,
+	);
+}
+
+/**
+ * Callback for the `datetime_range` base tag.
+ *
+ * Shell over bws_base_datetime_range_resolve_value(): resolve the value, link-wrap what
+ * the singular arms returned (a list arm wrapped its own values per item and reports
+ * link_id 0), then on empty output apply the editor preview label.
+ *
+ * NO STATED FALLBACK HERE — this family's fallback is emitted inside the seam, by the
+ * cores on a read that found nothing and by the seam's own compensating tail where no
+ * core ran. See there for why it cannot move up.
+ *
+ * @since 1.6.0
+ * @since 1.21.0 Value resolution extracted to bws_base_datetime_range_resolve_value().
+ */
+function bws_base_datetime_range_callback( $options, $block, $instance ): string {
+	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
+
+	$resolved = bws_base_datetime_range_resolve_value( (array) $options, $instance );
+	$value    = $resolved['value'];
+
 	if ( '' !== $value ) {
-		if ( $link_id && function_exists( 'bws_wrap_with_link' ) ) {
-			$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, $link_id, $link_type );
+		if ( $resolved['link_id'] && function_exists( 'bws_wrap_with_link' ) ) {
+			$value = bws_wrap_with_link(
+				$value,
+				$options['linkTo'] ?? 'none',
+				$options['linkKey'] ?? '',
+				! empty( $options['newTab'] ),
+				$resolved['link_id'],
+				$resolved['link_type']
+			);
 		}
 		return $value;
 	}

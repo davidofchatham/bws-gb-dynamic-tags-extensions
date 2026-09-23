@@ -2090,6 +2090,16 @@ function bws_fixture_page_content_matrix_links() {
 		// drops an empty read rather than printing an anchor around nothing.
 		bws_fixture_gb_row( 'LK.7 DATE list, each date linked to ITS OWN post (-> May 1, 2030 10:00 AM -> /staff/jane-partner/, June 1, 2030 11:00 AM -> /staff/tom-associate/; two values, since the third staff post has no date)', '{{datetime_single src:refs,link_staff|key:event_datetime|limit:0|linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'LK.8 try_ twin of LK.7: a fanning ATTEMPT links each date to ITS OWN post (-> byte for byte what LK.7 prints; was the two dates joined and unlinked)', '{{try_datetime_single A:src(refs,link_staff)|key:event_datetime|linkTo:permalink}}' ),
+		// The RANGE pair (FW-136 ticket 08, fold-test-matrix.md §F9b.4e) — the fourth and
+		// last family FW-135 dissolves on. What it adds over LK.8, which is why the range
+		// earns its own pair rather than riding the single's: a range is TWO reads joined
+		// by rangeSep before the fold ever sees it, so this is the one row where the
+		// per-item wrap has to go around an already-assembled pair. The anchor sits
+		// outside the whole range, and `sep` still joins whole ranges between anchors.
+		//
+		// TWO values, not three, for the same reason LK.7 gives.
+		bws_fixture_gb_row( 'LK.9 RANGE list, each whole range linked to ITS OWN post (-> May 1 10:00 AM-May 3, 2030 3:00 PM -> /staff/jane-partner/, June 1 11:00 AM-June 5, 2030 12:00 PM -> /staff/tom-associate/; the anchor wraps the whole range, the comma between them does not)', '{{datetime_range src:refs,link_staff|startKey:event_datetime|endKey:event_end_datetime|limit:0|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'LK.10 try_ twin of LK.9: a fanning ATTEMPT links each whole range to ITS OWN post (-> byte for byte what LK.9 prints; was the two ranges joined and unlinked)', '{{try_datetime_range A:src(refs,link_staff)|startKey:event_datetime|endKey:event_end_datetime|linkTo:permalink}}' ),
 	) );
 
 	return implode( "\n\n", $sections );

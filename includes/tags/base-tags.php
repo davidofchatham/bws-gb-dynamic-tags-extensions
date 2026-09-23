@@ -705,6 +705,19 @@ function bws_register_base_tags(): void {
 				: $opts;
 			return bws_datetime_range_core( $post_id, $mapped, $inst );
 		},
+		// FW-136 — try_datetime_range resolves each attempt through the BASE seam, so a
+		// fanning attempt inherits the fold's per-item link wrap (FW-135) the way
+		// {{datetime_range}} already does. The LAST of the four link-registering families
+		// and the ninth flip: with this key registered no `supports_try` template falls
+		// through to TagTemplateRegistry::try_arm_resolver() any more, which is what
+		// ticket 10 deletes. The try_*_fn entries below stay — plain per-entity cores the
+		// term_ machinery and the base seam still call; only the ARM TABLE that indexed
+		// them by kind goes. No `try_query_fn` to retire here either: as with
+		// datetime_single, the arm shim fell through to the post arm on a query-context
+		// ambient and the base seam claims the kind and answers '' for it
+		// (bws_base_query_context_analog_read() has no datetime case), so both routes
+		// render empty and nothing is owed to FW-9.
+		'resolve_fn'   => 'bws_base_datetime_range_resolve_value',
 		'try_core_fn'  => static function ( $post_id, $opts, $inst ) {
 			$mapped = function_exists( 'bws_normalize_datetime_options' )
 				? bws_normalize_datetime_options( $opts, true )
