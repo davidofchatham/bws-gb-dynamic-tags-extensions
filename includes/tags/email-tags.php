@@ -159,7 +159,52 @@ function bws_email_render_one( string $address, string $subject, bool $link, boo
 }
 
 /**
+ * Resolve the `email` base tag's VALUE — the full read path minus the media-block
+ * guard, the stated fallback and the preview label.
+ *
+ * THE FAMILY'S RESOLVE SEAM (FW-136): `{{try_email}}`'s attempts run through this
+ * same function, so an attempt reads exactly as the base tag does and inherits
+ * whatever the base read gains. Registered as `resolve_fn` on the email modifier
+ * template; the shells on both sides own what the seam deliberately leaves out.
+ *
+ * NO LINK IDENTITY TO REPORT — `link_id` is a constant 0 and `link_type` the
+ * uniform triple's filler. {{email}} registers no link options at all: every
+ * address self-wraps its own `mailto:` anchor inside bws_email_render_one(), so
+ * there is no outer wrap for a caller to apply and nothing for the shell to
+ * decide. The triple's shape is uniform across all nine families precisely so the
+ * attempt walk branches on nothing (see includes/helpers/try-slot-loop.php).
+ *
+ * @invariant VE4 — validation is per item, inside bws_email_finish_values(); an
+ *   address that fails is_email() is dropped from the list rather than rendered.
+ *   The seam therefore returns '' for "read nothing" AND for "read only invalid
+ *   addresses", which is the one predicate the attempt walk tests.
+ *
+ * @since 1.21.0 Extracted from bws_email_callback().
+ *
+ * @param array $options  Tag options.
+ * @param mixed $instance GB tag instance.
+ * @return array{value:string, link_id:int, link_type:string}
+ */
+function bws_base_email_resolve_value( array $options, $instance ): array {
+	$sep = $options['sep'] ?? ', ';
+
+	// L3 compose — validate + render each raw value via the shared finisher
+	// (SAME per-item compose the try_ dispatchers use, VE4 / V10).
+	$parts = bws_email_finish_values( bws_resolve_field_values( $options, $instance ), $options );
+
+	return array(
+		'value'     => implode( $sep, $parts ),
+		'link_id'   => 0,
+		'link_type' => 'post',
+	);
+}
+
+/**
  * Callback for the `email` base tag.
+ *
+ * Shell over bws_base_email_resolve_value(): resolve, then on empty output apply
+ * the stated fallback (front end) or the editor preview label. Nothing is
+ * link-wrapped here — the seam's addresses wrapped themselves.
  *
  * @invariant VE1 — mailto wrap is DEFAULT-ON; link-on iff the `noLink` bare key
  *   is ABSENT from options. Never model as a positive `link:true` default.
@@ -174,6 +219,7 @@ function bws_email_render_one( string $address, string $subject, bool $link, boo
  *   addresses resolve (whole-result-empty), then returns '' if it too is invalid.
  *
  * @since 1.9.0
+ * @since 1.21.0 Value resolution extracted to bws_base_email_resolve_value().
  * @param array  $options  Tag options.
  * @param object $block    Block instance (unused).
  * @param object $instance GB tag instance.
@@ -183,34 +229,32 @@ function bws_email_callback( $options, $block, $instance ): string {
 	// VE-vis runtime backstop — the native visibility gate can't catch the media
 	// block (empty tagName); its default-on mailto: <a> would corrupt the <img src>.
 	// See bws_tag_blocked_on_media_block() / docs/gb-constraints.md.
+	// STAYS IN THE SHELL: it takes $block, which the seam never sees (FW-136).
 	if ( bws_tag_blocked_on_media_block( $block ) ) {
 		return '';
 	}
 
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
+	$sep        = $options['sep'] ?? ', ';
 
-	$sep = $options['sep'] ?? ', ';
-
-	// L3 compose — validate + render each raw value via the shared finisher
-	// (SAME per-item compose the try_ dispatchers use, VE4 / V10).
-	$parts = bws_email_finish_values( bws_resolve_field_values( (array) $options, $instance ), (array) $options );
+	$value = bws_base_email_resolve_value( (array) $options, $instance )['value'];
+	if ( '' !== $value ) {
+		return $value;
+	}
 
 	// Fallback fires only on a fully-empty valid set — fed through the SAME
 	// validate+compose so it wraps identically (VE4).
-	if ( empty( $parts ) ) {
-		$fallback = trim( (string) ( $options['fallback'] ?? '' ) );
-		if ( '' !== $fallback ) {
-			$parts = bws_email_finish_values( array( $fallback ), (array) $options );
+	$fallback = trim( (string) ( $options['fallback'] ?? '' ) );
+	if ( '' !== $fallback ) {
+		$parts = bws_email_finish_values( array( $fallback ), (array) $options );
+		if ( ! empty( $parts ) ) {
+			return implode( $sep, $parts );
 		}
 	}
 
-	if ( empty( $parts ) ) {
-		return $is_preview && function_exists( 'bws_build_preview_label' )
-			? bws_build_preview_label( (array) $options, 'email' )
-			: '';
-	}
-
-	return implode( $sep, $parts );
+	return $is_preview && function_exists( 'bws_build_preview_label' )
+		? bws_build_preview_label( (array) $options, 'email' )
+		: '';
 }
 
 /**
@@ -413,6 +457,11 @@ function bws_register_email_template(): void {
 		),
 		'term_fn'             => 'bws_email_term_core',
 		'post_fn'             => 'bws_email_post_core',
+		// FW-136 — try_email resolves each attempt through the BASE seam. The
+		// try_*_fn entries below stay: they are plain per-entity cores the term_
+		// machinery and the row read still call, and only the ARM TABLE that indexed
+		// them by kind goes when the ninth family lands.
+		'resolve_fn'          => 'bws_base_email_resolve_value',
 		'try_core_fn'         => 'bws_try_email_post_dispatch',
 		'try_term_fn'         => 'bws_try_email_term_dispatch',
 		'try_row_fn'          => 'bws_try_email_row_dispatch',
