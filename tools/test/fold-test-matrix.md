@@ -973,11 +973,11 @@ The staff ids come from `wp post list --post_type=staff --post_status=publish,dr
 |---|---|---|
 | F19.1 | `{{try_text use:title}}` | `Staff` — the [I6] parity row: same value as `{{text use:title}}` (text matrix T9.1) and bare `{{title}}` |
 | F19.2 | `{{try_text A:key(context_custom_heading)\|B:use(title)}}` | `Staff` — the composition the arm exists for: key-first attempt finds no entity and falls through, the canonical title answers. `{{title}}` cannot express it (no key-first path) |
-| F19.3 | `{{try_title}}` / `{{try_content}}` | `Staff` / the staff type description (`<p>`-wrapped) — the other two templates carrying a `try_query_fn` |
-| F19.4 | `{{try_permalink}}` / `{{try_image}}` / `{{try_datetime_single key:event_date}}` | **empty** — the six families with no `try_query_fn` take the fn-absent fallthrough to the post arm, which resolves no id off a query-context base and cannot serve off a loop item on an archive. Empty, never a leaked entity (pre-1.19.0 these read the main query's first row) |
+| F19.3 | `{{try_title}}` / `{{try_content}}` | `Staff` / the staff type description (`<p>`-wrapped) — the other two templates that reach the query context. Both did it through a `try_query_fn` until FW-136 tickets 04 and 06 flipped them onto their base resolve seams, which reach that context themselves; the descriptor went with each flip and the value here did not move |
+| F19.4 | `{{try_permalink}}` / `{{try_image}}` / `{{try_datetime_single key:event_date}}` | **empty** — the six families that never carried a `try_query_fn` reach the post arm instead (through the base seam once flipped, through the arm shim's fn-absent fallthrough while not), and it resolves no id off a query-context base and cannot serve off a loop item on an archive. Empty, never a leaked entity (pre-1.19.0 these read the main query's first row) |
 | F19.5 | `{{try_text use:title\|linkTo:permalink}}` | `Staff` **unwrapped** — the arm row's empty `link` column: a query context has no link identity |
 
-Verified 2026-08-29 via `render-tag`. Arm-table membership, columns and branchability are pinned pure in `try-slot-arms-test.php` (§A1–§A5); the WIRING (which template carries a `try_query_fn`, the fn-absent fallthrough) shares the accepted coverage gap `text-test-matrix.md` T8's note records — these rows are its only pins.
+Verified 2026-08-29 via `render-tag`; F19.3 re-measured 2026-09-23 on both builds of content's flip, `{{try_content}}` equal to `{{content}}` on all five query-context ambients. Arm-table membership, columns and branchability are pinned pure in `try-slot-arms-test.php` (§A1–§A5); the WIRING (which route a template takes to this context, the fn-absent fallthrough) shares the accepted coverage gap `text-test-matrix.md` T8's note records — these rows are its only pins.
 
 ## §F20 — a SPECIFIC TERM root, end to end (FW-39, ticket 02)
 

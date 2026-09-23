@@ -453,11 +453,25 @@ function bws_register_base_tags(): void {
 		// content tag. Reuses the try_ family's own per-slot dispatchers.
 		'term_fn'               => 'bws_try_content_term_dispatch',
 		'post_fn'               => 'bws_try_content_post_dispatch',
+		// FW-136 — try_content resolves each attempt through the BASE seam, so an attempt
+		// reads exactly as {{content}} does: the whole fan searched for its first usable
+		// read, the repeater-row branch that refuses the analogs a row cannot answer, and
+		// the cores' own stated-fallback emit. The try_*_fn entries below stay — they are
+		// the plain per-entity dispatchers the term_ machinery and the base seam itself
+		// still call, and only the ARM TABLE that indexed them by kind goes when the ninth
+		// family lands.
+		//
+		// `try_query_fn` IS THE EXCEPTION AND IS GONE HERE, on title's precedent and for
+		// its reason: it was never a per-entity core, only the arm shim's route to the
+		// query context, and the base seam reaches that context itself
+		// (bws_base_ambient_analog() claims the kind for every tag but image, and
+		// bws_base_query_context_analog_read() carries a 'content' case). Confirmed dead
+		// rather than merely unread, so nothing is owed to FW-9.
+		'resolve_fn'            => 'bws_base_content_resolve_value',
 		'try_core_fn'           => 'bws_try_content_post_dispatch',
 		'try_term_fn'           => 'bws_try_content_term_dispatch',
 		'try_site_fn'           => static fn( $opts, $inst ) => bws_site_resolve_value( 'content', (array) $opts, $inst ),
 		'try_user_fn'           => static fn( $user_id, $opts, $inst ) => bws_base_user_analog_read( 'content', (int) $user_id, (array) $opts, $inst ),
-		'try_query_fn'          => static fn( $base, $opts, $inst ) => bws_base_query_context_analog_read( 'content', (array) $base, (array) $opts, $inst ),
 		'try_row_fn'            => 'bws_try_content_row_dispatch',
 		'try_allow_site_slot'   => true,
 		'supports_try'          => true,
@@ -1176,7 +1190,7 @@ function bws_join_callback( $options, $block, $instance ): string {
 }
 
 /**
- * Callback for the `content` base tag.
+ * Resolve the `content` base tag's VALUE — the full read path minus the preview label.
  *
  * Resolves entity via `source`, applies srcTerm step when set, then
  * dispatches based on `use`:
@@ -1190,54 +1204,94 @@ function bws_join_callback( $options, $block, $instance ): string {
  * rows    + use unset   → '' (analogs refuse on a row — it is not an entity)
  * rows    + use:excerpt → '' (same)
  *
+ * THE FAMILY'S RESOLVE SEAM (FW-136): `{{try_content}}`'s attempts run through this same
+ * function, so an attempt reads exactly as the base tag does and inherits whatever the
+ * base read gains. Registered as `resolve_fn` on the content modifier template; the shells
+ * on both sides own what the seam leaves out.
+ *
+ * THE COLLAPSE IS NOT RE-STATED HERE, and this seam reads no `limit` of its own. The
+ * one-result rule is a fact of the family's template record (`takes_first_usable`,
+ * ADR 0007), enforced above this function on both sides.
+ *
+ * THE PREVIEW QUESTION IS ASKED TWICE, and both times because an arm has to STOP where
+ * the tail alone could not tell it to:
+ *   - the REFUSAL arm, the one arm where the label and the stated fallback can both
+ *     apply — the fallback half lives inside bws_post_content_core(), which a refusal
+ *     must not call, so this arm emits it directly and answers '' in preview so the
+ *     shell has an empty read to put its label on (image's refusal arm, same shape);
+ *   - the AMBIENT arm, whose empty path is FW-116's per-tag fix carried verbatim (see
+ *     the comment on that arm). It terminates in preview and falls THROUGH on the front
+ *     end, and only the preview flag separates the two.
+ * Neither test is guarded on function_exists( 'bws_build_preview_label' ) the way the
+ * pre-split callback's were: this seam emits no label at all, and the guard belongs with
+ * the emit, in the shell (bws_base_image_resolve_value() set that precedent).
+ *
+ * NO LIST SEAM, so nothing here reads `sep` and nothing joins.
+ *
+ * NO LINK IDENTITY TO REPORT — `link_id` is a constant 0 and `link_type` the uniform
+ * triple's filler. {{content}} registers no link options: the value is rich markup, which
+ * a caller does not wrap. The triple's shape is uniform across all nine families
+ * precisely so the attempt walk branches on nothing (includes/helpers/try-slot-loop.php).
+ *
  * @since 1.6.0
  * @since 1.21.0 The `meta_row` branch — a `rows` chain reads its rows (FW-74).
+ * @since 1.21.0 Extracted from bws_base_content_callback().
+ *
+ * @param array $options  Tag options.
+ * @param mixed $instance GB tag instance.
+ * @return array{value:string, link_id:int, link_type:string}
  */
-function bws_base_content_callback( $options, $block, $instance ): string {
+function bws_base_content_resolve_value( array $options, $instance ): array {
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
 	$use  = $options['use'] ?? 'content';
 	$res  = bws_base_src_resolution( $options );
 	// Local copy — the use:key arm sets $opts['type'] below.
 	$opts = $options;
+	$out  = array(
+		'value'     => '',
+		'link_id'   => 0,
+		'link_type' => 'post',
+	);
 
 	// Site read — content option markup via shared pipeline (handled in resolver). No link wrap.
 	if ( 'site' === $res['kind'] ) {
-		$value = bws_site_resolve_value( 'content', $options, $instance );
-		if ( '' !== $value ) {
-			return $value;
-		}
-		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'content' ) : '';
+		$out['value'] = bws_site_resolve_value( 'content', $options, $instance );
+		return $out;
 	}
 
 	// L1 base source (SPEC §V1); ambient term archive → description/key analog (§V7).
 	$base = bws_base_resolve_source_for_callback( $options, $instance );
 
 	// REFUSED (GH #75/#76/#109) — read nothing. This arm's empty path is SPLIT: the
-	// preview half is the tail below, but the fallback half lives inside
-	// bws_post_content_core(), which the refusal must not call. Both halves are
-	// therefore stated here, in the tail's own preview-outranks-fallback order.
+	// preview half is the shell's tail, but the fallback half lives inside
+	// bws_post_content_core(), which the refusal must not call. So the fallback is
+	// stated here, and preview answers '' — the tail's own preview-outranks-fallback
+	// order, expressed across the split.
 	if ( bws_base_read_refused( $res, $base, array( 'meta_row' ) ) ) {
-		return $is_preview && function_exists( 'bws_build_preview_label' )
-			? bws_build_preview_label( $options, 'content' )
-			: bws_base_stated_fallback( $options, $instance );
+		$out['value'] = $is_preview ? '' : bws_base_stated_fallback( $options, $instance );
+		return $out;
 	}
 
 	// Ambient dispatch (term description/key analog §V7; author bio, #19) through
 	// the one kind-dispatching seam; this arm's own tail stays here. An EMPTY claim
-	// does NOT terminate here (unlike the other ambient-reading tags): `content`'s
-	// cores (bws_post_content_core, both branches) own a self-contained
-	// stated-fallback emit on a falsy post id, the same shape image's cores use —
-	// falling through to the term/post route below (rather than returning bare ''
-	// or a preview label) gives a configured `fallback` its chance to run there,
-	// on a term-ambient, user-ambient, or query-context-ambient empty read alike.
+	// does NOT terminate here on the front end (unlike the other ambient-reading
+	// tags): `content`'s cores (bws_post_content_core, both branches) own a
+	// self-contained stated-fallback emit on a falsy post id, the same shape image's
+	// cores use — falling through to the term/post route below (rather than returning
+	// bare '' ) gives a configured `fallback` its chance to run there, on a
+	// term-ambient, user-ambient, or query-context-ambient empty read alike. That
+	// fallthrough is FW-116's per-tag fix for this family, and it is carried here
+	// VERBATIM: the seam's empty-triple-vs-null contract is a fixed input to FW-136,
+	// and a wrong read under it is evidence recorded on FW-116, not repaired here.
 	$ambient = bws_base_ambient_analog( 'content', $base, $options, $instance );
 	if ( null !== $ambient ) {
 		if ( '' !== $ambient['value'] ) {
-			return $ambient['value']; // content is not link-wrapped (parity with post path below).
+			$out['value'] = $ambient['value']; // content is not link-wrapped (parity with post path below).
+			return $out;
 		}
-		if ( $is_preview && function_exists( 'bws_build_preview_label' ) ) {
-			return bws_build_preview_label( $options, 'content' );
+		if ( $is_preview ) {
+			return $out; // '' — the shell states the label; the front end falls through.
 		}
 	}
 	if ( 'meta_row' === $res['kind'] ) {
@@ -1259,43 +1313,66 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 		// here and only use:key reads. bws_try_content_row_dispatch()
 		// owns that fork and is the try_ row arm's function too, the same reuse the
 		// term and post routes make of their own try_ dispatchers.
-		$found = bws_read_bounded_sources(
+		$found        = bws_read_bounded_sources(
 			bws_base_sources_of_kind( $base, $options, 'meta_row', true ),
 			static fn( $row_source ) => bws_try_content_row_dispatch( $row_source, $opts, $instance ),
 			1
 		);
-		$value = $found ? (string) $found[0] : '';
-	} elseif ( 'term' === $res['kind'] ) {
+		$out['value'] = $found ? (string) $found[0] : '';
+		return $out;
+	}
+
+	if ( 'term' === $res['kind'] ) {
 		// takes_first_usable (ADR 0007): search the WHOLE fan — every step limit is
 		// stripped at compile — and output the first usable read.
-		$value = bws_base_term_first_usable(
+		$out['value'] = bws_base_term_first_usable(
 			$base,
 			$options,
 			static fn( $tid ) => 'key' === $use
 				? bws_term_custom_text_core( (int) $tid, $opts, $instance )
 				: bws_term_description_core( (int) $tid, $opts, $instance )
 		);
-		if ( '' !== $value ) {
-			return $value;
-		}
-	} else {
-		// The POST route takes the first USABLE read too — same rule as the term
-		// route, same selector, whole compiled chain (not the wrapper's leading ref
-		// run). Its old shape — first resolved source, read once — was the surviving
-		// instance of the single-target collapse CONTEXT.md §Language names a defect.
-		$value = bws_base_post_first_usable( $base, $options, static function ( $post_id ) use ( $use, $opts, $instance ) {
-			if ( 'excerpt' === $use ) {
-				return bws_post_excerpt_core( $post_id, $opts, $instance );
-			}
-			if ( 'key' === $use ) {
-				$key_opts         = $opts;
-				$key_opts['type'] = 'custom_field';
-				return bws_post_content_core( $post_id, $key_opts, $instance );
-			}
-			return bws_post_content_core( $post_id, $opts, $instance );
-		} );
+		return $out;
 	}
 
+	// The POST route takes the first USABLE read too — same rule as the term
+	// route, same selector, whole compiled chain (not the wrapper's leading ref
+	// run). Its old shape — first resolved source, read once — was the surviving
+	// instance of the single-target collapse CONTEXT.md §Language names a defect.
+	$out['value'] = bws_base_post_first_usable( $base, $options, static function ( $post_id ) use ( $use, $opts, $instance ) {
+		if ( 'excerpt' === $use ) {
+			return bws_post_excerpt_core( $post_id, $opts, $instance );
+		}
+		if ( 'key' === $use ) {
+			$key_opts         = $opts;
+			$key_opts['type'] = 'custom_field';
+			return bws_post_content_core( $post_id, $key_opts, $instance );
+		}
+		return bws_post_content_core( $post_id, $opts, $instance );
+	} );
+	return $out;
+}
+
+/**
+ * Callback for the `content` base tag.
+ *
+ * Shell over bws_base_content_resolve_value(): resolve the value, then on empty output the
+ * editor preview label. No link wrap — this family registers no link options.
+ *
+ * NO STATED FALLBACK HERE, unlike bws_base_text_callback(). The fallback is part of the
+ * seam's VALUE on every arm that has one — the post route's cores emit it on a falsy id
+ * (bws_post_content_core, both branches), and the refusal arm emits it without reaching a
+ * core — so a value that arrives empty has already been past whatever fallback there was
+ * to try. Hoisting it up here would MOVE OUTPUT: a site read with no content option, an
+ * empty term fan and a `rows` chain with no rows all call no core and print nothing today.
+ *
+ * @since 1.6.0
+ * @since 1.21.0 Value resolution extracted to bws_base_content_resolve_value().
+ */
+function bws_base_content_callback( $options, $block, $instance ): string {
+	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
+
+	$value = bws_base_content_resolve_value( (array) $options, $instance )['value'];
 	if ( '' !== $value ) {
 		return $value;
 	}
