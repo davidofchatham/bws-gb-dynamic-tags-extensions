@@ -109,7 +109,7 @@ Needs an email-valued field: an ACF options-page email field for `src:site` (e.g
 
 | # | Tag | Expected |
 |---|---|---|
-| R6.1 | `{{email src:site\|key:[SUB org_email]}}` | `<a href="mailto:VALUE">VALUE</a>` (obfuscated when global toggle on) |
+| R6.1 | `{{email src:site\|key:[SUB org_email]}}` | `<a href="mailto:VALUE">VALUE</a>`, clean — the fixture seeds obfuscation OFF (manifest entry owns why). Entity-encoded instead when the toggle is on, which is R6.9 |
 | R6.2 | `{{email src:site\|key:[SUB org_email]\|noLink}}` | plain address, no anchor |
 | R6.3 | `{{email src:site\|key:[SUB org_email]\|subject:Hello there}}` | anchor with `?subject=Hello%20there` in href |
 | R6.4 | `{{email src:site\|key:[SUB org_email]\|subject:Quote\: 20\% off}}` | href subject = `Quote%3A%2020%25%20off` (escaped editor-side, rawurlencoded at render) |
@@ -117,7 +117,7 @@ Needs an email-valued field: an ACF options-page email field for `src:site` (e.g
 | R6.6 | `{{email src:site\|key:[SUB org_email]\|fallback:dept@example.com}}` with the primary field EMPTY | `dept@example.com`, wrapped (fallback fires) |
 | R6.7 | `{{email src:site\|key:[SUB a non-email text option]}}` | **empty** (invalid → no fallback set → empty) |
 | R6.8 | `{{email src:site}}` (no key) | **empty**; editor preview `[⚠ No field key set]` |
-| R6.9 | Global **Email → Obfuscate** OFF, re-run R6.1 | clean `mailto:VALUE` href + plain-text display (no antispambot entities) |
+| R6.9 | Global **Email → Obfuscate** ON, re-run R6.1, then turn it back OFF | `antispambot` entities in both the href and the display text, and NOT double-encoded (VE4 — its output is terminal-escaped and never re-`esc_html`'d). The direction reversed when the fixture default moved to OFF; this is the only row that wants it on, and leaving it on makes every `{{email}}` sweep compare randomized bytes |
 | R6.10 | Try to insert `{{email}}` on a Button / Image / link (`<a>`) element | tag **hidden** in the GB dynamic-tag selector (visibility gate) |
 
 ## R7 — `src:site` slots on the remaining `try_` tags (FW-4, 1.15.0)

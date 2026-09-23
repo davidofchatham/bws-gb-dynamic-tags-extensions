@@ -86,6 +86,10 @@ That makes front-end MUTATION testing silently vacuous: two mutations that blank
 
 WP-CLI is exempt (`opcache.enable_cli = Off`), so `render-tag` sweeps need none of this.
 
+### Not staleness, but it fails a sweep the same way — `{{email}}` obfuscation
+
+`antispambot()` decides per CHARACTER, via `mt_rand()`, whether to emit a numeric entity, so with obfuscation ON every `{{email}}` output differs from ITSELF between two renders of the same build. A before/after comparison then reports diffs that are one address under two coin-flips, and reports them as confidently as a real regression. **The fixture seeds it OFF for that reason** — `tools/fixtures/core-structures/manifest.php`'s `bws_dynamic_tags_settings` entry owns the decision and the measurement; the plugin itself still ships obfuscation ON, so this is a fixture default and not the product's. If a sweep starts showing entity-encoded addresses, someone turned it on and did not turn it back. Page snapshots are immune either way (the normalizer decodes ASCII numeric references once), so this bites `render-tag` work only.
+
 ## MANDATORY when adding matrix rows — also make them VISIBLE
 
 Every new `*-test-matrix.md` row group MUST additionally be generated as browsable/editable GB blocks

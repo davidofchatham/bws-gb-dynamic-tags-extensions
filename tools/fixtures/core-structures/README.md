@@ -143,8 +143,7 @@ since it seeds pre-migration wire into fresh content.
 > changed nothing" when it changed everything. Use `?nocache=<something-unique>`.
 
 Safe to re-run — upserts by slug; page content is regenerated every run.
-Seeding also merges a plugin-settings baseline (phone: global CC `1`, strip OFF —
-the phone matrix's default state) into `bws_dynamic_tags_settings`.
+Seeding also merges a plugin-settings baseline into `bws_dynamic_tags_settings` — phone: global CC `1`, strip OFF (the phone matrix's default state); email: obfuscation OFF, so `{{email}}` output is stable between renders and a before/after sweep can compare bytes. That one is a FIXTURE default and not the product's, which ships obfuscation ON; the manifest entry owns why, and the rows that need it on turn it on and turn it back.
 
 > **Reseed is additive — it never DELETES a key removed from the manifest.** If a
 > fixture edit *drops* a field (e.g. the join dense↔sparse swap that moved the full
