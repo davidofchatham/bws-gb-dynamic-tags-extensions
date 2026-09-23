@@ -2079,6 +2079,17 @@ function bws_fixture_page_content_matrix_links() {
 		// UNLINKED, which is the FW-135 defect the merge dissolves rather than patches.
 		bws_fixture_gb_row( 'LK.5 try_ twin of LK.2: a fanning ATTEMPT links each post to ITS OWN permalink (-> same three names and hrefs as LK.2; was joined and unlinked)', '{{try_title A:src(refs,link_staff)|linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'LK.6 try_ twin of LK.4: one member with no stored URL prints PLAIN between two anchors (-> same as LK.4; an unresolvable value costs its own link and no sibling\'s)', '{{try_title A:src(refs,link_staff_gap)|linkTo:key|linkKey:profile_url}}' ),
+		// The DATETIME pair (FW-136 ticket 07, fold-test-matrix.md §F9b.4d). A third family
+		// reading the same three posts, and the reason it is worth its own pair: LK.5's
+		// values ARE the entity's own title, so a build that took the link from the VALUE
+		// rather than from the source it was read off would still look right there. A date
+		// says nothing about where it lives, so this row only passes when the identity
+		// travelled with the source.
+		//
+		// TWO values, not three: Fixture Ref Target carries no event_datetime, and the fold
+		// drops an empty read rather than printing an anchor around nothing.
+		bws_fixture_gb_row( 'LK.7 DATE list, each date linked to ITS OWN post (-> May 1, 2030 10:00 AM -> /staff/jane-partner/, June 1, 2030 11:00 AM -> /staff/tom-associate/; two values, since the third staff post has no date)', '{{datetime_single src:refs,link_staff|key:event_datetime|limit:0|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'LK.8 try_ twin of LK.7: a fanning ATTEMPT links each date to ITS OWN post (-> byte for byte what LK.7 prints; was the two dates joined and unlinked)', '{{try_datetime_single A:src(refs,link_staff)|key:event_datetime|linkTo:permalink}}' ),
 	) );
 
 	return implode( "\n\n", $sections );

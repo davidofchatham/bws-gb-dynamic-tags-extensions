@@ -770,11 +770,35 @@ function bws_normalize_datetime_options( array $options, bool $range = false ): 
 }
 
 /**
- * Callback for the `datetime_single` base tag.
+ * Resolve the `datetime_single` base tag's VALUE — the full read path minus link-wrap
+ * and the preview label.
  *
  * Resolves entity via `source`, applies srcTerm hop when set, then
  * delegates to bws_datetime_single_core() or bws_term_datetime_single_core().
  * Normalizes base tag option keys to the canonical core keys before dispatch.
+ *
+ * THE FAMILY'S RESOLVE SEAM (FW-136): `{{try_datetime_single}}`'s attempts run through
+ * this same function, so an attempt reads exactly as the base tag does and inherits
+ * whatever the base read gains. Registered as `resolve_fn` on the datetime_single
+ * modifier template; the shells on both sides own what the seam leaves out.
+ *
+ * The THIRD of the four families that register link options, so this is the third place
+ * FW-135 dissolves: a list arm's values arrive wrapped per item out of
+ * bws_collect_value_list() and report `link_id` 0, while a singular read reports its own
+ * entity and the shell wraps once.
+ *
+ * THE STATED FALLBACK STAYS HERE, not in the shell, and it is not a departure from the
+ * seam contract so much as the only place it can be stated: the cores emit it themselves
+ * on a read that found nothing (bws_handle_date_time_fallback(), four sites in
+ * bws_datetime_single_core()), and the compensating tail below exists for exactly the
+ * arms where no core ran. Which arms those are — fanning, refused, ambient-claimed — is
+ * a fact only this function holds. Under a `try_` attempt the whole thing is inert:
+ * bws_try_run_attempts() strips `fallback` before the resolver is called, so both the
+ * cores' emit and the tail resolve to '' and the walk moves on, which is the contract
+ * the shell's own once-per-tag fallback needs.
+ *
+ * FW-116's per-tag fix for this family rides the tail's `null !== $ambient` term (see
+ * there). Carried verbatim; the structural flip is FW-116's, not this seam's.
  *
  * List mode (#30, V14 parity with base text/title): srcTermIn and src:ref
  * collect up to `limit` results joined with `sep`; empty items are skipped;
@@ -793,15 +817,17 @@ function bws_normalize_datetime_options( array $options, bool $range = false ): 
  * @since 1.16.0 List collection via the shared bws_collect_value_list fold
  *               (FW-49) — link identity replaces the first-item kind sniff.
  * @since 1.21.0 The `meta_row` list branch — a `rows` chain reads its rows (FW-74).
+ * @since 1.21.0 Extracted from bws_base_datetime_single_callback().
+ *
+ * @param array $options  Tag options.
+ * @param mixed $instance GB tag instance.
+ * @return array{value:string, link_id:int, link_type:string} link_id 0 = the caller must
+ *                        not link-wrap: either there is no entity, or the value came from
+ *                        a list arm that already wrapped per item.
  */
-function bws_base_datetime_single_callback( $options, $block, $instance ): string {
-	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
-
-	$res      = bws_base_src_resolution( $options );
-	$mapped   = bws_normalize_datetime_options( $options );
-	$link_to  = $options['linkTo'] ?? 'none';
-	$link_key = $options['linkKey'] ?? '';
-	$new_tab  = ! empty( $options['newTab'] );
+function bws_base_datetime_single_resolve_value( array $options, $instance ): array {
+	$res    = bws_base_src_resolution( $options );
+	$mapped = bws_normalize_datetime_options( $options );
 
 	$link_id   = 0;
 	$link_type = 'post';
@@ -809,16 +835,15 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 	// src:site — ACF options-page date field. Pass 'option' object-id to _core; the
 	// DT-1 bws_read_field branch (allowlist-gated get_field($key,'option')) performs
 	// the value read, and the format chain (bws_build_single_format) recovers the
-	// field's return format. Link-wrap with sentinel id 1, entity_type 'site'.
+	// field's return format. Link identity is the sentinel pair (id 1, 'site'), reported
+	// unconditionally — the shell wraps only what is non-empty, which is the same test
+	// the wrap used to carry here.
 	if ( 'site' === $res['kind'] ) {
-		$value = bws_datetime_single_core( 'option', $mapped, $instance );
-		if ( '' !== $value && function_exists( 'bws_wrap_with_link' ) ) {
-			$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, 1, 'site' );
-		}
-		if ( '' !== $value ) {
-			return $value;
-		}
-		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'datetime_single' ) : '';
+		return array(
+			'value'     => bws_datetime_single_core( 'option', $mapped, $instance ),
+			'link_id'   => 1,
+			'link_type' => 'site',
+		);
 	}
 
 	// L1 — resolve the base source once (SPEC §V1); ambient dispatch through the
@@ -942,9 +967,43 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 		$link_id = 0;
 	}
 
+	return array(
+		'value'     => $value,
+		'link_id'   => $link_id,
+		'link_type' => $link_type,
+	);
+}
+
+/**
+ * Callback for the `datetime_single` base tag.
+ *
+ * Shell over bws_base_datetime_single_resolve_value(): resolve the value, link-wrap what
+ * the singular arms returned (a list arm wrapped its own values per item and reports
+ * link_id 0), then on empty output apply the editor preview label.
+ *
+ * NO STATED FALLBACK HERE — this family's fallback is emitted inside the seam, by the
+ * cores on a read that found nothing and by the seam's own compensating tail where no
+ * core ran. See there for why it cannot move up.
+ *
+ * @since 1.6.0
+ * @since 1.21.0 Value resolution extracted to bws_base_datetime_single_resolve_value().
+ */
+function bws_base_datetime_single_callback( $options, $block, $instance ): string {
+	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
+
+	$resolved = bws_base_datetime_single_resolve_value( (array) $options, $instance );
+	$value    = $resolved['value'];
+
 	if ( '' !== $value ) {
-		if ( $link_id && function_exists( 'bws_wrap_with_link' ) ) {
-			$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, $link_id, $link_type );
+		if ( $resolved['link_id'] && function_exists( 'bws_wrap_with_link' ) ) {
+			$value = bws_wrap_with_link(
+				$value,
+				$options['linkTo'] ?? 'none',
+				$options['linkKey'] ?? '',
+				! empty( $options['newTab'] ),
+				$resolved['link_id'],
+				$resolved['link_type']
+			);
 		}
 		return $value;
 	}

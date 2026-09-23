@@ -631,6 +631,17 @@ function bws_register_base_tags(): void {
 				: $opts;
 			return bws_datetime_single_core( $post_id, $mapped, $inst );
 		},
+		// FW-136 — try_datetime_single resolves each attempt through the BASE seam, so a
+		// fanning attempt inherits the fold's per-item link wrap (FW-135) the way
+		// {{datetime_single}} already does. THIRD of the four link-registering families.
+		// The try_*_fn entries below stay: they are the plain per-entity cores the term_
+		// machinery and the base seam itself still call, and only the ARM TABLE that
+		// indexed them by kind goes when the ninth family lands. This family carries no
+		// `try_query_fn` to retire — the arm shim fell through to the post arm on a
+		// query-context ambient, and the base seam claims the kind and answers '' for it
+		// (bws_base_query_context_analog_read() has no datetime case), so both routes
+		// render empty and nothing is owed to FW-9.
+		'resolve_fn'   => 'bws_base_datetime_single_resolve_value',
 		'try_core_fn'  => static function ( $post_id, $opts, $inst ) {
 			$mapped = function_exists( 'bws_normalize_datetime_options' )
 				? bws_normalize_datetime_options( $opts )
