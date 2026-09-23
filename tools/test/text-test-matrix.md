@@ -126,24 +126,17 @@ to sit outside the loop, and the blueprint has to say so.
 | T8.3 | `{{text key:unseeded_key\|fallback:NOPE}}` | `NOPE` — key miss emits the fallback (term-core-shaped) |
 | T8.4 | `{{text use:title\|linkTo:permalink}}` | `Fixture Author` wrapped in the author-archive URL (user entity type) |
 | T8.5 | `{{join use:title}}` | `Fixture Author` — join slot absorbs the user arm through the seam |
-| T8.6 | `{{try_text use:title}}` | `Fixture Author` — the [I6] parity row. A `try_` slot takes its OWN dispatcher's user arm (`try_user_fn`), never the absorb seam T8.5 rides; empty here through 1.16.0 |
+| T8.6 | `{{try_text use:title}}` | `Fixture Author` — the [I6] parity row; empty here through 1.16.0. It read through `try_text`'s OWN dispatcher (`try_user_fn`) from #108 until FW-136 flipped the family onto the base resolve seam, which is the same seam T8.5 rides — so the row now proves the parity by CONSTRUCTION rather than by a second arm agreeing |
 | T8.7 | `{{try_text key:description}}` | the fixture bio — key-mode parity, T8.2's twin. Not optional scope: the leg's renderer performs the `get_user_meta()` read, and suppressing it would take code base `{{text}}` does not have |
 | T8.8 | `{{try_text A:key(unseeded_key)\|B:use(title)}}` | `Fixture Author` — **attempt fallthrough**: a user key MISS must skip to the next attempt, not consume the tag. Safe because `$eval_opts` strips `fallback`/`fallback_text` before slot options are built; nothing else pins this |
 | T8.9 | `{{try_title}}` | `Fixture Author` — second template |
 | T8.10 | `{{try_content}}` | the fixture bio — third template |
-| T8.11 | `{{try_text use:title\|linkTo:permalink}}` | `<a href="…/author/fixture-author/">Fixture Author</a>` — the arm table's `link:'user'` column's only evidence anywhere |
-| T8.12 | `{{try_permalink}}` / `{{try_image}}` / `{{try_datetime_single key:event_date}}` | **empty — unchanged**, captured BEFORE (`main@e1bff07`) as well as after. These six families carry no `try_user_fn` and must keep taking the fn-absent fallthrough to the post arm, which is their only route to the no-entity loop read at the foot of the slot loop — the `[ false ]` branch that lets the field read serve itself off the query-loop item. Without the before-capture the row is unfalsifiable — an empty result proves nothing on its own |
+| T8.11 | `{{try_text use:title\|linkTo:permalink}}` | `<a href="…/author/fixture-author/">Fixture Author</a>` — user link identity survives an attempt. It was the arm table's `link:'user'` column's only evidence until FW-136 took `try_text` off the table; the table is deleted since, and this row moved onto the seam's own user analog without moving its output |
+| T8.12 | `{{try_permalink}}` / `{{try_image}}` / `{{try_datetime_single key:event_date}}` / `{{try_datetime_range startKey:event_date}}` | **empty — unchanged**, captured BEFORE (`main@e1bff07`) as well as after. These six families never carried a `try_user_fn`, and since FW-136 read through their base seams like the rest; `permalink` and `image` measured byte-identical across that move (ticket 10's sweep). The two DATETIME families stopped reaching it at FW-136 tickets 07 and 08, for the reason `fold-test-matrix.md` F19.4 states: their base seams answer `''` a layer earlier, and the `user` kind never claimed them anyway. Same empty, two routes. Without the before-capture the row is unfalsifiable — an empty result proves nothing on its own |
 
-T8.1–T8.6 verified 2026-07-21 (build f6f8d1e). T8.6 flipped and T8.7–T8.12 added + verified
-2026-08-17 (#108), all via `render-tag`; T8.12's before-values captured on a stashed tree at
-`main@e1bff07`.
+T8.1–T8.6 verified 2026-07-21 (build f6f8d1e). T8.6 flipped and T8.7–T8.12 added + verified 2026-08-17 (#108), all via `render-tag`; T8.12's before-values captured on a stashed tree at `main@e1bff07`. All twelve re-run 2026-09-23 on both builds of FW-136 ticket 08's flip (`datetime_range` onto its base resolve seam, the ninth and last) — byte-identical across the whole section, the datetime_range leg added to T8.12 and measured empty on both. Re-run again the same day on both builds of FW-136 ticket 10 (the arm table's deletion), byte-identical.
 
-**Coverage note.** T8.6–T8.12 are the ONLY pins on the `try_` user leg. The wiring — which
-template carries which `try_*_fn`, and the fn-absent fallthrough — lives inside
-`generate_base_try_tags()`'s callback closure, which no pure harness reaches: the arm-table
-harness sees data, `control-order-test.php` sees registration. Adding a `try_user_fn` to a
-seventh template or reordering that fallthrough fails nothing. Accepted for 1.17.0; the
-extraction is noted on FW-43's row. The same gap covers the `try_query_fn` leg (T9 below + `fold-test-matrix.md` §F19 are its pins).
+**Coverage note.** T8.6–T8.12 are the ONLY pins on the `try_` user route. Since FW-136 which families reach the user analog is decided inside each family's base resolve seam (`bws_base_ambient_analog()`), the same place the base tags decide it, and no pure harness reaches that: `try-slot-loop-test.php` covers the ATTEMPT WALK around the seam with a recorder in its place, and `control-order-test.php` sees registration. The same holds for the query-context route (T9 below + `fold-test-matrix.md` §F19 are its pins).
 
 ---
 
@@ -194,6 +187,8 @@ T10.2 read the same defect on `{{fixture_text}}`, the class route, and is **reti
 | T11.3 | LK.2 — post list, `linkTo:permalink` | each post is an anchor to ITS OWN permalink; three posts, three different permalinks |
 | T11.4 | LK.3 — the same three posts, `linkTo:key\|linkKey:profile_url` | each value carries the URL stored on ITS OWN entity. The stored URLs are deliberately not permalinks, so this row and T11.3 print the same three names and differ only in the hrefs — which is what a key-mode read falling back to the permalink route would fail |
 | T11.5 | LK.4 — the mixed list | exactly one member has no stored URL and prints as PLAIN TEXT between two anchors. One unresolvable value costs its own link and no sibling's |
+
+The page carries two more rows, LK.5 and LK.6, which are the `try_title` twins of LK.2 and LK.4 and belong to a different change — they are [`fold-test-matrix.md`](fold-test-matrix.md) §F9b F9b.4b/F9b.4c, and what they assert is stated there.
 
 ## Fail triage
 

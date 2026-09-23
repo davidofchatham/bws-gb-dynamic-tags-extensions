@@ -143,8 +143,7 @@ since it seeds pre-migration wire into fresh content.
 > changed nothing" when it changed everything. Use `?nocache=<something-unique>`.
 
 Safe to re-run — upserts by slug; page content is regenerated every run.
-Seeding also merges a plugin-settings baseline (phone: global CC `1`, strip OFF —
-the phone matrix's default state) into `bws_dynamic_tags_settings`.
+Seeding also merges a plugin-settings baseline into `bws_dynamic_tags_settings` — phone: global CC `1`, strip OFF (the phone matrix's default state); email: obfuscation OFF, so `{{email}}` output is stable between renders and a before/after sweep can compare bytes. That one is a FIXTURE default and not the product's, which ships obfuscation ON; the manifest entry owns why, and the rows that need it on turn it on and turn it back.
 
 > **Reseed is additive — it never DELETES a key removed from the manifest.** If a
 > fixture edit *drops* a field (e.g. the join dense↔sparse swap that moved the full
@@ -327,7 +326,7 @@ Requires WooCommerce ACTIVE. Absent, `seed.php` skips the products with a log li
 
 ## Per-item link corpus (manifest v27, FW-85)
 
-The fixture for a fanning tag whose every value is its own anchor (text matrix [§T11](../../test/text-test-matrix.md)). One page, `matrix-links`, and the whole corpus is about DESTINATIONS: a harness can assert that three anchors came out, but only a page can say whether the second one points at the second entity.
+The fixture for a fanning tag whose every value is its own anchor (text matrix [§T11](../../test/text-test-matrix.md), and since FW-136 the `try_` twins of two of its rows — fold matrix [§F9b](../../test/fold-test-matrix.md) F9b.4b/F9b.4c, LK.5 and LK.6 on the page). One page, `matrix-links`, and the whole corpus is about DESTINATIONS: a harness can assert that three anchors came out, but only a page can say whether the second one points at the second entity.
 
 | Piece | What it is |
 |---|---|

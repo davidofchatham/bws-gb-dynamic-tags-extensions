@@ -420,7 +420,53 @@ function bws_phone_render_one( string $raw, string $cc, bool $link, bool $stripC
 }
 
 /**
+ * Resolve the `phone` base tag's VALUE — the full read path minus the media-block
+ * guard, the stated fallback and the preview label.
+ *
+ * THE FAMILY'S RESOLVE SEAM (FW-136): `{{try_phone}}`'s attempts run through this
+ * same function, so an attempt reads exactly as the base tag does and inherits
+ * whatever the base read gains. Registered as `resolve_fn` on the phone modifier
+ * template; the shells on both sides own what the seam deliberately leaves out.
+ *
+ * NO LINK IDENTITY TO REPORT — `link_id` is a constant 0 and `link_type` the
+ * uniform triple's filler. {{phone}} registers no link options at all: every
+ * number self-wraps its own `tel:` anchor inside bws_phone_render_one(), so there
+ * is no outer wrap for a caller to apply and nothing for the shell to decide. The
+ * triple's shape is uniform across all nine families precisely so the attempt walk
+ * branches on nothing (see includes/helpers/try-slot-loop.php).
+ *
+ * @invariant VP4 — normalization doubles as the validity gate, per item, inside
+ *   bws_phone_finish_values(); a number that will not normalize is dropped rather
+ *   than rendered as plain text. The seam therefore returns '' for "read nothing"
+ *   AND for "read only invalid numbers", which is the one predicate the attempt
+ *   walk tests.
+ *
+ * @since 1.21.0 Extracted from bws_phone_callback().
+ *
+ * @param array $options  Tag options.
+ * @param mixed $instance GB tag instance.
+ * @return array{value:string, link_id:int, link_type:string}
+ */
+function bws_base_phone_resolve_value( array $options, $instance ): array {
+	$sep = $options['sep'] ?? ', ';
+
+	// L3 compose — normalize+render each raw value via the shared finisher (SAME
+	// per-item compose the try_ dispatchers use, VP4 / V10).
+	$parts = bws_phone_finish_values( bws_resolve_field_values( $options, $instance ), $options );
+
+	return array(
+		'value'     => implode( $sep, $parts ),
+		'link_id'   => 0,
+		'link_type' => 'post',
+	);
+}
+
+/**
  * Callback for the `phone` base tag.
+ *
+ * Shell over bws_base_phone_resolve_value(): resolve, then on empty output apply
+ * the stated fallback (front end) or the editor preview label. Nothing is
+ * link-wrapped here — the seam's numbers wrapped themselves.
  *
  * @invariant VP1 — tel: wrap is DEFAULT-ON; link-on iff the `noLink` bare key is
  *   ABSENT from options. Never a positive `link:true` default.
@@ -431,6 +477,7 @@ function bws_phone_render_one( string $raw, string $cc, bool $link, bool $stripC
  *   the validity gate even in noLink mode.
  *
  * @since 1.10.0
+ * @since 1.21.0 Value resolution extracted to bws_base_phone_resolve_value().
  * @param array  $options  Tag options.
  * @param object $block    Block instance (unused).
  * @param object $instance GB tag instance.
@@ -440,34 +487,32 @@ function bws_phone_callback( $options, $block, $instance ): string {
 	// VP-vis runtime backstop — the native visibility gate can't catch the media
 	// block (empty tagName); its default-on tel: <a> would corrupt the <img src>.
 	// See bws_tag_blocked_on_media_block() / docs/gb-constraints.md.
+	// STAYS IN THE SHELL: it takes $block, which the seam never sees (FW-136).
 	if ( bws_tag_blocked_on_media_block( $block ) ) {
 		return '';
 	}
 
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
+	$sep        = $options['sep'] ?? ', ';
 
-	$sep = $options['sep'] ?? ', ';
-
-	// L3 compose — normalize+render each raw value via the shared finisher (SAME
-	// per-item compose the try_ dispatchers use, VP4 / V10).
-	$parts = bws_phone_finish_values( bws_resolve_field_values( (array) $options, $instance ), (array) $options );
+	$value = bws_base_phone_resolve_value( (array) $options, $instance )['value'];
+	if ( '' !== $value ) {
+		return $value;
+	}
 
 	// Fallback fires only on a fully-empty valid set — fed through the SAME
 	// normalize+compose (VP4).
-	if ( empty( $parts ) ) {
-		$fallback = trim( (string) ( $options['fallback'] ?? '' ) );
-		if ( '' !== $fallback ) {
-			$parts = bws_phone_finish_values( array( $fallback ), (array) $options );
+	$fallback = trim( (string) ( $options['fallback'] ?? '' ) );
+	if ( '' !== $fallback ) {
+		$parts = bws_phone_finish_values( array( $fallback ), (array) $options );
+		if ( ! empty( $parts ) ) {
+			return implode( $sep, $parts );
 		}
 	}
 
-	if ( empty( $parts ) ) {
-		return $is_preview && function_exists( 'bws_build_preview_label' )
-			? bws_build_preview_label( (array) $options, 'phone' )
-			: '';
-	}
-
-	return implode( $sep, $parts );
+	return $is_preview && function_exists( 'bws_build_preview_label' )
+		? bws_build_preview_label( (array) $options, 'phone' )
+		: '';
 }
 
 /**
@@ -536,7 +581,7 @@ function bws_phone_finish_values( array $raw, array $options ): array {
 }
 
 /**
- * Try-tag post-slot dispatch for the `phone` template (try_core_fn).
+ * Try-tag post-slot dispatch for the `phone` template.
  *
  * Returns finished tel/plain number strings for the slot (CONTEXT.md I6). Honors
  * the registry-resolved $post_id for post/term sources; src:site reads the option.
@@ -552,7 +597,7 @@ function bws_try_phone_post_dispatch( $post_id, $options, $instance ) {
 	// (`site,limit[2]`, any decorated root), fell into the post branch, and read the
 	// AMBIENT entity: a plausible value from the wrong entity, which a selecting try_
 	// slot then treats as a WIN, so the author's fallback chain never ran ([I15], the
-	// FW-71 class). Pinned at the dispatch seam: try-slot-arms-test.php §A6/§A7.
+	// FW-71 class). Pinned at the dispatch seam: slot-fold-test.php §P19.
 	if ( 'site' === bws_base_src_resolution( (array) $options )['kind'] ) {
 		return bws_phone_finish_values( bws_resolve_field_values( (array) $options, $instance ), (array) $options );
 	}
@@ -567,7 +612,7 @@ function bws_try_phone_post_dispatch( $post_id, $options, $instance ) {
 }
 
 /**
- * Try-tag srcTermIn-slot dispatch for the `phone` template (try_term_fn).
+ * Try-tag srcTermIn-slot dispatch for the `phone` template.
  *
  * @since 1.11.0
  * @return string[] Finished per-item strings for this term.
@@ -583,7 +628,7 @@ function bws_try_phone_term_dispatch( $term_id, $options, $instance ) {
 }
 
 /**
- * Try-tag repeater-ROW-slot dispatch for the `phone` template (try_row_fn, FW-74).
+ * Try-tag repeater-ROW-slot dispatch for the `phone` template (FW-74).
  *
  * The row twin of the post dispatch's keyed branch: read the sub-field off the row, then
  * run it through the SAME finisher (normalize-as-validity, cc, tel wrap), so a row number
@@ -680,9 +725,8 @@ function bws_register_phone_template(): void {
 		),
 		'term_fn'             => 'bws_phone_term_core',
 		'post_fn'             => 'bws_phone_post_core',
-		'try_core_fn'         => 'bws_try_phone_post_dispatch',
-		'try_term_fn'         => 'bws_try_phone_term_dispatch',
-		'try_row_fn'          => 'bws_try_phone_row_dispatch',
+		// FW-136 — try_phone resolves each attempt through the BASE seam.
+		'resolve_fn'          => 'bws_base_phone_resolve_value',
 		'supports_try'        => true,
 		'try_per_slot_key'    => true,
 		'try_per_slot_use'    => false,

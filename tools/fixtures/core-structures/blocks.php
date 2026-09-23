@@ -960,7 +960,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F9b.5 site read now WINS over a hand-edited term hop, as it always has on the base tag (-> the org phone; rendered NOTHING before #103)', '{{try_phone src:site|srcTermIn:department|key:org_phone}}' ),
 		bws_fixture_gb_row( 'F9b.7 control for F9b.5: the plain site attempt, which never broke (-> the same number)', '{{try_phone src:site|key:org_phone}}' ),
 		bws_fixture_gb_row( 'F9b.8 the ambient-TERM attempt is a branch off the root-only kind now, not a src:current test (-> the ambient page title here; Sales on /department/sales/)', '{{try_title}}' ),
-		bws_fixture_gb_row( 'F9b.9 per-arm link-wrap survived the merge into one emit (-> the term title, LINKED)', '{{try_text srcTermIn:department|use:title|linkTo:term}}' ),
+		bws_fixture_gb_row( 'F9b.10 per-arm link-wrap survived the merge into one emit (-> the term title, LINKED)', '{{try_text srcTermIn:department|use:title|linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'F9b.11 a repeater-row source RESOLVES since FW-74, so attempt 1 wins and attempt 2 never runs (-> Alice Adams, Bob Brown; was Captain, slot 2)', '{{try_text A:src(rows,team_members);use(key);key(name)|B:key(role)}}' ),
 		bws_fixture_gb_row( 'F9b.12 an inexpressible chain still skips at the SEAM, which #103 did not touch (-> Captain)', '{{try_text A:src(refs,related_staff;terms,department);use(title)|B:key(role)}}' ),
 		// F9b.13 IS NOT HERE, and the omission is the stated exception: the I6 parity
@@ -1226,6 +1226,11 @@ function bws_fixture_page_content_staff_join() {
 		bws_fixture_gb_row( 'F1.10 legacy fallback (jane: em dash / tom: Jr., PhD)', '{{join key:name_generation|2-key:name_credential|fallback:—}}' ),
 		bws_fixture_gb_row( 'F1.10 folded (-> same)', '{{join A:key(name_generation)|B:key(name_credential)|fallback:—}}' ),
 		bws_fixture_gb_row( 'F1.9 folded 7-slot full name (jane: Jane Johnson / tom: Dr. Tom M. Smith Jr., PhD, USN (Ret.))', '{{join mode:template|format:%A %B %C. %D %E, %F, %G|A:key(name_honorific)|B:key(name_first)|C:key(name_middle_initial)|D:key(name_last)|E:key(name_generation)|F:key(name_credential)|G:key(name_service)}}' ),
+		// §F9b.9's visible half, which it never had: the row is on a STAFF SINGLE
+		// because its claim is about the post arm's link identity, and the matrix
+		// pages are the wrong ambient entity for it. Its twin F9b.10 (the term
+		// arm) lives on /matrix-post-meta/.
+		bws_fixture_gb_row( 'F9b.9 per-arm link-wrap survived the merge into one emit (-> this staff single\'s title, LINKED)', '{{try_title linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'F5.7 try_permalink, no-read shape (-> this staff single\'s URL)', '{{try_permalink A:src(current)|B:src(site)}}' ),
 		bws_fixture_gb_row( 'N6 try_text fallback on empty slots (jane: None / tom: Jr.)', '{{try_text A:key(name_generation)|B:key(name_credential)|fallback:None}}' ),
 	) );
@@ -1298,13 +1303,13 @@ function bws_fixture_page_content_matrix_term_hop() {
 		bws_fixture_gb_row( 'F7a.10b join MIGRATED twin - the 2 lands on the slot own fanning step (-> same as F7a.10)', '{{join A:src(terms,department,limit[2]);use(title)}}' ),
 		bws_fixture_gb_row( 'F7a.11 an explicit legacy limit:0 KEEPS its carrier - unmigrated wire takes the flat default (-> every term)', '{{try_text srcTermIn:department|use:title|limit:0}}' ),
 		bws_fixture_gb_row( 'F7b.4 MIGRATED twin - an explicit unlimited moves onto the step like any other number (-> same as F7a.11)', '{{try_text A:src(terms,department,limit[0]);use(title)}}' ),
-		// The LINK half (limit-default-test-matrix.md L4a). The try_ emit still gates on
-		// COUNT - per-item wrapping landed on the base list fold only (FW-85), the try_
-		// half is FW-135 - so a slot that starts returning several values stops being
-		// wrappable rather than printing several anchors. Eyeball the anchors, not just
-		// the text.
+		// The LINK half (limit-default-test-matrix.md L4a). Since FW-136 flipped try_text
+		// onto the base resolve seam, an attempt reads through the same list fold a base
+		// tag does, so a slot returning several values wraps each of them against its OWN
+		// identity (FW-85) instead of dropping the anchor on count. Eyeball the anchors,
+		// not just the text.
 		bws_fixture_gb_row( 'L4a.1 flat slot, unset - ONE term, and it IS a link', '{{try_text srcTermIn:department|use:title|linkTo:permalink}}' ),
-		bws_fixture_gb_row( 'L4a.2 chain slot, unset - every term, and NO link (multi-value is not wrappable)', '{{try_text A:src(terms,department);use(title)|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L4a.2 chain slot, unset - every term, EACH its own link', '{{try_text A:src(terms,department);use(title)|linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'L4a.3 MIGRATED twin of L4a.1 - ONE term, link back (-> same as L4a.1)', '{{try_text A:src(terms,department,limit[1]);use(title)|linkTo:permalink}}' ),
 	) )
 	// datetime matrix D4 (#30) — srcTermIn list rows. The page's assigned terms
@@ -2067,6 +2072,34 @@ function bws_fixture_page_content_matrix_links() {
 		bws_fixture_gb_row( 'LK.2 POST list, each post linked to ITS OWN permalink (-> Jane Partner -> /staff/jane-partner/, Tom Associate -> /staff/tom-associate/, Fixture Ref Target -> /staff/fixture-ref/)', '{{text src:refs,link_staff|use:title|limit:0|linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'LK.3 the SAME three posts linked through a PER-ENTITY URL field (-> the same three names, each anchored to its own https://example.test/profiles/<slug>/ - three hrefs that are not permalinks, which is what separates this row from LK.2)', '{{text src:refs,link_staff|use:title|limit:0|linkTo:key|linkKey:profile_url}}' ),
 		bws_fixture_gb_row( 'LK.4 MIXED list, exactly one member with no URL to point at (-> Jane Partner anchored, Fixture Root Entity as PLAIN TEXT between two anchors, Tom Associate anchored - one empty field costs its own value its link and nothing else its own)', '{{text src:refs,link_staff_gap|use:title|limit:0|linkTo:key|linkKey:profile_url}}' ),
+		// The try_ TWINS of LK.2 and LK.4 (FW-136 ticket 04, fold-test-matrix.md §F9b).
+		// Since try_title resolves each attempt through the BASE seam, a fanning attempt
+		// rides the same list fold the base tag does — so these two must print exactly what
+		// the rows above them print. Before the flip both rendered the names JOINED AND
+		// UNLINKED, which is the FW-135 defect the merge dissolves rather than patches.
+		bws_fixture_gb_row( 'LK.5 try_ twin of LK.2: a fanning ATTEMPT links each post to ITS OWN permalink (-> same three names and hrefs as LK.2; was joined and unlinked)', '{{try_title A:src(refs,link_staff)|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'LK.6 try_ twin of LK.4: one member with no stored URL prints PLAIN between two anchors (-> same as LK.4; an unresolvable value costs its own link and no sibling\'s)', '{{try_title A:src(refs,link_staff_gap)|linkTo:key|linkKey:profile_url}}' ),
+		// The DATETIME pair (FW-136 ticket 07, fold-test-matrix.md §F9b.4d). A third family
+		// reading the same three posts, and the reason it is worth its own pair: LK.5's
+		// values ARE the entity's own title, so a build that took the link from the VALUE
+		// rather than from the source it was read off would still look right there. A date
+		// says nothing about where it lives, so this row only passes when the identity
+		// travelled with the source.
+		//
+		// TWO values, not three: Fixture Ref Target carries no event_datetime, and the fold
+		// drops an empty read rather than printing an anchor around nothing.
+		bws_fixture_gb_row( 'LK.7 DATE list, each date linked to ITS OWN post (-> May 1, 2030 10:00 AM -> /staff/jane-partner/, June 1, 2030 11:00 AM -> /staff/tom-associate/; two values, since the third staff post has no date)', '{{datetime_single src:refs,link_staff|key:event_datetime|limit:0|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'LK.8 try_ twin of LK.7: a fanning ATTEMPT links each date to ITS OWN post (-> byte for byte what LK.7 prints; was the two dates joined and unlinked)', '{{try_datetime_single A:src(refs,link_staff)|key:event_datetime|linkTo:permalink}}' ),
+		// The RANGE pair (FW-136 ticket 08, fold-test-matrix.md §F9b.4e) — the fourth and
+		// last family FW-135 dissolves on. What it adds over LK.8, which is why the range
+		// earns its own pair rather than riding the single's: a range is TWO reads joined
+		// by rangeSep before the fold ever sees it, so this is the one row where the
+		// per-item wrap has to go around an already-assembled pair. The anchor sits
+		// outside the whole range, and `sep` still joins whole ranges between anchors.
+		//
+		// TWO values, not three, for the same reason LK.7 gives.
+		bws_fixture_gb_row( 'LK.9 RANGE list, each whole range linked to ITS OWN post (-> May 1 10:00 AM-May 3, 2030 3:00 PM -> /staff/jane-partner/, June 1 11:00 AM-June 5, 2030 12:00 PM -> /staff/tom-associate/; the anchor wraps the whole range, the comma between them does not)', '{{datetime_range src:refs,link_staff|startKey:event_datetime|endKey:event_end_datetime|limit:0|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'LK.10 try_ twin of LK.9: a fanning ATTEMPT links each whole range to ITS OWN post (-> byte for byte what LK.9 prints; was the two ranges joined and unlinked)', '{{try_datetime_range A:src(refs,link_staff)|startKey:event_datetime|endKey:event_end_datetime|linkTo:permalink}}' ),
 	) );
 
 	return implode( "\n\n", $sections );

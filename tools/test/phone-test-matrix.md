@@ -2,7 +2,7 @@
 
 **Standing manual regression suite** for the `{{phone}}` base tag (v1.10.0) — not a one-shot plan checklist. Rows are anchored to invariants (VP1–VP-vis), so they stay valid past the SPEC's post-ship truncation.
 
-> **Re-run trigger:** after any change to `bws_phone_normalize_tel` (or its trunk-strip / length-gate / strip-CC sub-helpers), `bws_phone_callback`, `bws_phone_render_one`, the two `phone.*` settings, or the phone preview branch.
+> **Re-run trigger:** after any change to `bws_phone_normalize_tel` (or its trunk-strip / length-gate / strip-CC sub-helpers), `bws_base_phone_resolve_value` (the read seam `{{try_phone}}` shares since FW-136), `bws_phone_callback` (the shell over it), `bws_phone_render_one`, the two `phone.*` settings, or the phone preview branch.
 >
 > **Two layers:**
 > - **Algorithm (pure, automated):** `php tools/test/phone-normalize-test.php` — 19 cases over VP-hyphen / VP3 / VP-strip / VP4 / VP-href-safe. Run first; must be green before manual rows.

@@ -886,7 +886,7 @@ const SCENARIO_GROUPS = [
       slots:[{label:'Term',tag:'title',read:{kind:'analog',slug:'title'}},
              {label:'Count',tag:'text',read:{kind:'key',field:'post_count'}}]},
     // D4 decision (a) (table-tag.md, 2026-08-30): analog dispatch is SPECIFIED to refuse on a
-    // repeater row — `use(title)` and its siblings get no `try_row_fn` there by design, because
+    // repeater row — `use(title)` and its siblings get no row read there by design, because
     // (b)'s alternative would smuggle a source hop into `use`, the exact overload the fold
     // removed everywhere else. This page only assembles wire strings and never executes PHP, so
     // this is NOT a claim about what the tag renders (FW-74/{{table}} aren't built) — it is a

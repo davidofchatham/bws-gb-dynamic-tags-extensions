@@ -893,51 +893,15 @@ assert_same( 'a free name records no collision', false, isset( bws_gb_tag_name_c
 // §F carries every assertion that stood here, plus the re-entry guard it already owned.
 //
 // The lettering below is unchanged on purpose. register_modifier() is a stub since 1.21.0 and
-// builds nothing, but neither surviving section read its output: C2 censuses the TEMPLATE
-// DESCRIPTORS off get_modifier_templates(), and C3 reads GB's live registry against the
-// migration entries. Both are different subjects from what a constructor stands down from.
+// builds nothing, and C3 never read its output: it reads GB's live registry against the
+// migration entries, a different subject from what a constructor stands down from.
 
-// --- C2. every modifier template's dispatch wiring matches its try_ twin ----
+// --- C2. RETIRED by FW-136 -------------------------------------------------
 //
-// #88: register_modifier()'s term_fn/post_fn were wired straight to a raw core on the
-// text and content templates, which never read `use` — so a `use` value existed
-// (title/key/excerpt) with nothing to dispatch it, on every term_/view_/fixture_ tag.
-// The try_ family's own per-slot dispatchers (try_term_fn/try_core_fn) already did this
-// correctly; the fix reused them rather than duplicating the logic a second time.
-//
-// This is a CENSUS, not a fixed list of templates, for the same reason 95984b9's
-// ambient-kind guard reads its cases off the live switch rather than a hand-kept copy:
-// a future template that gets a `use` axis (a non-empty try_use_no_key_values) and is
-// wired to a bare core again would ship the identical bug unnoticed otherwise.
-//
-// Scope: only templates with a `use` axis (try_use_no_key_values non-empty) are in
-// play — title/permalink take one value, have nothing to dispatch, and image already
-// matched its try_ twin before #88 (its post-side dispatch lives in a local closure
-// in make_modifier_callback(), not in post_fn itself; term-side has nothing to
-// dispatch, `featured` being a post-only concept).
-foreach ( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() as $census_tpl ) {
-	if ( empty( $census_tpl['try_use_no_key_values'] ) ) {
-		continue;
-	}
-	$tpl_key = $census_tpl['key'] ?? '?';
-	// image is the one MEASURED exception: make_modifier_callback() carries its own
-	// local dispatch closure ($image_post_dispatch) ahead of calling post_fn, so
-	// post_fn staying the bare core (bws_custom_image_core) is correct, not a
-	// relapse of #88. No such closure exists on the term-entity arm, so term_fn
-	// still gets the full check below.
-	if ( empty( $census_tpl['is_image'] ) ) {
-		assert_same(
-			"census: '{$tpl_key}' modifier post_fn matches its try_ dispatch twin",
-			$census_tpl['try_core_fn'] ?? null,
-			$census_tpl['post_fn'] ?? null
-		);
-	}
-	assert_same(
-		"census: '{$tpl_key}' modifier term_fn matches its try_ dispatch twin",
-		$census_tpl['try_term_fn'] ?? null,
-		$census_tpl['term_fn'] ?? null
-	);
-}
+// It censused each template's term_fn/post_fn against its try_ dispatch twin
+// (try_term_fn/try_core_fn), the #88 guard. FW-136 deleted the twins with the arm table,
+// and the only reader of term_fn/post_fn is make_modifier_callback(), which nothing
+// reaches since register_modifier() became a stub — so there is nothing left to pin.
 
 // --- C3. the `term_` family is GONE from the picker, its entries are NOT ------
 //

@@ -8,10 +8,9 @@
  * installed, and nothing else. What each caller DOES with the answer is the caller's, and
  * is stated at the caller.
  *
- * NOTHING HERE IS RE-INCLUDE GUARDED, matching gb-output-boundary.php, slot-fold.php and
- * try-slot-arms.php — the plugin loads it once with `require_once`, and wrapping only the
- * functions would leave the const unprotected while reading as though the file were
- * idempotent.
+ * NOTHING HERE IS RE-INCLUDE GUARDED, matching gb-output-boundary.php and slot-fold.php —
+ * the plugin loads it once with `require_once`, and wrapping only the functions would
+ * leave the const unprotected while reading as though the file were idempotent.
  *
  * WHY A SEAM RATHER THAN FOUR GUARDED CALLS. Four sites need the predicate (the two
  * `src:site` option-read paths, the field-discovery REST route, and the editor enqueue that

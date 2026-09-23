@@ -12,7 +12,7 @@
  * function left a second include warning on the two `const` declarations -- the half that
  * a `function_exists` check cannot protect -- while reading as though the file were
  * idempotent. The plugin loads it once, with `require_once`; the shape now matches
- * slot-fold.php and try-slot-arms.php, bare consts beside bare functions.
+ * slot-fold.php, bare consts beside bare functions.
  *
  * @package BWS_Dynamic_Tags
  * @since 1.19.0

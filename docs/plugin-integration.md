@@ -284,7 +284,7 @@ If your plugin needs a tag type with no equivalent built-in template, there are 
 
 ### Option A: Register a new modifier template (preferred)
 
-Adding a template via `register_modifier_template()` registers a base template descriptor. Since 1.21.0 no family constructor consumes it to mint a prefixed group — [§2](#2-registering-a-context-modifier) is withdrawn — but the `try_` constructor produces one `try_`-prefixed tag per registered template, and the converter reads the same list to derive per-template migration entries:
+Adding a template via `register_modifier_template()` registers a base template descriptor. Since 1.21.0 no family constructor consumes it to mint a prefixed group — [§2](#2-registering-a-context-modifier) is withdrawn — but the `try_` constructor produces one `try_`-prefixed tag per registered template that sets `supports_try` and names a `resolve_fn`, and the converter reads the same list to derive per-template migration entries. **`resolve_fn` is the read every attempt goes through**, and it is meant to be the resolve function of a base tag you register yourself, so a template is only worth registering alongside one:
 
 ```php
 // In your plugin, at init priority 15 (before bws_register_base_tags runs at 20):
@@ -293,13 +293,13 @@ add_action( 'init', function() {
         return;
     }
     \BWS\DynamicTags\TagTemplateRegistry::register_modifier_template( array(
-        'key'           => 'my_field',          // Appended to a constructor's prefix → try_my_field
-        'title'         => 'My Field',           // Tag title in the GB tag picker
-        'gb_type'       => null,                 // null = inherit modifier's gb_type
-        'supports'      => array(),              // Base tags use custom 'src' option, not GB native 'source' support
-        'options'       => array(),              // Or a callable returning option definitions
-        'core_fn'       => 'my_plugin_my_field_core',
-        'context_types' => array( 'post' ),
+        'key'          => 'my_field',            // → try_my_field
+        'title'        => 'My Field',            // Tag title in the GB tag picker ("Try My Field")
+        'options'      => array(),               // Option definitions, as for your base tag
+        'supports_try' => true,                  // Without it no try_ tag is generated
+        // fn( array $options, $instance ): array{ value: string, link_id: int, link_type: string }
+        // An attempt that reads nothing returns value '' and the next attempt runs.
+        'resolve_fn'   => 'my_plugin_my_field_resolve_value',
     ) );
 }, 15 );
 ```

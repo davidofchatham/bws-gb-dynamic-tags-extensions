@@ -1404,9 +1404,9 @@ function bws_fold_empty_carry( string $default_read = '' ): array {
  *                      outright as inexpressible, argument or not, so an unfinished one had
  *                      nowhere to be reported from. The rule is the fanning family's, not a
  *                      per-slug decision — an argless fanning step of any slug is unfinished.
- * The repeater-row refusal MOVED rather than dissolving: it belongs to the container that
- * consumes a `meta_row`, so `try_`'s arm table skips that kind (includes/helpers/
- * try-slot-arms.php) and `{{table}}` waits on its own arm — not on this seam.
+ * The repeater-row refusal MOVED rather than dissolving: whether a `meta_row` renders is
+ * the question of the read that consumes it — each family's base resolve seam, and
+ * `{{table}}`'s own arm — not of this seam.
  *
  * WHY THE SKIP REASON IS AN OUT-PARAM. The editor PREVIEW has to tell the skips apart — an
  * unconfigured slot is a normal in-progress state and says nothing, while an unfinished step

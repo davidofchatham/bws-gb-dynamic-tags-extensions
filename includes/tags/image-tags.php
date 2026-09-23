@@ -141,10 +141,10 @@ function bws_custom_image_core( $post_id, $options, $instance ) {
  * NO FALLBACK IS EMITTED HERE, unlike bws_custom_image_core(). A row is not an entity, so
  * there is no id to merge into $options for the fallback's own render, and the tag's
  * stated fallback is a property of the TAG rather than of which row missed — the base arm
- * emits it ONCE on an empty result (bws_base_image_callback()'s `meta_row` branch), which
- * is what keeps a `rows` chain's fallback behavior identical to the post route's. Under
- * try_ the question does not arise: the dispatcher strips `fallback` from the options it
- * evaluates with and emits it itself.
+ * emits it ONCE on an empty result (bws_base_image_resolve_value()'s `meta_row` branch),
+ * which is what keeps a `rows` chain's fallback behavior identical to the post route's.
+ * Under try_ the question does not arise: the attempt walk strips `fallback` from the
+ * options it evaluates with and the try_ shell emits it itself.
  *
  * @since 1.21.0
  * @param array  $source   Resolved source of kind `meta_row`.

@@ -24,8 +24,8 @@ and four code paths, and the regression this matrix guards is cross-cutting.
 |---|---|---|
 | the seam — `bws_resolve_field_values()` | `field-helpers.php` | text, title, email, phone |
 | the shared list fold — `bws_collect_value_list()` | `field-helpers.php` | datetime_single / _range |
-| try_ slot dispatch (own implementation) | `class-tag-template-registry.php` | L1.7, L3.4 |
-| `bws_try_join_items()` | `base-shared.php` | covered via the try_ rows. **No longer a clamp site** (1.17.0): it holds no options, so it structurally cannot know which spelling the tag uses, and it now takes an already-resolved int |
+| the try_ attempt walk — `bws_try_run_attempts()` | `try-slot-loop.php` | L1.7, L3.4. Resolves each attempt's number and writes it back, so the family's base resolve seam (one of the two paths above) slices with it (FW-136) |
+| the join slot loop — `bws_join_callback()` | `base-tags.php` | L1.10 |
 
 Since 1.17.0 the DEFAULT each of those sites passes comes from one more function,
 [`bws_limit_default()`](../../includes/helpers/field-helpers.php) — see §L4. No call site is
@@ -36,8 +36,9 @@ chosen per site.
 add rows for it.
 
 - **Pure algorithm:** `php tools/test/limit-clamp-test.php` (clamp rule + the caller
-  slice/early-break contracts) and `php tools/test/try-join-seam-test.php` (the join seam).
-  Those pin the rule; this matrix confirms the LIVE reads they cannot reach.
+  slice/early-break contracts) and `php tools/test/try-slot-loop-test.php` §L4 (the bound
+  the try_ walk writes back). Those pin the rule; this matrix confirms the LIVE reads they
+  cannot reach.
 - **Visible blocks:** every row below is generated as a browsable/editable GB block on
   `matrix-post-meta` (blocks.php `matrix_post_meta` builder, sections `Limit L1/L2/L3`).
 
@@ -62,7 +63,7 @@ Each row asserts **one value AND one `<a>`**. A row that renders two values has 
 | L1.4 | `{{title srcTermIn:department\|linkTo:permalink}}` | ONE dept name, wrapped in `<a>` | seam |
 | L1.5 | `{{datetime_single src:ref\|ref:related_staff\|key:event_datetime\|linkTo:permalink}}` | ONE date (jane's), wrapped in `<a>` | list fold |
 | L1.6 | `{{datetime_range srcTermIn:department\|startKey:event_date}}` | ONE date, no `; ` separator present | list fold |
-| L1.7 | `{{try_text srcTermIn:department\|use:title}}` | ONE dept name, no `, ` separator | try_ dispatch |
+| L1.7 | `{{try_text srcTermIn:department\|use:title}}` | ONE dept name, no `, ` separator | try_ walk |
 | L1.8 | `{{email src:ref\|ref:related_staff\|key:contact_email}}` | ONE `mailto:` anchor (jane@example.test) | seam |
 | L1.9 | `{{phone src:ref\|ref:related_staff\|key:main_line}}` | ONE `tel:` anchor (jane's line) | seam |
 | L1.10 | `{{join srcTermIn:department\|use:title\|2-key:blurb}}` | `Sales, Sales handles quotes, renewals and the annual customer roadshow.` — slot 1 = ONE dept name, joined to THAT SAME term's blurb | seam (per-slot). The key must exist on the CARRIED source: this read `2-key:role` until 2026-08-21 and could never have joined anything, because `role` is post meta and slot 2 carries over slot 1's TERM. It passed for months on a bare `Sales` looking plausible |
@@ -86,7 +87,7 @@ rows — one anchor, not two.
 | L3.1 | `{{text src:ref\|ref:related_staff\|use:title\|limit:0}}` | BOTH names (`Jane Partner, Tom Associate`) | `0` = unlimited. **Rendered ONE value before 1.17.0** — the deliberate break |
 | L3.2 | `{{text src:ref\|ref:related_staff\|use:title\|limit:-1}}` | BOTH names | `-1` parses as unlimited (GB Posts-Per-Page convention), tolerated not emitted |
 | L3.3 | `{{text src:ref\|ref:related_staff\|use:title\|limit:abc\|linkTo:permalink}}` | `Jane Partner` only, wrapped in `<a>` | the `is_numeric()` guard — a typo resolves to the DEFAULT, never to "no limit". `(int)'abc' === 0`, so without the guard this row fans out |
-| L3.4 | `{{try_text srcTermIn:department\|use:title\|limit:0}}` | both dept names, `, `-joined | the try_ dispatch honors unlimited AND does not break out of the term hop after the first item (the `$slot_max &&` guard) |
+| L3.4 | `{{try_text srcTermIn:department\|use:title\|limit:0}}` | both dept names, `, `-joined | the try_ walk hands unlimited to the base seam, which does not break out of the term hop after the first item |
 | L3.5 | `{{datetime_single srcTermIn:department\|key:event_date\|limit:0}}` | both dept event dates | the list fold slices with `?: null` |
 | L3.6 | `{{text srcTermIn:department\|use:title\|limit:0\|linkTo:permalink}}` | both names, EACH in its own `<a>` | unlimited fans the list and every value it fans to links to its own term archive — what `limit` widens, per-item wrapping follows |
 
@@ -146,14 +147,14 @@ selects its default, exactly as a base tag's does. Before, the dispatch read the
 FLATTENED triple, whose `src` is a legacy token on every slot, so every slot answered 1 whatever
 it was spelled as.
 
-**Behaviour rows live in [`fold-test-matrix.md`](fold-test-matrix.md) §F7a** — that file owns the fold, and duplicating them here is the copy this matrix has no reason to keep. What belongs HERE is the link, for the reason L1 and L4 carry theirs: a silent default flip is visible in the markup before it is visible in the text. The `try_` emit still gates on COUNT (per-item wrapping landed on the base list fold only, FW-85; the `try_` half is FW-135), so here a slot that starts returning several values stops being wrappable at all, rather than printing several anchors.
+**Behaviour rows live in [`fold-test-matrix.md`](fold-test-matrix.md) §F7a** — that file owns the fold, and duplicating them here is the copy this matrix has no reason to keep. What belongs HERE is the link, for the reason L1 and L4 carry theirs: a silent default flip is visible in the markup before it is visible in the text. Since FW-136 every `try_` attempt reads through its base tag's resolve seam, so a slot that starts returning several values prints an anchor PER VALUE (FW-85) rather than losing the anchor to a count gate.
 
-> **MEASURED 2026-08-07** on the testbed, `/matrix-terms-valid/`.
+> **MEASURED 2026-08-07** on the testbed, `/matrix-terms-valid/`; L4a.2 re-measured 2026-09-22 after the FW-136 text flip.
 
 | Row | Tag | Expected | What it proves |
 |---|---|---|---|
 | L4a.1 | `{{try_text srcTermIn:department\|use:title\|linkTo:permalink}}` | ONE dept name, in `<a>` | FLAT slot, unset — the floor, unchanged |
-| L4a.2 | `{{try_text A:src(terms,department);use(title)\|linkTo:permalink}}` | `Sales, Support`, **NO** `<a>` | CHAIN slot, unset — unlimited, and the anchor legitimately gone. The slot twin of L4.2 |
+| L4a.2 | `{{try_text A:src(terms,department);use(title)\|linkTo:permalink}}` | `Sales, Support`, **each in its own** `<a>` | CHAIN slot, unset — unlimited, and every value wrapped against its own term. The slot twin of L4.2 |
 | L4a.3 | `{{try_text A:src(terms,department,limit[1]);use(title)\|linkTo:permalink}}` | ONE dept name, in `<a>` | what MIGRATION writes for L4a.1 — identical output, anchor included |
 | L4a.4 | `{{join A:src(same);key(x)}}` after a fanning slot 1 | see §F7a.6 | a slot that fans only by CARRYING OVER keeps the flat default: the slot it carries over from stated its own bound, and a limit does not carry forward |
 
