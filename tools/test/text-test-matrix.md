@@ -197,6 +197,8 @@ T10.2 read the same defect on `{{fixture_text}}`, the class route, and is **reti
 | T11.4 | LK.3 — the same three posts, `linkTo:key\|linkKey:profile_url` | each value carries the URL stored on ITS OWN entity. The stored URLs are deliberately not permalinks, so this row and T11.3 print the same three names and differ only in the hrefs — which is what a key-mode read falling back to the permalink route would fail |
 | T11.5 | LK.4 — the mixed list | exactly one member has no stored URL and prints as PLAIN TEXT between two anchors. One unresolvable value costs its own link and no sibling's |
 
+The page carries two more rows, LK.5 and LK.6, which are the `try_title` twins of LK.2 and LK.4 and belong to a different change — they are [`fold-test-matrix.md`](fold-test-matrix.md) §F9b F9b.4b/F9b.4c, and what they assert is stated there.
+
 ## Fail triage
 
 - **T1.2/T3.3/T4.2/T7.4 value right but unlinked:** shell wrap gate — `link_id`/`link_type` not

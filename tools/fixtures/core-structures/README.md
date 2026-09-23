@@ -326,7 +326,7 @@ Requires WooCommerce ACTIVE. Absent, `seed.php` skips the products with a log li
 
 ## Per-item link corpus (manifest v27, FW-85)
 
-The fixture for a fanning tag whose every value is its own anchor (text matrix [§T11](../../test/text-test-matrix.md)). One page, `matrix-links`, and the whole corpus is about DESTINATIONS: a harness can assert that three anchors came out, but only a page can say whether the second one points at the second entity.
+The fixture for a fanning tag whose every value is its own anchor (text matrix [§T11](../../test/text-test-matrix.md), and since FW-136 the `try_` twins of two of its rows — fold matrix [§F9b](../../test/fold-test-matrix.md) F9b.4b/F9b.4c, LK.5 and LK.6 on the page). One page, `matrix-links`, and the whole corpus is about DESTINATIONS: a harness can assert that three anchors came out, but only a page can say whether the second one points at the second entity.
 
 | Piece | What it is |
 |---|---|

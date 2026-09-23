@@ -2072,6 +2072,13 @@ function bws_fixture_page_content_matrix_links() {
 		bws_fixture_gb_row( 'LK.2 POST list, each post linked to ITS OWN permalink (-> Jane Partner -> /staff/jane-partner/, Tom Associate -> /staff/tom-associate/, Fixture Ref Target -> /staff/fixture-ref/)', '{{text src:refs,link_staff|use:title|limit:0|linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'LK.3 the SAME three posts linked through a PER-ENTITY URL field (-> the same three names, each anchored to its own https://example.test/profiles/<slug>/ - three hrefs that are not permalinks, which is what separates this row from LK.2)', '{{text src:refs,link_staff|use:title|limit:0|linkTo:key|linkKey:profile_url}}' ),
 		bws_fixture_gb_row( 'LK.4 MIXED list, exactly one member with no URL to point at (-> Jane Partner anchored, Fixture Root Entity as PLAIN TEXT between two anchors, Tom Associate anchored - one empty field costs its own value its link and nothing else its own)', '{{text src:refs,link_staff_gap|use:title|limit:0|linkTo:key|linkKey:profile_url}}' ),
+		// The try_ TWINS of LK.2 and LK.4 (FW-136 ticket 04, fold-test-matrix.md §F9b).
+		// Since try_title resolves each attempt through the BASE seam, a fanning attempt
+		// rides the same list fold the base tag does — so these two must print exactly what
+		// the rows above them print. Before the flip both rendered the names JOINED AND
+		// UNLINKED, which is the FW-135 defect the merge dissolves rather than patches.
+		bws_fixture_gb_row( 'LK.5 try_ twin of LK.2: a fanning ATTEMPT links each post to ITS OWN permalink (-> same three names and hrefs as LK.2; was joined and unlinked)', '{{try_title A:src(refs,link_staff)|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'LK.6 try_ twin of LK.4: one member with no stored URL prints PLAIN between two anchors (-> same as LK.4; an unresolvable value costs its own link and no sibling\'s)', '{{try_title A:src(refs,link_staff_gap)|linkTo:key|linkKey:profile_url}}' ),
 	) );
 
 	return implode( "\n\n", $sections );

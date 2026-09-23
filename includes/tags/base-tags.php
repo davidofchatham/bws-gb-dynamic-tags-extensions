@@ -475,11 +475,22 @@ function bws_register_base_tags(): void {
 		'options'            => array(),
 		'term_fn'      => 'bws_term_title_core',
 		'post_fn'      => 'bws_post_title_core',
+		// THE RESOLVE SEAM (FW-136) — try_title resolves each attempt through the BASE
+		// seam, so a fanning attempt inherits the fold's per-item link wrap (FW-135) the
+		// way {{title}} already does. The try_*_fn entries below stay: they are the plain
+		// per-entity cores the term_ machinery and the base seam itself still call, and
+		// only the ARM TABLE that indexes them by kind goes when the ninth family lands.
+		//
+		// `try_query_fn` IS THE EXCEPTION AND IS GONE HERE. It is not a per-entity core —
+		// it was the arm shim's only route to the query context, and the base seam reaches
+		// that context itself (bws_base_ambient_analog() claims the kind and
+		// bws_base_query_context_analog_read() carries a 'title' case), so this family's
+		// copy is confirmed dead rather than merely unread. Nothing is owed to FW-9 here.
+		'resolve_fn'   => 'bws_base_title_resolve_value',
 		'try_core_fn'  => 'bws_post_title_core',
 		'try_term_fn'  => 'bws_term_title_core',
 		'try_site_fn'  => static fn( $opts, $inst ) => bws_site_resolve_value( 'title', (array) $opts, $inst ),
 		'try_user_fn'  => static fn( $user_id, $opts, $inst ) => bws_base_user_analog_read( 'title', (int) $user_id, (array) $opts, $inst ),
-		'try_query_fn' => static fn( $base, $opts, $inst ) => bws_base_query_context_analog_read( 'title', (array) $base, (array) $opts, $inst ),
 		'try_allow_site_slot' => true,
 		'supports_try' => true,
 		'try_list_options' => true,
@@ -1283,57 +1294,63 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 }
 
 /**
- * Callback for the `title` base tag.
+ * Resolve the `title` base tag's VALUE — the full read path minus link-wrap and
+ * the preview label.
  *
  * Resolves entity via `source`, applies srcTerm step when set.
  * srcTerm iterates terms with limit/sep applied.
  *
+ * THE FAMILY'S RESOLVE SEAM (FW-136): `{{try_title}}`'s attempts run through this same
+ * function, so an attempt reads exactly as the base tag does and inherits whatever the
+ * base read gains. Registered as `resolve_fn` on the title modifier template; the shells
+ * on both sides own what the seam leaves out.
+ *
+ * The SECOND of the four families that register link options, so this is the second
+ * place FW-135 dissolves: a list arm's values arrive wrapped per item out of
+ * bws_collect_value_list() and report `link_id` 0, while a singular read reports its own
+ * entity and the shell wraps once. The attempt walk branches on neither — one triple,
+ * one contract (includes/helpers/try-slot-loop.php).
+ *
  * @since 1.6.0
  * @since 1.16.0 List branches ride the shared bws_collect_value_list fold (FW-49).
+ * @since 1.21.0 Extracted from bws_base_title_callback().
+ *
+ * @param array $options  Tag options.
+ * @param mixed $instance GB tag instance.
+ * @return array{value:string, link_id:int, link_type:string} link_id 0 = the caller must
+ *                        not link-wrap: either there is no entity, or the value came from
+ *                        a list arm that already wrapped per item.
  */
-function bws_base_title_callback( $options, $block, $instance ): string {
-	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
+function bws_base_title_resolve_value( array $options, $instance ): array {
+	$res = bws_base_src_resolution( $options );
 
-	$res      = bws_base_src_resolution( $options );
-	$link_to  = $options['linkTo'] ?? 'none';
-	$link_key = $options['linkKey'] ?? '';
-	$new_tab  = ! empty( $options['newTab'] );
-
-	// Site read — title base tag has no `use`; resolver returns site name. Link-wrap.
+	// Site read — title base tag has no `use`; resolver returns site name. Sentinel
+	// link identity (id 1, 'site' type), the same pair the text seam reports.
 	if ( 'site' === $res['kind'] ) {
-		$value = bws_site_resolve_value( 'title', $options, $instance );
-		if ( '' !== $value && function_exists( 'bws_wrap_with_link' ) ) {
-			$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, 1, 'site' );
-		}
-		if ( '' !== $value ) {
-			return $value;
-		}
-		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'title' ) : '';
+		return array(
+			'value'     => bws_site_resolve_value( 'title', $options, $instance ),
+			'link_id'   => 1,
+			'link_type' => 'site',
+		);
 	}
 
 	// L1 base source (SPEC §V1); ambient term archive → term name analog (§V7).
 	$base = bws_base_resolve_source_for_callback( $options, $instance );
 
-	// REFUSED (GH #75/#76/#109) — read nothing. {{title}} registers no `fallback` option,
-	// so this arm's whole empty path is the preview label; the expression is the tail's,
-	// unchanged.
+	// REFUSED (GH #75/#76/#109) — read nothing. The empty triple IS this arm's own empty
+	// path: {{title}} registers no `fallback` option, so the shell's whole empty path is
+	// the preview label and a refusal takes it exactly as a read that found nothing does.
 	if ( bws_base_read_refused( $res, $base ) ) {
-		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'title' ) : '';
+		return array( 'value' => '', 'link_id' => 0, 'link_type' => 'post' );
 	}
 
 	// Ambient dispatch (term name §V7; author display name, #19 — user archives
 	// have a canonical URL via get_author_posts_url, so both kinds link-wrap on the
-	// seam's derived identity) through the one kind-dispatching seam.
+	// seam's derived identity) through the one kind-dispatching seam. The seam's triple
+	// IS this arm's return shape, tail and all.
 	$ambient = bws_base_ambient_analog( 'title', $base, $options, $instance );
 	if ( null !== $ambient ) {
-		$value = $ambient['value'];
-		if ( '' !== $value ) {
-			if ( $ambient['link_id'] && function_exists( 'bws_wrap_with_link' ) ) {
-				$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, $ambient['link_id'], $ambient['link_type'] );
-			}
-			return $value;
-		}
-		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'title' ) : '';
+		return $ambient;
 	}
 	// Both list branches run their own plural traversal, so the collapsing resolve
 	// is deferred into the singular arm (review #3).
@@ -1376,9 +1393,42 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 		$link_type = 'post';
 	}
 
+	return array(
+		'value'     => $value,
+		'link_id'   => $link_id,
+		'link_type' => $link_type,
+	);
+}
+
+/**
+ * Callback for the `title` base tag.
+ *
+ * Shell over bws_base_title_resolve_value(): resolve the value, link-wrap what the
+ * singular arms returned (a list arm wrapped its own values per item and reports
+ * link_id 0), then on empty output apply the editor preview label.
+ *
+ * NO STATED FALLBACK HERE — {{title}} registers no `fallback` option, so the empty path
+ * is the label or nothing at all.
+ *
+ * @since 1.6.0
+ * @since 1.21.0 Value resolution extracted to bws_base_title_resolve_value().
+ */
+function bws_base_title_callback( $options, $block, $instance ): string {
+	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
+
+	$resolved = bws_base_title_resolve_value( (array) $options, $instance );
+	$value    = $resolved['value'];
+
 	if ( '' !== $value ) {
-		if ( $link_id && function_exists( 'bws_wrap_with_link' ) ) {
-			$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, $link_id, $link_type );
+		if ( $resolved['link_id'] && function_exists( 'bws_wrap_with_link' ) ) {
+			$value = bws_wrap_with_link(
+				$value,
+				$options['linkTo'] ?? 'none',
+				$options['linkKey'] ?? '',
+				! empty( $options['newTab'] ),
+				$resolved['link_id'],
+				$resolved['link_type']
+			);
 		}
 		return $value;
 	}
