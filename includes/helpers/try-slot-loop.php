@@ -8,8 +8,8 @@
  * point: until 1.21.0 the walk and the per-attempt read were one ~350-line
  * anonymous closure in TagTemplateRegistry::generate_base_try_tags(), so every
  * rule a base tag's read gained had to be re-inherited by a second renderer, and
- * every base/`try_` parity defect is one that was not (FW-135 is the live
- * instance; the FW-136 row in docs/future-work.md tracks the merge).
+ * every base/`try_` parity defect is one that was not (FW-135 was the last
+ * instance, dissolved by the merge; FW-136 in docs/future-work.md records it).
  *
  * THE RESOLVE SEAM IS THE PARAMETER, not a name this file switches on — FW-107's
  * stated fix shape. That is what makes the walk callable with no WordPress at all
