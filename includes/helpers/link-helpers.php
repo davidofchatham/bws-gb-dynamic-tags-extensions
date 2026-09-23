@@ -206,7 +206,7 @@ function bws_get_link_options(): array {
 			'label'        => __( 'URL Meta/Option Field Key', 'generateblocks' ),
 			'dynamicLabel' => true,
 			'labelPrefix'  => __( 'URL', 'generateblocks' ),
-			'help'         => __( 'Meta or option field key whose value is used as the link URL. When a tag renders several sources as a list, no link is generated for a source\'s item when this field is empty. For try_ tags, this field is read from the source that produced the output, and an attempt that produces more than one result is not linked.', 'generateblocks' ),
+			'help'         => __( 'Meta or option field key whose value is used as the link URL. When a tag renders several sources as a list, no link is generated for a source\'s item when this field is empty. For try_ tags, this field is read from the successful attempt\'s source(s).', 'generateblocks' ),
 			'show_if'      => array( 'linkTo' => 'key' ),
 		),
 		'newTab'  => array(

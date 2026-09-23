@@ -884,7 +884,7 @@ Excluded: `content`, `permalink`, `image`. (`email`/`phone` have their own
 | Option name | Option label | Notes |
 |---|---|---|
 | `linkTo` | Link To | Link-destination selector. Values enumerated below. First value `none` is the canonical token, stripped at registration per default-strip strategy. |
-| `linkKey` | URL Meta/Option Field Key | Meta or option field key whose value is the URL (post/term meta, or a wp_options / ACF-options key under `src:site`). Shown when `linkTo:key`. If empty, link wrap skipped (never blocks tag output). For `try_` tags, this field is read from the entity that produced the winning slot's output — no per-slot `linkKey` — and a winning slot that produced SEVERAL results renders them unlinked (FW-135; the base list fold links per item, the `try_` emit does not). |
+| `linkKey` | URL Meta/Option Field Key | Meta or option field key whose value is the URL (post/term meta, or a wp_options / ACF-options key under `src:site`). Shown when `linkTo:key`. If empty, link wrap skipped (never blocks tag output). For `try_` tags, this field is read from the entity that produced the winning slot's output — no per-slot `linkKey` — and a winning slot that fans reads it from each value's own entity, the way a base tag in list mode does. |
 | `newTab` | Open in new tab | Boolean presence-flag. Shown when `linkTo` not empty. Emits `target=”_blank” rel=”noopener noreferrer”` on the anchor. |
 
 **`linkTo` values:**
@@ -895,11 +895,7 @@ Excluded: `content`, `permalink`, `image`. (`email`/`phone` have their own
 | `permalink` | Permalink | Entity permalink (`get_permalink` / `get_term_link`); under `src:site` → `home_url()` (the site permalink-analog — there is no separate `linkTo:site`). |
 | `key` | URL Meta/Option Field | URL read from the meta/option field named in `linkKey` (allowlist-gated under `src:site`). |
 
-Link wrap is applied **after fallback resolves** — fallback text is also wrapped if a link resolves.
-On `try_` tags, the single `linkTo`/`linkKey`/`newTab` applies to the winning slot's entity (post or
-term) — and only where that slot produced ONE result; a slot that fanned prints its joined values
-unlinked (FW-135). On a base tag it is the entity the chain lands on, and in list mode each value is
-wrapped against its own identity (§List mode).
+Link wrap is applied **after fallback resolves** — fallback text is also wrapped if a link resolves. On a base tag it is the entity the chain lands on, and in list mode each value is wrapped against its own identity (§List mode). On `try_` tags, the single `linkTo`/`linkKey`/`newTab` applies to the winning slot's entity (post or term), and per value where that slot fans.
 
 **`email`/`phone` are the exception — their link is NOT a `linkTo` option.** They do not participate
 in the `linkTo`/`linkKey`/`newTab` family above (those wrap an *entity URL*). Their only link is the
