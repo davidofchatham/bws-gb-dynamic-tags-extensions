@@ -842,31 +842,21 @@ Progress: Not started.
 
 Blocked by: —  •  Interacts with: FW-24 (cheaper alternative)
 
-#### FW-26 — {{if}} conditional tag
-
-A third composition verb (selecting = try, combining = join, conditional = if) as a separate tag set, branching a template/value on a read field value.
-
-Detail home: memory `deferred_features.md` (loose concept, no plan)
-
-Progress: Parked in favor of FW-27 (user, 2026-08-01) — the `if` concept has settled as an embedded per-slot option on base tags rather than a separate tag set. Kept for the tag-shaped alternative and the athletics driver case.
-
-Blocked by: —  •  Interacts with: FW-27, FW-28
-
 #### FW-27 — if: as a BASE-TAG OPTION
 
 A lighter alternative to FW-26 — a `show_if`-style predicate grammar that self-gates one tag's output. `if` composes with the slot chain rather than replacing it: `try_` is functionally an if-has-value chain, so generalizing the predicate makes `if` a second, author-set condition per slot alongside the existing has-value check.
 
-Detail home: memory `deferred_features.md` (spitball, no design); wire → `docs/design-history/src-chain-encoding.md`
+Detail home: `.scratch/plans/if-option.md` (spitball, no design); wire → `docs/design-history/src-chain-encoding.md`
 
-Progress: Direction confirmed and sharpened (user, 2026-08-01): embedded option, not a separate tag set; FW-26 is the parked alternative.
+Progress: Direction confirmed and sharpened (user, 2026-08-01): embedded option, not a separate tag set; the tag-set alternative FW-26 closed not planned 2026-09-23.
 
 Open: The condition's subject — the useful cases test a DIFFERENT source/field than the slot reads, which means a condition needs its own src-chain per slot on top of the read chain, roughly doubling per-slot state. A same-subject fallback (condition tests the slot's own read) covers has-value/simple truthiness with no second chain, at the cost of the cases that motivate the feature. Must decide before any wire work.
 
-Blocked by: decision:condition subject — decoupled chain vs same-subject  •  Interacts with: FW-26, FW-57 (closed), FW-56 (closed), FW-60, FW-43
+Blocked by: decision:condition subject — decoupled chain vs same-subject  •  Interacts with: FW-26 (closed), FW-57 (closed), FW-56 (closed), FW-60, FW-43
 
 #### FW-28 — Composition-of-composers
 
-Nesting {{join}}/{{try}}/{{if}}. Runtime nesting is trivial (a composer callback resolves children from its own options); an `@name` reference model is not viable since GB is stateless.
+Nesting {{join}}/{{try}}. Runtime nesting is trivial (a composer callback resolves children from its own options); an `@name` reference model is not viable since GB is stateless.
 
 Detail home: memory `deferred_features.md` (nesting tension)
 
@@ -874,11 +864,11 @@ Progress: Not started. Only nested RESOLUTION is solved; authoring UI is the gat
 
 Open: True-recursive vs one-level authoring model.
 
-Blocked by: decision:authoring-UI model  •  Interacts with: FW-26, FW-29
+Blocked by: decision:authoring-UI model  •  Interacts with: FW-26 (closed), FW-29
 
 #### FW-29 — Admin-built composite tag
 
-A `{{custom}}` tag plus a template selector — build an over-complex tag in an admin UI, persist it server-side, and reference it via `{{custom tpl:name}}`, sidestepping the flat-options serialization wall. May be the authoring substrate for heterogeneous join/if/try via a `tpl:` option.
+A `{{custom}}` tag plus a template selector — build an over-complex tag in an admin UI, persist it server-side, and reference it via `{{custom tpl:name}}`, sidestepping the flat-options serialization wall. May be the authoring substrate for heterogeneous join/try via a `tpl:` option.
 
 Detail home: memory `deferred_features.md` (counter-concept + substrate spitball, no design)
 
@@ -1125,6 +1115,7 @@ Append-only ledger of closed, shipped, or cut work — both `FW-N` items deleted
 | FW-11 | Gate wrap-capable base tags on img/picture | Cut 2026-07-21 — inert, no code shipped. No editor-reachable GB block presents `tagName` img/picture to the picker's compare | GH #31 (closed inert); `gb-constraints.md` §visibility blind spot |
 | FW-12 | Custom time format on two-ended `as:time` range | Shipped 1.15.0: per-side format via the single-ended resolver chain | CHANGELOG 1.15.0; `bws_format_time_range()` PHPDoc; matrix D3 |
 | FW-22 | `{{join}}` tag | Shipped 1.15.0: standalone combining tag, 10 text slots, separator + template modes, %N wire tokens. Spawned FW-43/44/45/46 | CHANGELOG 1.15.0; `tag-reference.md` §join; plan archived `docs/design-history/combine-text.md` |
+| FW-26 | `{{if}}` conditional tag | Closed not planned 2026-09-23 (user), no code shipped. The conditional verb settled as an embedded per-slot option on base tags rather than a separate tag set; parked in that direction's favor since 2026-08-01 | FW-27; memory `deferred_features.md` |
 | FW-32 | Primary-source + ref-hop parity | Retired 1.17.0 — its limits are discharged by chain-then-step rooting, preserved (not collapsed-to-first) fan-out, and multi-`refs` chains; the one residue is FW-39's scope | CHANGELOG 1.17.0; design record `docs/design-history/ref-hop-parity.md` |
 | FW-33 | `term_` deprecation path | Shipped 1.20.0 (2026-09-15, [PR #134](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/pull/134)): all three closure conditions in one change — base-tag parity via FW-39's root argument, converter entries for the entity-naming and argless shapes, and the family re-registered through `MigrationRegistry` `type:'tag'` (stamping `gb_type='deprecated'`), plus the `term_ tags` toggle seeding off on new installs. Two live defects fixed on the way: an ID-collision read of an unrelated term, and a taxonomy setting that could not reach the current post's first matching term. REMOVAL was always outside this item — it waits at FW-129's internal half, gated on the tags-in-use report FW-128 would build. The collapsed-fan gap does not resolve for free (migration is output-neutral): a converted tag carries the flat-era number until its author deletes it | CHANGELOG 1.20.0; [PR #134](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/pull/134); `docs/deprecated-tags-options.md`; `docs/design-history/term-family-migration-output-neutrality.md`; FW-129 (the removal that followed) |
 | FW-36 | Deprecated vs Removed settings split (tags AND options) | Shipped 1.14.0 (absorbed FW-37) | CHANGELOG 1.14.0; `MigrationRegistry::is_entry_live()` PHPDoc + CONTEXT.md I10; FW-38 is the principled successor |
