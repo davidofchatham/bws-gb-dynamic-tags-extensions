@@ -22,7 +22,7 @@ through it over hand-built pages or live-site probes.**
 
 Full harness catalog (which harness is pure vs. requires-the-real-file, the three impure ones, the
 node-based ones): [`docs/testing.md`](docs/testing.md). Operating the testbed (the two staleness
-layers, seeding, the visible-row mandate, running page snapshots): [`docs/testbed.md`](docs/testbed.md),
+layers, seeding, the visible-row mandate, sweep cost, running page snapshots): [`docs/testbed.md`](docs/testbed.md),
 and reading it is not optional before an integration run.
 
 ## Documentation ownership
@@ -94,7 +94,7 @@ already disagree, resolve it as drift; this clause is about not writing the sent
 | Harvest/replay verification instrument (what it is, how a run is driven, what a clean diff proves) | `tools/harvest-replay/README.md` | Read FIRST when touching any of the three scripts. `docs/update-triggers.md` states the rules a run rides on; the CHANGELOG-facing outcome is not its business. `bin/harvest-tags.sh` + the harvest fixture live in the ENV repo. |
 | Update-trigger RULES (what a harness run does and does not prove, per trigger) | `docs/update-triggers.md` | One section per trigger. **`CLAUDE.md` §Update triggers is the INDEX** — trigger + harnesses to run + link; a trigger is at full length in exactly one of the two, never both. A trigger with nothing to say past "update that doc" has no section here. |
 | Full test-harness catalog (which is pure vs. requires-the-real-file, the three impure ones, the node-based ones) | `docs/testing.md` | `CLAUDE.md` §Development keeps the one-paragraph summary and the two-layer rule, points here for the catalog |
-| Operating the fixture testbed (entrypoints, the two staleness layers, seeding, visible-row mandate, running page snapshots) | `docs/testbed.md` | `CLAUDE.md` §Development owns the two-LAYER rule and points here; this owns the operation. `bin/*.sh` live in the ENV repo. Blueprint specifics stay in `tools/fixtures/core-structures/README.md`. |
+| Operating the fixture testbed (entrypoints, the two staleness layers, seeding, visible-row mandate, the one-boot-per-CONTEXT sweep rule, running page snapshots) | `docs/testbed.md` | `CLAUDE.md` §Development owns the two-LAYER rule and points here; this owns the operation. `bin/*.sh` live in the ENV repo. Blueprint specifics stay in `tools/fixtures/core-structures/README.md`. |
 | Shipped versions | `CHANGELOG.md` | Append-only |
 | Non-bug future-work TRACKER (visible index: item + blockers + interactions + pointer to detail home) | `docs/future-work.md` | Tracked/reviewable surface over hidden detail homes. Indexes, never duplicates detail. Columns: **Blocked by** (hard prereq), **Interacts with** (soft coupling), **Detail home** (design + implicit certainty). No status column — certainty is read from the detail home. **Bugs → GitHub Issues only, never here.** Avoid one GH issue per speculative enhancement. When unsure where work belongs, ASK. |
 | SPEC for one in-flight piece of work (problem, interfaces, invariants, tasks, scope) | `.scratch/<feature-slug>/spec.md` | Gitignored, dies at merge; the PR body publishes it. Bugs are GitHub Issues and never a spec file. Split + conventions: `docs/agents/issue-tracker.md`. Lifecycle + post-ship migration: §Spec lifecycle. |

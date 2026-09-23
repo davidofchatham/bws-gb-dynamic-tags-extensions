@@ -60,6 +60,36 @@ to sit after `{{join}}` when it ships, not after the `call` outlier.
 
 See `tools/fixtures/core-structures/README.md`. The design record that produced this testbed: [`design-history/fixture-testbed.md`](design-history/fixture-testbed.md).
 
+## Sweeping a tag set across contexts — one WP boot per CONTEXT, never one per cell
+
+A before/after sweep (render every tag string in a set against every context in a set, on two builds, and diff) is the measurement a refactor that should move nothing is held to. Do NOT build one out of `wp bws render-tag` calls, one per cell. A fresh `wp` invocation reboots WordPress and reloads the plugin over the 9p `PLUGINS_ROOT` mount: **measured 2026-09-23 on this testbed at roughly 3 seconds per call**, so a 73-tag × 14-context sweep spends about 50 minutes per arm on bootstrap alone, before any tag renders. Both arms are needed, so that is the cost twice. (Measured because a run was profiled while stalled — only `lsphp` was hot and every other container idle. Slowness here is bootstrap COUNT, not machine load.)
+
+Boot once per CONTEXT instead and render the whole tag list in-process, through the same seam the command wraps. **The same 1022-cell sweep runs in 30 seconds** (measured the same day, against the 50-minute per-cell version it replaced). The whole driver:
+
+```php
+// wp eval-file sweep-tags.php <tags.json> --url=https://testbed.test/<context>/
+$tags = json_decode( file_get_contents( $args[0] ), true );
+$ctx  = (string) ( WP_CLI::get_runner()->config['url'] ?? '' );
+if ( '' !== $ctx ) {
+	wp();   // --url only set $_SERVER; this is what makes the main query genuine.
+}
+$instance          = new stdClass();
+$instance->context = array();   // add 'bwsEditorPreview' => true for the preview arm.
+$path = '' === $ctx ? '(none)' : ( wp_parse_url( $ctx, PHP_URL_PATH ) ?: '/' );
+foreach ( $tags as $tag ) {
+	$out = (string) GenerateBlocks_Register_Dynamic_Tag::replace_tags( $tag, array(), $instance );
+	echo $path . "\t" . $tag . "\t" . str_replace( array( "\n", "\r" ), ' ', $out ) . "\n";
+}
+```
+
+Driven by a shell loop over the context list, one `wp eval-file … --url=<ctx>` per context. It is small enough to rewrite per sweep and lives in `.scratch/` with the tag list; the sweeps themselves are throwaway, not instruments.
+
+**Contexts stay in SEPARATE processes, and that is the load-bearing half.** Re-running `wp()` over a live `$wp_query` inside one boot is where per-request memoization leaks one context's ambient answers into the next, and a sweep that lies is worse than a slow one. The saving is already 34× without it.
+
+**Do NOT `trim()` a cell.** Cross-validated 2026-09-23 against the per-cell version on one build: the two agree on every cell except trailing whitespace, which the trimming version was discarding — and an `as:alt` read returns a single space from the `generateblocks_dynamic_tag_replacement` alt pad, so trimming turned 80 genuinely rendered cells into apparent empties in that run.
+
+**Read the non-empty cell count before trusting a zero diff.** A sweep whose cells are nearly all empty proves nearly nothing, and most fixture state is narrow: the image surface, for instance, is `feature_image` on three posts plus the `team_members` row photos, with no featured images, no term images and no site logo seeded at all (which is what `fold-test-matrix.md` F9a.7/F9a.8 record as vacuous). A tag set harvested from the matrices will mostly miss it.
+
 ## Two layers of staleness sit between an edit and what you read
 
 ### The page cache
