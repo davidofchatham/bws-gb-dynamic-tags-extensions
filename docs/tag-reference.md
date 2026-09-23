@@ -307,7 +307,7 @@ Selected templates support outputting multiple results as a delimited list. When
 
 _Avoid_: `usable` in USER-FACING copy (help text, labels, notices, README). The author-facing word is **results**-family, and the shipped 1.17.0 Upgrade Notice's "unusable sources output nothing" now carries the SAME resolution-level sense — one sense everywhere, kept out of author surfaces all the same because it is model vocabulary.
 
-**`limit` is interpreted in ONE place — `bws_clamp_limit( $raw, int $default )` (field-helpers.php).** Three call sites route through it: the seam (`bws_resolve_field_values`), the shared list fold (`bws_collect_value_list`), and try_ slot dispatch (`class-tag-template-registry.php`). `bws_try_join_items` takes an already-resolved int — it holds no options, so it structurally cannot know which default applies. The rule, as of 1.17.0:
+**`limit` is interpreted in ONE place — `bws_clamp_limit( $raw, int $default )` (field-helpers.php).** Four call sites route through it: the seam (`bws_resolve_field_values`), the shared list fold (`bws_collect_value_list`), the try_ attempt walk (`bws_try_run_attempts`, which writes the resolved number back for the base seam to slice with), and the join slot loop (`bws_join_callback`). The rule, as of 1.17.0:
 
 | Value | Effective limit |
 |---|---|

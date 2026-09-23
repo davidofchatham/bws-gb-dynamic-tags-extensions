@@ -126,7 +126,7 @@ require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
 // FW-63 replaced their three token tests with one chain query the copies went on
 // passing against a rule the plugin no longer had — the exact drift the house
 // pattern's own caveat warns about. base-shared.php defines functions only, so it
-// loads inert behind the shims below (same approach as try-join-seam-test.php).
+// loads inert behind the shims below.
 if ( ! function_exists( '__' ) ) {
 	function __( $s, $d = null ) { return $s; }
 }

@@ -139,11 +139,6 @@ function bws_dynamic_tags_init() {
 	// Grouped with the grammar it compiles rather than with the engine it feeds; every
 	// call is at render time, so its position relative to either is immaterial.
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/slot-fold-compile.php';
-	// The `try_` slot ARM TABLE (FW-71, retires FW-5) — pure data keyed by the resolved
-	// source kind bws_fold_chain_resolution() answers, so it loads after the compiler that
-	// owns that vocabulary. Read at render only; position relative to the tag files is
-	// immaterial.
-	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/try-slot-arms.php';
 	// The `try_` ATTEMPT WALK (FW-136) — the selecting fold, lifted out of the tag
 	// constructor's closure so it is one named function over a resolve callable rather
 	// than a second renderer. Loads after the grammar and the compiler it drives the

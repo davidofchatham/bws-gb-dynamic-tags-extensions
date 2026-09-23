@@ -32,10 +32,9 @@
  * Callers folded onto this rule (four sites, one rule):
  *   1. bws_resolve_field_values()  — field-helpers.php (the seam)
  *   2. bws_collect_value_list()    — field-helpers.php (the shared list fold)
- *   3. try_ slot dispatch          — includes/classes/class-tag-template-registry.php
- *   4. bws_try_join_items()        — includes/tags/base-shared.php. NOT a clamp site
- *      any more: it holds no options, so it structurally cannot know the era. It
- *      takes an already-resolved int and slices with it.
+ *   3. bws_try_run_attempts()      — includes/helpers/try-slot-loop.php (the try_
+ *      attempt walk; it writes the resolved number back so the base seam reads it)
+ *   4. bws_join_callback()         — includes/tags/base-tags.php (each join slot)
  *
  * Run:  php tools/test/limit-clamp-test.php   (exit 0 = pass, 1 = fail)
  *

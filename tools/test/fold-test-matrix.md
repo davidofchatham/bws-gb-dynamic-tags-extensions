@@ -419,7 +419,7 @@ fine" is not evidence.
 | F9.5e | — | `{{content src:rows,team_members}}` | EMPTY — and this row is a WRONG-ENTITY FIX, not a new refusal. Before 1.21.0 it printed **the whole surrounding page's content**: the rows chain resolved no row to a post id, the collapsing selector's empty-fan leg fell back to the ambient post, and `use:content` read it. A row has no content of its own, so the analog refuses (the F9.5c rule, on the family that had been leaking instead of rendering empty). `use:excerpt` is the same assertion and was measured with it |
 | F9.5f | — | `{{email src:rows,team_members\|key:email\|noLink:1}}` | displays `alice@example.test, bob@example.test` (plain — the fixture seeds obfuscation OFF; with the toggle on `antispambot` entity-encodes the characters and a browser still shows the addresses). `limit:1` displays alice alone. **THE BASE TAG NEEDED NO ARM AND THIS ROW IS WHY IT IS WRITTEN DOWN.** `{{email}}` reads through `bws_resolve_field_values()`, which dispatches nothing on source kind and hands every resolved source to the L2 seam, whose `meta_row` case has been live since 1.17.0 — so this rendered the same two addresses on the tree BEFORE ticket 04, measured. Nothing pinned it and no doc said it; that is the gap the row closes, not a behaviour change |
 | F9.5g | — | `{{phone src:rows,team_members\|key:phone\|noLink:1}}` | `(617) 555-0142, (617) 555-0187`. Same seam and same note as F9.5f — `{{phone}}` read rows before ticket 04 too, unpinned. With the `tel:` wrap on, each renders `href="tel:+1-617-555-0142"` / `…0187` |
-| F9.5h | — | `{{try_content A:src(rows,team_members);use(key);key(description)}}` | `Founding partner`. The `try_` twins of F9.5d/f/g, and the half that DID need work: the `try_` machinery dispatches per ARM, so a template with no `try_row_fn` fell through to the post arm, resolved no id off a `rows` chain and rendered empty. `{{try_email A:src(rows,team_members);key(email)}}` and `{{try_phone A:src(rows,team_members);key(phone)}}` render F9.5f/g's values; `limit(1)` slices and a stated `sep` joins |
+| F9.5h | — | `{{try_content A:src(rows,team_members);use(key);key(description)}}` | `Founding partner`. The `try_` twins of F9.5d/f/g, and the half that DID need work: the `try_` machinery then dispatched per ARM, so a template with no `try_row_fn` fell through to the post arm, resolved no id off a `rows` chain and rendered empty. `{{try_email A:src(rows,team_members);key(email)}}` and `{{try_phone A:src(rows,team_members);key(phone)}}` render F9.5f/g's values; `limit(1)` slices and a stated `sep` joins |
 | F9.5i | — | `{{try_content A:src(rows,team_members);use(content)\|B:use(key);key(main_line)}}` | `(987) 654-3210` — the ambient page's own field, from slot B. Slot A is a row asking for an analog: it REFUSES, renders nothing, and the attempt chain advances. The failure this pins is a refusing arm that returns something anyway, which a selecting `try_` treats as a WIN so the author's later attempts never run ([I15]) |
 | F9.5j | — | `{{title src:rows,team_members}}` | EMPTY — **a family with NO row arm REFUSES, and the paired control is what makes that readable.** `{{title}}` on the same page renders `Matrix: Post Meta`, so the emptiness above is a refusal and not a dead fixture. Before 1.21.0 the refusing row rendered `Matrix: Post Meta` too: a `rows` chain resolves no post, the post tail's empty-fan leg read the SURROUNDING PAGE, and an author saw a plausible value from an entity the wire never named. `{{title}}` will never gain a row arm — a row is not an entity and has no title, and the hop that spelling implies is already sayable (`src:rows,team_members;refs,lead_ref\|use:title`) |
 | F9.5k | — | `{{permalink src:rows,team_members}}` | EMPTY, F9.5j's assertion on the URL family. Control: `{{permalink}}` renders `https://testbed.test/matrix-post-meta/`, which is what this row printed before 1.21.0. `{{permalink}}` registers no `fallback` and no preview label, so `''` is the whole of its refusal |
@@ -427,7 +427,7 @@ fine" is not evidence.
 | F9.5l2 | — | `{{image src:rows,team_members\|use:key\|key:photo_id\|as:url}}` | The same URL as F9.5l, off the same attachment through ACF's `id` return format. **The three format rows are not redundancy**: ACF formats a sub-field on the way out of `get_field()`, so the stored shape the row read has to survive is the FIELD's property, not the tag's — an int here, an array at F9.5l, a URL string at F9.5l3 |
 | F9.5l3 | — | `{{image src:rows,team_members\|use:key\|key:photo_url\|as:url}}` | The same URL again, through the `url` return format — the only one of the three the string read seam could ever have carried. F9.5l is the one that needed `bws_read_resolved_source_value()`, the raw sibling ticket 01 split out; these two are what says the raw path did not break the formats that already worked. The `as` option behaves on a row exactly as on a post (measured: `as:id` → the attachment id, `as:alt` / `as:caption` → the attachment's, `as:url,thumbnail` → the sized URL, and `as:title` returns the URL on BOTH routes, a shared quirk of `bws_get_attachment_data()` and not a row defect) |
 | F9.5l4 | — | `{{image src:rows,team_members\|use:featured\|as:url}}` | EMPTY — F9.5c's analog rule on the image family. A row has no featured image, so `use:featured` refuses rather than reading the surrounding post's, which is the plausible wrong value this pins against. A stated `fallback` still fires on an empty row read and on a repeater with no rows at all, matching the post route's two fallback occasions (measured through `render-tag`) |
-| F9.5l5 | — | `{{try_image A:src(rows,team_members);use(key);key(photo)}}` | F9.5l's URL — the `try_` twin, and the half that needed wiring: the `try_` dispatcher runs per ARM, so the image template had to name a `try_row_fn` or its rows slot fell through to the post arm. Both halves run the SAME function (`bws_try_image_row_dispatch`), which is what keeps the base tag and its twin reading one way |
+| F9.5l5 | — | `{{try_image A:src(rows,team_members);use(key);key(photo)}}` | F9.5l's URL — the `try_` twin, and the half that needed wiring: the `try_` dispatcher then ran per ARM, so the image template had to name a `try_row_fn` or its rows slot fell through to the post arm. Both halves run the SAME function (`bws_try_image_row_dispatch`), which is what keeps the base tag and its twin reading one way |
 | F9.5m | — | `{{datetime_single src:rows,team_members\|key:contract_start}}` | `March 4, 2029, June 10, 2030` — a date sub-field per row, FANNING, which is where this family parts from `{{image}}`/`{{content}}`: `{{datetime_single}}` is not `takes_first_usable` and keeps its `sep`, so its row read lists exactly as its post and term reads do. **The control beside it is the whole point of the row**: `{{datetime_single key:event_date_dmy}}` renders `15/08/2030`, the page's OWN date field and this row's pre-1.21.0 output, so a row read that printed that one is the old leak wearing the arm's clothes. REFUSED between ticket 04b and ticket 06 |
 | F9.5m2 | — | `{{datetime_single src:rows,team_members,limit(1)\|key:contract_start}}` | `March 4, 2029` alone — the fan is bounded where a chain states its bound, on the STEP. There is no tag-level `limit` on a base datetime tag to state it with (#62) |
 | F9.5m3 | — | `{{datetime_single src:rows,team_members\|key:contract_start\|sep: / }}` | `March 4, 2029 / June 10, 2030` — the tag's own `sep` joins the row fan, same seam as the term and post branches |
@@ -474,10 +474,7 @@ by whether an arm was involved — is what closed. They are now the same hop wit
 
 ## §F9b — ARM DISPATCH: the `try_` slot arms (#103, FW-71)
 
-FW-63 converted the BASE arms; `try_`'s four were still testing the flat tokens
-(`'' !== $stm_raw`, `'site' === $last_src`, `'current' === $last_src`, else post). #103 collapsed
-them onto one dispatch keyed by resolved source kind, through the pure table in
-`includes/helpers/try-slot-arms.php`.
+FW-63 converted the BASE arms; `try_`'s four were still testing the flat tokens (`'' !== $stm_raw`, `'site' === $last_src`, `'current' === $last_src`, else post). #103 collapsed them onto one dispatch keyed by resolved source kind, through a pure arm table. **FW-136 deleted that table and its dispatch** (1.21.0): every `try_` attempt now reads through its base tag's own resolve seam. The rows below keep #103's measurements and its explanations of the mechanism of the time; their expected values are the current ones.
 
 **The property is EQUIVALENCE, and it was measured as a before/after diff** — 34 (tag × URL) pairs
 across `/matrix-post-meta/`, `/department/sales/`, `/author/fixture-author/`,
@@ -556,9 +553,10 @@ seeded `team_members` repeater.
 
 > **VERIFIED BY MUTATION, and the first attempt was an ARTIFACT.** Two were run and both blank the
 > section: deleting the fallthrough gate (F9c.2/3/4 render nothing; F9c.1 survives, which is what
-> shows the base tag has its own path), and refusing a `meta_row` BASE in
-> `bws_try_slot_base_branch_kind()` instead of branching it to the post arm (every row goes, and
-> `try-slot-arms-test.php` §A4.4 fails beside it).
+> shows the base tag has its own path), and refusing a `meta_row` BASE in the arm table's branch
+> lookup instead of branching it to the post arm (every row goes, and the arm table's harness
+> failed beside it). Both targets went with the arm table in FW-136; neither mutation has been
+> re-run against the base resolve seams a `try_` attempt reads through now.
 >
 > **TWO MORE WERE RUN WITH FW-74, and what they measured is why F9c.6 exists.** Both are the
 > wire-vs-base conflation this section's opening states, and NEITHER moves F9c.1–F9c.5:
@@ -578,13 +576,13 @@ seeded `team_members` repeater.
 > base carries the row, so the hoisted branch reads the very value the post-arm fallthrough would —
 > the same coincidence this note already records for F9c.1–5. F9c.6 stays the only row in the
 > section that fails, and it fails on the text family alone. The `try_` rows (§F9.5m5 / §F9.5n2)
-> are untouched by either shape, because a `try_` slot dispatches through the arm table on the
-> CHAIN's kind and never reaches a base callback's branch at all.
+> were untouched by either shape when this was run, because a `try_` slot then dispatched through
+> the arm table on the CHAIN's kind and never reached a base callback's branch at all. Since
+> FW-136 it reads through the base seam that holds that branch; this has not been re-run since.
 >
-> Making the arm-table row `branchable` was run too and moves nothing, for the same coincidence: the
-> branch target now renders what the post arm rendered. `branchable: false` is still the correct
-> statement and is pinned purely (`try-slot-arms-test.php` §A5.4/§A5.5) — it is no longer pinned
-> HERE, and a note claiming otherwise would be a claim nobody measured.
+> Making the arm-table row `branchable` was run too and moved nothing, for the same coincidence:
+> the branch target rendered what the post arm rendered. The table and its pure pin went with
+> FW-136.
 >
 > **Both mutations first appeared to change NOTHING, and the reason is worth carrying:** the
 > container runs `opcache.revalidate_freq = 120`, so a front-end request inside two minutes of an
@@ -868,7 +866,7 @@ segment, nothing to drop — `lead_staff_obj` is the single-entry case that carr
 
 ## §F16 — the site branch is taken by RESOLVED KIND (email/phone)
 
-Both spellings of one source take the same branch (`try-slot-arms-test.php` §A6/§A7 is the pure
+Both spellings of one source take the same branch (`slot-fold-test.php` §P19 is the pure
 pin; these are the render proof). `/matrix-post-meta/`; site options: `organization_email`
 `info@example.test`, `org_phone` `(987) 555-0000`. Measured 2026-08-20, **re-measured 2026-08-21 on
 the post-reversal build, all six rows as stated**. The re-run is not ceremony: the 2026-08-20 stamp
@@ -976,10 +974,10 @@ The staff ids come from `wp post list --post_type=staff --post_status=publish,dr
 | F19.1 | `{{try_text use:title}}` | `Staff` — the [I6] parity row: same value as `{{text use:title}}` (text matrix T9.1) and bare `{{title}}` |
 | F19.2 | `{{try_text A:key(context_custom_heading)\|B:use(title)}}` | `Staff` — the composition the arm exists for: key-first attempt finds no entity and falls through, the canonical title answers. `{{title}}` cannot express it (no key-first path) |
 | F19.3 | `{{try_title}}` / `{{try_content}}` | `Staff` / the staff type description (`<p>`-wrapped) — the other two templates that reach the query context. Both did it through a `try_query_fn` until FW-136 tickets 04 and 06 flipped them onto their base resolve seams, which reach that context themselves; the descriptor went with each flip and the value here did not move |
-| F19.4 | `{{try_permalink}}` / `{{try_image}}` / `{{try_datetime_single key:event_date}}` / `{{try_datetime_range startKey:event_date}}` | **empty** — the six families that never carried a `try_query_fn`, and the value is the same empty by two different routes. `permalink` and `image` reach the POST arm (through the base seam once flipped, through the arm shim's fn-absent fallthrough while not), which resolves no id off a query-context base and cannot serve off a loop item on an archive. BOTH datetime families stopped taking that route at FW-136 tickets 07 and 08: their base seams CLAIM the query-context kind, and `bws_base_query_context_analog_read()` carries no datetime case, so they answer `''` one layer earlier. Empty on every route, never a leaked entity (pre-1.19.0 these read the main query's first row) |
+| F19.4 | `{{try_permalink}}` / `{{try_image}}` / `{{try_datetime_single key:event_date}}` / `{{try_datetime_range startKey:event_date}}` | **empty** — the six families that never carried a `try_query_fn`, and the value is the same empty by two different routes. `permalink` and `image` reach the POST arm (through the base seam since FW-136), which resolves no id off a query-context base and cannot serve off a loop item on an archive. BOTH datetime families stopped taking that route at FW-136 tickets 07 and 08: their base seams CLAIM the query-context kind, and `bws_base_query_context_analog_read()` carries no datetime case, so they answer `''` one layer earlier. Empty on every route, never a leaked entity (pre-1.19.0 these read the main query's first row) |
 | F19.5 | `{{try_text use:title\|linkTo:permalink}}` | `Staff` **unwrapped** — the arm row's empty `link` column: a query context has no link identity |
 
-Verified 2026-08-29 via `render-tag`; F19.3 re-measured 2026-09-23 on both builds of content's flip, `{{try_content}}` equal to `{{content}}` on all five query-context ambients. F19.4's datetime legs re-measured 2026-09-23 on both builds of each datetime flip (ticket 07's and ticket 08's) — empty before and after, on all five. Arm-table membership, columns and branchability are pinned pure in `try-slot-arms-test.php` (§A1–§A5); the WIRING (which route a template takes to this context, the fn-absent fallthrough) shares the accepted coverage gap `text-test-matrix.md` T8's note records — these rows are its only pins.
+Verified 2026-08-29 via `render-tag`; F19.3 re-measured 2026-09-23 on both builds of content's flip, `{{try_content}}` equal to `{{content}}` on all five query-context ambients. F19.4's datetime legs re-measured 2026-09-23 on both builds of each datetime flip (ticket 07's and ticket 08's) — empty before and after, on all five. Which route a family takes to this context is its base resolve seam's since FW-136, and shares the accepted coverage gap `text-test-matrix.md` T8's note records — these rows are its only pins.
 
 ## §F20 — a SPECIFIC TERM root, end to end (FW-39, ticket 02)
 

@@ -224,10 +224,10 @@ function bws_value_looks_time_only( $value ) {
  * FW-3(a) compat shim: the datetime cores' public signatures historically took
  * a bare post id, the `'option'` site sentinel, or an ACF term object-id string
  * ("{taxonomy}_{term_id}") in their first arg. Callers still pass those forms
- * (the registry's template closures — `post_fn` / `term_fn` / `try_core_fn` /
- * `try_term_fn` — pass scalars, and the callbacks pass the `'option'`
- * sentinel), so every legacy shape maps here onto the payload shape the source
- * factory emits (`bws_resolve_base_source()`), and the cores + parse layer
+ * (the registry's template closures — `post_fn` / `term_fn` — pass scalars,
+ * and the callbacks pass the `'option'` sentinel), so every legacy shape maps
+ * here onto the payload shape the source factory emits
+ * (`bws_resolve_base_source()`), and the cores + parse layer
  * branch on `kind` — never on string-shape sniffing. This shim is FW-3 residue:
  * it dies when those closures thread resolved sources themselves.
  *

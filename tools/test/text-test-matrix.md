@@ -131,23 +131,12 @@ to sit outside the loop, and the blueprint has to say so.
 | T8.8 | `{{try_text A:key(unseeded_key)\|B:use(title)}}` | `Fixture Author` — **attempt fallthrough**: a user key MISS must skip to the next attempt, not consume the tag. Safe because `$eval_opts` strips `fallback`/`fallback_text` before slot options are built; nothing else pins this |
 | T8.9 | `{{try_title}}` | `Fixture Author` — second template |
 | T8.10 | `{{try_content}}` | the fixture bio — third template |
-| T8.11 | `{{try_text use:title\|linkTo:permalink}}` | `<a href="…/author/fixture-author/">Fixture Author</a>` — user link identity survives an attempt. It was the arm table's `link:'user'` column's only evidence until FW-136 took `try_text` off the table; T8.9's `{{try_title}}` is that evidence now, and this row moved onto the seam's own user analog without moving its output |
-| T8.12 | `{{try_permalink}}` / `{{try_image}}` / `{{try_datetime_single key:event_date}}` / `{{try_datetime_range startKey:event_date}}` | **empty — unchanged**, captured BEFORE (`main@e1bff07`) as well as after. These six families carry no `try_user_fn`. `permalink` and `image` must keep reaching the post arm, which is their only route to the no-entity loop read at the foot of the slot loop — the `[ false ]` branch that lets the field read serve itself off the query-loop item. The two DATETIME families stopped reaching it at FW-136 tickets 07 and 08, for the reason `fold-test-matrix.md` F19.4 states: their base seams answer `''` a layer earlier, and the `user` kind never claimed them anyway. Same empty, two routes. Without the before-capture the row is unfalsifiable — an empty result proves nothing on its own |
+| T8.11 | `{{try_text use:title\|linkTo:permalink}}` | `<a href="…/author/fixture-author/">Fixture Author</a>` — user link identity survives an attempt. It was the arm table's `link:'user'` column's only evidence until FW-136 took `try_text` off the table; the table is deleted since, and this row moved onto the seam's own user analog without moving its output |
+| T8.12 | `{{try_permalink}}` / `{{try_image}}` / `{{try_datetime_single key:event_date}}` / `{{try_datetime_range startKey:event_date}}` | **empty — unchanged**, captured BEFORE (`main@e1bff07`) as well as after. These six families never carried a `try_user_fn`, and since FW-136 read through their base seams like the rest; `permalink` and `image` measured byte-identical across that move (ticket 10's sweep). The two DATETIME families stopped reaching it at FW-136 tickets 07 and 08, for the reason `fold-test-matrix.md` F19.4 states: their base seams answer `''` a layer earlier, and the `user` kind never claimed them anyway. Same empty, two routes. Without the before-capture the row is unfalsifiable — an empty result proves nothing on its own |
 
-T8.1–T8.6 verified 2026-07-21 (build f6f8d1e). T8.6 flipped and T8.7–T8.12 added + verified
-2026-08-17 (#108), all via `render-tag`; T8.12's before-values captured on a stashed tree at
-`main@e1bff07`. All twelve re-run 2026-09-23 on both builds of FW-136 ticket 08's flip
-(`datetime_range` onto its base resolve seam, the ninth and last) — byte-identical across the
-whole section, the datetime_range leg added to T8.12 and measured empty on both.
+T8.1–T8.6 verified 2026-07-21 (build f6f8d1e). T8.6 flipped and T8.7–T8.12 added + verified 2026-08-17 (#108), all via `render-tag`; T8.12's before-values captured on a stashed tree at `main@e1bff07`. All twelve re-run 2026-09-23 on both builds of FW-136 ticket 08's flip (`datetime_range` onto its base resolve seam, the ninth and last) — byte-identical across the whole section, the datetime_range leg added to T8.12 and measured empty on both. Re-run again the same day on both builds of FW-136 ticket 10 (the arm table's deletion), byte-identical.
 
-**Coverage note.** T8.6–T8.12 are the ONLY pins on the `try_` user leg. The wiring — which
-template carries which `try_*_fn`, and the fn-absent fallthrough — lives in
-`TagTemplateRegistry::try_arm_resolver()`, which no pure harness reaches: the arm-table
-harness sees data, `control-order-test.php` sees registration. Adding a `try_user_fn` to a
-seventh template or reordering that fallthrough fails nothing. Accepted for 1.17.0; the
-extraction is noted on FW-43's row. The same gap covers the `try_query_fn` leg (T9 below + `fold-test-matrix.md` §F19 are its pins).
-
-FW-136 narrowed the gap rather than closing it: the ATTEMPT WALK around that wiring came out into `bws_try_run_attempts()` and is covered by `try-slot-loop-test.php`, and each family flipped onto a base resolve seam leaves the arm resolver entirely (`try_text` was the first). The rows above stay the pins for every family still standing on it.
+**Coverage note.** T8.6–T8.12 are the ONLY pins on the `try_` user route. Since FW-136 which families reach the user analog is decided inside each family's base resolve seam (`bws_base_ambient_analog()`), the same place the base tags decide it, and no pure harness reaches that: `try-slot-loop-test.php` covers the ATTEMPT WALK around the seam with a recorder in its place, and `control-order-test.php` sees registration. The same holds for the query-context route (T9 below + `fold-test-matrix.md` §F19 are its pins).
 
 ---
 

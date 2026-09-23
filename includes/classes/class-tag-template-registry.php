@@ -29,49 +29,14 @@ class TagTemplateRegistry {
 	 *   options          array     Template-specific options excluding via/traversal sub-options.
 	 *   term_fn          callable  fn($term_id, $opts, $inst): string — term-entity handler.
 	 *   post_fn          callable  fn($post_id, $opts, $inst): string — post-entity handler (term_ via:'ref').
-	 *   resolve_fn       callable|null  fn(array $opts, $inst): array{value:string,
-	 *                    link_id:int, link_type:string} — the BASE tag's own resolve seam
-	 *                    (FW-136). Present = an attempt reads exactly as the base tag does,
-	 *                    so every rule the base read holds is inherited rather than
-	 *                    re-implemented. ABSENT = this family has not been flipped yet and
-	 *                    stands on try_arm_resolver()'s shim over the try_*_fn arms below.
-	 *                    The key is TRANSITIONAL: it exists so each family's flip is its own
-	 *                    shippable commit, and it is deleted with the shim and the arm table
-	 *                    once the ninth family lands. A naming convention plus
-	 *                    function_exists() was rejected for it — a rename would then be a
-	 *                    silent behavior change, which is the drift mode the merge closes.
-	 *   try_core_fn      callable  fn($post_id, $opts, $inst): string — try_ post-slot handler.
-	 *   try_term_fn      callable|null  fn($term_id, $opts, $inst): string — try_ via:tax slot handler.
-	 *   try_site_fn      callable|null  fn($opts, $inst): string — try_ src:site slot handler (FW-4).
-	 *                    When present the registry site arm dispatches here instead of $cf(0,…);
-	 *                    templates whose try_core_fn is site-blind (post cores) set a thin closure
-	 *                    over bws_site_resolve_value('<tag>',…). Absent → $cf(0,…) fallback keeps
-	 *                    seam-routed templates (email/phone) byte-identical.
-	 *   try_user_fn      callable|null  fn($user_id, $opts, $inst): string — try_ ambient
-	 *                    author-archive slot handler (#108). Present on the three templates
-	 *                    the user analog covers (text/title/content), a thin closure over
-	 *                    bws_base_user_analog_read('<tag>',…). ABSENT IS LOAD-BEARING on the
-	 *                    other six: they take the fn-absent fallthrough to the post arm, and
-	 *                    the post arm is the only one that reaches the no-entity loop read at
-	 *                    the foot of the slot loop — the `[ false ]` branch that hands the
-	 *                    core fn no id so the field read can serve itself off the query-loop
-	 *                    item.
-	 *   try_query_fn     callable|null  fn($base, $opts, $inst): string — try_ ambient
-	 *                    query-context slot handler (#19 / FW-9, 1.19.0). Takes the resolved
-	 *                    BASE, not an entity id (the kind has none — ADR 0002). Present on
-	 *                    text/title/content as a thin closure over
-	 *                    bws_base_query_context_analog_read('<tag>',…); absent on the other
-	 *                    six, which take the same fn-absent fallthrough as try_user_fn — the
-	 *                    post arm resolves no id off a query-context base and the loop read
-	 *                    cannot serve on an archive, so they render EMPTY, not wrong.
-	 *   try_row_fn       callable|null  fn($source, $opts, $inst): string — try_ repeater-row
-	 *                    slot handler (FW-74, 1.21.0). Takes the resolved SOURCE, not an
-	 *                    entity id (a row has none — it carries its own `row` array plus the
-	 *                    producer's provenance). Present on the KEYED templates; absent on the
-	 *                    analog-only ones (title/permalink), which take the same fn-absent
-	 *                    fallthrough as try_user_fn's six — the post arm resolves no id off a
-	 *                    `rows` chain and the loop read is gated on the slot stating no source
-	 *                    of its own, so they render EMPTY, not wrong.
+	 *   resolve_fn       callable  fn(array $opts, $inst): array{value:string, link_id:int,
+	 *                    link_type:string} — the BASE tag's own resolve seam (FW-136). A try_
+	 *                    attempt reads through it, so it reads exactly as the base tag does
+	 *                    and inherits every rule the base read holds rather than
+	 *                    re-implementing it. REQUIRED for a try_ tag: a template without one
+	 *                    gets none. Named explicitly rather than derived from a naming
+	 *                    convention plus function_exists(), because a rename would then be a
+	 *                    silent behavior change.
 	 *   supports_try     bool      Whether this template generates a try_ tag.
 	 *   leading_options       array    Global formatting options (as, size, the datetime format
 	 *                    cluster). Named for the term_ constructor, where they LEAD; the try_
@@ -123,7 +88,8 @@ class TagTemplateRegistry {
 	 *
 	 * NOT AFFECTED BY THE 1.21.0 WITHDRAWAL. register_modifier() was the second consumer and
 	 * is now a stub; this one stays, and external callers registering a template still get a
-	 * try_-prefixed tag out of it.
+	 * try_-prefixed tag out of it — provided the template sets `supports_try` and names its
+	 * base tag's resolve seam as `resolve_fn` (see the descriptor shape above).
 	 *
 	 * @since 1.6.0
 	 */
@@ -490,9 +456,8 @@ class TagTemplateRegistry {
 				continue;
 			}
 
-			// The post core is the one REQUIRED renderer (the gate below). Every other
-			// try_*_fn is read off the descriptor by the arm shim that needs it.
-			$try_core_fn     = $tpl['try_core_fn'] ?? null;
+			// The family's resolve seam is the one REQUIRED key (the gate below).
+			$resolve         = $tpl['resolve_fn'] ?? null;
 			$per_slot_key    = ! empty( $tpl['try_per_slot_key'] );
 			$per_slot_use    = ! empty( $tpl['try_per_slot_use'] );
 			$no_key_uses     = $tpl['try_use_no_key_values'] ?? [];
@@ -506,7 +471,7 @@ class TagTemplateRegistry {
 			$is_image        = ! empty( $tpl['is_image'] );
 			$supports_link   = ! empty( $tpl['supports_link_wrap'] ) && ! $is_image;
 
-			if ( ! $try_core_fn ) {
+			if ( ! $resolve ) {
 				continue;
 			}
 
@@ -534,16 +499,10 @@ class TagTemplateRegistry {
 			//
 			// `steps` is a CAPABILITY list, and since #104 it is the BASE TAG'S. An
 			// attempt's source is a base tag's source ([I16]): the seam hands the whole
-			// chain on as depth-0 chain wire and the arms dispatch on what it resolves to
-			// (#103), so neither half truncates it any more. It was `['terms']` while the
-			// flatten stood — the triple had no spelling for a second relationship step,
-			// so a wider offer would have authored wire that skipped.
-			//
-			// `rows` is still absent, and the reason it USED to be absent is gone: the
-			// arm consumes a `meta_row` now (FW-74). What remains is that the OFFER is
-			// its own change, landing on both authoring surfaces together — this list
-			// and the base tags' — so hand-edited wire is the only way to reach the arm
-			// until it does.
+			// chain on as depth-0 chain wire and the family's resolve seam reads it as
+			// the base tag would, so neither half truncates it any more. It was
+			// `['terms']` while the flatten stood — the triple had no spelling for a second
+			// relationship step, so a wider offer would have authored wire that skipped.
 			//
 			// The append-by-key below is a habit worth keeping, but no longer a trap:
 			// while slot keys were all-digit, PHP stored them as INTEGERS and
@@ -589,10 +548,9 @@ class TagTemplateRegistry {
 			}
 
 			// 2 — List-mode chain option (try_list_options templates: text, title, email,
-			// phone). A winning slot in list mode (any slot with a srcTermIn term-step, or
-			// src:ref once the Phase-5 plural resolver lands) joins its finished items via
-			// the seam (bws_try_join_items). `sep` is CHAIN-level (one for the whole try_,
-			// not per-slot) — the seam reads it off $opts. [SPEC §32 V4,V5 / I6 parity]
+			// phone). A winning attempt whose source fans joins its values through the
+			// family's resolve seam, exactly as the base tag does. `sep` is CHAIN-level (one
+			// for the whole try_, not per-slot) — the walk hands it to every attempt.
 			//
 			// NO TAG-LEVEL `limit` since 1.17.0 (#62). A LIMIT IS STATED WHERE THE SOURCE
 			// IS STATED, and a try_ attempt authors its source as a CHAIN, so the limit
@@ -658,8 +616,8 @@ class TagTemplateRegistry {
 			// Their default-on anchor would corrupt the <img src>. Mirrors the base
 			// {{email}}/{{phone}} VE-vis/VP-vis backstop. [SPEC §32 V11]
 			$media_guard = ! empty( $tpl['try_media_block_guard'] );
-			// takes_first_usable, inherited from the base template — no separate arm
-			// (ADR 0007). Consumed at the attempt bound and at the id reads.
+			// takes_first_usable, inherited from the base template (ADR 0007). Consumed at
+			// the attempt bound.
 			$collapse    = ! empty( $tpl['takes_first_usable'] );
 			// Slot 1 default 'use' token = first option value in template's use definition.
 			$default_use = $tpl_options['use']['options'][0]['value'] ?? '';
@@ -667,8 +625,8 @@ class TagTemplateRegistry {
 			$tpl_key = $tpl['key'];
 
 			// The family facts the ATTEMPT WALK needs, and nothing else — cardinality, the
-			// carry seed, the per-slot read gate, the collapsing bound. Everything the walk
-			// used to hold beyond these is now the resolver's (FW-136).
+			// carry seed, the per-slot read gate, the collapsing bound. How an attempt reads
+			// is $resolve's, the base tag's own seam (FW-136).
 			$loop_cfg = [
 				'per_slot_key' => $per_slot_key,
 				'per_slot_use' => $per_slot_use,
@@ -676,18 +634,6 @@ class TagTemplateRegistry {
 				'default_use'  => $default_use,
 				'collapse'     => $collapse,
 			];
-
-			// THE FAMILY'S RESOLVE SEAM — the one thing FW-136 moves per family. `resolve_fn`
-			// names the BASE tag's own resolve function, so an attempt reads exactly as the
-			// base tag does and inherits whatever the base read gains (FW-135's per-item link
-			// wrap is the first such inheritance). A template without the key has not been
-			// flipped yet and stands on the arm shim below, unchanged.
-			//
-			// The key is DELIBERATELY EXPLICIT rather than a naming convention plus
-			// function_exists(): a rename would then be a silent behavior change, which is
-			// the drift mode this merge exists to close. It is deleted with the shim once
-			// the ninth family lands.
-			$resolve = $tpl['resolve_fn'] ?? self::try_arm_resolver( $tpl );
 
 			$callback = static function ( $opts, $b, $inst ) use ( $resolve, $loop_cfg, $slnk, $media_guard, $tpl_key, $is_image ) {
 				if ( $media_guard && function_exists( 'bws_tag_blocked_on_media_block' ) && bws_tag_blocked_on_media_block( $b ) ) {
@@ -701,7 +647,7 @@ class TagTemplateRegistry {
 
 				if ( null !== $won ) {
 					$value = $won['value'];
-					// ONE link wrap, on the winning attempt's identity. A list arm that
+					// ONE link wrap, on the winning attempt's identity. A fanning read that
 					// already wrapped its values per item reports link_id 0 and is left
 					// alone — the same contract bws_base_text_callback() reads (FW-85).
 					if ( $slnk && $won['link_id'] && function_exists( 'bws_wrap_with_link' ) ) {
@@ -755,293 +701,6 @@ class TagTemplateRegistry {
 
 			self::register_gb_tag( $title, $tag_name, 'first-available', $supports, $options, $callback, $visibility );
 		}
-	}
-
-	/**
-	 * The ARM-PATH resolver — the stand-in for a family's base resolve seam until it has one.
-	 *
-	 * FW-136 flips the nine `supports_try` families one at a time onto the BASE tag's own
-	 * resolve function. This shim is what the un-flipped ones keep standing on: the arm
-	 * dispatch, ids selection and emit that used to sit inline in the attempt walk, moved
-	 * verbatim behind the walk's resolver parameter so the walk itself could be lifted and
-	 * harnessed. It is DELETED, with the `resolve_fn` key and the arm table it indexes, once
-	 * the ninth family lands — nothing new should be built on it.
-	 *
-	 * @since 1.21.0
-	 *
-	 * @param array $tpl Modifier template descriptor.
-	 * @return callable fn( array $slot_opts, $inst, array $slot_read ): array{
-	 *                      value:string, link_id:int, link_type:string }
-	 */
-	private static function try_arm_resolver( array $tpl ): callable {
-		$cf       = $tpl['try_core_fn'] ?? null;
-		$tcf      = $tpl['try_term_fn'] ?? null;
-		$sf       = $tpl['try_site_fn'] ?? null;
-		$uf       = $tpl['try_user_fn'] ?? null;
-		$qf       = $tpl['try_query_fn'] ?? null;
-		$rf       = $tpl['try_row_fn'] ?? null;
-		$collapse = ! empty( $tpl['takes_first_usable'] );
-
-		return static function ( array $slot_opts, $inst, array $slot_read ) use ( $cf, $tcf, $sf, $uf, $qf, $rf, $collapse ): array {
-			$empty = [ 'value' => '', 'link_id' => 0, 'link_type' => 'post' ];
-			// List-join seam (CONTEXT.md I6 / SPEC §32): an attempt's dispatch returns
-			// finished string(s). Collect them, slice to `limit`, then join via
-			// bws_try_join_items. Link-wrap applies to a SINGLE-result item only —
-			// count is taken AFTER the limit slice (mirrors the base text core:
-			// slice-then-count, so a limit:1 chain over many non-empty terms still
-			// wraps the lone shown item).
-			//
-			// `sep` and `limit` arrive on $slot_opts, both resolved by the walk — the
-			// limit through bws_clamp_limit(), the one interpreter, against the default
-			// the fold seam reported for this slot's own spelling.
-			$sep      = $slot_opts['sep'] ?? null;
-			$slot_max = (int) ( $slot_opts['limit'] ?? 1 );
-
-			// WHETHER THIS ATTEMPT NAMED A FIELD KEY, which is not the same question as
-			// whether $slot_opts carries one: on a template whose `use`/`key` are
-			// TAG-level (title, permalink, the datetime pair) the option is the tag's and
-			// the attempt named nothing. Only the no-entity loop read below asks, and it
-			// has always asked the attempt.
-			$last_key = (string) ( $slot_read['key'] ?? '' );
-
-			// ── ARM DISPATCH (FW-71, retires the FW-5 fork) ────────────────
-			// FOUR hand-written arms stood here, each testing the flat source
-			// token directly (`'' !== $stm_raw`, `'site' === $last_src`,
-			// `'current' === $last_src`, else post). One question now: what does
-			// this slot's source RESOLVE TO? The answer indexes the shared arm
-			// table (includes/helpers/try-slot-arms.php), which is what makes a
-			// chain-spelled slot and a flat-spelled one take the SAME arm — the
-			// identity CONTEXT.md I16 states and the base tags already have
-			// (FW-63). The table is a pure seam precisely because every
-			// byte-identity risk in the collapse lives here.
-			$kind = bws_base_src_resolution( $slot_opts )['kind'];
-			$arm  = bws_try_slot_arm( $kind );
-			if ( null === $arm || '' === $arm['fn'] ) {
-				// No `try_` arm consumes this kind — an unknown step slug, for
-				// which the engine answers empty. SKIP, never guess: the nearest
-				// consumable arm would read the ambient entity and hand back a
-				// plausible WRONG value instead of an empty one.
-				return $empty;
-			}
-
-			// A ROOT-ONLY chain resolves to whatever the factory finds at render —
-			// post on a singular page, term on a term archive, user on an author
-			// archive, meta_row in a flat repeater row. Resolve it ONCE (SPEC §V1),
-			// then branch. This is where the old term-ambient arm went.
-			$base = null;
-			if ( 'branch' === $arm['fn'] ) {
-				$base = bws_base_resolve_source_for_callback( $slot_opts, $inst );
-				$kind = bws_try_slot_base_branch_kind( (string) ( $base['kind'] ?? '' ) );
-				$arm  = null === $kind ? null : bws_try_slot_arm( $kind );
-
-				// RE-CHECK, and the check above does not cover it: the first one ran
-				// against the CHAIN's kind, this one against what the factory actually
-				// resolved, which is a second question with a second refusal (a source
-				// the wire names but this render cannot use — GH #75 / #76). Skipping
-				// here is what makes the attempt chain move on to the next attempt
-				// instead of reading the ambient entity, which is the point rather
-				// than a side effect: an ambient read that SUCCEEDS stops the chain,
-				// so the later attempts never ran. Without it the branch also
-				// dereferences a null arm two lines down — today unreachable only
-				// because the branch never refused.
-				if ( null === $arm || '' === $arm['fn'] ) {
-					return $empty;
-				}
-			}
-
-			// The template's renderer for this arm, normalized to fn($id,$opts,$inst).
-			// The site arm's TWO legs are unchanged (FW-4): try_site_fn where the
-			// template has one, else try_core_fn( 0, … ) — whose own resolve reads
-			// the option and self-wraps (email/phone mailto:/tel:), so that leg
-			// takes no link identity.
-			$render_fn = null;
-			$link_kind = $arm['link'];
-			switch ( $arm['fn'] ) {
-				case 'term':
-					$render_fn = $tcf;
-					break;
-				case 'site':
-					$render_fn = $sf
-						? static fn( $id, $o, $i ) => $sf( $o, $i )
-						: static fn( $id, $o, $i ) => $cf( 0, $o, $i );
-					if ( ! $sf ) {
-						$link_kind = '';
-					}
-					break;
-				case 'core':
-					$render_fn = $cf;
-					break;
-				case 'user':
-					// The ambient author archive ([I6] parity, #108). Only the three
-					// templates the user analog covers carry a try_user_fn; the other
-					// six leave it null ON PURPOSE and fall through below.
-					$render_fn = $uf;
-					break;
-				case 'query':
-					// The ambient query context (#19 / FW-9, [I6] parity with the
-					// text absorb seam). Reachable ONLY through the render_time
-					// branch above — no chain spelling resolves to this kind — so
-					// $base is the resolved query-context source, and the closure
-					// hands IT to try_query_fn, which takes the base rather than an
-					// entity id (the kind has none — ADR 0002). Templates without a
-					// try_query_fn fall through below exactly as try_user_fn's six.
-					$render_fn = ( $qf && is_array( $base ) )
-						? static fn( $id, $o, $i ) => $qf( $base, $o, $i )
-						: null;
-					break;
-				case 'row':
-					// A repeater-row source off the slot's own `rows` step (FW-74).
-					// The read target handed to this fn is a resolved SOURCE, not an
-					// id — a row has none — so the `ids` leg below hands the emit
-					// arrays and this fn takes them verbatim. Templates without a
-					// try_row_fn fall through below exactly as try_user_fn's six.
-					$render_fn = $rf;
-					break;
-			}
-			if ( null === $render_fn ) {
-				// This TEMPLATE has no function for the arm — a family with no
-				// try_term_fn, and the six families with no try_user_fn (#108 wired
-				// text/title/content and left the rest here deliberately: this
-				// fallthrough is their only route to the no-entity loop read
-				// below, the `[ false ]` branch that lets the field read serve
-				// itself off the query-loop item).
-				// Falling through to the post arm is not a fallback invented
-				// here: it is exactly what the token arms did, since both the
-				// term-ambient arm and the srcTermIn arm were gated on `$tcf`.
-				// Absence of a CONSUMER is the table's answer above (skip); absence
-				// of this template's IMPLEMENTATION is this one.
-				$kind      = 'post';
-				$arm       = bws_try_slot_arm( 'post' );
-				$link_kind = $arm['link'];
-				$render_fn = $cf;
-			}
-
-			// The entity ids this arm reads off the slot's source. Both plural
-			// reads run the WHOLE compiled chain rather than a leading run of ref
-			// steps, so a term step behind a relationship step is no longer
-			// silently dropped (the §F9.3 hole, closed on base tags by FW-63).
-			if ( null === $base && 'none' !== $arm['ids'] ) {
-				$base = bws_base_resolve_source_for_callback( $slot_opts, $inst );
-			}
-			switch ( $arm['ids'] ) {
-				case 'term':
-					// $collapse = the whole fan, step limits stripped (ADR 0007).
-					$ids = bws_base_term_ids_from_source( $base, $slot_opts, $collapse );
-					break;
-				case 'user':
-					// WITHOUT this case `user` took `default:` — post ids — and read
-					// the wrong entity as soon as the fn arm above started resolving.
-					$ids = bws_base_user_ids_from_source( $base, $slot_opts );
-					break;
-				case 'sources':
-					// The one id-LESS PLURAL arm (FW-74): the read targets are the
-					// resolved sources themselves, because the ids selector drops
-					// `id <= 0` and a repeater row has no id to keep. $kind is the
-					// arm key, so this leg needs no second name for the kind.
-					$ids = bws_base_sources_of_kind( $base, $slot_opts, $kind, $collapse );
-					break;
-				case 'none':
-					$ids = [ 0 ];   // the site store carries a namespace, not an id (ADR 0002).
-					break;
-				default:
-					$ids = bws_base_post_ids_from_source( $base, $slot_opts, $collapse );
-			}
-
-			// A repeater row from the query loop. It has NO kind: the factory resolves
-			// a meta_row, no post id comes out of it, and the core fn still reads
-			// the value off $loop_item[$key]. Survives as a post-arm special case,
-			// gated exactly as before.
-			//
-			// THE LOOP HALF OF THE GATE ASKS bws_loop_item_is_post_or_row(), NOT
-			// `in_loop`. `[ false ]` hands the core fn no entity at all and trusts
-			// the field read to find one on the loop item, so the question is
-			// whether that read can be served — which is true for a post and a
-			// repeater row and false for everything else. It matters most where
-			// this branch is easiest to reach: a template with no try_ arm for the
-			// resolved kind falls through to the post arm above, so a TERM or USER
-			// item lands here with $ids empty and would be handed to a
-			// $loop_item[$key] read it cannot satisfy. Measured 2026-08-26 — a
-			// stdClass user item fired this gate on try_datetime_single /
-			// try_image / try_phone / try_email, and the datetime one printed the
-			// surrounding archive's term date.
-			if ( ! $ids && 'post' === $arm['ids'] ) {
-				$read_may_serve = function_exists( 'bws_loop_item_is_post_or_row' )
-					&& bws_loop_item_is_post_or_row( $inst );
-				// THE GATE IS "THIS SLOT STATES NO SOURCE OF ITS OWN", and it used to be
-				// spelled `'current' === $last_src` off the flat triple. That token is gone
-				// (#104), and re-deriving it from the chain's root would be WRONG rather
-				// than merely different: a chain leading with a step has no root token
-				// either, so a `refs` slot that resolved nothing would take the loop item —
-				// a plausible value from the wrong entity. Ask the resolution instead.
-				$src_res    = bws_base_src_resolution( $slot_opts );
-				$is_ambient = ! $src_res['fans'] && in_array( $src_res['root'], [ '', 'current' ], true );
-				if ( $read_may_serve && $is_ambient && '' !== $last_key ) {
-					$ids = [ false ];
-				}
-			}
-			if ( ! $ids ) {
-				return $empty;   // nothing to read — this attempt is empty.
-			}
-
-			// ── ONE EMIT for every arm ─────────────────────────────────────
-			// The bound counts SOURCES READ ([I19], the 2026-08-21 reversal):
-			// bws_read_bounded_sources() (field-helpers.php) with NO predicate reads
-			// the first $slot_max entities and drops only empty VALUES from its
-			// return — an entity with nothing to show keeps its slot, so which
-			// entities a slot reads never depends on which field it asks for.
-			// The search-past-empties walk is FW-88's dormant opt-in, wired
-			// nowhere. ACROSS attempts first-populated still wins — that is the
-			// try_ product, and it lives in the `continue` below, not in the
-			// selector. The reader closure keeps $first_id (the winning slot's
-			// link identity) because the selector is provenance-blind by contract.
-			//
-			// Link-wrap applies to a SINGLE-result item only, and the count is
-			// taken on the selector's already-bounded return (mirrors the base
-			// text core: a limit:1 chain over many non-empty entities still wraps
-			// the lone shown item).
-			$first_id = 0;
-			$shown    = bws_read_bounded_sources(
-				$ids,
-				static function ( $entity_id ) use ( &$first_id, $render_fn, $slot_opts, $inst ) {
-					$rendered = function_exists( 'bws_try_normalize_items' )
-						? bws_try_normalize_items( $render_fn( $entity_id, $slot_opts, $inst ) )
-						: array_filter( [ $render_fn( $entity_id, $slot_opts, $inst ) ], static fn( $v ) => '' !== $v && false !== $v );
-					// is_scalar, because the row arm's read targets are resolved
-					// SOURCE ARRAYS. They carry no link identity (CONTEXT.md I12)
-					// and their arm's `link` is empty, so there is nothing to
-					// capture — casting one to int would be a warning and a 1.
-					if ( $rendered && ! $first_id && is_scalar( $entity_id ) ) {
-						$first_id = (int) $entity_id;
-					}
-					return $rendered;
-				},
-				$slot_max
-			);
-			if ( ! $shown ) {
-				return $empty;   // this attempt resolved and found nothing.
-			}
-
-			$joined = function_exists( 'bws_try_join_items' )
-				? bws_try_join_items( $shown, $sep, $slot_max )
-				: (string) reset( $shown );
-
-			// The identity the SHELL wraps against, reported rather than applied —
-			// the same triple a base resolve seam returns, so the walk's caller
-			// branches on nothing. Zero where a wrap would be wrong: a multi-result
-			// attempt (this path joins its items unwrapped, which is what FW-135
-			// closes family by family) or an arm with no link identity at all. The
-			// site sentinel is an identity, not an entity (link-helpers.php V-link:
-			// a site link-wrap is the permalink analog).
-			$link_id = ( '' !== $link_kind && 1 === count( $shown ) )
-				? ( 'site' === $link_kind ? 1 : $first_id )
-				: 0;
-
-			return [
-				'value'     => $joined,
-				'link_id'   => $link_id,
-				'link_type' => '' !== $link_kind ? $link_kind : 'post',
-			];
-		};
 	}
 
 	/**

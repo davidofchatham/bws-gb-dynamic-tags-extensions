@@ -180,9 +180,9 @@ run `php tools/test/use-stripped-default-test.php`, then `php tools/test/preview
 
 ## `limit` interpretation change
 
-**Fires on:** `limit` interpretation change (`bws_clamp_limit` in `field-helpers.php` — THE single interpreter; its four call sites are `bws_resolve_field_values`, `bws_collect_value_list`, try_ slot dispatch in `class-tag-template-registry.php`, `bws_try_join_items`)
+**Fires on:** `limit` interpretation change (`bws_clamp_limit` in `field-helpers.php` — THE single interpreter; its four call sites are `bws_resolve_field_values`, `bws_collect_value_list`, `bws_try_run_attempts`, `bws_join_callback`)
 
-run `php tools/test/limit-clamp-test.php` (pure clamp rule + the caller slice/early-break contracts) + `php tools/test/try-join-seam-test.php`. Never re-inline the rule at a call site — the copies are what the extraction removed. **`0` = UNLIMITED** (ADR 0005; call-site slice/early-break contract on `bws_clamp_limit()`'s PHPDoc) — a bare `0` truncates to nothing / breaks on the first item, and both read as "limit applied" in review
+run `php tools/test/limit-clamp-test.php` (pure clamp rule + the caller slice/early-break contracts) + `php tools/test/try-slot-loop-test.php` (§L4, the bound the try_ walk writes back). Never re-inline the rule at a call site — the copies are what the extraction removed. **`0` = UNLIMITED** (ADR 0005; call-site slice/early-break contract on `bws_clamp_limit()`'s PHPDoc) — a bare `0` truncates to nothing / breaks on the first item, and both read as "limit applied" in review
 
 ## Folded-slot CONTROL change
 
@@ -242,23 +242,17 @@ run `php tools/test/traversal-pipeline-test.php` (the engine still refuses what 
 
 run `php tools/test/fold-chain-compile-test.php` (compile + limit — equivalence is the load-bearing property, per its own header and §C2b/§C5/§C6) **and** `php tools/test/traversal-pipeline-test.php` (which now LOADS both assemblers instead of copying them — the copies drifted the moment the compiler landed) + `php tools/test/slot-fold-test.php` (the slot flattener still owns the flat triple). The compile rules a reader would otherwise re-derive — root-vs-step split (`CONTEXT.md` [I14]), argless-fanning-step handling, unknown-slug handling, and when a step's `limit` is emitted — are stated in `slot-fold-compile.php`'s own file header
 
-## `try_` slot ARM change
+## `try_` slot LOOP change
 
-**Fires on:** `try_` slot ARM change — `includes/helpers/try-slot-arms.php` (the kind→arm table plus `bws_try_slot_arm()` / `bws_try_slot_base_branch_kind()`), or the dispatch and shared emit inside `TagTemplateRegistry::try_arm_resolver()`
+**Fires on:** `try_` slot LOOP change — `bws_try_run_attempts()` in `includes/helpers/try-slot-loop.php` (attempt cardinality, the carry hand-off, the per-slot read gate, the bound written back, first-non-empty-wins), the shell around it in `TagTemplateRegistry::generate_base_try_tags()` (media-block guard, the one link wrap, fallback and preview label), or a family's `resolve_fn` descriptor key moving to a different function
 
-run `php tools/test/try-slot-arms-test.php` (the table) + `php tools/test/try-join-seam-test.php` + `php tools/test/limit-clamp-test.php` + `php tools/test/control-order-test.php`, **and sweep `tools/test/fold-test-matrix.md` §F9b against the testbed as a before/after DIFF** — a wrong arm renders a plausible value, not an empty one, so a single green row proves very little. Dispatch goes by the resolved source KIND, and the seam does not re-spell a slot's chain as a flat triple, so both containers' registered `steps` offer matches the base tag's — see `try-slot-arms.php`'s file header and `CONTEXT.md` [I16]. `meta_row`'s two meanings (a refused chain kind vs. the resolved base kind reaching the post arm), the [I15] unconsumable-kind-is-skipped rule, the consumer-vs-implementation distinction, and the collect-then-slice rule are documented in `try-slot-arms.php` and `class-tag-template-registry.php` at their respective sites
+This was two triggers until FW-136, and it is one now because one of them lost its surface rather than its reason: the `try_` slot ARM trigger watched a kind→arm table and the dispatch that read it, both deleted once the ninth `supports_try` family read through its base tag's own resolve seam. What is left of how a `try_` tag renders is this loop over those seams. Which kinds a seam refuses is the base tag's, under the Base-tag REFUSAL TEST row below.
 
-**The arm path is SHRINKING, and that changes what a green run here means.** FW-136 flips the nine `supports_try` families onto their base tags' own resolve seams one at a time; a flipped family leaves the arm resolver entirely, so from 1.21.0 the harnesses above cover fewer tags each time one lands. Check which families still lack a `resolve_fn` before reading a clean §F9b sweep as coverage of the tag you changed — and when the ninth lands, this whole section goes with the shim.
+run `php tools/test/try-slot-loop-test.php` (the walk, driven with a recorder in place of a family's resolve seam) + `php tools/test/slot-fold-test.php` + `php tools/test/control-order-test.php`, then against the testbed `tools/test/fold-test-matrix.md` (§F9b as a before/after DIFF), `text-test-matrix.md` §T8 and `php tools/test/page-snapshots.php`.
 
-## `try_` ATTEMPT WALK change
+**What the pure harness does NOT prove.** It drives the walk with a recorder, so everything below the walk — which seam a family actually reads through, and what that read returns — is outside it by construction. That is the point of the split and it is also its cost: a `resolve_fn` pointed at the wrong function passes every row in that file, and renders a plausible value rather than an empty one. The page snapshots and the §F9b diff are what catch it; a single green row proves very little.
 
-**Fires on:** `try_` ATTEMPT WALK change — `bws_try_run_attempts()` in `includes/helpers/try-slot-loop.php`, or a family's `resolve_fn` descriptor key moving on or off a base resolve seam
-
-run `php tools/test/try-slot-loop-test.php` (the walk, driven with a recorder in place of a family's resolve seam) + `php tools/test/slot-fold-test.php` + `php tools/test/control-order-test.php`, then against the testbed `tools/test/fold-test-matrix.md`, `text-test-matrix.md` §T8 and `php tools/test/page-snapshots.php`.
-
-**What the pure harness does NOT prove.** It drives the walk with a recorder, so every row below the walk — which arm or seam a family actually reads through, and what that read returns — is outside it by construction. That is the point of the split and it is also its cost: a `resolve_fn` pointed at the wrong function passes every row in that file. The page snapshots are what catch it, and a flip's output movement is EXPECTED rather than a failure — re-capture the baseline in the same commit as the flip, never once at the end of the branch, or nine families' worth of movement arrives as one indistinguishable diff.
-
-**A family's flip is measured against the PREVIOUS BUILD, not against the matrices' prose.** Several matrix rows record FW-135's pre-fix behavior as their expectation (a multi-result attempt printing unlinked), because that is what was measured when they were written. A flip moves those rows by design; the row's label and its `Expected` column move with it, in the same commit.
+**Measure against the PREVIOUS BUILD, not against the matrices' prose.** A change that moves output on purpose moves matrix rows by design; the row's label and its `Expected` column move with it, and the page-snapshot baseline is re-captured, in the same commit.
 
 ## Base-tag REFUSAL TEST change
 

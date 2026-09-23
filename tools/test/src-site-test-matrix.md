@@ -122,11 +122,7 @@ Needs an email-valued field: an ACF options-page email field for `src:site` (e.g
 
 ## R7 — `src:site` slots on the remaining `try_` tags (FW-4, 1.15.0)
 
-The five post-core try_ templates (`try_text`/`try_title`/`try_content`/`try_image`/`try_permalink`)
-dispatch their site slots through the `try_site_fn` descriptor leg (thin closures over
-`bws_site_resolve_value`); `try_email`/`try_phone` keep their seam route ($cf(0,…) fallback,
-byte-identical). Single-result site output on link-wrap templates wraps with the site sentinel
-(`('site', 1)` → home URL) for I6/C9 slot-transparency parity with base `{{title src:site}}`.
+The five post-core try_ templates (`try_text`/`try_title`/`try_content`/`try_image`/`try_permalink`) dispatched their site slots through a `try_site_fn` descriptor leg (thin closures over `bws_site_resolve_value`); `try_email`/`try_phone` kept their seam route ($cf(0,…) fallback, byte-identical). Single-result site output on link-wrap templates wraps with the site sentinel (`('site', 1)` → home URL) for I6/C9 slot-transparency parity with base `{{title src:site}}`. Since FW-136 (1.21.0) every `try_` attempt, site slots included, reads through its base tag's own resolve seam and the descriptor legs are deleted; the expectations below did not move.
 
 Visible rows: `matrix-post-meta` page, section "Site R7 - try_ site slots" (R7.1–R7.7, R7.10).
 Exceptions (stated per `docs/testbed.md`): R7.8 needs a `[SUB]` WYSIWYG option, R7.9's positive case
@@ -150,11 +146,7 @@ editor-only (open any R7 block, check the slot src dropdowns).
 
 ## R8 — `src:site` slots on the two `datetime_` try_ tags (FW-84)
 
-`datetime_single` and `datetime_range` were the last families without a site slot: FW-4 wired five
-`try_site_fn` closures and left these two out with no reason recorded. They now carry their own
-closures, which pass the `'option'` object-id to `bws_datetime_single_core` / `bws_datetime_range_core`
-— the same DT-1 fork the BASE tag's site branch takes — rather than closing over
-`bws_site_resolve_value()`, which is tag-dispatched and has no datetime arm.
+`datetime_single` and `datetime_range` were the last families without a site slot: FW-4 wired five `try_site_fn` closures and left these two out with no reason recorded. They then carried their own closures, which pass the `'option'` object-id to `bws_datetime_single_core` / `bws_datetime_range_core` — the same DT-1 fork the BASE tag's site branch takes — rather than closing over `bws_site_resolve_value()`, which is tag-dispatched and has no datetime arm. Those closures went with FW-136, as R7's did: the base seam takes the same fork.
 
 **Datetime field keys are TAG-LEVEL, not per-slot** (the per-slot fold is deferred — FW-81). So a
 fallthrough row varies only the SOURCE, and the winning slot reads the one tag-level key from
@@ -195,5 +187,5 @@ ten-year span.
 - **`{{email}}` display shows `&#x…;` entities as literal text:** antispambot output was double-escaped (`esc_html` on top of `antispambot`) — VE4: emit antispambot output raw.
 - **`{{email …|subject:}}` href subject corrupted / truncated:** VE2 — subject must be `rawurlencode`d once at render, NOT unescaped in PHP (GB's `parse_options` already unescaped `\:`/`\|`).
 - **`{{email}}` wraps a non-email value / outputs `mailto:garbage`:** VE4 — `is_email()` must validate the RAW value before any wrap; invalid → fallback → empty.
-- **R7 site slot empty where base `src:site` works:** the template's `try_site_fn` closure missing/mis-keyed — registry falls back to `$cf(0,…)` which is site-blind for the five post-core templates.
+- **R7 site slot empty where base `src:site` works:** a `try_` attempt reads through its base tag's resolve seam (FW-136), so the family's `resolve_fn` is not naming that seam.
 - **R7 link-wrap missing on single-result site slot (link template):** the wrap is gated `$sf && $slnk && count===1` in the registry site arm — check `supports_link_wrap` on the descriptor and that the site leg (not the fallback) dispatched.

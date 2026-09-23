@@ -376,12 +376,8 @@ function bws_register_base_tags(): void {
 	//                     stripped so they don't appear twice; remaining keys become Group 3 trailing.
 	// 'term_fn'         — fn($term_id, $opts, $inst) for the direct term-entity path.
 	// 'post_fn'         — fn($post_id, $opts, $inst) for the ref-traversal path (term → post).
-	// 'try_core_fn'     — fn($post_id, $opts, $inst) for try_ post-slot dispatch.
-	// 'try_term_fn'     — fn($term_id, $opts, $inst) for try_ srcTerm slot dispatch.
-	// 'try_site_fn'     — fn($opts, $inst) for try_ src:site slot dispatch (FW-4): thin
-	//                     closure over bws_site_resolve_value('<tag>') for templates whose
-	//                     try_core_fn is site-blind. email/phone omit it (their core rides
-	//                     the seam, which reads site) — registry falls back to $cf(0,…).
+	// 'resolve_fn'      — the base tag's own resolve seam; every try_ attempt reads
+	//                     through it (FW-136).
 	// =========================================================
 
 	TagTemplateRegistry::register_modifier_template( array(
@@ -408,19 +404,10 @@ function bws_register_base_tags(): void {
 		// reused here rather than duplicated.
 		'term_fn'               => 'bws_try_text_term_dispatch',
 		'post_fn'               => 'bws_try_text_post_dispatch',
-		'try_core_fn'           => 'bws_try_text_post_dispatch',
 		// THE RESOLVE SEAM (FW-136). An attempt reads through the same function
 		// {{text}} does, so `try_text` inherits whatever the base read gains — per-item
-		// link wrap (FW-85/FW-135) being the first. The try_*_fn entries below are still
-		// read by the base tags themselves (term_fn/post_fn share dispatchers with them)
-		// and by the arm shim the eight un-flipped families stand on; nothing routes
-		// `try_text` through the shim any more.
+		// link wrap (FW-85/FW-135) being the first.
 		'resolve_fn'            => 'bws_base_text_resolve_value',
-		'try_term_fn'           => 'bws_try_text_term_dispatch',
-		'try_site_fn'           => static fn( $opts, $inst ) => bws_site_resolve_value( 'text', (array) $opts, $inst ),
-		'try_user_fn'           => static fn( $user_id, $opts, $inst ) => bws_base_user_analog_read( 'text', (int) $user_id, (array) $opts, $inst ),
-		'try_query_fn'          => static fn( $base, $opts, $inst ) => bws_base_query_context_analog_read( 'text', (array) $base, (array) $opts, $inst ),
-		'try_row_fn'            => 'bws_try_text_row_dispatch',
 		'try_allow_site_slot'   => true,
 		'supports_try'          => true,
 		'try_per_slot_key'      => true,
@@ -456,23 +443,8 @@ function bws_register_base_tags(): void {
 		// FW-136 — try_content resolves each attempt through the BASE seam, so an attempt
 		// reads exactly as {{content}} does: the whole fan searched for its first usable
 		// read, the repeater-row branch that refuses the analogs a row cannot answer, and
-		// the cores' own stated-fallback emit. The try_*_fn entries below stay — they are
-		// the plain per-entity dispatchers the term_ machinery and the base seam itself
-		// still call, and only the ARM TABLE that indexed them by kind goes when the ninth
-		// family lands.
-		//
-		// `try_query_fn` IS THE EXCEPTION AND IS GONE HERE, on title's precedent and for
-		// its reason: it was never a per-entity core, only the arm shim's route to the
-		// query context, and the base seam reaches that context itself
-		// (bws_base_ambient_analog() claims the kind for every tag but image, and
-		// bws_base_query_context_analog_read() carries a 'content' case). Confirmed dead
-		// rather than merely unread, so nothing is owed to FW-9.
+		// the cores' own stated-fallback emit.
 		'resolve_fn'            => 'bws_base_content_resolve_value',
-		'try_core_fn'           => 'bws_try_content_post_dispatch',
-		'try_term_fn'           => 'bws_try_content_term_dispatch',
-		'try_site_fn'           => static fn( $opts, $inst ) => bws_site_resolve_value( 'content', (array) $opts, $inst ),
-		'try_user_fn'           => static fn( $user_id, $opts, $inst ) => bws_base_user_analog_read( 'content', (int) $user_id, (array) $opts, $inst ),
-		'try_row_fn'            => 'bws_try_content_row_dispatch',
 		'try_allow_site_slot'   => true,
 		'supports_try'          => true,
 		'try_per_slot_key'      => true,
@@ -491,20 +463,8 @@ function bws_register_base_tags(): void {
 		'post_fn'      => 'bws_post_title_core',
 		// THE RESOLVE SEAM (FW-136) — try_title resolves each attempt through the BASE
 		// seam, so a fanning attempt inherits the fold's per-item link wrap (FW-135) the
-		// way {{title}} already does. The try_*_fn entries below stay: they are the plain
-		// per-entity cores the term_ machinery and the base seam itself still call, and
-		// only the ARM TABLE that indexes them by kind goes when the ninth family lands.
-		//
-		// `try_query_fn` IS THE EXCEPTION AND IS GONE HERE. It is not a per-entity core —
-		// it was the arm shim's only route to the query context, and the base seam reaches
-		// that context itself (bws_base_ambient_analog() claims the kind and
-		// bws_base_query_context_analog_read() carries a 'title' case), so this family's
-		// copy is confirmed dead rather than merely unread. Nothing is owed to FW-9 here.
+		// way {{title}} already does.
 		'resolve_fn'   => 'bws_base_title_resolve_value',
-		'try_core_fn'  => 'bws_post_title_core',
-		'try_term_fn'  => 'bws_term_title_core',
-		'try_site_fn'  => static fn( $opts, $inst ) => bws_site_resolve_value( 'title', (array) $opts, $inst ),
-		'try_user_fn'  => static fn( $user_id, $opts, $inst ) => bws_base_user_analog_read( 'title', (int) $user_id, (array) $opts, $inst ),
 		'try_allow_site_slot' => true,
 		'supports_try' => true,
 		'try_list_options' => true,
@@ -517,14 +477,8 @@ function bws_register_base_tags(): void {
 		'options'      => array(),
 		'term_fn'      => 'bws_term_permalink_core',
 		'post_fn'      => 'bws_post_permalink_core',
-		// FW-136 — try_permalink resolves each attempt through the BASE seam. The
-		// try_*_fn entries below stay: they are the plain per-entity cores the term_
-		// machinery and the base seam itself still call, and only the ARM TABLE that
-		// indexed them by kind goes when the ninth family lands.
+		// FW-136 — try_permalink resolves each attempt through the BASE seam.
 		'resolve_fn'   => 'bws_base_permalink_resolve_value',
-		'try_core_fn'  => 'bws_post_permalink_core',
-		'try_term_fn'  => 'bws_term_permalink_core',
-		'try_site_fn'  => static fn( $opts, $inst ) => bws_site_resolve_value( 'permalink', (array) $opts, $inst ),
 		'try_allow_site_slot' => true,
 		'supports_try' => true,
 		'is_image'     => false,
@@ -580,26 +534,16 @@ function bws_register_base_tags(): void {
 		// (#88): make_modifier_callback() already carries its own `use`-dispatch closure
 		// ($image_post_dispatch) ahead of calling post_fn, predating #88, so post_fn
 		// staying the bare core is correct here, not a relapse. term_fn has no such
-		// closure and needs none — `featured` is a post-only concept, so it already
-		// equals try_term_fn with nothing to dispatch. Do not "fix" this to match
-		// text/content without first removing $image_post_dispatch; the census guard
-		// in control-order-test.php carries the same exception for the same reason.
+		// closure and needs none — `featured` is a post-only concept, so there is
+		// nothing to dispatch. Do not "fix" this to match text/content without first
+		// removing $image_post_dispatch.
 		'term_fn'               => 'bws_term_custom_image_core',
 		'post_fn'               => 'bws_custom_image_core',
 		// FW-136 — try_image resolves each attempt through the BASE seam, so an attempt
 		// reads exactly as {{image}} does: the whole fan searched for its first usable
 		// picture, the repeater-row read that preserves an array return format, and the
-		// cores' own stated-fallback emit. The try_*_fn entries below stay — they are the
-		// plain per-entity cores the term_ machinery and the base seam itself still call,
-		// and only the ARM TABLE that indexed them by kind goes when the ninth family
-		// lands. This family carries no `try_query_fn` to retire: the base seam does not
-		// claim the query-context kind for image either (bws_base_ambient_analog()'s
-		// measurement), so both routes fall through to the post arm as they did.
+		// cores' own stated-fallback emit.
 		'resolve_fn'            => 'bws_base_image_resolve_value',
-		'try_core_fn'           => 'bws_try_image_post_dispatch',
-		'try_term_fn'           => 'bws_term_custom_image_core',
-		'try_site_fn'           => static fn( $opts, $inst ) => bws_site_resolve_value( 'image', (array) $opts, $inst ),
-		'try_row_fn'            => 'bws_try_image_row_dispatch',
 		'try_allow_site_slot'   => true,
 		'supports_try'          => true,
 		'try_per_slot_key'      => true,
@@ -633,51 +577,8 @@ function bws_register_base_tags(): void {
 		},
 		// FW-136 — try_datetime_single resolves each attempt through the BASE seam, so a
 		// fanning attempt inherits the fold's per-item link wrap (FW-135) the way
-		// {{datetime_single}} already does. THIRD of the four link-registering families.
-		// The try_*_fn entries below stay: they are the plain per-entity cores the term_
-		// machinery and the base seam itself still call, and only the ARM TABLE that
-		// indexed them by kind goes when the ninth family lands. This family carries no
-		// `try_query_fn` to retire — the arm shim fell through to the post arm on a
-		// query-context ambient, and the base seam claims the kind and answers '' for it
-		// (bws_base_query_context_analog_read() has no datetime case), so both routes
-		// render empty and nothing is owed to FW-9.
+		// {{datetime_single}} already does.
 		'resolve_fn'   => 'bws_base_datetime_single_resolve_value',
-		'try_core_fn'  => static function ( $post_id, $opts, $inst ) {
-			$mapped = function_exists( 'bws_normalize_datetime_options' )
-				? bws_normalize_datetime_options( $opts )
-				: $opts;
-			return bws_datetime_single_core( $post_id, $mapped, $inst );
-		},
-		'try_term_fn'  => static function ( $term_id, $opts, $inst ) {
-			$mapped = function_exists( 'bws_normalize_datetime_options' )
-				? bws_normalize_datetime_options( $opts )
-				: $opts;
-			return bws_term_datetime_single_core( $term_id, $mapped, $inst );
-		},
-		// src:site — the `'option'` object-id (DT-1), same fork the BASE tag's site
-		// branch takes: bws_read_field's allowlist-gated get_field($key,'option')
-		// does the value read and bws_build_single_format recovers the field's
-		// return format. NOT a closure over bws_site_resolve_value() — that helper
-		// is tag-dispatched and has no datetime arm, and giving it one would duplicate
-		// the format + ordered-key handling the core already owns. Returns RAW: the
-		// registry's site arm carries the `('site', 1)` sentinel link identity.
-		'try_site_fn'  => static function ( $opts, $inst ) {
-			$mapped = function_exists( 'bws_normalize_datetime_options' )
-				? bws_normalize_datetime_options( $opts )
-				: $opts;
-			return bws_datetime_single_core( 'option', $mapped, $inst );
-		},
-		// A repeater-row source off the slot's own `rows` step (FW-74). Takes the
-		// resolved SOURCE, not an id — a row has none — and the core consumes it
-		// verbatim (bws_datetime_coerce_read_target() passes a kind-carrying array
-		// through). No dispatcher function of its own, unlike text/content/image:
-		// datetime has no `use` fork, so there is no analog to refuse on a row.
-		'try_row_fn'   => static function ( $source, $opts, $inst ) {
-			$mapped = function_exists( 'bws_normalize_datetime_options' )
-				? bws_normalize_datetime_options( $opts )
-				: $opts;
-			return bws_datetime_single_core( (array) $source, $mapped, $inst );
-		},
 		'try_allow_site_slot' => true,
 		'supports_try' => true,
 		'is_image'     => false,
@@ -707,44 +608,8 @@ function bws_register_base_tags(): void {
 		},
 		// FW-136 — try_datetime_range resolves each attempt through the BASE seam, so a
 		// fanning attempt inherits the fold's per-item link wrap (FW-135) the way
-		// {{datetime_range}} already does. The LAST of the four link-registering families
-		// and the ninth flip: with this key registered no `supports_try` template falls
-		// through to TagTemplateRegistry::try_arm_resolver() any more, which is what
-		// ticket 10 deletes. The try_*_fn entries below stay — plain per-entity cores the
-		// term_ machinery and the base seam still call; only the ARM TABLE that indexed
-		// them by kind goes. No `try_query_fn` to retire here either: as with
-		// datetime_single, the arm shim fell through to the post arm on a query-context
-		// ambient and the base seam claims the kind and answers '' for it
-		// (bws_base_query_context_analog_read() has no datetime case), so both routes
-		// render empty and nothing is owed to FW-9.
+		// {{datetime_range}} already does.
 		'resolve_fn'   => 'bws_base_datetime_range_resolve_value',
-		'try_core_fn'  => static function ( $post_id, $opts, $inst ) {
-			$mapped = function_exists( 'bws_normalize_datetime_options' )
-				? bws_normalize_datetime_options( $opts, true )
-				: $opts;
-			return bws_datetime_range_core( $post_id, $mapped, $inst );
-		},
-		'try_term_fn'  => static function ( $term_id, $opts, $inst ) {
-			$mapped = function_exists( 'bws_normalize_datetime_options' )
-				? bws_normalize_datetime_options( $opts, true )
-				: $opts;
-			return bws_term_datetime_range_core( $term_id, $mapped, $inst );
-		},
-		// src:site — see the datetime_single note above; the range pair rides the same
-		// `'option'` fork, with bws_build_range_format recovering the return formats.
-		'try_site_fn'  => static function ( $opts, $inst ) {
-			$mapped = function_exists( 'bws_normalize_datetime_options' )
-				? bws_normalize_datetime_options( $opts, true )
-				: $opts;
-			return bws_datetime_range_core( 'option', $mapped, $inst );
-		},
-		// The range pair's row leg — see the datetime_single note above.
-		'try_row_fn'   => static function ( $source, $opts, $inst ) {
-			$mapped = function_exists( 'bws_normalize_datetime_options' )
-				? bws_normalize_datetime_options( $opts, true )
-				: $opts;
-			return bws_datetime_range_core( (array) $source, $mapped, $inst );
-		},
 		'try_allow_site_slot' => true,
 		'supports_try' => true,
 		'is_image'     => false,
@@ -2037,7 +1902,6 @@ function bws_site_resolve_value( string $tag, array $options, $instance ): strin
  * Try-tag post-slot dispatch for `text` template.
  *
  * Reads $options['use'] to route between title-mode and custom-field-mode.
- * Used as `try_core_fn` so each try slot dispatches by its slot-resolved use value.
  *
  * @since 1.6.0
  */
@@ -2057,7 +1921,7 @@ function bws_try_text_post_dispatch( $post_id, $options, $instance ) {
  * state, not a gap. The hop a `use:title` would imply is spellable with no new
  * vocabulary (`rows,team_members;refs,lead_ref` then `use:title`).
  *
- * Takes the resolved SOURCE, not an id (a row has none). Used as `try_row_fn`.
+ * Takes the resolved SOURCE, not an id (a row has none).
  *
  * @since 1.21.0
  */
@@ -2114,7 +1978,7 @@ function bws_try_content_post_dispatch( $post_id, $options, $instance ) {
  * bws_post_content_core()'s custom_field branch is bws_post_custom_text_core() with a
  * different empty-read fallback, and a LIST arm has no per-item fallback to emit (GH #51).
  *
- * Takes the resolved SOURCE, not an id (a row has none). Used as `try_row_fn`.
+ * Takes the resolved SOURCE, not an id (a row has none).
  *
  * @since 1.21.0
  */
@@ -2163,9 +2027,8 @@ function bws_try_image_post_dispatch( $post_id, $options, $instance ) {
  * plausible wrong value where an empty one is the honest answer. The hop that spelling
  * implies needs no new vocabulary (`rows,team_members;refs,lead_ref` then `use:featured`).
  *
- * Takes the resolved SOURCE, not an id (a row has none). Used as `try_row_fn`, and by the
- * BASE arm too — the same reuse the term and post routes make of their own try_
- * dispatchers, and what keeps the base tag and its try_ twin reading one way.
+ * Takes the resolved SOURCE, not an id (a row has none). Called by the BASE arm — which
+ * is what keeps the base tag and its try_ twin reading one way.
  *
  * @since 1.21.0
  */

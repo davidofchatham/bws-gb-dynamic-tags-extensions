@@ -9,7 +9,7 @@
  *   - bws_join_strip_connective_separators( string ): string
  *
  * All pure string/array transforms — no WordPress required. join-helpers.php
- * is loaded inert (ABSPATH defined) per the try-join-seam-test.php pattern; we
+ * is loaded inert (ABSPATH defined) per the house pattern; we
  * call only the pure helpers (bws_join_resolve_slot is never invoked here).
  *
  * SCOPE — the template-mode smart-literal-removal contract (Steps 1–5) plus

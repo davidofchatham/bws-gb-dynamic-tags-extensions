@@ -60,15 +60,9 @@ if ( ! defined( 'BWS_TRY_MAX_SLOTS' ) ) {
  * @param array    $cfg      The family's facts, all off its template descriptor:
  *                           per_slot_key, per_slot_use, no_key_uses, default_use,
  *                           collapse (takes_first_usable).
- * @param callable $resolve  fn( array $slot_opts, $instance, array $slot_read ): array{
+ * @param callable $resolve  fn( array $slot_opts, $instance ): array{
  *                               value:string, link_id:int, link_type:string }
- *                           The family's resolve seam. `$slot_read` is the fold seam's
- *                           own return for this attempt — the THIRD argument exists for
- *                           the arm shim alone, which still needs to know whether the
- *                           SLOT named a field key (a tag-level one is a different
- *                           question and reads differently). A base resolve seam takes
- *                           two parameters and ignores it, which is legal and is why the
- *                           seam's signature did not have to grow for this.
+ *                           The family's resolve seam — its base tag's own, unchanged.
  * @return array{value:string, link_id:int, link_type:string}|null Null = every attempt
  *                           read nothing; the shell then runs the fallback or the label.
  */
@@ -162,7 +156,7 @@ function bws_try_run_attempts( array $options, $instance, array $cfg, callable $
 		}
 		$slot_opts['limit'] = (string) $slot_max;
 
-		$resolved = $resolve( $slot_opts, $instance, $slot_read );
+		$resolved = $resolve( $slot_opts, $instance );
 
 		// THE ONLY PREDICATE. '' means "this attempt read nothing" — a stored '0' is a
 		// real value and STOPS the walk (hooks.php maps it downstream; no emptiness is

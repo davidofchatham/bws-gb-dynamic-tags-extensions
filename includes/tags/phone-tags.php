@@ -581,7 +581,7 @@ function bws_phone_finish_values( array $raw, array $options ): array {
 }
 
 /**
- * Try-tag post-slot dispatch for the `phone` template (try_core_fn).
+ * Try-tag post-slot dispatch for the `phone` template.
  *
  * Returns finished tel/plain number strings for the slot (CONTEXT.md I6). Honors
  * the registry-resolved $post_id for post/term sources; src:site reads the option.
@@ -597,7 +597,7 @@ function bws_try_phone_post_dispatch( $post_id, $options, $instance ) {
 	// (`site,limit[2]`, any decorated root), fell into the post branch, and read the
 	// AMBIENT entity: a plausible value from the wrong entity, which a selecting try_
 	// slot then treats as a WIN, so the author's fallback chain never ran ([I15], the
-	// FW-71 class). Pinned at the dispatch seam: try-slot-arms-test.php §A6/§A7.
+	// FW-71 class). Pinned at the dispatch seam: slot-fold-test.php §P19.
 	if ( 'site' === bws_base_src_resolution( (array) $options )['kind'] ) {
 		return bws_phone_finish_values( bws_resolve_field_values( (array) $options, $instance ), (array) $options );
 	}
@@ -612,7 +612,7 @@ function bws_try_phone_post_dispatch( $post_id, $options, $instance ) {
 }
 
 /**
- * Try-tag srcTermIn-slot dispatch for the `phone` template (try_term_fn).
+ * Try-tag srcTermIn-slot dispatch for the `phone` template.
  *
  * @since 1.11.0
  * @return string[] Finished per-item strings for this term.
@@ -628,7 +628,7 @@ function bws_try_phone_term_dispatch( $term_id, $options, $instance ) {
 }
 
 /**
- * Try-tag repeater-ROW-slot dispatch for the `phone` template (try_row_fn, FW-74).
+ * Try-tag repeater-ROW-slot dispatch for the `phone` template (FW-74).
  *
  * The row twin of the post dispatch's keyed branch: read the sub-field off the row, then
  * run it through the SAME finisher (normalize-as-validity, cc, tel wrap), so a row number
@@ -725,14 +725,8 @@ function bws_register_phone_template(): void {
 		),
 		'term_fn'             => 'bws_phone_term_core',
 		'post_fn'             => 'bws_phone_post_core',
-		// FW-136 — try_phone resolves each attempt through the BASE seam. The
-		// try_*_fn entries below stay: they are plain per-entity cores the term_
-		// machinery and the row read still call, and only the ARM TABLE that indexed
-		// them by kind goes when the ninth family lands.
+		// FW-136 — try_phone resolves each attempt through the BASE seam.
 		'resolve_fn'          => 'bws_base_phone_resolve_value',
-		'try_core_fn'         => 'bws_try_phone_post_dispatch',
-		'try_term_fn'         => 'bws_try_phone_term_dispatch',
-		'try_row_fn'          => 'bws_try_phone_row_dispatch',
 		'supports_try'        => true,
 		'try_per_slot_key'    => true,
 		'try_per_slot_use'    => false,

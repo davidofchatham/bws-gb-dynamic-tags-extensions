@@ -1055,9 +1055,9 @@ check(
 // author wrote, re-leveled to depth 0.
 //
 // A CHAIN THAT RESOLVES IS NOT A CHAIN THAT RENDERS, and the difference is deliberate:
-// `rows` still returns nothing, because no `try_`/join arm assembles a repeater row.
-// That refusal MOVED to the container that consumes the kind (try-slot-arms.php) rather
-// than living in a re-spelling that could not describe the wire.
+// whether a resolved kind renders is the consuming read's question (each family's base
+// resolve seam, and bws_base_read_refused() for a kind it does not serve), not a
+// re-spelling's that could not describe the wire.
 foreach ( array(
 	'two ref hops'   => array( 'src(refs,a;refs,b);key(x)', 'refs,a;refs,b' ),
 	'two term hops'  => array( 'src(terms,category;terms,post_tag);key(x)', 'terms,category;terms,post_tag' ),
@@ -1985,6 +1985,53 @@ check(
 	) === $steps_of( 'src(refs,office,limit[1];terms,category,limit[2]);key(a)' ),
 	json_encode( $steps_of( 'src(refs,office,limit[1];terms,category,limit[2]);key(a)' ) )
 );
+
+// ── §P19 the SITE read is chosen by resolved kind, never by token spelling ───
+//
+// Moved here from try-slot-arms-test.php §A6/§A7 when FW-136 deleted the arm table: the
+// pins were never about the table, only about bws_fold_src_resolution(), which this file
+// already owns.
+//
+// The regression this pins (slice A, ADR 0007 era): email/phone selected their site
+// branch by comparing the serialized token to the literal 'site'. Chain wire spells the
+// same source differently, so a DECORATED root-only site chain fell into the post branch
+// and read the AMBIENT entity — a plausible value from the wrong entity, which a
+// selecting try_ attempt treats as a win, so the fallback chain never ran.
+// bws_fold_src_resolution() IS the shipped dispatch: every reader calls it through
+// bws_base_src_resolution(), a documented no-fallback shim (base-shared.php) that returns
+// its answer verbatim — so pinning here pins the shipped path.
+// (Flat `src:site` and a bare chain root are the SAME string — one row covers both.)
+foreach ( array(
+	'P19.1 bare token'                 => 'site',
+	'P19.2 decorated root (limit)'     => 'site,limit[2]',
+	'P19.3 decorated root (extra tok)' => 'site,x[y]',
+) as $label => $wire ) {
+	$kind = bws_fold_src_resolution( array( 'src' => $wire ) )['kind'];
+	check( "{$label} → kind site", 'site' === $kind, $kind );
+}
+// The contrast row: a site root with a real step behind it is NOT a site read any more —
+// the chain moved on — and must not take the site branch.
+$kind = bws_fold_src_resolution( array( 'src' => 'site;rows,rows' ) )['kind'];
+check( 'P19.4 site root + rows step is not a site read', 'meta_row' === $kind, $kind );
+
+// P19.5 — the CLASS pin: no shipped code compares a serialized `src` to a literal. The
+// two sweeps are S-33's, run mechanically so the third instance of "re-derive from the
+// wire what the dispatch already decided" fails here by name instead of surviving review.
+// bws_fold_src_root_token()/resolution comparisons are the SEAM and do not match these.
+$hits = array();
+$iter = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( dirname( __DIR__, 2 ) . '/includes' ) );
+foreach ( $iter as $file ) {
+	if ( 'php' !== pathinfo( (string) $file, PATHINFO_EXTENSION ) ) {
+		continue;
+	}
+	foreach ( explode( "\n", (string) file_get_contents( (string) $file ) ) as $n => $line ) {
+		if ( preg_match( "/=== *\( *\\\$(options|opts|slot_opts)\['src'\]/", $line )
+			|| preg_match( "/\['src'\] *(===|==|!==) *'/", $line ) ) {
+			$hits[] = basename( (string) $file ) . ':' . ( $n + 1 );
+		}
+	}
+}
+check( 'P19.5 no wire-string source compare survives in includes/', array() === $hits, implode( ', ', $hits ) );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );
