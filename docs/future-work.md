@@ -508,7 +508,7 @@ The dormant "show me the picture, whichever candidate has one" behaviour, remove
 
 Detail home: `docs/design-history/deterministic-source-selection.md` §S47
 
-Progress: Term chains are the constituency this matters most for, since WP term order is a pass-through (alphabetical by default) rather than an author choice. To be absorbed by FW-27 (user, 2026-09-23): `if` filters before `limit`, so `if:hasValue` with no condition field is exactly this search, stated per tag. Closes when FW-27 ships.
+Progress: Term chains are the constituency this matters most for, since WP term order is a pass-through (alphabetical by default) rather than an author choice. To be absorbed by FW-27 (user, 2026-09-23): `if` filters before `limit`, so `if` testing the shown field for a value is exactly this search, stated per tag (the field is named: `key:image_field|if:key(image_field);hasValue`). Closes when FW-27 ships.
 
 Open: Whether the option is useful at all (user, 2026-08-21); if so, the whole authoring surface (control, wire token, label/help, placement, an era-stamping migration for flat-era wire).
 
@@ -640,7 +640,7 @@ A base tag should not serialize a `use` value its own field token already implie
 
 Detail home: `.scratch/plans/combined-option-controls.md` §The combined CONTROL still needed (a different deliverable from the combined WIRE)
 
-Progress: Split out of FW-20 2026-09-23 (user), leaving FW-20 the `linkTo` cluster. One live instance: `{{content}}` must write `use:key|key:foo` because its `use` enum leads with the `content` analog. `{{text}}` and `{{image}}` avoid it only because their enums lead with `key`, so `_strip_default` removes it. FW-141 would add a second instance (`use:fixed|fixed:Varsity`) on base tags only.
+Progress: Split out of FW-20 2026-09-23 (user), leaving FW-20 the `linkTo` cluster. One live instance: `{{content}}` must write `use:key|key:foo` because its `use` enum leads with the `content` analog. `{{text}}` and `{{image}}` avoid it only because their enums lead with `key`, so `_strip_default` removes it. FW-141 would add a second instance (`use:fixed|fixed:Varsity`) on base tags only, so this lands first or with FW-141 (user, 2026-09-24).
 
 Open: Whether the read rule generalizes (any field token present implies its mode) or is stated per token; back-compat is parse-side (stored `use:key|key:foo` keeps resolving), so no migration.
 
@@ -860,9 +860,9 @@ A lighter alternative to FW-26 — a `show_if`-style predicate grammar that self
 
 Detail home: `.scratch/plans/if-option.md` (spitball, no design); wire → `docs/design-history/src-chain-encoding.md`
 
-Progress: Direction confirmed and sharpened (user, 2026-08-01): embedded option, not a separate tag set; the tag-set alternative FW-26 closed not planned 2026-09-23. Reopened 2026-09-23 (user): the condition subject is settled as the same location as the displayed field (a different field on the source the tag already resolved, no second chain), the wire is a flat folded value under one `if` token, in the src chain and FW-81 style, compare text is bracketed, before/after on a date field is in v1, and on a multi-part tag `if` filters out each source that fails rather than gating the whole output.
+Progress: Direction confirmed and sharpened (user, 2026-08-01): embedded option, not a separate tag set; the tag-set alternative FW-26 closed not planned 2026-09-23. Reopened 2026-09-23 (user): the condition subject is settled as the same location as the displayed field (a different field on the source the tag already resolved, no second chain), the wire is a flat folded value under one `if` token, in the src chain and FW-81 style, compare text is bracketed, before/after on a date field is in v1, and on a multi-part tag `if` filters out each source that fails rather than gating the whole output. Encoding settled 2026-09-24 (user): the value is spelled as a slot's own options, tested field first, test last (`if:key(sale_price);hasValue`, `if:use(content);hasValue`); the tested field is always named, since testing the tag's own read was cut for now (additive later).
 
-Open: Date-only comparison granularity, operator spelling, and whether FW-81's read form lands first. Proposal and remaining questions are in the detail home.
+Open: The option's name, `when` or `if` (user strongly favors `when`, 2026-09-24). The FW-141 wire and the remaining unasked questions (editor control, preview text, `contains`) are in the detail home.
 
 Blocked by: FW-141 (the driving case, a boolean showing a fixed word in a `{{join}}` slot)  •  Interacts with: FW-26 (closed), FW-57 (closed), FW-56 (closed), FW-59 (compare text is bracketed), FW-60, FW-88 (absorbed: `if` filters before `limit`), FW-35 (forcing a datetime to mean its whole day), FW-43, FW-81 (the subject part reuses its read form)
 
@@ -1156,7 +1156,7 @@ Detail home: `.scratch/plans/if-option.md` §Prerequisite
 
 Progress: Filed 2026-09-23 (user). Not started.
 
-Open: Whether the text rides a separate token beside `use` (`use:fixed|fixed:Varsity`, the `use:key|key:x` pattern; slots write `fixed(Varsity)` alone, since the token name already implies the read) or an argument inside `use` (`use:fixed(Varsity)`, which is FW-81's O1/O2 question). The separate token is recommended; on base tags it leaves a redundant `use` until FW-142 lands. Token name, `fixed` favored.
+Open: Whether the text rides a separate token beside `use` (`use:fixed|fixed:Varsity`, the `use:key|key:x` pattern; slots write `fixed(Varsity)` alone, since the token name already implies the read) or an argument inside `use` (`use:fixed(Varsity)`, which is FW-81's O1/O2 question). The separate token is recommended. FW-142 lands first or with this (user, 2026-09-24), so neither form leaves a redundant `use` on base tags. Token name, `fixed` favored.
 
 Blocked by: —  •  Interacts with: FW-27 (blocked on this), FW-142 (removes the redundant base-tag `use`), FW-81 (shares the `use`-takes-an-argument decision only if the text rides inside `use`), FW-59 (author text is bracketed)
 
