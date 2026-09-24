@@ -444,15 +444,15 @@ Blocked by: —  •  Interacts with: —
 
 #### FW-20 — Combined option controls
 
-Includes serialization order; avoiding serializing stale or redundant options, e.g. stripping `use:key` when `key:some_field` is set and stripping `key` when `use` is not `key`; and folded options, e.g. `linkTo` cluster unification (the wire change, separate from FW-13's discovery work). `use:key,field` itself is decided against as a general serialization standard; it survives only as the folded multi-key/multi-field form FW-81's datetime collapse needs.
+Includes serialization order; avoiding serializing stale or redundant options, e.g. stripping `use:key` when `key:some_field` is set and stripping `key` when `use` is not `key` (now FW-142); and folded options, e.g. `linkTo` cluster unification (the wire change, separate from FW-13's discovery work). `use:key,field` itself is decided against as a general serialization standard; it survives only as the folded multi-key/multi-field form FW-81's datetime collapse needs.
 
 Detail home: `.scratch/plans/combined-option-controls.md`
 
 Progress: `srcTermIn` shipped in v1.6.0; it was superseded by FW-56's src-chain control, shipped in 1.17.0. The serialization-order portion (FW-52) and `{{image}}`'s folded `as:url,<size>` shipped in 1.16.0.
 
-Open: `use`/`key` and the `linkTo` cluster.
+Open: The `linkTo` cluster. The redundant/stale `use` omission split out to FW-142 (2026-09-23).
 
-Blocked by: —  •  Interacts with: FW-13, FW-81
+Blocked by: —  •  Interacts with: FW-13, FW-81, FW-142
 
 #### FW-55 — Warn + escape UI for tag-string-unsafe chars in free-text options
 
@@ -508,7 +508,7 @@ The dormant "show me the picture, whichever candidate has one" behaviour, remove
 
 Detail home: `docs/design-history/deterministic-source-selection.md` §S47
 
-Progress: Term chains are the constituency this matters most for, since WP term order is a pass-through (alphabetical by default) rather than an author choice.
+Progress: Term chains are the constituency this matters most for, since WP term order is a pass-through (alphabetical by default) rather than an author choice. To be absorbed by FW-27 (user, 2026-09-23): `if` filters before `limit`, so `if:hasValue` with no condition field is exactly this search, stated per tag. Closes when FW-27 ships.
 
 Open: Whether the option is useful at all (user, 2026-08-21); if so, the whole authoring surface (control, wire token, label/help, placement, an era-stamping migration for flat-era wire).
 
@@ -633,6 +633,18 @@ Progress: Deliberately out of scope for FW-100 (1.20.0), which is why this row e
 Open: Whether it should exist at all, given the other plugin's tags already serve it and `{{text}}` reading a vendor's computed key would be the vendor-vocabulary coupling FW-100 spent its whole design avoiding. If it does, whether the route is a new kind, a `row`-arm fallback on a `post`-classified item, or an opt-in option.
 
 Blocked by: decision:should record-side reads exist at all  •  Interacts with: FW-100 (closed — the recognizer this would layer on), FW-13 (the picker would have to offer these keys from somewhere)
+
+#### FW-142 — Omit a redundant `use` on base tags when the field token already says the read
+
+A base tag should not serialize a `use` value its own field token already implies, or keep a field token its `use` no longer reads. Slots already work this way (`key(x)` alone is a keyed read, and the slot writer drops `use`); base tags cannot, because GB's native `use` select shows its default whenever `use` is absent. The fix is a combined control that derives the displayed mode from the token present, plus the matching read rule (absent `use` + field token present = that token's read).
+
+Detail home: `.scratch/plans/combined-option-controls.md` §The combined CONTROL still needed (a different deliverable from the combined WIRE)
+
+Progress: Split out of FW-20 2026-09-23 (user), leaving FW-20 the `linkTo` cluster. One live instance: `{{content}}` must write `use:key|key:foo` because its `use` enum leads with the `content` analog. `{{text}}` and `{{image}}` avoid it only because their enums lead with `key`, so `_strip_default` removes it. FW-141 would add a second instance (`use:fixed|fixed:Varsity`) on base tags only.
+
+Open: Whether the read rule generalizes (any field token present implies its mode) or is stated per token; back-compat is parse-side (stored `use:key|key:foo` keeps resolving), so no migration.
+
+Blocked by: —  •  Interacts with: FW-20 (split from), FW-141 (its second instance), FW-81, FW-64
 
 ### Testing & infrastructure
 
@@ -848,11 +860,11 @@ A lighter alternative to FW-26 — a `show_if`-style predicate grammar that self
 
 Detail home: `.scratch/plans/if-option.md` (spitball, no design); wire → `docs/design-history/src-chain-encoding.md`
 
-Progress: Direction confirmed and sharpened (user, 2026-08-01): embedded option, not a separate tag set; the tag-set alternative FW-26 closed not planned 2026-09-23.
+Progress: Direction confirmed and sharpened (user, 2026-08-01): embedded option, not a separate tag set; the tag-set alternative FW-26 closed not planned 2026-09-23. Reopened 2026-09-23 (user): the condition subject is settled as the same location as the displayed field (a different field on the source the tag already resolved, no second chain), the wire is a flat folded value under one `if` token, in the src chain and FW-81 style, compare text is bracketed, before/after on a date field is in v1, and on a multi-part tag `if` filters out each source that fails rather than gating the whole output.
 
-Open: The condition's subject — the useful cases test a DIFFERENT source/field than the slot reads, which means a condition needs its own src-chain per slot on top of the read chain, roughly doubling per-slot state. A same-subject fallback (condition tests the slot's own read) covers has-value/simple truthiness with no second chain, at the cost of the cases that motivate the feature. Must decide before any wire work.
+Open: Date-only comparison granularity, operator spelling, and whether FW-81's read form lands first. Proposal and remaining questions are in the detail home.
 
-Blocked by: decision:condition subject — decoupled chain vs same-subject  •  Interacts with: FW-26 (closed), FW-57 (closed), FW-56 (closed), FW-60, FW-43
+Blocked by: FW-141 (the driving case, a boolean showing a fixed word in a `{{join}}` slot)  •  Interacts with: FW-26 (closed), FW-57 (closed), FW-56 (closed), FW-59 (compare text is bracketed), FW-60, FW-88 (absorbed: `if` filters before `limit`), FW-35 (forcing a datetime to mean its whole day), FW-43, FW-81 (the subject part reuses its read form)
 
 #### FW-28 — Composition-of-composers
 
@@ -916,7 +928,7 @@ Progress: Designed 2026-08-24. Not a position in FW-81's read fold — a boolean
 
 Open: The whole item waits on FW-59/FW-61's bracketed free-form value escape discipline, since the note is a bracketed free-form value and blocks the whole feature (shipping `key,<field>` alone would need a migration once `midnight` later joins).
 
-Blocked by: row:FW-59, row:FW-61  •  Interacts with: FW-3, FW-81, FW-13 (the flag field is itself a discovered field), FW-134 (`_piecal_is_allday` is the motivating field, and its two save paths are why the option holds an exclusive predicate)
+Blocked by: row:FW-59, row:FW-61  •  Interacts with: FW-27 (a date test in `if` needs the same "this datetime means its whole day" switch), FW-3, FW-81, FW-13 (the flag field is itself a discovered field), FW-134 (`_piecal_is_allday` is the motivating field, and its two save paths are why the option holds an exclusive predicate)
 
 #### FW-44 — join per-slot inner list sep ({N}-sep)
 
@@ -1135,6 +1147,18 @@ Progress: Researched 2026-07-23 against GB 2.3.0 and the GB facts recorded. Noth
 Open: The plan's §7 questions, most of them browser tests: whether the `dl` loop map survives the editor (the go/no-go for every query-loop map), whether the table map survives nested foster-parenting with the appender suppressed, whether the sentinel prefix works at all, and whether a `{{` typed into a `core/table` cell survives editor transforms. Allowing tags in `core/table` cells is one filter and independent of all of them.
 
 Blocked by: —  •  Interacts with: FW-53 (a working sentinel plus a table loop map would overlap its repeater rows), FW-139
+
+#### FW-141 — Fixed-text read, author-entered text as a tag's output
+
+A `use` value whose output is text the author types, not a field read: `use:fixed(Varsity)`, `use(fixed[Varsity])` inside a slot. Nothing shipped does this; `fallback` is text entry but only fires on empty. Serves a fixed string in one `{{table}}` column on its own, and, gated by FW-27's `if`, a word shown when a boolean field is true as one item of a `{{join}}`.
+
+Detail home: `.scratch/plans/if-option.md` §Prerequisite
+
+Progress: Filed 2026-09-23 (user). Not started.
+
+Open: Whether the text rides a separate token beside `use` (`use:fixed|fixed:Varsity`, the `use:key|key:x` pattern; slots write `fixed(Varsity)` alone, since the token name already implies the read) or an argument inside `use` (`use:fixed(Varsity)`, which is FW-81's O1/O2 question). The separate token is recommended; on base tags it leaves a redundant `use` until FW-142 lands. Token name, `fixed` favored.
+
+Blocked by: —  •  Interacts with: FW-27 (blocked on this), FW-142 (removes the redundant base-tag `use`), FW-81 (shares the `use`-takes-an-argument decision only if the text rides inside `use`), FW-59 (author text is bracketed)
 
 ## Closed / Retired
 
