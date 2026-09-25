@@ -171,7 +171,7 @@ the baseline either: `post_modified` and its siblings are normalized out, so `bi
 
 **The environment the baseline was captured under is recorded** in
 `tools/fixtures/core-structures/env-versions.php` — GenerateBlocks, GB Pro, GB Query Enhancements
-and ACF Pro, with our own version deliberately excluded (that file's header has why, and owns which
+and ACF Pro, plus the WordPress core version, with our own version deliberately excluded (that file's header has why, and owns which
 entries must be present). `verify.php` prints the comparison FIRST. A version drift line is a
 **WARNING**: it exists to tell you a diff below is attributable to a dependency rather than to your
 change. A dependency the record requires and the site cannot use **FAILS the run, naming it**,

@@ -92,6 +92,14 @@ return array(
 	// reader hitting an ~800-line deletion further back in `git log` is looking at that.
 	'captured' => '2026-09-24',
 
+	// WordPress core, as `get_bloginfo( 'version' )` reports it. A change is a WARNING like a
+	// plugin version change, never a failure. First recorded 2026-09-25, read off the site
+	// with a 7.1.2 update pending and the 2026-09-24 baseline not re-captured, so it is the
+	// version that baseline was running under unless core moved that one day. The evidence for
+	// readme.txt's `Tested up to`: page-snapshot-normalize-test.php fails if that line names a
+	// newer major.minor than the one recorded here.
+	'wordpress' => '7.1',
+
 	// EVERY PLUGIN THAT WAS RUNNING, not only the four this record requires. The version
 	// list below answers "were the dependencies the same"; this answers "what else was in
 	// the room", which is the question a moved baseline actually raises. `bws_page_snapshot_
