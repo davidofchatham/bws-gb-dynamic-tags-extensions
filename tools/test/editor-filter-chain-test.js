@@ -989,29 +989,61 @@ check(
 	SELECT === applyFilters( SELECT, { use: { type: 'select' } }, { state: {}, setState: function () {} } )
 );
 
-// THE FIELD-TOKEN EFFECT. One persistent ref models one mounted instance across renders.
-const realRefHook = refHook;
-let refSlot      = null;
-refHook = function ( initial ) { return refSlot || ( refSlot = { current: initial } ); };
+// THE EFFECT: runs on mount (stored redundant wire normalizes, 03) and on a field-token
+// change (the picker). Each call records the updater's answer against the state it saw;
+// an answer that IS that state is the updater bailing, i.e. nothing written.
+const IMAGE_OPTS = {
+	src: { type: 'text' },
+	use: { type: 'select', readTag: 'image' },
+	key: { type: 'bws-field-combo', show_if: { use: 'not:featured' } }
+};
+const OPTS_BY_TAG = { content: CONTENT_OPTS, text: TEXT_OPTS, image: IMAGE_OPTS };
 
 let calls = [];
-function mountUse( state ) {
+function mountUse( tag, state ) {
 	effects = [];
-	renderUse( CONTENT_OPTS, state, function ( u ) { calls.push( u( state ) ); } );
+	renderUse( OPTS_BY_TAG[ tag ], state, function ( u ) {
+		const next = u( state );
+		if ( next !== state ) {
+			calls.push( next );
+		}
+	} );
 	effects.forEach( fn => fn() );
 }
-mountUse( { use: 'key', key: 'foo' } );
-check( 'opening a tag writes nothing', 0 === calls.length, JSON.stringify( calls ) );
-refSlot = null;
-calls   = [];
-mountUse( { use: 'key' } );
-mountUse( { use: 'key', key: 'foo' } );
+[
+	[ 'content', { use: 'key', key: 'foo' }, { key: 'foo' }, '{{content use:key|key:foo}} → {{content key:foo}}' ],
+	[ 'content', { use: 'excerpt', key: 'foo' }, { use: 'excerpt' }, 'content: a stale key beside use:excerpt is dropped' ],
+	[ 'text', { use: 'title', key: 'foo' }, { use: 'title' }, 'text: a stale key beside use:title is dropped' ],
+	[ 'image', { use: 'featured', key: 'foo' }, { use: 'featured' }, 'image: a stale key beside use:featured is dropped' ],
+	[ 'text', { use: 'key', key: 'foo' }, { key: 'foo' }, 'hand-typed {{text use:key|key:foo}} → {{text key:foo}}' ],
+	[ 'content', { src: 'site', use: 'key', key: 'foo', fallback: 'x' }, { src: 'site', key: 'foo', fallback: 'x' }, 'unrelated options survive the mount write' ]
+].forEach( function ( row ) {
+	calls = [];
+	mountUse( row[ 0 ], row[ 1 ] );
+	check(
+		'mount — ' + row[ 3 ],
+		1 === calls.length && JSON.stringify( row[ 2 ] ) === JSON.stringify( calls[ 0 ] ),
+		JSON.stringify( calls )
+	);
+} );
+[
+	[ 'content', { use: 'key' }, 'keyed-pending {{content use:key}} is left unchanged' ],
+	[ 'content', { key: 'foo' }, 'the short form is left unchanged' ],
+	[ 'content', {}, 'a bare {{content}} is left unchanged' ]
+].forEach( function ( row ) {
+	calls = [];
+	mountUse( row[ 0 ], row[ 1 ] );
+	check( 'mount — ' + row[ 2 ], 0 === calls.length, JSON.stringify( calls ) );
+} );
+
+calls = [];
+mountUse( 'content', { use: 'key' } );
+mountUse( 'content', { use: 'key', key: 'foo' } );
 check(
 	'picking a field on {{content use:key}} saves {{content key:foo}}',
 	1 === calls.length && JSON.stringify( { key: 'foo' } ) === JSON.stringify( calls[ 0 ] ),
 	JSON.stringify( calls )
 );
-refHook = realRefHook;
 
 // CONDITIONS on `use` see the effective mode, so the field key survives an implied read.
 function keyShown( opts, state ) {

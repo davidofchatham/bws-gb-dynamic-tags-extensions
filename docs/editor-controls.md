@@ -380,8 +380,8 @@ reachability-only test lets rot.
 **Three writes, all through `setState`'s updater form, all `delete`-omit:**
 
 - a mode PICKED writes `use` only when the field tokens would not already imply it, and deletes the field token of any other mode (`{{content key:foo}}` → Post Excerpt gives `use:excerpt`; → Post Content gives an empty wire; `{{text use:title}}` → Meta/Option Field gives no `use:key`);
-- a field TOKEN CHANGED by another control (the field picker) drops a `use` the tokens now imply, which is how `{{content use:key}}` + a picked field saves `{{content key:foo}}`. It fires on a change to the tokens only, so neither a mount nor the order normalizer's rewrite triggers it;
-- OPENING a tag writes nothing. Stored redundant wire stays as it is.
+- a field TOKEN CHANGED by another control (the field picker) drops a `use` the tokens now imply, which is how `{{content use:key}}` + a picked field saves `{{content key:foo}}`. It fires on a change to the tokens, so the order normalizer's rewrite does not trigger it;
+- OPENING a tag runs the same normalization on stored wire: `{{content use:key|key:foo}}` → `{{content key:foo}}`, hand-typed `{{text use:key|key:foo}}` → `{{text key:foo}}`, and a stale `key` beside another mode is dropped (`{{content use:excerpt|key:foo}}` → `{{content use:excerpt}}`, likewise `{{text use:title|…}}` and `{{image use:featured|…}}`). Keyed-pending `{{content use:key}}` is left alone. Every drop is a token the render ignores or one restating the implied mode, so rendered output does not move and there is no converter entry. The write reaches stored content only when the author confirms the modal. It is licensed under the on-mount rule in [§Why the image composite does NOT migrate on mount](#why-the-image-composite-does-not-migrate-on-mount-1180): the wire is legacy because current writes never emit it, and decidable because every BWS tag registers `'supports' => array()`, so `key` stays in `extraTagParams`.
 
 **The conditional gate reads the same derived value.** `editor-conditional-options.js` tests a condition on `use` against the effective mode whenever the tag's `use` carries `readTag`, so `show_if: { use: 'key' }` on `{{content}}`'s field key holds while key-mode is only implied. Before this, that condition and a `use` the author could not see were circular: the field key showed only once `use:key` was stored, and storing it was the redundancy.
 
@@ -482,11 +482,9 @@ THE SAME OBJECT in the editor. Completing to `url,full` is right for one and sil
 other's render to full. The converter distinguishes them by reading the raw tag string, and orders
 its two entries so the fold runs first; a mount effect has nothing to order against.
 
-The generalisation, which outlives this control: **an invisible or on-mount write is licensed by
-the value being legacy, and "legacy" has to be decidable from what the filter passes.** Where it is
-not, the write belongs on the converter, whatever the option's ownership. The fold control's
-`stripDefaultRoot` holds the neighbouring rule for the same reason — looking at a tag must not
-change it.
+The generalization, which outlives this control: **an invisible or on-mount write is licensed by the value being legacy, and "legacy" has to be decidable from what the filter passes.** A value is legacy when it was renamed, or when current writes no longer emit it because it is redundant (a token that restates what its absence already means, or one the render ignores); the second is what licenses the `use` read wrapper's mount write ([§The `use` read wrapper](#the-use-read-wrapper)). Where "legacy" is not decidable from filter state, the write belongs on the converter, whatever the option's ownership.
+
+The fold control's `stripDefaultRoot` is the WRITE-time precedent for redundant-token omission: it drops a lone slot-1 root that only restates the default, so picking a source and then picking `Current Context` back does not serialize `src(current)` where the slot previously held nothing. Note on this sentence: it previously said `stripDefaultRoot` holds the neighboring rule "for the same reason" as the `as-size` back-out. The code (2026-08-06) predates that wording (2026-08-19) and was always a write-time strip, never an on-mount decision; the doc moved toward the code on the user's call (2026-09-24) under `CLAUDE.md`'s drift rule, as part of FW-142.
 
 Standing consequence, not introduced by this: the composite writes the whole token on any change,
 so touching a control on a legacy split tag writes `as:url,full` and the tag renders at full size

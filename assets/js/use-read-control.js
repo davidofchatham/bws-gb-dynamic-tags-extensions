@@ -20,7 +20,14 @@
  *   - WRITE (a field token changed): a `use` the tokens now imply is dropped, so picking
  *     a field on `{{content use:key}}` saves `{{content key:foo}}`.
  *
- * Opening a tag writes nothing here; stored redundant wire is left as it is.
+ *   - MOUNT: stored redundant wire gets the same normalize() — `{{content use:key|key:foo}}`
+ *     → `{{content key:foo}}`, a stale `key` beside another mode dropped; keyed-pending
+ *     `{{content use:key}}` is left alone. Licensed as LEGACY because current writes never
+ *     emit it (docs/editor-controls.md §Why the image composite does NOT migrate on
+ *     mount, the on-mount rule), and decidable
+ *     here because `key` stays in extraTagParams on our tags. Every drop is a token the
+ *     render ignores or one restating the implied mode, so output does not move; no
+ *     converter entry. It persists only when the author confirms the modal.
  *
  * editor-conditional-options.js evaluates a `use` condition against effective() too, so
  * the field-key control stays visible while key-mode is only implied.
@@ -40,7 +47,6 @@
 
 	var el        = wp.element.createElement;
 	var useEffect = wp.element.useEffect;
-	var useRef    = wp.element.useRef;
 
 	function rules() {
 		var r = window.bwsUseRules || {};
@@ -138,21 +144,15 @@
 		var tag      = props.tag;
 		var state    = props.context.state || {};
 		var setState = props.context.setState;
-		var sig      = tokenSig( state );
-		var lastSig  = useRef( sig );
 
-		// A field token written by ANOTHER control (the field picker) can make `use`
-		// redundant. Keyed on the tokens, not on every state change, so a mount — or the
-		// order normalizer's rewrite — is not a trigger.
+		// On MOUNT, stored redundant wire normalizes; after that, a field token written by
+		// ANOTHER control (the field picker) can make `use` redundant. Keyed on the tokens,
+		// not on every state change, so the order normalizer's rewrite is not a trigger.
 		useEffect( function () {
-			if ( lastSig.current === sig ) {
-				return;
-			}
-			lastSig.current = sig;
 			setState( function ( prev ) {
 				return normalize( tag, prev );
 			} );
-		}, [ sig ] );
+		}, [ tokenSig( state ) ] );
 
 		return wp.element.cloneElement( props.element, {
 			value:    displayValue( tag, state ),
