@@ -644,7 +644,19 @@ Progress: Split out of FW-20 2026-09-23 (user), leaving FW-20 the `linkTo` clust
 
 Open: Whether the read rule generalizes (any field token present implies its mode) or is stated per token; back-compat is parse-side (stored `use:key|key:foo` keeps resolving), so no migration.
 
-Blocked by: —  •  Interacts with: FW-20 (split from), FW-141 (its second instance), FW-81, FW-64
+Blocked by: —  •  Interacts with: FW-20 (split from), FW-141 (its second instance), FW-81, FW-64, FW-143
+
+#### FW-143 — Flip `{{image}}`'s stripped `use` default to the `featured` analog
+
+`{{image}}`'s `use` enum leads with `key`, so an empty `use` is a keyed read and the featured image / site logo / avatar analog is always serialized as `use:featured`. This item would lead with the analog instead, the way `{{content}}` already does. `{{text}}` stays key-mode: it is primarily a meta-field read, and its only other value is `title`.
+
+Detail home: `includes/helpers/registration-helpers.php` `BWS_USE_STRIPPED_DEFAULTS` PHPDoc (the stated reason for key-mode) + `docs/tag-reference.md` §Source-analog resolution "Strip-default caveat"
+
+Progress: Filed 2026-09-24 (user) out of the FW-142 grill. The stated reason image leads with `key`, that an empty wire beside a stale `key` could not be told from intended key-mode, goes away once FW-142's control drops a stale `key` when `use` leaves key-mode.
+
+Open: The render change: bare `{{image src:site}}` goes from empty to the site logo, and every stored key-mode tag without a `key` changes meaning, so whether a flip needs a migration. Stored `use:featured` becomes redundant.
+
+Blocked by: row:FW-142  •  Interacts with: FW-142, FW-80 (a flip would lead with the analog value FW-80 may rename to `default`), FW-141
 
 ### Testing & infrastructure
 
@@ -1086,7 +1098,7 @@ Progress: Not definite (user, 2026-08-18) — filed to give it a tracked home, n
 
 Open: Whether a `try_` slot ≥2 forces its analog with an explicit token; the value `featured`/`logo`/`avatar` render under (a relabelled `featured` entry vs a neutral `default`).
 
-Blocked by: decision:whether analogs unify at all  •  Interacts with: FW-20, FW-13, FW-57 (closed), FW-34, FW-81
+Blocked by: decision:whether analogs unify at all  •  Interacts with: FW-20, FW-13, FW-57 (closed), FW-34, FW-81, FW-143
 
 #### FW-81 — Collapse datetime_single + datetime_range into one tag
 
