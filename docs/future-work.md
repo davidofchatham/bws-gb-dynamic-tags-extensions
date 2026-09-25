@@ -354,6 +354,18 @@ Progress: **The sweep landed in 1.21.0**, on `fw-129-term-removal`. The `term_*`
 
 Blocked by: —  •  Interacts with: FW-38 (the proxy this API was the last justification for; the stub delete removes the last reason it exists), FW-104 (the enroll-a-live-family trap is a property of this API and is no longer reachable), FW-128 (a tags-in-use report would have made the removal gate checkable without hand-running the converter per site)
 
+#### FW-144 — `{{content}}` paragraph formatting differs by source
+
+`{{content}}` is meant to sit in a container suited to block markup, but whether its value arrives wrapped in paragraphs depends on which read produced it. The term description is the clear outlier: `bws_term_description_core()` reads `$term->description` directly and runs only kses, bypassing core's `term_description` filter, where `wpautop` lives. A multi-paragraph description therefore prints as one unwrapped run of text. Every term route in the family ends in that core: base `{{content}}` with a selected or an ambient term, and `{{try_content}}` through the shared resolve seam.
+
+Detail home: this row
+
+Progress: Read from the code 2026-09-25, not measured. Per read path: post content and site-option `use:key` run `ContentProcessor::render()` (do_blocks, wpautop, kses); the author bio and post type archive description go through core filters that carry `wpautop`; `use:excerpt` returns plain `get_the_excerpt()`; a `use:key` field passes its raw value through, formatted only if the field formats itself (ACF WYSIWYG, auto-paragraph textarea). `{{content}}` registers no `wpautop` option, so GB's own transform is unreachable.
+
+Open: Measure every row above on the testbed, including a multi-paragraph term description and the two filter-based rows. Then decide: route the term description through `apply_filters( 'term_description', … )` before kses (the candidate fix, one site, reaches every term route); whether plain-text `use:key` fields should get paragraphs too, given `wpautop` on already-formatted markup is not guaranteed to be a no-op; and whether the excerpt stays inline.
+
+Blocked by: —  •  Interacts with: FW-126 (same content pipeline)
+
 ### Feature follow-ups & UX
 
 #### FW-9 — Context-aware base tags — the deferred residue
