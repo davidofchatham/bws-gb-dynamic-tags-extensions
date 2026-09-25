@@ -866,17 +866,17 @@ Progress: Not started.
 
 Blocked by: —  •  Interacts with: FW-24 (cheaper alternative)
 
-#### FW-27 — if: as a BASE-TAG OPTION
+#### FW-27 — `when`: a condition as a BASE-TAG OPTION
 
 A lighter alternative to FW-26 — a `show_if`-style predicate grammar that self-gates one tag's output. `if` composes with the slot chain rather than replacing it: `try_` is functionally an if-has-value chain, so generalizing the predicate makes `if` a second, author-set condition per slot alongside the existing has-value check.
 
 Detail home: `.scratch/plans/if-option.md` (spitball, no design); wire → `docs/design-history/src-chain-encoding.md`
 
-Progress: Direction confirmed and sharpened (user, 2026-08-01): embedded option, not a separate tag set; the tag-set alternative FW-26 closed not planned 2026-09-23. Reopened 2026-09-23 (user): the condition subject is settled as the same location as the displayed field (a different field on the source the tag already resolved, no second chain), the wire is a flat folded value under one `if` token, in the src chain and FW-81 style, compare text is bracketed, before/after on a date field is in v1, and on a multi-part tag `if` filters out each source that fails rather than gating the whole output. Encoding settled 2026-09-24 (user): the value is spelled as a slot's own options, tested field first, test last (`if:key(sale_price);hasValue`, `if:use(content);hasValue`); the tested field is always named, since testing the tag's own read was cut for now (additive later).
+Progress: Direction confirmed and sharpened (user, 2026-08-01): embedded option, not a separate tag set; the tag-set alternative FW-26 closed not planned 2026-09-23. Reopened 2026-09-23 (user): the condition subject is settled as the same location as the displayed field (a different field on the source the tag already resolved, no second chain), the wire is a flat folded value under one `if` token, in the src chain and FW-81 style, compare text is bracketed, before/after on a date field is in v1, and on a multi-part tag `if` filters out each source that fails rather than gating the whole output. Encoding settled 2026-09-24 (user): the value is spelled as a slot's own options, tested field first, test last (`if:key(sale_price);hasValue`, `if:use(content);hasValue`); the tested field is always named, since testing the tag's own read was cut for now (additive later). Grilled 2026-09-25 (user): the option is named `when` (earlier notes spell it `if`); tests combine with `any(...)` / `all(...)`; offered on every base tag and per slot in `{{join}}` and `try_`; the editor control is a custom one whose field picker is scoped off the source path like the read picker.
 
-Open: The option's name, `when` or `if` (user strongly favors `when`, 2026-09-24). The FW-141 wire and the remaining unasked questions (editor control, preview text, `contains`) are in the detail home.
+Open: The editor control's configuration flow, to be settled by a prototype before build (scope in the detail home).
 
-Blocked by: FW-141 (the driving case, a boolean showing a fixed word in a `{{join}}` slot)  •  Interacts with: FW-26 (closed), FW-57 (closed), FW-56 (closed), FW-59 (compare text is bracketed), FW-60, FW-88 (absorbed: `if` filters before `limit`), FW-35 (forcing a datetime to mean its whole day), FW-43, FW-81 (the subject part reuses its read form)
+Blocked by: FW-141 (the driving case, a boolean showing a fixed word in a `{{join}}` slot)  •  Interacts with: FW-26 (closed), FW-57 (closed), FW-56 (closed), FW-59 (compare text is bracketed), FW-60, FW-88 (absorbed: `when` filters before `limit`), FW-35 (forcing a datetime to mean its whole day, later), FW-43, FW-81 (the subject part reuses its read form)
 
 #### FW-28 — Composition-of-composers
 
@@ -940,7 +940,7 @@ Progress: Designed 2026-08-24. Not a position in FW-81's read fold — a boolean
 
 Open: The whole item waits on FW-59/FW-61's bracketed free-form value escape discipline, since the note is a bracketed free-form value and blocks the whole feature (shipping `key,<field>` alone would need a migration once `midnight` later joins).
 
-Blocked by: row:FW-59, row:FW-61  •  Interacts with: FW-27 (a date test in `if` needs the same "this datetime means its whole day" switch), FW-3, FW-81, FW-13 (the flag field is itself a discovered field), FW-134 (`_piecal_is_allday` is the motivating field, and its two save paths are why the option holds an exclusive predicate)
+Blocked by: row:FW-59, row:FW-61  •  Interacts with: FW-27 (a date test in `when` ignores the tag's `allDay`, which describes the displayed field, not the tested one; forcing a tested datetime to mean its whole day arrives later as a named token inside the test, on this item), FW-3, FW-81, FW-13 (the flag field is itself a discovered field), FW-134 (`_piecal_is_allday` is the motivating field, and its two save paths are why the option holds an exclusive predicate)
 
 #### FW-44 — join per-slot inner list sep ({N}-sep)
 
@@ -1162,15 +1162,13 @@ Blocked by: —  •  Interacts with: FW-53 (a working sentinel plus a table loo
 
 #### FW-141 — Fixed-text read, author-entered text as a tag's output
 
-A `use` value whose output is text the author types, not a field read: `use:fixed(Varsity)`, `use(fixed[Varsity])` inside a slot. Nothing shipped does this; `fallback` is text entry but only fires on empty. Serves a fixed string in one `{{table}}` column on its own, and, gated by FW-27's `if`, a word shown when a boolean field is true as one item of a `{{join}}`.
+A `use` value whose output is text the author types, not a field read: `fixed:Varsity` on a base tag, `fixed(Varsity)` inside a slot. Nothing shipped does this; `fallback` is text entry but only fires on empty. Serves a fixed string in one `{{table}}` column on its own, and, gated by FW-27's `when`, a word shown when a boolean field is true as one item of a `{{join}}`.
 
 Detail home: `.scratch/plans/if-option.md` §Prerequisite
 
-Progress: Filed 2026-09-23 (user). Not started.
+Progress: Filed 2026-09-23 (user). Wire decided 2026-09-25 (user): a separate `fixed` token, label "Fixed text", joining `BWS_USE_IMPLIED_BY_TOKEN` as one row, so no `use` is written beside it; the author text follows FW-59's bracketed-text rule. Ships as its own PR before any FW-27 build. Not started.
 
-Open: Whether the text rides a separate token beside `use` (`use:fixed|fixed:Varsity`, the `use:key|key:x` pattern; slots write `fixed(Varsity)` alone, since the token name already implies the read) or an argument inside `use` (`use:fixed(Varsity)`, which is FW-81's O1/O2 question). The separate token is recommended. FW-142 landed first, so neither form leaves a redundant `use` on base tags: `fixed` adds itself as a row to `BWS_USE_IMPLIED_BY_TOKEN`. Token name, `fixed` favored.
-
-Blocked by: —  •  Interacts with: FW-27 (blocked on this), FW-142 (closed; the token→mode map `fixed` joins), FW-81 (shares the `use`-takes-an-argument decision only if the text rides inside `use`), FW-59 (author text is bracketed)
+Blocked by: —  •  Interacts with: FW-27 (blocked on this), FW-142 (closed; the token→mode map `fixed` joins), FW-59 (author text is bracketed)
 
 ## Closed / Retired
 

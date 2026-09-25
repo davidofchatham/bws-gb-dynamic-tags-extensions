@@ -368,9 +368,9 @@ const PRESETS = {
   format:          ['format'],
   sep:             ['sep'],
   size:            ['size'],
-  // FW-27 `if` — UNSHIPPED, the one key here with no shipped spelling. Its name is OPEN: `when`
-  // vs `if` (if-option.md S5, user favors `when`), so pick it here to judge on real rows.
-  if:              ['if','when','showIf'],
+  // FW-27 — UNSHIPPED, the one key here with no shipped spelling. Named `when` (if-option.md S5,
+  // decided 2026-09-25); the internal id stays `if` so the scenario rows need no edit.
+  if:              ['when','if','showIf'],
 };
 
 // VALUE-slug presets — same rename mechanism as PRESETS, but for a wire VALUE token rather than
