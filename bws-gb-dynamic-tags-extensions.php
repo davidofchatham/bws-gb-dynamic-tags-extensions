@@ -368,16 +368,36 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 	if ( ! class_exists( 'GenerateBlocks_Register_Dynamic_Tag' ) ) {
 		return;
 	}
+	// The `use` select on {{text}}/{{content}}/{{image}}, displayed and written by the read
+	// rule (FW-142). Fed by the rule's own data from PHP (bws_use_read_rules()), so the
+	// token → mode map and the per-tag stripped defaults are never re-typed in JS.
+	wp_enqueue_script(
+		'bws-dynamic-tags-use-read-control',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/use-read-control.js',
+		array( 'wp-hooks', 'wp-element' ),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
+	if ( function_exists( 'bws_use_read_rules' ) ) {
+		wp_add_inline_script(
+			'bws-dynamic-tags-use-read-control',
+			'window.bwsUseRules = ' . wp_json_encode( bws_use_read_rules() ) . ';',
+			'before'
+		);
+	}
 	// Depends on the fold GRAMMAR for one condition: `chain_fans` asks whether a
 	// `src` value states a chain that hops, which needs the chain parser. The
 	// predicate reads window.bwsSlotFold at call time (the filter runs long after
 	// every script has loaded), so the dependency is stated for the reader's sake
 	// rather than to fix an order — but an undeclared dependency is how the next
 	// person removes the wrong enqueue.
+	//
+	// And on the `use` READ RULE's JS twin (use-read-control.js, enqueued below) for a
+	// second: a condition on `use` is tested against the effective mode (FW-142).
 	wp_enqueue_script(
 		'bws-dynamic-tags-conditional-options',
 		BWS_DYNAMIC_TAGS_URL . 'assets/js/editor-conditional-options.js',
-		array( 'wp-hooks', 'bws-dynamic-tags-slot-fold-grammar' ),
+		array( 'wp-hooks', 'bws-dynamic-tags-slot-fold-grammar', 'bws-dynamic-tags-use-read-control' ),
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);

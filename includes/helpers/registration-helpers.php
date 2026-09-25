@@ -262,14 +262,12 @@ function bws_prepare_registration_options( array $options ): array {
  * Each base tag's STRIPPED DEFAULT for `use`: the first value of its registered enum.
  *
  * bws_prepare_registration_options() above blanks that first value so the saved tag
- * string never carries it, and every read site recovers it with `?? '<value>'`. Both
- * halves are deliberate and both stay as written — the strip is what keeps unneeded
- * tokens off the wire, and a `??` at the point of use is the honest spelling of "absent
- * means the first option". What the convention never gave the VALUE was an owner: it was
- * asserted at some twenty read sites and derived at one (the try_ slot-1 seed in
- * TagTemplateRegistry). This map is that owner. The read sites keep their literals;
- * tools/test/use-stripped-default-test.php reads every one of them against this map, and
- * reads the map against the three field-option leaves in base-shared.php.
+ * string never carries it, and every read site gets it back through bws_use_effective()
+ * below. The strip is deliberate — it keeps unneeded tokens off the wire. What the
+ * convention never gave the VALUE was an owner: it was asserted at some twenty read
+ * sites and derived at one (the try_ slot-1 seed in TagTemplateRegistry). This map is
+ * that owner. tools/test/use-stripped-default-test.php reads the map against the three
+ * field-option leaves in base-shared.php, and holds the per-site literals retired.
  *
  * ONE ROW PER TAG THAT REGISTERS A `use` ENUM, AND ABSENCE IS A STATEMENT. A tag with no
  * row has no read axis, so nothing may assert a default for it: bws_use_stripped_default()
@@ -285,14 +283,13 @@ function bws_prepare_registration_options( array $options ): array {
  * drops the option read for every tag whose default IS key-mode. bws_site_resolve_value()'s
  * @invariant records the instance that made this a rule (CONTEXT.md I3).
  *
- * THE STRIPPED DEFAULT IS KEY-MODE WHEREVER KEY-MODE AND A NAMED ANALOG SHARE ONE ENUM
- * (text, image), and stays so until the `use`/`key` controls can auto-unset a stale `key`
- * when `use` leaves key-mode: with the analog as the stripped value, an empty wire beside
- * a leftover key could not be told from intended key-mode, so the analogs are always
- * serialized and the empty wire is an unambiguous key-mode signal. `content` leads with
- * its analog because its key-mode is always the explicit `use:key`, so no such ambiguity
- * exists there. The reasoning in full: docs/tag-reference.md §Source-analog resolution,
- * "Strip-default caveat".
+ * TEXT AND IMAGE LEAD WITH KEY-MODE; CONTENT LEADS WITH ITS ANALOG. The reason first
+ * recorded for key-mode — an empty wire beside a `key` left over from key-mode could not
+ * be told from intended key-mode — no longer holds: the editor's `use` select deletes the
+ * `key` when `use` leaves key-mode (FW-142, assets/js/use-read-control.js). `text` stays
+ * key-mode on its own merits, being primarily a meta-field read; flipping `image` to its
+ * `featured` analog is FW-143. The consequence for authors: docs/tag-reference.md
+ * §Source-analog resolution, "Strip-default caveat".
  *
  * NOT AN ADR, DELIBERATELY. If the controls take over the strip, the registration-time
  * half of this contract moves with them, and a decision record written against the
@@ -312,10 +309,9 @@ if ( ! defined( 'BWS_USE_STRIPPED_DEFAULTS' ) ) {
 /**
  * The stripped default for one tag's `use`, or '' for a tag that has no read axis.
  *
- * Read this where the tag is a VARIABLE (a site dispatcher, a preview walking a template,
- * a carry seed). Where the tag is fixed by the enclosing function, the read site keeps its
- * literal `?? 'key'` — see BWS_USE_STRIPPED_DEFAULTS for why that is the convention and
- * not a defect.
+ * A read site that BRANCHES on `use` asks bws_use_effective() instead, which falls back
+ * to this. Read this directly where the default itself is wanted (a carry seed, the
+ * preview's "is this slot at its template default" test).
  *
  * @since 1.19.0
  * @param string $tag Base tag name.
@@ -324,5 +320,88 @@ if ( ! defined( 'BWS_USE_STRIPPED_DEFAULTS' ) ) {
 if ( ! function_exists( 'bws_use_stripped_default' ) ) {
 function bws_use_stripped_default( string $tag ): string {
 	return BWS_USE_STRIPPED_DEFAULTS[ $tag ] ?? '';
+}
+}
+
+/**
+ * The field tokens that IMPLY a read mode on their own, token → the `use` value implied.
+ *
+ * One row today. A token belongs here when its presence already says which read the
+ * author means, so a `use` beside it naming that same read is redundant. `linkKey` is
+ * NOT a row: it keys the link, not the read, and FW-20 owns that cluster. Read through
+ * bws_use_effective(), never directly at a read site.
+ *
+ * @since 1.21.0
+ */
+if ( ! defined( 'BWS_USE_IMPLIED_BY_TOKEN' ) ) {
+	define( 'BWS_USE_IMPLIED_BY_TOKEN', array(
+		'key' => 'key',
+	) );
+}
+
+/**
+ * The EFFECTIVE `use` of a base tag: the read mode every dispatcher branches on.
+ *
+ * THIS IS THE READ RULE'S ONE ENFORCING SITE (FW-142). In order:
+ *   1. an explicit, non-empty `use` wins, whatever field tokens ride beside it — a
+ *      stale `key` next to `use:excerpt` is ignored, exactly as before;
+ *   2. else the first BWS_USE_IMPLIED_BY_TOKEN token present with a non-empty value
+ *      names the mode — `{{content key:foo}}` is the keyed read, as a slot's bare
+ *      `key(x)` already was (bws_fold_parse_slot());
+ *   3. else the tag's stripped default (bws_use_stripped_default()).
+ * An empty `use` and an empty token value both count as ABSENT: GB drops the stripped
+ * value from the saved string, but a seam or preview walk that materializes every key
+ * can hand a dispatcher the literal '' (the BWS_USE_STRIPPED_DEFAULTS @invariant).
+ *
+ * A TAG WITH NO READ AXIS INFERS NOTHING. title and permalink register no `use` enum;
+ * a `key` on them (permalink ignores it by design) must not turn into a mode, so step 2
+ * runs only for a tag with a stripped-default row, and they get ''.
+ *
+ * Replaces the per-site `$options['use'] ?? 'key'` / `?? 'content'` literals, which could
+ * state step 3 but not step 2 — tools/test/use-stripped-default-test.php keeps them out.
+ *
+ * @since 1.21.0
+ * @param string $tag     Base tag name (text|content|image|title|permalink).
+ * @param array  $options Tag options.
+ * @return string The effective `use`; '' for a tag with no read axis and no explicit `use`.
+ */
+if ( ! function_exists( 'bws_use_effective' ) ) {
+function bws_use_effective( string $tag, array $options ): string {
+	$use = (string) ( $options['use'] ?? '' );
+	if ( '' !== $use ) {
+		return $use;
+	}
+	$default = bws_use_stripped_default( $tag );
+	if ( '' === $default ) {
+		return '';
+	}
+	foreach ( BWS_USE_IMPLIED_BY_TOKEN as $token => $mode ) {
+		if ( '' !== (string) ( $options[ $token ] ?? '' ) ) {
+			return $mode;
+		}
+	}
+	return $default;
+}
+}
+
+/**
+ * The read rule's DATA, shaped for the editor: the token → mode map and the per-tag
+ * stripped defaults, exactly the two constants bws_use_effective() reads.
+ *
+ * Inlined as `window.bwsUseRules` ahead of assets/js/use-read-control.js, whose derive
+ * function is bws_use_effective()'s JS twin — the editor displays and writes `use` by the
+ * same rule the renderer reads it by, without a JS copy of either constant.
+ * tools/test/editor-filter-chain-test.js reads this function's output and holds the twin
+ * to the PHP helper case for case.
+ *
+ * @since 1.21.0
+ * @return array { implied: array<string,string>, defaults: array<string,string> }
+ */
+if ( ! function_exists( 'bws_use_read_rules' ) ) {
+function bws_use_read_rules(): array {
+	return array(
+		'implied'  => BWS_USE_IMPLIED_BY_TOKEN,
+		'defaults' => BWS_USE_STRIPPED_DEFAULTS,
+	);
 }
 }

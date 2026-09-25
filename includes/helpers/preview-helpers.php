@@ -1380,12 +1380,8 @@ function bws_build_preview_label( array $options, string $template ): string {
 	);
 	$context_part = implode( ' ', $ctx_segments );
 
-	$key         = $options['key'] ?? '';
-	$use_default = bws_use_stripped_default( $base_template );
-	$use         = $options['use'] ?? $use_default;
-	if ( '' === $use ) {
-		$use = $use_default;
-	}
+	$key = $options['key'] ?? '';
+	$use = bws_use_effective( $base_template, $options );
 	// Image `as` may carry a folded `,<size>` arg (as+size fold, FW-52) — read the
 	// bare return MODE for the exclusion test. Datetime/other `as` has no size fold.
 	$as       = ( 'image' === $base_template && function_exists( 'bws_parse_as_option' ) )

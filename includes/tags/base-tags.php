@@ -667,7 +667,7 @@ function bws_register_base_tags(): void {
  *                        value came from a list arm that already wrapped per item.
  */
 function bws_base_text_resolve_value( array $options, $instance ): array {
-	$use = $options['use'] ?? 'key';
+	$use = bws_use_effective( 'text', $options );
 	$res = bws_base_src_resolution( $options );
 
 	// Site read — no entity; site value with sentinel link identity (id 1, 'site' type).
@@ -1133,7 +1133,7 @@ function bws_join_callback( $options, $block, $instance ): string {
 function bws_base_content_resolve_value( array $options, $instance ): array {
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
-	$use  = $options['use'] ?? 'content';
+	$use  = bws_use_effective( 'content', $options );
 	$res  = bws_base_src_resolution( $options );
 	// Local copy — the use:key arm sets $opts['type'] below.
 	$opts = $options;
@@ -1560,7 +1560,7 @@ function bws_base_permalink_callback( $options, $block, $instance ): string {
  * @return array{value:string, link_id:int, link_type:string}
  */
 function bws_base_image_resolve_value( array $options, $instance ): array {
-	$use = $options['use'] ?? 'key';
+	$use = bws_use_effective( 'image', $options );
 	$res = bws_base_src_resolution( $options );
 	$out = array(
 		'value'     => '',
@@ -1763,9 +1763,8 @@ function bws_site_allowlist_ok( string $key ): bool {
  * key-read reached by `use:key`, not a distinct field type — V8).
  *
  * STRIP-DEFAULT (B6): an EMPTY wire `use` is the tag's FIRST enum value (stripped
- * at registration), NOT a third "no use" state. This function canonicalizes empty
- * → first-enum-value up front (text/image → 'key', content → 'content'), mirroring
- * the per-callback `?? 'key'` / `?? 'content'` defaults. So `{{text src:site|
+ * at registration), NOT a third "no use" state. This function canonicalizes up front
+ * through bws_use_effective(), as every read site does. So `{{text src:site|
  * key:blogname}}` (no explicit `use`) reads the option, because text's stripped
  * default IS key-mode.
  *
@@ -1803,9 +1802,8 @@ function bws_site_allowlist_ok( string $key ): bool {
  *   - image     → DEFAULT 'key' → option attachment-id (bare/no-key → ''); the site
  *                 LOGO is the EXPLICIT use:featured value (get_theme_mod('custom_logo'),
  *                 respects as/size). Logo is NOT the stripped default — `featured` is
- *                 always serialized so the empty wire stays an unambiguous key-mode
- *                 signal (no stale-key ambiguity until token authority via custom
- *                 controls; deferred — see SPEC §B6 note).
+ *                 always serialized; making it the default is FW-143 (the stale-key
+ *                 reason against it went with FW-142, see BWS_USE_STRIPPED_DEFAULTS).
  * Parallels post→{title,content,permalink,featured} / term→{name,description,URL,—},
  * EXCEPT image's site analog (logo) is reached by explicit use:featured, not bare.
  *
@@ -1818,15 +1816,11 @@ function bws_site_allowlist_ok( string $key ): bool {
 function bws_site_resolve_value( string $tag, array $options, $instance ): string {
 	$key = (string) ( $options['key'] ?? '' );
 
-	// Canonicalize `use` to the tag's stripped default (its FIRST enum value) when
-	// the wire value is empty — strip-default means an unset `use` IS the first
-	// option, NOT a third "no use" state (B6). The value is the map's, not restated
-	// here: title/permalink register no `use` enum and get '' from it, which the
-	// ternary this replaced had been reading as 'key'.
-	$use = (string) ( $options['use'] ?? '' );
-	if ( '' === $use ) {
-		$use = bws_use_stripped_default( $tag );
-	}
+	// Canonicalize `use` before any branch — an unset `use` is never a third "no use"
+	// state (B6). bws_use_effective() owns what it canonicalizes TO; title/permalink
+	// register no `use` enum and get '' from it, which the ternary this replaced had
+	// been reading as 'key'.
+	$use = bws_use_effective( $tag, $options );
 
 	// title base tag (no `use` enum) and text use:title → site name.
 	if ( 'title' === $tag || 'title' === $use ) {
@@ -1906,7 +1900,7 @@ function bws_site_resolve_value( string $tag, array $options, $instance ): strin
  * @since 1.6.0
  */
 function bws_try_text_post_dispatch( $post_id, $options, $instance ) {
-	$use = $options['use'] ?? 'key';
+	$use = bws_use_effective( 'text', $options );
 	if ( 'title' === $use ) {
 		return bws_post_title_core( $post_id, $options, $instance );
 	}
@@ -1926,7 +1920,7 @@ function bws_try_text_post_dispatch( $post_id, $options, $instance ) {
  * @since 1.21.0
  */
 function bws_try_text_row_dispatch( $source, $options, $instance ) {
-	$use = $options['use'] ?? 'key';
+	$use = bws_use_effective( 'text', $options );
 	if ( 'title' === $use ) {
 		return '';
 	}
@@ -1939,7 +1933,7 @@ function bws_try_text_row_dispatch( $source, $options, $instance ) {
  * @since 1.6.0
  */
 function bws_try_text_term_dispatch( $term_id, $options, $instance ) {
-	$use = $options['use'] ?? 'key';
+	$use = bws_use_effective( 'text', $options );
 	if ( 'title' === $use ) {
 		return bws_term_title_core( $term_id, $options, $instance );
 	}
@@ -1954,7 +1948,7 @@ function bws_try_text_term_dispatch( $term_id, $options, $instance ) {
  * @since 1.6.0
  */
 function bws_try_content_post_dispatch( $post_id, $options, $instance ) {
-	$use = $options['use'] ?? 'content';
+	$use = bws_use_effective( 'content', $options );
 	if ( 'excerpt' === $use ) {
 		return bws_post_excerpt_core( $post_id, $options, $instance );
 	}
@@ -1983,7 +1977,7 @@ function bws_try_content_post_dispatch( $post_id, $options, $instance ) {
  * @since 1.21.0
  */
 function bws_try_content_row_dispatch( $source, $options, $instance ) {
-	if ( 'key' !== ( $options['use'] ?? 'content' ) ) {
+	if ( 'key' !== bws_use_effective( 'content', $options ) ) {
 		return '';
 	}
 	return bws_row_custom_text_core( (array) $source, $options, $instance );
@@ -1995,7 +1989,7 @@ function bws_try_content_row_dispatch( $source, $options, $instance ) {
  * @since 1.6.0
  */
 function bws_try_content_term_dispatch( $term_id, $options, $instance ) {
-	$use = $options['use'] ?? 'content';
+	$use = bws_use_effective( 'content', $options );
 	if ( 'key' === $use ) {
 		return bws_term_custom_text_core( $term_id, $options, $instance );
 	}
@@ -2011,7 +2005,7 @@ function bws_try_content_term_dispatch( $term_id, $options, $instance ) {
  * @since 1.6.0
  */
 function bws_try_image_post_dispatch( $post_id, $options, $instance ) {
-	$use = $options['use'] ?? 'key';
+	$use = bws_use_effective( 'image', $options );
 	if ( 'featured' === $use ) {
 		return bws_featured_image_core( $post_id, $options, $instance );
 	}
@@ -2033,7 +2027,7 @@ function bws_try_image_post_dispatch( $post_id, $options, $instance ) {
  * @since 1.21.0
  */
 function bws_try_image_row_dispatch( $source, $options, $instance ) {
-	if ( 'featured' === ( $options['use'] ?? 'key' ) ) {
+	if ( 'featured' === bws_use_effective( 'image', $options ) ) {
 		return '';
 	}
 	return bws_row_custom_image_core( (array) $source, $options, $instance );

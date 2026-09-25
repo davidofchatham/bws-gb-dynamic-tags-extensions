@@ -76,6 +76,7 @@ function check( label, ok, detail ) {
 //    props leaves key undefined — exactly what a keyless Fragment wrap does.
 const filters = [];
 let effects = [];
+let refHook = function ( initial ) { return { current: initial }; };
 
 global.window = {};
 global.wp = {
@@ -98,7 +99,13 @@ global.wp = {
 		// Effects are queued and flushed once per sweep, so a control that never renders
 		// never runs its effect — which is the reachability question.
 		useEffect: function ( fn ) { effects.push( fn ); },
-		useState: function ( initial ) { return [ initial, function () {} ]; }
+		useState: function ( initial ) { return [ initial, function () {} ]; },
+		// A fresh ref per call: nothing here re-renders one component instance, except the
+		// `use` read section, which swaps in a persistent one for exactly that.
+		useRef: function ( initial ) { return refHook( initial ); },
+		cloneElement: function ( element, props ) {
+			return Object.assign( {}, element, { props: Object.assign( {}, element.props, props ) } );
+		}
 	},
 	i18n: { __: function ( s ) { return s; }, sprintf: function ( s, a ) { return String( s ).replace( '%s', a ); } },
 	// Identity stubs — the components are never rendered here, only referenced as
@@ -283,6 +290,8 @@ Object.keys( MECHANISM_OPTIONS ).forEach( function ( name ) {
 // that nulls an anchor switches it off) rather than of the predicate alone.
 console.log( '\nlist-mode reveal — flat and chain spellings answer alike\n' );
 
+// Enqueue order: the conditional gate depends on the `use` read twin (FW-142).
+load( 'assets/js/use-read-control.js' );
 load( 'assets/js/editor-conditional-options.js' );
 
 // `srcTermIn` is STORED WIRE with no control of its own since 1.20.0 (FW-67), so it
@@ -852,6 +861,204 @@ function countAdvisories( n ) {
 	return c;
 }
 check( 'a chain fanning at TWO steps shows the advisory once', 1 === countAdvisories( advTree ), String( countAdvisories( advTree ) ) );
+
+// ── The `use` read rule's editor twin (FW-142) ──────────────────────────────
+//
+// TWIN ASSERTIONS against the PHP owner, not a hand-kept expectation list: the rules are
+// read from bws_use_read_rules() — the same function that builds the editor inline — and
+// every case is answered by bws_use_effective() itself. A divergence would store wire the
+// renderer reads differently from what the select displayed.
+console.log( '\n`use` read rule — the editor twin (FW-142)\n' );
+
+const USE_CASES = [];
+[ 'text', 'content', 'image', 'title', 'permalink' ].forEach( function ( tag ) {
+	[
+		{},
+		{ key: 'foo' },
+		{ use: 'key', key: 'foo' },
+		{ use: 'title', key: 'foo' },
+		{ use: 'excerpt', key: 'foo' },
+		{ use: 'featured', key: 'foo' },
+		{ use: '', key: 'foo' },
+		{ use: '' },
+		{ key: '' },
+		{ use: 'key' }
+	].forEach( function ( state ) {
+		USE_CASES.push( [ tag, state ] );
+	} );
+} );
+
+const phpUse = JSON.parse( require( 'child_process' ).execFileSync( 'php', [
+	'-r',
+	"define('ABSPATH', 1); if (!function_exists('__')) { function __($s, $d = null) { return $s; } }" +
+	" require '" + path.join( root, 'includes/helpers/registration-helpers.php' ).replace( /\\/g, '/' ) + "';" +
+	' $c = json_decode(stream_get_contents(STDIN), true); $a = array();' +
+	' foreach ($c as $x) { $a[] = bws_use_effective($x[0], (array) $x[1]); }' +
+	" echo json_encode(array('rules' => bws_use_read_rules(), 'answers' => $a));"
+], { input: JSON.stringify( USE_CASES ) } ).toString() );
+
+global.window.bwsUseRules = phpUse.rules;
+const useRead = global.window.bwsUseRead;
+
+check( 'the read twin loaded', !! useRead );
+check(
+	'the inline carries the map and the three stripped defaults (non-vacuity)',
+	'key' === phpUse.rules.implied.key && 3 === Object.keys( phpUse.rules.defaults ).length,
+	JSON.stringify( phpUse.rules )
+);
+
+const twinMiss = USE_CASES.filter( function ( c, i ) {
+	return useRead.effective( c[ 0 ], c[ 1 ] ) !== phpUse.answers[ i ];
+} ).map( function ( c ) {
+	return c[ 0 ] + ' ' + JSON.stringify( c[ 1 ] );
+} );
+check( 'effective() agrees with bws_use_effective() on all ' + USE_CASES.length + ' cases', 0 === twinMiss.length, twinMiss.join( '; ' ) );
+
+// DISPLAY: the select names the stripped-default row with '' (registration blanked it).
+[
+	[ 'content', { key: 'foo' }, 'key', 'an implied key-mode shows Meta/Option Field' ],
+	[ 'content', {}, '', 'a bare {{content}} shows the Post Content row' ],
+	[ 'text', { key: 'foo' }, '', 'text key-mode IS its default row' ],
+	[ 'text', { use: 'title', key: 'foo' }, 'title', 'an explicit mode shows as itself' ],
+	[ 'image', { key: 'foo' }, '', 'image key-mode IS its default row' ]
+].forEach( function ( row ) {
+	check( 'display — ' + row[ 3 ], row[ 2 ] === useRead.displayValue( row[ 0 ], row[ 1 ] ), JSON.stringify( useRead.displayValue( row[ 0 ], row[ 1 ] ) ) );
+} );
+
+// WRITE: picking a mode. Every row asserts the WHOLE next state, so a stale token written
+// as '' instead of deleted fails by name.
+[
+	[ 'content', { key: 'foo' }, 'excerpt', { use: 'excerpt' }, 'content → Post Excerpt deletes the key' ],
+	[ 'content', { key: 'foo' }, '', {}, 'content → Post Content (the default row) deletes the key, writes no use' ],
+	[ 'content', {}, 'key', { use: 'key' }, 'content → Meta/Option Field with no key yet writes use:key (keyed, pending)' ],
+	[ 'content', { use: 'excerpt' }, 'key', { use: 'key' }, 'content excerpt → Meta/Option Field' ],
+	[ 'text', { key: 'foo' }, 'title', { use: 'title' }, 'text → Title/Name deletes the key' ],
+	[ 'text', { use: 'title' }, '', {}, 'text → Meta/Option Field writes no use:key (short form unchanged)' ],
+	[ 'image', { key: 'foo' }, 'featured', { use: 'featured' }, 'image → Featured Image deletes the key' ],
+	[ 'image', { use: 'featured' }, '', {}, 'image → Meta/Option Field writes no use:key (short form unchanged)' ],
+	[ 'content', { src: 'site', key: 'foo', fallback: 'x' }, 'excerpt', { src: 'site', fallback: 'x', use: 'excerpt' }, 'unrelated options survive a pick' ]
+].forEach( function ( row ) {
+	const next = useRead.pick( row[ 0 ], row[ 1 ], row[ 2 ] );
+	check( 'pick — ' + row[ 4 ], JSON.stringify( row[ 3 ] ) === JSON.stringify( next ), JSON.stringify( next ) );
+} );
+
+// WRITE: a field token changed by the picker. normalize() is what the effect runs.
+[
+	[ 'content', { use: 'key', key: 'foo' }, { key: 'foo' }, 'a field picked on use:key drops the now-redundant use' ],
+	[ 'content', { use: 'key' }, { use: 'key' }, 'keyed-pending stays (the key was cleared, not the mode)' ],
+	[ 'text', { key: 'foo' }, { key: 'foo' }, 'nothing to drop returns the state as is' ]
+].forEach( function ( row ) {
+	const next = useRead.normalize( row[ 0 ], row[ 1 ] );
+	check( 'normalize — ' + row[ 3 ], JSON.stringify( row[ 2 ] ) === JSON.stringify( next ), JSON.stringify( next ) );
+} );
+const same = { key: 'foo' };
+check( 'a no-op normalize returns the SAME object (the updater bails on identity)', same === useRead.normalize( 'content', same ) );
+
+// THE WRAPPER, through the real chain. `use` keeps its key, the clone carries the derived
+// value, and its onChange writes through pick().
+const CONTENT_OPTS = {
+	// A leading option, so the order normalizer's first-option anchor is not `use`.
+	src: { type: 'text' },
+	use: { type: 'select', readTag: 'content' },
+	key: { type: 'bws-field-combo', show_if: { use: 'key' } }
+};
+const TEXT_OPTS = {
+	src: { type: 'text' },
+	use: { type: 'select', readTag: 'text' },
+	key: { type: 'bws-field-combo', show_if: { use: 'not:title' } }
+};
+const SELECT = { key: 'use', type: 'SelectControl', props: { value: '', options: [] } };
+
+function renderUse( opts, state, setState ) {
+	const out = applyFilters( SELECT, opts, { state: state, setState: setState || function () {} } );
+	return { out: out, select: out && 'function' === typeof out.type ? out.type( out.props ) : null };
+}
+
+let r = renderUse( CONTENT_OPTS, { key: 'foo' } );
+check( 'the wrapped `use` keeps its option key', 'use' === r.out.key, JSON.stringify( r.out.key ) );
+check( 'the wrapper hands GB\'s own select through (wrap, not replace)', r.select && 'SelectControl' === r.select.type );
+check( 'the select shows the derived value for {{content key:foo}}', r.select && 'key' === r.select.props.value, r.select && r.select.props.value );
+
+let written = null;
+r = renderUse( CONTENT_OPTS, { key: 'foo' }, function ( u ) { written = u( { key: 'foo' } ); } );
+r.select.props.onChange( 'excerpt' );
+check( 'the select\'s onChange writes through the rule (stale key deleted)', JSON.stringify( { use: 'excerpt' } ) === JSON.stringify( written ), JSON.stringify( written ) );
+
+check(
+	'a `use` with no readTag is left to GB',
+	SELECT === applyFilters( SELECT, { use: { type: 'select' } }, { state: {}, setState: function () {} } )
+);
+
+// THE EFFECT: runs on mount (stored redundant wire normalizes, 03) and on a field-token
+// change (the picker). Each call records the updater's answer against the state it saw;
+// an answer that IS that state is the updater bailing, i.e. nothing written.
+const IMAGE_OPTS = {
+	src: { type: 'text' },
+	use: { type: 'select', readTag: 'image' },
+	key: { type: 'bws-field-combo', show_if: { use: 'not:featured' } }
+};
+const OPTS_BY_TAG = { content: CONTENT_OPTS, text: TEXT_OPTS, image: IMAGE_OPTS };
+
+let calls = [];
+function mountUse( tag, state ) {
+	effects = [];
+	renderUse( OPTS_BY_TAG[ tag ], state, function ( u ) {
+		const next = u( state );
+		if ( next !== state ) {
+			calls.push( next );
+		}
+	} );
+	effects.forEach( fn => fn() );
+}
+[
+	[ 'content', { use: 'key', key: 'foo' }, { key: 'foo' }, '{{content use:key|key:foo}} → {{content key:foo}}' ],
+	[ 'content', { use: 'excerpt', key: 'foo' }, { use: 'excerpt' }, 'content: a stale key beside use:excerpt is dropped' ],
+	[ 'text', { use: 'title', key: 'foo' }, { use: 'title' }, 'text: a stale key beside use:title is dropped' ],
+	[ 'image', { use: 'featured', key: 'foo' }, { use: 'featured' }, 'image: a stale key beside use:featured is dropped' ],
+	[ 'text', { use: 'key', key: 'foo' }, { key: 'foo' }, 'hand-typed {{text use:key|key:foo}} → {{text key:foo}}' ],
+	[ 'content', { src: 'site', use: 'key', key: 'foo', fallback: 'x' }, { src: 'site', key: 'foo', fallback: 'x' }, 'unrelated options survive the mount write' ]
+].forEach( function ( row ) {
+	calls = [];
+	mountUse( row[ 0 ], row[ 1 ] );
+	check(
+		'mount — ' + row[ 3 ],
+		1 === calls.length && JSON.stringify( row[ 2 ] ) === JSON.stringify( calls[ 0 ] ),
+		JSON.stringify( calls )
+	);
+} );
+[
+	[ 'content', { use: 'key' }, 'keyed-pending {{content use:key}} is left unchanged' ],
+	[ 'content', { key: 'foo' }, 'the short form is left unchanged' ],
+	[ 'content', {}, 'a bare {{content}} is left unchanged' ]
+].forEach( function ( row ) {
+	calls = [];
+	mountUse( row[ 0 ], row[ 1 ] );
+	check( 'mount — ' + row[ 2 ], 0 === calls.length, JSON.stringify( calls ) );
+} );
+
+calls = [];
+mountUse( 'content', { use: 'key' } );
+mountUse( 'content', { use: 'key', key: 'foo' } );
+check(
+	'picking a field on {{content use:key}} saves {{content key:foo}}',
+	1 === calls.length && JSON.stringify( { key: 'foo' } ) === JSON.stringify( calls[ 0 ] ),
+	JSON.stringify( calls )
+);
+
+// CONDITIONS on `use` see the effective mode, so the field key survives an implied read.
+function keyShown( opts, state ) {
+	return null !== applyFilters( { key: 'key', type: 'control' }, opts, { state: state, setState: function () {} } );
+}
+[
+	[ CONTENT_OPTS, { key: 'foo' }, true, 'content: key control visible while key-mode is implied' ],
+	[ CONTENT_OPTS, { use: 'key' }, true, 'content: visible on explicit use:key' ],
+	[ CONTENT_OPTS, {}, false, 'content: hidden on the Post Content default' ],
+	[ CONTENT_OPTS, { use: 'excerpt', key: 'foo' }, false, 'content: hidden when an explicit mode beats a stale key' ],
+	[ TEXT_OPTS, {}, true, 'text: visible on the key-mode default' ],
+	[ TEXT_OPTS, { use: 'title' }, false, 'text: hidden on Title/Name' ]
+].forEach( function ( row ) {
+	check( 'condition — ' + row[ 3 ], row[ 2 ] === keyShown( row[ 0 ], row[ 1 ] ) );
+} );
 
 console.log( '' );
 if ( fail ) {

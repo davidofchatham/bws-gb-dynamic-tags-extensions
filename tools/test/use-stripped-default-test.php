@@ -1,35 +1,31 @@
 <?php
 /**
- * BWS_USE_STRIPPED_DEFAULTS — the map, its leaves, and every read site that asserts it.
+ * BWS_USE_STRIPPED_DEFAULTS — the map, its leaves, and the one read rule over them.
  *
  * Registration blanks the first value of each `use` enum so the saved tag string never
- * carries it (bws_prepare_registration_options), and every read site recovers it with
- * `?? '<value>'`. BOTH HALVES ARE DELIBERATE AND NEITHER IS UNDER TEST HERE. What was
- * missing is an owner for the VALUE: it was asserted at some twenty read sites and
- * derived at one. BWS_USE_STRIPPED_DEFAULTS is that owner, and a map nothing checks is
- * just a twenty-first assertion — so this file is what makes it authoritative.
+ * carries it (bws_prepare_registration_options). Read sites used to recover it with
+ * `?? '<value>'`, at some twenty sites; since FW-142 every one asks bws_use_effective()
+ * instead, which also answers for a `use` IMPLIED by a field token (`{{content key:foo}}`
+ * is the keyed read). The map is the VALUE's owner, the helper is the RULE's.
  *
  * §1 pins the map against the three field-option LEAVES (base-shared.php), which are what
  * registration actually reads, so the map cannot drift from the enums it describes.
  *
- * §2 is a CENSUS of includes/, not a case list: it finds every `use`-default literal in
- * the tree and checks it against the map, so a read site added later is covered by a check
- * nobody wrote. Comments are stripped through token_get_all() rather than by regex —
- * four of the tree's nineteen `?? 'key'` occurrences are prose inside docblocks, and one
- * of those lines matches both patterns at once.
+ * §2 is a CENSUS of includes/, not a case list. It holds the literal-recovery shape
+ * RETIRED (a read site added later with its own `?? 'key'` fails by name, because it
+ * would state step 3 of the rule and skip step 2), and it reads every helper call's tag
+ * argument against the map. Comments are stripped through token_get_all() rather than by
+ * regex — docblocks still quote the retired shape as prose.
  *
- * §4 holds the shapes that were CONVERTED away. Six read sites stated the canon in forms
- * no single pattern could see, and §2 is a one-pattern census only for as long as they
- * stay converted. FOUR of the six have a regex here — the tag→default ternary, the inline
- * tag=>default map, the seam's `'' === $use` ternary, and the paired equality in a display
- * path. The other two do not, and saying so is the point: a `??` whose right operand is a
- * VARIABLE is not a retired shape at all (it is how a site fed by the map spells itself),
- * and the second inline map was byte-identical to the first, so one pattern covers both.
+ * §4 holds the other shapes that were CONVERTED away before FW-142: forms that stated the
+ * canon where no `??` pattern could see them. A `??` whose right operand is a VARIABLE is
+ * not among them — it is how a site fed by the map spells itself.
  *
- * WHAT THIS CANNOT PROVE, and the rules section says so too: the census reads a literal,
- * not the tag it belongs to. `?? 'key'` inside a content-shaped function is a wrong value
- * this file will pass, because nothing on that line names a tag. §1 is what makes the
- * VALUES right; per-SITE correctness rests on the render harnesses and the tag matrices.
+ * §5 pins bws_use_effective() itself: implied, explicit-wins, and both empty cases, per tag.
+ *
+ * WHAT THIS CANNOT PROVE: a helper call names a tag, and §2 checks that tag is a map row,
+ * not that it is the RIGHT row for the function it sits in. Per-SITE correctness rests on
+ * the render harnesses and the tag matrices.
  *
  * Run:  php tools/test/use-stripped-default-test.php
  * Exit 0 = pass, 1 = fail.
@@ -80,9 +76,9 @@ function assert_same( string $label, $expected, $actual ): void {
  * A file's source with every comment blanked, line numbers preserved.
  *
  * A comment's newlines are kept so a match's line number still points at the real line.
- * This is the false-positive control for §2: `includes/tags/base-tags.php` carries a
- * docblock line reading "the per-callback `?? 'key'` / `?? 'content'` defaults", which a
- * line regex counts as two assertions that do not exist.
+ * This is the false-positive control for §2: bws_use_effective()'s own PHPDoc quotes the
+ * retired `$options['use'] ?? 'key'` shape, which a line regex counts as a read site that
+ * does not exist.
  */
 function bws_strip_php_comments( string $src ): string {
 	$out = '';
@@ -148,6 +144,20 @@ foreach ( $leaves as $tag => $leaf ) {
 	);
 }
 
+// The editor finds a leaf's row through `readTag` (GB hands a control filter no tag name),
+// so a leaf stamped with the wrong row would display and write `use` by another tag's
+// default while rendering by its own.
+foreach ( $leaves as $tag => $leaf ) {
+	assert_same( "{$tag}: the leaf's readTag names its own map row", $tag, $leaf['use']['readTag'] ?? null );
+}
+
+// The editor inline IS the two constants the helper reads — not a third spelling.
+assert_same(
+	'bws_use_read_rules() carries the map and the implied-token rows, unchanged',
+	array( 'implied' => BWS_USE_IMPLIED_BY_TOKEN, 'defaults' => BWS_USE_STRIPPED_DEFAULTS ),
+	bws_use_read_rules()
+);
+
 // Absence is a STATEMENT, not a gap: a tag with no `use` enum has no read axis, and a
 // dispatcher asking for its default must get '' rather than a plausible 'key'. This is
 // the assertion that makes bws_site_resolve_value's title/permalink arms correct.
@@ -155,26 +165,39 @@ foreach ( array( 'title', 'permalink', 'email', 'phone', 'datetime_single', 'tab
 	assert_same( "{$tag}: no read axis, so no default", '', bws_use_stripped_default( $tag ) );
 }
 
-echo "\n§2 — census: every `use`-default literal in includes/\n";
+echo "\n§2 — census: no read site recovers the default itself; every helper call names a row\n";
 
-// The one shape §4 keeps the tree in: a `use`-ish subscript recovered with `??` and a
-// literal. Covers `$options['use']`, `( $options['use'] ?? 'key' )` inline in a
-// comparison, `$col['use']`, and `$options[ "{$n}-use" ]`.
+// The RETIRED shape: a `use`-ish subscript recovered with `??` and a literal. Covers
+// `$options['use']`, `( $options['use'] ?? 'key' )` inline in a comparison, `$col['use']`,
+// and `$options[ "{$n}-use" ]`. Retired by FW-142 — such a site states the stripped
+// default but not a `use` implied by a field token, so it reads `{{content key:foo}}` as
+// the analog while every other site reads it as the keyed read.
 $pattern = '/\[\s*[^\]\[]*use[^\]\[]*\]\s*\?\?\s*\'([^\']*)\'/i';
 
 // `{{table}}`'s per-column `{N}-use` is its OWN enum, registered in table-tags.php, and it
 // is deliberately NOT in the map: the option is being replaced by a source chain ending in
 // a fanning step, so enrolling it now would tie a shipped map to a surface on its way out.
 // Excluded by FILE, with the count pinned — a third site appearing in there is a decision
-// someone should make on purpose, not a row that quietly joins the census.
+// someone should make on purpose, not a row that quietly joins the census. The pinned
+// count is also this census's NON-VACUITY check: a pattern gone stale finds 0 there too.
 $excluded       = array( 'includes/tags/table-tags.php' => 2 );
 $excluded_found = array();
 
+// Every call of the helper with a LITERAL tag; a variable tag (the site dispatcher, the
+// preview) is fed by a caller and is not this census's subject.
+$call_pattern = '/bws_use_effective\(\s*\'([^\']*)\'/';
+
 $sites = array();
+$calls = array();
 foreach ( bws_include_files( $root ) as $rel ) {
 	$src   = bws_strip_php_comments( (string) file_get_contents( $root . '/' . $rel ) );
 	$lines = explode( "\n", $src );
 	foreach ( $lines as $i => $line ) {
+		if ( preg_match_all( $call_pattern, $line, $cm, PREG_SET_ORDER ) ) {
+			foreach ( $cm as $hit ) {
+				$calls[] = array( 'file' => $rel, 'line' => $i + 1, 'tag' => $hit[1] );
+			}
+		}
 		if ( ! preg_match_all( $pattern, $line, $m, PREG_SET_ORDER ) ) {
 			continue;
 		}
@@ -188,36 +211,10 @@ foreach ( bws_include_files( $root ) as $rel ) {
 				$excluded_found[ $rel ] = ( $excluded_found[ $rel ] ?? 0 ) + 1;
 				continue;
 			}
-			$sites[] = array( 'file' => $rel, 'line' => $i + 1, 'value' => $hit[1] );
+			$sites[] = "{$rel}:" . ( $i + 1 ) . " => '{$hit[1]}'";
 		}
 	}
 }
-
-$values = array_values( BWS_USE_STRIPPED_DEFAULTS );
-
-// NON-VACUITY FIRST. A census that finds nothing passes every check below it, and the
-// pattern going stale is exactly how that happens. The floor is deliberately well under
-// the fifteen sites present, so an ordinary conversion does not trip it.
-assert_same(
-	'the census found read sites at all (pattern still matches the tree)',
-	true,
-	count( $sites ) >= 8
-);
-
-$bad = array();
-foreach ( $sites as $s ) {
-	if ( ! in_array( $s['value'], $values, true ) ) {
-		$bad[] = "{$s['file']}:{$s['line']} => '{$s['value']}'";
-	}
-}
-assert_same( 'every read site recovers a value the map states', array(), $bad );
-
-// No orphan rows: a map row nothing recovers is either a dead tag or a wrong value, and
-// both are worth naming. Read against the census, so it fails the moment a tag's last
-// read site is converted away without the row going with it.
-$seen   = array_values( array_unique( array_column( $sites, 'value' ) ) );
-$unused = array_values( array_diff( $values, $seen ) );
-assert_same( 'every map value is recovered somewhere in includes/', array(), $unused );
 
 foreach ( $excluded as $rel => $expected ) {
 	assert_same(
@@ -227,15 +224,32 @@ foreach ( $excluded as $rel => $expected ) {
 	);
 }
 
+assert_same( 'no read site recovers a `use` default with its own literal', array(), $sites );
+
+// NON-VACUITY for the call census. The floor is deliberately well under the sixteen
+// literal-tag calls present, so an ordinary refactor does not trip it.
+assert_same( 'the call census found helper calls at all', true, count( $calls ) >= 8 );
+
+$bad = array();
+foreach ( $calls as $c ) {
+	if ( ! isset( BWS_USE_STRIPPED_DEFAULTS[ $c['tag'] ] ) ) {
+		$bad[] = "{$c['file']}:{$c['line']} => '{$c['tag']}'";
+	}
+}
+assert_same( 'every literal-tag helper call names a tag the map has a row for', array(), $bad );
+
+// No orphan rows: a map row no read site asks about is a dead tag worth naming.
+$unused = array_values( array_diff( array_keys( BWS_USE_STRIPPED_DEFAULTS ), array_column( $calls, 'tag' ) ) );
+assert_same( 'every map row is asked about somewhere in includes/', array(), $unused );
+
 echo "\n§3 — comments are stripped, not matched\n";
 
-// The control for §2's false positives, on a real line rather than an invented one:
-// slot-fold.php's header and its parse-side comment both QUOTE the dispatch they mirror,
-// in the exact shape §2 matches. Stripped, they assert nothing; unstripped, they are two
-// read sites that do not exist.
-$prose = " *   mirrors the shipped \$use = \$options['use'] ?? 'key' dispatch, so no tag that\n";
+// The control for §2's false positives: docblocks still QUOTE the retired shape (the
+// helper's own PHPDoc names what it replaced). Stripped, a quote asserts nothing;
+// unstripped, it is a read site that does not exist.
+$prose = " * Replaces the per-site `\$options['use'] ?? 'key'` / `?? 'content'` literals, which could\n";
 assert_same(
-	'a docblock line quoting the dispatch contributes no site',
+	'a docblock line quoting the retired shape contributes no site',
 	0,
 	preg_match_all( $pattern, bws_strip_php_comments( "<?php\n/**\n" . $prose . " */\n" ), $m )
 );
@@ -244,12 +258,12 @@ assert_same(
 	true,
 	preg_match_all( $pattern, $prose, $m ) > 0
 );
-// The quoting comments are really there — if they were ever reworded out, the control
+// The quoting comment is really there — if it were ever reworded out, the control
 // above would still pass on its own copy while the risk it models had gone.
 assert_same(
-	'slot-fold.php still carries the comments that motivate the stripping',
+	'registration-helpers.php still carries the comment that motivates the stripping',
 	true,
-	substr_count( (string) file_get_contents( $root . '/includes/helpers/slot-fold.php' ), "\$options['use'] ?? 'key'" ) >= 2
+	substr_count( (string) file_get_contents( $root . '/includes/helpers/registration-helpers.php' ), "\$options['use'] ?? 'key'" ) >= 1
 );
 
 echo "\n§4 — the converted shapes stay converted\n";
@@ -304,6 +318,33 @@ foreach ( array(
 	'literal-carry-seed' => "\$carry = bws_fold_empty_carry( 'content' );",
 ) as $label => $sample ) {
 	assert_same( "…and the {$label} pattern still recognizes one", 1, preg_match( $retired[ $label ], $sample ) );
+}
+
+echo "\n§5 — bws_use_effective(): the read rule (FW-142)\n";
+
+// Per tag, because the implied mode only MOVES a render where the stripped default is an
+// analog (content); on text/image it agrees with the default, and that agreement is
+// itself the "no behavior change" claim for those two.
+$explicit = array( 'text' => 'title', 'content' => 'excerpt', 'image' => 'featured' );
+foreach ( BWS_USE_STRIPPED_DEFAULTS as $tag => $default ) {
+	assert_same( "{$tag}: nothing set → the stripped default", $default, bws_use_effective( $tag, array() ) );
+	assert_same( "{$tag}: key alone → the keyed read", 'key', bws_use_effective( $tag, array( 'key' => 'foo' ) ) );
+	assert_same( "{$tag}: use:key|key → key (the old redundant wire)", 'key', bws_use_effective( $tag, array( 'use' => 'key', 'key' => 'foo' ) ) );
+	assert_same(
+		"{$tag}: explicit use:{$explicit[ $tag ]} wins over a stale key",
+		$explicit[ $tag ],
+		bws_use_effective( $tag, array( 'use' => $explicit[ $tag ], 'key' => 'foo' ) )
+	);
+	assert_same( "{$tag}: use '' counts as absent (key implies)", 'key', bws_use_effective( $tag, array( 'use' => '', 'key' => 'foo' ) ) );
+	assert_same( "{$tag}: use '' and no key → the stripped default", $default, bws_use_effective( $tag, array( 'use' => '' ) ) );
+	assert_same( "{$tag}: key '' counts as absent → the stripped default", $default, bws_use_effective( $tag, array( 'key' => '' ) ) );
+	assert_same( "{$tag}: use:key with no key → key (keyed, pending)", 'key', bws_use_effective( $tag, array( 'use' => 'key' ) ) );
+}
+
+// No read axis → no inference. permalink ignores `key` by design; a mode here would be
+// a read axis the tag does not have.
+foreach ( array( 'title', 'permalink' ) as $tag ) {
+	assert_same( "{$tag}: a key implies nothing on a tag with no read axis", '', bws_use_effective( $tag, array( 'key' => 'foo' ) ) );
 }
 
 echo "\n";

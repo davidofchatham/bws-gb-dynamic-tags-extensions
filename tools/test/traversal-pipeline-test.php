@@ -137,6 +137,9 @@ foreach ( array( 'add_action', 'add_filter', 'do_action', 'apply_filters' ) as $
 }
 require __DIR__ . '/../../includes/tags/base-shared.php';
 
+// The analog readers branch on bws_use_effective() (FW-142) — loaded REAL, same reason.
+require_once __DIR__ . '/../../includes/helpers/registration-helpers.php';
+
 // The ambient-analog SEAM (1.19.0, the twins' successor) derives link identity
 // through bws_source_link_identity(), which lives in field-helpers.php — loaded
 // REAL, not copied (function definitions only; inert behind the same shims).

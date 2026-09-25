@@ -354,6 +354,18 @@ Progress: **The sweep landed in 1.21.0**, on `fw-129-term-removal`. The `term_*`
 
 Blocked by: —  •  Interacts with: FW-38 (the proxy this API was the last justification for; the stub delete removes the last reason it exists), FW-104 (the enroll-a-live-family trap is a property of this API and is no longer reachable), FW-128 (a tags-in-use report would have made the removal gate checkable without hand-running the converter per site)
 
+#### FW-144 — `{{content}}` paragraph formatting differs by source
+
+`{{content}}` is meant to sit in a container suited to block markup, but whether its value arrives wrapped in paragraphs depends on which read produced it. The term description is the clear outlier: `bws_term_description_core()` reads `$term->description` directly and runs only kses, bypassing core's `term_description` filter, where `wpautop` lives. A multi-paragraph description therefore prints as one unwrapped run of text. Every term route in the family ends in that core: base `{{content}}` with a selected or an ambient term, and `{{try_content}}` through the shared resolve seam.
+
+Detail home: this row
+
+Progress: Read from the code 2026-09-25, not measured. Per read path: post content and site-option `use:key` run `ContentProcessor::render()` (do_blocks, wpautop, kses); the author bio and post type archive description go through core filters that carry `wpautop`; `use:excerpt` returns plain `get_the_excerpt()`; a `use:key` field passes its raw value through, formatted only if the field formats itself (ACF WYSIWYG, auto-paragraph textarea). `{{content}}` registers no `wpautop` option, so GB's own transform is unreachable.
+
+Open: Measure every row above on the testbed, including a multi-paragraph term description and the two filter-based rows. Then decide: route the term description through `apply_filters( 'term_description', … )` before kses (the candidate fix, one site, reaches every term route); whether plain-text `use:key` fields should get paragraphs too, given `wpautop` on already-formatted markup is not guaranteed to be a no-op; and whether the excerpt stays inline.
+
+Blocked by: —  •  Interacts with: FW-126 (same content pipeline)
+
 ### Feature follow-ups & UX
 
 #### FW-9 — Context-aware base tags — the deferred residue
@@ -508,7 +520,7 @@ The dormant "show me the picture, whichever candidate has one" behaviour, remove
 
 Detail home: `docs/design-history/deterministic-source-selection.md` §S47
 
-Progress: Term chains are the constituency this matters most for, since WP term order is a pass-through (alphabetical by default) rather than an author choice. To be absorbed by FW-27 (user, 2026-09-23): `if` filters before `limit`, so `if:hasValue` with no condition field is exactly this search, stated per tag. Closes when FW-27 ships.
+Progress: Term chains are the constituency this matters most for, since WP term order is a pass-through (alphabetical by default) rather than an author choice. To be absorbed by FW-27 (user, 2026-09-23): `if` filters before `limit`, so `if` testing the shown field for a value is exactly this search, stated per tag (the field is named: `key:image_field|if:key(image_field);hasValue`). Closes when FW-27 ships.
 
 Open: Whether the option is useful at all (user, 2026-08-21); if so, the whole authoring surface (control, wire token, label/help, placement, an era-stamping migration for flat-era wire).
 
@@ -640,11 +652,23 @@ A base tag should not serialize a `use` value its own field token already implie
 
 Detail home: `.scratch/plans/combined-option-controls.md` §The combined CONTROL still needed (a different deliverable from the combined WIRE)
 
-Progress: Split out of FW-20 2026-09-23 (user), leaving FW-20 the `linkTo` cluster. One live instance: `{{content}}` must write `use:key|key:foo` because its `use` enum leads with the `content` analog. `{{text}}` and `{{image}}` avoid it only because their enums lead with `key`, so `_strip_default` removes it. FW-141 would add a second instance (`use:fixed|fixed:Varsity`) on base tags only.
+Progress: Split out of FW-20 2026-09-23 (user), leaving FW-20 the `linkTo` cluster. One live instance: `{{content}}` must write `use:key|key:foo` because its `use` enum leads with the `content` analog. `{{text}}` and `{{image}}` avoid it only because their enums lead with `key`, so `_strip_default` removes it. FW-141 would add a second instance (`use:fixed|fixed:Varsity`) on base tags only, so this lands first or with FW-141 (user, 2026-09-24).
 
 Open: Whether the read rule generalizes (any field token present implies its mode) or is stated per token; back-compat is parse-side (stored `use:key|key:foo` keeps resolving), so no migration.
 
-Blocked by: —  •  Interacts with: FW-20 (split from), FW-141 (its second instance), FW-81, FW-64
+Blocked by: —  •  Interacts with: FW-20 (split from), FW-141 (its second instance), FW-81, FW-64, FW-143
+
+#### FW-143 — Flip `{{image}}`'s stripped `use` default to the `featured` analog
+
+`{{image}}`'s `use` enum leads with `key`, so an empty `use` is a keyed read and the featured image / site logo / avatar analog is always serialized as `use:featured`. This item would lead with the analog instead, the way `{{content}}` already does. `{{text}}` stays key-mode: it is primarily a meta-field read, and its only other value is `title`.
+
+Detail home: `includes/helpers/registration-helpers.php` `BWS_USE_STRIPPED_DEFAULTS` PHPDoc (the stated reason for key-mode) + `docs/tag-reference.md` §Source-analog resolution "Strip-default caveat"
+
+Progress: Filed 2026-09-24 (user) out of the FW-142 grill. The stated reason image leads with `key`, that an empty wire beside a stale `key` could not be told from intended key-mode, goes away once FW-142's control drops a stale `key` when `use` leaves key-mode.
+
+Open: The render change: bare `{{image src:site}}` goes from empty to the site logo, and every stored key-mode tag without a `key` changes meaning, so whether a flip needs a migration. Stored `use:featured` becomes redundant.
+
+Blocked by: row:FW-142  •  Interacts with: FW-142, FW-80 (a flip would lead with the analog value FW-80 may rename to `default`), FW-141
 
 ### Testing & infrastructure
 
@@ -860,9 +884,9 @@ A lighter alternative to FW-26 — a `show_if`-style predicate grammar that self
 
 Detail home: `.scratch/plans/if-option.md` (spitball, no design); wire → `docs/design-history/src-chain-encoding.md`
 
-Progress: Direction confirmed and sharpened (user, 2026-08-01): embedded option, not a separate tag set; the tag-set alternative FW-26 closed not planned 2026-09-23. Reopened 2026-09-23 (user): the condition subject is settled as the same location as the displayed field (a different field on the source the tag already resolved, no second chain), the wire is a flat folded value under one `if` token, in the src chain and FW-81 style, compare text is bracketed, before/after on a date field is in v1, and on a multi-part tag `if` filters out each source that fails rather than gating the whole output.
+Progress: Direction confirmed and sharpened (user, 2026-08-01): embedded option, not a separate tag set; the tag-set alternative FW-26 closed not planned 2026-09-23. Reopened 2026-09-23 (user): the condition subject is settled as the same location as the displayed field (a different field on the source the tag already resolved, no second chain), the wire is a flat folded value under one `if` token, in the src chain and FW-81 style, compare text is bracketed, before/after on a date field is in v1, and on a multi-part tag `if` filters out each source that fails rather than gating the whole output. Encoding settled 2026-09-24 (user): the value is spelled as a slot's own options, tested field first, test last (`if:key(sale_price);hasValue`, `if:use(content);hasValue`); the tested field is always named, since testing the tag's own read was cut for now (additive later).
 
-Open: Date-only comparison granularity, operator spelling, and whether FW-81's read form lands first. Proposal and remaining questions are in the detail home.
+Open: The option's name, `when` or `if` (user strongly favors `when`, 2026-09-24). The FW-141 wire and the remaining unasked questions (editor control, preview text, `contains`) are in the detail home.
 
 Blocked by: FW-141 (the driving case, a boolean showing a fixed word in a `{{join}}` slot)  •  Interacts with: FW-26 (closed), FW-57 (closed), FW-56 (closed), FW-59 (compare text is bracketed), FW-60, FW-88 (absorbed: `if` filters before `limit`), FW-35 (forcing a datetime to mean its whole day), FW-43, FW-81 (the subject part reuses its read form)
 
@@ -1086,7 +1110,7 @@ Progress: Not definite (user, 2026-08-18) — filed to give it a tracked home, n
 
 Open: Whether a `try_` slot ≥2 forces its analog with an explicit token; the value `featured`/`logo`/`avatar` render under (a relabelled `featured` entry vs a neutral `default`).
 
-Blocked by: decision:whether analogs unify at all  •  Interacts with: FW-20, FW-13, FW-57 (closed), FW-34, FW-81
+Blocked by: decision:whether analogs unify at all  •  Interacts with: FW-20, FW-13, FW-57 (closed), FW-34, FW-81, FW-143
 
 #### FW-81 — Collapse datetime_single + datetime_range into one tag
 
@@ -1156,7 +1180,7 @@ Detail home: `.scratch/plans/if-option.md` §Prerequisite
 
 Progress: Filed 2026-09-23 (user). Not started.
 
-Open: Whether the text rides a separate token beside `use` (`use:fixed|fixed:Varsity`, the `use:key|key:x` pattern; slots write `fixed(Varsity)` alone, since the token name already implies the read) or an argument inside `use` (`use:fixed(Varsity)`, which is FW-81's O1/O2 question). The separate token is recommended; on base tags it leaves a redundant `use` until FW-142 lands. Token name, `fixed` favored.
+Open: Whether the text rides a separate token beside `use` (`use:fixed|fixed:Varsity`, the `use:key|key:x` pattern; slots write `fixed(Varsity)` alone, since the token name already implies the read) or an argument inside `use` (`use:fixed(Varsity)`, which is FW-81's O1/O2 question). The separate token is recommended. FW-142 lands first or with this (user, 2026-09-24), so neither form leaves a redundant `use` on base tags. Token name, `fixed` favored.
 
 Blocked by: —  •  Interacts with: FW-27 (blocked on this), FW-142 (removes the redundant base-tag `use`), FW-81 (shares the `use`-takes-an-argument decision only if the text rides inside `use`), FW-59 (author text is bracketed)
 

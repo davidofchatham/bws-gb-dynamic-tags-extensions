@@ -627,6 +627,12 @@ function bws_base_traversal_options(): array {
  * (registration-helpers.php) states once and tools/test/use-stripped-default-test.php
  * pins against these leaves — so a leaf's first value never moves alone.
  *
+ * `readTag` NAMES THE LEAF'S ROW IN THAT MAP, for the editor. GB hands a control filter
+ * the tag's options but never its name, and assets/js/use-read-control.js needs the row
+ * to display and write `use` by the read rule (FW-142). Stamped on the leaf rather than
+ * at each registration so the enum and its row cannot be paired wrongly; the slot read
+ * twin (bws_build_slot_read_options) copies rows, not this key.
+ *
  * @since 1.17.0
  * @return array { 'use' => array, 'key' => array } — definitions WITHOUT `show_if`
  *               (base overlays `use:not:title`; the template encodes the same fact
@@ -642,6 +648,7 @@ function bws_get_text_field_options(): array {
 				array( 'value' => 'title', 'label' => __( 'Title/Name', 'generateblocks' ) ),
 			),
 			'_strip_default' => true,
+			'readTag'        => 'text',
 		),
 		'key' => array(
 			'type'         => 'bws-field-combo',
@@ -675,6 +682,7 @@ function bws_get_content_field_options(): array {
 				array( 'value' => 'excerpt', 'label' => __( 'Post Excerpt', 'generateblocks' ) ),
 			),
 			'_strip_default' => true,
+			'readTag'        => 'content',
 		),
 		'key' => array(
 			'type'         => 'bws-field-combo',
@@ -708,6 +716,7 @@ function bws_get_image_field_options(): array {
 				array( 'value' => 'featured', 'label' => __( 'Featured Image/Site Logo', 'generateblocks' ) ),
 			),
 			'_strip_default' => true,
+			'readTag'        => 'image',
 		),
 		'key' => array(
 			'type'         => 'bws-field-combo',
@@ -1593,13 +1602,13 @@ function bws_base_term_analog_read( string $tag, int $term_id, array $options, $
 			return bws_term_title_core( $term_id, $options, $instance );
 
 		case 'text':
-			$use = $options['use'] ?? 'key';
+			$use = bws_use_effective( 'text', $options );
 			return 'title' === $use
 				? bws_term_title_core( $term_id, $options, $instance )
 				: bws_term_custom_text_core( $term_id, $options, $instance );
 
 		case 'content':
-			$use = $options['use'] ?? 'content';
+			$use = bws_use_effective( 'content', $options );
 			return 'key' === $use
 				? bws_term_custom_text_core( $term_id, $options, $instance )
 				: bws_term_description_core( $term_id, $options, $instance );
@@ -1682,7 +1691,7 @@ function bws_base_user_analog_read( string $tag, int $user_id, array $options, $
 			// Mirror of the term analog's text dispatch: use:title → the intrinsic
 			// analog (display name), key-mode → a user meta field read shaped like
 			// bws_term_custom_text_core (fallback emit on miss, '0' preserved).
-			if ( 'title' === ( $options['use'] ?? 'key' ) ) {
+			if ( 'title' === bws_use_effective( 'text', $options ) ) {
 				return bws_base_user_analog_read( 'title', $user_id, $options, $instance );
 			}
 			$fallback = sanitize_text_field( $options['fallback'] ?? '' );
@@ -1804,7 +1813,7 @@ function bws_base_query_context_analog_read( string $tag, array $base, array $op
 		case 'text':
 			// Mirror of the term/user readers' text dispatch: use:title → the
 			// context's title analog. Key-mode has no entity to read → ''.
-			if ( 'title' === ( $options['use'] ?? 'key' ) ) {
+			if ( 'title' === bws_use_effective( 'text', $options ) ) {
 				return bws_base_query_context_analog_read( 'title', $base, $options, $instance );
 			}
 			return '';
@@ -1812,7 +1821,7 @@ function bws_base_query_context_analog_read( string $tag, array $base, array $op
 		case 'content':
 			// Mirror of the term reader's shape: only `key` branches away (no
 			// entity to read → ''); every other `use` takes the analog.
-			if ( 'key' === ( $options['use'] ?? 'content' ) ) {
+			if ( 'key' === bws_use_effective( 'content', $options ) ) {
 				return '';
 			}
 			$value = '';

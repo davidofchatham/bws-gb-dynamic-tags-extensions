@@ -50,6 +50,8 @@ GB destructures these keys out of `extraParams` in `DynamicTagSelect.jsx:385-395
 
 **Reserved:** `id`, `source`, `key`, `link`, `required`, `tax`, `size`, `dateFormat`
 
+**`key` is reserved only on a tag that declares `meta` support.** Measured 2026-09-24 against the GB 2.2.1 and 2.4.1 bundles: after the destructure, `key` goes into GB's private meta-key state only when the tag supports `meta`; otherwise it is put straight back into `extraTagParams` (`supports(tag,"meta") && key ? setMetaKey(key) : key && (extraParams.key = key)`), and GB's own `key:` push is gated on the same support. Every BWS tag registers `'supports' => array()`, so on our tags `key` is an ordinary option a custom control can read, write and `delete` — which is why `bws-field-combo` works on it.
+
 Re-emit conditions:
 - `tax` → only re-serialized when `'term' === dynamicTagType || tagSupportsTaxonomy` (line 553). Cross-source base tags (e.g. `text`, `image` with `gb_type:'cross-source'`) meet neither → `tax` is silently dropped on modal reopen.
 - `tagSupportsTaxonomy` requires `'taxonomy'` in the tag's `supports` array.
@@ -108,7 +110,9 @@ re-emitting its reserved key.** Verified GB 2.2.1 (`DynamicTagSelect.jsx`):
 So a tag that drops `'image-size'` support still round-trips a saved `size:` token: invisible in the
 modal, absent from `extraTagParams`, yet re-serialized on every save. The `tagSpecificControls`
 filter receives only `{ state: extraTagParams, setState: setExtraTagParams }` (`:112`), so **a custom
-control can neither read nor clear these reserved keys** — there is no plugin-side lever.
+control can neither read nor clear these reserved keys** — there is no plugin-side lever. The one
+exception is `key` on a tag without `meta` support, which lands back in `extraTagParams` (§Reserved
+Option Keys above).
 
 **Consequence for migrations:** a legacy reserved-key token can only be rewritten by transforming the
 **raw tag string before GB parses it** (our `TagConverter` path). An editor-open / control-mount fold

@@ -200,8 +200,7 @@ class TagTemplateRegistry {
 			// Image template: post-context paths dispatch by `use` (featured vs custom field).
 			// `post_fn` (= bws_custom_image_core) only handles custom-field path; featured needs bws_featured_image_core.
 			$image_post_dispatch = static function ( $entity_id, $opts, $inst ) use ( $post_fn ) {
-				$use = $opts['use'] ?? '';
-				if ( 'featured' === $use && function_exists( 'bws_featured_image_core' ) ) {
+				if ( 'featured' === bws_use_effective( 'image', $opts ) && function_exists( 'bws_featured_image_core' ) ) {
 					return bws_featured_image_core( $entity_id, $opts, $inst );
 				}
 				return $post_fn( $entity_id, $opts, $inst );
