@@ -106,3 +106,15 @@ section's job is only the MODIFIER wiring, not re-proving the excerpt core itsel
 | CT7.1 | `{{term_content use:key\|key:email}}` on `/department/support/` | `support@example.test` — the term's own field. **Before the fix: empty** (the modifier's `use` was never read, so the read fell to the term-description branch, which is empty for this term). Render-tag-only: a term-archive ambient context, same exception as T4 in `text-test-matrix.md` |
 
 CT7.2 read the same defect on `{{fixture_content}}`, the class route, and is **retired**: the fixture stood down from `register_modifier()` ahead of FW-129, so that prefix mints nothing and there is no dispatch there to measure. `term_` is the only family still minted, which is why this section is down to one row — and it goes when FW-129 takes the constructor.
+
+## §CT8 — a field token implies the read (FW-142)
+
+An absent `use` beside a field token reads through that token's mode, so `key` alone is the keyed read; an explicit `use` still wins over a stale `key` beside it. Only `content` moves: its stripped default is the analog, so before FW-142 CT8.1 rendered jane's whole content. Visible on `/matrix-content/` (CT8 section).
+
+| # | Tag | Expected |
+|---|---|---|
+| CT8.1 | `{{content src:ref\|ref:related_staff\|key:main_line}}` | `(555) 200-3000`, jane's line. Her whole content here is the pre-FW-142 read |
+| CT8.2 | `{{content src:ref\|ref:related_staff\|use:key\|key:main_line}}` | Byte-identical to CT8.1 (and CT4): the old redundant wire keeps rendering |
+| CT8.3 | `{{content src:ref\|ref:related_staff\|use:excerpt\|key:main_line}}` | Byte-identical to CT3: the explicit `use` wins, the stale `key` is ignored |
+| CT8.4 | `{{text src:ref\|ref:related_staff\|use:title\|key:main_line}}` | `Jane Partner`: explicit wins on `{{text}}` too |
+| CT8.5 | `{{image src:post,<tom>\|use:featured\|key:feature_image\|as:id}}` | Empty (no featured image seeded), where `{{image src:post,<tom>\|key:feature_image\|as:id}}` reads the attachment id. Pinned at Tom, the one staff single carrying `feature_image`; `<tom>` is his seeded post id |

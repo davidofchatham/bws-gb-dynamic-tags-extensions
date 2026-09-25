@@ -323,6 +323,23 @@ check(
 	bws_build_preview_label( [ 'use' => 'key', 'key' => 'body' ], 'content' ),
 	"[Content: 'body']"
 );
+// FW-142: a key alone IMPLIES the keyed read — same preview as the explicit use:key.
+check(
+	'content key mode, implied by key alone',
+	bws_build_preview_label( [ 'key' => 'body' ], 'content' ),
+	"[Content: 'body']"
+);
+// An explicit use wins over a stale key; an empty use counts as absent.
+check(
+	'content explicit use:excerpt ignores a stale key',
+	bws_build_preview_label( [ 'use' => 'excerpt', 'key' => 'body' ], 'content' ),
+	bws_build_preview_label( [ 'use' => 'excerpt' ], 'content' )
+);
+check(
+	"content use '' + key reads as implied key mode",
+	bws_build_preview_label( [ 'use' => '', 'key' => 'body' ], 'content' ),
+	"[Content: 'body']"
+);
 // Ref source appends quoted ref as context.
 check(
 	'text ref source',

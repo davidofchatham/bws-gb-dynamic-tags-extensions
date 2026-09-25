@@ -1593,13 +1593,13 @@ function bws_base_term_analog_read( string $tag, int $term_id, array $options, $
 			return bws_term_title_core( $term_id, $options, $instance );
 
 		case 'text':
-			$use = $options['use'] ?? 'key';
+			$use = bws_use_effective( 'text', $options );
 			return 'title' === $use
 				? bws_term_title_core( $term_id, $options, $instance )
 				: bws_term_custom_text_core( $term_id, $options, $instance );
 
 		case 'content':
-			$use = $options['use'] ?? 'content';
+			$use = bws_use_effective( 'content', $options );
 			return 'key' === $use
 				? bws_term_custom_text_core( $term_id, $options, $instance )
 				: bws_term_description_core( $term_id, $options, $instance );
@@ -1682,7 +1682,7 @@ function bws_base_user_analog_read( string $tag, int $user_id, array $options, $
 			// Mirror of the term analog's text dispatch: use:title → the intrinsic
 			// analog (display name), key-mode → a user meta field read shaped like
 			// bws_term_custom_text_core (fallback emit on miss, '0' preserved).
-			if ( 'title' === ( $options['use'] ?? 'key' ) ) {
+			if ( 'title' === bws_use_effective( 'text', $options ) ) {
 				return bws_base_user_analog_read( 'title', $user_id, $options, $instance );
 			}
 			$fallback = sanitize_text_field( $options['fallback'] ?? '' );
@@ -1804,7 +1804,7 @@ function bws_base_query_context_analog_read( string $tag, array $base, array $op
 		case 'text':
 			// Mirror of the term/user readers' text dispatch: use:title → the
 			// context's title analog. Key-mode has no entity to read → ''.
-			if ( 'title' === ( $options['use'] ?? 'key' ) ) {
+			if ( 'title' === bws_use_effective( 'text', $options ) ) {
 				return bws_base_query_context_analog_read( 'title', $base, $options, $instance );
 			}
 			return '';
@@ -1812,7 +1812,7 @@ function bws_base_query_context_analog_read( string $tag, array $base, array $op
 		case 'content':
 			// Mirror of the term reader's shape: only `key` branches away (no
 			// entity to read → ''); every other `use` takes the analog.
-			if ( 'key' === ( $options['use'] ?? 'content' ) ) {
+			if ( 'key' === bws_use_effective( 'content', $options ) ) {
 				return '';
 			}
 			$value = '';

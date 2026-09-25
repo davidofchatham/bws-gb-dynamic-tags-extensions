@@ -1385,6 +1385,26 @@ function bws_fixture_page_content_matrix_content() {
 		bws_fixture_gb_row( "CT6 no hop, this page's own field (-> (321) 555-0100, this page's line, NOT jane's)", '{{text key:main_line}}' ),
 	) );
 
+	// CT8 — a field token IMPLIES the read (FW-142): `key` alone is the keyed read, and
+	// an explicit `use` still wins over a stale `key` beside it. CT8.1 rendered jane's
+	// whole content before FW-142, since `content`'s stripped default is the analog.
+	$sections[] = bws_fixture_gb_section( 'Content CT8 - key alone implies the keyed read (FW-142)', array(
+		bws_fixture_gb_row( "CT8.1 implied, key alone (-> jane's main line, (555) 200-3000)", '{{content src:ref|ref:related_staff|key:main_line}}' ),
+		bws_fixture_gb_row( 'CT8.2 explicit use:key, the old wire (-> same as CT8.1)', '{{content src:ref|ref:related_staff|use:key|key:main_line}}' ),
+		bws_fixture_gb_row( "CT8.3 explicit use:excerpt beside a stale key (-> same as CT3, jane's excerpt, NOT her main line)", '{{content src:ref|ref:related_staff|use:excerpt|key:main_line}}' ),
+		bws_fixture_gb_row( 'CT8.4 text: explicit use:title beside a stale key (-> Jane Partner, NOT her main line)', '{{text src:ref|ref:related_staff|use:title|key:main_line}}' ),
+	) );
+	// CT8.5 — image, pinned at Tom: the only staff single carrying `feature_image`, and
+	// no featured image is seeded, so the explicit `featured` read is EMPTY where the
+	// keyed read is not. The pair is what makes the empty row diagnostic.
+	$tom_id = function_exists( 'bws_fixture_seeded_post_id' ) ? bws_fixture_seeded_post_id( 'tom-associate', 'staff' ) : false;
+	if ( $tom_id ) {
+		$sections[] = bws_fixture_gb_section( 'Content CT8.5 - image: explicit use wins over a stale key (FW-142)', array(
+			bws_fixture_gb_row( "CT8.5a image key alone at Tom (-> an attachment id)", "{{image src:post,{$tom_id}|key:feature_image|as:id}}" ),
+			bws_fixture_gb_empty_row( 'CT8.5b image explicit use:featured beside a stale key (-> EMPTY, no featured image seeded; NOT the CT8.5a id)', "{{image src:post,{$tom_id}|use:featured|key:feature_image|as:id}}" ),
+		) );
+	}
+
 	return implode( "\n\n", $sections );
 }
 

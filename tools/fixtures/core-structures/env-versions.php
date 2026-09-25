@@ -61,8 +61,14 @@ return array(
 	// The date the baseline under `tools/test/snapshots/` was captured. Prose only —
 	// nothing compares it; it is here so a reader can place the record in time.
 	//
-	// THIS RE-CAPTURE IS THE §C-TERM/CT REWRITE (FW-129, 1.21.0) — the ticket the previous
-	// capture's second note said was coming. Six dead `term_*` rows left the blueprint and
+	// THIS RE-CAPTURE IS FW-142's §CT8 (1.21.0): six rows added to `page-matrix-content`
+	// (a `key` alone implies the keyed read; an explicit `use` beside a stale `key` wins).
+	// Pure additions — no existing row moved. `ctx-term` moved by one line only because the
+	// Sales archive lists that page's excerpt, which now names the new section heading.
+	// Dependency versions and the active set unchanged.
+	//
+	// The PREVIOUS capture is the §C-TERM/CT REWRITE (FW-129, 1.21.0) — the ticket the
+	// capture before it said was coming. Six dead `term_*` rows left the blueprint and
 	// one base-spelled row replaced them: C-TERM1/C-TERM2 off the context element (their
 	// base spellings were already there as C-X1 and C-CONV11), CT-A/CT-B off
 	// `page-matrix-post-meta` (already on `page-matrix-pinned-roots` as F20.2/F20.1), QL1.5
@@ -84,7 +90,7 @@ return array(
 	// The 2026-09-14 capture is WooCommerce joining the fixture site (chrome only, no
 	// rendered tag moved); the 2026-09-03 one is where the head-deletion rule arrived — a
 	// reader hitting an ~800-line deletion further back in `git log` is looking at that.
-	'captured' => '2026-09-17',
+	'captured' => '2026-09-24',
 
 	// EVERY PLUGIN THAT WAS RUNNING, not only the four this record requires. The version
 	// list below answers "were the dependencies the same"; this answers "what else was in

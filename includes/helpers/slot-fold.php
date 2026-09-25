@@ -39,8 +39,8 @@
  *   author's `format`/`fallback`/`label` text are content, never grammar — shipped
  *   defaults already contain them (`Date/time TBA`, `F j, Y g:i A`).
  * - **Read axis is single-valued, resolved by NAME precedence, never by order.**
- *   `use` wins when present and not `key`; otherwise `key` supplies the read. This
- *   mirrors the shipped `$use = $options['use'] ?? 'key'` dispatch, so no tag that
+ *   `use` wins when present and not `key`; otherwise `key` supplies the read. The
+ *   flat wire reads the same way (bws_use_effective()), so no tag that
  *   renders today changes meaning — and it kills the order-dependence that a
  *   last-token-wins switch would re-import into bracket-kv.
  * - **Token ORDER is never semantic**, and canonical order is not restated here:
@@ -702,8 +702,8 @@ function bws_fold_parse_slot( string $value, string $container = 'join' ) {
 		$key_tok             = null;
 	}
 
-	// Read axis — NAME precedence, order-independent, mirroring the shipped
-	// `$use = $options['use'] ?? 'key'` dispatch: `use` is consulted first and
+	// Read axis — NAME precedence, order-independent, the same rule the flat wire
+	// reads through (bws_use_effective()): `use` is consulted first and
 	// `key` is read only in the keyed arm. Both-present is not author error (GB
 	// cannot unset one option from another's value, so a stale `key` legitimately
 	// rides the wire), so it resolves rather than flagging.

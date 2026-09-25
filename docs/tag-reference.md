@@ -448,7 +448,7 @@ Canonical defaults applied on read:
 | `use` | `text`, `image` | `'key'` | Default is ACF/meta field — only `key` value matters |
 | `use` | `content` | `'content'` | Default is post content / term description |
 
-The `use` rows restate what `BWS_USE_STRIPPED_DEFAULTS` ([`registration-helpers.php`](../includes/helpers/registration-helpers.php)) states; that constant is the owner, and a tag absent from it has no `use` enum and therefore no default. Tags with no read axis (`title`, `permalink`, `datetime_*`, `email`, `phone`, `call`) register no `use` and appear in neither.
+The `use` rows restate what `BWS_USE_STRIPPED_DEFAULTS` ([`registration-helpers.php`](../includes/helpers/registration-helpers.php)) states; that constant is the owner, and a tag absent from it has no `use` enum and therefore no default. Tags with no read axis (`title`, `permalink`, `datetime_*`, `email`, `phone`, `call`) register no `use` and appear in neither. A `use` default applies only when no field token implies the mode — see the `use` field-selector values, [§Shared option groups](#shared-option-groups).
 
 **Required for try_ slot 2+:** the slot-2+ "Same as Previous" semantic must be distinguishable from "explicit default". By stripping the slot-1 default to `''` and reserving an explicit `current` token, slot 2+ can use `''` for carry-over and `current` for "override back to current".
 
@@ -686,7 +686,7 @@ The **legacy `N-` sibling prefixes stay digits** (`2-src`, `2-key`). That wire w
 
 **A chain is a ROOT plus N STEPS**, and which one the leading token is is decidable from the slug alone — root slugs singular, step slugs plural. The plural spelling is a **category marker, never a count claim**: a **fanning** step *may* resolve many and routinely resolves one (a relationship field limited to 1, a single-term taxonomy). See [`CONTEXT.md`](../CONTEXT.md) I14.
 
-**Read axis is resolved by NAME, never by token order:** `use` wins unless it is `key`; otherwise `key(…)` supplies the read. This mirrors the shipped `$use = $options['use'] ?? 'key'` dispatch, so no tag changes meaning under the fold. With a field chosen the canonical spelling of a keyed read is the bare `key(x)` — `use(key)` is emitted only for the **field-pending** state (keyed read, no field yet), which the editor needs a wire spelling for because the control re-parses the value it just wrote to drive the read select.
+**Read axis is resolved by NAME, never by token order:** `use` wins unless it is `key`; otherwise `key(…)` supplies the read. The flat wire reads the same way (`{{content key:foo}}` is the keyed read), so no tag changes meaning under the fold. With a field chosen the canonical spelling of a keyed read is the bare `key(x)` — `use(key)` is emitted only for the **field-pending** state (keyed read, no field yet), which the editor needs a wire spelling for because the control re-parses the value it just wrote to drive the read select.
 
 **Container sensitivity is on the READ axis, and only on what ABSENCE means.** An explicit `use(same)` carries over everywhere. An absent read is **unconfigured** in a combining container (`{{join}}`, `{{table}}` — the slot is skipped, and skipped *before* it can feed the carry-forward) and **carry-over** in a selecting one (`try_*`). Source absence is not container-sensitive: `src(same)` carries over, an empty chain resolves against the ambient entity.
 
@@ -863,6 +863,8 @@ The field-type selector (`use`) + field key (`key`). Present on `text`, `image`,
 | `content` | `content` | Post Content/Term Description | Disables field key | Term description if source is term; **empty if `src:site`** (no site content analog) |
 | `content` | `excerpt` | Post Excerpt | Disables field key | Empty under `src:site` (no site excerpt) |
 | `image` | `featured` | Featured Image/Site Logo | Disables field key | Site logo (`custom_logo` theme mod) if `src:site` |
+
+**A `key` with no `use` is the keyed read** on all three tags: `{{content key:foo}}` reads the `foo` field, exactly as `{{content use:key|key:foo}}` does. An explicit `use` naming another mode wins, and a `key` left beside it is ignored (`{{content use:excerpt|key:foo}}` renders the excerpt). An empty `use:` or `key:` counts as absent. Enforced in `bws_use_effective()` ([`registration-helpers.php`](../includes/helpers/registration-helpers.php)).
 
 **`key` field key:**
 
