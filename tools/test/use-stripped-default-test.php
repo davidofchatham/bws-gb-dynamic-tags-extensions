@@ -144,6 +144,20 @@ foreach ( $leaves as $tag => $leaf ) {
 	);
 }
 
+// The editor finds a leaf's row through `readTag` (GB hands a control filter no tag name),
+// so a leaf stamped with the wrong row would display and write `use` by another tag's
+// default while rendering by its own.
+foreach ( $leaves as $tag => $leaf ) {
+	assert_same( "{$tag}: the leaf's readTag names its own map row", $tag, $leaf['use']['readTag'] ?? null );
+}
+
+// The editor inline IS the two constants the helper reads — not a third spelling.
+assert_same(
+	'bws_use_read_rules() carries the map and the implied-token rows, unchanged',
+	array( 'implied' => BWS_USE_IMPLIED_BY_TOKEN, 'defaults' => BWS_USE_STRIPPED_DEFAULTS ),
+	bws_use_read_rules()
+);
+
 // Absence is a STATEMENT, not a gap: a tag with no `use` enum has no read axis, and a
 // dispatcher asking for its default must get '' rather than a plausible 'key'. This is
 // the assertion that makes bws_site_resolve_value's title/permalink arms correct.

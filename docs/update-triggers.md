@@ -160,9 +160,9 @@ run `php tools/test/slot-options-build-test.php` (leaf shape + twin derive, incl
 
 ## Stripped-`use`-default change
 
-**Fires on:** `BWS_USE_STRIPPED_DEFAULTS`, `bws_use_stripped_default()`, `BWS_USE_IMPLIED_BY_TOKEN` or `bws_use_effective()` (all `registration-helpers.php`); the first value of any leaf's `use` enum; or a read site that resolves an absent `use`.
+**Fires on:** `BWS_USE_STRIPPED_DEFAULTS`, `bws_use_stripped_default()`, `BWS_USE_IMPLIED_BY_TOKEN`, `bws_use_effective()` or `bws_use_read_rules()` (all `registration-helpers.php`); the first value of any leaf's `use` enum or its `readTag`; a read site that resolves an absent `use`; or the editor twin (`assets/js/use-read-control.js`, and the `use` arm of `editor-conditional-options.js`).
 
-run `php tools/test/use-stripped-default-test.php`, then `php tools/test/preview-label-test.php` and `php tools/test/slot-fold-test.php` (both are driven with these values), and `tools/test/fold-test-matrix.md` §F-slot rows against the testbed if a value actually moved.
+run `php tools/test/use-stripped-default-test.php`, then `php tools/test/preview-label-test.php` and `php tools/test/slot-fold-test.php` (both are driven with these values), `node tools/test/editor-filter-chain-test.js` (holds the editor twin to `bws_use_effective()` case for case), and `tools/test/fold-test-matrix.md` §F-slot rows against the testbed if a value actually moved.
 
 **READ SITES ASK `bws_use_effective()`; THEY DO NOT RECOVER THE DEFAULT THEMSELVES** (since FW-142). Registration blanks the first enum value (`bws_prepare_registration_options`) so the saved tag never carries it. For a while a `?? 'key'` at each of some twenty read sites brought it back, and a review that proposed extracting them on the COUNT alone was declined — the count was never the defect, and still is not a reason. What retired the literals is a step a literal cannot state: `{{content key:foo}}` is now the keyed read. The rule itself is stated once, at `bws_use_effective()`'s PHPDoc. A new read site calls the helper with its tag.
 
@@ -176,7 +176,7 @@ run `php tools/test/use-stripped-default-test.php`, then `php tools/test/preview
 
 **`{{table}}` IS EXCLUDED BY FILE, WITH ITS COUNT PINNED.** Its per-column `{N}-use` is its own enum, and the option is being replaced by a source chain ending in a fanning step — enrolling it would tie a shipped map to a surface on its way out. The exclusion asserts `table-tags.php` still has exactly two such sites, so a third is a decision someone makes rather than a row that quietly joins the census.
 
-**NO ADR, DELIBERATELY.** The registration-time strip is not settled: if the `use`/`key` controls gain the ability to strip unneeded values themselves, that half of the contract moves to them, and a decision record written against today's mechanism would then describe one that no longer exists. The rule lives on the artifact that moves with it. `CONTEXT.md` I3 anticipates the same shift ("until token authority can auto-unset a stale `key`").
+**NO ADR, DELIBERATELY.** The registration-time strip is not settled: if the `use`/`key` controls gain the ability to strip unneeded values themselves, that half of the contract moves to them, and a decision record written against today's mechanism would then describe one that no longer exists. The rule lives on the artifact that moves with it. The first step of that shift has happened: the editor's `use` select now deletes a stale `key` (FW-142), which released `CONTEXT.md` I3's key-mode requirement; the registration-time strip itself has not moved.
 
 ## `limit` interpretation change
 

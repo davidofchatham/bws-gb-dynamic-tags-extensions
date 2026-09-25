@@ -1802,9 +1802,8 @@ function bws_site_allowlist_ok( string $key ): bool {
  *   - image     → DEFAULT 'key' → option attachment-id (bare/no-key → ''); the site
  *                 LOGO is the EXPLICIT use:featured value (get_theme_mod('custom_logo'),
  *                 respects as/size). Logo is NOT the stripped default — `featured` is
- *                 always serialized so the empty wire stays an unambiguous key-mode
- *                 signal (no stale-key ambiguity until token authority via custom
- *                 controls; deferred — see SPEC §B6 note).
+ *                 always serialized; making it the default is FW-143 (the stale-key
+ *                 reason against it went with FW-142, see BWS_USE_STRIPPED_DEFAULTS).
  * Parallels post→{title,content,permalink,featured} / term→{name,description,URL,—},
  * EXCEPT image's site analog (logo) is reached by explicit use:featured, not bare.
  *

@@ -369,6 +369,26 @@ reachability-only test lets rot.
 
 ---
 
+## The `use` read wrapper
+
+`assets/js/use-read-control.js` makes the `use` select on `{{text}}`, `{{content}}` and `{{image}}` display and write the read the RENDERER will take, not the raw `use` in state. The rule itself is owned by `bws_use_effective()`'s PHPDoc; what the author sees is that `{{content key:foo}}` opens on Meta/Option Field, that picking a field saves `key:foo` with no `use:key`, and that leaving key-mode removes the `key`.
+
+**Wrap, don't replace.** The filter (`bws/use-read-control`, priority 10) anchors on the option named `use` whose definition carries `readTag`, and returns an invisible component keyed `use` that renders GB's own `SelectControl` element through `cloneElement`, overriding only `value` (the derived mode, `''` where that mode is the stripped-default row, since registration blanked that row's value) and `onChange`. GB's labels, options and help pass through untouched, and the element key the rest of the chain anchors on is kept ([§Wrapper mechanics](#wrapper-mechanics--invisible-per-tag-controls)).
+
+**`readTag` is how the filter knows the tag.** GB hands a control filter the tag's options, never its name, so each field-option leaf in `base-shared.php` stamps the name of its row in the stripped-default map on its `use` definition. A `use` without one (any other tag's) is left to GB.
+
+**Three writes, all through `setState`'s updater form, all `delete`-omit:**
+
+- a mode PICKED writes `use` only when the field tokens would not already imply it, and deletes the field token of any other mode (`{{content key:foo}}` → Post Excerpt gives `use:excerpt`; → Post Content gives an empty wire; `{{text use:title}}` → Meta/Option Field gives no `use:key`);
+- a field TOKEN CHANGED by another control (the field picker) drops a `use` the tokens now imply, which is how `{{content use:key}}` + a picked field saves `{{content key:foo}}`. It fires on a change to the tokens only, so neither a mount nor the order normalizer's rewrite triggers it;
+- OPENING a tag writes nothing. Stored redundant wire stays as it is.
+
+**The conditional gate reads the same derived value.** `editor-conditional-options.js` tests a condition on `use` against the effective mode whenever the tag's `use` carries `readTag`, so `show_if: { use: 'key' }` on `{{content}}`'s field key holds while key-mode is only implied. Before this, that condition and a `use` the author could not see were circular: the field key showed only once `use:key` was stored, and storing it was the redundancy.
+
+**No JS copy of the rule's data.** The token → mode map and the per-tag stripped defaults arrive as `window.bwsUseRules`, inlined from `bws_use_read_rules()`. `node tools/test/editor-filter-chain-test.js` reads that function's output through `php` and holds the JS derive to `bws_use_effective()` case for case, then pins the display value, every write above, the wrapper's pass-through and the gate.
+
+---
+
 ## Fold control (JS)
 
 `assets/js/slot-fold-control.js` is the composite control that owns one folded slot value — it

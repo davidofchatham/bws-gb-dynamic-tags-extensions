@@ -627,6 +627,12 @@ function bws_base_traversal_options(): array {
  * (registration-helpers.php) states once and tools/test/use-stripped-default-test.php
  * pins against these leaves — so a leaf's first value never moves alone.
  *
+ * `readTag` NAMES THE LEAF'S ROW IN THAT MAP, for the editor. GB hands a control filter
+ * the tag's options but never its name, and assets/js/use-read-control.js needs the row
+ * to display and write `use` by the read rule (FW-142). Stamped on the leaf rather than
+ * at each registration so the enum and its row cannot be paired wrongly; the slot read
+ * twin (bws_build_slot_read_options) copies rows, not this key.
+ *
  * @since 1.17.0
  * @return array { 'use' => array, 'key' => array } — definitions WITHOUT `show_if`
  *               (base overlays `use:not:title`; the template encodes the same fact
@@ -642,6 +648,7 @@ function bws_get_text_field_options(): array {
 				array( 'value' => 'title', 'label' => __( 'Title/Name', 'generateblocks' ) ),
 			),
 			'_strip_default' => true,
+			'readTag'        => 'text',
 		),
 		'key' => array(
 			'type'         => 'bws-field-combo',
@@ -675,6 +682,7 @@ function bws_get_content_field_options(): array {
 				array( 'value' => 'excerpt', 'label' => __( 'Post Excerpt', 'generateblocks' ) ),
 			),
 			'_strip_default' => true,
+			'readTag'        => 'content',
 		),
 		'key' => array(
 			'type'         => 'bws-field-combo',
@@ -708,6 +716,7 @@ function bws_get_image_field_options(): array {
 				array( 'value' => 'featured', 'label' => __( 'Featured Image/Site Logo', 'generateblocks' ) ),
 			),
 			'_strip_default' => true,
+			'readTag'        => 'image',
 		),
 		'key' => array(
 			'type'         => 'bws-field-combo',

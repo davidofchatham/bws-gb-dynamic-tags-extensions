@@ -150,6 +150,14 @@
 
 		var state = context.state || {};
 
+		// A tag with a read axis is tested on its EFFECTIVE `use` (FW-142), the value the
+		// `use` select displays: `{{content key:foo}}` is key-mode with no `use` stored,
+		// and its field-key control must stay visible. use-read-control.js owns the rule.
+		var useCfg = allOptions.use;
+		if ( useCfg && useCfg.readTag && window.bwsUseRead ) {
+			state = Object.assign( {}, state, { use: window.bwsUseRead.effective( useCfg.readTag, state ) } );
+		}
+
 		// AND conditions — all must pass.
 		if ( optionConfig.show_if ) {
 			var showIf = optionConfig.show_if;

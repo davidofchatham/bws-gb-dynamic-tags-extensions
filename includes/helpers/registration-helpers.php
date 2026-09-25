@@ -283,14 +283,13 @@ function bws_prepare_registration_options( array $options ): array {
  * drops the option read for every tag whose default IS key-mode. bws_site_resolve_value()'s
  * @invariant records the instance that made this a rule (CONTEXT.md I3).
  *
- * THE STRIPPED DEFAULT IS KEY-MODE WHEREVER KEY-MODE AND A NAMED ANALOG SHARE ONE ENUM
- * (text, image), and stays so until the `use`/`key` controls can auto-unset a stale `key`
- * when `use` leaves key-mode: with the analog as the stripped value, an empty wire beside
- * a leftover key could not be told from intended key-mode, so the analogs are always
- * serialized and the empty wire is an unambiguous key-mode signal. `content` leads with
- * its analog because its key-mode is always the explicit `use:key`, so no such ambiguity
- * exists there. The reasoning in full: docs/tag-reference.md §Source-analog resolution,
- * "Strip-default caveat".
+ * TEXT AND IMAGE LEAD WITH KEY-MODE; CONTENT LEADS WITH ITS ANALOG. The reason first
+ * recorded for key-mode — an empty wire beside a `key` left over from key-mode could not
+ * be told from intended key-mode — no longer holds: the editor's `use` select deletes the
+ * `key` when `use` leaves key-mode (FW-142, assets/js/use-read-control.js). `text` stays
+ * key-mode on its own merits, being primarily a meta-field read; flipping `image` to its
+ * `featured` analog is FW-143. The consequence for authors: docs/tag-reference.md
+ * §Source-analog resolution, "Strip-default caveat".
  *
  * NOT AN ADR, DELIBERATELY. If the controls take over the strip, the registration-time
  * half of this contract moves with them, and a decision record written against the
@@ -382,5 +381,27 @@ function bws_use_effective( string $tag, array $options ): string {
 		}
 	}
 	return $default;
+}
+}
+
+/**
+ * The read rule's DATA, shaped for the editor: the token → mode map and the per-tag
+ * stripped defaults, exactly the two constants bws_use_effective() reads.
+ *
+ * Inlined as `window.bwsUseRules` ahead of assets/js/use-read-control.js, whose derive
+ * function is bws_use_effective()'s JS twin — the editor displays and writes `use` by the
+ * same rule the renderer reads it by, without a JS copy of either constant.
+ * tools/test/editor-filter-chain-test.js reads this function's output and holds the twin
+ * to the PHP helper case for case.
+ *
+ * @since 1.21.0
+ * @return array { implied: array<string,string>, defaults: array<string,string> }
+ */
+if ( ! function_exists( 'bws_use_read_rules' ) ) {
+function bws_use_read_rules(): array {
+	return array(
+		'implied'  => BWS_USE_IMPLIED_BY_TOKEN,
+		'defaults' => BWS_USE_STRIPPED_DEFAULTS,
+	);
 }
 }
