@@ -462,9 +462,9 @@ Detail home: `.scratch/plans/combined-option-controls.md`
 
 Progress: `srcTermIn` shipped in v1.6.0; it was superseded by FW-56's src-chain control, shipped in 1.17.0. The serialization-order portion (FW-52) and `{{image}}`'s folded `as:url,<size>` shipped in 1.16.0.
 
-Open: The `linkTo` cluster. The redundant/stale `use` omission split out to FW-142 (2026-09-23).
+Open: The `linkTo` cluster. The redundant/stale `use` omission split out to FW-142 (2026-09-23), since closed.
 
-Blocked by: —  •  Interacts with: FW-13, FW-81, FW-142
+Blocked by: —  •  Interacts with: FW-13, FW-81, FW-142 (closed)
 
 #### FW-55 — Warn + escape UI for tag-string-unsafe chars in free-text options
 
@@ -646,18 +646,6 @@ Open: Whether it should exist at all, given the other plugin's tags already serv
 
 Blocked by: decision:should record-side reads exist at all  •  Interacts with: FW-100 (closed — the recognizer this would layer on), FW-13 (the picker would have to offer these keys from somewhere)
 
-#### FW-142 — Omit a redundant `use` on base tags when the field token already says the read
-
-A base tag should not serialize a `use` value its own field token already implies, or keep a field token its `use` no longer reads. Slots already work this way (`key(x)` alone is a keyed read, and the slot writer drops `use`); base tags cannot, because GB's native `use` select shows its default whenever `use` is absent. The fix is a combined control that derives the displayed mode from the token present, plus the matching read rule (absent `use` + field token present = that token's read).
-
-Detail home: `.scratch/plans/combined-option-controls.md` §The combined CONTROL still needed (a different deliverable from the combined WIRE)
-
-Progress: Split out of FW-20 2026-09-23 (user), leaving FW-20 the `linkTo` cluster. One live instance: `{{content}}` must write `use:key|key:foo` because its `use` enum leads with the `content` analog. `{{text}}` and `{{image}}` avoid it only because their enums lead with `key`, so `_strip_default` removes it. FW-141 would add a second instance (`use:fixed|fixed:Varsity`) on base tags only, so this lands first or with FW-141 (user, 2026-09-24).
-
-Open: Whether the read rule generalizes (any field token present implies its mode) or is stated per token; back-compat is parse-side (stored `use:key|key:foo` keeps resolving), so no migration.
-
-Blocked by: —  •  Interacts with: FW-20 (split from), FW-141 (its second instance), FW-81, FW-64, FW-143
-
 #### FW-143 — Flip `{{image}}`'s stripped `use` default to the `featured` analog
 
 `{{image}}`'s `use` enum leads with `key`, so an empty `use` is a keyed read and the featured image / site logo / avatar analog is always serialized as `use:featured`. This item would lead with the analog instead, the way `{{content}}` already does. `{{text}}` stays key-mode: it is primarily a meta-field read, and its only other value is `title`.
@@ -668,7 +656,7 @@ Progress: Filed 2026-09-24 (user) out of the FW-142 grill. The stated reason ima
 
 Open: The render change: bare `{{image src:site}}` goes from empty to the site logo, and every stored key-mode tag without a `key` changes meaning, so whether a flip needs a migration. Stored `use:featured` becomes redundant.
 
-Blocked by: row:FW-142  •  Interacts with: FW-142, FW-80 (a flip would lead with the analog value FW-80 may rename to `default`), FW-141
+Blocked by: —  •  Interacts with: FW-142 (closed; its stale-`key` drop removed the stated reason), FW-80 (a flip would lead with the analog value FW-80 may rename to `default`), FW-141
 
 ### Testing & infrastructure
 
@@ -1180,9 +1168,9 @@ Detail home: `.scratch/plans/if-option.md` §Prerequisite
 
 Progress: Filed 2026-09-23 (user). Not started.
 
-Open: Whether the text rides a separate token beside `use` (`use:fixed|fixed:Varsity`, the `use:key|key:x` pattern; slots write `fixed(Varsity)` alone, since the token name already implies the read) or an argument inside `use` (`use:fixed(Varsity)`, which is FW-81's O1/O2 question). The separate token is recommended. FW-142 lands first or with this (user, 2026-09-24), so neither form leaves a redundant `use` on base tags. Token name, `fixed` favored.
+Open: Whether the text rides a separate token beside `use` (`use:fixed|fixed:Varsity`, the `use:key|key:x` pattern; slots write `fixed(Varsity)` alone, since the token name already implies the read) or an argument inside `use` (`use:fixed(Varsity)`, which is FW-81's O1/O2 question). The separate token is recommended. FW-142 landed first, so neither form leaves a redundant `use` on base tags: `fixed` adds itself as a row to `BWS_USE_IMPLIED_BY_TOKEN`. Token name, `fixed` favored.
 
-Blocked by: —  •  Interacts with: FW-27 (blocked on this), FW-142 (removes the redundant base-tag `use`), FW-81 (shares the `use`-takes-an-argument decision only if the text rides inside `use`), FW-59 (author text is bracketed)
+Blocked by: —  •  Interacts with: FW-27 (blocked on this), FW-142 (closed; the token→mode map `fixed` joins), FW-81 (shares the `use`-takes-an-argument decision only if the text rides inside `use`), FW-59 (author text is bracketed)
 
 ## Closed / Retired
 
@@ -1239,6 +1227,7 @@ Append-only ledger of closed, shipped, or cut work — both `FW-N` items deleted
 | FW-130 | An ownership opt-in converted foreign wire without translating its option values | Closed in 1.20.0 (2026-09-15) — reframed in the grilling from KEY-level to VALUE-level: an option key can be one of ours while its value belongs to whoever consumes it, which is why the ownership guard's key-only `unknown_options` check passed the offending wire. Fixed with one `bws_map_gb_link_option()` call in `bws_modifier_base_options()` — a `transform_callback` bypasses `run_transform()`'s `gb_link_remap` step and so owns its own normalization, the same reason `bws_nxm_migrate_chain()` calls it too. Guard signature deliberately left keys-only; the general value-level report went to FW-128 as a third consumer. No CHANGELOG entry — the defect and its fix both fall inside the unreleased 1.20.0 window | `bws_map_gb_link_option()` PHPDoc (owns the value axis); `tools/test/modifier-base-migration-test.php` §V1.12–V1.13; residue tracked at FW-128 |
 | FW-135 | Per-item link wrapping for `try_` slots | Dissolved by FW-136 before release rather than fixed: a `try_` attempt resolves through the base resolve seam now, so a fanning one rides `bws_collect_value_list()` and inherits the per-item wrap every base list arm already had. The emit this row was written against no longer exists, and the identity question it held open was never answered, because the reshaped bounded read a standalone fix needed was never built. Observable on the four families that register link options (`text`, `title`, `datetime_single`, `datetime_range`), each measured byte-identical to its base twin; the other five register no link options and could never be half-done on this axis. The author-facing disclosure added 2026-09-22 (the URL Meta/Option Field Key help text, `docs/tag-reference.md`'s `linkKey` row and `linkTo` prose) is retired with it and never reached a release | FW-136 (what dissolved it); CHANGELOG 1.21.0's per-item-link entry, unqualified; `bws_collect_value_list()` PHPDoc (the enforcing site); `/matrix-links/` rows LK.5–LK.10 with `tools/test/fold-test-matrix.md` §F9b.4b–F9b.4e |
 | FW-136 | `try_` is a second renderer, not a configuration of the base one | Shipped 1.21.0: the ~350-line closure in `generate_base_try_tags()` is gone, and a `try_` tag is now a loop over its BASE tag's own resolve seam, first non-empty attempt wins. The walk is `bws_try_run_attempts()`, taking the family's seam as a callable, so it is harnessed without WordPress for the first time; each of the nine `supports_try` templates names its seam with a `resolve_fn` descriptor key, the one key a `try_` tag now requires. Deleted with the closure: the arm table and its harness, `bws_try_join_items()`, every `try_*_fn` descriptor key (the per-entity cores themselves stay, and the base tags still call them). Output moved only where designed to, on the four families that register link options, where a fanning attempt with `linkTo` now anchors each value against its own entity, which dissolved FW-135; the other five moved nothing, measured by a before/after render sweep per family. `try_query_fn` dissolved with no FW-9 gap owed. FW-107 dissolved with it. The release gate re-ran all 23 snapshot pages clean, and every baseline line the branch moved traces to the commit that explains it. No CHANGELOG entry of its own (a refactor inside one unreleased version, net delta zero) | `docs/design-history/try-base-renderer-merge.md` (the build record, committed whole when its last ticket passed); `bws_try_run_attempts()` PHPDoc + `tools/test/try-slot-loop-test.php`; `docs/update-triggers.md` §`try_` slot LOOP change; `/matrix-links/` rows LK.5–LK.10 |
+| FW-142 | Omit a redundant `use` on base tags when the field token already says the read | Shipped 1.21.0 (2026-09-25, [PR #141](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/pull/141)): a general read rule, absent `use` plus a non-empty field token = that token's mode (one map row today, `key → key`; explicit `use` always wins), owned by one PHP helper every `use`-branching read site and the preview route through. The editor wraps GB's `use` select to show the derived mode, writes `use` only when the tokens would not imply it, deletes a mode's field token when `use` leaves it, and normalizes stored redundant wire on open, with no converter entry since old and new wire render identically. Live change on `{{content}}` only: `{{content key:bio}}` now reads the field. `{{image}}`'s default flip split out to FW-143 | CHANGELOG 1.21.0; `bws_use_effective()` PHPDoc (the axis); `tools/test/use-stripped-default-test.php`, `tools/test/editor-filter-chain-test.js`; `tools/test/content-test-matrix.md` §CT8 on `/matrix-content/`; `docs/design-history/implied-use-read.md` (the build spec, committed whole after merge) |
 | #21 | Editor preview: resolve-then-label | Closed 2026-05-19 (commit 9f4fa96), shipped v1.6.2 | Resolve-then-label on all base/modifier/try/datetime callbacks; CHANGELOG v1.6.2 |
 | #26 | Derive try_ slot option DEFS from base builders | Closed 2026-06-26 | `bws_build_slot_traversal_options`; option-DEFINITION derivation only, never the resolve loop |
 | C1 (#2) | Consolidate field extraction logic | Closed 2026-05-01, shipped v1.6.0 | `bws_read_field()`/`bws_read_term_field()` in `content-helpers.php`; CHANGELOG v1.6.0 |
