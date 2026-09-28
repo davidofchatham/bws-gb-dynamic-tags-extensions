@@ -307,6 +307,13 @@ button:hover { border-color: var(--accent); color: var(--accent); }
       <input type="checkbox" id="cb-fw81">
       <span class="toggle-desc">collapse datetime keys → <code>{{datetime …}}</code> (FW-81, parked/unshipped)</span>
     </label>
+    <div class="sb-h">when encoding (FW-27, unbuilt)</div>
+    <select id="sel-when" style="width:100%">
+      <option value="w1">W1 — decided: key(x),test + has(…) relations</option>
+      <option value="w2">W2 (open) — key,x[,test], negation not(…)</option>
+      <option value="w2br">W2 (open) — as W2, reads bracketed: key(x), use(content)</option>
+      <option value="w2nv">W2 — ADOPTED: reads bracketed, key(x),noValue; not(…) on relations + lists only</option>
+    </select>
   </div>
 
   <!-- Permutations (the only view — the Configure tab was removed 2026-09-01, FW-79: it built
@@ -996,7 +1003,7 @@ const SCENARIO_GROUPS = [
     {label:'is operand with a colon',   rest:[['use','title'],['_if',{test:'is',arg:'Status: open',subject:{kind:'key',field:'status'}}]],
       note:'operand is author text: GB-structural `:` escaped, same as fallback'},
     {label:'is operand with ; and (…)', rest:[['use','title'],['_if',{test:'is',arg:'Red (dark); matte',subject:{kind:'key',field:'finish'}}]],
-      note:'the bracket is what keeps the operand\'s `;` from reading as the test/subject split'},
+      note:'the bracket is what keeps the operand\'s `;` and `,` from reading as a separator'},
     {label:'subject = built-in field: use(excerpt)', rest:[['key','$key1'],['_if',{test:'hasValue',subject:{kind:'analog',slug:'excerpt'}}]]},
     {label:'upcoming incl. today, next 3',
       chain:[{slug:'refs',arg:'related_events',limit:'3'}], rest:[['sep',', '],['use','title'],['_if',{any:['before','during'],subject:{kind:'key',field:'$dateKey'}}]],
@@ -1020,7 +1027,7 @@ const SCENARIO_GROUPS = [
     {label:'date + time split (FW-81 read)',     rest:[['use','title'],['_if',{test:'before',subject:{kind:'key',field:'$dateKey',time:'start_time'}}]],
       note:'FW-81\'s key,date,time read (G7 widening): a time makes the value an instant (G4b)'},
     {label:'range, time-only end (LATER, G6)',  rest:[['use','title'],['_if',{test:'during',subject:[{kind:'key',field:'$dateKey',time:'start_time'},{kind:'key',field:'end_time'}]}]],
-      note:'FW-81: a time-only end INHERITS the start date; the reads\' `;` sits inside use(), so the top level is still subject;test'},
+      note:'FW-81: a time-only end INHERITS the start date; the reads\' `;` sits inside use(), so the top level is still subject,test (W1) / property,test (W2)'},
     {label:'ref chain then other field', chain:[{slug:'refs',arg:'$ref'},{slug:'terms',arg:'$tax'}], rest:[['use','title'],['_if',{test:'true',subject:{kind:'key',field:'is_featured'}}]],
       note:'tested on the FINAL sources (the terms), never the ref post in between'},
     {label:'term list, featured terms only',
@@ -1036,6 +1043,23 @@ const SCENARIO_GROUPS = [
     {label:'fixed text with a colon',   rest:[['_fixed',{text:'Note: varsity'}],['_if',{test:'true',subject:{kind:'key',field:'is_varsity'}}]]},
     {tmpl:'content', label:'content: public refs only',
       chain:[{slug:'refs',arg:'$ref'}], rest:[['_if',{test:'true',subject:{kind:'key',field:'is_public'}}]]},
+    {label:'not upcoming, INCLUDING no date (W2 gain)', rest:[['use','title'],['_if',{any:['during','after','noValue'],subject:{kind:'key',field:'$dateKey'}}]],
+      note:'W2 spells it as the negation of "upcoming"; W1 has to list noValue beside the phases'},
+    // Property tests (P1–P9 + the 2026-09-27 property list): a step-shaped subject, no read.
+    {label:'filed under term 34 (P1)',        rest:[['use','title'],['_if',{test:'hasValue',subject:{kind:'step',slug:'term',arg:'34'}}]]},
+    {label:'NOT filed under term 34',         rest:[['use','title'],['_if',{test:'noValue',subject:{kind:'step',slug:'term',arg:'34'}}]]},
+    {label:'filed under any category (T3a)',  rest:[['use','title'],['_if',{test:'hasValue',subject:{kind:'step',slug:'terms',arg:'$tax'}}]]},
+    {label:'has a visible related post (P4)', rest:[['use','title'],['_if',{test:'hasValue',subject:{kind:'step',slug:'refs',arg:'$ref'}}]],
+      note:'gated: counts only posts that would show, unlike a presence test on the raw field'},
+    {label:'has no session rows',             rest:[['use','title'],['_if',{test:'noValue',subject:{kind:'step',slug:'rows',arg:'sessions'}}]]},
+    {label:'either of two terms',             rest:[['use','title'],['_if',{props:'any',items:[{kind:'step',slug:'term',arg:'34'},{kind:'step',slug:'term',arg:'35'}]}]]},
+    {label:'neither of two terms',            rest:[['use','title'],['_if',{props:'any',neg:true,items:[{kind:'step',slug:'term',arg:'34'},{kind:'step',slug:'term',arg:'35'}]}]]},
+    // `src` inside `when` (W2 round 1): anchored at the current context, evaluated once.
+    {label:'provider phone if THIS post uses a 3rd party (src)',
+      chain:[{slug:'refs',arg:'support_provider'}], rest:[['key','support_phone'],['_if',{src:[{slug:'current'}],test:'is',arg:'3rd-party',subject:{kind:'key',field:'support_source'}}]],
+      note:'the driving case: the test reads the current context, not the provider; one answer gates the whole list (Q2)'},
+    {label:'related titles if THIS post has a category (src)',
+      chain:[{slug:'refs',arg:'$ref'}], rest:[['sep',', '],['use','title'],['_if',{src:[{slug:'current'}],test:'hasValue',subject:{kind:'step',slug:'terms',arg:'$tax'}}]]},
   ].map(sc => ({previewOnly:true, previewHow:'chain', ...sc}))},
 
   { title:'join — when: + fixed text per slot (FW-27 / FW-141, unbuilt)', isContrast:true,
@@ -1085,6 +1109,13 @@ const SCENARIO_GROUPS = [
       slots:[{tag:'text',read:{kind:'fixed',text:'Varsity'},if:{test:'true',subject:{kind:'key',field:'is_varsity'}}},
              {tag:'text',read:{kind:'fixed',text:'JV'},if:{test:'false',subject:{kind:'key',field:'is_varsity'}}}],
       note:'adjacency-exclusion inside one join: true/false on the same field, exactly one slot survives'},
+    {label:'slot gated on a term, and on its absence',
+      slots:[{tag:'text',read:{kind:'fixed',text:'Varsity'},if:{test:'hasValue',subject:{kind:'step',slug:'term',arg:'34'}}},
+             {tag:'text',read:{kind:'fixed',text:'JV'},if:{test:'noValue',subject:{kind:'step',slug:'term',arg:'34'}}}]},
+    {label:'ref slot gated on the current post (src)',
+      slots:[{tag:'title',read:{kind:'analog',slug:'title'}},
+             {tag:'text',chain:[{slug:'refs',arg:'$ref'}],read:{kind:'key',field:'$key1'},if:{src:[{slug:'current'}],test:'true',subject:{kind:'key',field:'show_related'}}}],
+      note:'src(current) resets to where the tag sits, not the slot\'s ref; deepest when bracket in a slot'},
   ].map(sc => ({previewOnly:true, ...sc}))},
 
   { tmpl:'text', title:'try_text — when: per attempt (FW-27, unbuilt)', isContrast:true,
@@ -1191,6 +1222,7 @@ const S = {
                         // the decision — mirrors chainPair.)
   linkCombined: false,  // fold linkKey into linkTo value → linkTo:key,<field> (else separate keys)
   fw81DtCollapse: false, // FW-81 (parked): show the collapsed use: reading beside today's six-key wire.
+  whenMode: 'w1',       // FW-27 `when` encoding: 'w1' decided wire | 'w2' / 'w2br' / 'w2nv' the OPEN W2 proposal (serializeIf).
   dummies: {key1:'custom_field',key2:'other_field',imgKey:'image_field',dateKey:'event_date',timeKey:'event_time',startKey:'start_date',endKey:'end_date',ref:'rel_post',tax:'category',urlKey:'url_field',fallback:'N/A',rangeSep:' – ',format:'F j, Y'},
 };
 
@@ -1528,31 +1560,96 @@ const RESPELL_FREEFORM = new Set(['format','fallback','sep','valueSep','rangeSep
 // GB's parse_options() unescapes both before the kv/pair split. Brackets are NOT escaped — inert to
 // GB; our own balance-aware sub-parser handles balanced inner brackets.
 function escFreeform(v) { return String(v).replace(/([:|])/g, '\\$1'); }
-// FW-27 `when` VALUE (unshipped; if-option.md §Encoding sketch + C1): SLOT-SHAPED — the value is
-// spelled as a folded slot's own options, so a read inside `when` is spelled exactly as the slot
-// read beside it: `key(x)` meta, `use(content)` built-in, `use(key,a,b;key,c)` FW-81's read list
-// (its slot form). SUBJECT first (required — no own-read form), TEST last, `;` between. A single
-// test is bare (`hasValue`, `before`) or takes a bracketed operand (`is(Yes)`); several combine
-// under `any(…)` / `all(…)` (C1), whose comparison operands drop one bracket level
-// (`all(hasValue,isNot[TBD])`). No nesting (C3d). `depth` = the level of the bracket ENCLOSING
-// the value, as serializeStep: 0 on the `when:` colon form, 1 inside a slot's `when(…)`.
-// Cond shape: {test, arg?} single, or {any:[…]} / {all:[…]} of bare names or {test, arg}.
+// FW-27 `when` VALUE (unshipped; if-option.md). `depth` = the level of the bracket ENCLOSING the
+// value, as serializeStep: 0 on the `when:` colon form, 1 inside a slot's `when(…)`. S.whenMode
+// picks the encoding (sidebar): 'w1' = the decided wire through W1, 'w2' = the OPEN W2 proposal
+// (one condition shape, property[,test], `not(…)` negates), 'w2br' = W2 with reads kept
+// BRACKETED as the slot read spells them (`key(x)`, `use(content)`, FW-81's `use(key,date,time)`);
+// relations stay step-shaped (`term,34`). Unlike W1 it still cuts hasValue / noValue / has / hasNot.
+// 'w2nv' = 'w2br' with a READ's absence spelled as the test `noValue` (`key(x),noValue`, so it
+// joins test lists: `any(before,noValue)`); `not(…)` then wraps relations and lists only, never a
+// read. `hasValue` is the read's STRIPPED DEFAULT test: emitted only inside a test list
+// (`all(hasValue,isNot[TBD])`), never alone (`key(x)`); both forms parse.
+// Ruled out 2026-09-28: `has(…)` around every W2 condition; W2 with a field's presence still
+// spelled `key,x,hasValue`; W2 with only `use` bracketed (superseded by 'w2br').
+// Cond shape: {subject, test, arg?} single, or {subject, any:[…]} / {subject, all:[…]} of bare
+// names or {test, arg}; a subject is {kind:'key'|'analog'|'step'} or an array (FW-81's two reads).
+// A PROPERTY LIST is {props:'any'|'all', items:[step subjects], neg?}. `src` (optional) is a chain
+// [{slug,arg}] anchored at the current context (W2 round 1), led with `;` in every mode.
 function serializeIf(c, depth) {
-  const br = bracketAt(depth + 1) || '()';
-  const inner = bracketAt(depth + 2) || '[]';
-  const wrap = (name, v) => name + br[0] + v + br[1];
-  const one = (t, b) => typeof t === 'string' ? t
-    : t.arg != null ? t.test + b[0] + escFreeform(resolveVal(t.arg)) + b[1] : t.test;
-  const list = c.any ? ['any', c.any] : c.all ? ['all', c.all] : null;
-  const test = list ? wrap(list[0], list[1].map(t => one(t, inner)).join(',')) : one(c, br);
-  const subj = c.subject ? [].concat(c.subject) : [];
+  const wrap = (name, v, d) => { const b = bracketAt(d) || (d % 2 ? '()' : '[]'); return name + b[0] + v + b[1]; };
+  const src = c.src ? wrap(kn('src'), c.src.map(h => serializeStep({...h, arg:resolveVal(h.arg||'')}, depth + 1)).join(S.chainSep.hop), depth + 1) + ';' : '';
+  return src + (S.whenMode === 'w1' ? whenW1(c, depth, wrap) : w2Cond(w2Tree(c), depth, wrap));
+}
+const stepProp = s => vn(s.slug) + ',' + resolveVal(s.arg);
+// W1 (decided through 2026-09-28): SLOT-SHAPED read — `key(x)` meta, `use(content)` built-in,
+// `use(key,a,b;key,c)` FW-81's read list — then `,` then the TEST (W1). A single test is bare
+// (`hasValue`, `before`) or takes a bracketed operand (`is(Yes)`); several combine under
+// `any(…)` / `all(…)` (C1), operands one bracket level down. A step subject is a relation test,
+// `has(term,34)` / `hasNot(…)` (P1), no read; a property list is `has(any[term,34;term,35])`.
+function whenW1(c, depth, wrap) {
+  if (c.props) return wrap(c.neg ? 'hasNot' : 'has', wrap(c.props, c.items.map(stepProp).join(';'), depth + 2), depth + 1);
+  const subj = [].concat(c.subject);
+  if (subj[0].kind === 'step') return wrap(c.test === 'noValue' ? 'hasNot' : 'has', stepProp(subj[0]), depth + 1);
+  const one = (t, d) => typeof t === 'string' ? t
+    : t.arg != null ? wrap(t.test, escFreeform(resolveVal(t.arg)), d) : t.test;
+  const list = c.any ? 'any' : c.all ? 'all' : null;
+  const test = list ? wrap(list, c[list].map(t => one(t, depth + 2)).join(','), depth + 1) : one(c, depth + 1);
   const keyRead = s => [kn('key'), resolveVal(s.field), ...(s.time ? [resolveVal(s.time)] : [])].join(',');
-  let read = '';
-  if (subj.length === 1 && subj[0].kind === 'key' && !subj[0].time && !S.readViaUse)
-    read = wrap(kn('key'), resolveVal(subj[0].field));        // slot meta read: key(x)
-  else if (subj.length)                                        // everything else rides use(…)
-    read = wrap(kn('use'), subj.map(s => s.kind === 'key' ? keyRead(s) : vn(s.slug)).join(';'));
-  return read ? read + ';' + test : test;
+  const read = subj.length === 1 && subj[0].kind === 'key' && !subj[0].time && !S.readViaUse
+    ? wrap(kn('key'), resolveVal(subj[0].field), depth + 1)
+    : wrap(kn('use'), subj.map(s => s.kind === 'key' ? keyRead(s) : vn(s.slug)).join(';'), depth + 1);
+  return read + ',' + test;
+}
+// W2 (OPEN): recast a cond as {prop, test?, neg?} or {list, items, neg?}. Presence is the bare
+// property (hasValue → nothing, noValue → negated); a negative test passes on empty (Q7 (A),
+// the complement rule), so `all(hasValue,…)` becomes two conditions; `any(<phases>,noValue)` becomes the negated complement (the "including empty"
+// negation C1 recorded as unstatable).
+const W2_PHASES = ['before', 'during', 'after'];
+function w2Tree(c) {
+  if (c.props) return {list:c.props, neg:!!c.neg, items:c.items.map(s => ({prop:s}))};
+  const prop = c.subject, list = c.any ? 'any' : c.all ? 'all' : null;
+  const nv = S.whenMode === 'w2nv' && [].concat(prop)[0].kind !== 'step';
+  if (!list && nv && c.test === 'noValue') return {prop, test:'noValue'};
+  if (!list) return c.test === 'hasValue' ? {prop} : c.test === 'noValue' ? {prop, neg:true} : {prop, test:c};
+  let items = c[list];
+  // Q7 (A): a negative test PASSES on empty, so presence is its own condition, not implied.
+  if (list === 'all' && items.includes('hasValue') && !nv) {
+    const rest = items.filter(t => t !== 'hasValue');
+    return {list:'all', items:[{prop}, {prop, test: rest.length === 1 ? rest[0] : {list, items:rest}}]};
+  }
+  if (list === 'any' && items.includes('noValue') && !nv) {
+    // ponytail: assumes the rest are phases (every fixture row is); a non-phase mix needs an outer list
+    const rest = W2_PHASES.filter(p => !items.includes(p));
+    return {prop, neg:true, test: rest.length === 1 ? rest[0] : {list:'any', items:rest}};
+  }
+  return {prop, test: items.length === 1 ? items[0] : {list, items}};
+}
+// Step-shaped property: `key,x`, `use,excerpt` (`key(x)` / `use(excerpt)` under 'w2br'), `terms,category`; FW-81's multi-part read keeps
+// its slot form as the property, `use(key,date,time)` (W2 round 1, Q1).
+function w2Prop(s, d, wrap) {
+  const subj = [].concat(s), r = subj[0];
+  if (subj.length === 1 && r.kind === 'step') return stepProp(r);
+  const br = S.whenMode === 'w2br' || S.whenMode === 'w2nv';
+  if (subj.length === 1 && r.kind === 'key' && !r.time)
+    return br ? wrap(kn('key'), resolveVal(r.field), d + 1) : kn('key') + ',' + resolveVal(r.field);
+  if (subj.length === 1 && r.kind === 'analog')
+    return br ? wrap(kn('use'), vn(r.slug), d + 1) : kn('use') + ',' + vn(r.slug);
+  return wrap(kn('use'), subj.map(x => x.kind === 'key'
+    ? [kn('key'), resolveVal(x.field), ...(x.time ? [resolveVal(x.time)] : [])].join(',') : vn(x.slug)).join(';'), d + 1);
+}
+function w2Test(t, d, wrap) {
+  if (typeof t === 'string') return t;
+  if (t.list) return wrap(t.list, t.items.map(x => w2Test(x, d + 1, wrap)).join(','), d + 1);
+  return t.arg != null ? wrap(t.test, escFreeform(resolveVal(t.arg)), d + 1) : t.test;
+}
+function w2Cond(n, d, wrap) {
+  const word = n.neg ? 'not' : '';
+  const inner = word ? d + 1 : d;
+  const body = n.list
+    ? wrap(n.list, n.items.map(x => w2Cond(x, inner + 1, wrap)).join(';'), inner + 1)
+    : w2Prop(n.prop, inner, wrap) + (n.test ? ',' + w2Test(n.test, inner, wrap) : '');
+  return word ? wrap(word, body, d + 1) : body;
 }
 // FW-141 fixed-text read (unshipped; Q9a decided 2026-09-25: its own token). The token name
 // implies the read (a `BWS_USE_IMPLIED_BY_TOKEN` row, FW-142), so no `use` at any depth. Returns
@@ -1560,11 +1657,12 @@ function serializeIf(c, depth) {
 function fixedReadPairs(r) {
   return [[vn('fixed'), escFreeform(resolveVal(r.text))]];
 }
-// Every author-text operand in a `when` cond (single or list), for the free-form scan.
+// Every author-text operand in a `when` cond (single or list), for the free-form scan. Only a
+// TEST's arg is author text; a step subject's arg (`term,34`) is not.
 function condArgs(c) {
-  if (!c) return [];
-  const items = c.any || c.all || [c];
-  return items.filter(t => t && typeof t === 'object' && typeof t.arg === 'string').map(t => t.arg);
+  if (!c || typeof c !== 'object') return [];
+  const items = c.any || c.all;
+  return items ? items.flatMap(condArgs) : c.test && typeof c.arg === 'string' ? [c.arg] : [];
 }
 // Does a free-form value carry an UNBALANCED slot-bracket that even a balance-aware sub-parser can't
 // survive? (A lone `]` / `)` with no opener, or vice versa.) Preview-only flag for eyeballing.
@@ -2415,6 +2513,9 @@ document.getElementById('cb-linkcombined').addEventListener('change',e=>{
 });
 document.getElementById('cb-fw81').addEventListener('change',e=>{
   S.fw81DtCollapse=e.target.checked; renderPerms();
+});
+document.getElementById('sel-when').addEventListener('change',e=>{
+  S.whenMode=e.target.value; renderPerms();
 });
 document.getElementById('add-name-row').addEventListener('click', addNameRow);
 
