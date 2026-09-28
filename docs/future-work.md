@@ -872,11 +872,11 @@ A lighter alternative to FW-26 — a `show_if`-style predicate grammar that self
 
 Detail home: `.scratch/plans/if-option.md` (spitball, no design); wire → `docs/design-history/src-chain-encoding.md`
 
-Progress: Direction confirmed and sharpened (user, 2026-08-01): embedded option, not a separate tag set; the tag-set alternative FW-26 closed not planned 2026-09-23. Reopened 2026-09-23 (user): the condition subject is settled as the same location as the displayed field (a different field on the source the tag already resolved, no second chain), the wire is a flat folded value under one `if` token, in the src chain and FW-81 style, compare text is bracketed, before/after on a date field is in v1, and on a multi-part tag `if` filters out each source that fails rather than gating the whole output. Encoding settled 2026-09-24 (user): the value is spelled as a slot's own options, tested field first, test last (`if:key(sale_price);hasValue`, `if:use(content);hasValue`); the tested field is always named, since testing the tag's own read was cut for now (additive later). Grilled 2026-09-25 (user): the option is named `when` (earlier notes spell it `if`); tests combine with `any(...)` / `all(...)`; offered on every base tag and per slot in `{{join}}` and `try_`; the editor control is a custom one whose field picker is scoped off the source path like the read picker.
+Progress: Direction confirmed and sharpened (user, 2026-08-01): embedded option, not a separate tag set; the tag-set alternative FW-26 closed not planned 2026-09-23. Reopened 2026-09-23 (user): the condition subject is settled as the same location as the displayed field (a different field on the source the tag already resolved, no second chain), the wire is a flat folded value under one `if` token, in the src chain and FW-81 style, compare text is bracketed, before/after on a date field is in v1, and on a multi-part tag `if` filters out each source that fails rather than gating the whole output. Encoding settled 2026-09-24 (user): the value is spelled as a slot's own options, tested field first, test last (`if:key(sale_price);hasValue`, `if:use(content);hasValue`); the tested field is always named, since testing the tag's own read was cut for now (additive later). Grilled 2026-09-25 (user): the option is named `when` (earlier notes spell it `if`); tests combine with `any(...)` / `all(...)`; offered on every base tag and per slot in `{{join}}` and `try_`; the editor control is a custom one whose field picker is scoped off the source path like the read picker. Scope recut 2026-09-26 (user): a test on the source itself rather than a field moves into v1, `when:has(term,34)` / `hasNot(...)`, also taking a taxonomy, relationship or repeater (`has(terms,category)`, `has(refs,rel)`); a malformed `when` hides the output. Built separately from FW-141 but ships in the same release. Count tests closed 2026-09-27 (user): number tests and `count(...)` are deferred together; testing a different source than the read (a flag on an earlier step, too many terms) is parked on a later source path inside `when`.
 
-Open: The editor control's configuration flow, to be settled by a prototype before build (scope in the detail home).
+Open: The editor control's configuration flow, settled by a prototype before build (scope in the detail home); then a review pass over the test words, before build.
 
-Blocked by: FW-141 (the driving case, a boolean showing a fixed word in a `{{join}}` slot)  •  Interacts with: FW-26 (closed), FW-57 (closed), FW-56 (closed), FW-59 (compare text is bracketed), FW-60, FW-88 (absorbed: `when` filters before `limit`), FW-35 (forcing a datetime to mean its whole day, later), FW-43, FW-81 (the subject part reuses its read form)
+Blocked by: —  •  Interacts with: FW-141 (ships in the same release; the driving case, a boolean showing a fixed word in a `{{join}}` slot), FW-26 (closed), FW-57 (closed), FW-56 (closed), FW-59 (compare text is bracketed), FW-60, FW-88 (absorbed: `when` filters before `limit`), FW-35 (forcing a datetime to mean its whole day, later), FW-43, FW-81 (the subject part reuses its read form)
 
 #### FW-28 — Composition-of-composers
 
@@ -1166,9 +1166,9 @@ A `use` value whose output is text the author types, not a field read: `fixed:Va
 
 Detail home: `.scratch/plans/if-option.md` §Prerequisite
 
-Progress: Filed 2026-09-23 (user). Wire decided 2026-09-25 (user): a separate `fixed` token, label "Fixed text", joining `BWS_USE_IMPLIED_BY_TOKEN` as one row, so no `use` is written beside it; the author text follows FW-59's bracketed-text rule. Ships as its own PR before any FW-27 build. Not started.
+Progress: Filed 2026-09-23 (user). Wire decided 2026-09-25 (user): a separate `fixed` token, label "Fixed text", joining `BWS_USE_IMPLIED_BY_TOKEN` as one row, so no `use` is written beside it; the author text follows FW-59's bracketed-text rule. Ships as its own PR; build order against FW-27 is free, but the two ship in the same release (user, 2026-09-26). Not started.
 
-Blocked by: —  •  Interacts with: FW-27 (blocked on this), FW-142 (closed; the token→mode map `fixed` joins), FW-59 (author text is bracketed)
+Blocked by: —  •  Interacts with: FW-27 (built separately, ships in the same release), FW-142 (closed; the token→mode map `fixed` joins), FW-59 (author text is bracketed)
 
 ## Closed / Retired
 
