@@ -876,7 +876,7 @@ Progress: Direction confirmed and sharpened (user, 2026-08-01): embedded option,
 
 Open: The editor control's configuration flow, settled by a prototype before build (scope in the detail home); then a review pass over the test words, before build.
 
-Blocked by: —  •  Interacts with: FW-141 (ships in the same release; the driving case, a boolean showing a fixed word in a `{{join}}` slot), FW-26 (closed), FW-57 (closed), FW-56 (closed), FW-59 (compare text is bracketed), FW-60, FW-88 (absorbed: `when` filters before `limit`), FW-35 (forcing a datetime to mean its whole day, later), FW-43, FW-81 (the subject part reuses its read form)
+Blocked by: —  •  Interacts with: FW-141 (ships in the same release; the driving case, a boolean showing a fixed word in a `{{join}}` slot), FW-26 (closed), FW-57 (closed), FW-56 (closed), FW-59 (closed; compare text is bracketed by the slot fold's inner-grammar rule), FW-60, FW-88 (absorbed: `when` filters before `limit`), FW-35 (forcing a datetime to mean its whole day, later), FW-43, FW-81 (the subject part reuses its read form)
 
 #### FW-28 — Composition-of-composers
 
@@ -938,9 +938,9 @@ Detail home: `.scratch/plans/all-day-flag.md` (design + the Pie Calendar evidenc
 
 Progress: Designed 2026-08-24. Not a position in FW-81's read fold — a boolean read is a different kind from a date read, so the two items are independent. `showMidnight` does not retire: with an authoritative flag a 00:00 on a not-all-day event is a real midnight time and should still print. Zero migration either way (`allDay` absent = today exactly).
 
-Open: The whole item waits on FW-59/FW-61's bracketed free-form value escape discipline, since the note is a bracketed free-form value and blocks the whole feature (shipping `key,<field>` alone would need a migration once `midnight` later joins).
+Open: The whole item waits on FW-61's bracketed free-form value escape discipline, since the note is a bracketed free-form value and blocks the whole feature (shipping `key,<field>` alone would need a migration once `midnight` later joins). FW-59 came off the blockers when it closed 2026-09-29: the half this depends on, free-form text inside our own grammar, already ships in the slot fold.
 
-Blocked by: row:FW-59, row:FW-61  •  Interacts with: FW-27 (a date test in `when` ignores the tag's `allDay`, which describes the displayed field, not the tested one; forcing a tested datetime to mean its whole day arrives later as a named token inside the test, on this item), FW-3, FW-81, FW-13 (the flag field is itself a discovered field), FW-134 (`_piecal_is_allday` is the motivating field, and its two save paths are why the option holds an exclusive predicate)
+Blocked by: row:FW-61  •  Interacts with: FW-27 (a date test in `when` ignores the tag's `allDay`, which describes the displayed field, not the tested one; forcing a tested datetime to mean its whole day arrives later as a named token inside the test, on this item), FW-3, FW-81, FW-13 (the flag field is itself a discovered field), FW-134 (`_piecal_is_allday` is the motivating field, and its two save paths are why the option holds an exclusive predicate)
 
 #### FW-44 — join per-slot inner list sep ({N}-sep)
 
@@ -1015,18 +1015,6 @@ Progress: Concept only, not fleshed. Split out of FW-53 because it is a new fann
 Open: Three structural costs beyond the query-filter UI — every scalar tag consuming `src:query` needs a collapse rule, editor preview must run a live `WP_Query` (ignoring the ambient id [I11] threads), and field-discovery scope depends on a still-building filter rather than a static restriction.
 
 Blocked by: —  •  Interacts with: FW-53, FW-13
-
-#### FW-59 — Bracket free-form values on BASE tags
-
-Two separate justifications were bundled under one row (found 2026-09-01, splitting them). (1) A plain base-tag `|`-pair (`format:g:i A`) already round-trips fine through GB's real parser — PHP `explode(':', $pair, 2)` keeps everything after the first colon, so a second colon in the value is safe today; the JS editor-side reopen bug (`split(regex,2)` truncating the tail past the 2nd colon) is fixed by `\:` escaping alone, and brackets don't touch it — brackets are visual-only to GB (`gb-constraints.md` §Separator-safe), so an unescaped colon inside one still triggers the split. Bracket-wrapping here buys uniformity with the slot spelling and lets the preview tool's balanced-bracket flag sanity-check a hand-edited value — not new GB-side safety. (2) A free-form value sitting beside OUR OWN structural separators — the folded/chain-step context FW-61's `sep(...)` lives in — is where the bracket is real: OUR sub-parser splits on comma/semicolon WE own, and a balance-aware bracket scope lets a value like `F j, Y g:i A` survive without escaping every comma. Either way the wire form keeps the mandatory first colon — `format:[g\:i A]`, not `format[g:i A]` — GB always splits a pair on it; the bracket only wraps the value that follows.
-
-Detail home: `docs/design-history/src-chain-encoding.md` (escape-hazard finding); `gb-constraints.md` §Tag string escape syntax + §Separator-safe
-
-Progress: Validated in the 2026-07-29 sandbox — brackets are inert to GB, a balance-aware sub-parser handles balanced inner brackets, `\:`/`\|` still escapes the two GB-structural characters, `{`/`}` remain hard-unsafe.
-
-Open: Which option keys count as free-form (the `RESPELL_FREEFORM` seed set); migration vs read-tolerant; interaction with `bws-format-input`'s existing escape control; whether justification (1) ships at all given it adds no GB-side safety, or only (2) does. Should land with or before FW-56/57 so base and slot free-form emission share one rule.
-
-Blocked by: decision:migration-vs-read-tolerant  •  Interacts with: FW-56 (closed), FW-57 (closed), FW-61
 
 #### FW-60 — Absorb try_ into base tags via an add-slot control (one-way fold)
 
@@ -1162,13 +1150,13 @@ Blocked by: —  •  Interacts with: FW-53 (a working sentinel plus a table loo
 
 #### FW-141 — Fixed-text read, author-entered text as a tag's output
 
-A `use` value whose output is text the author types, not a field read: `fixed:Varsity` on a base tag, `fixed(Varsity)` inside a slot. Nothing shipped does this; `fallback` is text entry but only fires on empty. Serves a fixed string in one `{{table}}` column on its own, and, gated by FW-27's `when`, a word shown when a boolean field is true as one item of a `{{join}}`.
+A `use` value whose output is text the author types, not a field read: `fixed:Varsity` on a base tag, `fixed(Varsity)` inside a slot. Nothing shipped does this; `fallback` is text entry but only fires when nothing resolves. Standalone it gives link text or a fixed address or number per result; gated by FW-27's `when`, a word shown when a boolean field is true as one item of a `{{join}}`.
 
-Detail home: `.scratch/plans/if-option.md` §Prerequisite
+Detail home: `.scratch/fw-141-fixed-read/spec.md` (the build spec); earlier decisions in `.scratch/plans/if-option.md` §Prerequisite
 
-Progress: Filed 2026-09-23 (user). Wire decided 2026-09-25 (user): a separate `fixed` token, label "Fixed text", joining `BWS_USE_IMPLIED_BY_TOKEN` as one row, so no `use` is written beside it; the author text follows FW-59's bracketed-text rule. Ships as its own PR; build order against FW-27 is free, but the two ship in the same release (user, 2026-09-26). Not started.
+Progress: Filed 2026-09-23 (user). Wire decided 2026-09-25 (user): a separate `fixed` token joining `BWS_USE_IMPLIED_BY_TOKEN` as one row, so no `use` is written beside it. Ships as its own PR; build order against FW-27 is free, but the two ship in the same release (user, 2026-09-26). Grilled to a spec 2026-09-29 (user): the base-tag value is unbracketed, escaped as `format` is (FW-59 closed on the way); reach is `{{text}}`, `{{email}}`, `{{phone}}`, `{{join}}` slots and the three matching `try_` tags, so email and phone gain a `use` axis; labels follow the family ("Fixed Text", "Fixed Email", "Fixed Phone Number"); it emits once per resolved source, is empty when nothing resolves, and finishes as that family's `fallback` does. `{{table}}` is out until its columns move to the shared read option. Not started.
 
-Blocked by: —  •  Interacts with: FW-27 (built separately, ships in the same release), FW-142 (closed; the token→mode map `fixed` joins), FW-59 (author text is bracketed)
+Blocked by: —  •  Interacts with: FW-27 (built separately, ships in the same release), FW-142 (closed; the token→mode map `fixed` joins), FW-59 (closed; base-tag bracketing retired while grilling this)
 
 ## Closed / Retired
 
@@ -1200,6 +1188,7 @@ Append-only ledger of closed, shipped, or cut work — both `FW-N` items deleted
 | FW-52 | Serialization-order decoupling (reorder normalizer + registration-unwind) | Shipped 1.16.0: canonical control order + canonical serialize order via a per-tag JS normalizer; as+size composite co-shipped | CHANGELOG 1.16.0; `serialization-order-normalizer.js` PHPDoc; `.scratch/plans/combined-option-controls.md` §Grill outcomes 2 |
 | FW-56 | Multi-step src-selection encoding + authoring model | Shipped 1.17.0: wire + compile (`slot-fold.php`/`slot-fold-compile.php`), then authoring + migration on every base tag (`bws-src-chain` control) | CHANGELOG 1.17.0; `docs/design-history/src-chain-encoding.md` §SETTLED index; ADR 0005 (limit semantics); `docs/tag-reference.md` §List mode |
 | FW-57 | Slot-payload fold — read-step + slot repeater | Shipped 1.17.0: one folded value per slot with the read as a sibling bracket-kv token, the repeater replacing the reveal chain, both migration paths, across `{{join}}` and all nine `try_` tags. Closes FW-51 by construction | CHANGELOG 1.17.0; `docs/design-history/src-chain-encoding.md` §SETTLED index + OPEN table |
+| FW-59 | Bracket free-form values on BASE tags | Closed 2026-09-29 (user), no code shipped. Of the row's two justifications, base-tag bracketing is RETIRED: brackets are inert to GB, so GB's two structural characters (colon and pipe) still need backslash-escaping inside them, which `bws-format-input` already writes, and the bracket bought only uniformity with the slot spelling. The other half, free-form text beside separators OUR sub-parser owns, is absorbed: it already ships in the slot fold (`BWS_FOLD_FREEFORM` + the balance-aware bracket scope), and later inner grammars (FW-61's `sep(…)`, FW-27's compare text, FW-35's `allDay` value) ride that rule. Decided while grilling FW-141, whose base-tag `fixed:` is written unbracketed | `docs/design-history/src-chain-encoding.md` (escape-hazard finding); `docs/gb-constraints.md` §Tag string escape syntax + §Separator-safe |
 | FW-63 | Verb-agnostic arm dispatch — base callbacks branch on resolved-source KIND, not flat src/srcTermIn tokens | Closed 2026-08-05, shipped 1.17.0: ~19 render-path arm sites across five files stopped comparing flat tokens; matrix coverage confirmed the swaps rather than assuming them. Gave BASE tags kind dispatch only — slot chains waited on FW-71 | CHANGELOG 1.17.0; `bws_fold_chain_resolution()` PHPDoc; `docs/design-history/per-step-limit.md` §Arm dispatch, sized |
 | FW-65 | Whether `datetime_range` wants an inner start/end split inside its field box | Dissolved into FW-81 2026-08-19, on this row's own reasoning — FW-81 collapses six key names to one, leaving nothing to subdivide | FW-81; `bws_option_visual_groups()` PHPDoc |
 | FW-67 | Retire the `bws-term-hop` control-type carrier | Deleted in 1.21.0, riding FW-129's sweep, after a census answered the open question the row parked on. The carrier's two remaining homes (the `term_` family and `{{table}}`'s inert registration) both went in that sweep, and driving all 21 registered tags through their constructors and scanning the resulting option arrays returned ZERO hits for `'bws-term-hop'`, a bare `srcTermIn` row, or the string nested anywhere inside a definition. So deletion, not rename: `assets/js/term-hop-control.js` and its enqueue are gone, and the `srcTermIn` definition is out of `bws_base_traversal_options()`. The taxonomy-list divergence the row logged on 2026-09-07 (public-only carrier vs. the capability-gated entity picker) dissolves with the control rather than being reconciled. The `srcTermIn` KEY is deliberately untouched: the three processing allowances for stored wire (the chain compiler's appended `terms` step, the fold migration's conversion, the slot-fold control's deletion of a stale control) are value migration, not controls, and the six `show_if_any` reveals reading the key read tag STATE, not a sibling control | CHANGELOG 1.21.0 (no entry: no control painted it, so the user-visible delta is zero); `docs/tag-reference.md` §`srcTermIn`; `docs/editor-controls.md` §Control composition; `docs/gb-constraints.md` §two-controls-one-key; `docs/deprecated-tags-options.md`; pin at `tools/test/slot-options-build-test.php` (leaf-level absence, both spellings) |
