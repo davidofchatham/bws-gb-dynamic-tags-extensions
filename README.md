@@ -56,7 +56,7 @@ If you use GB's `{{featured_image key:alt|…}}` for alt text, an image that exi
 
 | Tag | Description | Specific Limitations |
 |---|---|---|
-| `text` | Return simple meta/option text fields or post title/term name (useful in `try_` tags). | |
+| `text` | Return simple meta/option text fields or post title/term name (useful in `try_` tags). **[UNRELEASED]** Or skip a source altogether and type fixed text straight into the tag. | |
 | `image` | Return an image from a meta field or the post featured image or site logo field, with return options like GB's (alt text, etc.) and a Media Library fallback image selector. | Since terms have no native image fields, a field name must be supplied to retrieve images from a term source. |
 | `content` | Return post content/term description via a processing pipeline that handles block-rendered content safely, including consolidating block CSS for embedded post content into the page footer. | Since there's no site-wide body/content field, an option field name must be supplied to use this tag with the "site" source. |
 | `datetime_single` | Format combined datetime fields or separate date and time fields you want to show as a single date and time. By default, also hides midnight times and the current year. Multi-result sources (taxonomy terms or a reference/relationship field) can render a delimited date list, joined by the same Result Separator as `text` and bounded by each source step's own limit. | |
@@ -72,6 +72,8 @@ Instead of stringing together multiple tags in separate `span` elements, use one
 
 - **Separator mode** joins every non-empty value with a separator string (default `", "`), skipping empties so a missing middle value never leaves a doubled separator.
 - **Template mode** places values by position in a format string, using tokens `%A`-`%J` to represent the configured slots (the same letters the slot panels are labelled with). The older `%1`-`%10` tokens still work. Punctuation attached to an empty value drops with it: an empty bracketed part sheds its brackets, an empty middle part its comma, a missing unit value its mark. One format string can return both *Dr. Tom M. Smith Jr., PhD, USN (Ret.)* and *Jane Johnson*.
+
+**[UNRELEASED]** A slot can also hold fixed text you type in, instead of reading a field, handy for a label alongside the read ones.
 
 Output is plain text; no link options are currently available.
 

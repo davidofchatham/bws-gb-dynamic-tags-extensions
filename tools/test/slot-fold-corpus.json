@@ -234,6 +234,30 @@
 		{
 			"container": "table",
 			"wire": "key(note)]"
+		},
+		{
+			"container": "join",
+			"wire": "fixed(Varsity)"
+		},
+		{
+			"container": "join",
+			"wire": "use(title);fixed(Varsity)"
+		},
+		{
+			"container": "join",
+			"wire": "key(mobile);fixed(N/A)"
+		},
+		{
+			"container": "join",
+			"wire": "fixed(Varsity, Inc\\: The Best\\|Team)"
+		},
+		{
+			"container": "join",
+			"wire": "use(fixed)"
+		},
+		{
+			"container": "try",
+			"wire": "src(same);fixed(N/A)"
 		}
 	],
 	"chains": [

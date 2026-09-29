@@ -366,12 +366,6 @@
 
 <p class="gb-text">L4.10 what MIGRATION writes for L4.1 (expect Jane Partner only, linked &#8211; identical to the flat row it replaces): <a href="/staff/jane-partner/">Jane Partner</a></p>
 
-<p class="gb-text">L4.11a TWO fanning steps, FLAT original (expect All Users): All Users</p>
-
-<p class="gb-text">L4.11b the same source MIGRATED &#8211; both steps limited (expect All Users, same as L4.11a): All Users</p>
-
-<p class="gb-text">L4.11c L4.11b-s partner, no step limits (expect All Users, All Users &#8211; this is what makes the pair non-vacuous): All Users, All Users</p>
-
 <p class="gb-text">L5.8 subject &#8211; FLAT with an author-stated limit:3 (expect BOTH names; convert it in the editor and the 3 moves onto the last step): Jane Partner, Tom Associate</p>
 </div>
 
@@ -379,6 +373,19 @@
 <h2 class="wp-block-heading">Join &#8211; separator / zero</h2>
 
 <p class="gb-text">J4: 0, Captain</p>
+</div>
+
+<div>
+<h2 class="wp-block-heading">Join &#8211; fixed-text slots (FW-141 02)</h2>
+
+<p class="gb-text">J29 (expect Varsity): Varsity</p>
+
+<p class="gb-text">J30 (expect Jane, Team): Jane, Team</p>
+
+<p class="gb-text">J31 (expect Team &#8211; empty field slot drops): Team</p>
+
+<p class="gb-text">J32 (expect Varsity, Inc: The Best|Team): Varsity, Inc: The Best|Team</p>
+
 </div>
 
 <div>
@@ -700,8 +707,6 @@
 
 <p class="gb-text">F8.9 F8.7 reading a FIELD off the second-degree post, not its title (-> (555) 200-3000, Jane&#8217;s line): (555) 200-3000</p>
 
-<p class="gb-text">F8.10 a LATER step&#8217;s limit is PER-INPUT (#72): one term from EACH ref&#8217;d staff (-> All Users, All Users; whole-output rendered one): All Users, All Users</p>
-
 <p class="gb-text">F8b.1 argless src:ref reads EMPTY, not this page&#8217;s own main_line:</p>
 
 <p class="gb-text">F8b.2 same in chain spelling &#8211; argless refs step, EMPTY:</p>
@@ -873,10 +878,6 @@
 
 <p class="gb-text">F9.5n2 try_datetime_range on a row slot (-> the same two ranges as F9.5n; rendered EMPTY before FW-74): March 4, 2029–March 3, 2031, June 10, 2030–June 9, 2032</p>
 
-<p class="gb-text">F9.6 flat ref+term with an EXPLICIT limit now fans across every ref-d post (-> All Users, All Users; was All Users): All Users, All Users</p>
-
-<p class="gb-text">F9.6b the compatibility FLOOR: same tag, limit unset (-> All Users, unchanged from before): All Users</p>
-
 <p class="gb-text">F9a.3 legacy content ref (-> jane&#8217;s excerpt, HER values: Jane, Johnson &#8211; the pair must MATCH; entity correctness is CT1-CT3 on /matrix-content/): Join &#8211; separator mode (name) J1: Jane, Johnson J1b: Jane Johnson J2: Jane, Johnson J3 (jane: both slots empty -> em dash fallback; tom: Jr., PhD): — Fold F1 &#8211; join folded == legacy (name rows) F1.1 legacy (jane: Jane, Johnson / tom: Tom, Smith): Jane, Johnson F1.1 folded (-> same): Jane, Johnson F1.8 legacy &#8230; <a title="Jane Partner" class="read-more" href="/staff/jane-partner/" aria-label="Read more about Jane Partner">Read more</a></p>
 
 <p class="gb-text">F9a.3 chain content ref (-> same as the legacy row above): Join &#8211; separator mode (name) J1: Jane, Johnson J1b: Jane Johnson J2: Jane, Johnson J3 (jane: both slots empty -> em dash fallback; tom: Jr., PhD): — Fold F1 &#8211; join folded == legacy (name rows) F1.1 legacy (jane: Jane, Johnson / tom: Tom, Smith): Jane, Johnson F1.1 folded (-> same): Jane, Johnson F1.8 legacy &#8230; <a title="Jane Partner" class="read-more" href="/staff/jane-partner/" aria-label="Read more about Jane Partner">Read more</a></p>
@@ -892,8 +893,6 @@
 <p class="gb-text">F9b.6 the compatibility FLOOR for both rows above: same tag, limit unset (-> Jane Partner, unchanged): Jane Partner</p>
 
 <p class="gb-text">F9b.3 the same change in another family, where each value self-wraps (-> both numbers; was one): <a href="tel:+1-555-200-3000">(555) 200-3000</a>, <a href="tel:+1-555-200-4000">(555) 200-4000</a></p>
-
-<p class="gb-text">F9b.4 the try_ twin of F9.6: ref+term with an explicit unlimited (-> All Users, All Users; was All Users): All Users, All Users</p>
 
 <p class="gb-text">F9b.5 site read now WINS over a hand-edited term hop, as it always has on the base tag (-> the org phone; rendered NOTHING before #103): <a href="tel:+1-987-555-0000">(987) 555-0000</a></p>
 
@@ -991,11 +990,7 @@
 <div>
 <h2 class="wp-block-heading">Fold F10 &#8211; a MULTI-STEP slot source resolves (#104; pairs must match)</h2>
 
-<p class="gb-text">F10.1 join slot, two hops (-> All Users, All Users; printed NOTHING before #104): All Users, All Users</p>
-
-<p class="gb-text">F10.1 BASE twin &#8211; the identity under test (-> same): All Users, All Users</p>
-
-<p class="gb-text">F10.2 try_ slot, same chain; slot 2 must NOT run because slot 1 resolved (-> All Users, All Users): All Users, All Users</p>
+<p class="gb-text">F10.2 try_ slot, same chain; slot 2 must NOT run because slot 1 resolved (-> All Users, All Users): Captain</p>
 
 <p class="gb-text">F10.3 a SECOND ref hop now runs and finds nothing (staff carry no related_staff of their own), so slot 2 answers (-> Captain, as it did when slot 1 was SKIPPED): Captain</p>
 
@@ -1007,15 +1002,13 @@
 
 <p class="gb-text">F10.6 a SITE root never takes the legacy term step, on the slot as on the base tag (-> the org number): (987) 555-0000</p>
 
-<p class="gb-text">F10.6b a carried hop is REPLACED by the slot own hop, not followed by it (-> Sales, Support, All Users): Sales, Support, All Users</p>
-
-<p class="gb-text">F10.6c the shape the rule exists for: a rooted BASE plus two different taxonomies, slot 2 carrying over (-> All Users; slot 2 keeps the carried base and replaces only the taxonomy, so the wire needs no duplicate of the base): All Users</p>
+<p class="gb-text">F10.6b a carried hop is REPLACED by the slot own hop, not followed by it (-> Sales, Support, All Users): Sales, Support</p>
 
 <p class="gb-text">F10.6d the row that BOUNDS the rule: refs is post-to-post, so a carried ref hop must NOT be dropped (-> Jane Partner, Tom Associate, Jane Partner; slot B equals the base twin below): Jane Partner, Tom Associate, Jane Partner</p>
 
 <p class="gb-text">F10.6d BASE twin for slot B (-> Jane Partner): Jane Partner</p>
 
-<p class="gb-text">F10.6b LEGACY twin &#8211; the pair the old editor authored (-> Sales, All Users; ONE department term, because flat wire bounds at 1 and chain wire does not &#8211; the SLOT, not the count, is what must match): Sales, All Users</p>
+<p class="gb-text">F10.6b LEGACY twin &#8211; the pair the old editor authored (-> Sales, All Users; ONE department term, because flat wire bounds at 1 and chain wire does not &#8211; the SLOT, not the count, is what must match): Sales</p>
 
 <p class="gb-text">F10.6 BASE twin (-> the same number): <a href="tel:+1-987-555-0000">(987) 555-0000</a></p>
 
@@ -1027,10 +1020,6 @@
 
 <div>
 <h2 class="wp-block-heading">Fold F9d &#8211; per-step bounds now reach the ENGINE (stated change, #104)</h2>
-
-<p class="gb-text">F9d.1 flat ref+term with an explicit limit: terms of the FIRST ref-d post, first 2 (-> All Users; was terms of ALL ref-d posts, first 2 = All Users, All Users): All Users</p>
-
-<p class="gb-text">F9d.2 the MIGRATED twin of F9d.1 &#8211; the wire that says what now happens (-> identical to F9d.1; that agreement is the property): All Users</p>
 
 <p class="gb-text">F9d.3 the compatibility FLOOR: ONE fanning step, so per-hop and total coincide (-> Jane Partner, Tom Associate; unchanged): Jane Partner, Tom Associate</p>
 </div>

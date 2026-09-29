@@ -317,7 +317,7 @@ Trailing `(fallback: "X")` appended whenever `fallback` option is set, matching 
 
 `{{join}}` is the standalone COMBINING tag (up to `BWS_JOIN_MAX_SLOTS` text slots, all non-empty values assembled into one string). Unlike `try_` (a fallback chain — first non-empty wins), join combines **every** slot, so its preview lists all configured slot fields rather than describing a chain. Built by `bws_build_join_preview_label()`.
 
-**Slot walk** matches `bws_join_callback()`: a slot is "real" iff it has a `key` OR a non-default `use`; `src`/`ref` carry forward (`same`/'' takes the prior resolved source), `key`/`use` never do. Each real slot contributes a quoted key (`'name_first'`) or `Title`; a non-current source is appended per-slot (` from Ref 'rel'`).
+**Slot walk** matches `bws_join_callback()`: a slot is "real" iff it has a `key` OR a non-default `use`; `src`/`ref` carry forward (`same`/'' takes the prior resolved source), `key`/`use` never do. Each real slot contributes a quoted key (`'name_first'`), `Title`, or — for a fixed-text slot (FW-141 02) — the author's own text in curly quotes (`“Team”`, same convention as the base tag's fixed preview); a non-current source is appended per-slot (` from Ref 'rel'`) whenever the slot's own chain names one, even for `fixed` — the source part is read off the slot's wire independently of the field part, and a fixed slot's own chain, though unread at render, still displays (the author configured it, and the preview shows configuration, not what the render seam ignores).
 
 **Assembly annotation.** The `Join` prefix leads. Then:
 
@@ -333,6 +333,7 @@ Trailing `(fallback: "X")` appended whenever `fallback` option is set, matching 
 |---|---|
 | `src:ref` slot, no `ref` | `<L> no ref` |
 | key-mode slot, no `key` | `<L> no key` |
+| `fixed`-mode slot, no text entered | `<L> fixed text not entered` (FW-141 02 — the fixed read's own twin of "no key"; a slot has no key to name so only its text can be missing) |
 | Template mode, no `format` | `no format set` |
 | Slot with an INCOMPLETE `terms` step (no taxonomy) | `<L> no taxonomy` (1.17.0) |
 | Slot with an INCOMPLETE `refs` step (no relationship field, and nothing carried over to take one from) | `<L> no ref` (1.17.0) |
@@ -437,6 +438,10 @@ The rows above are **legacy flat wire** (`2-key`), which is why their format tok
 | `{{join mode:template\|format:%A (%B)\|A:key(name_first)\|B:key(name_last)}}` | `[Join “'name_first' ('name_last')”]` |
 | `{{join mode:template\|format:%1 (%2)\|A:key(name_first)\|B:key(name_last)}}` | same — the DIGIT token spelling is read forever, on folded wire too |
 | `{{join mode:template\|format:%A %%B %K\|A:key(name_first)}}` | `[Join “'name_first' %%B %K”]` — `%%` shows as typed, and a letter past the container's slot maximum is not a token |
+| `{{join A:fixed(Varsity)}}` | `[Join “Varsity”]` — a fixed-text slot alone (FW-141 02); curly-quoted like the base tag's own fixed preview, and no key to name |
+| `{{join A:key(name_first)\|B:fixed(Team)}}` | `[Join 'name_first', “Team”]` — fixed beside a keyed field slot |
+| `{{join A:use(fixed)}}` | `[⚠ Join: A fixed text not entered]` — `use(fixed)` with no text yet is the field-pending state, warned same as an empty key |
+| `{{join mode:template\|format:%A (%B)\|A:fixed(Varsity)\|B:key(name_last)}}` | `[Join ““Varsity” ('name_last')”]` — template mode substitutes a fixed-text slot's field part same as any other |
 
 ## `{{call}}` preview — intentionally inert (does NOT execute the function)
 

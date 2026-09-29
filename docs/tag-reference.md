@@ -686,7 +686,7 @@ The **legacy `N-` sibling prefixes stay digits** (`2-src`, `2-key`). That wire w
 
 **A chain is a ROOT plus N STEPS**, and which one the leading token is is decidable from the slug alone — root slugs singular, step slugs plural. The plural spelling is a **category marker, never a count claim**: a **fanning** step *may* resolve many and routinely resolves one (a relationship field limited to 1, a single-term taxonomy). See [`CONTEXT.md`](../CONTEXT.md) I14.
 
-**Read axis is resolved by NAME, never by token order:** `use` wins unless it is `key`; otherwise `key(…)` supplies the read. The flat wire reads the same way (`{{content key:foo}}` is the keyed read), so no tag changes meaning under the fold. With a field chosen the canonical spelling of a keyed read is the bare `key(x)` — `use(key)` is emitted only for the **field-pending** state (keyed read, no field yet), which the editor needs a wire spelling for because the control re-parses the value it just wrote to drive the read select.
+**Read axis is resolved by NAME, never by token order:** `use` wins unless it is `key` or `fixed`; otherwise `key(…)` supplies the read; otherwise `fixed(…)` does. The flat wire reads the same way (`{{content key:foo}}` is the keyed read), so no tag changes meaning under the fold. With a field chosen the canonical spelling of a keyed read is the bare `key(x)` — `use(key)` is emitted only for the **field-pending** state (keyed read, no field yet), which the editor needs a wire spelling for because the control re-parses the value it just wrote to drive the read select. `fixed(x)` follows the same pattern: `use(fixed)` is the text-pending state, and the canonical spelling once text is entered is the bare `fixed(x)` (FW-141 02, `{{join}}` only so far — see [§Field group](#field-group)).
 
 **Container sensitivity is on the READ axis, and only on what ABSENCE means.** An explicit `use(same)` carries over everywhere. An absent read is **unconfigured** in a combining container (`{{join}}`, `{{table}}` — the slot is skipped, and skipped *before* it can feed the carry-forward) and **carry-over** in a selecting one (`try_*`). Source absence is not container-sensitive: `src(same)` carries over, an empty chain resolves against the ambient entity.
 
@@ -860,7 +860,7 @@ The field-type selector (`use`) + field key (`key`). Present on `text`, `image`,
 | `text`, `image`, `content` | `same` *(prepended, slot 2+)* | Same as Previous Field | Hides additional fields | Slot 2+ only, not in template. Folded spelling `use(same)` — written explicitly there, where the flat wire left it absent |
 | `text`, `image`, `content` | `key` | Meta/Option Field | Shows/enables field key | — |
 | `text` | `title` | Title/Name | Disables field key | Term name if source is term; site name if `src:site` |
-| `text` | `fixed` | Fixed Text | Disables field key; shows `fixed` | Reads nothing: prints the `fixed` text once per resolved source (list mode repeats it, `sep` and step limits apply). Empty when the source resolves nothing, so the fallback fires. Base `{{text}}` only so far; `{{join}}` slots and `try_text` follow (FW-141) |
+| `text` | `fixed` | Fixed Text | Disables field key; shows `fixed` | Reads nothing: prints the `fixed` text once per resolved source (list mode repeats it, `sep` and step limits apply). Empty when the source resolves nothing, so the fallback fires. Base `{{text}}` (FW-141 01) and `{{join}}` slots (FW-141 02, folded `fixed(…)` — [§Folded slot wire](#folded-slot-wire-multislot-containers)); `try_text` slots follow |
 | `content` | `content` | Post Content/Term Description | Disables field key | Term description if source is term; **empty if `src:site`** (no site content analog) |
 | `content` | `excerpt` | Post Excerpt | Disables field key | Empty under `src:site` (no site excerpt) |
 | `image` | `featured` | Featured Image/Site Logo | Disables field key | Site logo (`custom_logo` theme mod) if `src:site` |
@@ -1189,20 +1189,7 @@ and future text behavior (the `'0'`-is-a-real-value rule, the site arm, term/ref
 query-loop item context, term-analog arm) works inside a join slot by construction. One GB tag
 (`'Join Fields'`, type `'cross-source'`), no prefix fan-out, no per-source variants.
 
-**Slots.** Up to **10** (`BWS_JOIN_MAX_SLOTS`), on the **folded slot wire** (v1.17.0 — one option
-key per slot, [§Folded slot wire](#folded-slot-wire-multislot-containers)). Per slot: a source
-chain (base `src` values with **site allowed** — the `try_text` site-slot gap is not repeated —
-plus a `terms` taxonomy step), the field read (text's key/title enum, **no "Same as Previous Field"
-row** because per-slot handlers are not built yet — a hand-written `use(same)` still resolves), and
-a per-step `limit` (list-mode bound so a term/ref slot reads >1 target; no control surface yet, but
-migrated and hand-written values round-trip). Slot ≥2 offers `src(same)` — weave several fields off
-one entity (see J16b in the matrix for real ref carry-forward). A list-mode slot joins its own
-items with text's default inner `', '` — no per-slot inner separator in v1
-([ADR 0003](adr/0003-join-per-slot-limit-not-sep.md): the v1 decision was to thread the slot limit
-only). NB the wire-collision that ADR 0003 cited (a slot-1 bare `sep` clashing with the tag-level
-assembly `sep`) dissolved twice over — first when the assembly key was renamed to `valueSep`
-(1.16.0, FW-52), then under the fold, where a slot's options live inside its own value. Still
-deferred.
+**Slots.** Up to **10** (`BWS_JOIN_MAX_SLOTS`), on the **folded slot wire** (v1.17.0 — one option key per slot, [§Folded slot wire](#folded-slot-wire-multislot-containers)). Per slot: a source chain (base `src` values with **site allowed** — the `try_text` site-slot gap is not repeated — plus a `terms` taxonomy step), the field read (text's key/title/fixed enum — `fixed` since FW-141 02, [§Field group](#field-group) — **no "Same as Previous Field" row** because per-slot handlers are not built yet — a hand-written `use(same)` still resolves), and a per-step `limit` (list-mode bound so a term/ref slot reads >1 target; no control surface yet, but migrated and hand-written values round-trip). Slot ≥2 offers `src(same)` — weave several fields off one entity (see J16b in the matrix for real ref carry-forward). A list-mode slot joins its own items with text's default inner `', '` — no per-slot inner separator in v1 ([ADR 0003](adr/0003-join-per-slot-limit-not-sep.md): the v1 decision was to thread the slot limit only). NB the wire-collision that ADR 0003 cited (a slot-1 bare `sep` clashing with the tag-level assembly `sep`) dissolved twice over — first when the assembly key was renamed to `valueSep` (1.16.0, FW-52), then under the fold, where a slot's options live inside its own value. Still deferred.
 
 **Slot count (v1.17.0).** Explicit add/remove in the slot repeater; removal compacts. Through
 1.16.x the count was inferred from configuration and slot N ≥ 3 revealed when the previous slot

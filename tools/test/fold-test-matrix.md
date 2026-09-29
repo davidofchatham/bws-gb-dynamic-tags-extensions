@@ -1080,6 +1080,20 @@ The ids below are resolved at BUILD TIME (`bws_fixture_seeded_term_id()` / `bws_
 
 **Verified live** (`render-tag`, 2026-09-17, blueprint v26): every row above measured against real seeded content. F23.3's original spelling was an unset `limit` expecting one value; the measurement said four, §L4 says why, and the row was rewritten to state a slice it actually makes.
 
+## §F24 — fixed-text read on a `{{join}}` slot (FW-141, ticket 02)
+
+`fixed(…)` is the third read axis a slot's own spelling can pick (alongside `use`/`key`), read-precedence-below `use`/`key` and reusing the base `{{text}}` fixed-read absorb seam untouched (`bws_base_text_resolve_value` — ticket 01, `5ddcbb1`). No legacy-era twin exists for these rows: a flat `fixed:` option on a join slot was never wired, so there is nothing to pair against the way §F1 pairs folded against legacy.
+
+| # | Tag | Expected |
+|---|---|---|
+| F24.1 | `{{join A:fixed(Varsity)}}` | `Varsity` — a fixed slot alone |
+| F24.2 | `{{join A:key(name_first)\|B:fixed(Team)}}` | `Jane, Team` — fixed beside a field slot |
+| F24.3 | `{{join A:fixed(Team)\|B:key(nonexistent_field)}}` | `Team` — the field slot resolves empty and drops (with its separator) like any empty slot; the fixed slot is unaffected because it never reads a source |
+| F24.4 | `{{join A:fixed(Varsity, Inc\: The Best\|Team)}}` | `Varsity, Inc: The Best\|Team` — `,` is inert inside the bracket (no escape needed); `:` and `\|` are the two characters the grammar escapes |
+| F24.5 | `{{join A:src(refs,missing_rel);fixed(Team)}}` | EMPTY — the fixed TEXT never comes up empty, but the SLOT still needs a resolved source: `missing_rel` is not a real relationship field, the chain hop resolves nothing, and `bws_base_read_refused()` refuses the read before the fixed text is ever reached. This is the assertion the §Highlights CHANGELOG line names ("still needs a resolved source to render against") and F24.1–4 don't cover it, because none of them put a chain step ahead of the `fixed(…)` read |
+
+**Verified live** (`render-tag`, 2026-09-29, blueprint v28): all five rows measured against the real seeded `/matrix-post-meta/` page.
+
 ## Fail triage
 
 1. **A §F1/§F2/§F8 pair diverges** → the fold seam or the compiler. Run `slot-fold-test.php` +

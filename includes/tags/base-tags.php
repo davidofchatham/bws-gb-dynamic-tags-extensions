@@ -878,8 +878,8 @@ function bws_base_text_callback( $options, $block, $instance ): string {
  */
 function bws_get_join_options(): array {
 	$text_field = function_exists( 'bws_get_text_field_options' )
-		? bws_get_text_field_options()
-		: array( 'use' => array(), 'key' => array() );
+		? bws_get_text_field_options( true )
+		: array( 'use' => array(), 'key' => array(), 'fixed' => array() );
 
 	// FOLDED slot keys (`A`, `B`, …) — one option per slot, the whole slot in its
 	// value. Replaces the six flat keys per slot join registered through 1.16.x; the
@@ -895,6 +895,7 @@ function bws_get_join_options(): array {
 				'min'             => 2,
 				'base_read'       => $text_field['use'],
 				'base_key'        => $text_field['key'],
+				'base_fixed'      => $text_field['fixed'] ?? array(),
 				// Site arm allowed: join is standalone, so the base source list passes
 				// through whole (the try_ site filter is a modifier-only concern).
 				'allow_site'      => true,

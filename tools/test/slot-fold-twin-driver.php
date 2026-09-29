@@ -59,7 +59,7 @@ function twin_canon_slot( $slot ) {
 	}
 	$read = $slot['read'] ?? null;
 	if ( null !== $read ) {
-		$read = array( $read['kind'], $read['slug'] ?? ( $read['field'] ?? '' ) );
+		$read = array( $read['kind'], $read['slug'] ?? ( $read['field'] ?? ( $read['text'] ?? '' ) ) );
 	}
 	$opts = $slot['opts'] ?? array();
 	ksort( $opts );

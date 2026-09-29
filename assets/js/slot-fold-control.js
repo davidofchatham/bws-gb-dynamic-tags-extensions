@@ -1334,6 +1334,7 @@
 			var impliedRead = ordinal >= 2 ? ( conf.combining ? '' : 'same' ) : ( conf.defaultRead || '' );
 			var readVal = read ? '' : impliedRead;
 			if ( read && 'key' === read.kind ) { readVal = 'key'; }
+			if ( read && 'fixed' === read.kind ) { readVal = 'fixed'; }
 			if ( read && 'analog' === read.kind ) { readVal = read.slug; }
 			if ( read && 'same' === read.kind ) { readVal = 'same'; }
 
@@ -1351,6 +1352,8 @@
 						writeRead( { kind: 'same' } );
 					} else if ( 'key' === v ) {
 						writeRead( { kind: 'key', field: ( read && read.field ) || '' } );
+					} else if ( 'fixed' === v ) {
+						writeRead( { kind: 'fixed', text: ( read && read.text ) || '' } );
 					} else if ( v ) {
 						writeRead( { kind: 'analog', slug: v } );
 					} else {
@@ -1410,6 +1413,22 @@
 						slotNoun
 					) ) );
 				}
+			}
+
+			if ( 'fixed' === readVal ) {
+				var fixedCfg = conf.fixedOption || {};
+				readNodes.push( el( 'div', { key: 'readArg', style: STACKED, className: 'bws-slot-fold' },
+					el( TextControl, {
+						label: fixedCfg.label,
+						help: fixedCfg.help,
+						placeholder: fixedCfg.placeholder,
+						value: ( read && read.text ) || '',
+						onChange: function ( v ) {
+							writeRead( { kind: 'fixed', text: v } );
+						},
+						__nextHasNoMarginBottom: true
+					} )
+				) );
 			}
 
 			// keyOnly has no read definition to take a noun from, so the caption comes

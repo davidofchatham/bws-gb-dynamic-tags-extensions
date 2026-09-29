@@ -988,6 +988,31 @@ check(
 	bws_build_join_preview_label( [ 'key' => 'a', 'B' => 'src(refs,rel_post);key(b)', '3-key' => 'c' ] ),
 	"[Join 'a', 'b' from Ref 'rel_post', 'c' from Ref 'rel_post']"
 );
+// Fixed-text read (FW-141 02): the author's own text, curly-quoted like the base tag's
+// preview (bws_build_preview_label) — one convention, both consumers.
+check(
+	'folded: a fixed-text slot alone',
+	bws_build_join_preview_label( [ 'A' => 'fixed(Varsity)' ] ),
+	'[Join “Varsity”]'
+);
+check(
+	'folded: a fixed-text slot beside a keyed field slot',
+	bws_build_join_preview_label( [ 'A' => 'key(name_first)', 'B' => 'fixed(Team)' ] ),
+	"[Join 'name_first', “Team”]"
+);
+// `use(fixed)` with no text entered yet — the read-axis twin of a keyed read with no
+// key, worded for what is actually missing (there is no field to pick).
+check(
+	'folded: use(fixed) with no text entered warns',
+	bws_build_join_preview_label( [ 'A' => 'use(fixed)' ] ),
+	'[⚠ Join: A fixed text not entered]'
+);
+// Template mode substitutes the fixed slot's own curly-quoted text like any other part.
+check(
+	'folded: template mode substitutes a fixed-text slot',
+	bws_build_join_preview_label( [ 'mode' => 'template', 'format' => '%A (%B)', 'A' => 'fixed(Varsity)', 'B' => 'key(name_last)' ] ),
+	'[Join ““Varsity” (\'name_last\')”]'
+);
 
 // ---------------------------------------------------------------------------
 echo "\nbuild_try_preview_label — FOLDED wire (FW-56/57)\n";

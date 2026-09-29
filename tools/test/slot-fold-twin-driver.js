@@ -98,7 +98,7 @@ function canonSlot( slot ) {
 	}
 	let read = slot.read || null;
 	if ( read ) {
-		read = [ read.kind, void 0 !== read.slug ? read.slug : ( void 0 !== read.field ? read.field : '' ) ];
+		read = [ read.kind, void 0 !== read.slug ? read.slug : ( void 0 !== read.field ? read.field : ( void 0 !== read.text ? read.text : '' ) ) ];
 	}
 	const opts = slot.opts || {};
 	const optPairs = Object.keys( opts ).sort().map( function ( name ) {

@@ -260,11 +260,31 @@ const FOLD = {
 	taxonomies: [ { value: 'department', label: 'Department' } ],
 };
 
+// A per-slot-READ container (the `{{text}}`/`{{join}}` shape, FW-141 02): `perSlotUse`
+// puts a read-kind enum ahead of the field picker, and `fixed` is one of its rows. The
+// KEY-ONLY `FOLD` above has no enum at all — the field picker is unconditional there —
+// so `fixed` can only be exercised against a second config.
+const FOLD_TEXT = Object.assign( {}, FOLD, {
+	perSlotUse: true,
+	readLabel: 'Text Field',
+	keyOption: { label: 'Meta/Option Field', dynamicLabel: true },
+	fixedOption: { label: 'Fixed Text', help: 'Text to show for each result found.', placeholder: '' },
+	readRows: [
+		{ value: 'key', label: 'Meta/Option Field' },
+		{ value: 'fixed', label: 'Fixed Text' },
+	],
+	readRowsWithSame: [
+		{ value: 'same', label: 'Same as Previous Field' },
+		{ value: 'key', label: 'Meta/Option Field' },
+		{ value: 'fixed', label: 'Fixed Text' },
+	],
+} );
+
 /** Mount the fold control for one slot, through its own registered filter. */
-function mountSlot( slotValue ) {
+function mountSlot( slotValue, foldConf ) {
 	const element = foldFilter(
 		{ key: SLOT_KEY },
-		{ [ SLOT_KEY ]: { type: 'bws-slot-fold', label: 'Attempt', fold: FOLD } },
+		{ [ SLOT_KEY ]: { type: 'bws-slot-fold', label: 'Attempt', fold: foldConf || FOLD } },
 		{ state: { [ SLOT_KEY ]: slotValue }, setState: function () {} }
 	);
 	if ( ! element || 'function' !== typeof element.type ) {
@@ -484,6 +504,31 @@ async function main() {
 		'S2.5 the read picker of the same slot reads the TAIL, not the step the second picker read',
 		twoStep[ 2 ].props.context.state.src,
 		'refs,any_ref'
+	);
+
+	/* =====================================================================
+	 * §S3 — the FIXED read (FW-141 02) stands the text input where the read
+	 * picker sits, so a `fixed(…)` slot must mount ONE FEWER real picker than
+	 * the same chain read with `key(…)` — the read seam is never reached at all.
+	 * ================================================================== */
+
+	const keyedRead = pickersIn( mountSlot( 'src(refs,dept_lead);key(main_line)', FOLD_TEXT ) );
+	check(
+		'S3.0 a per-slot-read container\'s `key` slot mounts one picker per arg-taking step, plus the read picker',
+		keyedRead.length,
+		2
+	);
+
+	const fixedRead = pickersIn( mountSlot( 'src(refs,dept_lead);fixed(Team HQ)', FOLD_TEXT ) );
+	check(
+		'S3.1 the same chain read as `fixed(…)` mounts one fewer real picker — the read seam is never reached',
+		fixedRead.length,
+		1
+	);
+	check(
+		'S3.2 ...and the one picker that DOES mount is still the step argument, not the read',
+		fixedRead[ 0 ].props.context.state.src,
+		undefined
 	);
 
 	console.log( '' );

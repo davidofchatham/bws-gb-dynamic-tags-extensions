@@ -520,6 +520,16 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'J4', '{{join key:height_in_zero|2-key:role}}' ),
 	) );
 
+	// Fixed-text read on a join slot (FW-141 02) — join-test-matrix.md §Fixed-text
+	// slots, fold-test-matrix.md §F24.
+	$sections[] = bws_fixture_gb_section( 'Join - fixed-text slots (FW-141 02)', array(
+		bws_fixture_gb_row( 'J29 (expect Varsity)', '{{join A:fixed(Varsity)}}' ),
+		bws_fixture_gb_row( 'J30 (expect Jane, Team)', '{{join A:key(name_first)|B:fixed(Team)}}' ),
+		bws_fixture_gb_row( 'J31 (expect Team - empty field slot drops)', '{{join A:fixed(Team)|B:key(nonexistent_field)}}' ),
+		bws_fixture_gb_row( 'J32 (expect Varsity, Inc: The Best|Team)', '{{join A:fixed(Varsity, Inc\: The Best\|Team)}}' ),
+		bws_fixture_gb_row( 'J33 (expect empty - unresolvable chain refuses before the fixed text is reached)', '{{join A:src(refs,missing_rel);fixed(Team)}}' ),
+	) );
+
 	$sections[] = bws_fixture_gb_section( 'Join - unit suffix (height)', array(
 		bws_fixture_gb_row( 'J11', '{{join mode:template|format:%1\'%2"|key:height_ft|2-key:height_in}}' ),
 		bws_fixture_gb_row( 'J11b', '{{join mode:template|format:%1′%2″|key:height_ft|2-key:height_in}}' ),

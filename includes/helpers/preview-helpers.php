@@ -246,7 +246,7 @@ function bws_build_join_preview_label( array $options ): string {
 		$key     = $flat['key'];
 
 		$inert              = array();
-		$field_parts[ $n ]  = bws_try_preview_field_part( 'text', $eff_use, $key, '' );
+		$field_parts[ $n ]  = bws_try_preview_field_part( 'text', $eff_use, $key, '', $flat['fixed'] ?? '' );
 		$source_parts[ $n ] = bws_try_preview_source_part( $flat['src'], true, $inert );
 
 		// An INERT source reports ALONE, exactly as a skipped slot's reason does: the slot
@@ -261,7 +261,12 @@ function bws_build_join_preview_label( array $options ): string {
 		// Per-slot warning: key-mode with no key. The `src:ref` with no ref key warning
 		// that stood beside it belongs to the seam now (`step:refs`), and always did in
 		// substance: an unfinished relationship step never reaches this point.
-		if ( 'title' !== $eff_use && '' === $key ) {
+		// The fixed read (FW-141) has no key to name; only its own text can be missing.
+		if ( 'fixed' === $eff_use ) {
+			if ( '' === (string) ( $flat['fixed'] ?? '' ) ) {
+				$slot_warnings[] = array( 'n' => $n, 'detail' => 'fixed text not entered' );
+			}
+		} elseif ( 'title' !== $eff_use && '' === $key ) {
 			$slot_warnings[] = array( 'n' => $n, 'detail' => 'no key' );
 		}
 	}
@@ -661,11 +666,16 @@ function bws_try_preview_template_label( string $base_template, string $as ): st
  * User-supplied identifiers wrapped in straight single quotes.
  *
  * @since 1.6.0
+ * @since 1.21.0 $fixed (FW-141 02) — the fixed-text read's own preview string.
+ * @param string $fixed The fixed text, when $use is 'fixed'; ignored otherwise.
  */
 if ( ! function_exists( 'bws_try_preview_field_part' ) ) {
-function bws_try_preview_field_part( string $base_template, string $use, string $key, string $as ): string {
+function bws_try_preview_field_part( string $base_template, string $use, string $key, string $as, string $fixed = '' ): string {
 	switch ( $base_template ) {
 		case 'text':
+			if ( 'fixed' === $use ) {
+				return '“' . esc_html( $fixed ) . '”';
+			}
 			return 'title' === $use ? 'Title' : "'" . $key . "'";
 		case 'content':
 			if ( 'excerpt' === $use ) {

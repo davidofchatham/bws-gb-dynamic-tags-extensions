@@ -203,6 +203,13 @@ const CASES = [
 	[ 'COMBINING — materialize src; an unset read stays unset', COMBINING,
 		{ 'A': 'key(a)', 'B': 'src(refs,office);key(b)', 'C': 'src(same)' }, 2,
 		'A:key(a) | B:src(refs,office)' ],
+
+	// FW-141 02: `fixed(…)` is a concrete read, not a `same` backreference, so compaction
+	// must carry it verbatim across a renumbering — the same "plain compaction" shape as
+	// the first case above, with a fixed read standing where an analog `use` did.
+	[ 'FIXED READ — carried verbatim through compaction, untouched by same-materialization', SELECTING,
+		{ 'A': 'key(staff_name)', 'B': 'src(refs,office);key(city)', 'C': 'src(refs,region);fixed(Team HQ)' }, 2,
+		'A:key(staff_name) | B:src(refs,region);fixed(Team HQ)' ],
 ];
 
 CASES.forEach( function ( c ) {

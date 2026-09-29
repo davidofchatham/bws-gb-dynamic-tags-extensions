@@ -77,7 +77,7 @@
 
 	var TYPES = [ 'title', 'content', 'email', 'phone', 'permalink', 'image', 'datetime_single', 'datetime_range' ];
 	var FLAGS = [ 'newTab', 'showCurrentYear', 'showMidnight', 'noLink' ];
-	var FREEFORM = [ 'format', 'fallback', 'sep', 'valueSep', 'rangeSep', 'timeSep', 'label' ];
+	var FREEFORM = [ 'format', 'fallback', 'sep', 'valueSep', 'rangeSep', 'timeSep', 'label', 'fixed' ];
 	var FANNING_SLUGS = [ 'refs', 'terms', 'rows' ];
 
 	// Option names the emitter ranks. Membership only — the RANKS come from
@@ -339,6 +339,7 @@
 		var slot = { label: null, type: null, chain: [], read: null, opts: {}, extra: [] };
 		var useTok = null;
 		var keyTok = null;
+		var fixedTok = null;
 
 		for ( var i = 0; i < tokens.length; i++ ) {
 			var parsed = parseToken( tokens[ i ] );
@@ -370,6 +371,8 @@
 				useTok = val;
 			} else if ( 'key' === name ) {
 				keyTok = val;
+			} else if ( 'fixed' === name ) {
+				fixedTok = val;
 			} else if ( -1 !== RANKED_KEYS.indexOf( name ) ) {
 				slot.opts[ name ] = val;
 			} else {
@@ -387,10 +390,12 @@
 		// `$use = $options['use'] ?? 'key'` dispatch. Both-present is not author error
 		// (GB cannot unset one option from another's value, so a stale `key` legitimately
 		// rides the wire), so it resolves rather than flagging.
-		if ( null !== useTok && 'key' !== useTok ) {
+		if ( null !== useTok && 'key' !== useTok && 'fixed' !== useTok ) {
 			slot.read = ( 'same' === useTok ) ? { kind: 'same' } : { kind: 'analog', slug: useTok };
 		} else if ( null !== keyTok ) {
 			slot.read = { kind: 'key', field: keyTok };
+		} else if ( null !== fixedTok ) {
+			slot.read = { kind: 'fixed', text: unescapeValue( fixedTok ) };
 		} else if ( 'key' === useTok ) {
 			// `use(key)` with no key token is a KEYED READ WHOSE FIELD IS NOT CHOSEN YET —
 			// the state the editor is in between picking "Meta/Option Field" and picking
@@ -399,6 +404,8 @@
 			// by RE-PARSING it: a shape that parses but never emits made the kind
 			// un-selectable. With a field present the bare `key(x)` still wins.
 			slot.read = { kind: 'key', field: '' };
+		} else if ( 'fixed' === useTok ) {
+			slot.read = { kind: 'fixed', text: '' };
 		}
 
 		if ( null !== slot.label ) {
@@ -444,6 +451,12 @@
 					values.key = read.field;
 				} else {
 					values.use = 'key';
+				}
+			} else if ( 'fixed' === read.kind ) {
+				if ( '' !== read.text ) {
+					values.fixed = read.text;
+				} else {
+					values.use = 'fixed';
 				}
 			} else if ( 'analog' === read.kind && 'default' !== read.slug && ( slot.type || null ) !== read.slug ) {
 				values.use = read.slug;

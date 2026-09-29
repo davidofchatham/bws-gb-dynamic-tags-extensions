@@ -836,10 +836,14 @@ function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same
  *     offers ([I16]).
  *
  * @since 1.17.0
+ * @since 1.21.0 $base_fixed (FW-141 02).
  * @param array $args {
  *     @type string $container       'join' | 'table' | 'try' (required).
  *     @type array  $base_read       Base read definition (e.g. bws_get_text_field_options()['use']).
  *     @type array  $base_key        Base field-key definition (…['key']).
+ *     @type array  $base_fixed      Base fixed-text definition (…['fixed']), FW-141 02.
+ *                                   Omitted (not empty) when the container has no fixed
+ *                                   read, same convention as $base_key.
  *     @type int    $max             Slot ceiling (required).
  *     @type int    $min             Slots always visible. Default 2.
  *     @type bool   $combining       True for join/table. Default true.
@@ -876,6 +880,7 @@ function bws_build_fold_slot_options( array $args ): array {
 	$steps            = $args['steps'] ?? array( 'terms' );
 	$base_read       = $args['base_read'] ?? array();
 	$base_key        = $args['base_key'] ?? array();
+	$base_fixed      = $args['base_fixed'] ?? array();
 	$noun            = (string) ( $args['noun'] ?? '' );
 
 	// ONE registered noun drives BOTH surfaces — the Add button (`+ Add attempt`) and
@@ -1000,6 +1005,9 @@ function bws_build_fold_slot_options( array $args ): array {
 	// whose read is a tag-level option.
 	if ( ! empty( $base_key ) ) {
 		$fold['keyOption'] = bws_fold_picker_config( $base_key );
+	}
+	if ( ! empty( $base_fixed ) ) {
+		$fold['fixedOption'] = bws_fold_picker_config( $base_fixed );
 	}
 	// The `rows` step's argument picker. A container may override it — {{table}} scopes
 	// the picker differently — but every container that offers the step ships one, or the

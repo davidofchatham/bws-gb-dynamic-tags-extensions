@@ -97,7 +97,7 @@ const BWS_FOLD_FLAGS = array( 'newTab', 'showCurrentYear', 'showMidnight', 'noLi
  * emit / unescaped on parse for the GB layer, and grammar chars inside them are
  * inert — a `/` in `Date/time TBA` is not a step.
  */
-const BWS_FOLD_FREEFORM = array( 'format', 'fallback', 'sep', 'valueSep', 'rangeSep', 'timeSep', 'label' );
+const BWS_FOLD_FREEFORM = array( 'format', 'fallback', 'sep', 'valueSep', 'rangeSep', 'timeSep', 'label', 'fixed' );
 
 /** Chain step slugs that FAN OUT (one → many). Used by the legacy limit mapping. */
 const BWS_FOLD_FANNING_SLUGS = array( 'refs', 'terms', 'rows' );
@@ -647,8 +647,9 @@ function bws_fold_parse_slot( string $value, string $container = 'join' ) {
 		'opts'  => array(),
 		'extra' => array(),
 	);
-	$use_tok  = null;
-	$key_tok  = null;
+	$use_tok   = null;
+	$key_tok   = null;
+	$fixed_tok = null;
 
 	foreach ( $tokens as $token ) {
 		$parsed = bws_fold_parse_token( $token );
@@ -686,6 +687,9 @@ function bws_fold_parse_slot( string $value, string $container = 'join' ) {
 			case 'key':
 				$key_tok = $val;
 				break;
+			case 'fixed':
+				$fixed_tok = $val;
+				break;
 			default:
 				if ( isset( bws_serialization_order_key_map()[ $name ] ) ) {
 					$slot['opts'][ $name ] = $val;
@@ -707,12 +711,18 @@ function bws_fold_parse_slot( string $value, string $container = 'join' ) {
 	// `key` is read only in the keyed arm. Both-present is not author error (GB
 	// cannot unset one option from another's value, so a stale `key` legitimately
 	// rides the wire), so it resolves rather than flagging.
-	if ( null !== $use_tok && 'key' !== $use_tok ) {
+	if ( null !== $use_tok && 'key' !== $use_tok && 'fixed' !== $use_tok ) {
 		$slot['read'] = ( 'same' === $use_tok )
 			? array( 'kind' => 'same' )
 			: array( 'kind' => 'analog', 'slug' => $use_tok );
 	} elseif ( null !== $key_tok ) {
 		$slot['read'] = array( 'kind' => 'key', 'field' => $key_tok );
+	} elseif ( null !== $fixed_tok ) {
+		// `fixed` sits AFTER `key` in this chain, mirroring BWS_USE_IMPLIED_BY_TOKEN's row
+		// order (registration-helpers.php): a hand-typed `key(x);fixed(y)` pair — the two
+		// never coexist on written wire — reads as the field it named until the editor's
+		// mount normalize drops one (FW-141 D2).
+		$slot['read'] = array( 'kind' => 'fixed', 'text' => bws_fold_unescape( $fixed_tok ) );
 	} elseif ( 'key' === $use_tok ) {
 		// `use(key)` with no key token is a KEYED READ WHOSE FIELD IS NOT CHOSEN YET —
 		// the state the editor is in between picking "Meta/Option Field" and picking the
@@ -723,6 +733,10 @@ function bws_fold_parse_slot( string $value, string $container = 'join' ) {
 		// origin, canonical now for the empty-field case only — with a field present the
 		// bare `key(x)` still wins (bws_fold_emit_slot).
 		$slot['read'] = array( 'kind' => 'key', 'field' => '' );
+	} elseif ( 'fixed' === $use_tok ) {
+		// `use(fixed)` with no `fixed` token is the fixed-read twin of the `key` pending
+		// state above — the state between picking "Fixed Text" and typing the text.
+		$slot['read'] = array( 'kind' => 'fixed', 'text' => '' );
 	}
 
 	if ( null !== $slot['label'] ) {
@@ -768,6 +782,14 @@ function bws_fold_emit_slot( array $slot, int $level = 1 ): string {
 				$values['key'] = $read['field'];
 			} else {
 				$values['use'] = 'key';
+			}
+		} elseif ( 'fixed' === $read['kind'] ) {
+			// Text typed → the bare `fixed(x)` IS the fixed read. No text yet → `use(fixed)`
+			// is the pending spelling, the fixed-read twin of `key`'s two lines up.
+			if ( '' !== ( $read['text'] ?? '' ) ) {
+				$values['fixed'] = $read['text'];
+			} else {
+				$values['use'] = 'fixed';
 			}
 		} elseif ( 'analog' === $read['kind']
 			&& 'default' !== $read['slug']
@@ -1318,6 +1340,7 @@ function bws_fold_empty_carry( string $default_read = '' ): array {
 		'ref'   => '',
 		'use'   => $default_read,
 		'key'   => '',
+		'fixed' => '',
 	);
 }
 
@@ -1468,7 +1491,7 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 	// the empty chain, and the empty chain is also how the ambient entity is spelled, so an
 	// carry-over off a fresh accumulator is indistinguishable from a carry-over off an ambient
 	// slot 1 (#74).
-	$carry += array( 'chain' => array(), 'ref' => '', 'use' => '', 'key' => '', 'limit' => null, '_fed' => false );
+	$carry += array( 'chain' => array(), 'ref' => '', 'use' => '', 'key' => '', 'fixed' => '', 'limit' => null, '_fed' => false );
 
 	// ── read axis ──────────────────────────────────────────────────────────
 	$read = $slot['read'] ?? null;
@@ -1477,21 +1500,30 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 			$skip_reason = 'read';
 			return null;   // UNCONFIGURED — shipped combining resolvers skip, before carry.
 		}
-		$use = $carry['use'];
-		$key = $carry['key'];
+		$use   = $carry['use'];
+		$key   = $carry['key'];
+		$fixed = $carry['fixed'];
 	} else {
 		switch ( $read['kind'] ?? '' ) {
 			case 'same':
-				$use = $carry['use'];
-				$key = $carry['key'];
+				$use   = $carry['use'];
+				$key   = $carry['key'];
+				$fixed = $carry['fixed'];
 				break;
 			case 'key':
-				$use = 'key';
-				$key = (string) ( $read['field'] ?? '' );
+				$use   = 'key';
+				$key   = (string) ( $read['field'] ?? '' );
+				$fixed = '';
+				break;
+			case 'fixed':
+				$use   = 'fixed';
+				$key   = '';
+				$fixed = (string) ( $read['text'] ?? '' );
 				break;
 			default:
-				$use = (string) ( $read['slug'] ?? '' );
-				$key = '';
+				$use   = (string) ( $read['slug'] ?? '' );
+				$key   = '';
+				$fixed = '';
 				// AN EMPTY ANALOG SLUG NAMES NO READ, so it resolves as the carry's —
 				// which slot 1 seeds with the container's stripped default. `use()` is
 				// legal hand-written wire (ADR 0004) and parses to this shape; leaving
@@ -1671,6 +1703,7 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 	$carry['ref']   = $ref;
 	$carry['use']   = $use;
 	$carry['key']   = $key;
+	$carry['fixed'] = $fixed;
 	// What is carried is the QUANTITY this slot resolved, which is its own default where
 	// it states nothing — an attempt carrying over `src(refs,office)` should read every
 	// office, as that slot does, not fall back to a default chosen for wire it does not
@@ -1698,6 +1731,7 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 		// above, where it can use the carry instead of guessing a value.
 		'use'       => $use,
 		'key'       => $key,
+		'fixed'     => $fixed,
 	);
 	if ( null !== $limit ) {
 		$opts['limit'] = $limit;
