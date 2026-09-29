@@ -313,8 +313,7 @@ if ( ! defined( 'BWS_USE_STRIPPED_DEFAULTS' ) ) {
  * The stripped default for one tag's `use`, or '' for a tag that has no read axis.
  *
  * A read site that BRANCHES on `use` asks bws_use_effective() instead, which falls back
- * to this. Read this directly where the default itself is wanted (a carry seed, the
- * preview's "is this slot at its template default" test).
+ * to this. Read this directly where the default itself is wanted (a carry seed).
  *
  * @since 1.19.0
  * @param string $tag Base tag name.

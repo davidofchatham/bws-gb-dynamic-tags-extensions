@@ -313,7 +313,7 @@ Datetime tags compute a live preview from the current time rather than a static 
 
 Trailing `(fallback: "X")` appended whenever `fallback` option is set, matching base preview behavior.
 
-`try_email` / `try_phone` ([#32](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/32), 1.11.0) are text-like with `$needs_key = true` and no no-key values (single key-mode, no `use` enum) — so an empty-key slot always warns `⚠ <L> no key`, and a configured slot renders `Email: 'key'` / `Phone: 'key'`. This is the [#24](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/24)-correct shape (warn on a genuinely unconfigured slot, unlike `content` whose default `use` needs no key).
+A slot warns `⚠ <L> no key` when its read needs a field key and has none, which is exactly when the rendered tag skips it as unconfigured ([#24](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/24)). So `try_email` / `try_phone` ([#32](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/32), 1.11.0), which always read a key, warn on every empty-key slot, while `content` at its default read never asks for one.
 
 ## join preview
 

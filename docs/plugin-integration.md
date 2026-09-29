@@ -446,7 +446,7 @@ residual hole it cannot close, live only there.
 | Function | Purpose |
 |----------|---------|
 | `bws_build_preview_label( $options, $tag, $modifier_prefix )` | Build bracketed editor preview label for unresolved tags |
-| `bws_build_try_preview_label( $options, $tag, $modifier_prefix )` | Build preview label for try_* fallback chains |
+| `bws_build_try_preview_label( $options, $base_template, $loop_cfg )` | Build preview label for try_* fallback chains |
 | `bws_wrap_preview_label_with_link( $label, $options, $instance )` | Wrap preview label in `<a>` when `linkTo` resolves |
 
 ### Link helpers (`includes/helpers/link-helpers.php`)

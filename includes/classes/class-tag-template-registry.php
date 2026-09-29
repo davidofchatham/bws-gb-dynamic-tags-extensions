@@ -687,7 +687,7 @@ class TagTemplateRegistry {
 				}
 
 				return $is_preview && function_exists( 'bws_build_try_preview_label' )
-					? bws_build_try_preview_label( $opts, $tpl_key )
+					? bws_build_try_preview_label( $opts, $tpl_key, $loop_cfg )
 					: '';
 			};
 

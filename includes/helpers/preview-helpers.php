@@ -368,12 +368,15 @@ function bws_join_preview_format( string $format, array $parts, int $max ): stri
  * bracket string would break HTML attributes.
  *
  * @since 1.6.0
+ * @since 1.21.0 `$loop_cfg` (FW-141 03b) — the per-slot read and no-key facts are the walk's.
  * @param array  $options       Parsed tag options (slot fields prefixed N- for N≥2).
  * @param string $base_template Template key ('text', 'content', 'image', 'title', 'permalink', 'datetime_single', 'datetime_range').
+ * @param array  $loop_cfg      The family's attempt-walk config, the SAME array the try_
+ *                              callback hands bws_try_run_attempts().
  * @return string Bracket preview label, or '' when template excluded or no slots configured.
  */
 if ( ! function_exists( 'bws_build_try_preview_label' ) ) {
-function bws_build_try_preview_label( array $options, string $base_template ): string {
+function bws_build_try_preview_label( array $options, string $base_template, array $loop_cfg ): string {
 	// Image `as` may carry a folded `,<size>` arg (as+size fold, FW-52) — read the
 	// bare return MODE for the exclusion test. Datetime/other `as` has no size fold.
 	$as       = ( 'image' === $base_template && function_exists( 'bws_parse_as_option' ) )
@@ -391,11 +394,11 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 		return '';
 	}
 
-	// The template's stripped default, read from its owner. A non-empty default is
-	// also exactly what "this template has a per-slot `use` axis" means: the three
-	// per_slot_use templates are the three with a row in BWS_USE_STRIPPED_DEFAULTS.
-	$use_default  = bws_use_stripped_default( $base_template );
-	$per_slot_use = '' !== $use_default;
+	// The family's facts come from the walk's own config, never re-derived here: which
+	// templates read per slot, the carry seed, and which reads need no key are the walk's
+	// to state, and a preview that answered them itself would describe a different tag.
+	$use_default  = (string) ( $loop_cfg['default_use'] ?? '' );
+	$per_slot_use = ! empty( $loop_cfg['per_slot_use'] );
 
 	// Walk slots 1-5 through the SAME render seam the callback resolves with
 	// (bws_fold_slot_struct + bws_fold_slot_chain_options), so this preview reads folded
@@ -466,29 +469,15 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 			continue;
 		}
 
-		// The fixed read (FW-141) has no key to name; only its own text can be missing.
-		if ( 'text' === $base_template && 'fixed' === $slot['use'] ) {
-			if ( '' === (string) $slot['fixed'] ) {
-				$slot_warnings[] = array( 'n' => $slot['n'], 'detail' => 'fixed text not entered' );
+		// The walk's own gate: a slot it would skip for want of a key warns here. Asked
+		// FIRST, so a `fixed` a family does not serve warns about the key the walk wants.
+		if ( bws_try_slot_needs_key( $loop_cfg, $slot['use'] ) ) {
+			if ( '' === $slot['key'] ) {
+				$slot_warnings[] = array( 'n' => $slot['n'], 'detail' => 'no key' );
 			}
-			continue;
-		}
-
-		// Per-template missing-key checks.
-		$needs_key = false;
-		if ( 'text' === $base_template ) {
-			$needs_key = 'title' !== $slot['use'];
-		} elseif ( 'content' === $base_template ) {
-			$needs_key = 'key' === $slot['use'];
-		} elseif ( 'image' === $base_template ) {
-			$needs_key = 'featured' !== $slot['use'];
-		} elseif ( 'email' === $base_template || 'phone' === $base_template ) {
-			// No `use` enum (single key-mode); a slot always needs a field key,
-			// and there are no no-key values (try_use_no_key_values = []). #24.
-			$needs_key = true;
-		}
-		if ( $needs_key && '' === $slot['key'] ) {
-			$slot_warnings[] = array( 'n' => $slot['n'], 'detail' => 'no key' );
+		} elseif ( 'fixed' === $slot['use'] && '' === (string) $slot['fixed'] ) {
+			// The fixed read (FW-141) has no key to name; only its own text can be missing.
+			$slot_warnings[] = array( 'n' => $slot['n'], 'detail' => 'fixed text not entered' );
 		}
 	}
 

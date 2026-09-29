@@ -49,6 +49,24 @@ if ( ! defined( 'BWS_TRY_MAX_SLOTS' ) ) {
 }
 
 /**
+ * Whether one attempt's read needs a field key — THE per-slot read gate.
+ *
+ * The walk skips an attempt that needs one and has none; the try_ preview warns
+ * "no key" on the same answer (bws_build_try_preview_label()), so the two cannot
+ * disagree about which slots are unconfigured.
+ *
+ * @since 1.21.0
+ * @param array  $cfg The family's walk facts (see bws_try_run_attempts()).
+ * @param string $use The attempt's effective read, after carry-forward.
+ * @return bool False for a family with no per-slot read axis at all.
+ */
+function bws_try_slot_needs_key( array $cfg, string $use ): bool {
+	$per_slot_use = ! empty( $cfg['per_slot_use'] );
+	$no_key_read  = $per_slot_use && in_array( $use, $cfg['no_key_uses'] ?? array(), true );
+	return ( ! empty( $cfg['per_slot_key'] ) || $per_slot_use ) && ! $no_key_read;
+}
+
+/**
  * Walk a `try_` tag's attempts and return the first one that reads something.
  *
  * @since 1.21.0
@@ -69,7 +87,6 @@ if ( ! defined( 'BWS_TRY_MAX_SLOTS' ) ) {
 function bws_try_run_attempts( array $options, $instance, array $cfg, callable $resolve ): ?array {
 	$per_slot_key = ! empty( $cfg['per_slot_key'] );
 	$per_slot_use = ! empty( $cfg['per_slot_use'] );
-	$no_key_uses  = $cfg['no_key_uses'] ?? array();
 	$collapse     = ! empty( $cfg['collapse'] );
 
 	// The fallback is the SHELL's, fired once on an all-empty walk. An attempt whose
@@ -119,8 +136,7 @@ function bws_try_run_attempts( array $options, $instance, array $cfg, callable $
 		$slot_opts['srcTermIn'] = $slot_read['srcTermIn'];
 
 		if ( $per_slot_key || $per_slot_use ) {
-			$in_no_key_mode = $per_slot_use && in_array( $last_use, $no_key_uses, true );
-			if ( ! $in_no_key_mode && '' === $last_key ) {
+			if ( bws_try_slot_needs_key( $cfg, $last_use ) && '' === $last_key ) {
 				continue; // No field key and not in no-key mode — skip the attempt.
 			}
 			if ( '' !== $last_key ) {
