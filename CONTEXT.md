@@ -37,6 +37,7 @@ Schema/per-tag detail: `tag-reference.md` §Source-analog resolution. Narrative:
 
 `use` is the analog-vs-option selector — the same lever in every source, including `src:site`. `use:key` (or the stripped key-mode default) → field/option read; a named analog `use` value → that source's analog datum. The lever is the `use` VALUE, never key-presence. `src:site` selects the wp_options namespace the way `src:current` selects post meta — it does not branch independently of `use`.
 
+- `fixed` is the one `use` value that reads nothing: it returns the author's typed text once per resolved source, and never coexists with `key` on the wire.
 - NO `use:option` value exists anywhere — option IS a key-read reached by `use:key`, namespaced by `src`.
 - Each base tag's `use` default is its own (text/image → `key`; content → `content`; permalink/title → none). "`use` unset" does NOT universally mean key-mode.
 
@@ -46,7 +47,7 @@ Enforced at: `bws_site_resolve_value` PHPDoc (base-tags.php). Detail: `tag-refer
 
 A `use`-dispatcher MUST canonicalize an empty wire `use` to the tag's FIRST enum value before dispatching — every read site does so through `bws_use_effective()`. Dispatching on the literal `''` silently drops the option read for tags whose default IS key-mode. Which value a tag's enum leads with is no longer bound here: key-mode was required wherever key-mode and a named analog share one enum only while a stale `key` could not be auto-unset, and the editor now deletes it when `use` leaves key-mode (FW-142). The one open flip is FW-143 (`image`).
 
-**The per-tag VALUE has one owner, and the reads that recover it are not duplication.** Registration blanks the first enum value so the wire never carries it; a `?? '<value>'` at the point of use is the honest spelling of "absent means the first option", and roughly twenty of them are the convention working, not a defect to extract. What the convention never covered is where the value is *stated* — that is `BWS_USE_STRIPPED_DEFAULTS`. **Absence from it is a statement:** a tag with no `use` enum (`title`, `permalink`, datetime, email, phone) has no read axis, so its default is `''` and nothing may assert one for it.
+**The per-tag VALUE has one owner, and the reads that recover it are not duplication.** Registration blanks the first enum value so the wire never carries it; a `?? '<value>'` at the point of use is the honest spelling of "absent means the first option", and roughly twenty of them are the convention working, not a defect to extract. What the convention never covered is where the value is *stated* — that is `BWS_USE_STRIPPED_DEFAULTS`. **Absence from it is a statement:** a tag with no `use` enum (`title`, `permalink`, datetime) has no read axis, so its default is `''` and nothing may assert one for it.
 
 Enforced at: `BWS_USE_STRIPPED_DEFAULTS` PHPDoc (`registration-helpers.php`) — the obligation, the value, and the key-mode constraint. `bws_site_resolve_value`'s PHPDoc carries the B6 regression that produced the rule, as a worked instance. Pinned by `tools/test/use-stripped-default-test.php` (map ⟷ leaves, plus a census of every read site). Convention detail: `tag-reference.md` §Default serialization strategy.
 
