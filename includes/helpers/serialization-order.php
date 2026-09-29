@@ -97,7 +97,7 @@ function bws_serialization_order_key_map(): array {
 		'showCurrentYear' => array( 'format', 7 ),
 		'showMidnight'    => array( 'format', 8 ),
 
-		// --- source group (per-slot; src → ref → srcTermIn → limit → sep → use → key → datetime keys) ---
+		// --- source group (per-slot; src → ref → srcTermIn → limit → sep → use → key → fixed → datetime keys) ---
 		'src'          => array( 'source', 0 ),
 		'ref'          => array( 'source', 1 ),
 		'srcTermIn'    => array( 'source', 2 ),
@@ -105,12 +105,14 @@ function bws_serialization_order_key_map(): array {
 		'sep'          => array( 'source', 4 ),
 		'use'          => array( 'source', 5 ),
 		'key'          => array( 'source', 6 ),
+		// The fixed read's text (FW-141), beside the `key` it never rides with.
+		'fixed'        => array( 'source', 7 ),
 		// datetime field keys share the source group, after `key`.
-		'timeKey'      => array( 'source', 7 ),
-		'startKey'     => array( 'source', 8 ),
-		'startTimeKey' => array( 'source', 9 ),
-		'endKey'       => array( 'source', 10 ),
-		'endTimeKey'   => array( 'source', 11 ),
+		'timeKey'      => array( 'source', 8 ),
+		'startKey'     => array( 'source', 9 ),
+		'startTimeKey' => array( 'source', 10 ),
+		'endKey'       => array( 'source', 11 ),
+		'endTimeKey'   => array( 'source', 12 ),
 
 		// --- link group (after source; entity-link OR email/phone own-anchor) ---
 		'linkTo'  => array( 'link', 0 ),

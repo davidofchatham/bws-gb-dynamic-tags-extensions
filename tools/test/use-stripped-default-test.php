@@ -341,6 +341,16 @@ foreach ( BWS_USE_STRIPPED_DEFAULTS as $tag => $default ) {
 	assert_same( "{$tag}: use:key with no key → key (keyed, pending)", 'key', bws_use_effective( $tag, array( 'use' => 'key' ) ) );
 }
 
+// `fixed` (FW-141) is the second implied token, and the one whose mode reads nothing. Its
+// row sits AFTER `key`, so a stored pair the editor never writes resolves the keyed read
+// until the mount normalize drops `fixed`.
+assert_same( 'text: fixed alone → the fixed read', 'fixed', bws_use_effective( 'text', array( 'fixed' => 'Varsity' ) ) );
+assert_same( 'text: key + fixed → key (map order)', 'key', bws_use_effective( 'text', array( 'key' => 'foo', 'fixed' => 'Bar' ) ) );
+assert_same( 'text: explicit use:title wins over fixed', 'title', bws_use_effective( 'text', array( 'use' => 'title', 'fixed' => 'Bar' ) ) );
+assert_same( 'text: fixed \'\' counts as absent → the stripped default', 'key', bws_use_effective( 'text', array( 'fixed' => '' ) ) );
+assert_same( 'text: use:fixed with no fixed → fixed (pending)', 'fixed', bws_use_effective( 'text', array( 'use' => 'fixed' ) ) );
+assert_same( 'the map lists key before fixed', array( 'key', 'fixed' ), array_keys( BWS_USE_IMPLIED_BY_TOKEN ) );
+
 // No read axis → no inference. permalink ignores `key` by design; a mode here would be
 // a read axis the tag does not have.
 foreach ( array( 'title', 'permalink' ) as $tag ) {

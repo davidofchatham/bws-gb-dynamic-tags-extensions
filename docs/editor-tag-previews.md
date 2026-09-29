@@ -16,7 +16,7 @@ Not on front end — gated by `$instance->context['bwsEditorPreview']`, injected
 |---|---|
 | `[ ]` | Preview placeholder envelope (always wraps the full preview) |
 | `'X'` | Literal user-supplied identifier (meta key, ref name, taxonomy slug). Straight single quotes |
-| `“X”` | Display value (fallback string, formatted datetime). Curly double quotes — attribute-safe for `image as:alt`/`as:caption` slots, no collision with `<img alt="...">` |
+| `“X”` | Display value (fallback string, formatted datetime, fixed text). Curly double quotes — attribute-safe for `image as:alt`/`as:caption` slots, no collision with `<img alt="...">` |
 | `( )` | Auxiliary append — reserved for `(fallback: …)` |
 | `:` | Separates template label from mode/key (`Content: Excerpt`, `Image Alt Text: 'hero'`, `Try Content: 'a', 'b'`); never after a preposition |
 | `,` | List item delimiter |
@@ -116,6 +116,8 @@ Template-specific. Missing required input triggers a warning instead of the fiel
 |---|---|---|
 | `text` | `key:X` set | `'X'` |
 | `text` | `use:title` | `Title` |
+| `text` | `fixed:X` set (the fixed read, FW-141) | `“X”` — the author's text is a display value, so curly quotes. No meta key needed |
+| `text` | `use:fixed` + `fixed` unset | *(missing — triggers warning: `Fixed text not entered`)* |
 | `text` | `key` unset + `use` unset | *(missing — triggers warning)* |
 | `content` | `use` unset (default) | `Content` |
 | `content` | `use:excerpt` | `Content: Excerpt` |
@@ -140,6 +142,7 @@ Warnings replace the **entire** preview. Collect all missing required items; joi
 | `key` only | `⚠ No meta key set` |
 | `tax` only | `⚠ No taxonomy set` |
 | `field key` only (`email`) | `⚠ No field key set` |
+| `fixed` text only (`text` fixed read) | `⚠ Fixed text not entered` — its own clause, not a `No … set` item; beside other missing items it appends: `⚠ No ref key set; fixed text not entered` |
 | `ref` + `key` | `⚠ No ref key or meta key set` |
 | `ref` + `tax` | `⚠ No ref key or taxonomy set` |
 | `tax` + `key` | `⚠ No taxonomy or meta key set` |
@@ -244,6 +247,8 @@ Datetime tags compute a live preview from the current time rather than a static 
 | `{{text src:ref\|ref:rel_post\|key:body_text}}` | `['body_text' from Ref 'rel_post']` |
 | `{{text use:title}}` | `[Title]` |
 | `{{text src:ref\|ref:rel_post\|use:title}}` | `[Title from Ref 'rel_post']` |
+| `{{text fixed:Varsity}}` | `[“Varsity”]` |
+| `{{text src:ref\|ref:rel\|fixed:Read more}}` | `[“Read more” from Ref 'rel']` |
 | `{{text srcTermIn:category\|key:body_text}}` | `['body_text' from Category Term]` |
 | `{{text src:ref\|ref:rel_post\|srcTermIn:category\|key:body_text}}` | `['body_text' from Ref 'rel_post' → Category Term]` |
 | `{{text src:refs,rel_post;terms,category\|key:body_text}}` | `['body_text' from Ref 'rel_post' → Category Term]` *(the chain-wire twin of the row above — identical by construction)* |

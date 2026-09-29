@@ -633,13 +633,20 @@ function bws_base_traversal_options(): array {
  * at each registration so the enum and its row cannot be paired wrongly; the slot read
  * twin (bws_build_slot_read_options) copies rows, not this key.
  *
+ * `$fixed` ADDS THE FIXED READ (FW-141): a `fixed` enum row and a same-labeled `fixed`
+ * input, whose value IS the output. A PARAMETER, not a row every consumer inherits,
+ * because a container whose slot grammar cannot carry `fixed(…)` yet must not offer it;
+ * it goes away once every text consumer passes true.
+ *
  * @since 1.17.0
- * @return array { 'use' => array, 'key' => array } — definitions WITHOUT `show_if`
- *               (base overlays `use:not:title`; the template encodes the same fact
- *               declaratively via try_use_no_key_values).
+ * @since 1.21.0 `$fixed`.
+ * @param bool $fixed Include the fixed read.
+ * @return array { 'use' => array, 'key' => array, 'fixed'? => array } — definitions
+ *               WITHOUT `show_if` (base overlays `use:not:title`; the template encodes
+ *               the same fact declaratively via try_use_no_key_values).
  */
-function bws_get_text_field_options(): array {
-	return array(
+function bws_get_text_field_options( bool $fixed = false ): array {
+	$leaf = array(
 		'use' => array(
 			'type'           => 'select',
 			'label'          => __( 'Text Field', 'generateblocks' ),
@@ -658,6 +665,17 @@ function bws_get_text_field_options(): array {
 			'placeholder'  => 'field_name',
 		),
 	);
+	if ( $fixed ) {
+		$label                    = __( 'Fixed Text', 'generateblocks' );
+		$leaf['use']['options'][] = array( 'value' => 'fixed', 'label' => $label );
+		// bws-format-input escapes `:`/`|` so the text survives GB's tag-string round-trip.
+		$leaf['fixed'] = array(
+			'type'  => 'bws-format-input',
+			'label' => $label,
+			'help'  => __( 'Text to show for each result found. Unlike Fallback Text, which only shows when nothing is found, this shows every time.', 'generateblocks' ),
+		);
+	}
+	return $leaf;
 }
 
 /**
@@ -1368,6 +1386,26 @@ function bws_base_stated_fallback( array $options, $instance ): string {
 }
 
 /**
+ * The FIXED read (FW-141): the author's `fixed` text, finished as a text read — or ''.
+ *
+ * The one `use` value that reads nothing. Every text arm calls this only once it holds a
+ * resolved source, so the text shows once per source and a source path that resolves
+ * nothing still renders empty (the fallback then fires). Sanitized like
+ * bws_base_stated_fallback(), then GB's text transforms (`trunc`, `case`, …) apply.
+ *
+ * @since 1.21.0
+ * @param array  $options  Tag options.
+ * @param object $instance GB tag instance.
+ * @return string The rendered text, or ''.
+ */
+function bws_fixed_text_read( array $options, $instance ): string {
+	$text = sanitize_text_field( $options['fixed'] ?? '' );
+	return '' !== $text
+		? (string) bws_gb_tag_output( $text, $options, $instance )
+		: '';
+}
+
+/**
  * Collapse a base source to the callback's POST id via ref-only steps (SPEC §V13).
  *
  * The post-path counterpart of the ambient-term branch: runs the wrapper's
@@ -1602,10 +1640,7 @@ function bws_base_term_analog_read( string $tag, int $term_id, array $options, $
 			return bws_term_title_core( $term_id, $options, $instance );
 
 		case 'text':
-			$use = bws_use_effective( 'text', $options );
-			return 'title' === $use
-				? bws_term_title_core( $term_id, $options, $instance )
-				: bws_term_custom_text_core( $term_id, $options, $instance );
+			return bws_try_text_term_dispatch( $term_id, $options, $instance );
 
 		case 'content':
 			$use = bws_use_effective( 'content', $options );
@@ -1691,8 +1726,12 @@ function bws_base_user_analog_read( string $tag, int $user_id, array $options, $
 			// Mirror of the term analog's text dispatch: use:title → the intrinsic
 			// analog (display name), key-mode → a user meta field read shaped like
 			// bws_term_custom_text_core (fallback emit on miss, '0' preserved).
-			if ( 'title' === bws_use_effective( 'text', $options ) ) {
+			$use = bws_use_effective( 'text', $options );
+			if ( 'title' === $use ) {
 				return bws_base_user_analog_read( 'title', $user_id, $options, $instance );
+			}
+			if ( 'fixed' === $use ) {
+				return bws_fixed_text_read( $options, $instance );
 			}
 			$fallback = sanitize_text_field( $options['fallback'] ?? '' );
 			$key      = sanitize_text_field( $options['key'] ?? '' );
@@ -1812,9 +1851,14 @@ function bws_base_query_context_analog_read( string $tag, array $base, array $op
 
 		case 'text':
 			// Mirror of the term/user readers' text dispatch: use:title → the
-			// context's title analog. Key-mode has no entity to read → ''.
-			if ( 'title' === bws_use_effective( 'text', $options ) ) {
+			// context's title analog; fixed reads nothing, so the context is source
+			// enough. Key-mode has no entity to read → ''.
+			$use = bws_use_effective( 'text', $options );
+			if ( 'title' === $use ) {
 				return bws_base_query_context_analog_read( 'title', $base, $options, $instance );
+			}
+			if ( 'fixed' === $use ) {
+				return bws_fixed_text_read( $options, $instance );
 			}
 			return '';
 

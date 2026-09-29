@@ -311,6 +311,27 @@ check(
 	bws_build_preview_label( [ 'use' => 'title' ], 'text' ),
 	'[Title]'
 );
+// Text fixed read (FW-141): the author's text in curly quotes, no missing-key warning.
+check(
+	'text fixed read',
+	bws_build_preview_label( [ 'fixed' => 'Varsity' ], 'text' ),
+	'[“Varsity”]'
+);
+check(
+	'text fixed read over a source',
+	bws_build_preview_label( [ 'src' => 'ref', 'ref' => 'rel', 'fixed' => 'Read more' ], 'text' ),
+	"[“Read more” from Ref 'rel']"
+);
+check(
+	'text fixed read with no text yet → warns',
+	bws_build_preview_label( [ 'use' => 'fixed' ], 'text' ),
+	'[⚠ Fixed text not entered]'
+);
+check(
+	'text fixed read, no text, plus a missing ref → both clauses',
+	bws_build_preview_label( [ 'src' => 'ref', 'use' => 'fixed' ], 'text' ),
+	'[⚠ No ref key set; fixed text not entered]'
+);
 // Content default (use defaults to 'content') → bare 'Content'.
 check(
 	'content default',

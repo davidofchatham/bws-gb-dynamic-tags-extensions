@@ -190,6 +190,26 @@ T10.2 read the same defect on `{{fixture_text}}`, the class route, and is **reti
 
 The page carries two more rows, LK.5 and LK.6, which are the `try_title` twins of LK.2 and LK.4 and belong to a different change — they are [`fold-test-matrix.md`](fold-test-matrix.md) §F9b F9b.4b/F9b.4c, and what they assert is stated there.
 
+## T12 — the fixed read (FW-141)
+
+The `fixed` read prints the author's text once per resolved source. Visible on `/matrix-post-meta/` (section "Text T12") except T12.8, which is render-tag only: a tag string carrying literal HTML cannot sit inside a fixture text block without the block markup parsing it first. T12.11–T12.13 need their own ambient contexts and are render-tag only for the same reason as T4. Verified 2026-09-29 via `render-tag` / an in-process sweep.
+
+| # | Tag (on `/matrix-post-meta/` unless stated) | Expected |
+|---|---|---|
+| T12.1 | `{{text fixed:Varsity}}` | `Varsity` |
+| T12.2 | `{{text src:refs,related_staff\|fixed:Read more\|linkTo:permalink}}` | `Read more` twice, each anchor on its OWN staff permalink (jane, then tom), `, ` outside both |
+| T12.3 | `{{text src:refs,related_staff\|fixed:Staff\|sep: / }}` | `Staff / Staff` |
+| T12.4 | `{{text src:refs,related_staff,limit(1)\|fixed:Staff}}` | `Staff` once — the step limit applies |
+| T12.5 | `{{text src:refs,no_such_rel\|fixed:Read more\|fallback:NONE}}` | `NONE` — nothing resolved, so the fixed text does not print and the fallback fires |
+| T12.6 | `{{text fixed:Varsity\|case:upper}}` | `VARSITY` — GB's text transforms apply |
+| T12.7 | `{{text fixed:Note\: see \| this}}` | `Note: see \| this` — GB unescapes `\:` / `\|` |
+| T12.8 | `{{text fixed:<b>Bold</b> text}}` | `Bold text` — HTML stripped. Render-tag only |
+| T12.9 | `{{text key:main_line\|fixed:Bar}}` | `(987) 654-3210` — a stored `key`+`fixed` pair reads the key |
+| T12.10 | `{{text src:site\|fixed:Varsity}}` | `Varsity` |
+| T12.11 | `{{text fixed:Varsity\|linkTo:permalink}}` on `/department/support/` | `Varsity` linked to the Support term archive (term-analog arm) |
+| T12.12 | same on `/author/fixture-author/` | `Varsity` linked to the author archive (user arm) |
+| T12.13 | same on `/staff/` | `Varsity`, unlinked (query-context arm: no link identity) |
+
 ## Fail triage
 
 - **T1.2/T3.3/T4.2/T7.4 value right but unlinked:** shell wrap gate — `link_id`/`link_type` not

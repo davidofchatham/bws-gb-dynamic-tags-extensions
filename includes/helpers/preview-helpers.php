@@ -1436,7 +1436,12 @@ function bws_build_preview_label( array $options, string $template ): string {
 	if ( ! empty( $src_missing['rows'] ) ) {
 		$missing[] = 'repeater field';
 	}
-	if ( 'text' === $base_template && '' === $key && 'title' !== $use ) {
+	// The fixed read (FW-141) reads no field; only its own text can be missing. Worded as
+	// its own clause (user, 2026-09-29), not a "No … set" list item: it is typed, not picked.
+	$fixed_missing = false;
+	if ( 'text' === $base_template && 'fixed' === $use ) {
+		$fixed_missing = '' === (string) ( $options['fixed'] ?? '' );
+	} elseif ( 'text' === $base_template && '' === $key && 'title' !== $use ) {
 		$missing[] = 'meta key';
 	} elseif ( 'content' === $base_template && 'key' === $use && '' === $key ) {
 		$missing[] = 'meta key';
@@ -1454,15 +1459,20 @@ function bws_build_preview_label( array $options, string $template ): string {
 		$missing[] = 'function';
 	}
 
-	if ( ! empty( $missing ) ) {
+	if ( ! empty( $missing ) || $fixed_missing ) {
 		$count = count( $missing );
-		if ( 1 === $count ) {
+		if ( 0 === $count ) {
+			$warning = 'Fixed text not entered';
+		} elseif ( 1 === $count ) {
 			$warning = 'No ' . $missing[0] . ' set';
 		} elseif ( 2 === $count ) {
 			$warning = 'No ' . $missing[0] . ' or ' . $missing[1] . ' set';
 		} else {
 			$last    = array_pop( $missing );
 			$warning = 'No ' . implode( ', ', $missing ) . ', or ' . $last . ' set';
+		}
+		if ( $count && $fixed_missing ) {
+			$warning .= '; fixed text not entered';
 		}
 		$inner = '⚠ ' . $warning;
 		if ( $fallback ) {
@@ -1531,8 +1541,13 @@ function bws_build_preview_label( array $options, string $template ): string {
 	$field_part = '';
 	switch ( $base_template ) {
 		case 'text':
-			// Text has no template label by default. Title mode uses bare 'Title'.
-			$field_part = 'title' === $use ? 'Title' : "'" . $key . "'";
+			// Text has no template label by default. Title mode uses bare 'Title'; the
+			// fixed read shows the author's text itself, in curly quotes (FW-141).
+			if ( 'fixed' === $use ) {
+				$field_part = '“' . esc_html( $options['fixed'] ?? '' ) . '”';
+			} else {
+				$field_part = 'title' === $use ? 'Title' : "'" . $key . "'";
+			}
 			break;
 		case 'content':
 			if ( 'excerpt' === $use ) {

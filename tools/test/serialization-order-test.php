@@ -68,6 +68,13 @@ assert_order(
 	$sort( array( 'fallback', 'linkTo', 'src', 'key', 'use', 'ref', 'srcTermIn', 'limit', 'sep', 'linkKey', 'newTab' ) )
 );
 
+// --- `fixed` (FW-141) ranks beside `key`: after it, ahead of the datetime keys ---
+assert_order(
+	'fixed sits after key, before timeKey and the link group',
+	array( 'src', 'use', 'key', 'fixed', 'timeKey', 'linkTo', 'fallback' ),
+	$sort( array( 'fallback', 'fixed', 'linkTo', 'timeKey', 'key', 'src', 'use' ) )
+);
+
 // --- Single-slot canonicalization within present keys (spike console case) ---
 assert_order(
 	'as,key,src → as,src,key (image within-group canonical)',

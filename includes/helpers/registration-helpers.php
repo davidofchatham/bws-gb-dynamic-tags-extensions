@@ -104,6 +104,9 @@ function bws_option_visual_groups(): array {
 		// ungrouped attempt keys), not for a group that happens to have one member.
 		'use'             => array( 'group' => 'field', 'lead' => true ),
 		'key'             => array( 'group' => 'field', 'lead' => true ),
+		// The fixed read's text (FW-141): shown only under its own `use` row, so `use`
+		// always leads the box it sits in.
+		'fixed'           => array( 'group' => 'field', 'lead' => false ),
 		// The datetime key family, ALL in the one field box (user, 2026-08-05). A range's
 		// four keys are one decision about what the tag reads, and its optional time
 		// overrides are part of that decision rather than a separate one — leaving them
@@ -326,16 +329,22 @@ function bws_use_stripped_default( string $tag ): string {
 /**
  * The field tokens that IMPLY a read mode on their own, token → the `use` value implied.
  *
- * One row today. A token belongs here when its presence already says which read the
- * author means, so a `use` beside it naming that same read is redundant. `linkKey` is
- * NOT a row: it keys the link, not the read, and FW-20 owns that cluster. Read through
- * bws_use_effective(), never directly at a read site.
+ * A token belongs here when its presence already says which read the author means, so a
+ * `use` beside it naming that same read is redundant. `linkKey` is NOT a row: it keys the
+ * link, not the read, and FW-20 owns that cluster. Read through bws_use_effective(), never
+ * directly at a read site.
+ *
+ * ROW ORDER IS THE TIE-BREAK. The editor never writes two of these tokens together, but a
+ * stored or hand-typed pair reads as the FIRST row present until the editor's mount
+ * normalize drops the other (use-read-control.js). `fixed` (FW-141) sits after `key` so
+ * such a pair keeps reading the field it named before `fixed` existed.
  *
  * @since 1.21.0
  */
 if ( ! defined( 'BWS_USE_IMPLIED_BY_TOKEN' ) ) {
 	define( 'BWS_USE_IMPLIED_BY_TOKEN', array(
-		'key' => 'key',
+		'key'   => 'key',
+		'fixed' => 'fixed',
 	) );
 }
 

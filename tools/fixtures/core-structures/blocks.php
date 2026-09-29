@@ -346,6 +346,20 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'T7.4', '{{text src:ref|ref:related_staff|use:title|linkTo:permalink}}' ),
 	) );
 
+	// T12 — the fixed read (FW-141): the author's text, once per resolved source. The HTML
+	// strip row (T12.8) is render-tag only; see text-test-matrix.md §T12.
+	$sections[] = bws_fixture_gb_section( 'Text T12 - fixed read (FW-141)', array(
+		bws_fixture_gb_row( 'T12.1 (expect Varsity)', '{{text fixed:Varsity}}' ),
+		bws_fixture_gb_row( 'T12.2 (expect Read more twice, each linked to its own staff page)', '{{text src:refs,related_staff|fixed:Read more|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'T12.3 (expect Staff / Staff)', '{{text src:refs,related_staff|fixed:Staff|sep: / }}' ),
+		bws_fixture_gb_row( 'T12.4 (expect Staff once - the step limit applies)', '{{text src:refs,related_staff,limit(1)|fixed:Staff}}' ),
+		bws_fixture_gb_row( 'T12.5 (expect NONE - no source resolved, so the fallback fires)', '{{text src:refs,no_such_rel|fixed:Read more|fallback:NONE}}' ),
+		bws_fixture_gb_row( 'T12.6 (expect VARSITY - GB case applies)', '{{text fixed:Varsity|case:upper}}' ),
+		bws_fixture_gb_row( 'T12.7 (expect Note: see | this - escaped colon and bar)', '{{text fixed:Note\: see \| this}}' ),
+		bws_fixture_gb_row( 'T12.9 (expect the main line number, not Bar - a stored key+fixed pair reads the key)', '{{text key:main_line|fixed:Bar}}' ),
+		bws_fixture_gb_row( 'T12.10 (expect Varsity - the site is a source)', '{{text src:site|fixed:Varsity}}' ),
+	) );
+
 	// src:site matrix (src-site-test-matrix.md) — R7 try_ site-slot rows (FW-4,
 	// 1.15.0). R7.8 (WYSIWYG option), R7.9-positive (site logo) and R7.12
 	// (org_email) need [SUB] state the fixture doesn't seed — matrix notes them;

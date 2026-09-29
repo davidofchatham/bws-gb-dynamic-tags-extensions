@@ -236,6 +236,17 @@ assert_same( 'leaf key dynamicLabel true', true, $leaf['key']['dynamicLabel'] );
 assert_same( 'leaf use carries no show_if', false, isset( $leaf['use']['show_if'] ) );
 assert_same( 'leaf key carries no show_if', false, isset( $leaf['key']['show_if'] ) );
 
+// The FIXED read (FW-141) is opt-in per consumer until every text consumer reads it: a
+// container whose slot grammar cannot carry `fixed(…)` must not offer the row.
+$fixed_leaf = bws_get_text_field_options( true );
+assert_same( 'fixed leaf returns use+key+fixed', array( 'use', 'key', 'fixed' ), array_keys( $fixed_leaf ) );
+assert_same( 'fixed leaf use options = key,title,fixed', array( 'key', 'title', 'fixed' ), array_column( $fixed_leaf['use']['options'], 'value' ) );
+assert_same( 'fixed row and input share one label', end( $fixed_leaf['use']['options'] )['label'], $fixed_leaf['fixed']['label'] );
+assert_same( 'fixed input label "Fixed Text"', 'Fixed Text', $fixed_leaf['fixed']['label'] );
+assert_same( 'fixed input escapes `:`/`|` (bws-format-input)', 'bws-format-input', $fixed_leaf['fixed']['type'] );
+assert_same( 'fixed input carries no show_if (caller overlay)', false, isset( $fixed_leaf['fixed']['show_if'] ) );
+assert_same( 'default leaf is unchanged by the opt-in', $leaf, bws_get_text_field_options() );
+
 // ============================================================
 // bws_build_slot_read_options() — the READ twin (build step 4)
 // ============================================================

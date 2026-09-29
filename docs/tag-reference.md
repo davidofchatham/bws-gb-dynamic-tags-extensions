@@ -860,11 +860,20 @@ The field-type selector (`use`) + field key (`key`). Present on `text`, `image`,
 | `text`, `image`, `content` | `same` *(prepended, slot 2+)* | Same as Previous Field | Hides additional fields | Slot 2+ only, not in template. Folded spelling `use(same)` — written explicitly there, where the flat wire left it absent |
 | `text`, `image`, `content` | `key` | Meta/Option Field | Shows/enables field key | — |
 | `text` | `title` | Title/Name | Disables field key | Term name if source is term; site name if `src:site` |
+| `text` | `fixed` | Fixed Text | Disables field key; shows `fixed` | Reads nothing: prints the `fixed` text once per resolved source (list mode repeats it, `sep` and step limits apply). Empty when the source resolves nothing, so the fallback fires. Base `{{text}}` only so far; `{{join}}` slots and `try_text` follow (FW-141) |
 | `content` | `content` | Post Content/Term Description | Disables field key | Term description if source is term; **empty if `src:site`** (no site content analog) |
 | `content` | `excerpt` | Post Excerpt | Disables field key | Empty under `src:site` (no site excerpt) |
 | `image` | `featured` | Featured Image/Site Logo | Disables field key | Site logo (`custom_logo` theme mod) if `src:site` |
 
 **A `key` with no `use` is the keyed read** on all three tags: `{{content key:foo}}` reads the `foo` field, exactly as `{{content use:key|key:foo}}` does. An explicit `use` naming another mode wins, and a `key` left beside it is ignored (`{{content use:excerpt|key:foo}}` renders the excerpt). An empty `use:` or `key:` counts as absent. Enforced in `bws_use_effective()` ([`registration-helpers.php`](../includes/helpers/registration-helpers.php)).
+
+**A `fixed` with no `use` is the fixed read** the same way: `{{text fixed:Varsity}}` prints `Varsity`, and no `use` is written beside it. The editor never writes `key` and `fixed` together; a stored or hand-typed pair reads the `key`, and the editor drops the `fixed` when the tag is next opened.
+
+**`fixed` text** (`{{text}}`):
+
+| Option name | Option type | Option label | Conditionals | Notes |
+|---|---|---|---|---|
+| `fixed` | `bws-format-input` | Fixed Text | `use:fixed` | The text to print. `:` and `\|` are escaped by the control (`\:` / `\|`). HTML is stripped; GB's text options (`trunc`, `case`, …) apply. Known limits, as for `format`: no `{`/`}`, no literal `\:` / `\|` |
 
 **`key` field key:**
 
@@ -927,10 +936,10 @@ order).
 
 Reads a text field (ACF/meta) or the source's **title/name** analog (`use:title`). Cross-source, link-wrappable, list-mode capable. GB type `'cross-source'`; picker title `'Text Fields'`.
 
-**Tag-specific options:** none beyond the shared groups — `text` is the canonical user of [Source](#source-group) + [Field](#field-group) + [Link wrap](#link-wrap-group) + [Fallback](#fallback-group). `use` values: `key` (default, key-mode — **`key` required**) or `title` (the analog).
+**Tag-specific options:** none beyond the shared groups — `text` is the canonical user of [Source](#source-group) + [Field](#field-group) + [Link wrap](#link-wrap-group) + [Fallback](#fallback-group). `use` values: `key` (default, key-mode — **`key` required**), `title` (the analog) or `fixed` (the author's text — **`fixed` required**).
 
 **Control order** (`source → link → fallback` — no `format` group on `text`):
-- **`source`:** `[source options]` → `use` (`key` (unset default in single-slot tags); `title`) → `key` (shown when `use` unset [in single-slot tags] or `use:key`)
+- **`source`:** `[source options]` → `use` (`key` (unset default in single-slot tags); `title`; `fixed`) → `key` (shown when `use` unset [in single-slot tags] or `use:key`) → `fixed` (shown when `use:fixed`)
 - **`link`:** `linkTo` → `linkKey` (shown when `linkTo:key`) → `newTab` (shown when `linkTo` not empty)
 - **`fallback`:** `fallback`
 
