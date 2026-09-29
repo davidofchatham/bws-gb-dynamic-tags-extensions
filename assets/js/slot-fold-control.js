@@ -103,6 +103,8 @@
 			container: c.container || 'join',
 			combining: !! c.combining,
 			perSlotUse: false !== c.perSlotUse,
+			// The era the legacy flat wire was authored in (defaults to the live shape).
+			flatPerSlotUse: void 0 === c.flatPerSlotUse ? false !== c.perSlotUse : !! c.flatPerSlotUse,
 			min: c.min || 2,
 			max: c.max || 5,
 			noun: c.noun || '',
@@ -428,7 +430,7 @@
 			var parsed = fold.parseSlot( raw, conf.container );
 			return parsed.error ? null : parsed;
 		}
-		var rec = fold.foldFromFlat( n, migrate.mapperState( state, conf ), conf.combining, conf.perSlotUse );
+		var rec = fold.foldFromFlat( n, migrate.mapperState( state, conf ), conf.combining, conf.flatPerSlotUse );
 		return ( rec && rec.slot ) ? rec.slot : null;
 	}
 
@@ -443,7 +445,7 @@
 		for ( var i = 1; i <= conf.max; i++ ) {
 			if ( state[ fold.slotKey( i ) ] ) {
 				highest = i;
-			} else if ( fold.foldFromFlat( i, legacy, conf.combining, conf.perSlotUse ) ) {
+			} else if ( fold.foldFromFlat( i, legacy, conf.combining, conf.flatPerSlotUse ) ) {
 				highest = i;
 			}
 		}
@@ -1124,7 +1126,7 @@
 				slot = parsed;
 			}
 		} else {
-			var rec = fold.foldFromFlat( ordinal, migrate.mapperState( state, conf ), conf.combining, conf.perSlotUse );
+			var rec = fold.foldFromFlat( ordinal, migrate.mapperState( state, conf ), conf.combining, conf.flatPerSlotUse );
 			if ( rec && rec.slot ) {
 				slot = rec.slot;
 				recovered = true;

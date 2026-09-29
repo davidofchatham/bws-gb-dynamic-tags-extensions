@@ -252,6 +252,13 @@ check( 'cardinality floors at the container minimum', rep.slotCount( {}, SELECTI
 check( 'cardinality counts the highest folded value', rep.slotCount( { 'A': 'key(a)', 'D': 'src(same);use(same)' }, SELECTING ), 4 );
 check( 'cardinality counts an UNMIGRATED legacy slot', rep.slotCount( { 'key': 'a', '3-src': 'ref', '3-ref': 'office' }, SELECTING ), 3 );
 check( 'cardinality never exceeds the ceiling scan', rep.slotCount( { 'E': 'key(a)' }, SELECTING ), 5 );
+// A template whose flat wire predates its per-slot `use` (try_email / try_phone, FW-141 05)
+// reads a legacy `3-key` as the key read it was; the live rule would discard it. The era
+// fact is its own config key, defaulting to the live shape.
+const PRE_USE_ERA = rep.foldConfig( { fold: { container: 'try', combining: false, perSlotUse: true, flatPerSlotUse: false, min: 2, max: 5 } } );
+check( 'flatPerSlotUse defaults to the live perSlotUse', [ SELECTING.flatPerSlotUse, CHAIN_ONLY.flatPerSlotUse ].join(), 'true,false' );
+check( 'cardinality counts a legacy slot >=2 key where the flat wire had no `use`', rep.slotCount( { 'key': 'a', '3-key': 'b' }, PRE_USE_ERA ), 3 );
+check( 'the same legacy slot is not counted where the flat wire had `use` (FW-51 discard)', rep.slotCount( { 'key': 'a', '3-key': 'b' }, SELECTING ), 2 );
 
 // ── Mount default for an UNCONFIGURED slot — position-aware ────────────────
 // Reimplements the control's fallback rule (it lives inside the mounted component

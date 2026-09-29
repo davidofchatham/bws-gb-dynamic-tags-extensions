@@ -796,8 +796,8 @@ A slot still needs a key to produce output where its read mode requires one; a k
 | `try_image` | `image` | **Yes** | **Yes** | Each slot: Featured Image or ACF/Custom Field (with per-slot key when `use:key`). Slot `src:site` allowed (1.15.0): `use:featured` → site logo, `use:key` → option attachment |
 | `try_datetime_single` | `datetime_single` | No | No | Shared `key` across slots |
 | `try_datetime_range` | `datetime_range` | No | No | Shared `startKey`/`endKey` across slots |
-| `try_email` | `email` | **Yes** | No | Single key-mode (no `use` enum). Each slot resolves an email field → finished mailto/plain string, exactly as `{{email}}`. Slot `src:site` allowed (canonical contact fallback). `subject`/`noLink` chain-level |
-| `try_phone` | `phone` | **Yes** | No | Single key-mode (no `use` enum). Each slot resolves a phone field → finished tel/plain string, as `{{phone}}`. Slot `src:site` allowed. `noLink` chain-level |
+| `try_email` | `email` | **Yes** | No | Per-slot read: `key` (the stripped default) or the fixed read (FW-141 05). Each slot resolves an email field or a typed address → finished mailto/plain string, exactly as `{{email}}`. A stored legacy `N-key` folds as a key read on migration (its flat wire never had `use`). Slot `src:site` allowed (canonical contact fallback). `subject`/`noLink` chain-level |
+| `try_phone` | `phone` | **Yes** | No | Per-slot read: `key` (the stripped default) or the fixed read (FW-141 05). Each slot resolves a phone field or a typed number → finished tel/plain string, as `{{phone}}`. A stored legacy `N-key` folds as a key read on migration. Slot `src:site` allowed. `noLink` chain-level |
 
 ---
 
@@ -861,8 +861,8 @@ The field-type selector (`use`) + field key (`key`). Present on `text`, `image`,
 | `text`, `image`, `content`, `email`, `phone` | `key` | Meta/Option Field | Shows/enables field key | — |
 | `text` | `title` | Title/Name | Disables field key | Term name if source is term; site name if `src:site` |
 | `text` | `fixed` | Fixed Text | Disables field key; shows `fixed` | Reads nothing: prints the `fixed` text once per resolved source (list mode repeats it, `sep` and step limits apply). Empty when the source resolves nothing, so the fallback fires. Base `{{text}}` (FW-141 01), `{{join}}` slots (FW-141 02) and `try_text` attempts (FW-141 03), the last two folded as `fixed(…)` ([§Folded slot wire](#folded-slot-wire-multislot-containers)). On `try_text` an empty fixed attempt falls through to the next attempt like any empty read |
-| `email` | `fixed` | Fixed Email | Disables field key; shows `fixed` | The fixed read on `{{email}}` (FW-141 04): the typed address, once per resolved source, finished as the tag's fallback is. `try_email` attempts do not take it yet |
-| `phone` | `fixed` | Fixed Phone Number | Disables field key; shows `fixed` | The fixed read on `{{phone}}` (FW-141 04): the typed number, once per resolved source, finished as the tag's fallback is. `try_phone` attempts do not take it yet |
+| `email` | `fixed` | Fixed Email | Disables field key; shows `fixed` | The fixed read on `{{email}}` (FW-141 04): the typed address, once per resolved source, finished as the tag's fallback is. `try_email` attempts take it as a slot `fixed(…)` (FW-141 05) |
+| `phone` | `fixed` | Fixed Phone Number | Disables field key; shows `fixed` | The fixed read on `{{phone}}` (FW-141 04): the typed number, once per resolved source, finished as the tag's fallback is. `try_phone` attempts take it as a slot `fixed(…)` (FW-141 05) |
 | `content` | `content` | Post Content/Term Description | Disables field key | Term description if source is term; **empty if `src:site`** (no site content analog) |
 | `content` | `excerpt` | Post Excerpt | Disables field key | Empty under `src:site` (no site excerpt) |
 | `image` | `featured` | Featured Image/Site Logo | Disables field key | Site logo (`custom_logo` theme mod) if `src:site` |

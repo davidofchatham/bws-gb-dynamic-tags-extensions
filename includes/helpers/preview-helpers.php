@@ -477,7 +477,8 @@ function bws_build_try_preview_label( array $options, string $base_template, arr
 			}
 		} elseif ( 'fixed' === $slot['use'] && '' === (string) $slot['fixed'] ) {
 			// The fixed read (FW-141) has no key to name; only its own text can be missing.
-			$slot_warnings[] = array( 'n' => $slot['n'], 'detail' => 'fixed text not entered' );
+			$fixed_noun      = array( 'email' => 'email', 'phone' => 'phone number' )[ $base_template ] ?? 'text';
+			$slot_warnings[] = array( 'n' => $slot['n'], 'detail' => 'fixed ' . $fixed_noun . ' not entered' );
 		}
 	}
 
@@ -691,7 +692,7 @@ function bws_try_preview_field_part( string $base_template, string $use, string 
 			return 'Permalink';
 		case 'email':
 		case 'phone':
-			return "'" . $key . "'";
+			return 'fixed' === $use ? '“' . esc_html( $fixed ) . '”' : "'" . $key . "'";
 	}
 	return '';
 }

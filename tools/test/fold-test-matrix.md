@@ -135,7 +135,8 @@ Era is per SLOT, not per tag. Both directions, `/matrix-post-meta/`.
 | F4.1b | `{{try_email key:missing_field\|2-src:ref\|2-ref:related_staff\|2-key:contact_email}}` | post-meta | legacy twin of F4.1 |
 | F4.2 | `{{try_phone A:key(unused_line)\|B:key(main_line)}}` | post-meta | `(987) 654-3210` tel-linked — `unused_line` is seeded EMPTY, so slot 1 is a real skip |
 | F4.3 | `{{try_phone A:src(refs,related_staff);key(missing_field)\|B:src(same);key(main_line)}}` | post-meta | `(555) 200-3000` |
-| F4.4 | `{{try_phone key:unused_line\|2-key:main_line}}` | post-meta | legacy twin of F4.2 |
+| F4.4 | `{{try_phone key:unused_line\|2-key:main_line}}` | post-meta | **EMPTY until migrated** — `try_phone` gained a per-slot read (FW-141 05), so on unmigrated flat wire the FW-51 rule drops a slot 2 `key` that has no `use`. The converter and the editor mount fold it under the era it was written in (`try_flat_era_per_slot_use`); `fold-migration-test.php` §M3.8 pins that |
+| F4.4b | `{{try_phone A:key(unused_line)\|B:src(same);key(main_line)}}` | post-meta | what the migration writes for F4.4; `(987) 654-3210` |
 | F4.5 | `{{try_phone A:src(refs,related_staff)\|B:src(current)\|key:main_line}}` | post-meta | **EMPTY, and correct** — `key` is a SLOT axis on `try_phone`, so a tag-level `key` configures nothing and both slots have no read. Contrast F5.4, where `key` IS tag-level |
 
 ## §F5 — try_: no-read shape

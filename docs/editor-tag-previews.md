@@ -306,8 +306,8 @@ Datetime tags compute a live preview from the current time rather than a static 
 | Mixed (both vary) | `[Try 'a' from Current, Title from Ref 'rel']` | `[Try Image Alt Text: 'hero', Featured from Ref 'rel']` |
 | Datetime varying sources | n/a | `[Try Date like "April 24, 2026" from Current, Ref 'event_date']` |
 | `try_title` (always) | n/a | `[Try Title]` (with optional ` from <source list>`) |
-| `try_email` / `try_phone` configured | n/a | `[Try Email: 'contact_email']` / `[Try Phone: 'tel']` (key-required, no `use` enum) |
-| `try_email` / `try_phone` empty key | n/a | `[⚠ Try: A no key]` (always needs a key — no no-key values) |
+| `try_email` / `try_phone` configured | n/a | `[Try Email: 'contact_email']` / `[Try Phone: 'tel']`; a fixed attempt reads `[Try Email: “info@example.com”]`, and one with nothing typed warns `⚠ Try: A fixed email not entered` / `fixed phone number not entered` |
+| `try_email` / `try_phone` empty key | n/a | `[⚠ Try: A no key]` (a key read needs one; `fixed` is the only no-key read) |
 | Fixed-text attempt (FW-141 03) | `[Try “Varsity”]`; beside a field attempt `[Try 'nickname', “Team”]` — the author's text in curly quotes, as on `{{text}}` and a join slot | n/a |
 | Fixed-text attempt, no text entered (`use(fixed)`) | `[⚠ Try: A fixed text not entered]` — no key is asked for | n/a |
 | All slots empty | `[⚠ Try: no slots configured]` | same |

@@ -600,6 +600,12 @@ function bws_phone_finish_values( array $raw, array $options ): array {
  * @return string[] Finished per-item strings.
  */
 function bws_try_phone_post_dispatch( $post_id, $options, $instance ) {
+	// The fixed read (FW-141) reads no field: the author's value, finished like any other.
+	// The site is always a source; a post or term needs an id.
+	if ( 'fixed' === bws_use_effective( 'phone', (array) $options ) ) {
+		$has_source = $post_id || 'site' === bws_base_src_resolution( (array) $options )['kind'];
+		return bws_phone_finish_values( $has_source ? bws_fixed_raw_values( (array) $options ) : array(), (array) $options );
+	}
 	// The SITE branch is taken by what the chain RESOLVES TO — the dispatch axis every
 	// base arm uses (bws_base_src_resolution, computable from the wire alone) — never
 	// by comparing the serialized token to a literal. The compare this replaced
@@ -628,6 +634,9 @@ function bws_try_phone_post_dispatch( $post_id, $options, $instance ) {
  * @return string[] Finished per-item strings for this term.
  */
 function bws_try_phone_term_dispatch( $term_id, $options, $instance ) {
+	if ( 'fixed' === bws_use_effective( 'phone', (array) $options ) ) {
+		return bws_phone_finish_values( $term_id ? bws_fixed_raw_values( (array) $options ) : array(), (array) $options );
+	}
 	$key = sanitize_text_field( $options['key'] ?? '' );
 	if ( '' === $key || ( function_exists( 'bws_is_valid_meta_key' ) && ! bws_is_valid_meta_key( $key ) ) ) {
 		return array();
@@ -659,6 +668,9 @@ function bws_try_phone_term_dispatch( $term_id, $options, $instance ) {
  * @return string[] Finished per-item strings for this row.
  */
 function bws_try_phone_row_dispatch( $source, $options, $instance ) {
+	if ( 'fixed' === bws_use_effective( 'phone', (array) $options ) ) {
+		return bws_phone_finish_values( bws_fixed_raw_values( (array) $options ), (array) $options );
+	}
 	$key = sanitize_text_field( $options['key'] ?? '' );
 	if ( '' === $key || ( function_exists( 'bws_is_valid_meta_key' ) && ! bws_is_valid_meta_key( $key ) ) ) {
 		return array();
@@ -701,17 +713,16 @@ function bws_register_phone_template(): void {
 	if ( ! class_exists( '\\BWS\\DynamicTags\\TagTemplateRegistry' ) ) {
 		return;
 	}
+	$contact_field = bws_get_contact_field_options( 'phone' );
 	\BWS\DynamicTags\TagTemplateRegistry::register_modifier_template( array(
 		'key'                 => 'phone',
 		'title'               => __( 'Phone', 'generateblocks' ),
 		'options'             => array(
-			'key'      => array(
-				'type'         => 'bws-field-combo',
-				'label'        => __( 'Meta/Option Field Key', 'generateblocks' ),
-				'dynamicLabel' => true,
-				'help'         => __( 'ACF or meta field key holding the phone number.', 'generateblocks' ),
-				'placeholder'  => 'phone_field',
-			),
+			// use/key/fixed from the contact FIELD LEAF the base tag consumes; try_'s
+			// per-slot picker derives the key's visibility from try_use_no_key_values.
+			'use'      => $contact_field['use'],
+			'key'      => $contact_field['key'],
+			'fixed'    => $contact_field['fixed'],
 			'noLink'   => array(
 				'type'  => 'checkbox',
 				'label' => __( 'Disable phone link (plain text)', 'generateblocks' ),
@@ -739,8 +750,10 @@ function bws_register_phone_template(): void {
 		'resolve_fn'          => 'bws_base_phone_resolve_value',
 		'supports_try'        => true,
 		'try_per_slot_key'    => true,
-		'try_per_slot_use'    => false,
-		'try_use_no_key_values' => array(),
+		'try_per_slot_use'    => true,
+		// Its flat wire shipped with no `use`: a stored `2-key` is a key read (migrators).
+		'try_flat_era_per_slot_use' => false,
+		'try_use_no_key_values' => array( 'fixed' ),
 		'try_list_options'    => true,
 		'try_allow_site_slot' => true,
 		'try_media_block_guard' => true,

@@ -214,6 +214,26 @@ $multislot = bws_fold_migration_multislot_tags();
 check( 'M3.6 multislot list = join + every try-capable template', array( 'join', 'try_text', 'try_phone', 'try_datetime_single' ) === $multislot, json_encode( $multislot ) );
 check( 'M3.7 {{table}} is never listed (it ships folded, so it has no legacy wire)', ! in_array( 'table', $multislot, true ), json_encode( $multislot ) );
 
+// M3.8 — a template whose flat wire predates its per-slot `use` folds its LEGACY slots under
+// the era they were written in (FW-141 05: try_email / try_phone). A stored `2-key` there is a
+// key read; the live rule (discard a slot >=2 key with no `use`) would delete it.
+TagTemplateRegistry::register_modifier_template(
+	array(
+		'key'                       => 'contact',
+		'supports_try'              => true,
+		'try_per_slot_use'          => true,
+		'try_per_slot_key'          => true,
+		'try_flat_era_per_slot_use' => false,
+	)
+);
+$contact_cfg = bws_fold_migration_container( 'try_contact' );
+check( 'M3.8 flat-era per_slot_use is its own fact, apart from the live one', true === $contact_cfg['per_slot_use'] && false === $contact_cfg['flat_per_slot_use'], json_encode( $contact_cfg ) );
+check( 'M3.8 a template with no override reports the live shape', true === bws_fold_migration_container( 'try_text' )['flat_per_slot_use'], json_encode( $text_cfg ) );
+$contact_out = bws_fold_migrate_slots( array( 'key' => 'unused_line', '2-key' => 'main_line' ), $contact_cfg );
+check( 'M3.8 the legacy `2-key` folds to a key read, with no `use` token (an absent source is the legacy `same`)', is_array( $contact_out ) && 'key(unused_line)' === ( $contact_out['A'] ?? null ) && 'src(same);key(main_line)' === ( $contact_out['B'] ?? null ), json_encode( $contact_out ) );
+$text_out = bws_fold_migrate_slots( array( 'key' => 'a', '2-key' => 'b' ), $text_cfg );
+check( 'M3.8 …while try_text keeps the FW-51 discard (its flat wire always had `use`)', is_array( $text_out ) && false === strpos( (string) ( $text_out['B'] ?? '' ), 'key(b)' ), json_encode( $text_out ) );
+
 // ── M4 — the trigger/strip key surface ─────────────────────────────────────
 
 $dts_keys = bws_fold_migration_slot_keys( $dts_cfg );

@@ -1183,6 +1183,23 @@ function bws_resolve_field_sources( array $options, $instance ): array {
 }
 
 /**
+ * The fixed read's author text as a one-item list, or array() when it is empty.
+ *
+ * The source-free half of bws_resolve_fixed_values(), for the per-item dispatchers that
+ * already hold their source (the term_ / post_ modifier readers of email and phone).
+ *
+ * @since 1.21.0
+ * @param array $options Tag options (`fixed`).
+ * @return string[]
+ */
+if ( ! function_exists( 'bws_fixed_raw_values' ) ) {
+function bws_fixed_raw_values( array $options ): array {
+	$text = trim( sanitize_text_field( $options['fixed'] ?? '' ) );
+	return '' === $text ? array() : array( $text );
+}
+}
+
+/**
  * The FIXED read's values (FW-141): the author's `fixed` text, once per resolved source.
  *
  * bws_resolve_field_values()' twin for a read that reads nothing. The count is the
@@ -1200,10 +1217,11 @@ function bws_resolve_field_sources( array $options, $instance ): array {
  */
 if ( ! function_exists( 'bws_resolve_fixed_values' ) ) {
 function bws_resolve_fixed_values( array $options, $instance ): array {
-	$text = trim( sanitize_text_field( $options['fixed'] ?? '' ) );
-	if ( '' === $text ) {
+	$text = bws_fixed_raw_values( $options );
+	if ( ! $text ) {
 		return array();
 	}
+	$text = $text[0];
 	$out = array();
 	foreach ( bws_resolve_field_sources( $options, $instance ) as $source ) {
 		$id_kinds = in_array( $source['kind'] ?? '', array( 'post', 'term', 'user' ), true );

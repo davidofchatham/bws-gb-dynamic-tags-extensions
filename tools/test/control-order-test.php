@@ -702,12 +702,7 @@ foreach ( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() as $tpl
 	$mapped   = '' !== bws_use_stripped_default( $key );
 
 	assert_same( "{$key} — a `use` enum iff try_per_slot_use", $has_enum, $psu );
-	// One direction only: a template with an enum has a row. The converse fails for email and
-	// phone until their try_ templates take the fixed read (FW-141 05), because the ROW belongs
-	// to the BASE tag's enum (checked below), which they gained first.
-	if ( $has_enum ) {
-		assert_same( "{$key} — a template `use` enum has a BWS_USE_STRIPPED_DEFAULTS row", true, $mapped );
-	}
+	assert_same( "{$key} — a template `use` enum iff a BWS_USE_STRIPPED_DEFAULTS row", $has_enum, $mapped );
 
 	if ( $has_enum ) {
 		assert_same(

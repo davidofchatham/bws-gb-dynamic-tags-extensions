@@ -20,6 +20,6 @@ const TRY_CFG = array(
 	'image'           => array( 'per_slot_key' => true,  'per_slot_use' => true,  'no_key_uses' => array( 'featured' ),           'default_use' => 'key',     'collapse' => true ),
 	'datetime_single' => array( 'per_slot_key' => false, 'per_slot_use' => false, 'no_key_uses' => array(),                       'default_use' => '',        'collapse' => false ),
 	'datetime_range'  => array( 'per_slot_key' => false, 'per_slot_use' => false, 'no_key_uses' => array(),                       'default_use' => '',        'collapse' => false ),
-	'email'           => array( 'per_slot_key' => true,  'per_slot_use' => false, 'no_key_uses' => array(),                       'default_use' => '',        'collapse' => false ),
-	'phone'           => array( 'per_slot_key' => true,  'per_slot_use' => false, 'no_key_uses' => array(),                       'default_use' => '',        'collapse' => false ),
+	'email'           => array( 'per_slot_key' => true,  'per_slot_use' => true,  'no_key_uses' => array( 'fixed' ),            'default_use' => 'key',     'collapse' => false ),
+	'phone'           => array( 'per_slot_key' => true,  'per_slot_use' => true,  'no_key_uses' => array( 'fixed' ),            'default_use' => 'key',     'collapse' => false ),
 );

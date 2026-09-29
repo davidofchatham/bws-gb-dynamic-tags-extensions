@@ -109,6 +109,19 @@ Fixture keys: `flat_tollfree` (R2b.1/R2b.2/R2b.4), `flat_local` (R2b.3).
 | R7.7 | `{{phone key:main_line\|fixed:555-867-5309}}` | `(987) 654-3210` (`tel:+1-987-654-3210`): a stored `key`+`fixed` pair reads the key |
 | R7.8 | `{{phone src:site\|fixed:555-867-5309}}` | the R7.1 anchor: the site is a source |
 
+## R8 — a fixed `try_phone` attempt (FW-141 05)
+
+A `try_phone` attempt can be the fixed read, finished as in R7: a field attempt with a value wins, an empty or unnormalizable one falls through, and a fixed attempt that resolves no source is empty. Visible on `/matrix-post-meta/` (section "Phone R8"). Global CC `1`. Verified 2026-09-29 via `render-tag`.
+
+| # | Tag | Expected |
+|---|---|---|
+| R8.1 | `{{try_phone A:fixed(555-867-5309)}}` | `tel:+1-555-867-5309` anchor, display `555-867-5309` |
+| R8.2 | `{{try_phone A:key(main_line)\|B:fixed(555-867-5309)\|noLink}}` | `(987) 654-3210`: the field attempt has a value, so the fixed attempt never runs |
+| R8.3 | `{{try_phone A:key(nonexistent_field)\|B:fixed(555-867-5309)\|noLink}}` | `555-867-5309`: the empty field attempt falls through |
+| R8.4 | `{{try_phone A:fixed(abc)\|B:fixed(555-867-5309)\|noLink}}` | `555-867-5309`: the entry that will not normalize is empty |
+| R8.5 | `{{try_phone A:src(refs,no_such_rel);fixed(555-867-5309)\|fallback:555-000-1111\|noLink}}` | `555-000-1111`: no source resolved, so the fallback fires |
+| R8.6 | `{{try_phone A:src(refs,related_staff);fixed(555-867-5309)\|sep: / \|noLink}}` | `555-867-5309 / 555-867-5309`: once per staff post |
+
 ---
 
 ## Fail triage

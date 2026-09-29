@@ -551,7 +551,7 @@ assert_same(
 // derived config alone — the control picks its rendering from these fields, never from
 // the container name, so the shapes must be distinguishable HERE.
 //
-// KEY-ONLY (try_email / try_phone: a per-slot key with no `use` enum). No read rows, a
+// KEY-ONLY (a per-slot key with no `use` enum: try_email / try_phone until FW-141 05). No read rows, a
 // key definition present: the control renders the picker alone, and an empty field is
 // how that slot says "carry over".
 $key_only = bws_build_fold_slot_options(

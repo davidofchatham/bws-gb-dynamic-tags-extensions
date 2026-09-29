@@ -1116,6 +1116,17 @@ check(
 	try_preview( [ 'A' => 'use(fixed)' ], 'text' ),
 	'[⚠ Try: A fixed text not entered]'
 );
+// Fixed attempt on email / phone (FW-141 05): same shape, family noun in the warning.
+check(
+	'folded: a fixed-email attempt after a field attempt',
+	try_preview( [ 'A' => 'key(contact_email)', 'B' => 'fixed(info@example.com)' ], 'email' ),
+	"[Try Email: 'contact_email', “info@example.com”]"
+);
+check(
+	'folded: a fixed-phone attempt with no number entered warns',
+	try_preview( [ 'A' => 'use(fixed)' ], 'phone' ),
+	'[⚠ Try: A fixed phone number not entered]'
+);
 // A read-less slot CARRIES OVER in a selecting container (the mirror of join's skip), so
 // slot 2 previews with slot 1's field rather than vanishing — here with its own term
 // hop, which does NOT carry forward. Asserted at the legacy twin's exact string

@@ -80,6 +80,22 @@
 </div>
 
 <div>
+<h2 class="wp-block-heading">Email E2 &#8211; fixed try_email attempt (FW-141 05)</h2>
+
+<p class="gb-text">E2.1 (expect info@example.com): info@example.com</p>
+
+<p class="gb-text">E2.2 (expect jane@example.test, tom@example.test &#8211; the field attempt has a value, so the fixed one never runs): jane@example.test, tom@example.test</p>
+
+<p class="gb-text">E2.3 (expect info@example.com &#8211; the empty field attempt falls through): info@example.com</p>
+
+<p class="gb-text">E2.4 (expect info@example.com &#8211; the invalid first attempt is empty): info@example.com</p>
+
+<p class="gb-text">E2.5 (expect sales@example.test &#8211; the fixed attempt resolved no source): sales@example.test</p>
+
+<p class="gb-text">E2.6 (expect a mailto link carrying ?subject=Hello): <a href="mailto:info@example.com?subject=Hello">info@example.com</a></p>
+</div>
+
+<div>
 <h2 class="wp-block-heading">Phone R0 &#8211; href rebuild</h2>
 
 <p class="gb-text">R0.1: <a href="tel:+1-987-654-3210">(987) 654-3210</a></p>
@@ -170,6 +186,22 @@
 <p class="gb-text">R7.7 (expect (987) 654-3210 &#8211; a stored key+fixed pair reads the key): <a href="tel:+1-987-654-3210">(987) 654-3210</a></p>
 
 <p class="gb-text">R7.8 (expect 555-867-5309 &#8211; the site is a source): <a href="tel:+1-555-867-5309">555-867-5309</a></p>
+</div>
+
+<div>
+<h2 class="wp-block-heading">Phone R8 &#8211; fixed try_phone attempt (FW-141 05)</h2>
+
+<p class="gb-text">R8.1 (expect 555-867-5309 as a tel link): <a href="tel:+1-555-867-5309">555-867-5309</a></p>
+
+<p class="gb-text">R8.2 (expect (987) 654-3210 &#8211; the field attempt has a value, so the fixed one never runs): (987) 654-3210</p>
+
+<p class="gb-text">R8.3 (expect 555-867-5309 &#8211; the empty field attempt falls through): 555-867-5309</p>
+
+<p class="gb-text">R8.4 (expect 555-867-5309 &#8211; the entry that will not normalize is empty): 555-867-5309</p>
+
+<p class="gb-text">R8.5 (expect 555-000-1111 &#8211; the fixed attempt resolved no source): 555-000-1111</p>
+
+<p class="gb-text">R8.6 (expect 555-867-5309 / 555-867-5309 &#8211; once per staff post): 555-867-5309 / 555-867-5309</p>
 </div>
 
 <div>
@@ -677,7 +709,9 @@
 
 <p class="gb-text">F4.2 picker-alone shape: unused_line is EMPTY so slot 1 is a real skip (-> (987) 654-3210): <a href="tel:+1-987-654-3210">(987) 654-3210</a></p>
 
-<p class="gb-text">F4.4 legacy twin of F4.2 (-> same): <a href="tel:+1-987-654-3210">(987) 654-3210</a></p>
+<p class="gb-text">F4.4 EMPTY UNTIL MIGRATED: try_phone gained a per-slot read (FW-141 05), so unmigrated flat wire drops a slot 2 key with no use:</p>
+
+<p class="gb-text">F4.4b what the converter and editor mount write for F4.4 (-> (987) 654-3210): <a href="tel:+1-987-654-3210">(987) 654-3210</a></p>
 
 <p class="gb-text">F4.5 EMPTY AND CORRECT: key is a SLOT axis on try_phone, so a tag-level key configures nothing:</p>
 

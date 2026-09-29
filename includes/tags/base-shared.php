@@ -902,6 +902,8 @@ function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same
  *     @type int    $min             Slots always visible. Default 2.
  *     @type bool   $combining       True for join/table. Default true.
  *     @type bool   $per_slot_use    Container gives each slot its own read axis. Default true.
+ *     @type bool   $flat_per_slot_use Whether the LEGACY flat wire had one (the migrators' era fact,
+ *                                    TagTemplateRegistry::try_flat_era_per_slot_use()). Default = per_slot_use.
  *     @type bool   $allow_site      Keep `site` in the source enum. Default true.
  *     @type bool   $allow_same_read Offer the read `same` row at slot ≥2. Default false.
  *     @type array  $steps            WIRE step slugs offered as steps, in offer order. Default ['terms'].
@@ -929,6 +931,7 @@ function bws_build_fold_slot_options( array $args ): array {
 	$min             = (int) ( $args['min'] ?? 2 );
 	$combining       = isset( $args['combining'] ) ? (bool) $args['combining'] : bws_fold_is_combining( $container );
 	$per_slot_use    = ! isset( $args['per_slot_use'] ) || (bool) $args['per_slot_use'];
+	$flat_psu        = isset( $args['flat_per_slot_use'] ) ? (bool) $args['flat_per_slot_use'] : $per_slot_use;
 	$allow_site      = ! isset( $args['allow_site'] ) || (bool) $args['allow_site'];
 	$allow_same_read = ! empty( $args['allow_same_read'] );
 	$steps            = $args['steps'] ?? array( 'terms' );
@@ -1014,6 +1017,7 @@ function bws_build_fold_slot_options( array $args ): array {
 		'container'        => $container,
 		'combining'        => $combining,
 		'perSlotUse'       => $per_slot_use,
+		'flatPerSlotUse'   => $flat_psu,
 		'min'              => $min,
 		'max'              => $max,
 		'noun'             => $noun,

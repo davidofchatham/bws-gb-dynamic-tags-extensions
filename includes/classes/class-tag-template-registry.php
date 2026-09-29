@@ -368,6 +368,25 @@ class TagTemplateRegistry {
 	}
 
 	/**
+	 * Whether a template's LEGACY flat slot wire (`N-key`, `N-use`) was authored against a
+	 * per-slot `use` axis — the era fact the fold MIGRATORS read, apart from the live one.
+	 *
+	 * try_email / try_phone gained `use` (the fixed read, FW-141) after their flat wire
+	 * shipped without one, so a stored `2-key:x` there is a key read, not the stale key
+	 * bws_fold_from_flat() discards on a template whose flat wire always had `use`. The
+	 * migrators fold it under the era it was written in, to `B:key(x)`, which needs no
+	 * `use` token. Absent = the live shape.
+	 *
+	 * @since 1.21.0
+	 * @param array $tpl Modifier template descriptor.
+	 */
+	public static function try_flat_era_per_slot_use( array $tpl ): bool {
+		return array_key_exists( 'try_flat_era_per_slot_use', $tpl )
+			? (bool) $tpl['try_flat_era_per_slot_use']
+			: ! empty( $tpl['try_per_slot_use'] );
+	}
+
+	/**
 	 * The family facts the ATTEMPT WALK needs, and nothing else — cardinality, the carry
 	 * seed, the per-slot read gate, the collapsing bound. How an attempt reads is the
 	 * resolver's, the base tag's own seam (FW-136).
@@ -544,6 +563,7 @@ class TagTemplateRegistry {
 						'container'       => 'try',
 						'combining'       => bws_fold_is_combining( 'try' ),
 						'per_slot_use'    => $per_slot_use,
+						'flat_per_slot_use' => self::try_flat_era_per_slot_use( $tpl ),
 						'min'             => 2,
 						'max'             => 5,
 						'base_read'       => $per_slot_use ? ( $tpl_options['use'] ?? [] ) : [],

@@ -256,6 +256,16 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'E1.9 (expect info@example.com - the site is a source)', '{{email src:site|fixed:info@example.com|noLink}}' ),
 	) );
 
+	// E2 — a fixed try_email attempt (FW-141 05); email-test-matrix.md §E2. Obfuscation is seeded OFF.
+	$sections[] = bws_fixture_gb_section( 'Email E2 - fixed try_email attempt (FW-141 05)', array(
+		bws_fixture_gb_row( 'E2.1 (expect info@example.com)', '{{try_email A:fixed(info@example.com)|noLink}}' ),
+		bws_fixture_gb_row( 'E2.2 (expect jane@example.test, tom@example.test - the field attempt has a value, so the fixed one never runs)', '{{try_email A:src(refs,related_staff);key(contact_email)|B:fixed(info@example.com)|noLink}}' ),
+		bws_fixture_gb_row( 'E2.3 (expect info@example.com - the empty field attempt falls through)', '{{try_email A:key(nonexistent_field)|B:fixed(info@example.com)|noLink}}' ),
+		bws_fixture_gb_row( 'E2.4 (expect info@example.com - the invalid first attempt is empty)', '{{try_email A:fixed(not-an-email)|B:fixed(info@example.com)|noLink}}' ),
+		bws_fixture_gb_row( 'E2.5 (expect sales@example.test - the fixed attempt resolved no source)', '{{try_email A:src(refs,no_such_rel);fixed(info@example.com)|fallback:sales@example.test|noLink}}' ),
+		bws_fixture_gb_row( 'E2.6 (expect a mailto link carrying ?subject=Hello)', '{{try_email A:fixed(info@example.com)|subject:Hello}}' ),
+	) );
+
 	$sections[] = bws_fixture_gb_section( 'Phone R0 - href rebuild', array(
 		bws_fixture_gb_row( 'R0.1', '{{phone key:main_line}}' ),
 		bws_fixture_gb_row( 'R0.2', '{{phone key:booking_line}}' ),
@@ -310,6 +320,15 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'R7.6 (expect 555-000-1111 - the entry will not normalize)', '{{phone fixed:abc|fallback:555-000-1111}}' ),
 		bws_fixture_gb_row( 'R7.7 (expect (987) 654-3210 - a stored key+fixed pair reads the key)', '{{phone key:main_line|fixed:555-867-5309}}' ),
 		bws_fixture_gb_row( 'R7.8 (expect 555-867-5309 - the site is a source)', '{{phone src:site|fixed:555-867-5309}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Phone R8 - fixed try_phone attempt (FW-141 05)', array(
+		bws_fixture_gb_row( 'R8.1 (expect 555-867-5309 as a tel link)', '{{try_phone A:fixed(555-867-5309)}}' ),
+		bws_fixture_gb_row( 'R8.2 (expect (987) 654-3210 - the field attempt has a value, so the fixed one never runs)', '{{try_phone A:key(main_line)|B:fixed(555-867-5309)|noLink}}' ),
+		bws_fixture_gb_row( 'R8.3 (expect 555-867-5309 - the empty field attempt falls through)', '{{try_phone A:key(nonexistent_field)|B:fixed(555-867-5309)|noLink}}' ),
+		bws_fixture_gb_row( 'R8.4 (expect 555-867-5309 - the entry that will not normalize is empty)', '{{try_phone A:fixed(abc)|B:fixed(555-867-5309)|noLink}}' ),
+		bws_fixture_gb_row( 'R8.5 (expect 555-000-1111 - the fixed attempt resolved no source)', '{{try_phone A:src(refs,no_such_rel);fixed(555-867-5309)|fallback:555-000-1111|noLink}}' ),
+		bws_fixture_gb_row( 'R8.6 (expect 555-867-5309 / 555-867-5309 - once per staff post)', '{{try_phone A:src(refs,related_staff);fixed(555-867-5309)|sep: / |noLink}}' ),
 	) );
 
 	// text read-seam matrix (text-test-matrix.md). Standing rendered rows for
@@ -733,7 +752,8 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F3.4 slot 2 hops a relationship (-> Jane Partner)', '{{try_text A:key(missing_field)|B:src(refs,related_staff);use(title)}}' ),
 		bws_fixture_gb_row( 'F3.6 legacy twin of F3.1 (-> Captain)', '{{try_text key:missing_field|2-use:key|2-key:role}}' ),
 		bws_fixture_gb_row( 'F4.2 picker-alone shape: unused_line is EMPTY so slot 1 is a real skip (-> (987) 654-3210)', '{{try_phone A:key(unused_line)|B:key(main_line)}}' ),
-		bws_fixture_gb_row( 'F4.4 legacy twin of F4.2 (-> same)', '{{try_phone key:unused_line|2-key:main_line}}' ),
+		bws_fixture_gb_empty_row( 'F4.4 EMPTY UNTIL MIGRATED: try_phone gained a per-slot read (FW-141 05), so unmigrated flat wire drops a slot 2 key with no use', '{{try_phone key:unused_line|2-key:main_line}}' ),
+		bws_fixture_gb_row( 'F4.4b what the converter and editor mount write for F4.4 (-> (987) 654-3210)', '{{try_phone A:key(unused_line)|B:src(same);key(main_line)}}' ),
 		bws_fixture_gb_empty_row( 'F4.5 EMPTY AND CORRECT: key is a SLOT axis on try_phone, so a tag-level key configures nothing', '{{try_phone A:src(refs,related_staff)|B:src(current)|key:main_line}}' ),
 		bws_fixture_gb_row( 'F5.1 no-read shape: an EMPTY slot 1 value is the default attempt (-> Matrix: Post Meta)', '{{try_title 1:|B:src(site)}}' ),
 		bws_fixture_gb_row( 'F5.2 same, via an explicit src(current) - the 5f bug was this rendering NOTHING', '{{try_title A:src(current)|B:src(site)}}' ),
