@@ -9,10 +9,11 @@
  *   - src:current / unset → post/term meta
  *   - src:ref / srcTermIn → traversed entity meta
  *
- * Email is keyed-by-nature in every source (no intrinsic analog), so it has NO
- * `use` enum — `key` is always required. A future `use:author` / `use:admin`
- * enum is additive (gated by the C10 qualifying test) and intentionally out of
- * scope this release.
+ * Email is keyed-by-nature in every source (no intrinsic analog), so its `use` enum
+ * has one field read (`key`, the stripped default) plus the FIXED read (FW-141): an
+ * address the author types, shown once per resolved source and finished like the
+ * fallback. A future `use:author` / `use:admin` row is additive (gated by the C10
+ * qualifying test) and intentionally out of scope this release.
  *
  * @package BWS_Dynamic_Tags
  * @since 1.9.0
@@ -51,6 +52,7 @@ function bws_register_email_tag(): void {
 
 	$source_opt     = bws_build_src_chain_option();
 	$traversal_opts = bws_base_traversal_options();
+	$contact_field  = bws_get_contact_field_options( 'email' );
 
 	bws_gb_register_tag( array(
 		'title'      => __( 'Email', 'generateblocks' ),
@@ -87,12 +89,16 @@ function bws_register_email_tag(): void {
 					'placeholder' => ', ',
 					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => array( 'ref', 'chain_fans' ) ),
 				),
-				'key'      => array(
-					'type'         => 'bws-field-combo',
-					'label'        => __( 'Meta/Option Field', 'generateblocks' ),
-					'dynamicLabel' => true,
-					'help'         => __( 'ACF or meta field key holding the email address.', 'generateblocks' ),
-					'placeholder'  => 'email_field',
+				// use/key/fixed from the contact FIELD LEAF (FW-141); show_if is the
+				// caller's overlay by leaf contract.
+				'use'      => $contact_field['use'],
+				'key'      => array_merge(
+					$contact_field['key'],
+					array( 'show_if' => array( 'use' => 'not:fixed' ) )
+				),
+				'fixed'    => array_merge(
+					$contact_field['fixed'],
+					array( 'show_if' => array( 'use' => 'fixed' ) )
 				),
 				'subject'  => array(
 					// VE2 — bws-format-input escapes `:`/`|` so the subject survives
@@ -190,7 +196,12 @@ function bws_base_email_resolve_value( array $options, $instance ): array {
 
 	// L3 compose — validate + render each raw value via the shared finisher
 	// (SAME per-item compose the try_ dispatchers use, VE4 / V10).
-	$parts = bws_email_finish_values( bws_resolve_field_values( $options, $instance ), $options );
+	$parts = bws_email_finish_values(
+		'fixed' === bws_use_effective( 'email', $options )
+			? bws_resolve_fixed_values( $options, $instance )
+			: bws_resolve_field_values( $options, $instance ),
+		$options
+	);
 
 	return array(
 		'value'     => implode( $sep, $parts ),
@@ -423,7 +434,7 @@ function bws_register_email_template(): void {
 		'options'             => array(
 			'key'      => array(
 				'type'         => 'bws-field-combo',
-				'label'        => __( 'Meta/Option Field', 'generateblocks' ),
+				'label'        => __( 'Meta/Option Field Key', 'generateblocks' ),
 				'dynamicLabel' => true,
 				'help'         => __( 'ACF or meta field key holding the email address.', 'generateblocks' ),
 				'placeholder'  => 'email_field',

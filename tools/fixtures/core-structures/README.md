@@ -4,6 +4,7 @@ First fixture blueprint (fixture-testbed FW-42). Seeds the state the two existin
 manual matrices assume:
 
 - [`tools/test/phone-test-matrix.md`](../../test/phone-test-matrix.md)
+- [`tools/test/email-test-matrix.md`](../../test/email-test-matrix.md) (added for FW-141 — the `{{email}}` fixed-read rows, §E1 on `matrix-post-meta`)
 - [`tools/test/field-selector-test-matrix.md`](../../test/field-selector-test-matrix.md)
 - [`tools/test/text-test-matrix.md`](../../test/text-test-matrix.md) (added 1.14.1 — read-seam rows; uses `staff-tom-associate` + `bws_zero_probe`)
 - [`tools/test/join-test-matrix.md`](../../test/join-test-matrix.md) (added 1.15.0 — {{join}} assembly rows; `name_*` person parts dense on `tom-associate` / sparse on `jane-partner`, `role` + `height_*` on `matrix-post-meta`; manifest v2)

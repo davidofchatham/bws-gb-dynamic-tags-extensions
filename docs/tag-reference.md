@@ -448,7 +448,7 @@ Canonical defaults applied on read:
 | `use` | `text`, `image` | `'key'` | Default is ACF/meta field — only `key` value matters |
 | `use` | `content` | `'content'` | Default is post content / term description |
 
-The `use` rows restate what `BWS_USE_STRIPPED_DEFAULTS` ([`registration-helpers.php`](../includes/helpers/registration-helpers.php)) states; that constant is the owner, and a tag absent from it has no `use` enum and therefore no default. Tags with no read axis (`title`, `permalink`, `datetime_*`, `email`, `phone`, `call`) register no `use` and appear in neither. A `use` default applies only when no field token implies the mode — see the `use` field-selector values, [§Shared option groups](#shared-option-groups).
+The `use` rows restate what `BWS_USE_STRIPPED_DEFAULTS` ([`registration-helpers.php`](../includes/helpers/registration-helpers.php)) states; that constant is the owner, and a tag absent from it has no `use` enum and therefore no default. Tags with no read axis (`title`, `permalink`, `datetime_*`, `call`) register no `use` and appear in neither. A `use` default applies only when no field token implies the mode — see the `use` field-selector values, [§Shared option groups](#shared-option-groups).
 
 **Required for try_ slot 2+:** the slot-2+ "Same as Previous" semantic must be distinguishable from "explicit default". By stripping the slot-1 default to `''` and reserving an explicit `current` token, slot 2+ can use `''` for carry-over and `current` for "override back to current".
 
@@ -858,16 +858,18 @@ The field-type selector (`use`) + field key (`key`). Present on `text`, `image`,
 | Applicable tags | Option name | Option label | Conditionals | Notes |
 |---|---|---|---|---|
 | `text`, `image`, `content` | `same` *(prepended, slot 2+)* | Same as Previous Field | Hides additional fields | Slot 2+ only, not in template. Folded spelling `use(same)` — written explicitly there, where the flat wire left it absent |
-| `text`, `image`, `content` | `key` | Meta/Option Field | Shows/enables field key | — |
+| `text`, `image`, `content`, `email`, `phone` | `key` | Meta/Option Field | Shows/enables field key | — |
 | `text` | `title` | Title/Name | Disables field key | Term name if source is term; site name if `src:site` |
 | `text` | `fixed` | Fixed Text | Disables field key; shows `fixed` | Reads nothing: prints the `fixed` text once per resolved source (list mode repeats it, `sep` and step limits apply). Empty when the source resolves nothing, so the fallback fires. Base `{{text}}` (FW-141 01), `{{join}}` slots (FW-141 02) and `try_text` attempts (FW-141 03), the last two folded as `fixed(…)` ([§Folded slot wire](#folded-slot-wire-multislot-containers)). On `try_text` an empty fixed attempt falls through to the next attempt like any empty read |
+| `email` | `fixed` | Fixed Email | Disables field key; shows `fixed` | The fixed read on `{{email}}` (FW-141 04): the typed address, once per resolved source, finished as the tag's fallback is. `try_email` attempts do not take it yet |
+| `phone` | `fixed` | Fixed Phone Number | Disables field key; shows `fixed` | The fixed read on `{{phone}}` (FW-141 04): the typed number, once per resolved source, finished as the tag's fallback is. `try_phone` attempts do not take it yet |
 | `content` | `content` | Post Content/Term Description | Disables field key | Term description if source is term; **empty if `src:site`** (no site content analog) |
 | `content` | `excerpt` | Post Excerpt | Disables field key | Empty under `src:site` (no site excerpt) |
 | `image` | `featured` | Featured Image/Site Logo | Disables field key | Site logo (`custom_logo` theme mod) if `src:site` |
 
-**A `key` with no `use` is the keyed read** on all three tags: `{{content key:foo}}` reads the `foo` field, exactly as `{{content use:key|key:foo}}` does. An explicit `use` naming another mode wins, and a `key` left beside it is ignored (`{{content use:excerpt|key:foo}}` renders the excerpt). An empty `use:` or `key:` counts as absent. Enforced in `bws_use_effective()` ([`registration-helpers.php`](../includes/helpers/registration-helpers.php)).
+**A `key` with no `use` is the keyed read** on every tag with a read axis: `{{content key:foo}}` reads the `foo` field, exactly as `{{content use:key|key:foo}}` does. An explicit `use` naming another mode wins, and a `key` left beside it is ignored (`{{content use:excerpt|key:foo}}` renders the excerpt). An empty `use:` or `key:` counts as absent. Enforced in `bws_use_effective()` ([`registration-helpers.php`](../includes/helpers/registration-helpers.php)).
 
-**A `fixed` with no `use` is the fixed read** the same way: `{{text fixed:Varsity}}` prints `Varsity`, and no `use` is written beside it. The editor never writes `key` and `fixed` together; a stored or hand-typed pair reads the `key`, and the editor drops the `fixed` when the tag is next opened.
+**A `fixed` with no `use` is the fixed read** the same way: `{{text fixed:Varsity}}` prints `Varsity`, and no `use` is written beside it. The editor never writes `key` and `fixed` together; a stored or hand-typed pair reads the `key`, and the editor drops the `fixed` when the tag is next opened. The same holds on `{{email}}` and `{{phone}}` (`{{email fixed:info@example.com}}`).
 
 **`fixed` text** (`{{text}}`):
 
@@ -1036,7 +1038,7 @@ Format a date/datetime/time field (`datetime_single`) or a start–end **composi
 
 `{{email}}` (1.9.0) outputs a stored email address, by default wrapped in a `mailto:` link. It is a first-class base tag — registered unconditionally, cross-source like `text` — living in `includes/tags/email-tags.php`.
 
-**Source / field read.** The address is read from a meta/option field via the shared source-resolution pipeline (`bws_resolve_field_values`, the L1/L2 seam email/phone both consume — unified in 1.11.0), so it works in every source: `src:site` → wp_options / ACF-options (allowlist-gated via `bws_site_read_option`, dot-path supported); `src:current`/unset → post/term meta; `src:ref` / `srcTermIn` → traversed-entity meta (list mode). Email is **key-required in every source** — it has no intrinsic analog, so there is **no `use` enum** and `key` is always required. (A future `use:author` / `use:admin` enum is additive and gated by the [qualifying test](#qualifying-test-for-new-use-values).)
+**Source / field read.** The address is read from a meta/option field via the shared source-resolution pipeline (`bws_resolve_field_values`, the L1/L2 seam email/phone both consume — unified in 1.11.0), so it works in every source: `src:site` → wp_options / ACF-options (allowlist-gated via `bws_site_read_option`, dot-path supported); `src:current`/unset → post/term meta; `src:ref` / `srcTermIn` → traversed-entity meta (list mode). Email has no intrinsic analog, so its `use` enum offers only the keyed read (`key`, the default; `key` is required there, in every source) and the **fixed read** (`fixed`, FW-141): an address the author types, shown once per resolved source and finished exactly as the fallback is. (A future `use:author` / `use:admin` enum is additive and gated by the [qualifying test](#qualifying-test-for-new-use-values).)
 
 **`mailto:` wrap (default-ON) + `noLink`.** The address is wrapped in `<a href="mailto:…">` UNLESS the `noLink` bare key is present (`noLink` = plain text). This is an **inverted bare-key boolean**: absence = wrap, present = off. Modeled this way because GB's serializer drops `false`, so "default-on, serialize-when-off" is only reachable via an inverted-name presence flag (same pattern as `showCurrentYear` / `showMidnight`). The anchor is built directly (minimal, no class/target) — it does NOT use the `linkTo` / `bws_wrap_with_link` entity-link machinery (those are for entity URLs; email's link is the address itself). WP emits no standard class on mailto anchors — target them via `a[href^="mailto:"]` in CSS.
 
@@ -1054,7 +1056,9 @@ Format a date/datetime/time field (`datetime_single`) or a start–end **composi
 |---|---|---|---|---|
 | `src` | `bws-src-chain` | Source | always | The source CHAIN: a root (`current` / `site` / a registry source) plus ordered fanning steps, each with its own optional limit. Absorbs the flat `ref` / `srcTermIn` controls, which are no longer registered (v1.17.0) though a stored value still reads and shows as a step. |
 | `sep` | text | Result Separator | `srcTermIn` set, `src:ref`, or a fanning chain | List-mode join; default `, `. |
-| `key` | `bws-field-combo` | Meta/Option Field | always | **Required** — email field key. wp_options / ACF-options (dot-path) under `src:site`; post/term meta otherwise. |
+| `use` | select | Email Field | always | Stripped default `key` (Meta/Option Field); `fixed` (Fixed Email) shows `fixed` and hides `key`. |
+| `key` | `bws-field-combo` | Meta/Option Field Key | not `use:fixed` | **Required** — email field key. wp_options / ACF-options (dot-path) under `src:site`; post/term meta otherwise. |
+| `fixed` | `bws-format-input` | Fixed Email | `use:fixed` | The address to show, once per resolved source. Validated, obfuscated, `mailto:`-wrapped with `subject` exactly as a stored address (and as `fallback`); an invalid entry is empty, so `fallback` fires. Also empty when the source resolves nothing. |
 | `subject` | `bws-format-input` | Subject | `noLink` empty | Optional `mailto:?subject=`; escaped editor-side, `rawurlencode`d at render (see two-layer encoding above). |
 | `noLink` | checkbox (bare key) | Disable email link (plain text) | always | Inverted presence flag: absent = mailto wrap (default), present = plain text. |
 | `fallback` | text | Fallback Email | always | A fallback **email address** (validated, wrapped). Fires only when no valid address resolves. |
@@ -1070,6 +1074,7 @@ Plus the global **Settings → Tag Extensions → Email → "Obfuscate email add
 {{email src:site|key:org_email|noLink}}               → VALUE                                (plain)
 {{email src:site|key:org_email|subject:Hello there}}  → <a href="mailto:VALUE?subject=Hello%20there">VALUE</a>
 {{email key:contact_email}}                           → post/term meta email, wrapped
+{{email fixed:info@example.com}}                      → <a href="mailto:info@example.com">info@example.com</a>   (fixed read, once per resolved source)
 ```
 
 ---
@@ -1078,7 +1083,7 @@ Plus the global **Settings → Tag Extensions → Email → "Obfuscate email add
 
 `{{phone}}` (1.10.0) outputs a stored phone number, by default wrapped in a `tel:` link. It is a first-class base tag — registered unconditionally, cross-source like `text`/`email` — living in `includes/tags/phone-tags.php`.
 
-**Source / field read.** The number is read from a meta/option field via the shared source-resolution pipeline (`bws_resolve_field_values`, the L1/L2 seam email/phone both consume — formerly a per-tag clone, unified in 1.11.0), so it works in every source: `src:site` → wp_options / ACF-options; `src:current`/unset → post/term meta; `src:ref` / `srcTermIn` → traversed-entity meta (list mode). Phone is **key-required in every source** — no intrinsic analog, so **no `use` enum**.
+**Source / field read.** The number is read from a meta/option field via the shared source-resolution pipeline (`bws_resolve_field_values`, the L1/L2 seam email/phone both consume — formerly a per-tag clone, unified in 1.11.0), so it works in every source: `src:site` → wp_options / ACF-options; `src:current`/unset → post/term meta; `src:ref` / `srcTermIn` → traversed-entity meta (list mode). Phone has no intrinsic analog, so its `use` enum offers only the keyed read (`key`, the default; `key` is required there, in every source) and the **fixed read** (`fixed`, FW-141): a number the author types, shown once per resolved source and finished exactly as the fallback is.
 
 **`tel:` href rebuild — author separators preserved (model C).** Unlike `email` (href = address verbatim), the `tel:` href is rebuilt from the stored value into a canonical dial value by `bws_phone_normalize_tel()`. The key rule: **hyphens in the href appear ONLY where the author wrote a separator.** `(987) 654-3210` → `tel:+1-987-654-3210`; bare `9876543210` → `tel:+19876543210` (no fabricated grouping — segmentation is unknowable from raw digits without locale rules, so it is never guessed). No libphonenumber dependency. The **display** text stays the stored value verbatim (`esc_html`); display and href may differ. (Display-side reformatting is a planned follow-up.)
 
@@ -1100,7 +1105,9 @@ Plus the global **Settings → Tag Extensions → Email → "Obfuscate email add
 |---|---|---|---|---|
 | `src` | `bws-src-chain` | Source | always | The source CHAIN: a root (`current` / `site` / a registry source) plus ordered fanning steps, each with its own optional limit. Absorbs the flat `ref` / `srcTermIn` controls, which are no longer registered (v1.17.0) though a stored value still reads and shows as a step. |
 | `sep` | text | Result Separator | `srcTermIn` set, `src:ref`, or a fanning chain | List-mode join; default `, `. |
-| `key` | `bws-field-combo` | Meta/Option Field | always | **Required** — phone field key. wp_options / ACF-options (dot-path) under `src:site`; post/term meta otherwise. |
+| `use` | select | Phone Number Field | always | Stripped default `key` (Meta/Option Field); `fixed` (Fixed Phone Number) shows `fixed` and hides `key`. |
+| `key` | `bws-field-combo` | Meta/Option Field Key | not `use:fixed` | **Required** — phone field key. wp_options / ACF-options (dot-path) under `src:site`; post/term meta otherwise. |
+| `fixed` | `bws-format-input` | Fixed Phone Number | `use:fixed` | The number to show, once per resolved source. Normalized, given the country code and `tel:`-wrapped exactly as a stored number (and as `fallback`); an entry that will not normalize is empty, so `fallback` fires. Also empty when the source resolves nothing. |
 | `noLink` | checkbox (bare key) | Disable phone link (plain text) | always | Inverted presence flag: absent = tel wrap (default), present = plain text. |
 | `fallback` | text | Fallback Phone Number | always | A fallback **phone number** (normalized, wrapped). Fires only when no valid number resolves. |
 
@@ -1116,9 +1123,10 @@ Plus two global **Settings → Tag Extensions → Phone** options (not per-tag):
 {{phone key:mobile|noLink}}        field "07911 123456"     → 07911 123456                                        (plain)
 {{phone key:phone}}                field "9876543210" no CC → <a href="tel:9876543210">9876543210</a>             (national, no hyphens)
 {{phone key:us}}    field "1-800-555-1212" CC 1, strip ON   → <a href="tel:+1-800-555-1212">1-800-555-1212</a>    (leading CC stripped)
+{{phone fixed:555-867-5309}}                          CC 1 → <a href="tel:+1-555-867-5309">555-867-5309</a>           (fixed read, once per resolved source)
 ```
 
-**Tests.** Normalization (`bws_phone_normalize_tel` + sub-helpers) is pinned by a standalone, WP-free harness: `php tools/test/phone-normalize-test.php` (run on any change to normalize/trunk-strip/length-gate/strip-CC). End-to-end source/list/render/settings coverage is the standing manual matrix [`tools/test/phone-test-matrix.md`](../tools/test/phone-test-matrix.md), which carries its own re-run trigger.
+**Tests.** Normalization (`bws_phone_normalize_tel` + sub-helpers) is pinned by a standalone, WP-free harness: `php tools/test/phone-normalize-test.php` (run on any change to normalize/trunk-strip/length-gate/strip-CC). End-to-end source/list/render/settings coverage is the standing manual matrix [`tools/test/phone-test-matrix.md`](../tools/test/phone-test-matrix.md), which carries its own re-run trigger. The email tag's fixed-read rows are [`tools/test/email-test-matrix.md`](../tools/test/email-test-matrix.md).
 
 ---
 

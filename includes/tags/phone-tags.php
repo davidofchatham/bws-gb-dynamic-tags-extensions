@@ -53,6 +53,7 @@ function bws_register_phone_tag(): void {
 
 	$source_opt     = bws_build_src_chain_option();
 	$traversal_opts = bws_base_traversal_options();
+	$contact_field  = bws_get_contact_field_options( 'phone' );
 
 	bws_gb_register_tag( array(
 		'title'      => __( 'Phone', 'generateblocks' ),
@@ -88,12 +89,16 @@ function bws_register_phone_tag(): void {
 					'placeholder' => ', ',
 					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => array( 'ref', 'chain_fans' ) ),
 				),
-				'key'      => array(
-					'type'         => 'bws-field-combo',
-					'label'        => __( 'Meta/Option Field', 'generateblocks' ),
-					'dynamicLabel' => true,
-					'help'         => __( 'ACF or meta field key holding the phone number.', 'generateblocks' ),
-					'placeholder'  => 'phone_field',
+				// use/key/fixed from the contact FIELD LEAF (FW-141); show_if is the
+				// caller's overlay by leaf contract.
+				'use'      => $contact_field['use'],
+				'key'      => array_merge(
+					$contact_field['key'],
+					array( 'show_if' => array( 'use' => 'not:fixed' ) )
+				),
+				'fixed'    => array_merge(
+					$contact_field['fixed'],
+					array( 'show_if' => array( 'use' => 'fixed' ) )
 				),
 				'noLink'   => array(
 					// VP1 — inverted bare-key boolean. Absence = wrap (default-on);
@@ -452,7 +457,12 @@ function bws_base_phone_resolve_value( array $options, $instance ): array {
 
 	// L3 compose — normalize+render each raw value via the shared finisher (SAME
 	// per-item compose the try_ dispatchers use, VP4 / V10).
-	$parts = bws_phone_finish_values( bws_resolve_field_values( $options, $instance ), $options );
+	$parts = bws_phone_finish_values(
+		'fixed' === bws_use_effective( 'phone', $options )
+			? bws_resolve_fixed_values( $options, $instance )
+			: bws_resolve_field_values( $options, $instance ),
+		$options
+	);
 
 	return array(
 		'value'     => implode( $sep, $parts ),
@@ -697,7 +707,7 @@ function bws_register_phone_template(): void {
 		'options'             => array(
 			'key'      => array(
 				'type'         => 'bws-field-combo',
-				'label'        => __( 'Meta/Option Field', 'generateblocks' ),
+				'label'        => __( 'Meta/Option Field Key', 'generateblocks' ),
 				'dynamicLabel' => true,
 				'help'         => __( 'ACF or meta field key holding the phone number.', 'generateblocks' ),
 				'placeholder'  => 'phone_field',

@@ -747,6 +747,60 @@ function bws_get_image_field_options(): array {
 }
 
 /**
+ * The email / phone `use` + `key` + `fixed` field-option LEAF — bws_get_text_field_options()'s
+ * sibling for the two contact tags (FW-141).
+ *
+ * The two tags read a stored address or number (key-mode, the stripped default) or show
+ * one the author typed (the fixed read), so ONE builder serves both and only the
+ * per-family words differ: the `use` label, the field key's help and placeholder, and
+ * the fixed row/input label ("Fixed Email" / "Fixed Phone Number", parallel to "Fallback
+ * Email" / "Fallback Phone Number"). `show_if` is the caller's overlay, as on the text
+ * leaf: base hides `key` under the fixed read and `fixed` outside it.
+ *
+ * The `fixed` input's value is finished exactly as the tag's fallback is (validated /
+ * normalized, linked, obfuscated), so its help says only when it shows and what happens
+ * to an invalid entry.
+ *
+ * @since 1.21.0
+ * @param string $tag 'email' or 'phone'.
+ * @return array { 'use' => array, 'key' => array, 'fixed' => array } — definitions
+ *               WITHOUT `show_if`.
+ */
+function bws_get_contact_field_options( string $tag ): array {
+	$is_email = 'email' === $tag;
+	$fixed    = $is_email ? __( 'Fixed Email', 'generateblocks' ) : __( 'Fixed Phone Number', 'generateblocks' );
+	return array(
+		'use'   => array(
+			'type'           => 'select',
+			'label'          => $is_email ? __( 'Email Field', 'generateblocks' ) : __( 'Phone Number Field', 'generateblocks' ),
+			'options'        => array(
+				array( 'value' => 'key',   'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
+				array( 'value' => 'fixed', 'label' => $fixed ),
+			),
+			'_strip_default' => true,
+			'readTag'        => $tag,
+		),
+		'key'   => array(
+			'type'         => 'bws-field-combo',
+			'label'        => __( 'Meta/Option Field Key', 'generateblocks' ),
+			'dynamicLabel' => true,
+			'help'         => $is_email
+				? __( 'ACF or meta field key holding the email address.', 'generateblocks' )
+				: __( 'ACF or meta field key holding the phone number.', 'generateblocks' ),
+			'placeholder'  => $is_email ? 'email_field' : 'phone_field',
+		),
+		'fixed' => array(
+			// bws-format-input escapes `:`/`|` so the entry survives GB's tag-string round-trip.
+			'type'  => 'bws-format-input',
+			'label' => $fixed,
+			'help'  => $is_email
+				? __( 'Email address to show for each result found. Unlike Fallback Email, which only shows when the field is empty or invalid, this shows every time. Validated as an email; an invalid address shows nothing.', 'generateblocks' )
+				: __( 'Phone number to show for each result found. Unlike Fallback Phone Number, which only shows when the field is empty or invalid, this shows every time. Normalized like a stored number; an invalid number shows nothing.', 'generateblocks' ),
+		),
+	);
+}
+
+/**
  * Build the READ (`use`) option definition for one numbered slot, derived from a
  * base read definition. The read-axis twin of bws_build_slot_traversal_options()
  * (source axis) — same derive-don't-copy contract, same `$n` duties.

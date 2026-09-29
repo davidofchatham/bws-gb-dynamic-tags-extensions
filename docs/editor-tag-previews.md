@@ -130,6 +130,9 @@ Template-specific. Missing required input triggers a warning instead of the fiel
 | `title` | — | `Title` (always) |
 | `email` | `key:X` set | `Email: 'X'` |
 | `email` | `key` unset | *(missing — triggers warning: `field key`)* |
+| `email` / `phone` | `fixed:X` set (the fixed read, FW-141) | `Email: “X”` / `Phone: “X”` — the tag label stays (unlike `text`, which has none), the typed value follows in curly quotes. No field key needed |
+| `email` / `phone` | `use:fixed` + `fixed` unset | *(missing — triggers warning: `Fixed email not entered` / `Fixed phone number not entered`)* |
+| `phone` | `key:X` set | `Phone: 'X'` |
 | `datetime_` | — | *(see datetime section below)* |
 
 ## Warnings
@@ -142,7 +145,7 @@ Warnings replace the **entire** preview. Collect all missing required items; joi
 | `key` only | `⚠ No meta key set` |
 | `tax` only | `⚠ No taxonomy set` |
 | `field key` only (`email`) | `⚠ No field key set` |
-| `fixed` text only (`text` fixed read) | `⚠ Fixed text not entered` — its own clause, not a `No … set` item; beside other missing items it appends: `⚠ No ref key set; fixed text not entered` |
+| `fixed` text only (`text`, `email`, `phone` fixed read) | `⚠ Fixed text not entered` (`Fixed email not entered`, `Fixed phone number not entered`) — its own clause, not a `No … set` item; beside other missing items it appends: `⚠ No ref key set; fixed text not entered` |
 | `ref` + `key` | `⚠ No ref key or meta key set` |
 | `ref` + `tax` | `⚠ No ref key or taxonomy set` |
 | `tax` + `key` | `⚠ No taxonomy or meta key set` |
@@ -273,6 +276,9 @@ Datetime tags compute a live preview from the current time rather than a static 
 | `{{email key:contact_email}}` | `[Email: 'contact_email']` |
 | `{{email src:site\|key:org_email}}` | `[Email: 'org_email' from Site]` |
 | `{{email}}` | `[⚠ No field key set]` |
+| `{{email fixed:info@example.com}}` | `[Email: “info@example.com”]` |
+| `{{phone fixed:555-867-5309}}` | `[Phone: “555-867-5309”]` |
+| `{{email use:fixed}}` | `[⚠ Fixed email not entered]` |
 | `{{datetime_single as:date}}` | `[Date like “April 24, 2026”]` |
 | `{{datetime_single as:time\|src:ref\|ref:event_date}}` | `[Time like “2:20 PM” from Ref 'event_date']` |
 | `{{datetime_range as:date\|src:ref\|ref:event}}` | `[Date Range like “April 24 – April 25” from Ref 'event']` |

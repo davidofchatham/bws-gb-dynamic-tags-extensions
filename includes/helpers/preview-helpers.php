@@ -1446,8 +1446,10 @@ function bws_build_preview_label( array $options, string $template ): string {
 	}
 	// The fixed read (FW-141) reads no field; only its own text can be missing. Worded as
 	// its own clause (user, 2026-09-29), not a "No … set" list item: it is typed, not picked.
+	// $fixed_noun names what was to be typed, per family.
 	$fixed_missing = false;
-	if ( 'text' === $base_template && 'fixed' === $use ) {
+	$fixed_noun    = array( 'text' => 'text', 'email' => 'email', 'phone' => 'phone number' )[ $base_template ] ?? '';
+	if ( '' !== $fixed_noun && 'fixed' === $use ) {
 		$fixed_missing = '' === (string) ( $options['fixed'] ?? '' );
 	} elseif ( 'text' === $base_template && '' === $key && 'title' !== $use ) {
 		$missing[] = 'meta key';
@@ -1456,9 +1458,9 @@ function bws_build_preview_label( array $options, string $template ): string {
 	} elseif ( 'image' === $base_template && 'featured' !== $use && '' === $key ) {
 		$missing[] = 'meta key';
 	} elseif ( 'email' === $base_template && '' === $key ) {
-		$missing[] = 'field key'; // Email key-required in every source (no analog).
+		$missing[] = 'field key'; // Email key-required in every source (no analog), unless fixed.
 	} elseif ( 'phone' === $base_template && '' === $key ) {
-		$missing[] = 'field key'; // Phone key-required in every source (no analog).
+		$missing[] = 'field key'; // Phone key-required in every source (no analog), unless fixed.
 	} elseif ( 'call' === $base_template && '' === ( $options['fn'] ?? '' ) ) {
 		// {{call}} INERT preview (VC-inert) — never executes the function; describes
 		// config only. A missing fn is the bucket-A drift case (VC-fail) surfaced as
@@ -1470,7 +1472,7 @@ function bws_build_preview_label( array $options, string $template ): string {
 	if ( ! empty( $missing ) || $fixed_missing ) {
 		$count = count( $missing );
 		if ( 0 === $count ) {
-			$warning = 'Fixed text not entered';
+			$warning = 'Fixed ' . $fixed_noun . ' not entered';
 		} elseif ( 1 === $count ) {
 			$warning = 'No ' . $missing[0] . ' set';
 		} elseif ( 2 === $count ) {
@@ -1480,7 +1482,7 @@ function bws_build_preview_label( array $options, string $template ): string {
 			$warning = 'No ' . implode( ', ', $missing ) . ', or ' . $last . ' set';
 		}
 		if ( $count && $fixed_missing ) {
-			$warning .= '; fixed text not entered';
+			$warning .= '; fixed ' . $fixed_noun . ' not entered';
 		}
 		$inner = '⚠ ' . $warning;
 		if ( $fallback ) {
@@ -1576,10 +1578,13 @@ function bws_build_preview_label( array $options, string $template ): string {
 			$field_part = 'Title';
 			break;
 		case 'email':
-			$field_part = '' !== $key ? "Email: '" . $key . "'" : 'Email';
-			break;
 		case 'phone':
-			$field_part = '' !== $key ? "Phone: '" . $key . "'" : 'Phone';
+			$label = 'email' === $base_template ? 'Email' : 'Phone';
+			if ( 'fixed' === $use ) {
+				$field_part = $label . ': “' . esc_html( $options['fixed'] ?? '' ) . '”';
+			} else {
+				$field_part = '' !== $key ? $label . ": '" . $key . "'" : $label;
+			}
 			break;
 		case 'call':
 			// INERT config-describing label (VC-inert): the function name, plus the

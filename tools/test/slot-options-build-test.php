@@ -245,6 +245,24 @@ assert_same( 'fixed row and input share one label', end( $fixed_leaf['use']['opt
 assert_same( 'fixed input label "Fixed Text"', 'Fixed Text', $fixed_leaf['fixed']['label'] );
 assert_same( 'fixed input escapes `:`/`|` (bws-format-input)', 'bws-format-input', $fixed_leaf['fixed']['type'] );
 assert_same( 'fixed input carries no show_if (caller overlay)', false, isset( $fixed_leaf['fixed']['show_if'] ) );
+
+// The contact leaf (FW-141 04): email and phone, one builder, per-family words.
+foreach ( array(
+	'email' => array( 'Email Field', 'Fixed Email' ),
+	'phone' => array( 'Phone Number Field', 'Fixed Phone Number' ),
+) as $contact_tag => $words ) {
+	$contact_leaf = bws_get_contact_field_options( $contact_tag );
+	assert_same( "contact leaf {$contact_tag}: use+key+fixed", array( 'use', 'key', 'fixed' ), array_keys( $contact_leaf ) );
+	assert_same( "contact leaf {$contact_tag}: use options = key,fixed", array( 'key', 'fixed' ), array_column( $contact_leaf['use']['options'], 'value' ) );
+	assert_same( "contact leaf {$contact_tag}: use label", $words[0], $contact_leaf['use']['label'] );
+	assert_same( "contact leaf {$contact_tag}: fixed row and input share the label", $words[1], $contact_leaf['fixed']['label'] );
+	assert_same( "contact leaf {$contact_tag}: fixed row label", $words[1], end( $contact_leaf['use']['options'] )['label'] );
+	assert_same( "contact leaf {$contact_tag}: key label", 'Meta/Option Field Key', $contact_leaf['key']['label'] );
+	assert_same( "contact leaf {$contact_tag}: first use row is strip-marked", true, ! empty( $contact_leaf['use']['_strip_default'] ) );
+	assert_same( "contact leaf {$contact_tag}: readTag names the row", $contact_tag, $contact_leaf['use']['readTag'] );
+	assert_same( "contact leaf {$contact_tag}: fixed input is bws-format-input", 'bws-format-input', $contact_leaf['fixed']['type'] );
+	assert_same( "contact leaf {$contact_tag}: no show_if (caller overlay)", false, isset( $contact_leaf['key']['show_if'] ) || isset( $contact_leaf['fixed']['show_if'] ) );
+}
 assert_same( 'default leaf is unchanged by the opt-in', $leaf, bws_get_text_field_options() );
 
 // ============================================================

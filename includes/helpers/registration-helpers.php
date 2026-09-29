@@ -286,7 +286,9 @@ function bws_prepare_registration_options( array $options ): array {
  * drops the option read for every tag whose default IS key-mode. bws_site_resolve_value()'s
  * @invariant records the instance that made this a rule (CONTEXT.md I3).
  *
- * TEXT AND IMAGE LEAD WITH KEY-MODE; CONTENT LEADS WITH ITS ANALOG. The reason first
+ * TEXT, IMAGE, EMAIL AND PHONE LEAD WITH KEY-MODE; CONTENT LEADS WITH ITS ANALOG (email and
+ * phone gained their `use` enum with the fixed read, FW-141, and key-mode is all they had
+ * before it, so an existing `key:x` tag reads as it always did). The reason first
  * recorded for key-mode — an empty wire beside a `key` left over from key-mode could not
  * be told from intended key-mode — no longer holds: the editor's `use` select deletes the
  * `key` when `use` leaves key-mode (FW-142, assets/js/use-read-control.js). `text` stays
@@ -306,6 +308,8 @@ if ( ! defined( 'BWS_USE_STRIPPED_DEFAULTS' ) ) {
 		'text'    => 'key',
 		'content' => 'content',
 		'image'   => 'key',
+		'email'   => 'key',
+		'phone'   => 'key',
 	) );
 }
 

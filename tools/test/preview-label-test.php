@@ -354,6 +354,15 @@ check(
 	bws_build_preview_label( [ 'src' => 'ref', 'use' => 'fixed' ], 'text' ),
 	'[⚠ No ref key set; fixed text not entered]'
 );
+// Email / phone fixed read (FW-141 04): the typed value after the tag label, and its own
+// warning clause when nothing is typed. A keyed read with no key still warns as before.
+check( 'email fixed read', bws_build_preview_label( [ 'fixed' => 'info@example.com' ], 'email' ), '[Email: “info@example.com”]' );
+check( 'phone fixed read', bws_build_preview_label( [ 'fixed' => '555-0100' ], 'phone' ), '[Phone: “555-0100”]' );
+check( 'email fixed read over a source', bws_build_preview_label( [ 'src' => 'ref', 'ref' => 'rel', 'fixed' => 'a@b.co' ], 'email' ), "[Email: “a@b.co” from Ref 'rel']" );
+check( 'email fixed read with no text yet → warns', bws_build_preview_label( [ 'use' => 'fixed' ], 'email' ), '[⚠ Fixed email not entered]' );
+check( 'phone fixed read with no number yet → warns', bws_build_preview_label( [ 'use' => 'fixed' ], 'phone' ), '[⚠ Fixed phone number not entered]' );
+check( 'email keyed read with no key still warns', bws_build_preview_label( [], 'email' ), '[⚠ No field key set]' );
+check( 'phone fixed read carries the fallback', bws_build_preview_label( [ 'fixed' => '555-0100', 'fallback' => '555-0000' ], 'phone' ), '[Phone: “555-0100” (fallback: “555-0000”)]' );
 // Content default (use defaults to 'content') → bare 'Content'.
 check(
 	'content default',

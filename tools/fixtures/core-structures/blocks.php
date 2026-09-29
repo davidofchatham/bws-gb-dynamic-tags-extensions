@@ -243,6 +243,19 @@ function bws_fixture_gb_empty_row( $label, $tag ) {
 function bws_fixture_page_content_matrix_post_meta() {
 	$sections = array();
 
+	// E1 — the email fixed read (FW-141 04); email-test-matrix.md. Obfuscation is seeded OFF.
+	$sections[] = bws_fixture_gb_section( 'Email E1 - fixed read (FW-141)', array(
+		bws_fixture_gb_row( 'E1.1 (expect info@example.com as a mailto link)', '{{email fixed:info@example.com}}' ),
+		bws_fixture_gb_row( 'E1.2 (expect a mailto link carrying ?subject=Hello%20there)', '{{email fixed:info@example.com|subject:Hello there}}' ),
+		bws_fixture_gb_row( 'E1.3 (expect info@example.com, plain text)', '{{email fixed:info@example.com|noLink}}' ),
+		bws_fixture_gb_row( 'E1.4 (expect info@example.com / info@example.com)', '{{email src:refs,related_staff|fixed:info@example.com|noLink|sep: / }}' ),
+		bws_fixture_gb_row( 'E1.5 (expect sales@example.test - no source resolved, so the fallback fires)', '{{email src:refs,no_such_rel|fixed:info@example.com|fallback:sales@example.test|noLink}}' ),
+		bws_fixture_gb_row( 'E1.6 (expect sales@example.test - the invalid entry is empty)', '{{email fixed:not-an-email|fallback:sales@example.test|noLink}}' ),
+		bws_fixture_gb_empty_row( 'E1.7 (expect EMPTY - invalid entry, no fallback)', '{{email fixed:not-an-email}}' ),
+		bws_fixture_gb_row( 'E1.8 (expect jane@example.test - a stored key+fixed pair reads the key)', '{{email src:ref|ref:related_staff|key:contact_email|fixed:info@example.com|noLink}}' ),
+		bws_fixture_gb_row( 'E1.9 (expect info@example.com - the site is a source)', '{{email src:site|fixed:info@example.com|noLink}}' ),
+	) );
+
 	$sections[] = bws_fixture_gb_section( 'Phone R0 - href rebuild', array(
 		bws_fixture_gb_row( 'R0.1', '{{phone key:main_line}}' ),
 		bws_fixture_gb_row( 'R0.2', '{{phone key:booking_line}}' ),
@@ -286,6 +299,17 @@ function bws_fixture_page_content_matrix_post_meta() {
 
 	$sections[] = bws_fixture_gb_section( 'Phone R6 - security', array(
 		bws_fixture_gb_row( 'R6.1', '{{phone key:hacked_line}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Phone R7 - fixed read (FW-141)', array(
+		bws_fixture_gb_row( 'R7.1 (expect 555-867-5309 as a tel link)', '{{phone fixed:555-867-5309}}' ),
+		bws_fixture_gb_row( 'R7.2 (expect the same link twice, one per staff post)', '{{phone src:refs,related_staff|fixed:555-867-5309}}' ),
+		bws_fixture_gb_row( 'R7.3 (expect the link once - the step limit applies)', '{{phone src:refs,related_staff,limit(1)|fixed:555-867-5309}}' ),
+		bws_fixture_gb_row( 'R7.4 (expect 555-867-5309, plain text)', '{{phone fixed:555-867-5309|noLink}}' ),
+		bws_fixture_gb_row( 'R7.5 (expect 555-000-1111 - no source resolved, so the fallback fires)', '{{phone src:refs,no_such_rel|fixed:555-867-5309|fallback:555-000-1111}}' ),
+		bws_fixture_gb_row( 'R7.6 (expect 555-000-1111 - the entry will not normalize)', '{{phone fixed:abc|fallback:555-000-1111}}' ),
+		bws_fixture_gb_row( 'R7.7 (expect (987) 654-3210 - a stored key+fixed pair reads the key)', '{{phone key:main_line|fixed:555-867-5309}}' ),
+		bws_fixture_gb_row( 'R7.8 (expect 555-867-5309 - the site is a source)', '{{phone src:site|fixed:555-867-5309}}' ),
 	) );
 
 	// text read-seam matrix (text-test-matrix.md). Standing rendered rows for

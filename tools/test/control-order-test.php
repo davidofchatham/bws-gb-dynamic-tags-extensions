@@ -343,6 +343,10 @@ foreach ( $try_groups as $tag => $order ) {
 	assert_same( "{{{$tag}}} — group sequence", $canonical, $order );
 }
 
+// FW-141 04: the contact tags' field group reads use → key → fixed, ahead of the own-anchor pair.
+assert_same( '{{email}} — field group order', array( 'use', 'key', 'fixed', 'subject', 'noLink', 'fallback' ), array_values( array_intersect( array_keys( $registered['email']['options'] ?? array() ), array( 'use', 'key', 'fixed', 'subject', 'noLink', 'fallback' ) ) ) );
+assert_same( '{{phone}} — field group order', array( 'use', 'key', 'fixed', 'noLink', 'fallback' ), array_values( array_intersect( array_keys( $registered['phone']['options'] ?? array() ), array( 'use', 'key', 'fixed', 'noLink', 'fallback' ) ) ) );
+
 // The two that were actually wrong, pinned by exact option list so a regression names
 // the option rather than the group.
 assert_same(
@@ -698,7 +702,12 @@ foreach ( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() as $tpl
 	$mapped   = '' !== bws_use_stripped_default( $key );
 
 	assert_same( "{$key} — a `use` enum iff try_per_slot_use", $has_enum, $psu );
-	assert_same( "{$key} — a `use` enum iff a BWS_USE_STRIPPED_DEFAULTS row", $has_enum, $mapped );
+	// One direction only: a template with an enum has a row. The converse fails for email and
+	// phone until their try_ templates take the fixed read (FW-141 05), because the ROW belongs
+	// to the BASE tag's enum (checked below), which they gained first.
+	if ( $has_enum ) {
+		assert_same( "{$key} — a template `use` enum has a BWS_USE_STRIPPED_DEFAULTS row", true, $mapped );
+	}
 
 	if ( $has_enum ) {
 		assert_same(
@@ -706,6 +715,21 @@ foreach ( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() as $tpl
 			(string) $tpl['options']['use']['options'][0]['value'],
 			bws_use_stripped_default( $key )
 		);
+	}
+}
+
+// ---------------------------------------------------------------------------
+
+// The row's own owner is the BASE tag: a registered base tag carries a `use` enum stamped
+// with its `readTag` iff the map has a row for it, and the stamp names that row.
+foreach ( $tags as $tag => $args ) {
+	if ( 0 === strpos( $tag, 'term_' ) || 0 === strpos( $tag, 'try_' ) ) {
+		continue;
+	}
+	$stamp = $args['options']['use']['readTag'] ?? '';
+	assert_same( "{{{$tag}}} — a base `use` enum with a readTag iff a BWS_USE_STRIPPED_DEFAULTS row", '' !== bws_use_stripped_default( $tag ), '' !== $stamp );
+	if ( '' !== $stamp ) {
+		assert_same( "{{{$tag}}} — the readTag names its own row", $tag, $stamp );
 	}
 }
 

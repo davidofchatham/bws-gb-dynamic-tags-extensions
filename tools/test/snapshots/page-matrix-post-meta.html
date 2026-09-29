@@ -3,8 +3,8 @@
 <head>
 <!-- head not asserted; see bws_page_snapshot_normalize() rule 8 -->
 <title>Matrix: Post Meta &#8211; BWS Testbed</title>
-<meta name="description" content="Phone R0 - href rebuild R0.1: (987) 654-3210 R0.2: 987.654.3210 R0.3: (987)654-3210 R0.4: 9876543210 R0.5: 987 654 3210 Phone R1 - country code + trunk-0 R1.1:">
-<meta property="og:description" content="Phone R0 - href rebuild R0.1: (987) 654-3210 R0.2: 987.654.3210 R0.3: (987)654-3210 R0.4: 9876543210 R0.5: 987 654 3210 Phone R1 - country code + trunk-0 R1.1:">
+<meta name="description" content="Email E1 - fixed read (FW-141) E1.1 (expect info@example.com as a mailto link): info@example.com E1.2 (expect a mailto link carrying ?subject=Hello%20there): in">
+<meta property="og:description" content="Email E1 - fixed read (FW-141) E1.1 (expect info@example.com as a mailto link): info@example.com E1.2 (expect a mailto link carrying ?subject=Hello%20there): in">
 </head>
 
 <body class="wp-singular page-template-default page page-id-22 wp-embed-responsive wp-theme-generatepress theme-generatepress post-image-above-header post-image-aligned-center secondary-nav-above-header secondary-nav-aligned-right sticky-menu-fade mobile-header woocommerce-no-js right-sidebar nav-float-right separate-containers header-aligned-left dropdown-hover" itemtype="https://schema.org/WebPage" itemscope>
@@ -56,6 +56,28 @@
 				<h1 class="entry-title" itemprop="headline">Matrix: Post Meta</h1>			</header>
 
 		<div class="entry-content" itemprop="text">
+
+<div>
+<h2 class="wp-block-heading">Email E1 &#8211; fixed read (FW-141)</h2>
+
+<p class="gb-text">E1.1 (expect info@example.com as a mailto link): <a href="mailto:info@example.com">info@example.com</a></p>
+
+<p class="gb-text">E1.2 (expect a mailto link carrying ?subject=Hello%20there): <a href="mailto:info@example.com?subject=Hello%20there">info@example.com</a></p>
+
+<p class="gb-text">E1.3 (expect info@example.com, plain text): info@example.com</p>
+
+<p class="gb-text">E1.4 (expect info@example.com / info@example.com): info@example.com / info@example.com</p>
+
+<p class="gb-text">E1.5 (expect sales@example.test &#8211; no source resolved, so the fallback fires): sales@example.test</p>
+
+<p class="gb-text">E1.6 (expect sales@example.test &#8211; the invalid entry is empty): sales@example.test</p>
+
+<p class="gb-text">E1.7 (expect EMPTY &#8211; invalid entry, no fallback):</p>
+
+<p class="gb-text">E1.8 (expect jane@example.test &#8211; a stored key+fixed pair reads the key): jane@example.test</p>
+
+<p class="gb-text">E1.9 (expect info@example.com &#8211; the site is a source): info@example.com</p>
+</div>
 
 <div>
 <h2 class="wp-block-heading">Phone R0 &#8211; href rebuild</h2>
@@ -128,6 +150,26 @@
 <h2 class="wp-block-heading">Phone R6 &#8211; security</h2>
 
 <p class="gb-text">R6.1: <a href="tel:+1-987-654-3210">+1-987&quot;&gt;&lt;script&gt;654-3210</a></p>
+</div>
+
+<div>
+<h2 class="wp-block-heading">Phone R7 &#8211; fixed read (FW-141)</h2>
+
+<p class="gb-text">R7.1 (expect 555-867-5309 as a tel link): <a href="tel:+1-555-867-5309">555-867-5309</a></p>
+
+<p class="gb-text">R7.2 (expect the same link twice, one per staff post): <a href="tel:+1-555-867-5309">555-867-5309</a>, <a href="tel:+1-555-867-5309">555-867-5309</a></p>
+
+<p class="gb-text">R7.3 (expect the link once &#8211; the step limit applies): <a href="tel:+1-555-867-5309">555-867-5309</a></p>
+
+<p class="gb-text">R7.4 (expect 555-867-5309, plain text): 555-867-5309</p>
+
+<p class="gb-text">R7.5 (expect 555-000-1111 &#8211; no source resolved, so the fallback fires): <a href="tel:+1-555-000-1111">555-000-1111</a></p>
+
+<p class="gb-text">R7.6 (expect 555-000-1111 &#8211; the entry will not normalize): <a href="tel:+1-555-000-1111">555-000-1111</a></p>
+
+<p class="gb-text">R7.7 (expect (987) 654-3210 &#8211; a stored key+fixed pair reads the key): <a href="tel:+1-987-654-3210">(987) 654-3210</a></p>
+
+<p class="gb-text">R7.8 (expect 555-867-5309 &#8211; the site is a source): <a href="tel:+1-555-867-5309">555-867-5309</a></p>
 </div>
 
 <div>
@@ -1173,7 +1215,7 @@
 <script id="generate-a11y">
 !function(){"use strict";if("querySelector"in document&&"addEventListener"in window){var e=document.body;e.addEventListener("pointerdown",(function(){e.classList.add("using-mouse")}),{passive:!0}),e.addEventListener("keydown",(function(){e.classList.remove("using-mouse")}),{passive:!0})}}();
 </script>
-<script type="application/ld+json" id="slim-seo-schema">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"/#website","url":"/","name":"BWS Testbed","inLanguage":"en-US","potentialAction":{"@id":"/#searchaction"},"publisher":{"@id":"/#organization"}},{"@type":"SearchAction","@id":"/#searchaction","target":"/?s={search_term_string}","query-input":"required name=search_term_string"},{"@type":"BreadcrumbList","name":"Breadcrumbs","@id":"/matrix-post-meta/#breadcrumblist","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"/"},{"@type":"ListItem","position":2,"name":"Matrix: Post Meta"}]},{"@type":"WebPage","@id":"/matrix-post-meta/#webpage","url":"/matrix-post-meta/","inLanguage":"en-US","name":"Matrix: Post Meta – BWS Testbed","description":"Phone R0 - href rebuild R0.1: (987) 654-3210 R0.2: 987.654.3210 R0.3: (987)654-3210 R0.4: 9876543210 R0.5: 987 654 3210 Phone R1 - country code + trunk-0 R1.1:","datePublished":"TIMESTAMP","dateModified":"TIMESTAMP","isPartOf":{"@id":"/#website"},"breadcrumb":{"@id":"/matrix-post-meta/#breadcrumblist"},"potentialAction":{"@id":"/matrix-post-meta/#readaction"},"primaryImageOfPage":{"@id":"/matrix-post-meta/#thumbnail"},"image":{"@id":"/matrix-post-meta/#thumbnail"}},{"@type":"ReadAction","@id":"/matrix-post-meta/#readaction","target":"/matrix-post-meta/"},{"@type":"Organization","@id":"/#organization","url":"/","name":"BWS Testbed"},{"@type":"ImageObject","@id":"/matrix-post-meta/#thumbnail","url":"/{{image use:key|key:feature_image|as:url}}"}]}</script>	<script>
+<script type="application/ld+json" id="slim-seo-schema">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"/#website","url":"/","name":"BWS Testbed","inLanguage":"en-US","potentialAction":{"@id":"/#searchaction"},"publisher":{"@id":"/#organization"}},{"@type":"SearchAction","@id":"/#searchaction","target":"/?s={search_term_string}","query-input":"required name=search_term_string"},{"@type":"BreadcrumbList","name":"Breadcrumbs","@id":"/matrix-post-meta/#breadcrumblist","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"/"},{"@type":"ListItem","position":2,"name":"Matrix: Post Meta"}]},{"@type":"WebPage","@id":"/matrix-post-meta/#webpage","url":"/matrix-post-meta/","inLanguage":"en-US","name":"Matrix: Post Meta – BWS Testbed","description":"Email E1 - fixed read (FW-141) E1.1 (expect info@example.com as a mailto link): info@example.com E1.2 (expect a mailto link carrying ?subject=Hello%20there): in","datePublished":"TIMESTAMP","dateModified":"TIMESTAMP","isPartOf":{"@id":"/#website"},"breadcrumb":{"@id":"/matrix-post-meta/#breadcrumblist"},"potentialAction":{"@id":"/matrix-post-meta/#readaction"},"primaryImageOfPage":{"@id":"/matrix-post-meta/#thumbnail"},"image":{"@id":"/matrix-post-meta/#thumbnail"}},{"@type":"ReadAction","@id":"/matrix-post-meta/#readaction","target":"/matrix-post-meta/"},{"@type":"Organization","@id":"/#organization","url":"/","name":"BWS Testbed"},{"@type":"ImageObject","@id":"/matrix-post-meta/#thumbnail","url":"/{{image use:key|key:feature_image|as:url}}"}]}</script>	<script>
 		(function () {
 			var c = document.body.className;
 			c = c.replace(/woocommerce-no-js/, 'woocommerce-js');

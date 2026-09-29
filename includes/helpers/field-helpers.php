@@ -1154,6 +1154,68 @@ function bws_limit_default( array $options ): int {
 }
 
 /**
+ * The L1 half of the shared pipeline: the resolved, limit-sliced source list.
+ *
+ * Extracted from bws_resolve_field_values() so the fixed read (FW-141) walks the SAME
+ * sources without a second copy of the resolve/traverse/slice sequence.
+ *
+ * @since 1.21.0
+ * @param array  $options  Tag options.
+ * @param object $instance GB tag instance.
+ * @return array[] Resolved sources in document order, sliced to `limit`.
+ */
+if ( ! function_exists( 'bws_resolve_field_sources' ) ) {
+function bws_resolve_field_sources( array $options, $instance ): array {
+	// L1 — resolve the base source, then run assembled traversal steps.
+	$base    = function_exists( 'bws_resolve_base_source' )
+		? bws_resolve_base_source( $options, $instance )
+		: array( 'kind' => 'post', 'id' => 0 );
+	$steps   = bws_field_values_assemble_steps( $options );
+	$sources = function_exists( 'bws_run_traversal' )
+		? bws_run_traversal( array( $base ), $steps )
+		: array( $base );
+
+	// list mode — slice plural source list to limit. The DEFAULT is selected by the
+	// source SPELLING (bws_limit_default): flat wire bounds at 1, chain wire does not.
+	$limit = bws_clamp_limit( $options['limit'] ?? null, bws_limit_default( $options ) );
+	return array_slice( $sources, 0, $limit ?: null );
+}
+}
+
+/**
+ * The FIXED read's values (FW-141): the author's `fixed` text, once per resolved source.
+ *
+ * bws_resolve_field_values()' twin for a read that reads nothing. The count is the
+ * resolved-source count, so list mode repeats it, `limit` applies, and a path that
+ * resolves nothing yields an empty list (the caller's fallback then fires). A post,
+ * term or user source with no id is "no source" — the same guard the L2 seam applies
+ * (bws_read_resolved_source_value()) — while a site or repeater-row source
+ * always counts. The text is returned RAW and unvalidated, like a stored value: the
+ * caller's family finisher validates it exactly as it would a field read.
+ *
+ * @since 1.21.0
+ * @param array  $options  Tag options (`fixed`, plus the source keys).
+ * @param object $instance GB tag instance.
+ * @return string[] One copy of the text per resolved source, or array() if it is empty.
+ */
+if ( ! function_exists( 'bws_resolve_fixed_values' ) ) {
+function bws_resolve_fixed_values( array $options, $instance ): array {
+	$text = trim( sanitize_text_field( $options['fixed'] ?? '' ) );
+	if ( '' === $text ) {
+		return array();
+	}
+	$out = array();
+	foreach ( bws_resolve_field_sources( $options, $instance ) as $source ) {
+		$id_kinds = in_array( $source['kind'] ?? '', array( 'post', 'term', 'user' ), true );
+		if ( ! $id_kinds || (int) ( $source['id'] ?? 0 ) > 0 ) {
+			$out[] = $text;
+		}
+	}
+	return $out;
+}
+}
+
+/**
  * Shared L1/L2 source-resolution pipeline: resolve a (source + key) read target
  * to a list of raw candidate field-value strings.
  *
@@ -1211,19 +1273,7 @@ function bws_resolve_field_values( array $options, $instance, ?array &$links = n
 		return array();
 	}
 
-	// L1 — resolve the base source, then run assembled traversal steps.
-	$base    = function_exists( 'bws_resolve_base_source' )
-		? bws_resolve_base_source( $options, $instance )
-		: array( 'kind' => 'post', 'id' => 0 );
-	$steps   = bws_field_values_assemble_steps( $options );
-	$sources = function_exists( 'bws_run_traversal' )
-		? bws_run_traversal( array( $base ), $steps )
-		: array( $base );
-
-	// list mode — slice plural source list to limit. The DEFAULT is selected by the
-	// source SPELLING (bws_limit_default): flat wire bounds at 1, chain wire does not.
-	$limit   = bws_clamp_limit( $options['limit'] ?? null, bws_limit_default( $options ) );
-	$sources = array_slice( $sources, 0, $limit ?: null );
+	$sources = bws_resolve_field_sources( $options, $instance );
 
 	// L2 — read each resolved source by kind; drop empties. Link identity is
 	// carried out per KEPT value (FW-49) instead of being discarded with the
