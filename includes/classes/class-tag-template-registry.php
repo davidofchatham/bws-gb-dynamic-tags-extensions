@@ -368,6 +368,33 @@ class TagTemplateRegistry {
 	}
 
 	/**
+	 * The family facts the ATTEMPT WALK needs, and nothing else — cardinality, the carry
+	 * seed, the per-slot read gate, the collapsing bound. How an attempt reads is the
+	 * resolver's, the base tag's own seam (FW-136).
+	 *
+	 * Two consumers take this array whole: bws_try_run_attempts() and the try_ preview
+	 * (bws_build_try_preview_label()), so the preview cannot answer a family question the
+	 * walk answers differently. Public so control-order-test.php can pin the preview
+	 * harness's copy against it.
+	 *
+	 * @since 1.21.0
+	 * @param array $tpl Modifier template descriptor.
+	 * @return array{per_slot_key:bool,per_slot_use:bool,no_key_uses:string[],default_use:string,collapse:bool}
+	 */
+	public static function try_loop_cfg( array $tpl ): array {
+		return [
+			'per_slot_key' => ! empty( $tpl['try_per_slot_key'] ),
+			'per_slot_use' => ! empty( $tpl['try_per_slot_use'] ),
+			'no_key_uses'  => $tpl['try_use_no_key_values'] ?? [],
+			// Slot 1 default 'use' token = first option value in template's use definition.
+			'default_use'  => $tpl['options']['use']['options'][0]['value'] ?? '',
+			// takes_first_usable, inherited from the base template (ADR 0007). Consumed at
+			// the attempt bound.
+			'collapse'     => ! empty( $tpl['takes_first_usable'] ),
+		];
+	}
+
+	/**
 	 * Generate try_ fallback-chain tags from modifier templates (base-tag system).
 	 *
 	 * One try_ tag per eligible modifier template (supports_try = true).
@@ -463,7 +490,6 @@ class TagTemplateRegistry {
 			$resolve         = $tpl['resolve_fn'] ?? null;
 			$per_slot_key    = ! empty( $tpl['try_per_slot_key'] );
 			$per_slot_use    = ! empty( $tpl['try_per_slot_use'] );
-			$no_key_uses     = $tpl['try_use_no_key_values'] ?? [];
 			$list_options    = ! empty( $tpl['try_list_options'] );
 			$allow_site_slot = ! empty( $tpl['try_allow_site_slot'] );
 			$tpl_options     = $tpl['options'] ?? [];
@@ -620,24 +646,8 @@ class TagTemplateRegistry {
 			// Their default-on anchor would corrupt the <img src>. Mirrors the base
 			// {{email}}/{{phone}} VE-vis/VP-vis backstop. [SPEC §32 V11]
 			$media_guard = ! empty( $tpl['try_media_block_guard'] );
-			// takes_first_usable, inherited from the base template (ADR 0007). Consumed at
-			// the attempt bound.
-			$collapse    = ! empty( $tpl['takes_first_usable'] );
-			// Slot 1 default 'use' token = first option value in template's use definition.
-			$default_use = $tpl_options['use']['options'][0]['value'] ?? '';
-
-			$tpl_key = $tpl['key'];
-
-			// The family facts the ATTEMPT WALK needs, and nothing else — cardinality, the
-			// carry seed, the per-slot read gate, the collapsing bound. How an attempt reads
-			// is $resolve's, the base tag's own seam (FW-136).
-			$loop_cfg = [
-				'per_slot_key' => $per_slot_key,
-				'per_slot_use' => $per_slot_use,
-				'no_key_uses'  => $no_key_uses,
-				'default_use'  => $default_use,
-				'collapse'     => $collapse,
-			];
+			$tpl_key  = $tpl['key'];
+			$loop_cfg = self::try_loop_cfg( $tpl );
 
 			$callback = static function ( $opts, $b, $inst ) use ( $resolve, $loop_cfg, $slnk, $media_guard, $tpl_key, $is_image ) {
 				if ( $media_guard && function_exists( 'bws_tag_blocked_on_media_block' ) && bws_tag_blocked_on_media_block( $b ) ) {

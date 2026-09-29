@@ -687,12 +687,10 @@ echo "\n§8b A `use` ENUM, `try_per_slot_use` AND A MAP ROW ARE ONE FACT\n";
 // Three surfaces answer "does this template have a read axis", and they answer it for
 // three different consumers: the template's own `use` enum (what registration builds a
 // per-slot read selector from), `try_per_slot_use` (what the RENDER loop branches on), and
-// membership of BWS_USE_STRIPPED_DEFAULTS (what the PREVIEW derives $per_slot_use from
-// since 1.19.0). They agree today, and nothing structural makes them: the constant is
-// edited for registration reasons, and a row added or dropped there silently moves what
-// the preview thinks a template is — a preview/render split, which is the failure the
-// preview walking the render seam exists to prevent. This is the only place all three are
-// in scope at once, which is why it lives here rather than beside the constant.
+// membership of BWS_USE_STRIPPED_DEFAULTS (what an absent `use` reads as). They agree
+// today, and nothing structural makes them: the constant is edited for registration
+// reasons. This is the only place all three are in scope at once, which is why it lives
+// here rather than beside the constant.
 foreach ( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() as $tpl ) {
 	$key      = $tpl['key'];
 	$has_enum = isset( $tpl['options']['use']['options'][0]['value'] );
@@ -710,6 +708,29 @@ foreach ( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() as $tpl
 		);
 	}
 }
+
+// ---------------------------------------------------------------------------
+
+echo "\n§8c THE PREVIEW HARNESS'S WALK CONFIG IS THE DESCRIPTORS'\n";
+
+// preview-label-test.php drives the try_ preview with a written-out copy of each family's
+// walk config (it cannot load the descriptors). Pinned here, both directions: every
+// try_ template has a row equal to try_loop_cfg() of its live descriptor, and no row
+// names a template that is not one.
+require_once __DIR__ . '/lib-try-cfg.php';
+$try_keys = array();
+foreach ( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() as $tpl ) {
+	if ( empty( $tpl['supports_try'] ) ) {
+		continue;
+	}
+	$try_keys[] = $tpl['key'];
+	assert_same(
+		"{$tpl['key']} — lib-try-cfg.php row = try_loop_cfg()",
+		\BWS\DynamicTags\TagTemplateRegistry::try_loop_cfg( $tpl ),
+		TRY_CFG[ $tpl['key'] ] ?? null
+	);
+}
+assert_same( 'lib-try-cfg.php names no template beyond the try_ set', array(), array_values( array_diff( array_keys( TRY_CFG ), $try_keys ) ) );
 
 // ---------------------------------------------------------------------------
 

@@ -133,21 +133,9 @@ require __DIR__ . '/../../includes/helpers/field-helpers.php';
 require __DIR__ . '/../../includes/helpers/traversal-pipeline.php';
 require __DIR__ . '/../../includes/helpers/try-slot-loop.php';
 
-/**
- * Each try_ template's attempt-walk config, as generate_base_try_tags() builds it from
- * the descriptor (try_per_slot_key / try_per_slot_use / try_use_no_key_values, the `use`
- * enum's first value, takes_first_usable). Hand-copied: the descriptors register through
- * TagTemplateRegistry and cannot load here.
- */
-const TRY_CFG = array(
-	'text'      => array( 'per_slot_key' => true,  'per_slot_use' => true,  'no_key_uses' => array( 'title', 'fixed' ),     'default_use' => 'key',     'collapse' => false ),
-	'content'   => array( 'per_slot_key' => true,  'per_slot_use' => true,  'no_key_uses' => array( 'content', 'excerpt' ), 'default_use' => 'content', 'collapse' => true ),
-	'image'     => array( 'per_slot_key' => true,  'per_slot_use' => true,  'no_key_uses' => array( 'featured' ),           'default_use' => 'key',     'collapse' => true ),
-	'email'     => array( 'per_slot_key' => true,  'per_slot_use' => false, 'no_key_uses' => array(),                       'default_use' => '',        'collapse' => false ),
-	'phone'     => array( 'per_slot_key' => true,  'per_slot_use' => false, 'no_key_uses' => array(),                       'default_use' => '',        'collapse' => false ),
-	'title'     => array( 'per_slot_key' => false, 'per_slot_use' => false, 'no_key_uses' => array(),                       'default_use' => '',        'collapse' => false ),
-	'permalink' => array( 'per_slot_key' => false, 'per_slot_use' => false, 'no_key_uses' => array(),                       'default_use' => '',        'collapse' => true ),
-);
+// Each try_ template's walk config (TRY_CFG), pinned against the live descriptors by
+// control-order-test.php §8c.
+require __DIR__ . '/lib-try-cfg.php';
 
 /**
  * The try_ preview, called with the template's real walk config.
