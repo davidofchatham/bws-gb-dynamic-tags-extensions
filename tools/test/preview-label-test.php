@@ -1040,6 +1040,22 @@ check(
 	bws_build_try_preview_label( [], 'text' ),
 	'[⚠ Try: A no key]'
 );
+// Fixed-text attempt (FW-141 03): curly-quoted like join's fixed slot and the base tag.
+check(
+	'folded: a fixed-text attempt alone',
+	bws_build_try_preview_label( [ 'A' => 'fixed(Varsity)' ], 'text' ),
+	'[Try “Varsity”]'
+);
+check(
+	'folded: a field attempt then a fixed-text attempt',
+	bws_build_try_preview_label( [ 'A' => 'key(nickname)', 'B' => 'fixed(Team)' ], 'text' ),
+	"[Try 'nickname', “Team”]"
+);
+check(
+	'folded: use(fixed) with no text entered warns, and asks for no key',
+	bws_build_try_preview_label( [ 'A' => 'use(fixed)' ], 'text' ),
+	'[⚠ Try: A fixed text not entered]'
+);
 // A read-less slot CARRIES OVER in a selecting container (the mirror of join's skip), so
 // slot 2 previews with slot 1's field rather than vanishing — here with its own term
 // hop, which does NOT carry forward. Asserted at the legacy twin's exact string

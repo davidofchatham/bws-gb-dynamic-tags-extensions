@@ -302,6 +302,8 @@ Datetime tags compute a live preview from the current time rather than a static 
 | `try_title` (always) | n/a | `[Try Title]` (with optional ` from <source list>`) |
 | `try_email` / `try_phone` configured | n/a | `[Try Email: 'contact_email']` / `[Try Phone: 'tel']` (key-required, no `use` enum) |
 | `try_email` / `try_phone` empty key | n/a | `[⚠ Try: A no key]` (always needs a key — no no-key values) |
+| Fixed-text attempt (FW-141 03) | `[Try “Varsity”]`; beside a field attempt `[Try 'nickname', “Team”]` — the author's text in curly quotes, as on `{{text}}` and a join slot | n/a |
+| Fixed-text attempt, no text entered (`use(fixed)`) | `[⚠ Try: A fixed text not entered]` — no key is asked for | n/a |
 | All slots empty | `[⚠ Try: no slots configured]` | same |
 | Per-slot warnings | `[⚠ Try: A, C misconfigured]` | same |
 | Slot with an incomplete step | `[⚠ Try: B no taxonomy]` / `[⚠ Try: B no ref]` / `[⚠ Try: B no repeater field]` (1.17.0 — a step with no argument; the seam skips it rather than reading the un-stepped entity, and names which step is unfinished). When it is the ONLY slot, the reason replaces `no slots configured`, which would otherwise be actively misleading | same |

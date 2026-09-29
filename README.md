@@ -85,6 +85,8 @@ Output is plain text; no link options are currently available.
 
 Other than `try_datetime_`, the `try_` tags accept a site source per slot, so a chain can end in a site-wide fallback value.
 
+**[UNRELEASED]** A `try_text` attempt can also be fixed text you type in. It takes its turn like any other attempt: shown when every attempt before it came up empty, and skipped when its own source finds nothing.
+
 ## Return custom function output with `call` tag
 
 The `call` tag hands off a post ID to a PHP function and returns its output. I've grouped it with GB's Post tags since it's strictly post-based, unlike the other tags. However, it still allows using a post related to the current context via a reference/relational field, and it can also pass correct post IDs when used within a Post Meta Query Loop on a reference/relational field.

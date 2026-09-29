@@ -210,6 +210,12 @@ const CASES = [
 	[ 'FIXED READ — carried verbatim through compaction, untouched by same-materialization', SELECTING,
 		{ 'A': 'key(staff_name)', 'B': 'src(refs,office);key(city)', 'C': 'src(refs,region);fixed(Team HQ)' }, 2,
 		'A:key(staff_name) | B:src(refs,region);fixed(Team HQ)' ],
+
+	// FW-141 03: a try_text attempt reading `use(same)` behind a removed fixed attempt
+	// inherits the fixed read AND its text, not an empty fixed read.
+	[ 'FIXED READ — `use(same)` materializes the removed attempt\'s fixed text', SELECTING,
+		{ 'A': 'key(staff_name)', 'B': 'fixed(Team HQ)', 'C': 'src(refs,office);use(same)' }, 2,
+		'A:key(staff_name) | B:src(refs,office);fixed(Team HQ)' ],
 ];
 
 CASES.forEach( function ( c ) {

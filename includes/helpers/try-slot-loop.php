@@ -130,6 +130,11 @@ function bws_try_run_attempts( array $options, $instance, array $cfg, callable $
 
 		if ( $per_slot_use ) {
 			$slot_opts['use'] = $last_use;
+			// The fixed read's text (FW-141) rides beside the `use` that selects it, and
+			// only then: the seam returns '' for it on every other read.
+			if ( 'fixed' === $last_use ) {
+				$slot_opts['fixed'] = $slot_read['fixed'];
+			}
 		}
 
 		// THE DEFAULT IS THE SLOT'S OWN, and only the seam can say what it is:

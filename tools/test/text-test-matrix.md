@@ -210,6 +210,21 @@ The `fixed` read prints the author's text once per resolved source. Visible on `
 | T12.12 | same on `/author/fixture-author/` | `Varsity` linked to the author archive (user arm) |
 | T12.13 | same on `/staff/` | `Varsity`, unlinked (query-context arm: no link identity) |
 
+## T13 — a fixed `try_text` attempt (FW-141 03)
+
+A `try_text` attempt can be the fixed read. It takes its turn like any attempt: a field attempt with a value before it wins, an empty one falls through to it, and a fixed attempt whose own chain resolves nothing is empty and falls through too. Visible on `/matrix-post-meta/` (section "Text T13"). Verified 2026-09-29 via an in-process sweep.
+
+| # | Tag (on `/matrix-post-meta/`) | Expected |
+|---|---|---|
+| T13.1 | `{{try_text A:fixed(Varsity)}}` | `Varsity` |
+| T13.2 | `{{try_text A:key(main_line)\|B:fixed(Bar)}}` | `(987) 654-3210` — the field attempt has a value, so the fixed attempt never runs |
+| T13.3 | `{{try_text A:key(nonexistent_field)\|B:fixed(Team)\|fallback:NONE}}` | `Team` — the empty field attempt falls through to the fixed one |
+| T13.4 | `{{try_text A:src(refs,no_such_rel);fixed(Read more)\|B:fixed(Team)\|fallback:NONE}}` | `Team` — the first fixed attempt resolved no source, so it is empty and the next attempt runs |
+| T13.5 | `{{try_text A:src(refs,no_such_rel);fixed(Read more)\|fallback:NONE}}` | `NONE` — every attempt empty, so the fallback fires |
+| T13.6 | `{{try_text A:src(refs,related_staff);fixed(Staff)\|sep: / }}` | `Staff / Staff` — once per resolved source |
+| T13.7 | `{{try_text A:src(refs,related_staff);fixed(Read more)\|linkTo:permalink}}` | `Read more` twice, each linked to its own staff page |
+| T13.8 | `{{try_text A:fixed(Note\: see \| this, and; more)}}` | `Note: see \| this, and; more` — escapes and slot separators inert inside the bracket |
+
 ## Fail triage
 
 - **T1.2/T3.3/T4.2/T7.4 value right but unlinked:** shell wrap gate — `link_id`/`link_type` not

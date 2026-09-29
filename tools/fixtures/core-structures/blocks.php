@@ -360,6 +360,18 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'T12.10 (expect Varsity - the site is a source)', '{{text src:site|fixed:Varsity}}' ),
 	) );
 
+	// T13 — a fixed try_text attempt (FW-141 03); text-test-matrix.md §T13.
+	$sections[] = bws_fixture_gb_section( 'Text T13 - fixed try_text attempt (FW-141 03)', array(
+		bws_fixture_gb_row( 'T13.1 (expect Varsity)', '{{try_text A:fixed(Varsity)}}' ),
+		bws_fixture_gb_row( 'T13.2 (expect the main line number, not Bar - the field attempt wins)', '{{try_text A:key(main_line)|B:fixed(Bar)}}' ),
+		bws_fixture_gb_row( 'T13.3 (expect Team - the empty field attempt falls through)', '{{try_text A:key(nonexistent_field)|B:fixed(Team)|fallback:NONE}}' ),
+		bws_fixture_gb_row( 'T13.4 (expect Team - the first fixed attempt resolved no source)', '{{try_text A:src(refs,no_such_rel);fixed(Read more)|B:fixed(Team)|fallback:NONE}}' ),
+		bws_fixture_gb_row( 'T13.5 (expect NONE - every attempt empty)', '{{try_text A:src(refs,no_such_rel);fixed(Read more)|fallback:NONE}}' ),
+		bws_fixture_gb_row( 'T13.6 (expect Staff / Staff)', '{{try_text A:src(refs,related_staff);fixed(Staff)|sep: / }}' ),
+		bws_fixture_gb_row( 'T13.7 (expect Read more twice, each linked to its own staff page)', '{{try_text A:src(refs,related_staff);fixed(Read more)|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'T13.8 (expect Note: see | this, and; more)', '{{try_text A:fixed(Note\: see \| this, and; more)}}' ),
+	) );
+
 	// src:site matrix (src-site-test-matrix.md) — R7 try_ site-slot rows (FW-4,
 	// 1.15.0). R7.8 (WYSIWYG option), R7.9-positive (site logo) and R7.12
 	// (org_email) need [SUB] state the fixture doesn't seed — matrix notes them;

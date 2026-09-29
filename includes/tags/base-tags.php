@@ -80,9 +80,8 @@ function bws_register_base_tags(): void {
 	$traversal_opts = bws_base_traversal_options();
 	// One field-option LEAF per tag with a read axis; the base registration and the
 	// modifier template below are two COMPOSITIONS of each, never two definitions.
-	$text_field     = bws_get_text_field_options();
-	// {{text}} alone reads `fixed` so far (FW-141); join slots and try_text follow.
-	$text_field_fixed = bws_get_text_field_options( true );
+	// Every text consumer reads `fixed` (FW-141): {{text}}, join slots, try_text attempts.
+	$text_field     = bws_get_text_field_options( true );
 	$content_field  = bws_get_content_field_options();
 	$image_field    = bws_get_image_field_options();
 
@@ -136,9 +135,9 @@ function bws_register_base_tags(): void {
 				// use/key/fixed from the text FIELD LEAF (single source; the template, join
 				// and the folded control consume the same builder). show_if is the
 				// caller's overlay by leaf contract.
-				'use'      => $text_field_fixed['use'],
+				'use'      => $text_field['use'],
 				'key'      => array_merge(
-					$text_field_fixed['key'],
+					$text_field['key'],
 					array(
 						// Key-mode = empty/'key'. Hidden for named data (title) and
 						// author text (fixed). Under src:site, key-mode reads a wp_options
@@ -149,7 +148,7 @@ function bws_register_base_tags(): void {
 					)
 				),
 				'fixed'    => array_merge(
-					$text_field_fixed['fixed'],
+					$text_field['fixed'],
 					array( 'show_if' => array( 'use' => 'fixed' ) )
 				),
 			),
@@ -419,7 +418,7 @@ function bws_register_base_tags(): void {
 		'supports_try'          => true,
 		'try_per_slot_key'      => true,
 		'try_per_slot_use'      => true,
-		'try_use_no_key_values' => array( 'title' ),
+		'try_use_no_key_values' => array( 'title', 'fixed' ),
 		'try_list_options'      => true,
 		'is_image'              => false,
 	) );

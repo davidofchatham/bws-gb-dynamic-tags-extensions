@@ -350,6 +350,15 @@ assert_same(
 	array( 'A', 'B', 'C', 'D', 'E', 'sep', 'linkTo', 'linkKey', 'newTab', 'fallback' ),
 	array_keys( $registered['try_text']['options'] ?? array() )
 );
+// The fixed read (FW-141 03) is a PER-ATTEMPT read on try_text: an enum row and a text
+// input inside each slot, never a tag-level `fixed` (the exact list above has none).
+$try_text_fold = $registered['try_text']['options']['A']['fold'] ?? array();
+assert_same(
+	'{{try_text}} — attempt reads offer the fixed row',
+	true,
+	in_array( 'fixed', array_column( $try_text_fold['readRows'] ?? array(), 'value' ), true )
+);
+assert_same( '{{try_text}} — attempt fixed input "Fixed Text"', 'Fixed Text', $try_text_fold['fixedOption']['label'] ?? null );
 
 assert_same(
 	'{{try_datetime_range}} — full option order',

@@ -353,6 +353,10 @@ class TagTemplateRegistry {
 		if ( $per_slot_use || $per_slot_key ) {
 			$slot_read[] = 'key';
 		}
+		// The fixed read's text (FW-141) belongs to the `use` row that selects it.
+		if ( $per_slot_use && isset( $tpl['options']['fixed'] ) ) {
+			$slot_read[] = 'fixed';
+		}
 
 		$tag_level   = array_values( array_diff( [ 'use', 'key' ], $slot_read ) );
 		$tag_level[] = 'limit';
@@ -518,6 +522,7 @@ class TagTemplateRegistry {
 						'max'             => 5,
 						'base_read'       => $per_slot_use ? ( $tpl_options['use'] ?? [] ) : [],
 						'base_key'        => ( $per_slot_use || $per_slot_key ) ? ( $tpl_options['key'] ?? [] ) : [],
+						'base_fixed'      => $per_slot_use ? ( $tpl_options['fixed'] ?? [] ) : [],
 						'allow_site'      => $allow_site_slot,
 						'allow_same_read' => true,
 						'steps'            => [ 'refs', 'terms', 'rows' ],

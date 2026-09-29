@@ -438,6 +438,7 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 			'src'   => $flat['src'],
 			'key'   => $flat['key'],
 			'use'   => $flat['use'],
+			'fixed' => $flat['fixed'] ?? '',
 			'part'  => bws_try_preview_source_part( $flat['src'], true, $inert ),
 			'inert' => bws_preview_inert_warning( $inert, true ),
 		];
@@ -462,6 +463,14 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 		// whatever its key says.
 		if ( '' !== $slot['inert'] ) {
 			$slot_warnings[] = array( 'n' => $slot['n'], 'detail' => $slot['inert'] );
+			continue;
+		}
+
+		// The fixed read (FW-141) has no key to name; only its own text can be missing.
+		if ( 'text' === $base_template && 'fixed' === $slot['use'] ) {
+			if ( '' === (string) $slot['fixed'] ) {
+				$slot_warnings[] = array( 'n' => $slot['n'], 'detail' => 'fixed text not entered' );
+			}
 			continue;
 		}
 
@@ -496,7 +505,7 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 	$field_parts  = [];
 	$source_parts = [];
 	foreach ( $slots as $slot ) {
-		$field_parts[]  = bws_try_preview_field_part( $base_template, $slot['use'], $slot['key'], $as );
+		$field_parts[]  = bws_try_preview_field_part( $base_template, $slot['use'], $slot['key'], $as, $slot['fixed'] );
 		$source_parts[] = $slot['part'];
 	}
 	$uniform_field  = 1 === count( array_unique( $field_parts ) );
