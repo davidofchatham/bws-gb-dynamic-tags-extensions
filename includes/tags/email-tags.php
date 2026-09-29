@@ -335,9 +335,9 @@ function bws_email_finish_values( array $raw, array $options ): array {
 function bws_try_email_post_dispatch( $post_id, $options, $instance ) {
 	// The fixed read (FW-141) reads no field: the author's value, finished like any other.
 	// The site is always a source; a post or term needs an id.
-	if ( 'fixed' === bws_use_effective( 'email', (array) $options ) ) {
-		$has_source = $post_id || 'site' === bws_base_src_resolution( (array) $options )['kind'];
-		return bws_email_finish_values( $has_source ? bws_fixed_raw_values( (array) $options ) : array(), (array) $options );
+	$fixed = bws_try_fixed_dispatch( 'email', $post_id || 'site' === bws_base_src_resolution( (array) $options )['kind'], (array) $options );
+	if ( null !== $fixed ) {
+		return bws_email_finish_values( $fixed, (array) $options );
 	}
 	// The SITE branch is taken by what the chain RESOLVES TO — the dispatch axis every
 	// base arm uses (bws_base_src_resolution, computable from the wire alone) — never
@@ -383,8 +383,9 @@ function bws_try_email_post_dispatch( $post_id, $options, $instance ) {
  * @return string[] Finished per-item strings for this row.
  */
 function bws_try_email_row_dispatch( $source, $options, $instance ) {
-	if ( 'fixed' === bws_use_effective( 'email', (array) $options ) ) {
-		return bws_email_finish_values( bws_fixed_raw_values( (array) $options ), (array) $options );
+	$fixed = bws_try_fixed_dispatch( 'email', true, (array) $options );
+	if ( null !== $fixed ) {
+		return bws_email_finish_values( $fixed, (array) $options );
 	}
 	$key = sanitize_text_field( $options['key'] ?? '' );
 	if ( '' === $key || ( function_exists( 'bws_is_valid_meta_key' ) && ! bws_is_valid_meta_key( $key ) ) ) {
@@ -504,8 +505,9 @@ function bws_register_email_template(): void {
  * @return string[] Finished per-item strings for this term.
  */
 function bws_try_email_term_dispatch( $term_id, $options, $instance ) {
-	if ( 'fixed' === bws_use_effective( 'email', (array) $options ) ) {
-		return bws_email_finish_values( $term_id ? bws_fixed_raw_values( (array) $options ) : array(), (array) $options );
+	$fixed = bws_try_fixed_dispatch( 'email', (bool) $term_id, (array) $options );
+	if ( null !== $fixed ) {
+		return bws_email_finish_values( $fixed, (array) $options );
 	}
 	$key = sanitize_text_field( $options['key'] ?? '' );
 	if ( '' === $key || ( function_exists( 'bws_is_valid_meta_key' ) && ! bws_is_valid_meta_key( $key ) ) ) {

@@ -1200,6 +1200,30 @@ function bws_fixed_raw_values( array $options ): array {
 }
 
 /**
+ * The fixed read's turn in a per-item try_ dispatcher (email / phone), or null when the
+ * slot's read is not the fixed read and the dispatcher carries on with its field read.
+ *
+ * ONE PRELUDE for the six dispatchers (post, term, row, per family). The caller says
+ * whether IT has a source (a post or term needs an id, a row always has one, the site is
+ * always one); the answer is the author's value once, or an empty list, which the
+ * family finisher then turns into an empty attempt.
+ *
+ * @since 1.21.0
+ * @param string $tag        'email' or 'phone' — the family whose read rule applies.
+ * @param bool   $has_source Whether the dispatcher's own source resolved.
+ * @param array  $options    Slot options.
+ * @return string[]|null Raw candidate list for the finisher, or null when not a fixed read.
+ */
+if ( ! function_exists( 'bws_try_fixed_dispatch' ) ) {
+function bws_try_fixed_dispatch( string $tag, bool $has_source, array $options ): ?array {
+	if ( 'fixed' !== bws_use_effective( $tag, $options ) ) {
+		return null;
+	}
+	return $has_source ? bws_fixed_raw_values( $options ) : array();
+}
+}
+
+/**
  * The FIXED read's values (FW-141): the author's `fixed` text, once per resolved source.
  *
  * bws_resolve_field_values()' twin for a read that reads nothing. The count is the
@@ -1217,11 +1241,11 @@ function bws_fixed_raw_values( array $options ): array {
  */
 if ( ! function_exists( 'bws_resolve_fixed_values' ) ) {
 function bws_resolve_fixed_values( array $options, $instance ): array {
-	$text = bws_fixed_raw_values( $options );
-	if ( ! $text ) {
+	$typed = bws_fixed_raw_values( $options );
+	if ( ! $typed ) {
 		return array();
 	}
-	$text = $text[0];
+	$text = $typed[0];
 	$out = array();
 	foreach ( bws_resolve_field_sources( $options, $instance ) as $source ) {
 		$id_kinds = in_array( $source['kind'] ?? '', array( 'post', 'term', 'user' ), true );

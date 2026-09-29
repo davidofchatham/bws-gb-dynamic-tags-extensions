@@ -1271,10 +1271,9 @@ function bws_fold_chain_apply_legacy_limit( array $chain, $limit, bool $consume_
  * @param string $container    'try' (selecting) | 'join' | 'table' (combining).
  * @param bool   $per_slot_use True when the container gives each slot its own read
  *                             axis. Ignored for combining containers.
- * @param bool|null $flat_per_slot_use Whether the LEGACY flat wire had one (see
- *                             TagTemplateRegistry::try_flat_era_per_slot_use()); null = the
- *                             live $per_slot_use. Read only when a slot is recovered from
- *                             flat keys, so unmigrated wire renders as it was authored.
+ * @param bool|null $flat_per_slot_use What a slot recovered from flat keys is read under
+ *                             (TagTemplateRegistry::try_flat_era_per_slot_use() states it);
+ *                             null = $per_slot_use. Folded wire never consults it.
  * @return array|null Slot struct + an `era` key ('chain' when the slot is stored as
  *                    folded wire, 'flat' when recovered from the legacy keys), or null
  *                    when this slot holds nothing (or unparsable folded wire).

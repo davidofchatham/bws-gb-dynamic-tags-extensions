@@ -495,6 +495,18 @@
 	}
 
 	/**
+	 * What a slot RECOVERED FROM FLAT KEYS is read under: the fold config's `flatPerSlotUse`
+	 * (the era the legacy wire was authored in), else the live `perSlotUse`. ONE reader for
+	 * the control and the mount migrator, which take the config raw or already normalized.
+	 *
+	 * @param {Object} conf  A fold config, raw or normalized.
+	 * @return {boolean}
+	 */
+	function flatEraPerSlotUse( conf ) {
+		return void 0 === conf.flatPerSlotUse ? false !== conf.perSlotUse : !! conf.flatPerSlotUse;
+	}
+
+	/**
 	 * Build a folded slot struct from the LEGACY separate option keys.
 	 *
 	 * ONE mapping shared by the converter migrator, the editor mount-reconcile and
@@ -874,6 +886,7 @@
 		parseSlot: parseSlot,
 		emitSlot: emitSlot,
 		foldFromFlat: foldFromFlat,
+		flatEraPerSlotUse: flatEraPerSlotUse,
 		slotKey: slotKey,
 		slotOrdinal: slotOrdinal,
 		// Depth-0 chain questions, twinned with slot-fold-compile.php. Exported so the

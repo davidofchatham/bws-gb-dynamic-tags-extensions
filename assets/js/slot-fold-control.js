@@ -104,7 +104,7 @@
 			combining: !! c.combining,
 			perSlotUse: false !== c.perSlotUse,
 			// The era the legacy flat wire was authored in (defaults to the live shape).
-			flatPerSlotUse: void 0 === c.flatPerSlotUse ? false !== c.perSlotUse : !! c.flatPerSlotUse,
+			flatPerSlotUse: fold.flatEraPerSlotUse( c ),
 			min: c.min || 2,
 			max: c.max || 5,
 			noun: c.noun || '',
