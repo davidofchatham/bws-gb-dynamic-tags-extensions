@@ -398,12 +398,14 @@ class TagTemplateRegistry {
 	 *
 	 * @since 1.21.0
 	 * @param array $tpl Modifier template descriptor.
-	 * @return array{per_slot_key:bool,per_slot_use:bool,no_key_uses:string[],default_use:string,collapse:bool}
+	 * @return array{per_slot_key:bool,per_slot_use:bool,flat_per_slot_use:bool,no_key_uses:string[],default_use:string,collapse:bool}
 	 */
 	public static function try_loop_cfg( array $tpl ): array {
 		return [
 			'per_slot_key' => ! empty( $tpl['try_per_slot_key'] ),
 			'per_slot_use' => ! empty( $tpl['try_per_slot_use'] ),
+			// The era UNMIGRATED flat slot wire is read under (try_flat_era_per_slot_use()).
+			'flat_per_slot_use' => self::try_flat_era_per_slot_use( $tpl ),
 			'no_key_uses'  => $tpl['try_use_no_key_values'] ?? [],
 			// Slot 1 default 'use' token = first option value in template's use definition.
 			'default_use'  => $tpl['options']['use']['options'][0]['value'] ?? '',

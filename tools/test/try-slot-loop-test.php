@@ -447,5 +447,18 @@ $calls = array();
 bws_try_run_attempts( slots( 'use(title);fixed(Varsity)' ), null, CFG_KEYED_FIXED, recorder( array( '' ), $calls ) );
 eq( 'L6.7 an explicit `use` wins over a stale fixed token (D2), which never reaches the resolver', array( array( 'title', null, '1' ), false ), array( reads( $calls )[0], isset( $calls[0]['fixed'] ) ) );
 
+// ── §L7 — unmigrated flat wire is read under the era it was authored in (FW-141 05) ──
+// try_email / try_phone gained a per-slot `use` after their flat wire shipped without one, so
+// a legacy `2-key` is a key read there, where the live rule would discard it.
+
+$flat = array( 'key' => 'unused_line', '2-key' => 'main_line' );
+$calls = array();
+bws_try_run_attempts( $flat, null, array_merge( CFG_KEYED_FIXED, array( 'flat_per_slot_use' => false ) ), recorder( array( '', 'x' ), $calls ) );
+eq( 'L7.1 a pre-`use` flat era reads a legacy slot 2 key', array( 'unused_line', 'main_line' ), array_column( $calls, 'key' ) );
+
+$calls = array();
+bws_try_run_attempts( $flat, null, CFG_KEYED_FIXED, recorder( array( '', 'x' ), $calls ) );
+eq( 'L7.2 no era override = the live rule: slot 2 key with no `use` is discarded (FW-51)', array( 'unused_line' ), array_column( $calls, 'key' ) );
+
 echo $fails ? "\n{$fails} FAILURE(S)\n" : "\nALL PASS\n";
 exit( $fails ? 1 : 0 );

@@ -752,7 +752,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F3.4 slot 2 hops a relationship (-> Jane Partner)', '{{try_text A:key(missing_field)|B:src(refs,related_staff);use(title)}}' ),
 		bws_fixture_gb_row( 'F3.6 legacy twin of F3.1 (-> Captain)', '{{try_text key:missing_field|2-use:key|2-key:role}}' ),
 		bws_fixture_gb_row( 'F4.2 picker-alone shape: unused_line is EMPTY so slot 1 is a real skip (-> (987) 654-3210)', '{{try_phone A:key(unused_line)|B:key(main_line)}}' ),
-		bws_fixture_gb_empty_row( 'F4.4 EMPTY UNTIL MIGRATED: try_phone gained a per-slot read (FW-141 05), so unmigrated flat wire drops a slot 2 key with no use', '{{try_phone key:unused_line|2-key:main_line}}' ),
+		bws_fixture_gb_row( 'F4.4 legacy twin of F4.2 (-> same; try_phone flat wire never had a use, FW-141 05)', '{{try_phone key:unused_line|2-key:main_line}}' ),
 		bws_fixture_gb_row( 'F4.4b what the converter and editor mount write for F4.4 (-> (987) 654-3210)', '{{try_phone A:key(unused_line)|B:src(same);key(main_line)}}' ),
 		bws_fixture_gb_empty_row( 'F4.5 EMPTY AND CORRECT: key is a SLOT axis on try_phone, so a tag-level key configures nothing', '{{try_phone A:src(refs,related_staff)|B:src(current)|key:main_line}}' ),
 		bws_fixture_gb_row( 'F5.1 no-read shape: an EMPTY slot 1 value is the default attempt (-> Matrix: Post Meta)', '{{try_title 1:|B:src(site)}}' ),

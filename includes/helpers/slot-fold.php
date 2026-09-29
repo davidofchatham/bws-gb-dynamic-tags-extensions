@@ -1271,11 +1271,15 @@ function bws_fold_chain_apply_legacy_limit( array $chain, $limit, bool $consume_
  * @param string $container    'try' (selecting) | 'join' | 'table' (combining).
  * @param bool   $per_slot_use True when the container gives each slot its own read
  *                             axis. Ignored for combining containers.
+ * @param bool|null $flat_per_slot_use Whether the LEGACY flat wire had one (see
+ *                             TagTemplateRegistry::try_flat_era_per_slot_use()); null = the
+ *                             live $per_slot_use. Read only when a slot is recovered from
+ *                             flat keys, so unmigrated wire renders as it was authored.
  * @return array|null Slot struct + an `era` key ('chain' when the slot is stored as
  *                    folded wire, 'flat' when recovered from the legacy keys), or null
  *                    when this slot holds nothing (or unparsable folded wire).
  */
-function bws_fold_slot_struct( int $n, array $options, string $container = 'join', bool $per_slot_use = true ) {
+function bws_fold_slot_struct( int $n, array $options, string $container = 'join', bool $per_slot_use = true, ?bool $flat_per_slot_use = null ) {
 	$raw = trim( (string) ( $options[ bws_slot_ordinal( $n ) ] ?? '' ) );
 	if ( '' !== $raw ) {
 		$parsed = bws_fold_parse_slot( $raw, $container );
@@ -1285,7 +1289,7 @@ function bws_fold_slot_struct( int $n, array $options, string $container = 'join
 		$parsed['era'] = 'chain';
 		return $parsed;
 	}
-	$rec = bws_fold_from_flat( $n, $options, bws_fold_is_combining( $container ), $per_slot_use );
+	$rec = bws_fold_from_flat( $n, $options, bws_fold_is_combining( $container ), $flat_per_slot_use ?? $per_slot_use );
 	if ( $rec && isset( $rec['slot'] ) ) {
 		$slot        = $rec['slot'];
 		$slot['era'] = 'flat';

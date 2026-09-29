@@ -109,7 +109,7 @@ function bws_try_run_attempts( array $options, $instance, array $cfg, callable $
 		// Era per SLOT, not per tag: a folded value parses, an absent one is recovered
 		// from this slot's legacy keys, and both feed one accumulator (so a
 		// half-migrated tag resolves as its author last saw it).
-		$slot = bws_fold_slot_struct( $n, $options, 'try', $per_slot_use );
+		$slot = bws_fold_slot_struct( $n, $options, 'try', $per_slot_use, $cfg['flat_per_slot_use'] ?? null );
 		if ( null === $slot ) {
 			continue;   // nothing in either era, or the seam's own skip.
 		}

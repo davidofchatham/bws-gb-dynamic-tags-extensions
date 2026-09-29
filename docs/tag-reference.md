@@ -796,8 +796,8 @@ A slot still needs a key to produce output where its read mode requires one; a k
 | `try_image` | `image` | **Yes** | **Yes** | Each slot: Featured Image or ACF/Custom Field (with per-slot key when `use:key`). Slot `src:site` allowed (1.15.0): `use:featured` → site logo, `use:key` → option attachment |
 | `try_datetime_single` | `datetime_single` | No | No | Shared `key` across slots |
 | `try_datetime_range` | `datetime_range` | No | No | Shared `startKey`/`endKey` across slots |
-| `try_email` | `email` | **Yes** | No | Per-slot read: `key` (the stripped default) or the fixed read (FW-141 05). Each slot resolves an email field or a typed address → finished mailto/plain string, exactly as `{{email}}`. A stored legacy `N-key` folds as a key read on migration (its flat wire never had `use`). Slot `src:site` allowed (canonical contact fallback). `subject`/`noLink` chain-level |
-| `try_phone` | `phone` | **Yes** | No | Per-slot read: `key` (the stripped default) or the fixed read (FW-141 05). Each slot resolves a phone field or a typed number → finished tel/plain string, as `{{phone}}`. A stored legacy `N-key` folds as a key read on migration. Slot `src:site` allowed. `noLink` chain-level |
+| `try_email` | `email` | **Yes** | No | Per-slot read: `key` (the stripped default) or the fixed read (FW-141 05). Each slot resolves an email field or a typed address → finished mailto/plain string, exactly as `{{email}}`. A legacy flat `N-key` is a key read, at render and on migration (its flat wire never had `use`). Slot `src:site` allowed (canonical contact fallback). `subject`/`noLink` chain-level |
+| `try_phone` | `phone` | **Yes** | No | Per-slot read: `key` (the stripped default) or the fixed read (FW-141 05). Each slot resolves a phone field or a typed number → finished tel/plain string, as `{{phone}}`. A legacy flat `N-key` is a key read, at render and on migration. Slot `src:site` allowed. `noLink` chain-level |
 
 ---
 

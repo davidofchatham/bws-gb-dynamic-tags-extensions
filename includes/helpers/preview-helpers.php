@@ -413,7 +413,7 @@ function bws_build_try_preview_label( array $options, string $base_template, arr
 	$carry         = bws_fold_empty_carry( $use_default );
 	for ( $n = 1; $n <= 5; $n++ ) {
 		$slot = function_exists( 'bws_fold_slot_struct' )
-			? bws_fold_slot_struct( $n, $options, 'try', $per_slot_use )
+			? bws_fold_slot_struct( $n, $options, 'try', $per_slot_use, $loop_cfg['flat_per_slot_use'] ?? null )
 			: null;
 		if ( null === $slot ) {
 			continue;
