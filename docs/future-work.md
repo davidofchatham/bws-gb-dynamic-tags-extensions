@@ -736,6 +736,18 @@ Open: Whether §R6 moves out as `email-test-matrix.md` (mirroring phone, repoint
 
 Blocked by: —  •  Interacts with: FW-97 (the other "which file does a row live in" question), FW-136 (closed; surfaced it; the seam pair is what made the asymmetry visible)
 
+#### FW-145 — Three portal-visibility fixture rows changed value, cause unmeasured
+
+Fixture rows F10.2, F10.6b and F10.6b's legacy twin read the `portal_visibility` taxonomy off `bws-portal-system` fixture posts, and their rendered values changed between the 2026-09-25 and 2026-09-29 snapshot captures with no change on our side.
+
+Detail home: none yet — the finding is in this entry.
+
+Progress: Noticed 2026-09-29 (FW-141 02 re-capture): F10.2 went `All Users, All Users` to `Captain`, F10.6b `Sales, Support, All Users` to `Sales, Support`, its legacy twin `Sales, All Users` to `Sales`. The fixture site's active plugin list now names `site-views` where it named `bws-portal-system`, and that plugin's git history shows a rename of its visibility system with commits reshaping this taxonomy's terms. The link between the two is inferred from that history, not measured.
+
+Open: Measure it: reseed against each plugin state, or read the taxonomy's terms before and after, and decide whether the three rows' expected output or the fixture's seeding moves. If the rename changed what real sites render, that part becomes a GitHub Issue.
+
+Blocked by: —  •  Interacts with: FW-97 (fixture reorganization; any row move shares its re-capture rule)
+
 ### Docs & vocabulary
 
 Repairs to the documentation corpus itself: prose that has outgrown its reader, pointers that no longer resolve, and vocabulary the docs use inconsistently. Split out of §Testing & infrastructure 2026-08-28 — those items had nothing in common with a fixture site beyond "not a feature and not a bug".

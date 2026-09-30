@@ -61,52 +61,11 @@ return array(
 	// The date the baseline under `tools/test/snapshots/` was captured. Prose only —
 	// nothing compares it; it is here so a reader can place the record in time.
 	//
-	// SAME-DAY FOLLOW-UP CAPTURE. `blocks.php` gained one more row on the same
-	// "Join - fixed-text slots (FW-141 02)" section: J33, `{{join A:src(refs,missing_rel);
-	// fixed(Team)}}`, added to measure (not just assert) that a fixed slot whose own chain
-	// resolves nothing still drops empty — the CHANGELOG claim this ticket's code review
-	// flagged as unmeasured for the join case. `page-matrix-post-meta` moved by that one row
-	// (a blank line, per J33's own empty expected output, packed against the section below
-	// it). No other page moved.
-	//
-	// Also recorded here: `active` swaps `bws-portal-system/bws-portal-system.php` for
-	// `site-views/site-views.php` — the live plugin list read for this capture shows the
-	// rename the note below already inferred from that plugin's own git history (the
-	// F10.2/F10.6b value-change attribution). The swap itself was already in effect on the
-	// shared site; this capture is the first to read it off `wp plugin list` and record it.
-	//
-	// THE PRIOR RE-CAPTURE (SAME DAY) WAS MOSTLY OUR OWN FIXTURE, but not only. `blocks.php`
-	// gained a new "Join - fixed-text slots (FW-141 02)" section (J29-J32) on
-	// `page-matrix-post-meta` — that IS this ticket's whole change to `blocks.php` as of that
-	// capture (confirmed: `git diff 5ddcbb1 -- tools/fixtures/core-structures/blocks.php`
-	// showed nothing else). But the two pages' snapshot diffs carried more than that
-	// addition, in two distinct shapes:
-	//
-	// ROW REMOVALS, unrelated to this ticket and predating it: `page-matrix-post-meta` drops
-	// L4.11a-c, F8.10, F9.6, F9.6b, F9b.4, F9d.1, F9d.2; `page-matrix-pinned-roots` drops
-	// F22.2 and F22.5b. None of these rows exist in `blocks.php` as of `5ddcbb1` either — they
-	// were deleted from the blueprint in earlier, already-committed changes (FW-141 01 among
-	// them, which added F22.3/F22.4 to `page-matrix-pinned-roots` without re-capturing), so
-	// this capture is catching up several commits' worth of uncaptured row deletions, not one.
-	//
-	// THREE VALUE CHANGES on rows `blocks.php` still carries UNCHANGED, which a row deletion
-	// cannot explain: F10.2 (`All Users, All Users` -> `Captain`), F10.6b (`Sales, Support,
-	// All Users` -> `Sales, Support`), and F10.6b's legacy twin (`Sales, All Users` ->
-	// `Sales`). All three read the `portal_visibility` taxonomy off `bws-portal-system`
-	// fixture posts. That plugin's own history (its working tree, a sibling checkout — see
-	// `git log --oneline -S portal_visibility` there) shows an in-progress rename of its
-	// visibility system ("Portal" -> "Site Views"), with commits restructuring that exact
-	// taxonomy's term shape ("audience taxonomy named from the View CPT", "one no-context term
-	// per shared taxonomy"). That is the likely cause: a co-resident plugin's own data
-	// migration moving what these three rows read, the same class of drift the GB Query
-	// Enhancements note below already establishes a precedent for attributing. It is NOT
-	// independently measured here — `bws-portal-system` is tracked in `active` below for
-	// presence only, not versioned, and a taxonomy-term migration run on the shared site
-	// wouldn't show as a plugin version bump even if it were. Auditing that migration's actual
-	// effect on this fixture site is out of FW-141 02's scope; flagged for a human decision
-	// rather than resolved here, per this repo's CLAUDE.md doc/code-drift rule. Dependency
-	// versions and the active set otherwise unchanged (blueprint v28, plugin list read off the
-	// live site to confirm).
+	// 2026-09-29 (FW-141): a new join section (J29-J33) on `page-matrix-post-meta`, plus
+	// catch-up for rows deleted from the blueprint by earlier commits without a re-capture
+	// (`page-matrix-post-meta`, `page-matrix-pinned-roots`). `active` now names
+	// `site-views` where it named `bws-portal-system`, read off the live plugin list.
+	// Three F10 rows changed value with the cause NOT measured: tracked as FW-145.
 	//
 	// The PREVIOUS capture (2026-09-25) is a DEPENDENCY MOVE. GB Query Enhancements
 	// 1.3.0 -> 1.4.0 moved three lines on `page-matrix-products`: each Product Query loop
