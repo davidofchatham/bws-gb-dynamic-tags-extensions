@@ -1067,11 +1067,11 @@ check(
 	bws_build_join_preview_label( [ 'A' => 'use(fixed)' ] ),
 	'[⚠ Join: A fixed text not entered]'
 );
-// Template mode substitutes the fixed slot's own curly-quoted text like any other part.
+// Template mode substitutes the fixed slot's text bare: the format is already wrapped in “…”.
 check(
 	'folded: template mode substitutes a fixed-text slot',
 	bws_build_join_preview_label( [ 'mode' => 'template', 'format' => '%A (%B)', 'A' => 'fixed(Varsity)', 'B' => 'key(name_last)' ] ),
-	'[Join ““Varsity” (\'name_last\')”]'
+	'[Join “Varsity (\'name_last\')”]'
 );
 
 // ---------------------------------------------------------------------------

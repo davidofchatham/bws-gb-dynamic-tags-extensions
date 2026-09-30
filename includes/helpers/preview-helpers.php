@@ -247,6 +247,11 @@ function bws_build_join_preview_label( array $options ): string {
 
 		$inert              = array();
 		$field_parts[ $n ]  = bws_try_preview_field_part( 'text', $eff_use, $key, '', $flat['fixed'] ?? '' );
+		// Template mode already wraps the whole format in “…”, so a fixed slot's own
+		// quotes would nest; its text reads as the literal it is.
+		if ( 'template' === $mode && 'fixed' === $eff_use ) {
+			$field_parts[ $n ] = esc_html( $flat['fixed'] ?? '' );
+		}
 		$source_parts[ $n ] = bws_try_preview_source_part( $flat['src'], true, $inert );
 
 		// An INERT source reports ALONE, exactly as a skipped slot's reason does: the slot

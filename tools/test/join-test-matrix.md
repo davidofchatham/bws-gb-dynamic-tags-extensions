@@ -225,7 +225,7 @@ bin/wp.sh testbed bws render-tag '{{TAG}}' --preview --porcelain
 | JP7 | `{{join A:fixed(Varsity)}}` | `[Join “Varsity”]` — a fixed slot alone, curly-quoted like the base tag's own fixed preview (FW-141 01) |
 | JP8 | `{{join A:key(name_first)\|B:fixed(Team)}}` | `[Join 'name_first', “Team”]` — fixed beside a keyed field slot |
 | JP9 | `{{join A:use(fixed)}}` | `[⚠ Join: A fixed text not entered]` — `use(fixed)` with no text yet is the warned state, not an error |
-| JP10 | `{{join mode:template\|format:%A (%B)\|A:fixed(Varsity)\|B:key(name_last)}}` | `[Join ““Varsity” (\'name_last\')”]` — template mode substitutes a fixed-text slot same as any other |
+| JP10 | `{{join mode:template\|format:%A (%B)\|A:fixed(Varsity)\|B:key(name_last)}}` | `[Join “Varsity (\'name_last\')”]` — template mode substitutes a fixed-text slot's text bare, since the format is already wrapped in quotes |
 
 ## Fail triage
 

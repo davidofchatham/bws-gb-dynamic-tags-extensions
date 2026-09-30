@@ -449,7 +449,7 @@ The rows above are **legacy flat wire** (`2-key`), which is why their format tok
 | `{{join A:fixed(Varsity)}}` | `[Join “Varsity”]` — a fixed-text slot alone (FW-141 02); curly-quoted like the base tag's own fixed preview, and no key to name |
 | `{{join A:key(name_first)\|B:fixed(Team)}}` | `[Join 'name_first', “Team”]` — fixed beside a keyed field slot |
 | `{{join A:use(fixed)}}` | `[⚠ Join: A fixed text not entered]` — `use(fixed)` with no text yet is the field-pending state, warned same as an empty key |
-| `{{join mode:template\|format:%A (%B)\|A:fixed(Varsity)\|B:key(name_last)}}` | `[Join ““Varsity” ('name_last')”]` — template mode substitutes a fixed-text slot's field part same as any other |
+| `{{join mode:template\|format:%A (%B)\|A:fixed(Varsity)\|B:key(name_last)}}` | `[Join “Varsity ('name_last')”]` — template mode substitutes a fixed-text slot's text bare, since the format is already wrapped in quotes |
 
 ## `{{call}}` preview — intentionally inert (does NOT execute the function)
 
