@@ -190,9 +190,9 @@ for the fuller writeup; these rows are the same cases, kept here because they ar
 | J32 | `{{join A:fixed(Varsity, Inc\: The Best\|Team)}}` | `Varsity, Inc: The Best\|Team` — `,` inert, `:` and `\|` escaped |
 | J33 | `{{join A:src(refs,missing_rel);fixed(Team)}}` | EMPTY — the fixed text itself never comes up empty, but the slot still needs a resolved source; `missing_rel` resolves nothing, so the read refuses before the fixed text is reached (F24.5) |
 | J34 | `{{join A:src(refs,related_staff);fixed(Team)}}` | `Team, Team` — list mode: the fixed text prints once per resolved source (the related-staff field holds two), joined by the separator |
-| J35 | `{{join A:src(refs,related_staff,limit[1]);fixed(Team)|B:key(name_first)}}` | `Team, Jane` — the step `limit[1]` bounds the fixed slot to one copy; the field slot reads once as usual |
-| J36 | `{{join A:src(refs,missing_rel);fixed(Team)|fallback:NONE}}` | `NONE` — no source resolved, the only slot drops, and the tag's fallback fires |
-| J37 | `{{join A:src(refs,missing_rel);fixed(Team)|B:fixed(Other)}}` | `Other` — the sourceless fixed slot drops, its neighbor is unaffected |
+| J35 | `{{join A:src(refs,related_staff,limit[1]);fixed(Team)\|B:key(name_first)}}` | `Team, Jane` — the step `limit[1]` bounds the fixed slot to one copy; the field slot reads once as usual |
+| J36 | `{{join A:src(refs,missing_rel);fixed(Team)\|fallback:NONE}}` | `NONE` — no source resolved, the only slot drops, and the tag's fallback fires |
+| J37 | `{{join A:src(refs,missing_rel);fixed(Team)\|B:fixed(Other)}}` | `Other` — the sourceless fixed slot drops, its neighbor is unaffected |
 
 ## Reveal (editor-only — open a join block on the testbed editor)
 

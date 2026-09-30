@@ -237,11 +237,10 @@ assert_same( 'leaf use carries no show_if', false, isset( $leaf['use']['show_if'
 assert_same( 'leaf key carries no show_if', false, isset( $leaf['key']['show_if'] ) );
 
 // The FIXED read (FW-141) rides the leaf: every text consumer reads it.
-$fixed_leaf = $leaf;
-assert_same( 'fixed row and input share one label', end( $fixed_leaf['use']['options'] )['label'], $fixed_leaf['fixed']['label'] );
-assert_same( 'fixed input label "Fixed Text"', 'Fixed Text', $fixed_leaf['fixed']['label'] );
-assert_same( 'fixed input escapes `:`/`|` (bws-format-input)', 'bws-format-input', $fixed_leaf['fixed']['type'] );
-assert_same( 'fixed input carries no show_if (caller overlay)', false, isset( $fixed_leaf['fixed']['show_if'] ) );
+assert_same( 'fixed row and input share one label', end( $leaf['use']['options'] )['label'], $leaf['fixed']['label'] );
+assert_same( 'fixed input label "Fixed Text"', 'Fixed Text', $leaf['fixed']['label'] );
+assert_same( 'fixed input escapes `:`/`|` (bws-format-input)', 'bws-format-input', $leaf['fixed']['type'] );
+assert_same( 'fixed input carries no show_if (caller overlay)', false, isset( $leaf['fixed']['show_if'] ) );
 
 // The contact leaf (FW-141 04): email and phone, one builder, per-family words.
 foreach ( array(

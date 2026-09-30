@@ -1245,12 +1245,11 @@ function bws_try_post_has_source( $post_id, array $options ): bool {
  * text once per resolved source when the effective read is `fixed`, else the field read.
  *
  * The one branch both bws_base_email_resolve_value() and bws_base_phone_resolve_value()
- * put in front of their family finisher.
+ * put in front of their family finisher. The caller passes the EFFECTIVE `use`
+ * (bws_use_effective( '<tag>', $options )) so the tag literal stays at the read site,
+ * where use-stripped-default-test.php's census looks.
  *
  * @since 1.21.0
- * The caller passes the EFFECTIVE `use` (bws_use_effective( '<tag>', $options )) so the
- * tag literal stays at the read site, where use-stripped-default-test.php's census looks.
- *
  * @param string $use      Effective `use` for the tag.
  * @param array  $options  Tag options.
  * @param object $instance GB tag instance.
