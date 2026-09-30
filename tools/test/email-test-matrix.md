@@ -34,3 +34,4 @@ A `try_email` attempt can be the fixed read, finished as in E1. It takes its tur
 | E2.4 | `{{try_email A:fixed(not-an-email)\|B:fixed(info@example.com)\|noLink}}` | `info@example.com`: an invalid entry is empty, so the next attempt runs |
 | E2.5 | `{{try_email A:src(refs,no_such_rel);fixed(info@example.com)\|fallback:sales@example.test\|noLink}}` | `sales@example.test`: no source resolved, every attempt empty, so the fallback fires |
 | E2.6 | `{{try_email A:fixed(info@example.com)\|subject:Hello}}` | `mailto:info@example.com?subject=Hello` |
+| E2.7 | `{{try_email A:src(refs,related_staff);fixed(info@example.com)\|sep: / \|noLink}}` | `info@example.com / info@example.com`: once per staff post |

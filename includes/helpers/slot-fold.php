@@ -706,11 +706,12 @@ function bws_fold_parse_slot( string $value, string $container = 'join' ) {
 		$key_tok             = null;
 	}
 
-	// Read axis — NAME precedence, order-independent, the same rule the flat wire
-	// reads through (bws_use_effective()): `use` is consulted first and
-	// `key` is read only in the keyed arm. Both-present is not author error (GB
-	// cannot unset one option from another's value, so a stale `key` legitimately
-	// rides the wire), so it resolves rather than flagging.
+	// Read axis — NAME precedence, order-independent: an analog `use` is consulted first,
+	// then `key`, then `fixed`. Unlike the flat wire (bws_use_effective(), where an explicit
+	// `use:key` or `use:fixed` wins), a slot's `use(key)` / `use(fixed)` is the PENDING state
+	// (read chosen, field or text not yet) and yields to the token beside it. Both-present is
+	// not author error (GB cannot unset one option from another's value, so a stale `key`
+	// legitimately rides the wire), so it resolves rather than flagging.
 	if ( null !== $use_tok && 'key' !== $use_tok && 'fixed' !== $use_tok ) {
 		$slot['read'] = ( 'same' === $use_tok )
 			? array( 'kind' => 'same' )

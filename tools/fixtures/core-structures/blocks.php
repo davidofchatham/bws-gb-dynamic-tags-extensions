@@ -264,6 +264,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'E2.4 (expect info@example.com - the invalid first attempt is empty)', '{{try_email A:fixed(not-an-email)|B:fixed(info@example.com)|noLink}}' ),
 		bws_fixture_gb_row( 'E2.5 (expect sales@example.test - the fixed attempt resolved no source)', '{{try_email A:src(refs,no_such_rel);fixed(info@example.com)|fallback:sales@example.test|noLink}}' ),
 		bws_fixture_gb_row( 'E2.6 (expect a mailto link carrying ?subject=Hello)', '{{try_email A:fixed(info@example.com)|subject:Hello}}' ),
+		bws_fixture_gb_row( 'E2.7 (expect info@example.com / info@example.com - once per staff post)', '{{try_email A:src(refs,related_staff);fixed(info@example.com)|sep: / |noLink}}' ),
 	) );
 
 	$sections[] = bws_fixture_gb_section( 'Phone R0 - href rebuild', array(
