@@ -457,12 +457,7 @@ function bws_base_phone_resolve_value( array $options, $instance ): array {
 
 	// L3 compose — normalize+render each raw value via the shared finisher (SAME
 	// per-item compose the try_ dispatchers use, VP4 / V10).
-	$parts = bws_phone_finish_values(
-		'fixed' === bws_use_effective( 'phone', $options )
-			? bws_resolve_fixed_values( $options, $instance )
-			: bws_resolve_field_values( $options, $instance ),
-		$options
-	);
+	$parts = bws_phone_finish_values( bws_contact_read_raw( bws_use_effective( 'phone', $options ), $options, $instance ), $options );
 
 	return array(
 		'value'     => implode( $sep, $parts ),
@@ -602,7 +597,7 @@ function bws_phone_finish_values( array $raw, array $options ): array {
 function bws_try_phone_post_dispatch( $post_id, $options, $instance ) {
 	// The fixed read (FW-141) reads no field: the author's value, finished like any other.
 	// The site is always a source; a post or term needs an id.
-	$fixed = bws_try_fixed_dispatch( 'phone', $post_id || 'site' === bws_base_src_resolution( (array) $options )['kind'], (array) $options );
+	$fixed = bws_try_fixed_dispatch( 'phone', bws_try_post_has_source( $post_id, (array) $options ), (array) $options );
 	if ( null !== $fixed ) {
 		return bws_phone_finish_values( $fixed, (array) $options );
 	}

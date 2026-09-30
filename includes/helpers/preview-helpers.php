@@ -482,8 +482,7 @@ function bws_build_try_preview_label( array $options, string $base_template, arr
 			}
 		} elseif ( 'fixed' === $slot['use'] && '' === (string) $slot['fixed'] ) {
 			// The fixed read (FW-141) has no key to name; only its own text can be missing.
-			$fixed_noun      = array( 'email' => 'email', 'phone' => 'phone number' )[ $base_template ] ?? 'text';
-			$slot_warnings[] = array( 'n' => $slot['n'], 'detail' => 'fixed ' . $fixed_noun . ' not entered' );
+			$slot_warnings[] = array( 'n' => $slot['n'], 'detail' => 'fixed ' . ( bws_fixed_noun( $base_template ) ?: 'text' ) . ' not entered' );
 		}
 	}
 
@@ -660,6 +659,19 @@ function bws_try_preview_template_label( string $base_template, string $as ): st
 			return 'Phone';
 	}
 	return '';
+}
+}
+
+/**
+ * What a family's fixed read asks the author to type, for the "not entered" warnings.
+ *
+ * @since 1.21.0
+ * @param string $base_template Template key.
+ * @return string 'text' / 'email' / 'phone number', or '' for a family with no fixed read.
+ */
+if ( ! function_exists( 'bws_fixed_noun' ) ) {
+function bws_fixed_noun( string $base_template ): string {
+	return array( 'text' => 'text', 'email' => 'email', 'phone' => 'phone number' )[ $base_template ] ?? '';
 }
 }
 
@@ -1454,7 +1466,7 @@ function bws_build_preview_label( array $options, string $template ): string {
 	// its own clause (user, 2026-09-29), not a "No … set" list item: it is typed, not picked.
 	// $fixed_noun names what was to be typed, per family.
 	$fixed_missing = false;
-	$fixed_noun    = array( 'text' => 'text', 'email' => 'email', 'phone' => 'phone number' )[ $base_template ] ?? '';
+	$fixed_noun    = bws_fixed_noun( $base_template );
 	if ( '' !== $fixed_noun && 'fixed' === $use ) {
 		$fixed_missing = '' === (string) ( $options['fixed'] ?? '' );
 	} elseif ( 'text' === $base_template && '' === $key && 'title' !== $use ) {

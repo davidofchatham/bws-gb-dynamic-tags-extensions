@@ -196,12 +196,7 @@ function bws_base_email_resolve_value( array $options, $instance ): array {
 
 	// L3 compose — validate + render each raw value via the shared finisher
 	// (SAME per-item compose the try_ dispatchers use, VE4 / V10).
-	$parts = bws_email_finish_values(
-		'fixed' === bws_use_effective( 'email', $options )
-			? bws_resolve_fixed_values( $options, $instance )
-			: bws_resolve_field_values( $options, $instance ),
-		$options
-	);
+	$parts = bws_email_finish_values( bws_contact_read_raw( bws_use_effective( 'email', $options ), $options, $instance ), $options );
 
 	return array(
 		'value'     => implode( $sep, $parts ),
@@ -335,7 +330,7 @@ function bws_email_finish_values( array $raw, array $options ): array {
 function bws_try_email_post_dispatch( $post_id, $options, $instance ) {
 	// The fixed read (FW-141) reads no field: the author's value, finished like any other.
 	// The site is always a source; a post or term needs an id.
-	$fixed = bws_try_fixed_dispatch( 'email', $post_id || 'site' === bws_base_src_resolution( (array) $options )['kind'], (array) $options );
+	$fixed = bws_try_fixed_dispatch( 'email', bws_try_post_has_source( $post_id, (array) $options ), (array) $options );
 	if ( null !== $fixed ) {
 		return bws_email_finish_values( $fixed, (array) $options );
 	}

@@ -1224,6 +1224,47 @@ function bws_try_fixed_dispatch( string $tag, bool $has_source, array $options )
 }
 
 /**
+ * Whether a post-dispatcher's source resolved: a post needs an id, the site always counts.
+ *
+ * The `has_source` a per-item try_ post dispatcher hands bws_try_fixed_dispatch(); the
+ * site is taken by what the chain resolves to (bws_base_src_resolution), never by the
+ * serialized token.
+ *
+ * @since 1.21.0
+ * @param int|false $post_id Registry-resolved entity id (0/false for src:site).
+ * @param array     $options Slot options (`src`).
+ */
+if ( ! function_exists( 'bws_try_post_has_source' ) ) {
+function bws_try_post_has_source( $post_id, array $options ): bool {
+	return $post_id || 'site' === bws_base_src_resolution( $options )['kind'];
+}
+}
+
+/**
+ * The raw candidate values of a contact tag's base read (`email` / `phone`): the fixed
+ * text once per resolved source when the effective read is `fixed`, else the field read.
+ *
+ * The one branch both bws_base_email_resolve_value() and bws_base_phone_resolve_value()
+ * put in front of their family finisher.
+ *
+ * @since 1.21.0
+ * The caller passes the EFFECTIVE `use` (bws_use_effective( '<tag>', $options )) so the
+ * tag literal stays at the read site, where use-stripped-default-test.php's census looks.
+ *
+ * @param string $use      Effective `use` for the tag.
+ * @param array  $options  Tag options.
+ * @param object $instance GB tag instance.
+ * @return string[] Raw candidates, unvalidated.
+ */
+if ( ! function_exists( 'bws_contact_read_raw' ) ) {
+function bws_contact_read_raw( string $use, array $options, $instance ): array {
+	return 'fixed' === $use
+		? bws_resolve_fixed_values( $options, $instance )
+		: bws_resolve_field_values( $options, $instance );
+}
+}
+
+/**
  * The FIXED read's values (FW-141): the author's `fixed` text, once per resolved source.
  *
  * bws_resolve_field_values()' twin for a read that reads nothing. The count is the
