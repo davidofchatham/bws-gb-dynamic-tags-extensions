@@ -633,26 +633,25 @@ function bws_base_traversal_options(): array {
  * at each registration so the enum and its row cannot be paired wrongly; the slot read
  * twin (bws_build_slot_read_options) copies rows, not this key.
  *
- * `$fixed` ADDS THE FIXED READ (FW-141): a `fixed` enum row and a same-labeled `fixed`
- * input, whose value IS the output. A PARAMETER, not a row every consumer inherits,
- * because a container whose slot grammar cannot carry `fixed(…)` yet must not offer it;
- * it goes away once every text consumer passes true.
+ * The leaf carries the FIXED READ (FW-141): a `fixed` enum row and a same-labeled `fixed`
+ * input, whose value IS the output.
  *
  * @since 1.17.0
- * @since 1.21.0 `$fixed`.
- * @param bool $fixed Include the fixed read.
- * @return array { 'use' => array, 'key' => array, 'fixed'? => array } — definitions
+ * @since 1.21.0 Carries the `fixed` row and input.
+ * @return array { 'use' => array, 'key' => array, 'fixed' => array } — definitions
  *               WITHOUT `show_if` (base overlays `use:not:title`; the template encodes
  *               the same fact declaratively via try_use_no_key_values).
  */
-function bws_get_text_field_options( bool $fixed = false ): array {
-	$leaf = array(
+function bws_get_text_field_options(): array {
+	$label = __( 'Fixed Text', 'generateblocks' );
+	return array(
 		'use' => array(
 			'type'           => 'select',
 			'label'          => __( 'Text Field', 'generateblocks' ),
 			'options'        => array(
 				array( 'value' => 'key',   'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
 				array( 'value' => 'title', 'label' => __( 'Title/Name', 'generateblocks' ) ),
+				array( 'value' => 'fixed', 'label' => $label ),
 			),
 			'_strip_default' => true,
 			'readTag'        => 'text',
@@ -664,18 +663,13 @@ function bws_get_text_field_options( bool $fixed = false ): array {
 			'help'         => __( 'ACF or meta field key.', 'generateblocks' ),
 			'placeholder'  => 'field_name',
 		),
-	);
-	if ( $fixed ) {
-		$label                    = __( 'Fixed Text', 'generateblocks' );
-		$leaf['use']['options'][] = array( 'value' => 'fixed', 'label' => $label );
 		// bws-format-input escapes `:`/`|` so the text survives GB's tag-string round-trip.
-		$leaf['fixed'] = array(
+		'fixed' => array(
 			'type'  => 'bws-format-input',
 			'label' => $label,
 			'help'  => __( 'Text to show for each result found. Unlike Fallback Text, which only shows when nothing is found, this shows every time.', 'generateblocks' ),
-		);
-	}
-	return $leaf;
+		),
+	);
 }
 
 /**

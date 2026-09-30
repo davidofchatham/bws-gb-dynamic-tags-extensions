@@ -81,7 +81,7 @@ function bws_register_base_tags(): void {
 	// One field-option LEAF per tag with a read axis; the base registration and the
 	// modifier template below are two COMPOSITIONS of each, never two definitions.
 	// Every text consumer reads `fixed` (FW-141): {{text}}, join slots, try_text attempts.
-	$text_field     = bws_get_text_field_options( true );
+	$text_field     = bws_get_text_field_options();
 	$content_field  = bws_get_content_field_options();
 	$image_field    = bws_get_image_field_options();
 
@@ -877,7 +877,7 @@ function bws_base_text_callback( $options, $block, $instance ): string {
  */
 function bws_get_join_options(): array {
 	$text_field = function_exists( 'bws_get_text_field_options' )
-		? bws_get_text_field_options( true )
+		? bws_get_text_field_options()
 		: array( 'use' => array(), 'key' => array(), 'fixed' => array() );
 
 	// FOLDED slot keys (`A`, `B`, …) — one option per slot, the whole slot in its

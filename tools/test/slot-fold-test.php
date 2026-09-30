@@ -233,6 +233,13 @@ $corpus = array(
 	array( 'join', 'src(refs,office)' ),
 	// unlimited, author-pinned
 	array( 'table', 'src(rows,staff_members,limit[0]);key(name)' ),
+	// FIXED read (FW-141): the text is free-form, so `:` and `|` escape and the separators
+	// `,` `;` and a balanced `()` inside it are inert.
+	array( 'join', 'fixed(Varsity)' ),
+	array( 'join', 'fixed(Hello\: A\|B)' ),
+	array( 'join', 'fixed(Inc, Ltd; Co (est. 1990))' ),
+	array( 'try', 'src(refs,office);fixed(N/A)' ),
+	array( 'join', 'use(fixed)' ),                                      // text-pending state
 );
 foreach ( $corpus as $i => $case ) {
 	list( $container, $wire ) = $case;

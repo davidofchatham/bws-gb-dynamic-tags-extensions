@@ -37,7 +37,7 @@ Schema/per-tag detail: `tag-reference.md` §Source-analog resolution. Narrative:
 
 `use` is the analog-vs-option selector — the same lever in every source, including `src:site`. `use:key` (or the stripped key-mode default) → field/option read; a named analog `use` value → that source's analog datum. The lever is the `use` VALUE, never key-presence. `src:site` selects the wp_options namespace the way `src:current` selects post meta — it does not branch independently of `use`.
 
-- `fixed` is the one `use` value that reads nothing: it returns the author's typed text once per resolved source, and never coexists with `key` on the wire.
+- `fixed` is the one `use` value that reads nothing: it returns the author's typed text once per resolved source, and the editor never writes it beside `key` (a hand-edited pair reads as `key` until the editor normalizes it).
 - NO `use:option` value exists anywhere — option IS a key-read reached by `use:key`, namespaced by `src`.
 - Each base tag's `use` default is its own (text/image → `key`; content → `content`; permalink/title → none). "`use` unset" does NOT universally mean key-mode.
 

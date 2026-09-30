@@ -256,6 +256,10 @@
 			"wire": "use(fixed)"
 		},
 		{
+			"container": "join",
+			"wire": "fixed(Inc, Ltd; Co (est. 1990))"
+		},
+		{
 			"container": "try",
 			"wire": "src(same);fixed(N/A)"
 		}

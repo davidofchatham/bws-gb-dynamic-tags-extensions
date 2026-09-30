@@ -221,10 +221,10 @@ $leaf = bws_get_text_field_options();
 
 // Group-pure: SOURCE-group keys only. A format/fallback key here means the leaf
 // grew into a composer and callers can no longer place it by group (FW-52).
-assert_same( 'leaf returns exactly use+key', array( 'use', 'key' ), array_keys( $leaf ) );
+assert_same( 'leaf returns exactly use+key+fixed', array( 'use', 'key', 'fixed' ), array_keys( $leaf ) );
 
 // Enum + control shape (the four-copy definition, now one).
-assert_same( 'leaf use options = key,title', array( 'key', 'title' ), array_column( $leaf['use']['options'], 'value' ) );
+assert_same( 'leaf use options = key,title,fixed', array( 'key', 'title', 'fixed' ), array_column( $leaf['use']['options'], 'value' ) );
 assert_same( 'leaf use label "Text Field"', 'Text Field', $leaf['use']['label'] );
 assert_same( 'leaf use _strip_default true', true, $leaf['use']['_strip_default'] );
 assert_same( 'leaf key control = bws-field-combo', 'bws-field-combo', $leaf['key']['type'] );
@@ -236,11 +236,8 @@ assert_same( 'leaf key dynamicLabel true', true, $leaf['key']['dynamicLabel'] );
 assert_same( 'leaf use carries no show_if', false, isset( $leaf['use']['show_if'] ) );
 assert_same( 'leaf key carries no show_if', false, isset( $leaf['key']['show_if'] ) );
 
-// The FIXED read (FW-141) is opt-in per consumer until every text consumer reads it: a
-// container whose slot grammar cannot carry `fixed(…)` must not offer the row.
-$fixed_leaf = bws_get_text_field_options( true );
-assert_same( 'fixed leaf returns use+key+fixed', array( 'use', 'key', 'fixed' ), array_keys( $fixed_leaf ) );
-assert_same( 'fixed leaf use options = key,title,fixed', array( 'key', 'title', 'fixed' ), array_column( $fixed_leaf['use']['options'], 'value' ) );
+// The FIXED read (FW-141) rides the leaf: every text consumer reads it.
+$fixed_leaf = $leaf;
 assert_same( 'fixed row and input share one label', end( $fixed_leaf['use']['options'] )['label'], $fixed_leaf['fixed']['label'] );
 assert_same( 'fixed input label "Fixed Text"', 'Fixed Text', $fixed_leaf['fixed']['label'] );
 assert_same( 'fixed input escapes `:`/`|` (bws-format-input)', 'bws-format-input', $fixed_leaf['fixed']['type'] );
@@ -263,7 +260,6 @@ foreach ( array(
 	assert_same( "contact leaf {$contact_tag}: fixed input is bws-format-input", 'bws-format-input', $contact_leaf['fixed']['type'] );
 	assert_same( "contact leaf {$contact_tag}: no show_if (caller overlay)", false, isset( $contact_leaf['key']['show_if'] ) || isset( $contact_leaf['fixed']['show_if'] ) );
 }
-assert_same( 'default leaf is unchanged by the opt-in', $leaf, bws_get_text_field_options() );
 
 // ============================================================
 // bws_build_slot_read_options() — the READ twin (build step 4)
@@ -273,14 +269,14 @@ echo "\nbws_build_slot_read_options\n";
 
 // --- Slot 1: base enum verbatim, no `same` row regardless of $allow_same. ---
 $r1 = bws_build_slot_read_options( 1, $leaf['use'], true );
-assert_same( 'slot1 read options = key,title (no same)', array( 'key', 'title' ), array_column( $r1['options'], 'value' ) );
+assert_same( 'slot1 read options = key,title,fixed (no same)', array( 'key', 'title', 'fixed' ), array_column( $r1['options'], 'value' ) );
 assert_same( 'slot1 read label "1: Text Field"', '1: Text Field', $r1['label'] );
 assert_same( 'slot1 read type select', 'select', $r1['type'] );
 assert_same( 'slot1 read _strip_default derived from base', true, $r1['_strip_default'] );
 
 // --- Slot ≥2 SELECTING (try_): `same` row prepended, shipped string. ---
 $r2 = bws_build_slot_read_options( 2, $leaf['use'], true );
-assert_same( 'slot2 selecting prepends same', array( 'same', 'key', 'title' ), array_column( $r2['options'], 'value' ) );
+assert_same( 'slot2 selecting prepends same', array( 'same', 'key', 'title', 'fixed' ), array_column( $r2['options'], 'value' ) );
 assert_same( 'slot2 same row label', 'Same as Previous Field', $r2['options'][0]['label'] );
 assert_same( 'slot2 read label "2: Text Field"', '2: Text Field', $r2['label'] );
 
@@ -296,6 +292,7 @@ assert_same(
 		'options'        => array(
 			array( 'value' => 'key',   'label' => 'Meta/Option Field' ),
 			array( 'value' => 'title', 'label' => 'Title/Name' ),
+			array( 'value' => 'fixed', 'label' => 'Fixed Text' ),
 		),
 		'_strip_default' => true,
 	),

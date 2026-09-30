@@ -718,10 +718,8 @@ function bws_fold_parse_slot( string $value, string $container = 'join' ) {
 	} elseif ( null !== $key_tok ) {
 		$slot['read'] = array( 'kind' => 'key', 'field' => $key_tok );
 	} elseif ( null !== $fixed_tok ) {
-		// `fixed` sits AFTER `key` in this chain, mirroring BWS_USE_IMPLIED_BY_TOKEN's row
-		// order (registration-helpers.php): a hand-typed `key(x);fixed(y)` pair — the two
-		// never coexist on written wire — reads as the field it named until the editor's
-		// mount normalize drops one (FW-141 D2).
+		// A hand-typed `key(x);fixed(y)` pair reads as the field it named until the editor's
+		// mount normalize drops one; the rule is BWS_USE_IMPLIED_BY_TOKEN's (registration-helpers.php).
 		$slot['read'] = array( 'kind' => 'fixed', 'text' => bws_fold_unescape( $fixed_tok ) );
 	} elseif ( 'key' === $use_tok ) {
 		// `use(key)` with no key token is a KEYED READ WHOSE FIELD IS NOT CHOSEN YET —
