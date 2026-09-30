@@ -382,6 +382,83 @@ eq(
 		recorder( array( array( 'value' => 'alpha' ) ), $calls )
 	)
 );
-
+
+// ── §L6 — the fixed read (FW-141 03) ────────────────────────────────────────
+// The fixed text itself is the resolver's (the dispatchers, ticket 01); the walk's
+// part is to let a keyless fixed attempt through its gate and hand the text over.
+
+const CFG_KEYED_FIXED = array(
+	'per_slot_key' => true,
+	'per_slot_use' => true,
+	'no_key_uses'  => array( 'title', 'fixed' ),
+	'default_use'  => 'key',
+	'collapse'     => false,
+);
+
+$calls = array();
+eq(
+	'L6.1 a fixed attempt resolves WITHOUT a key, carrying its text',
+	array( 'value' => 'Varsity', 'link_id' => 0, 'link_type' => 'post' ),
+	bws_try_run_attempts( slots( 'fixed(Varsity)' ), null, CFG_KEYED_FIXED, recorder( array( 'Varsity' ), $calls ) )
+);
+eq( 'L6.1 use:fixed, no key, the text in `fixed`', array( array( 'fixed', null, '1' ) ), reads( $calls ) );
+eq( 'L6.1 the text reached the resolver unescaped', 'Varsity', $calls[0]['fixed'] ?? null );
+
+$calls = array();
+eq(
+	'L6.2 a field attempt WITH a value wins over a later fixed attempt',
+	array( 'value' => 'alpha', 'link_id' => 0, 'link_type' => 'post' ),
+	bws_try_run_attempts( slots( 'key(one)', 'fixed(Varsity)' ), null, CFG_KEYED_FIXED, recorder( array( 'alpha', 'Varsity' ), $calls ) )
+);
+eq( 'L6.2 the fixed attempt never ran', 1, count( $calls ) );
+
+$calls = array();
+eq(
+	'L6.3 an EMPTY field attempt falls through to the fixed attempt',
+	array( 'value' => 'Varsity', 'link_id' => 0, 'link_type' => 'post' ),
+	bws_try_run_attempts( slots( 'key(one)', 'fixed(Varsity)' ), null, CFG_KEYED_FIXED, recorder( array( '', 'Varsity' ), $calls ) )
+);
+eq( 'L6.3 the field attempt carried no fixed text', false, isset( $calls[0]['fixed'] ) );
+
+$calls = array();
+eq(
+	'L6.4 a fixed attempt whose chain resolves nothing (resolver empty) falls through',
+	array( 'value' => 'beta', 'link_id' => 0, 'link_type' => 'post' ),
+	bws_try_run_attempts( slots( 'src(refs,missing_rel);fixed(Varsity)', 'key(two)' ), null, CFG_KEYED_FIXED, recorder( array( '', 'beta' ), $calls ) )
+);
+
+$calls = array();
+eq(
+	'L6.5 `use(fixed)` with no text entered still reaches the resolver (which reads nothing)',
+	null,
+	bws_try_run_attempts( slots( 'use(fixed)' ), null, CFG_KEYED_FIXED, recorder( array( '' ), $calls ) )
+);
+eq( 'L6.5 its fixed text is empty', '', $calls[0]['fixed'] ?? null );
+
+$calls = array();
+bws_try_run_attempts( slots( 'fixed(Varsity)', 'src(terms,category)' ), null, CFG_KEYED_FIXED, recorder( array( '', '' ), $calls ) );
+eq( 'L6.6 an attempt stating no read carries the prior fixed read and its text', array( 'Varsity', 'Varsity' ), array_column( $calls, 'fixed' ) );
+
+$calls = array();
+bws_try_run_attempts( slots( 'fixed(Varsity)', 'src(refs,office);use(same)' ), null, CFG_KEYED_FIXED, recorder( array( '', '' ), $calls ) );
+eq( 'L6.6b `use(same)` reaches back to a fixed attempt and takes its text', array( 'Varsity', 'Varsity' ), array_column( $calls, 'fixed' ) );
+
+$calls = array();
+bws_try_run_attempts( slots( 'use(title);fixed(Varsity)' ), null, CFG_KEYED_FIXED, recorder( array( '' ), $calls ) );
+eq( 'L6.7 an explicit `use` wins over a stale fixed token (D2), which never reaches the resolver', array( array( 'title', null, '1' ), false ), array( reads( $calls )[0], isset( $calls[0]['fixed'] ) ) );
+
+// ── §L7 — unmigrated flat wire is read under the era it was authored in (FW-141 05) ──
+// try_email / try_phone gained a per-slot `use` after their flat wire shipped without one, so
+// a legacy `2-key` is a key read there, where the live rule would discard it.
+
+$flat = array( 'key' => 'unused_line', '2-key' => 'main_line' );
+$calls = array();
+bws_try_run_attempts( $flat, null, array_merge( CFG_KEYED_FIXED, array( 'flat_per_slot_use' => false ) ), recorder( array( '', 'x' ), $calls ) );
+eq( 'L7.1 a pre-`use` flat era reads a legacy slot 2 key', array( 'unused_line', 'main_line' ), array_column( $calls, 'key' ) );
+
+$calls = array();
+bws_try_run_attempts( $flat, null, CFG_KEYED_FIXED, recorder( array( '', 'x' ), $calls ) );
+eq( 'L7.2 no era override = the live rule: slot 2 key with no `use` is discarded (FW-51)', array( 'unused_line' ), array_column( $calls, 'key' ) );
+
 echo $fails ? "\n{$fails} FAILURE(S)\n" : "\nALL PASS\n";
 exit( $fails ? 1 : 0 );

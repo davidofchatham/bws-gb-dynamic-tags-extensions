@@ -16,7 +16,7 @@ Not on front end — gated by `$instance->context['bwsEditorPreview']`, injected
 |---|---|
 | `[ ]` | Preview placeholder envelope (always wraps the full preview) |
 | `'X'` | Literal user-supplied identifier (meta key, ref name, taxonomy slug). Straight single quotes |
-| `“X”` | Display value (fallback string, formatted datetime). Curly double quotes — attribute-safe for `image as:alt`/`as:caption` slots, no collision with `<img alt="...">` |
+| `“X”` | Display value (fallback string, formatted datetime, fixed text). Curly double quotes — attribute-safe for `image as:alt`/`as:caption` slots, no collision with `<img alt="...">` |
 | `( )` | Auxiliary append — reserved for `(fallback: …)` |
 | `:` | Separates template label from mode/key (`Content: Excerpt`, `Image Alt Text: 'hero'`, `Try Content: 'a', 'b'`); never after a preposition |
 | `,` | List item delimiter |
@@ -116,6 +116,8 @@ Template-specific. Missing required input triggers a warning instead of the fiel
 |---|---|---|
 | `text` | `key:X` set | `'X'` |
 | `text` | `use:title` | `Title` |
+| `text` | `fixed:X` set (the fixed read, FW-141) | `“X”` — the author's text is a display value, so curly quotes. No meta key needed |
+| `text` | `use:fixed` + `fixed` unset | *(missing — triggers warning: `Fixed text not entered`)* |
 | `text` | `key` unset + `use` unset | *(missing — triggers warning)* |
 | `content` | `use` unset (default) | `Content` |
 | `content` | `use:excerpt` | `Content: Excerpt` |
@@ -128,6 +130,9 @@ Template-specific. Missing required input triggers a warning instead of the fiel
 | `title` | — | `Title` (always) |
 | `email` | `key:X` set | `Email: 'X'` |
 | `email` | `key` unset | *(missing — triggers warning: `field key`)* |
+| `email` / `phone` | `fixed:X` set (the fixed read, FW-141) | `Email: “X”` / `Phone: “X”` — the tag label stays (unlike `text`, which has none), the typed value follows in curly quotes. No field key needed |
+| `email` / `phone` | `use:fixed` + `fixed` unset | *(missing — triggers warning: `Fixed email not entered` / `Fixed phone number not entered`)* |
+| `phone` | `key:X` set | `Phone: 'X'` |
 | `datetime_` | — | *(see datetime section below)* |
 
 ## Warnings
@@ -140,6 +145,7 @@ Warnings replace the **entire** preview. Collect all missing required items; joi
 | `key` only | `⚠ No meta key set` |
 | `tax` only | `⚠ No taxonomy set` |
 | `field key` only (`email`) | `⚠ No field key set` |
+| `fixed` text only (`text`, `email`, `phone` fixed read) | `⚠ Fixed text not entered` (`Fixed email not entered`, `Fixed phone number not entered`) — its own clause, not a `No … set` item; beside other missing items it appends: `⚠ No ref key set; fixed text not entered` |
 | `ref` + `key` | `⚠ No ref key or meta key set` |
 | `ref` + `tax` | `⚠ No ref key or taxonomy set` |
 | `tax` + `key` | `⚠ No taxonomy or meta key set` |
@@ -244,6 +250,8 @@ Datetime tags compute a live preview from the current time rather than a static 
 | `{{text src:ref\|ref:rel_post\|key:body_text}}` | `['body_text' from Ref 'rel_post']` |
 | `{{text use:title}}` | `[Title]` |
 | `{{text src:ref\|ref:rel_post\|use:title}}` | `[Title from Ref 'rel_post']` |
+| `{{text fixed:Varsity}}` | `[“Varsity”]` |
+| `{{text src:ref\|ref:rel\|fixed:Read more}}` | `[“Read more” from Ref 'rel']` |
 | `{{text srcTermIn:category\|key:body_text}}` | `['body_text' from Category Term]` |
 | `{{text src:ref\|ref:rel_post\|srcTermIn:category\|key:body_text}}` | `['body_text' from Ref 'rel_post' → Category Term]` |
 | `{{text src:refs,rel_post;terms,category\|key:body_text}}` | `['body_text' from Ref 'rel_post' → Category Term]` *(the chain-wire twin of the row above — identical by construction)* |
@@ -268,6 +276,9 @@ Datetime tags compute a live preview from the current time rather than a static 
 | `{{email key:contact_email}}` | `[Email: 'contact_email']` |
 | `{{email src:site\|key:org_email}}` | `[Email: 'org_email' from Site]` |
 | `{{email}}` | `[⚠ No field key set]` |
+| `{{email fixed:info@example.com}}` | `[Email: “info@example.com”]` |
+| `{{phone fixed:555-867-5309}}` | `[Phone: “555-867-5309”]` |
+| `{{email use:fixed}}` | `[⚠ Fixed email not entered]` |
 | `{{datetime_single as:date}}` | `[Date like “April 24, 2026”]` |
 | `{{datetime_single as:time\|src:ref\|ref:event_date}}` | `[Time like “2:20 PM” from Ref 'event_date']` |
 | `{{datetime_range as:date\|src:ref\|ref:event}}` | `[Date Range like “April 24 – April 25” from Ref 'event']` |
@@ -295,8 +306,10 @@ Datetime tags compute a live preview from the current time rather than a static 
 | Mixed (both vary) | `[Try 'a' from Current, Title from Ref 'rel']` | `[Try Image Alt Text: 'hero', Featured from Ref 'rel']` |
 | Datetime varying sources | n/a | `[Try Date like "April 24, 2026" from Current, Ref 'event_date']` |
 | `try_title` (always) | n/a | `[Try Title]` (with optional ` from <source list>`) |
-| `try_email` / `try_phone` configured | n/a | `[Try Email: 'contact_email']` / `[Try Phone: 'tel']` (key-required, no `use` enum) |
-| `try_email` / `try_phone` empty key | n/a | `[⚠ Try: A no key]` (always needs a key — no no-key values) |
+| `try_email` / `try_phone` configured | n/a | `[Try Email: 'contact_email']` / `[Try Phone: 'tel']`; a fixed attempt reads `[Try Email: “info@example.com”]`, and one with nothing typed warns `⚠ Try: A fixed email not entered` / `fixed phone number not entered` |
+| `try_email` / `try_phone` empty key | n/a | `[⚠ Try: A no key]` (a key read needs one; `fixed` is the only no-key read) |
+| Fixed-text attempt (FW-141 03) | `[Try “Varsity”]`; beside a field attempt `[Try 'nickname', “Team”]` — the author's text in curly quotes, as on `{{text}}` and a join slot | n/a |
+| Fixed-text attempt, no text entered (`use(fixed)`) | `[⚠ Try: A fixed text not entered]` — no key is asked for | n/a |
 | All slots empty | `[⚠ Try: no slots configured]` | same |
 | Per-slot warnings | `[⚠ Try: A, C misconfigured]` | same |
 | Slot with an incomplete step | `[⚠ Try: B no taxonomy]` / `[⚠ Try: B no ref]` / `[⚠ Try: B no repeater field]` (1.17.0 — a step with no argument; the seam skips it rather than reading the un-stepped entity, and names which step is unfinished). When it is the ONLY slot, the reason replaces `no slots configured`, which would otherwise be actively misleading | same |
@@ -306,13 +319,13 @@ Datetime tags compute a live preview from the current time rather than a static 
 
 Trailing `(fallback: "X")` appended whenever `fallback` option is set, matching base preview behavior.
 
-`try_email` / `try_phone` ([#32](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/32), 1.11.0) are text-like with `$needs_key = true` and no no-key values (single key-mode, no `use` enum) — so an empty-key slot always warns `⚠ <L> no key`, and a configured slot renders `Email: 'key'` / `Phone: 'key'`. This is the [#24](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/24)-correct shape (warn on a genuinely unconfigured slot, unlike `content` whose default `use` needs no key).
+A slot warns `⚠ <L> no key` when its read needs a field key and has none, which is exactly when the rendered tag skips it as unconfigured ([#24](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/24)). So `try_email` / `try_phone` ([#32](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/32), 1.11.0), which always read a key, warn on every empty-key slot, while `content` at its default read never asks for one.
 
 ## join preview
 
 `{{join}}` is the standalone COMBINING tag (up to `BWS_JOIN_MAX_SLOTS` text slots, all non-empty values assembled into one string). Unlike `try_` (a fallback chain — first non-empty wins), join combines **every** slot, so its preview lists all configured slot fields rather than describing a chain. Built by `bws_build_join_preview_label()`.
 
-**Slot walk** matches `bws_join_callback()`: a slot is "real" iff it has a `key` OR a non-default `use`; `src`/`ref` carry forward (`same`/'' takes the prior resolved source), `key`/`use` never do. Each real slot contributes a quoted key (`'name_first'`) or `Title`; a non-current source is appended per-slot (` from Ref 'rel'`).
+**Slot walk** matches `bws_join_callback()`: a slot is "real" iff it has a `key` OR a non-default `use`; `src`/`ref` carry forward (`same`/'' takes the prior resolved source), `key`/`use` never do. Each real slot contributes a quoted key (`'name_first'`), `Title`, or — for a fixed-text slot (FW-141 02) — the author's own text in curly quotes (`“Team”`, same convention as the base tag's fixed preview); a non-current source is appended per-slot (` from Ref 'rel'`) whenever the slot's own chain names one, even for `fixed` — the source part is read off the slot's wire independently of the field part, and a fixed slot's own chain, though unread at render, still displays (the author configured it, and the preview shows configuration, not what the render seam ignores).
 
 **Assembly annotation.** The `Join` prefix leads. Then:
 
@@ -328,6 +341,7 @@ Trailing `(fallback: "X")` appended whenever `fallback` option is set, matching 
 |---|---|
 | `src:ref` slot, no `ref` | `<L> no ref` |
 | key-mode slot, no `key` | `<L> no key` |
+| `fixed`-mode slot, no text entered | `<L> fixed text not entered` (FW-141 02 — the fixed read's own twin of "no key"; a slot has no key to name so only its text can be missing) |
 | Template mode, no `format` | `no format set` |
 | Slot with an INCOMPLETE `terms` step (no taxonomy) | `<L> no taxonomy` (1.17.0) |
 | Slot with an INCOMPLETE `refs` step (no relationship field, and nothing carried over to take one from) | `<L> no ref` (1.17.0) |
@@ -432,6 +446,10 @@ The rows above are **legacy flat wire** (`2-key`), which is why their format tok
 | `{{join mode:template\|format:%A (%B)\|A:key(name_first)\|B:key(name_last)}}` | `[Join “'name_first' ('name_last')”]` |
 | `{{join mode:template\|format:%1 (%2)\|A:key(name_first)\|B:key(name_last)}}` | same — the DIGIT token spelling is read forever, on folded wire too |
 | `{{join mode:template\|format:%A %%B %K\|A:key(name_first)}}` | `[Join “'name_first' %%B %K”]` — `%%` shows as typed, and a letter past the container's slot maximum is not a token |
+| `{{join A:fixed(Varsity)}}` | `[Join “Varsity”]` — a fixed-text slot alone (FW-141 02); curly-quoted like the base tag's own fixed preview, and no key to name |
+| `{{join A:key(name_first)\|B:fixed(Team)}}` | `[Join 'name_first', “Team”]` — fixed beside a keyed field slot |
+| `{{join A:use(fixed)}}` | `[⚠ Join: A fixed text not entered]` — `use(fixed)` with no text yet is the field-pending state, warned same as an empty key |
+| `{{join mode:template\|format:%A (%B)\|A:fixed(Varsity)\|B:key(name_last)}}` | `[Join “Varsity ('name_last')”]` — template mode substitutes a fixed-text slot's text bare, since the format is already wrapped in quotes |
 
 ## `{{call}}` preview — intentionally inert (does NOT execute the function)
 

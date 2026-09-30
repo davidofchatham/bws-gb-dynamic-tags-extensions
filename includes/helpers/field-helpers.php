@@ -1154,6 +1154,150 @@ function bws_limit_default( array $options ): int {
 }
 
 /**
+ * The L1 half of the shared pipeline: the resolved, limit-sliced source list.
+ *
+ * Extracted from bws_resolve_field_values() so the fixed read (FW-141) walks the SAME
+ * sources without a second copy of the resolve/traverse/slice sequence.
+ *
+ * @since 1.21.0
+ * @param array  $options  Tag options.
+ * @param object $instance GB tag instance.
+ * @return array[] Resolved sources in document order, sliced to `limit`.
+ */
+if ( ! function_exists( 'bws_resolve_field_sources' ) ) {
+function bws_resolve_field_sources( array $options, $instance ): array {
+	// L1 — resolve the base source, then run assembled traversal steps.
+	$base    = function_exists( 'bws_resolve_base_source' )
+		? bws_resolve_base_source( $options, $instance )
+		: array( 'kind' => 'post', 'id' => 0 );
+	$steps   = bws_field_values_assemble_steps( $options );
+	$sources = function_exists( 'bws_run_traversal' )
+		? bws_run_traversal( array( $base ), $steps )
+		: array( $base );
+
+	// list mode — slice plural source list to limit. The DEFAULT is selected by the
+	// source SPELLING (bws_limit_default): flat wire bounds at 1, chain wire does not.
+	$limit = bws_clamp_limit( $options['limit'] ?? null, bws_limit_default( $options ) );
+	return array_slice( $sources, 0, $limit ?: null );
+}
+}
+
+/**
+ * The fixed read's author text as a one-item list, or array() when it is empty.
+ *
+ * The source-free half of bws_resolve_fixed_values(), for the per-item dispatchers that
+ * already hold their source (the term_ / post_ modifier readers of email and phone).
+ *
+ * @since 1.21.0
+ * @param array $options Tag options (`fixed`).
+ * @return string[]
+ */
+if ( ! function_exists( 'bws_fixed_raw_values' ) ) {
+function bws_fixed_raw_values( array $options ): array {
+	$text = trim( sanitize_text_field( $options['fixed'] ?? '' ) );
+	return '' === $text ? array() : array( $text );
+}
+}
+
+/**
+ * The fixed read's turn in a per-item try_ dispatcher (email / phone), or null when the
+ * slot's read is not the fixed read and the dispatcher carries on with its field read.
+ *
+ * ONE PRELUDE for the six dispatchers (post, term, row, per family). The caller says
+ * whether IT has a source (a post or term needs an id, a row always has one, the site is
+ * always one); the answer is the author's value once, or an empty list, which the
+ * family finisher then turns into an empty attempt.
+ *
+ * @since 1.21.0
+ * @param string $tag        'email' or 'phone' — the family whose read rule applies.
+ * @param bool   $has_source Whether the dispatcher's own source resolved.
+ * @param array  $options    Slot options.
+ * @return string[]|null Raw candidate list for the finisher, or null when not a fixed read.
+ */
+if ( ! function_exists( 'bws_try_fixed_dispatch' ) ) {
+function bws_try_fixed_dispatch( string $tag, bool $has_source, array $options ): ?array {
+	if ( 'fixed' !== bws_use_effective( $tag, $options ) ) {
+		return null;
+	}
+	return $has_source ? bws_fixed_raw_values( $options ) : array();
+}
+}
+
+/**
+ * Whether a post-dispatcher's source resolved: a post needs an id, the site always counts.
+ *
+ * The `has_source` a per-item try_ post dispatcher hands bws_try_fixed_dispatch(); the
+ * site is taken by what the chain resolves to (bws_base_src_resolution), never by the
+ * serialized token.
+ *
+ * @since 1.21.0
+ * @param int|false $post_id Registry-resolved entity id (0/false for src:site).
+ * @param array     $options Slot options (`src`).
+ */
+if ( ! function_exists( 'bws_try_post_has_source' ) ) {
+function bws_try_post_has_source( $post_id, array $options ): bool {
+	return $post_id || 'site' === bws_base_src_resolution( $options )['kind'];
+}
+}
+
+/**
+ * The raw candidate values of a contact tag's base read (`email` / `phone`): the fixed
+ * text once per resolved source when the effective read is `fixed`, else the field read.
+ *
+ * The one branch both bws_base_email_resolve_value() and bws_base_phone_resolve_value()
+ * put in front of their family finisher. The caller passes the EFFECTIVE `use`
+ * (bws_use_effective( '<tag>', $options )) so the tag literal stays at the read site,
+ * where use-stripped-default-test.php's census looks.
+ *
+ * @since 1.21.0
+ * @param string $use      Effective `use` for the tag.
+ * @param array  $options  Tag options.
+ * @param object $instance GB tag instance.
+ * @return string[] Raw candidates, unvalidated.
+ */
+if ( ! function_exists( 'bws_contact_read_raw' ) ) {
+function bws_contact_read_raw( string $use, array $options, $instance ): array {
+	return 'fixed' === $use
+		? bws_resolve_fixed_values( $options, $instance )
+		: bws_resolve_field_values( $options, $instance );
+}
+}
+
+/**
+ * The FIXED read's values (FW-141): the author's `fixed` text, once per resolved source.
+ *
+ * bws_resolve_field_values()' twin for a read that reads nothing. The count is the
+ * resolved-source count, so list mode repeats it, `limit` applies, and a path that
+ * resolves nothing yields an empty list (the caller's fallback then fires). A post,
+ * term or user source with no id is "no source" — the same guard the L2 seam applies
+ * (bws_read_resolved_source_value()) — while a site or repeater-row source
+ * always counts. The text is returned RAW and unvalidated, like a stored value: the
+ * caller's family finisher validates it exactly as it would a field read.
+ *
+ * @since 1.21.0
+ * @param array  $options  Tag options (`fixed`, plus the source keys).
+ * @param object $instance GB tag instance.
+ * @return string[] One copy of the text per resolved source, or array() if it is empty.
+ */
+if ( ! function_exists( 'bws_resolve_fixed_values' ) ) {
+function bws_resolve_fixed_values( array $options, $instance ): array {
+	$typed = bws_fixed_raw_values( $options );
+	if ( ! $typed ) {
+		return array();
+	}
+	$text = $typed[0];
+	$out = array();
+	foreach ( bws_resolve_field_sources( $options, $instance ) as $source ) {
+		$id_kinds = in_array( $source['kind'] ?? '', array( 'post', 'term', 'user' ), true );
+		if ( ! $id_kinds || (int) ( $source['id'] ?? 0 ) > 0 ) {
+			$out[] = $text;
+		}
+	}
+	return $out;
+}
+}
+
+/**
  * Shared L1/L2 source-resolution pipeline: resolve a (source + key) read target
  * to a list of raw candidate field-value strings.
  *
@@ -1211,19 +1355,7 @@ function bws_resolve_field_values( array $options, $instance, ?array &$links = n
 		return array();
 	}
 
-	// L1 — resolve the base source, then run assembled traversal steps.
-	$base    = function_exists( 'bws_resolve_base_source' )
-		? bws_resolve_base_source( $options, $instance )
-		: array( 'kind' => 'post', 'id' => 0 );
-	$steps   = bws_field_values_assemble_steps( $options );
-	$sources = function_exists( 'bws_run_traversal' )
-		? bws_run_traversal( array( $base ), $steps )
-		: array( $base );
-
-	// list mode — slice plural source list to limit. The DEFAULT is selected by the
-	// source SPELLING (bws_limit_default): flat wire bounds at 1, chain wire does not.
-	$limit   = bws_clamp_limit( $options['limit'] ?? null, bws_limit_default( $options ) );
-	$sources = array_slice( $sources, 0, $limit ?: null );
+	$sources = bws_resolve_field_sources( $options, $instance );
 
 	// L2 — read each resolved source by kind; drop empties. Link identity is
 	// carried out per KEPT value (FW-49) instead of being discarded with the

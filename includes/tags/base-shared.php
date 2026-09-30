@@ -633,12 +633,17 @@ function bws_base_traversal_options(): array {
  * at each registration so the enum and its row cannot be paired wrongly; the slot read
  * twin (bws_build_slot_read_options) copies rows, not this key.
  *
+ * The leaf carries the FIXED READ (FW-141): a `fixed` enum row and a same-labeled `fixed`
+ * input, whose value IS the output.
+ *
  * @since 1.17.0
- * @return array { 'use' => array, 'key' => array } — definitions WITHOUT `show_if`
- *               (base overlays `use:not:title`; the template encodes the same fact
- *               declaratively via try_use_no_key_values).
+ * @since 1.21.0 Carries the `fixed` row and input.
+ * @return array { 'use' => array, 'key' => array, 'fixed' => array } — definitions
+ *               WITHOUT `show_if` (base overlays `use:not:title`; the template encodes
+ *               the same fact declaratively via try_use_no_key_values).
  */
 function bws_get_text_field_options(): array {
+	$label = __( 'Fixed Text', 'generateblocks' );
 	return array(
 		'use' => array(
 			'type'           => 'select',
@@ -646,6 +651,7 @@ function bws_get_text_field_options(): array {
 			'options'        => array(
 				array( 'value' => 'key',   'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
 				array( 'value' => 'title', 'label' => __( 'Title/Name', 'generateblocks' ) ),
+				array( 'value' => 'fixed', 'label' => $label ),
 			),
 			'_strip_default' => true,
 			'readTag'        => 'text',
@@ -656,6 +662,12 @@ function bws_get_text_field_options(): array {
 			'dynamicLabel' => true,
 			'help'         => __( 'ACF or meta field key.', 'generateblocks' ),
 			'placeholder'  => 'field_name',
+		),
+		// bws-format-input escapes `:`/`|` so the text survives GB's tag-string round-trip.
+		'fixed' => array(
+			'type'  => 'bws-format-input',
+			'label' => $label,
+			'help'  => __( 'Text to show for each result found. Unlike Fallback Text, which only shows when nothing is found, this shows every time.', 'generateblocks' ),
 		),
 	);
 }
@@ -724,6 +736,60 @@ function bws_get_image_field_options(): array {
 			'dynamicLabel' => true,
 			'help'         => __( 'ACF or meta field key holding an image (attachment ID or URL).', 'generateblocks' ),
 			'placeholder'  => 'image_field',
+		),
+	);
+}
+
+/**
+ * The email / phone `use` + `key` + `fixed` field-option LEAF — bws_get_text_field_options()'s
+ * sibling for the two contact tags (FW-141).
+ *
+ * The two tags read a stored address or number (key-mode, the stripped default) or show
+ * one the author typed (the fixed read), so ONE builder serves both and only the
+ * per-family words differ: the `use` label, the field key's help and placeholder, and
+ * the fixed row/input label ("Fixed Email" / "Fixed Phone Number", parallel to "Fallback
+ * Email" / "Fallback Phone Number"). `show_if` is the caller's overlay, as on the text
+ * leaf: base hides `key` under the fixed read and `fixed` outside it.
+ *
+ * The `fixed` input's value is finished exactly as the tag's fallback is (validated /
+ * normalized, linked, obfuscated), so its help says only when it shows and what happens
+ * to an invalid entry.
+ *
+ * @since 1.21.0
+ * @param string $tag 'email' or 'phone'.
+ * @return array { 'use' => array, 'key' => array, 'fixed' => array } — definitions
+ *               WITHOUT `show_if`.
+ */
+function bws_get_contact_field_options( string $tag ): array {
+	$is_email = 'email' === $tag;
+	$fixed    = $is_email ? __( 'Fixed Email', 'generateblocks' ) : __( 'Fixed Phone Number', 'generateblocks' );
+	return array(
+		'use'   => array(
+			'type'           => 'select',
+			'label'          => $is_email ? __( 'Email Field', 'generateblocks' ) : __( 'Phone Number Field', 'generateblocks' ),
+			'options'        => array(
+				array( 'value' => 'key',   'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
+				array( 'value' => 'fixed', 'label' => $fixed ),
+			),
+			'_strip_default' => true,
+			'readTag'        => $tag,
+		),
+		'key'   => array(
+			'type'         => 'bws-field-combo',
+			'label'        => __( 'Meta/Option Field Key', 'generateblocks' ),
+			'dynamicLabel' => true,
+			'help'         => $is_email
+				? __( 'ACF or meta field key holding the email address.', 'generateblocks' )
+				: __( 'ACF or meta field key holding the phone number.', 'generateblocks' ),
+			'placeholder'  => $is_email ? 'email_field' : 'phone_field',
+		),
+		'fixed' => array(
+			// bws-format-input escapes `:`/`|` so the entry survives GB's tag-string round-trip.
+			'type'  => 'bws-format-input',
+			'label' => $fixed,
+			'help'  => $is_email
+				? __( 'Email address to show for each result found. Unlike Fallback Email, which only shows when the field is empty or invalid, this shows every time. Validated as an email; an invalid address shows nothing.', 'generateblocks' )
+				: __( 'Phone number to show for each result found. Unlike Fallback Phone Number, which only shows when the field is empty or invalid, this shows every time. Normalized like a stored number; an invalid number shows nothing.', 'generateblocks' ),
 		),
 	);
 }
@@ -818,14 +884,20 @@ function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same
  *     offers ([I16]).
  *
  * @since 1.17.0
+ * @since 1.21.0 $base_fixed (FW-141 02).
  * @param array $args {
  *     @type string $container       'join' | 'table' | 'try' (required).
  *     @type array  $base_read       Base read definition (e.g. bws_get_text_field_options()['use']).
  *     @type array  $base_key        Base field-key definition (…['key']).
+ *     @type array  $base_fixed      Base fixed-text definition (…['fixed']), FW-141 02.
+ *                                   Omitted (not empty) when the container has no fixed
+ *                                   read, same convention as $base_key.
  *     @type int    $max             Slot ceiling (required).
  *     @type int    $min             Slots always visible. Default 2.
  *     @type bool   $combining       True for join/table. Default true.
  *     @type bool   $per_slot_use    Container gives each slot its own read axis. Default true.
+ *     @type bool   $flat_per_slot_use Whether the LEGACY flat wire had one (the migrators' era fact,
+ *                                    TagTemplateRegistry::try_flat_era_per_slot_use()). Default = per_slot_use.
  *     @type bool   $allow_site      Keep `site` in the source enum. Default true.
  *     @type bool   $allow_same_read Offer the read `same` row at slot ≥2. Default false.
  *     @type array  $steps            WIRE step slugs offered as steps, in offer order. Default ['terms'].
@@ -853,11 +925,13 @@ function bws_build_fold_slot_options( array $args ): array {
 	$min             = (int) ( $args['min'] ?? 2 );
 	$combining       = isset( $args['combining'] ) ? (bool) $args['combining'] : bws_fold_is_combining( $container );
 	$per_slot_use    = ! isset( $args['per_slot_use'] ) || (bool) $args['per_slot_use'];
+	$flat_per_slot_use = isset( $args['flat_per_slot_use'] ) ? (bool) $args['flat_per_slot_use'] : $per_slot_use;
 	$allow_site      = ! isset( $args['allow_site'] ) || (bool) $args['allow_site'];
 	$allow_same_read = ! empty( $args['allow_same_read'] );
 	$steps            = $args['steps'] ?? array( 'terms' );
 	$base_read       = $args['base_read'] ?? array();
 	$base_key        = $args['base_key'] ?? array();
+	$base_fixed      = $args['base_fixed'] ?? array();
 	$noun            = (string) ( $args['noun'] ?? '' );
 
 	// ONE registered noun drives BOTH surfaces — the Add button (`+ Add attempt`) and
@@ -937,6 +1011,7 @@ function bws_build_fold_slot_options( array $args ): array {
 		'container'        => $container,
 		'combining'        => $combining,
 		'perSlotUse'       => $per_slot_use,
+		'flatPerSlotUse'   => $flat_per_slot_use,
 		'min'              => $min,
 		'max'              => $max,
 		'noun'             => $noun,
@@ -982,6 +1057,9 @@ function bws_build_fold_slot_options( array $args ): array {
 	// whose read is a tag-level option.
 	if ( ! empty( $base_key ) ) {
 		$fold['keyOption'] = bws_fold_picker_config( $base_key );
+	}
+	if ( ! empty( $base_fixed ) ) {
+		$fold['fixedOption'] = bws_fold_picker_config( $base_fixed );
 	}
 	// The `rows` step's argument picker. A container may override it — {{table}} scopes
 	// the picker differently — but every container that offers the step ships one, or the
@@ -1368,6 +1446,26 @@ function bws_base_stated_fallback( array $options, $instance ): string {
 }
 
 /**
+ * The FIXED read (FW-141): the author's `fixed` text, finished as a text read — or ''.
+ *
+ * The one `use` value that reads nothing. Every text arm calls this only once it holds a
+ * resolved source, so the text shows once per source and a source path that resolves
+ * nothing still renders empty (the fallback then fires). Sanitized like
+ * bws_base_stated_fallback(), then GB's text transforms (`trunc`, `case`, …) apply.
+ *
+ * @since 1.21.0
+ * @param array  $options  Tag options.
+ * @param object $instance GB tag instance.
+ * @return string The rendered text, or ''.
+ */
+function bws_fixed_text_read( array $options, $instance ): string {
+	$text = sanitize_text_field( $options['fixed'] ?? '' );
+	return '' !== $text
+		? (string) bws_gb_tag_output( $text, $options, $instance )
+		: '';
+}
+
+/**
  * Collapse a base source to the callback's POST id via ref-only steps (SPEC §V13).
  *
  * The post-path counterpart of the ambient-term branch: runs the wrapper's
@@ -1602,10 +1700,7 @@ function bws_base_term_analog_read( string $tag, int $term_id, array $options, $
 			return bws_term_title_core( $term_id, $options, $instance );
 
 		case 'text':
-			$use = bws_use_effective( 'text', $options );
-			return 'title' === $use
-				? bws_term_title_core( $term_id, $options, $instance )
-				: bws_term_custom_text_core( $term_id, $options, $instance );
+			return bws_try_text_term_dispatch( $term_id, $options, $instance );
 
 		case 'content':
 			$use = bws_use_effective( 'content', $options );
@@ -1691,8 +1786,12 @@ function bws_base_user_analog_read( string $tag, int $user_id, array $options, $
 			// Mirror of the term analog's text dispatch: use:title → the intrinsic
 			// analog (display name), key-mode → a user meta field read shaped like
 			// bws_term_custom_text_core (fallback emit on miss, '0' preserved).
-			if ( 'title' === bws_use_effective( 'text', $options ) ) {
+			$use = bws_use_effective( 'text', $options );
+			if ( 'title' === $use ) {
 				return bws_base_user_analog_read( 'title', $user_id, $options, $instance );
+			}
+			if ( 'fixed' === $use ) {
+				return bws_fixed_text_read( $options, $instance );
 			}
 			$fallback = sanitize_text_field( $options['fallback'] ?? '' );
 			$key      = sanitize_text_field( $options['key'] ?? '' );
@@ -1812,9 +1911,14 @@ function bws_base_query_context_analog_read( string $tag, array $base, array $op
 
 		case 'text':
 			// Mirror of the term/user readers' text dispatch: use:title → the
-			// context's title analog. Key-mode has no entity to read → ''.
-			if ( 'title' === bws_use_effective( 'text', $options ) ) {
+			// context's title analog; fixed reads nothing, so the context is source
+			// enough. Key-mode has no entity to read → ''.
+			$use = bws_use_effective( 'text', $options );
+			if ( 'title' === $use ) {
 				return bws_base_query_context_analog_read( 'title', $base, $options, $instance );
+			}
+			if ( 'fixed' === $use ) {
+				return bws_fixed_text_read( $options, $instance );
 			}
 			return '';
 

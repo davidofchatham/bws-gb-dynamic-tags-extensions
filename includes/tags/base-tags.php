@@ -80,6 +80,7 @@ function bws_register_base_tags(): void {
 	$traversal_opts = bws_base_traversal_options();
 	// One field-option LEAF per tag with a read axis; the base registration and the
 	// modifier template below are two COMPOSITIONS of each, never two definitions.
+	// Every text consumer reads `fixed` (FW-141): {{text}}, join slots, try_text attempts.
 	$text_field     = bws_get_text_field_options();
 	$content_field  = bws_get_content_field_options();
 	$image_field    = bws_get_image_field_options();
@@ -131,19 +132,24 @@ function bws_register_base_tags(): void {
 					'placeholder' => ', ',
 					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => array( 'ref', 'chain_fans' ) ),
 				),
-				// use/key from the text FIELD LEAF (single source; the template, join
+				// use/key/fixed from the text FIELD LEAF (single source; the template, join
 				// and the folded control consume the same builder). show_if is the
 				// caller's overlay by leaf contract.
 				'use'      => $text_field['use'],
 				'key'      => array_merge(
 					$text_field['key'],
 					array(
-						// Key-mode = empty/'key'. Hidden for named data (title).
-						// Under src:site, key-mode reads a wp_options key. Site tagline has
-						// NO tag path (B7): GB native {{site_tagline}} or key:blogdescription
-						// (nothing unique to add until multislot-feed decouple — see #26).
-						'show_if' => array( 'use' => 'not:title' ),
+						// Key-mode = empty/'key'. Hidden for named data (title) and
+						// author text (fixed). Under src:site, key-mode reads a wp_options
+						// key. Site tagline has NO tag path (B7): GB native {{site_tagline}}
+						// or key:blogdescription (nothing unique to add until multislot-feed
+						// decouple — see #26).
+						'show_if' => array( 'use' => 'not_in:title,fixed' ),
 					)
+				),
+				'fixed'    => array_merge(
+					$text_field['fixed'],
+					array( 'show_if' => array( 'use' => 'fixed' ) )
 				),
 			),
 			function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array(),
@@ -412,7 +418,7 @@ function bws_register_base_tags(): void {
 		'supports_try'          => true,
 		'try_per_slot_key'      => true,
 		'try_per_slot_use'      => true,
-		'try_use_no_key_values' => array( 'title' ),
+		'try_use_no_key_values' => array( 'title', 'fixed' ),
 		'try_list_options'      => true,
 		'is_image'              => false,
 	) );
@@ -645,9 +651,11 @@ function bws_register_base_tags(): void {
  * post    + use:title   → bws_post_title_core()
  * rows    + use unset   → bws_row_custom_text_core()  (per-row; limit/sep applied)
  * rows    + use:title   → '' (analogs refuse on a row — it is not an entity)
+ * any     + use:fixed   → bws_fixed_text_read() once per resolved source (FW-141)
  *
- * The rows arm dispatches the `use` fork through bws_try_text_row_dispatch(), which is
- * the try_ row arm's function too — one owner for the fork, as with the term/post pair.
+ * Every arm dispatches the `use` fork through the try_ family's dispatchers
+ * (bws_try_text_term_dispatch / _post_dispatch / _row_dispatch) — one owner for the
+ * fork per source kind, shared with the try_ arms.
  *
  * ABSORB INVARIANT: the returned value must stay byte-equivalent to what
  * {{text}} renders before link-wrap — including the src:site arm, the
@@ -667,7 +675,6 @@ function bws_register_base_tags(): void {
  *                        value came from a list arm that already wrapped per item.
  */
 function bws_base_text_resolve_value( array $options, $instance ): array {
-	$use = bws_use_effective( 'text', $options );
 	$res = bws_base_src_resolution( $options );
 
 	// Site read — no entity; site value with sentinel link identity (id 1, 'site' type).
@@ -720,12 +727,9 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 	if ( 'term' === $res['kind'] ) {
 		$collected = bws_collect_value_list(
 			bws_base_term_ids_from_source( $base, $options ),
-			static function ( $tid, array $item_opts ) use ( $use, $instance ) {
-				$result = 'title' === $use
-					? bws_term_title_core( (int) $tid, $item_opts, $instance )
-					: bws_term_custom_text_core( (int) $tid, $item_opts, $instance );
+			static function ( $tid, array $item_opts ) use ( $instance ) {
 				return array(
-					'value' => $result,
+					'value' => bws_try_text_term_dispatch( (int) $tid, $item_opts, $instance ),
 					'link'  => array( 'kind' => 'term', 'id' => (int) $tid ),
 				);
 			},
@@ -740,12 +744,9 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 		$post_ids  = bws_base_post_ids_from_source( $base, $options );
 		$collected = bws_collect_value_list(
 			$post_ids,
-			static function ( $pid, array $item_opts ) use ( $use, $instance ) {
-				$result = 'title' === $use
-					? bws_post_title_core( $pid, $item_opts, $instance )
-					: bws_post_custom_text_core( $pid, $item_opts, $instance );
+			static function ( $pid, array $item_opts ) use ( $instance ) {
 				return array(
-					'value' => $result,
+					'value' => bws_try_text_post_dispatch( $pid, $item_opts, $instance ),
 					'link'  => array( 'kind' => 'post', 'id' => (int) $pid ),
 				);
 			},
@@ -777,14 +778,9 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 			$options
 		);
 		$value = $collected['value'];
-	} elseif ( 'title' === $use ) {
-		$post_id   = bws_base_post_id_from_source( $base, $options );
-		$value     = bws_post_title_core( $post_id, $options, $instance );
-		$link_id   = (int) $post_id;
-		$link_type = 'post';
 	} else {
 		$post_id   = bws_base_post_id_from_source( $base, $options );
-		$value     = bws_post_custom_text_core( $post_id, $options, $instance );
+		$value     = bws_try_text_post_dispatch( $post_id, $options, $instance );
 		$link_id   = (int) $post_id;
 		$link_type = 'post';
 	}
@@ -882,7 +878,7 @@ function bws_base_text_callback( $options, $block, $instance ): string {
 function bws_get_join_options(): array {
 	$text_field = function_exists( 'bws_get_text_field_options' )
 		? bws_get_text_field_options()
-		: array( 'use' => array(), 'key' => array() );
+		: array( 'use' => array(), 'key' => array(), 'fixed' => array() );
 
 	// FOLDED slot keys (`A`, `B`, …) — one option per slot, the whole slot in its
 	// value. Replaces the six flat keys per slot join registered through 1.16.x; the
@@ -898,6 +894,7 @@ function bws_get_join_options(): array {
 				'min'             => 2,
 				'base_read'       => $text_field['use'],
 				'base_key'        => $text_field['key'],
+				'base_fixed'      => $text_field['fixed'] ?? array(),
 				// Site arm allowed: join is standalone, so the base source list passes
 				// through whole (the try_ site filter is a modifier-only concern).
 				'allow_site'      => true,
@@ -1827,6 +1824,12 @@ function bws_site_resolve_value( string $tag, array $options, $instance ): strin
 		return (string) get_bloginfo( 'name' );
 	}
 
+	// text use:fixed → the author's text (FW-141); the site is always a source. Scoped
+	// to text: no other tag offers the fixed read, so a hand-typed one is ignored there.
+	if ( 'text' === $tag && 'fixed' === $use ) {
+		return bws_fixed_text_read( $options, $instance );
+	}
+
 	// permalink = the source entity's own URL, never an option read (V9 narrowed).
 	// Always home_url(); any `key` is ignored (control suppressed under site too).
 	// URL-valued options are reachable via {{text src:site|key:...}}.
@@ -1904,6 +1907,9 @@ function bws_try_text_post_dispatch( $post_id, $options, $instance ) {
 	if ( 'title' === $use ) {
 		return bws_post_title_core( $post_id, $options, $instance );
 	}
+	if ( 'fixed' === $use ) {
+		return $post_id ? bws_fixed_text_read( $options, $instance ) : '';
+	}
 	return bws_post_custom_text_core( $post_id, $options, $instance );
 }
 
@@ -1924,6 +1930,9 @@ function bws_try_text_row_dispatch( $source, $options, $instance ) {
 	if ( 'title' === $use ) {
 		return '';
 	}
+	if ( 'fixed' === $use ) {
+		return bws_fixed_text_read( $options, $instance );
+	}
 	return bws_row_custom_text_core( (array) $source, $options, $instance );
 }
 
@@ -1936,6 +1945,9 @@ function bws_try_text_term_dispatch( $term_id, $options, $instance ) {
 	$use = bws_use_effective( 'text', $options );
 	if ( 'title' === $use ) {
 		return bws_term_title_core( $term_id, $options, $instance );
+	}
+	if ( 'fixed' === $use ) {
+		return $term_id ? bws_fixed_text_read( $options, $instance ) : '';
 	}
 	return bws_term_custom_text_core( $term_id, $options, $instance );
 }

@@ -21,8 +21,9 @@
  *     a field on `{{content use:key}}` saves `{{content key:foo}}`.
  *
  *   - MOUNT: stored redundant wire gets the same normalize() — `{{content use:key|key:foo}}`
- *     → `{{content key:foo}}`, a stale `key` beside another mode dropped; keyed-pending
- *     `{{content use:key}}` is left alone. Licensed as LEGACY because current writes never
+ *     → `{{content key:foo}}`, a stale `key` beside another mode dropped, a stored
+ *     `{{text key:foo|fixed:Bar}}` pair reduced to the token the read resolves (FW-141);
+ *     keyed-pending `{{content use:key}}` is left alone. Licensed as LEGACY because current writes never
  *     emit it (docs/editor-controls.md §Why the image composite does NOT migrate on
  *     mount, the on-mount rule), and decidable
  *     here because `key` stays in extraTagParams on our tags. Every drop is a token the
@@ -85,8 +86,9 @@
 
 	/**
 	 * Drop what an explicit `use` makes redundant: a field token of ANOTHER mode (stale),
-	 * then `use` itself when the remaining tokens already imply it. Returns `state` itself
-	 * when nothing changes, so a caller can bail on identity.
+	 * then `use` itself when the remaining tokens already imply it. With no `use`, two
+	 * set field tokens (`key:foo|fixed:Bar`, FW-141) keep only the one the read resolves.
+	 * Returns `state` itself when nothing changes, so a caller can bail on identity.
 	 *
 	 * @param {string} tag
 	 * @param {Object} state
@@ -95,7 +97,7 @@
 	function normalize( tag, state ) {
 		var r   = rules();
 		var use = str( state && state.use );
-		if ( '' === use || '' === str( r.defaults[ tag ] ) ) {
+		if ( '' === str( r.defaults[ tag ] ) ) {
 			return state;
 		}
 		var next = null;
@@ -104,6 +106,15 @@
 				next = next || Object.assign( {}, state );
 				delete next[ k ];
 			}
+		}
+		if ( '' === use ) {
+			var mode = effective( tag, state );
+			Object.keys( r.implied ).forEach( function ( token ) {
+				if ( r.implied[ token ] !== mode && '' !== str( state && state[ token ] ) ) {
+					drop( token );
+				}
+			} );
+			return next || state;
 		}
 		Object.keys( r.implied ).forEach( function ( token ) {
 			if ( r.implied[ token ] !== use ) {

@@ -871,7 +871,7 @@ check( 'a chain fanning at TWO steps shows the advisory once', 1 === countAdviso
 console.log( '\n`use` read rule — the editor twin (FW-142)\n' );
 
 const USE_CASES = [];
-[ 'text', 'content', 'image', 'title', 'permalink' ].forEach( function ( tag ) {
+[ 'text', 'content', 'image', 'email', 'phone', 'title', 'permalink' ].forEach( function ( tag ) {
 	[
 		{},
 		{ key: 'foo' },
@@ -882,7 +882,13 @@ const USE_CASES = [];
 		{ use: '', key: 'foo' },
 		{ use: '' },
 		{ key: '' },
-		{ use: 'key' }
+		{ use: 'key' },
+		// FW-141 — the fixed read.
+		{ fixed: 'Varsity' },
+		{ key: 'foo', fixed: 'Bar' },
+		{ use: 'title', fixed: 'Bar' },
+		{ fixed: '' },
+		{ use: 'fixed' }
 	].forEach( function ( state ) {
 		USE_CASES.push( [ tag, state ] );
 	} );
@@ -902,8 +908,8 @@ const useRead = global.window.bwsUseRead;
 
 check( 'the read twin loaded', !! useRead );
 check(
-	'the inline carries the map and the three stripped defaults (non-vacuity)',
-	'key' === phpUse.rules.implied.key && 3 === Object.keys( phpUse.rules.defaults ).length,
+	'the inline carries the map and the five stripped defaults (non-vacuity)',
+	'key' === phpUse.rules.implied.key && 5 === Object.keys( phpUse.rules.defaults ).length,
 	JSON.stringify( phpUse.rules )
 );
 
@@ -936,7 +942,17 @@ check( 'effective() agrees with bws_use_effective() on all ' + USE_CASES.length 
 	[ 'text', { use: 'title' }, '', {}, 'text → Meta/Option Field writes no use:key (short form unchanged)' ],
 	[ 'image', { key: 'foo' }, 'featured', { use: 'featured' }, 'image → Featured Image deletes the key' ],
 	[ 'image', { use: 'featured' }, '', {}, 'image → Meta/Option Field writes no use:key (short form unchanged)' ],
-	[ 'content', { src: 'site', key: 'foo', fallback: 'x' }, 'excerpt', { src: 'site', fallback: 'x', use: 'excerpt' }, 'unrelated options survive a pick' ]
+	[ 'content', { src: 'site', key: 'foo', fallback: 'x' }, 'excerpt', { src: 'site', fallback: 'x', use: 'excerpt' }, 'unrelated options survive a pick' ],
+	// FW-141 — the fixed read: its text is deleted when another read is picked, and a key
+	// is deleted when it is picked.
+	[ 'text', { fixed: 'Varsity' }, 'title', { use: 'title' }, 'text fixed → Title/Name deletes fixed' ],
+	[ 'text', { fixed: 'Varsity' }, '', {}, 'text fixed → Meta/Option Field deletes fixed, writes no use' ],
+	[ 'text', { key: 'foo' }, 'fixed', { use: 'fixed' }, 'text → Fixed Text deletes the key (fixed, pending)' ],
+	// FW-141 04 — email and phone take the same rows.
+	[ 'email', { key: 'foo' }, 'fixed', { use: 'fixed' }, 'email → Fixed Email deletes the key (fixed, pending)' ],
+	[ 'email', { fixed: 'a@b.co' }, '', {}, 'email fixed → Meta/Option Field deletes fixed, writes no use' ],
+	[ 'phone', { key: 'foo' }, 'fixed', { use: 'fixed' }, 'phone → Fixed Phone Number deletes the key (fixed, pending)' ],
+	[ 'phone', { fixed: '555-0100' }, '', {}, 'phone fixed → Meta/Option Field deletes fixed, writes no use' ]
 ].forEach( function ( row ) {
 	const next = useRead.pick( row[ 0 ], row[ 1 ], row[ 2 ] );
 	check( 'pick — ' + row[ 4 ], JSON.stringify( row[ 3 ] ) === JSON.stringify( next ), JSON.stringify( next ) );
@@ -946,7 +962,13 @@ check( 'effective() agrees with bws_use_effective() on all ' + USE_CASES.length 
 [
 	[ 'content', { use: 'key', key: 'foo' }, { key: 'foo' }, 'a field picked on use:key drops the now-redundant use' ],
 	[ 'content', { use: 'key' }, { use: 'key' }, 'keyed-pending stays (the key was cleared, not the mode)' ],
-	[ 'text', { key: 'foo' }, { key: 'foo' }, 'nothing to drop returns the state as is' ]
+	[ 'text', { key: 'foo' }, { key: 'foo' }, 'nothing to drop returns the state as is' ],
+	// FW-141 — key and fixed never coexist: a stored pair keeps the read it resolves.
+	[ 'text', { key: 'foo', fixed: 'Bar' }, { key: 'foo' }, 'a stored key+fixed pair normalizes to the key (map order)' ],
+	[ 'text', { use: 'fixed', fixed: 'Varsity' }, { fixed: 'Varsity' }, 'text typed on use:fixed drops the now-redundant use' ],
+	[ 'text', { key: '', fixed: 'Varsity' }, { key: '', fixed: 'Varsity' }, 'an empty token is not a pair' ],
+	[ 'email', { key: 'foo', fixed: 'a@b.co' }, { key: 'foo' }, 'email: a stored key+fixed pair normalizes to the key' ],
+	[ 'phone', { key: 'foo', fixed: '555-0100' }, { key: 'foo' }, 'phone: a stored key+fixed pair normalizes to the key' ]
 ].forEach( function ( row ) {
 	const next = useRead.normalize( row[ 0 ], row[ 1 ] );
 	check( 'normalize — ' + row[ 3 ], JSON.stringify( row[ 2 ] ) === JSON.stringify( next ), JSON.stringify( next ) );

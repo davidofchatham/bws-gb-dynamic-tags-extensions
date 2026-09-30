@@ -243,6 +243,30 @@ function bws_fixture_gb_empty_row( $label, $tag ) {
 function bws_fixture_page_content_matrix_post_meta() {
 	$sections = array();
 
+	// E1 — the email fixed read (FW-141 04); email-test-matrix.md. Obfuscation is seeded OFF.
+	$sections[] = bws_fixture_gb_section( 'Email E1 - fixed read (FW-141)', array(
+		bws_fixture_gb_row( 'E1.1 (expect info@example.com as a mailto link)', '{{email fixed:info@example.com}}' ),
+		bws_fixture_gb_row( 'E1.2 (expect a mailto link carrying ?subject=Hello%20there)', '{{email fixed:info@example.com|subject:Hello there}}' ),
+		bws_fixture_gb_row( 'E1.3 (expect info@example.com, plain text)', '{{email fixed:info@example.com|noLink}}' ),
+		bws_fixture_gb_row( 'E1.4 (expect info@example.com / info@example.com)', '{{email src:refs,related_staff|fixed:info@example.com|noLink|sep: / }}' ),
+		bws_fixture_gb_row( 'E1.5 (expect sales@example.test - no source resolved, so the fallback fires)', '{{email src:refs,no_such_rel|fixed:info@example.com|fallback:sales@example.test|noLink}}' ),
+		bws_fixture_gb_row( 'E1.6 (expect sales@example.test - the invalid entry is empty)', '{{email fixed:not-an-email|fallback:sales@example.test|noLink}}' ),
+		bws_fixture_gb_empty_row( 'E1.7 (expect EMPTY - invalid entry, no fallback)', '{{email fixed:not-an-email}}' ),
+		bws_fixture_gb_row( 'E1.8 (expect jane@example.test - a stored key+fixed pair reads the key)', '{{email src:ref|ref:related_staff|key:contact_email|fixed:info@example.com|noLink}}' ),
+		bws_fixture_gb_row( 'E1.9 (expect info@example.com - the site is a source)', '{{email src:site|fixed:info@example.com|noLink}}' ),
+	) );
+
+	// E2 — a fixed try_email attempt (FW-141 05); email-test-matrix.md §E2. Obfuscation is seeded OFF.
+	$sections[] = bws_fixture_gb_section( 'Email E2 - fixed try_email attempt (FW-141 05)', array(
+		bws_fixture_gb_row( 'E2.1 (expect info@example.com)', '{{try_email A:fixed(info@example.com)|noLink}}' ),
+		bws_fixture_gb_row( 'E2.2 (expect jane@example.test, tom@example.test - the field attempt has a value, so the fixed one never runs)', '{{try_email A:src(refs,related_staff);key(contact_email)|B:fixed(info@example.com)|noLink}}' ),
+		bws_fixture_gb_row( 'E2.3 (expect info@example.com - the empty field attempt falls through)', '{{try_email A:key(nonexistent_field)|B:fixed(info@example.com)|noLink}}' ),
+		bws_fixture_gb_row( 'E2.4 (expect info@example.com - the invalid first attempt is empty)', '{{try_email A:fixed(not-an-email)|B:fixed(info@example.com)|noLink}}' ),
+		bws_fixture_gb_row( 'E2.5 (expect sales@example.test - the fixed attempt resolved no source)', '{{try_email A:src(refs,no_such_rel);fixed(info@example.com)|fallback:sales@example.test|noLink}}' ),
+		bws_fixture_gb_row( 'E2.6 (expect a mailto link carrying ?subject=Hello)', '{{try_email A:fixed(info@example.com)|subject:Hello}}' ),
+		bws_fixture_gb_row( 'E2.7 (expect info@example.com / info@example.com - once per staff post)', '{{try_email A:src(refs,related_staff);fixed(info@example.com)|sep: / |noLink}}' ),
+	) );
+
 	$sections[] = bws_fixture_gb_section( 'Phone R0 - href rebuild', array(
 		bws_fixture_gb_row( 'R0.1', '{{phone key:main_line}}' ),
 		bws_fixture_gb_row( 'R0.2', '{{phone key:booking_line}}' ),
@@ -286,6 +310,26 @@ function bws_fixture_page_content_matrix_post_meta() {
 
 	$sections[] = bws_fixture_gb_section( 'Phone R6 - security', array(
 		bws_fixture_gb_row( 'R6.1', '{{phone key:hacked_line}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Phone R7 - fixed read (FW-141)', array(
+		bws_fixture_gb_row( 'R7.1 (expect 555-867-5309 as a tel link)', '{{phone fixed:555-867-5309}}' ),
+		bws_fixture_gb_row( 'R7.2 (expect the same link twice, one per staff post)', '{{phone src:refs,related_staff|fixed:555-867-5309}}' ),
+		bws_fixture_gb_row( 'R7.3 (expect the link once - the step limit applies)', '{{phone src:refs,related_staff,limit(1)|fixed:555-867-5309}}' ),
+		bws_fixture_gb_row( 'R7.4 (expect 555-867-5309, plain text)', '{{phone fixed:555-867-5309|noLink}}' ),
+		bws_fixture_gb_row( 'R7.5 (expect 555-000-1111 - no source resolved, so the fallback fires)', '{{phone src:refs,no_such_rel|fixed:555-867-5309|fallback:555-000-1111}}' ),
+		bws_fixture_gb_row( 'R7.6 (expect 555-000-1111 - the entry will not normalize)', '{{phone fixed:abc|fallback:555-000-1111}}' ),
+		bws_fixture_gb_row( 'R7.7 (expect (987) 654-3210 - a stored key+fixed pair reads the key)', '{{phone key:main_line|fixed:555-867-5309}}' ),
+		bws_fixture_gb_row( 'R7.8 (expect 555-867-5309 - the site is a source)', '{{phone src:site|fixed:555-867-5309}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Phone R8 - fixed try_phone attempt (FW-141 05)', array(
+		bws_fixture_gb_row( 'R8.1 (expect 555-867-5309 as a tel link)', '{{try_phone A:fixed(555-867-5309)}}' ),
+		bws_fixture_gb_row( 'R8.2 (expect (987) 654-3210 - the field attempt has a value, so the fixed one never runs)', '{{try_phone A:key(main_line)|B:fixed(555-867-5309)|noLink}}' ),
+		bws_fixture_gb_row( 'R8.3 (expect 555-867-5309 - the empty field attempt falls through)', '{{try_phone A:key(nonexistent_field)|B:fixed(555-867-5309)|noLink}}' ),
+		bws_fixture_gb_row( 'R8.4 (expect 555-867-5309 - the entry that will not normalize is empty)', '{{try_phone A:fixed(abc)|B:fixed(555-867-5309)|noLink}}' ),
+		bws_fixture_gb_row( 'R8.5 (expect 555-000-1111 - the fixed attempt resolved no source)', '{{try_phone A:src(refs,no_such_rel);fixed(555-867-5309)|fallback:555-000-1111|noLink}}' ),
+		bws_fixture_gb_row( 'R8.6 (expect 555-867-5309 / 555-867-5309 - once per staff post)', '{{try_phone A:src(refs,related_staff);fixed(555-867-5309)|sep: / |noLink}}' ),
 	) );
 
 	// text read-seam matrix (text-test-matrix.md). Standing rendered rows for
@@ -344,6 +388,32 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'T7.2', '{{text src:ref|ref:related_staff|use:title|limit:5}}' ),
 		bws_fixture_gb_row( 'T7.3', '{{text src:ref|ref:related_staff|use:title|limit:5|linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'T7.4', '{{text src:ref|ref:related_staff|use:title|linkTo:permalink}}' ),
+	) );
+
+	// T12 — the fixed read (FW-141): the author's text, once per resolved source. The HTML
+	// strip row (T12.8) is render-tag only; see text-test-matrix.md §T12.
+	$sections[] = bws_fixture_gb_section( 'Text T12 - fixed read (FW-141)', array(
+		bws_fixture_gb_row( 'T12.1 (expect Varsity)', '{{text fixed:Varsity}}' ),
+		bws_fixture_gb_row( 'T12.2 (expect Read more twice, each linked to its own staff page)', '{{text src:refs,related_staff|fixed:Read more|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'T12.3 (expect Staff / Staff)', '{{text src:refs,related_staff|fixed:Staff|sep: / }}' ),
+		bws_fixture_gb_row( 'T12.4 (expect Staff once - the step limit applies)', '{{text src:refs,related_staff,limit(1)|fixed:Staff}}' ),
+		bws_fixture_gb_row( 'T12.5 (expect NONE - no source resolved, so the fallback fires)', '{{text src:refs,no_such_rel|fixed:Read more|fallback:NONE}}' ),
+		bws_fixture_gb_row( 'T12.6 (expect VARSITY - GB case applies)', '{{text fixed:Varsity|case:upper}}' ),
+		bws_fixture_gb_row( 'T12.7 (expect Note: see | this - escaped colon and bar)', '{{text fixed:Note\: see \| this}}' ),
+		bws_fixture_gb_row( 'T12.9 (expect the main line number, not Bar - a stored key+fixed pair reads the key)', '{{text key:main_line|fixed:Bar}}' ),
+		bws_fixture_gb_row( 'T12.10 (expect Varsity - the site is a source)', '{{text src:site|fixed:Varsity}}' ),
+	) );
+
+	// T13 — a fixed try_text attempt (FW-141 03); text-test-matrix.md §T13.
+	$sections[] = bws_fixture_gb_section( 'Text T13 - fixed try_text attempt (FW-141 03)', array(
+		bws_fixture_gb_row( 'T13.1 (expect Varsity)', '{{try_text A:fixed(Varsity)}}' ),
+		bws_fixture_gb_row( 'T13.2 (expect the main line number, not Bar - the field attempt wins)', '{{try_text A:key(main_line)|B:fixed(Bar)}}' ),
+		bws_fixture_gb_row( 'T13.3 (expect Team - the empty field attempt falls through)', '{{try_text A:key(nonexistent_field)|B:fixed(Team)|fallback:NONE}}' ),
+		bws_fixture_gb_row( 'T13.4 (expect Team - the first fixed attempt resolved no source)', '{{try_text A:src(refs,no_such_rel);fixed(Read more)|B:fixed(Team)|fallback:NONE}}' ),
+		bws_fixture_gb_row( 'T13.5 (expect NONE - every attempt empty)', '{{try_text A:src(refs,no_such_rel);fixed(Read more)|fallback:NONE}}' ),
+		bws_fixture_gb_row( 'T13.6 (expect Staff / Staff)', '{{try_text A:src(refs,related_staff);fixed(Staff)|sep: / }}' ),
+		bws_fixture_gb_row( 'T13.7 (expect Read more twice, each linked to its own staff page)', '{{try_text A:src(refs,related_staff);fixed(Read more)|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'T13.8 (expect Note: see | this, and; more)', '{{try_text A:fixed(Note\: see \| this, and; more)}}' ),
 	) );
 
 	// src:site matrix (src-site-test-matrix.md) — R7 try_ site-slot rows (FW-4,
@@ -504,6 +574,20 @@ function bws_fixture_page_content_matrix_post_meta() {
 	// by opening any join block below in the editor.
 	$sections[] = bws_fixture_gb_section( 'Join - separator / zero', array(
 		bws_fixture_gb_row( 'J4', '{{join key:height_in_zero|2-key:role}}' ),
+	) );
+
+	// Fixed-text read on a join slot (FW-141 02) — join-test-matrix.md §Fixed-text
+	// slots, fold-test-matrix.md §F24.
+	$sections[] = bws_fixture_gb_section( 'Join - fixed-text slots (FW-141 02)', array(
+		bws_fixture_gb_row( 'J29 (expect Varsity)', '{{join A:fixed(Varsity)}}' ),
+		bws_fixture_gb_row( 'J30 (expect Jane, Team)', '{{join A:key(name_first)|B:fixed(Team)}}' ),
+		bws_fixture_gb_row( 'J31 (expect Team - empty field slot drops)', '{{join A:fixed(Team)|B:key(nonexistent_field)}}' ),
+		bws_fixture_gb_row( 'J32 (expect Varsity, Inc: The Best|Team)', '{{join A:fixed(Varsity, Inc\: The Best\|Team)}}' ),
+		bws_fixture_gb_row( 'J33 (expect empty - unresolvable chain refuses before the fixed text is reached)', '{{join A:src(refs,missing_rel);fixed(Team)}}' ),
+		bws_fixture_gb_row( 'J34 (expect Team, Team - once per resolved source)', '{{join A:src(refs,related_staff);fixed(Team)}}' ),
+		bws_fixture_gb_row( 'J35 (expect Team, Jane - step limit[1] bounds the fixed slot)', '{{join A:src(refs,related_staff,limit[1]);fixed(Team)|B:key(name_first)}}' ),
+		bws_fixture_gb_row( 'J36 (expect NONE - no source, so the tag fallback fires)', '{{join A:src(refs,missing_rel);fixed(Team)|fallback:NONE}}' ),
+		bws_fixture_gb_row( 'J37 (expect Other - the sourceless fixed slot drops)', '{{join A:src(refs,missing_rel);fixed(Team)|B:fixed(Other)}}' ),
 	) );
 
 	$sections[] = bws_fixture_gb_section( 'Join - unit suffix (height)', array(
@@ -673,7 +757,8 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F3.4 slot 2 hops a relationship (-> Jane Partner)', '{{try_text A:key(missing_field)|B:src(refs,related_staff);use(title)}}' ),
 		bws_fixture_gb_row( 'F3.6 legacy twin of F3.1 (-> Captain)', '{{try_text key:missing_field|2-use:key|2-key:role}}' ),
 		bws_fixture_gb_row( 'F4.2 picker-alone shape: unused_line is EMPTY so slot 1 is a real skip (-> (987) 654-3210)', '{{try_phone A:key(unused_line)|B:key(main_line)}}' ),
-		bws_fixture_gb_row( 'F4.4 legacy twin of F4.2 (-> same)', '{{try_phone key:unused_line|2-key:main_line}}' ),
+		bws_fixture_gb_row( 'F4.4 legacy twin of F4.2 (-> same; try_phone flat wire never had a use, FW-141 05)', '{{try_phone key:unused_line|2-key:main_line}}' ),
+		bws_fixture_gb_row( 'F4.4b what the converter and editor mount write for F4.4 (-> (987) 654-3210)', '{{try_phone A:key(unused_line)|B:src(same);key(main_line)}}' ),
 		bws_fixture_gb_empty_row( 'F4.5 EMPTY AND CORRECT: key is a SLOT axis on try_phone, so a tag-level key configures nothing', '{{try_phone A:src(refs,related_staff)|B:src(current)|key:main_line}}' ),
 		bws_fixture_gb_row( 'F5.1 no-read shape: an EMPTY slot 1 value is the default attempt (-> Matrix: Post Meta)', '{{try_title 1:|B:src(site)}}' ),
 		bws_fixture_gb_row( 'F5.2 same, via an explicit src(current) - the 5f bug was this rendering NOTHING', '{{try_title A:src(current)|B:src(site)}}' ),

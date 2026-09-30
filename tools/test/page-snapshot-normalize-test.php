@@ -736,6 +736,33 @@ $env_gbqe    = 'gb-query-enhancements/gb-query-enhancements.php';
 
 $check( 'P16.13 the shipped record declares the query extension', isset( $env_shipped['plugins'][ $env_gbqe ] ) );
 $check( 'P16.14 it is declared REQUIRED', ! empty( $env_shipped['plugins'][ $env_gbqe ]['required'] ) );
+// WORDPRESS CORE. The third argument is the live version; omitted, core is not compared at
+// all, which is what every call above relies on.
+$env_wp_record = array( 'wordpress' => '7.1', 'active' => array(), 'plugins' => array() );
+
+$check( 'P16.16 a matching core version reports nothing', array() === bws_page_snapshot_env_compare( $env_wp_record, array(), '7.1' )['drift'] );
+
+$env_wp_moved = bws_page_snapshot_env_compare( $env_wp_record, array(), '7.1.2' );
+
+$check(
+	'P16.17 a moved core version is a drift line and does NOT block',
+	array( 'WordPress: recorded 7.1, installed 7.1.2' ) === $env_wp_moved['drift'] && 0 === $env_wp_moved['blocking']
+);
+$check(
+	'P16.18 a record with no core version says it pins nothing, once',
+	1 === count( bws_page_snapshot_env_compare( array( 'active' => array() ), array(), '7.1' )['drift'] )
+);
+$check( 'P16.19 the shipped record pins a core version', ! empty( $env_shipped['wordpress'] ) );
+
+// readme.txt's `Tested up to` is a CLAIM this record is the evidence for. It may lag the
+// recorded version (a release is cut when it is cut); it may never lead it.
+preg_match( '/^Tested up to:\s*(\d+\.\d+)/m', (string) file_get_contents( dirname( dirname( __DIR__ ) ) . '/readme.txt' ), $env_tested );
+$check(
+	'P16.20 readme.txt `Tested up to` does not name a newer WordPress than the record',
+	isset( $env_tested[1] ) && version_compare( $env_tested[1], implode( '.', array_slice( explode( '.', (string) $env_shipped['wordpress'] ), 0, 2 ) ), '<=' ),
+	isset( $env_tested[1] ) ? 'readme ' . $env_tested[1] . ', recorded ' . $env_shipped['wordpress'] : 'no Tested up to line found'
+);
+
 $check(
 	'P16.15 every shipped entry pins a version, so none of them silently pins nothing',
 	array() === array_filter(

@@ -61,13 +61,27 @@ return array(
 	// The date the baseline under `tools/test/snapshots/` was captured. Prose only —
 	// nothing compares it; it is here so a reader can place the record in time.
 	//
-	// THIS RE-CAPTURE IS FW-142's §CT8 (1.21.0): six rows added to `page-matrix-content`
+	// 2026-09-29 (FW-141): a new join section (J29-J37) on `page-matrix-post-meta`, plus
+	// catch-up for rows deleted from the blueprint by earlier commits without a re-capture
+	// (`page-matrix-post-meta`, `page-matrix-pinned-roots`). `active` now names
+	// `site-views` where it named `bws-portal-system`, read off the live plugin list.
+	// Three F10 rows changed value with the cause NOT measured: tracked as FW-145.
+	//
+	// The PREVIOUS capture (2026-09-25) is a DEPENDENCY MOVE. GB Query Enhancements
+	// 1.3.0 -> 1.4.0 moved three lines on `page-matrix-products`: each Product Query loop
+	// item's `<li>` now carries WooCommerce's `woocommerce/products` Interactivity context
+	// and `data-wp-interactive` (`WooCommerce_Query::add_products_interactivity_context()`),
+	// wrapper only, every rendered tag byte-identical. WordPress 7.1 -> 7.1.2 and
+	// WooCommerce 11.1.0 -> 11.1.2 moved in the same window and are attributable for no
+	// line: the pre-capture run showed only those three. Active set unchanged.
+	//
+	// The PREVIOUS capture is FW-142's §CT8 (1.21.0): six rows added to `page-matrix-content`
 	// (a `key` alone implies the keyed read; an explicit `use` beside a stale `key` wins).
 	// Pure additions — no existing row moved. `ctx-term` moved by one line only because the
 	// Sales archive lists that page's excerpt, which now names the new section heading.
 	// Dependency versions and the active set unchanged.
 	//
-	// The PREVIOUS capture is the §C-TERM/CT REWRITE (FW-129, 1.21.0) — the ticket the
+	// The one before that is the §C-TERM/CT REWRITE (FW-129, 1.21.0) — the ticket the
 	// capture before it said was coming. Six dead `term_*` rows left the blueprint and
 	// one base-spelled row replaced them: C-TERM1/C-TERM2 off the context element (their
 	// base spellings were already there as C-X1 and C-CONV11), CT-A/CT-B off
@@ -90,7 +104,15 @@ return array(
 	// The 2026-09-14 capture is WooCommerce joining the fixture site (chrome only, no
 	// rendered tag moved); the 2026-09-03 one is where the head-deletion rule arrived — a
 	// reader hitting an ~800-line deletion further back in `git log` is looking at that.
-	'captured' => '2026-09-24',
+	'captured' => '2026-09-29',
+
+	// WordPress core, as `get_bloginfo( 'version' )` reports it. A change is a WARNING like a
+	// plugin version change, never a failure. First recorded 2026-09-25, read off the site
+	// with a 7.1.2 update pending and the 2026-09-24 baseline not re-captured, so it is the
+	// version that baseline was running under unless core moved that one day. The evidence for
+	// readme.txt's `Tested up to`: page-snapshot-normalize-test.php fails if that line names a
+	// newer major.minor than the one recorded here. 7.1.2 since the 2026-09-25 capture.
+	'wordpress' => '7.1.2',
 
 	// EVERY PLUGIN THAT WAS RUNNING, not only the four this record requires. The version
 	// list below answers "were the dependencies the same"; this answers "what else was in
@@ -115,7 +137,6 @@ return array(
 		'bws-gb-dynamic-tags-extensions/bws-gb-dynamic-tags-extensions.php',
 		'bws-generate-layout-conditions/bws-generate-layout-conditions.php',
 		'bws-pdf-viewer/bws-pdf-viewer.php',
-		'bws-portal-system/bws-portal-system.php',
 		'bws-user-based-terms/bws-user-based-terms.php',
 		'gb-query-enhancements/gb-query-enhancements.php',
 		'gb-query-filter/gb-query-filter.php',
@@ -126,6 +147,7 @@ return array(
 		'meta-box-lite/meta-box-lite.php',
 		'meta-conductor/meta-conductor.php',
 		'redirection/redirection.php',
+		'site-views/site-views.php',
 		'slim-seo/slim-seo.php',
 		'woocommerce/woocommerce.php',
 		'wpcodebox2-keyed/wpcodebox2.php',
@@ -151,7 +173,7 @@ return array(
 		// what its presence changes.
 		'gb-query-enhancements/gb-query-enhancements.php' => array(
 			'label'    => 'GB Query Enhancements',
-			'version'  => '1.3.0',
+			'version'  => '1.4.0',
 			'required' => true,
 		),
 		'advanced-custom-fields-pro/acf.php' => array(
@@ -165,7 +187,7 @@ return array(
 		// naming WooCommerce is a better failure than 19 page diffs with no stated cause.
 		'woocommerce/woocommerce.php' => array(
 			'label'    => 'WooCommerce',
-			'version'  => '11.1.0',
+			'version'  => '11.1.2',
 			'required' => true,
 		),
 	),

@@ -175,6 +175,25 @@ the wire round-trip (`~` rides GB's tag string unescaped — verified against GB
 | J18 | `{{join key:name_first\|2-src:site\|2-key:organization_email}}` | `Jane, info@example.test` — site arm present (try_text gap NOT repeated) |
 | J19 | `{{join srcTermIn:department\|use:title\|limit:2}}` | `Sales, Support` — per-slot `limit` threaded; term list joined by text's default inner sep `', '` (ADR 0003), independent of join's `valueSep` |
 
+## Fixed-text slots (FW-141 02 — `/matrix-post-meta/`)
+
+`fixed(…)` is a slot read option: the author's own text, not read off any source. See
+[`fold-test-matrix.md` §F24](fold-test-matrix.md#f24--fixed-text-read-on-a-join-slot-fw-141-ticket-02)
+for the fuller writeup; these rows are the same cases, kept here because they are a
+`bws_get_join_options()` surface and this file's re-run trigger covers that function.
+
+| # | Tag | Expected |
+|---|---|---|
+| J29 | `{{join A:fixed(Varsity)}}` | `Varsity` — a fixed slot alone |
+| J30 | `{{join A:key(name_first)\|B:fixed(Team)}}` | `Jane, Team` — fixed beside a field slot |
+| J31 | `{{join A:fixed(Team)\|B:key(nonexistent_field)}}` | `Team` — the field slot drops empty; fixed is unaffected |
+| J32 | `{{join A:fixed(Varsity, Inc\: The Best\|Team)}}` | `Varsity, Inc: The Best\|Team` — `,` inert, `:` and `\|` escaped |
+| J33 | `{{join A:src(refs,missing_rel);fixed(Team)}}` | EMPTY — the fixed text itself never comes up empty, but the slot still needs a resolved source; `missing_rel` resolves nothing, so the read refuses before the fixed text is reached (F24.5) |
+| J34 | `{{join A:src(refs,related_staff);fixed(Team)}}` | `Team, Team` — list mode: the fixed text prints once per resolved source (the related-staff field holds two), joined by the separator |
+| J35 | `{{join A:src(refs,related_staff,limit[1]);fixed(Team)\|B:key(name_first)}}` | `Team, Jane` — the step `limit[1]` bounds the fixed slot to one copy; the field slot reads once as usual |
+| J36 | `{{join A:src(refs,missing_rel);fixed(Team)\|fallback:NONE}}` | `NONE` — no source resolved, the only slot drops, and the tag's fallback fires |
+| J37 | `{{join A:src(refs,missing_rel);fixed(Team)\|B:fixed(Other)}}` | `Other` — the sourceless fixed slot drops, its neighbor is unaffected |
+
 ## Reveal (editor-only — open a join block on the testbed editor)
 
 | # | Case | Expected |
@@ -207,6 +226,10 @@ bin/wp.sh testbed bws render-tag '{{TAG}}' --preview --porcelain
 | JP4 | `{{join mode:template\|key:name_first}}` | `[⚠ Join: no format set]` |
 | JP5 | `{{join src:ref\|key:name_first}}` | `[⚠ Join: A no ref]` |
 | JP6 | `{{join key:name_first\|2-key:name_last\|fallback:—}}` | `[Join 'name_first', 'name_last' (fallback: “—”)]` — preview shows the config + annotated fallback; the front end returns the literal `—` |
+| JP7 | `{{join A:fixed(Varsity)}}` | `[Join “Varsity”]` — a fixed slot alone, curly-quoted like the base tag's own fixed preview (FW-141 01) |
+| JP8 | `{{join A:key(name_first)\|B:fixed(Team)}}` | `[Join 'name_first', “Team”]` — fixed beside a keyed field slot |
+| JP9 | `{{join A:use(fixed)}}` | `[⚠ Join: A fixed text not entered]` — `use(fixed)` with no text yet is the warned state, not an error |
+| JP10 | `{{join mode:template\|format:%A (%B)\|A:fixed(Varsity)\|B:key(name_last)}}` | `[Join “Varsity (\'name_last\')”]` — template mode substitutes a fixed-text slot's text bare, since the format is already wrapped in quotes |
 
 ## Fail triage
 

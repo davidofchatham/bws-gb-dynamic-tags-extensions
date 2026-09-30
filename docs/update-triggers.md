@@ -376,7 +376,7 @@ run `php tools/test/page-snapshot-normalize-test.php` (the pure half — normali
 
 ## Dependency version change
 
-**Fires on:** a dependency the fixture site runs on moving version — GenerateBlocks, GB Pro, GB Query Enhancements, ACF Pro (the set `tools/fixtures/core-structures/env-versions.php` records)
+**Fires on:** a dependency the fixture site runs on moving version — WordPress core, GenerateBlocks, GB Pro, GB Query Enhancements, ACF Pro, WooCommerce (the set `tools/fixtures/core-structures/env-versions.php` records)
 
 run `php tools/test/page-snapshots.php` against the testbed. If output moved and the new output is CORRECT, re-capture the baseline and re-record `env-versions.php` in the same commit; if it moved and is not correct, that is a bug against the new version and the diff is the report.
 

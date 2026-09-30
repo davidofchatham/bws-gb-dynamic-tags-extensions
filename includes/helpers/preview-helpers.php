@@ -246,7 +246,12 @@ function bws_build_join_preview_label( array $options ): string {
 		$key     = $flat['key'];
 
 		$inert              = array();
-		$field_parts[ $n ]  = bws_try_preview_field_part( 'text', $eff_use, $key, '' );
+		$field_parts[ $n ]  = bws_try_preview_field_part( 'text', $eff_use, $key, '', $flat['fixed'] ?? '' );
+		// Template mode already wraps the whole format in “…”, so a fixed slot's own
+		// quotes would nest; its text reads as the literal it is.
+		if ( 'template' === $mode && 'fixed' === $eff_use ) {
+			$field_parts[ $n ] = esc_html( $flat['fixed'] ?? '' );
+		}
 		$source_parts[ $n ] = bws_try_preview_source_part( $flat['src'], true, $inert );
 
 		// An INERT source reports ALONE, exactly as a skipped slot's reason does: the slot
@@ -261,7 +266,12 @@ function bws_build_join_preview_label( array $options ): string {
 		// Per-slot warning: key-mode with no key. The `src:ref` with no ref key warning
 		// that stood beside it belongs to the seam now (`step:refs`), and always did in
 		// substance: an unfinished relationship step never reaches this point.
-		if ( 'title' !== $eff_use && '' === $key ) {
+		// The fixed read (FW-141) has no key to name; only its own text can be missing.
+		if ( 'fixed' === $eff_use ) {
+			if ( '' === (string) ( $flat['fixed'] ?? '' ) ) {
+				$slot_warnings[] = array( 'n' => $n, 'detail' => 'fixed text not entered' );
+			}
+		} elseif ( 'title' !== $eff_use && '' === $key ) {
 			$slot_warnings[] = array( 'n' => $n, 'detail' => 'no key' );
 		}
 	}
@@ -363,12 +373,15 @@ function bws_join_preview_format( string $format, array $parts, int $max ): stri
  * bracket string would break HTML attributes.
  *
  * @since 1.6.0
+ * @since 1.21.0 `$loop_cfg` (FW-141 03b) — the per-slot read and no-key facts are the walk's.
  * @param array  $options       Parsed tag options (slot fields prefixed N- for N≥2).
  * @param string $base_template Template key ('text', 'content', 'image', 'title', 'permalink', 'datetime_single', 'datetime_range').
+ * @param array  $loop_cfg      The family's attempt-walk config, the SAME array the try_
+ *                              callback hands bws_try_run_attempts().
  * @return string Bracket preview label, or '' when template excluded or no slots configured.
  */
 if ( ! function_exists( 'bws_build_try_preview_label' ) ) {
-function bws_build_try_preview_label( array $options, string $base_template ): string {
+function bws_build_try_preview_label( array $options, string $base_template, array $loop_cfg ): string {
 	// Image `as` may carry a folded `,<size>` arg (as+size fold, FW-52) — read the
 	// bare return MODE for the exclusion test. Datetime/other `as` has no size fold.
 	$as       = ( 'image' === $base_template && function_exists( 'bws_parse_as_option' ) )
@@ -386,11 +399,11 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 		return '';
 	}
 
-	// The template's stripped default, read from its owner. A non-empty default is
-	// also exactly what "this template has a per-slot `use` axis" means: the three
-	// per_slot_use templates are the three with a row in BWS_USE_STRIPPED_DEFAULTS.
-	$use_default  = bws_use_stripped_default( $base_template );
-	$per_slot_use = '' !== $use_default;
+	// The family's facts come from the walk's own config, never re-derived here: which
+	// templates read per slot, the carry seed, and which reads need no key are the walk's
+	// to state, and a preview that answered them itself would describe a different tag.
+	$use_default  = (string) ( $loop_cfg['default_use'] ?? '' );
+	$per_slot_use = ! empty( $loop_cfg['per_slot_use'] );
 
 	// Walk slots 1-5 through the SAME render seam the callback resolves with
 	// (bws_fold_slot_struct + bws_fold_slot_chain_options), so this preview reads folded
@@ -405,7 +418,7 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 	$carry         = bws_fold_empty_carry( $use_default );
 	for ( $n = 1; $n <= 5; $n++ ) {
 		$slot = function_exists( 'bws_fold_slot_struct' )
-			? bws_fold_slot_struct( $n, $options, 'try', $per_slot_use )
+			? bws_fold_slot_struct( $n, $options, 'try', $per_slot_use, $loop_cfg['flat_per_slot_use'] ?? null )
 			: null;
 		if ( null === $slot ) {
 			continue;
@@ -433,6 +446,7 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 			'src'   => $flat['src'],
 			'key'   => $flat['key'],
 			'use'   => $flat['use'],
+			'fixed' => $flat['fixed'] ?? '',
 			'part'  => bws_try_preview_source_part( $flat['src'], true, $inert ),
 			'inert' => bws_preview_inert_warning( $inert, true ),
 		];
@@ -460,21 +474,15 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 			continue;
 		}
 
-		// Per-template missing-key checks.
-		$needs_key = false;
-		if ( 'text' === $base_template ) {
-			$needs_key = 'title' !== $slot['use'];
-		} elseif ( 'content' === $base_template ) {
-			$needs_key = 'key' === $slot['use'];
-		} elseif ( 'image' === $base_template ) {
-			$needs_key = 'featured' !== $slot['use'];
-		} elseif ( 'email' === $base_template || 'phone' === $base_template ) {
-			// No `use` enum (single key-mode); a slot always needs a field key,
-			// and there are no no-key values (try_use_no_key_values = []). #24.
-			$needs_key = true;
-		}
-		if ( $needs_key && '' === $slot['key'] ) {
-			$slot_warnings[] = array( 'n' => $slot['n'], 'detail' => 'no key' );
+		// The walk's own gate: a slot it would skip for want of a key warns here. Asked
+		// FIRST, so a `fixed` a family does not serve warns about the key the walk wants.
+		if ( bws_try_slot_needs_key( $loop_cfg, $slot['use'] ) ) {
+			if ( '' === $slot['key'] ) {
+				$slot_warnings[] = array( 'n' => $slot['n'], 'detail' => 'no key' );
+			}
+		} elseif ( 'fixed' === $slot['use'] && '' === (string) $slot['fixed'] ) {
+			// The fixed read (FW-141) has no key to name; only its own text can be missing.
+			$slot_warnings[] = array( 'n' => $slot['n'], 'detail' => 'fixed ' . bws_fixed_noun( $base_template ) . ' not entered' );
 		}
 	}
 
@@ -491,7 +499,7 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 	$field_parts  = [];
 	$source_parts = [];
 	foreach ( $slots as $slot ) {
-		$field_parts[]  = bws_try_preview_field_part( $base_template, $slot['use'], $slot['key'], $as );
+		$field_parts[]  = bws_try_preview_field_part( $base_template, $slot['use'], $slot['key'], $as, $slot['fixed'] );
 		$source_parts[] = $slot['part'];
 	}
 	$uniform_field  = 1 === count( array_unique( $field_parts ) );
@@ -655,17 +663,35 @@ function bws_try_preview_template_label( string $base_template, string $as ): st
 }
 
 /**
+ * What a family's fixed read asks the author to type, for the "not entered" warnings.
+ *
+ * @since 1.21.0
+ * @param string $base_template Template key.
+ * @return string 'text' / 'email' / 'phone number', or '' for a family with no fixed read.
+ */
+if ( ! function_exists( 'bws_fixed_noun' ) ) {
+function bws_fixed_noun( string $base_template ): string {
+	return array( 'text' => 'text', 'email' => 'email', 'phone' => 'phone number' )[ $base_template ] ?? '';
+}
+}
+
+/**
  * Build a try_ preview slot's field-part.
  *
  * Mode-value keywords (Title, Excerpt, Content, Featured) capitalized.
  * User-supplied identifiers wrapped in straight single quotes.
  *
  * @since 1.6.0
+ * @since 1.21.0 $fixed (FW-141 02) — the fixed-text read's own preview string.
+ * @param string $fixed The fixed text, when $use is 'fixed'; ignored otherwise.
  */
 if ( ! function_exists( 'bws_try_preview_field_part' ) ) {
-function bws_try_preview_field_part( string $base_template, string $use, string $key, string $as ): string {
+function bws_try_preview_field_part( string $base_template, string $use, string $key, string $as, string $fixed = '' ): string {
 	switch ( $base_template ) {
 		case 'text':
+			if ( 'fixed' === $use ) {
+				return '“' . esc_html( $fixed ) . '”';
+			}
 			return 'title' === $use ? 'Title' : "'" . $key . "'";
 		case 'content':
 			if ( 'excerpt' === $use ) {
@@ -683,7 +709,7 @@ function bws_try_preview_field_part( string $base_template, string $use, string 
 			return 'Permalink';
 		case 'email':
 		case 'phone':
-			return "'" . $key . "'";
+			return 'fixed' === $use ? '“' . esc_html( $fixed ) . '”' : "'" . $key . "'";
 	}
 	return '';
 }
@@ -1436,16 +1462,23 @@ function bws_build_preview_label( array $options, string $template ): string {
 	if ( ! empty( $src_missing['rows'] ) ) {
 		$missing[] = 'repeater field';
 	}
-	if ( 'text' === $base_template && '' === $key && 'title' !== $use ) {
+	// The fixed read (FW-141) reads no field; only its own text can be missing. Worded as
+	// its own clause (user, 2026-09-29), not a "No … set" list item: it is typed, not picked.
+	// $fixed_noun names what was to be typed, per family.
+	$fixed_missing = false;
+	$fixed_noun    = bws_fixed_noun( $base_template );
+	if ( '' !== $fixed_noun && 'fixed' === $use ) {
+		$fixed_missing = '' === (string) ( $options['fixed'] ?? '' );
+	} elseif ( 'text' === $base_template && '' === $key && 'title' !== $use ) {
 		$missing[] = 'meta key';
 	} elseif ( 'content' === $base_template && 'key' === $use && '' === $key ) {
 		$missing[] = 'meta key';
 	} elseif ( 'image' === $base_template && 'featured' !== $use && '' === $key ) {
 		$missing[] = 'meta key';
 	} elseif ( 'email' === $base_template && '' === $key ) {
-		$missing[] = 'field key'; // Email key-required in every source (no analog).
+		$missing[] = 'field key'; // Email key-required in every source (no analog), unless fixed.
 	} elseif ( 'phone' === $base_template && '' === $key ) {
-		$missing[] = 'field key'; // Phone key-required in every source (no analog).
+		$missing[] = 'field key'; // Phone key-required in every source (no analog), unless fixed.
 	} elseif ( 'call' === $base_template && '' === ( $options['fn'] ?? '' ) ) {
 		// {{call}} INERT preview (VC-inert) — never executes the function; describes
 		// config only. A missing fn is the bucket-A drift case (VC-fail) surfaced as
@@ -1454,15 +1487,20 @@ function bws_build_preview_label( array $options, string $template ): string {
 		$missing[] = 'function';
 	}
 
-	if ( ! empty( $missing ) ) {
+	if ( ! empty( $missing ) || $fixed_missing ) {
 		$count = count( $missing );
-		if ( 1 === $count ) {
+		if ( 0 === $count ) {
+			$warning = 'Fixed ' . $fixed_noun . ' not entered';
+		} elseif ( 1 === $count ) {
 			$warning = 'No ' . $missing[0] . ' set';
 		} elseif ( 2 === $count ) {
 			$warning = 'No ' . $missing[0] . ' or ' . $missing[1] . ' set';
 		} else {
 			$last    = array_pop( $missing );
 			$warning = 'No ' . implode( ', ', $missing ) . ', or ' . $last . ' set';
+		}
+		if ( $count && $fixed_missing ) {
+			$warning .= '; fixed ' . $fixed_noun . ' not entered';
 		}
 		$inner = '⚠ ' . $warning;
 		if ( $fallback ) {
@@ -1531,8 +1569,13 @@ function bws_build_preview_label( array $options, string $template ): string {
 	$field_part = '';
 	switch ( $base_template ) {
 		case 'text':
-			// Text has no template label by default. Title mode uses bare 'Title'.
-			$field_part = 'title' === $use ? 'Title' : "'" . $key . "'";
+			// Text has no template label by default. Title mode uses bare 'Title'; the
+			// fixed read shows the author's text itself, in curly quotes (FW-141).
+			if ( 'fixed' === $use ) {
+				$field_part = '“' . esc_html( $options['fixed'] ?? '' ) . '”';
+			} else {
+				$field_part = 'title' === $use ? 'Title' : "'" . $key . "'";
+			}
 			break;
 		case 'content':
 			if ( 'excerpt' === $use ) {
@@ -1553,10 +1596,13 @@ function bws_build_preview_label( array $options, string $template ): string {
 			$field_part = 'Title';
 			break;
 		case 'email':
-			$field_part = '' !== $key ? "Email: '" . $key . "'" : 'Email';
-			break;
 		case 'phone':
-			$field_part = '' !== $key ? "Phone: '" . $key . "'" : 'Phone';
+			$label = 'email' === $base_template ? 'Email' : 'Phone';
+			if ( 'fixed' === $use ) {
+				$field_part = $label . ': “' . esc_html( $options['fixed'] ?? '' ) . '”';
+			} else {
+				$field_part = '' !== $key ? $label . ": '" . $key . "'" : $label;
+			}
 			break;
 		case 'call':
 			// INERT config-describing label (VC-inert): the function name, plus the

@@ -920,7 +920,7 @@ function bws_page_snapshot_compare_all( array $opts = array() ) {
  * on disk. Its version is deliberately not compared afterwards — a version line about a
  * plugin that is not running would be a second, quieter statement contradicting the first.
  */
-function bws_page_snapshot_env_compare( array $record, array $installed ) {
+function bws_page_snapshot_env_compare( array $record, array $installed, $wp_version = null ) {
 	$out = array(
 		'drift'        => array(),
 		'active_drift' => array(),
@@ -977,6 +977,18 @@ function bws_page_snapshot_env_compare( array $record, array $installed ) {
 		}
 	}
 
+	// WORDPRESS CORE, A VERSION LINE AND NOTHING MORE. Same warning as a plugin version change,
+	// never blocking, and never counted in `checked` — core cannot be absent from a site that
+	// answered at all. A null `$wp_version` means the caller did not look, which is not a
+	// disagreement and prints nothing — not even the unpinned line below.
+	if ( null === $wp_version ) {
+		// Nothing to compare.
+	} elseif ( ! isset( $record['wordpress'] ) ) {
+		$out['drift'][] = 'WordPress: no version recorded — the record pins nothing on core.';
+	} elseif ( (string) $wp_version !== (string) $record['wordpress'] ) {
+		$out['drift'][] = sprintf( 'WordPress: recorded %s, installed %s', $record['wordpress'], $wp_version );
+	}
+
 	// THE ACTIVE SET IS A PROVENANCE AXIS, AND IT NEVER BLOCKS. The four `required` entries
 	// above are where "must be running" is enforced; this answers a different question —
 	// what ELSE was running when the baseline was captured. Rule 8 of the normalizer stops an
@@ -1026,7 +1038,7 @@ function bws_page_snapshot_env_compare( array $record, array $installed ) {
  *
  * Returns whatever bws_page_snapshot_env_compare() returns — see there for the shape and
  * for the rules. All this adds is the lookup: get_plugins() for what is on disk and at
- * which version, is_plugin_active() for whether it is running.
+ * which version, is_plugin_active() for whether it is running, get_bloginfo() for core.
  *
  * Needs WordPress: both are admin-side functions.
  */
@@ -1068,7 +1080,7 @@ function bws_page_snapshot_env_drift( $record = null ) {
 		);
 	}
 
-	return bws_page_snapshot_env_compare( $record, $installed );
+	return bws_page_snapshot_env_compare( $record, $installed, get_bloginfo( 'version' ) );
 }
 
 /* -------------------------------------------------------------------------

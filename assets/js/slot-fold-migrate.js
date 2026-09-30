@@ -258,7 +258,7 @@
 				continue;
 			}
 
-			var rec = fold.foldFromFlat( n, view, !! conf.combining, false !== conf.perSlotUse );
+			var rec = fold.foldFromFlat( n, view, !! conf.combining, fold.flatEraPerSlotUse( conf ) );
 			if ( ! rec || ! rec.slot ) {
 				continue;
 			}

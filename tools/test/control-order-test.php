@@ -343,6 +343,10 @@ foreach ( $try_groups as $tag => $order ) {
 	assert_same( "{{{$tag}}} — group sequence", $canonical, $order );
 }
 
+// FW-141 04: the contact tags' field group reads use → key → fixed, ahead of the own-anchor pair.
+assert_same( '{{email}} — field group order', array( 'use', 'key', 'fixed', 'subject', 'noLink', 'fallback' ), array_values( array_intersect( array_keys( $registered['email']['options'] ?? array() ), array( 'use', 'key', 'fixed', 'subject', 'noLink', 'fallback' ) ) ) );
+assert_same( '{{phone}} — field group order', array( 'use', 'key', 'fixed', 'noLink', 'fallback' ), array_values( array_intersect( array_keys( $registered['phone']['options'] ?? array() ), array( 'use', 'key', 'fixed', 'noLink', 'fallback' ) ) ) );
+
 // The two that were actually wrong, pinned by exact option list so a regression names
 // the option rather than the group.
 assert_same(
@@ -350,6 +354,15 @@ assert_same(
 	array( 'A', 'B', 'C', 'D', 'E', 'sep', 'linkTo', 'linkKey', 'newTab', 'fallback' ),
 	array_keys( $registered['try_text']['options'] ?? array() )
 );
+// The fixed read (FW-141 03) is a PER-ATTEMPT read on try_text: an enum row and a text
+// input inside each slot, never a tag-level `fixed` (the exact list above has none).
+$try_text_fold = $registered['try_text']['options']['A']['fold'] ?? array();
+assert_same(
+	'{{try_text}} — attempt reads offer the fixed row',
+	true,
+	in_array( 'fixed', array_column( $try_text_fold['readRows'] ?? array(), 'value' ), true )
+);
+assert_same( '{{try_text}} — attempt fixed input "Fixed Text"', 'Fixed Text', $try_text_fold['fixedOption']['label'] ?? null );
 
 assert_same(
 	'{{try_datetime_range}} — full option order',
@@ -678,12 +691,10 @@ echo "\n§8b A `use` ENUM, `try_per_slot_use` AND A MAP ROW ARE ONE FACT\n";
 // Three surfaces answer "does this template have a read axis", and they answer it for
 // three different consumers: the template's own `use` enum (what registration builds a
 // per-slot read selector from), `try_per_slot_use` (what the RENDER loop branches on), and
-// membership of BWS_USE_STRIPPED_DEFAULTS (what the PREVIEW derives $per_slot_use from
-// since 1.19.0). They agree today, and nothing structural makes them: the constant is
-// edited for registration reasons, and a row added or dropped there silently moves what
-// the preview thinks a template is — a preview/render split, which is the failure the
-// preview walking the render seam exists to prevent. This is the only place all three are
-// in scope at once, which is why it lives here rather than beside the constant.
+// membership of BWS_USE_STRIPPED_DEFAULTS (what an absent `use` reads as). They agree
+// today, and nothing structural makes them: the constant is edited for registration
+// reasons. This is the only place all three are in scope at once, which is why it lives
+// here rather than beside the constant.
 foreach ( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() as $tpl ) {
 	$key      = $tpl['key'];
 	$has_enum = isset( $tpl['options']['use']['options'][0]['value'] );
@@ -691,7 +702,7 @@ foreach ( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() as $tpl
 	$mapped   = '' !== bws_use_stripped_default( $key );
 
 	assert_same( "{$key} — a `use` enum iff try_per_slot_use", $has_enum, $psu );
-	assert_same( "{$key} — a `use` enum iff a BWS_USE_STRIPPED_DEFAULTS row", $has_enum, $mapped );
+	assert_same( "{$key} — a template `use` enum iff a BWS_USE_STRIPPED_DEFAULTS row", $has_enum, $mapped );
 
 	if ( $has_enum ) {
 		assert_same(
@@ -701,6 +712,44 @@ foreach ( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() as $tpl
 		);
 	}
 }
+
+// ---------------------------------------------------------------------------
+
+// The row's own owner is the BASE tag: a registered base tag carries a `use` enum stamped
+// with its `readTag` iff the map has a row for it, and the stamp names that row.
+foreach ( $tags as $tag => $args ) {
+	if ( 0 === strpos( $tag, 'term_' ) || 0 === strpos( $tag, 'try_' ) ) {
+		continue;
+	}
+	$stamp = $args['options']['use']['readTag'] ?? '';
+	assert_same( "{{{$tag}}} — a base `use` enum with a readTag iff a BWS_USE_STRIPPED_DEFAULTS row", '' !== bws_use_stripped_default( $tag ), '' !== $stamp );
+	if ( '' !== $stamp ) {
+		assert_same( "{{{$tag}}} — the readTag names its own row", $tag, $stamp );
+	}
+}
+
+// ---------------------------------------------------------------------------
+
+echo "\n§8c THE PREVIEW HARNESS'S WALK CONFIG IS THE DESCRIPTORS'\n";
+
+// preview-label-test.php drives the try_ preview with a written-out copy of each family's
+// walk config (it cannot load the descriptors). Pinned here, both directions: every
+// try_ template has a row equal to try_loop_cfg() of its live descriptor, and no row
+// names a template that is not one.
+require_once __DIR__ . '/lib-try-cfg.php';
+$try_keys = array();
+foreach ( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() as $tpl ) {
+	if ( empty( $tpl['supports_try'] ) ) {
+		continue;
+	}
+	$try_keys[] = $tpl['key'];
+	assert_same(
+		"{$tpl['key']} — lib-try-cfg.php row = try_loop_cfg()",
+		\BWS\DynamicTags\TagTemplateRegistry::try_loop_cfg( $tpl ),
+		TRY_CFG[ $tpl['key'] ] ?? null
+	);
+}
+assert_same( 'lib-try-cfg.php names no template beyond the try_ set', array(), array_values( array_diff( array_keys( TRY_CFG ), $try_keys ) ) );
 
 // ---------------------------------------------------------------------------
 

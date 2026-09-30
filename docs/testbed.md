@@ -132,8 +132,7 @@ The user browses these on the actual site — front end to eyeball, editor to in
 check reveal rows. Do NOT leave rows as `render-tag`-only. Reseed + curl the front end (with the
 `?nocache=` bust above — a cached page hides brand-new rows) to confirm before commit.
 
-Exceptions (render-tag/harness-only): a bare tag needing a term ARCHIVE as ambient context (text T4),
-or synthetic per-field blanking with no fixture (join J23/J24) — state the exception in the matrix.
+Exceptions (render-tag/harness-only): a bare tag needing a term ARCHIVE as ambient context (text T4), synthetic per-field blanking with no fixture (join J23/J24), or a tag string carrying literal HTML, which the fixture text block's own markup would parse before the tag ever sees it (text T12.8) — state the exception in the matrix.
 
 NB the visible rows are a bug surface `render-tag` cannot reach, and `wptexturize` is only part
 of it. A front-end request renders each tag inside a real block, on a real query, through
@@ -171,7 +170,7 @@ the baseline either: `post_modified` and its siblings are normalized out, so `bi
 
 **The environment the baseline was captured under is recorded** in
 `tools/fixtures/core-structures/env-versions.php` — GenerateBlocks, GB Pro, GB Query Enhancements
-and ACF Pro, with our own version deliberately excluded (that file's header has why, and owns which
+and ACF Pro, plus the WordPress core version, with our own version deliberately excluded (that file's header has why, and owns which
 entries must be present). `verify.php` prints the comparison FIRST. A version drift line is a
 **WARNING**: it exists to tell you a diff below is attributable to a dependency rather than to your
 change. A dependency the record requires and the site cannot use **FAILS the run, naming it**,

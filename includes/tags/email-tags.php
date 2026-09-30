@@ -9,10 +9,11 @@
  *   - src:current / unset → post/term meta
  *   - src:ref / srcTermIn → traversed entity meta
  *
- * Email is keyed-by-nature in every source (no intrinsic analog), so it has NO
- * `use` enum — `key` is always required. A future `use:author` / `use:admin`
- * enum is additive (gated by the C10 qualifying test) and intentionally out of
- * scope this release.
+ * Email is keyed-by-nature in every source (no intrinsic analog), so its `use` enum
+ * has one field read (`key`, the stripped default) plus the FIXED read (FW-141): an
+ * address the author types, shown once per resolved source and finished like the
+ * fallback. A future `use:author` / `use:admin` row is additive (gated by the C10
+ * qualifying test) and intentionally out of scope this release.
  *
  * @package BWS_Dynamic_Tags
  * @since 1.9.0
@@ -51,6 +52,7 @@ function bws_register_email_tag(): void {
 
 	$source_opt     = bws_build_src_chain_option();
 	$traversal_opts = bws_base_traversal_options();
+	$contact_field  = bws_get_contact_field_options( 'email' );
 
 	bws_gb_register_tag( array(
 		'title'      => __( 'Email', 'generateblocks' ),
@@ -87,12 +89,16 @@ function bws_register_email_tag(): void {
 					'placeholder' => ', ',
 					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => array( 'ref', 'chain_fans' ) ),
 				),
-				'key'      => array(
-					'type'         => 'bws-field-combo',
-					'label'        => __( 'Meta/Option Field', 'generateblocks' ),
-					'dynamicLabel' => true,
-					'help'         => __( 'ACF or meta field key holding the email address.', 'generateblocks' ),
-					'placeholder'  => 'email_field',
+				// use/key/fixed from the contact FIELD LEAF (FW-141); show_if is the
+				// caller's overlay by leaf contract.
+				'use'      => $contact_field['use'],
+				'key'      => array_merge(
+					$contact_field['key'],
+					array( 'show_if' => array( 'use' => 'not:fixed' ) )
+				),
+				'fixed'    => array_merge(
+					$contact_field['fixed'],
+					array( 'show_if' => array( 'use' => 'fixed' ) )
 				),
 				'subject'  => array(
 					// VE2 — bws-format-input escapes `:`/`|` so the subject survives
@@ -190,7 +196,7 @@ function bws_base_email_resolve_value( array $options, $instance ): array {
 
 	// L3 compose — validate + render each raw value via the shared finisher
 	// (SAME per-item compose the try_ dispatchers use, VE4 / V10).
-	$parts = bws_email_finish_values( bws_resolve_field_values( $options, $instance ), $options );
+	$parts = bws_email_finish_values( bws_contact_read_raw( bws_use_effective( 'email', $options ), $options, $instance ), $options );
 
 	return array(
 		'value'     => implode( $sep, $parts ),
@@ -322,6 +328,12 @@ function bws_email_finish_values( array $raw, array $options ): array {
  * @return string[] Finished per-item strings.
  */
 function bws_try_email_post_dispatch( $post_id, $options, $instance ) {
+	// The fixed read (FW-141) reads no field: the author's value, finished like any other.
+	// The site is always a source; a post or term needs an id.
+	$fixed = bws_try_fixed_dispatch( 'email', bws_try_post_has_source( $post_id, (array) $options ), (array) $options );
+	if ( null !== $fixed ) {
+		return bws_email_finish_values( $fixed, (array) $options );
+	}
 	// The SITE branch is taken by what the chain RESOLVES TO — the dispatch axis every
 	// base arm uses (bws_base_src_resolution, computable from the wire alone) — never
 	// by comparing the serialized token to a literal. The compare this replaced
@@ -366,6 +378,10 @@ function bws_try_email_post_dispatch( $post_id, $options, $instance ) {
  * @return string[] Finished per-item strings for this row.
  */
 function bws_try_email_row_dispatch( $source, $options, $instance ) {
+	$fixed = bws_try_fixed_dispatch( 'email', true, (array) $options );
+	if ( null !== $fixed ) {
+		return bws_email_finish_values( $fixed, (array) $options );
+	}
 	$key = sanitize_text_field( $options['key'] ?? '' );
 	if ( '' === $key || ( function_exists( 'bws_is_valid_meta_key' ) && ! bws_is_valid_meta_key( $key ) ) ) {
 		return array();
@@ -417,17 +433,16 @@ function bws_register_email_template(): void {
 	if ( ! class_exists( '\\BWS\\DynamicTags\\TagTemplateRegistry' ) ) {
 		return;
 	}
+	$contact_field = bws_get_contact_field_options( 'email' );
 	\BWS\DynamicTags\TagTemplateRegistry::register_modifier_template( array(
 		'key'                 => 'email',
 		'title'               => __( 'Email', 'generateblocks' ),
 		'options'             => array(
-			'key'      => array(
-				'type'         => 'bws-field-combo',
-				'label'        => __( 'Meta/Option Field', 'generateblocks' ),
-				'dynamicLabel' => true,
-				'help'         => __( 'ACF or meta field key holding the email address.', 'generateblocks' ),
-				'placeholder'  => 'email_field',
-			),
+			// use/key/fixed from the contact FIELD LEAF the base tag consumes; try_'s
+			// per-slot picker derives the key's visibility from try_use_no_key_values.
+			'use'      => $contact_field['use'],
+			'key'      => $contact_field['key'],
+			'fixed'    => $contact_field['fixed'],
 			'subject'  => array(
 				'type'    => 'bws-format-input',
 				'label'   => __( 'Subject', 'generateblocks' ),
@@ -461,8 +476,10 @@ function bws_register_email_template(): void {
 		'resolve_fn'          => 'bws_base_email_resolve_value',
 		'supports_try'        => true,
 		'try_per_slot_key'    => true,
-		'try_per_slot_use'    => false,
-		'try_use_no_key_values' => array(),
+		'try_per_slot_use'    => true,
+		// Its flat wire shipped with no `use`: a stored `2-key` is a key read (migrators).
+		'try_flat_era_per_slot_use' => false,
+		'try_use_no_key_values' => array( 'fixed' ),
 		'try_list_options'    => true,
 		'try_allow_site_slot' => true,
 		'try_media_block_guard' => true,
@@ -483,6 +500,10 @@ function bws_register_email_template(): void {
  * @return string[] Finished per-item strings for this term.
  */
 function bws_try_email_term_dispatch( $term_id, $options, $instance ) {
+	$fixed = bws_try_fixed_dispatch( 'email', (bool) $term_id, (array) $options );
+	if ( null !== $fixed ) {
+		return bws_email_finish_values( $fixed, (array) $options );
+	}
 	$key = sanitize_text_field( $options['key'] ?? '' );
 	if ( '' === $key || ( function_exists( 'bws_is_valid_meta_key' ) && ! bws_is_valid_meta_key( $key ) ) ) {
 		return array();

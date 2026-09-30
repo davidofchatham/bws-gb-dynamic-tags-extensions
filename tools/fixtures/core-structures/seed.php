@@ -345,7 +345,9 @@ foreach ( $manifest['posts'] as $slug => $def ) {
 		// The gate rows need posts differing ONLY in readability, so a post's status
 		// is fixture DATA there rather than a constant here.
 		'post_status'  => isset( $def['post_status'] ) ? $def['post_status'] : 'publish',
-		'post_content' => $content,
+		// wp_insert_post() unslashes, so an unslashed backslash (the `\:` / `\|` escape a
+		// `fixed` row carries, text matrix §T12.7) would be eaten on the way in.
+		'post_content' => wp_slash( $content ),
 	);
 	if ( isset( $def['post_author'], $user_ids[ $def['post_author'] ] ) ) {
 		$args['post_author'] = $user_ids[ $def['post_author'] ];

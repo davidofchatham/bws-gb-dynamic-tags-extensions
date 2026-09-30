@@ -38,6 +38,15 @@ GB's field selector is post-type-based, so when you're building GP Elements or W
 
 When a tag's source is one specific term or post, the list goes the other way and narrows to that taxonomy's or post type's own fields, plus any field whose group isn't tied to one location. Select a different one and it re-narrows on the spot. Sources that don't name a specific entity still show everything, which is the only honest answer while the entity isn't known until the page renders, and you can always type a key in by hand either way. **[UNRELEASED: a relationship step narrows too]** A step through a relationship or post object field narrows the next list to the post types that field is set to allow, so stepping through a field limited to Staff offers Staff fields rather than every post type's. A field that allows any post type, or one we don't know about, keeps every post type, since there is nothing there to go on. Either way the list holds post fields only, because a relationship step always lands on a post, so widening the location filter back never turns up a term or site field the tag could not have read.
 
+### Static content from a dynamic tag? **[UNRELEASED]**
+
+Yes! Why?
+
+- Easily format email addresses and phone numbers into `mailto:` and `tel:` links. You could even save a sitewide address or phone number as a WP Pattern if you don't want to use a site option field.
+- Add a fixed string along with field values in a `{{join}}` tag.
+
+Available in `text`/`try_text`, `email`/`try_email`, `phone`/`try_phone`, and `join` via the Fixed option (Fixed Text, Fixed Email or Fixed Phone Number). It shows once for each source the tag reaches, so a list of posts repeats it and a limit of 1 gives a single result, and a tag whose source finds nothing shows its fallback as usual.
+
 ### Special handling
 
 #### Zero values

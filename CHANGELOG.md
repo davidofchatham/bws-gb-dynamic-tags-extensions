@@ -5,6 +5,7 @@
 ### Highlights
 
 - Any tag can now read a repeater field's rows, one named sub-field at a time. *(Added)*
+- A `{{text}}`, `{{email}}` or `{{phone}}` tag, a `{{join}}` slot or a `{{try_text}}`, `{{try_email}}` or `{{try_phone}}` attempt can hold text you type in rather than read from a source. *(Added)*
 - A tag that prints several values now links each one, where Link To used to be ignored on all of them. *(Changed)*
 - The field picker offers fewer wrong fields: it narrows to what your source can actually reach, and says so. *(Changed)*
 - The `{{term_*}}` tags are removed. Run the Migration Tool before you upgrade, or straight afterwards. *(Removed)*
@@ -16,6 +17,12 @@
   **What a row is.** A row has no title, address, content, featured image or published date of its own, so a field key is what reads it. `{{text}}`, `{{email}}`, `{{phone}}` and the `{{datetime_*}}` tags render every row, joined by the separator and bounded by the limit; `{{content}}` and `{{image}}` render the first row, as they do with a list of posts. An image sub-field works with any return format, and Return As and size behave as they do on a post. A date sub-field is read without its field's return format, so an ambiguous date like `04/03/2030` is taken as month-first; unambiguous dates such as `2030-03-04` are unaffected.
 
   **In the editor.** The source builder offers the step as **In Repeater Rows**, with a field picker that opens on the repeater fields it found. Once a repeater is chosen, the tag's field key picker opens filtered to that repeater's sub-fields; both can be widened back to all fields in one click. A step after a repeater step offers the repeaters nested inside it rather than every repeater on the site.
+
+- **A `{{text}}`, `{{email}}` or `{{phone}}` tag, a `{{join}}` slot or a `{{try_text}}`, `{{try_email}}` or `{{try_phone}}` attempt can hold text you type in rather than read from a source.** Choose **Fixed Text** as the Text Field, on `{{text}}`, on a `{{join}}` slot or on a `{{try_text}}` attempt, and the tag prints exactly what you typed: no post, term, site option or meta field involved. On `{{join}}`, a fixed slot sits alongside key- and title-read slots the same as any other, in template mode as well as separator mode; the text itself never comes up empty the way a field read can, but it still needs a resolved source to render against, so a slot whose own source chain finds nothing still renders empty and drops like any other slot. On `{{try_text}}`, a fixed attempt takes its turn like any other: an earlier attempt that finds a value wins, an empty one falls through to the fixed text, and a fixed attempt whose source finds nothing falls through to the next attempt. Saved as `{{text fixed:Some text}}` or, inside a `{{join}}` slot or `{{try_text}}` attempt, `A:fixed(Some text)`; a literal `:` or `|` in the text needs a backslash (`\:`, `\|`), and the text can't contain `{` or `}`.
+
+  **`{{email}}`, `{{phone}}` and their `try_` attempts too.** These tags gain a read choice for the first time: **Email Field** / **Phone Number Field**, as before, or **Fixed Email** / **Fixed Phone Number**. What you type is finished exactly as a stored value would be: an email is validated, obfuscated and linked with its subject, a phone number is normalized and linked, **No link** is honored, and an invalid entry renders empty so the fallback fires. Saved as `{{email fixed:me@example.com}}` and, in a `{{try_email}}` or `{{try_phone}}` attempt, `A:fixed(me@example.com)`. The text is shown once per resolved source, so a list of posts repeats it, joined by the separator and bounded by the limit; use a limit of 1 for a single result.
+
+  **Each `{{try_email}}` and `{{try_phone}}` attempt now has its own read choice**, so an attempt can be fixed while its neighbors read fields, as `{{try_text}}` attempts already could. A tag saved before this release keeps rendering exactly as it did, and converts to the new form when you run the Migration Tool or open and save it.
 
 ### Changed
 

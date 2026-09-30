@@ -135,7 +135,8 @@ Era is per SLOT, not per tag. Both directions, `/matrix-post-meta/`.
 | F4.1b | `{{try_email key:missing_field\|2-src:ref\|2-ref:related_staff\|2-key:contact_email}}` | post-meta | legacy twin of F4.1 |
 | F4.2 | `{{try_phone A:key(unused_line)\|B:key(main_line)}}` | post-meta | `(987) 654-3210` tel-linked — `unused_line` is seeded EMPTY, so slot 1 is a real skip |
 | F4.3 | `{{try_phone A:src(refs,related_staff);key(missing_field)\|B:src(same);key(main_line)}}` | post-meta | `(555) 200-3000` |
-| F4.4 | `{{try_phone key:unused_line\|2-key:main_line}}` | post-meta | legacy twin of F4.2 |
+| F4.4 | `{{try_phone key:unused_line\|2-key:main_line}}` | post-meta | legacy twin of F4.2. `try_phone`'s flat wire never had a `use`, so a slot 2 `key` is a key read (`try_flat_era_per_slot_use`), unlike `try_text`, where FW-51 discards it. Renders unmigrated; F4.4b is what the migration writes |
+| F4.4b | `{{try_phone A:key(unused_line)\|B:src(same);key(main_line)}}` | post-meta | what the migration writes for F4.4; `(987) 654-3210` |
 | F4.5 | `{{try_phone A:src(refs,related_staff)\|B:src(current)\|key:main_line}}` | post-meta | **EMPTY, and correct** — `key` is a SLOT axis on `try_phone`, so a tag-level `key` configures nothing and both slots have no read. Contrast F5.4, where `key` IS tag-level |
 
 ## §F5 — try_: no-read shape
@@ -1079,6 +1080,20 @@ The ids below are resolved at BUILD TIME (`bws_fixture_seeded_term_id()` / `bws_
 **PROVENANCE IS NOT HERE, because no rendered row can show it.** The four keys a row carries (`parent_kind`, `parent_id`, `repeater`, `index`) are consumed by nothing until FW-3, so the assertion that an inner row's parent is the OUTER ROW rather than the post lives in `verify.php`, reading the real store through `bws_run_step()`. `traversal-pipeline-test.php` pins the same shape against a synthetic reader; what only the testbed reaches is the custom-fields plugin's own nested read, which decides whether the inner repeater arrives as an array of rows at all.
 
 **Verified live** (`render-tag`, 2026-09-17, blueprint v26): every row above measured against real seeded content. F23.3's original spelling was an unset `limit` expecting one value; the measurement said four, §L4 says why, and the row was rewritten to state a slice it actually makes.
+
+## §F24 — fixed-text read on a `{{join}}` slot (FW-141, ticket 02)
+
+`fixed(…)` is the third read axis a slot's own spelling can pick (alongside `use`/`key`), read-precedence-below `use`/`key` and reusing the base `{{text}}` fixed-read absorb seam untouched (`bws_base_text_resolve_value` — ticket 01, `5ddcbb1`). No legacy-era twin exists for these rows: a flat `fixed:` option on a join slot was never wired, so there is nothing to pair against the way §F1 pairs folded against legacy.
+
+| # | Tag | Expected |
+|---|---|---|
+| F24.1 | `{{join A:fixed(Varsity)}}` | `Varsity` — a fixed slot alone |
+| F24.2 | `{{join A:key(name_first)\|B:fixed(Team)}}` | `Jane, Team` — fixed beside a field slot |
+| F24.3 | `{{join A:fixed(Team)\|B:key(nonexistent_field)}}` | `Team` — the field slot resolves empty and drops (with its separator) like any empty slot; the fixed slot is unaffected because it never reads a source |
+| F24.4 | `{{join A:fixed(Varsity, Inc\: The Best\|Team)}}` | `Varsity, Inc: The Best\|Team` — `,` is inert inside the bracket (no escape needed); `:` and `\|` are the two characters the grammar escapes |
+| F24.5 | `{{join A:src(refs,missing_rel);fixed(Team)}}` | EMPTY — the fixed TEXT never comes up empty, but the SLOT still needs a resolved source: `missing_rel` is not a real relationship field, the chain hop resolves nothing, and `bws_base_read_refused()` refuses the read before the fixed text is ever reached. This is the assertion the §Highlights CHANGELOG line names ("still needs a resolved source to render against") and F24.1–4 don't cover it, because none of them put a chain step ahead of the `fixed(…)` read |
+
+**Verified live** (`render-tag`, 2026-09-29, blueprint v28): all five rows measured against the real seeded `/matrix-post-meta/` page.
 
 ## Fail triage
 

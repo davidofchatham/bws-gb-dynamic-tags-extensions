@@ -221,10 +221,10 @@ $leaf = bws_get_text_field_options();
 
 // Group-pure: SOURCE-group keys only. A format/fallback key here means the leaf
 // grew into a composer and callers can no longer place it by group (FW-52).
-assert_same( 'leaf returns exactly use+key', array( 'use', 'key' ), array_keys( $leaf ) );
+assert_same( 'leaf returns exactly use+key+fixed', array( 'use', 'key', 'fixed' ), array_keys( $leaf ) );
 
 // Enum + control shape (the four-copy definition, now one).
-assert_same( 'leaf use options = key,title', array( 'key', 'title' ), array_column( $leaf['use']['options'], 'value' ) );
+assert_same( 'leaf use options = key,title,fixed', array( 'key', 'title', 'fixed' ), array_column( $leaf['use']['options'], 'value' ) );
 assert_same( 'leaf use label "Text Field"', 'Text Field', $leaf['use']['label'] );
 assert_same( 'leaf use _strip_default true', true, $leaf['use']['_strip_default'] );
 assert_same( 'leaf key control = bws-field-combo', 'bws-field-combo', $leaf['key']['type'] );
@@ -236,6 +236,30 @@ assert_same( 'leaf key dynamicLabel true', true, $leaf['key']['dynamicLabel'] );
 assert_same( 'leaf use carries no show_if', false, isset( $leaf['use']['show_if'] ) );
 assert_same( 'leaf key carries no show_if', false, isset( $leaf['key']['show_if'] ) );
 
+// The FIXED read (FW-141) rides the leaf: every text consumer reads it.
+assert_same( 'fixed row and input share one label', end( $leaf['use']['options'] )['label'], $leaf['fixed']['label'] );
+assert_same( 'fixed input label "Fixed Text"', 'Fixed Text', $leaf['fixed']['label'] );
+assert_same( 'fixed input escapes `:`/`|` (bws-format-input)', 'bws-format-input', $leaf['fixed']['type'] );
+assert_same( 'fixed input carries no show_if (caller overlay)', false, isset( $leaf['fixed']['show_if'] ) );
+
+// The contact leaf (FW-141 04): email and phone, one builder, per-family words.
+foreach ( array(
+	'email' => array( 'Email Field', 'Fixed Email' ),
+	'phone' => array( 'Phone Number Field', 'Fixed Phone Number' ),
+) as $contact_tag => $words ) {
+	$contact_leaf = bws_get_contact_field_options( $contact_tag );
+	assert_same( "contact leaf {$contact_tag}: use+key+fixed", array( 'use', 'key', 'fixed' ), array_keys( $contact_leaf ) );
+	assert_same( "contact leaf {$contact_tag}: use options = key,fixed", array( 'key', 'fixed' ), array_column( $contact_leaf['use']['options'], 'value' ) );
+	assert_same( "contact leaf {$contact_tag}: use label", $words[0], $contact_leaf['use']['label'] );
+	assert_same( "contact leaf {$contact_tag}: fixed row and input share the label", $words[1], $contact_leaf['fixed']['label'] );
+	assert_same( "contact leaf {$contact_tag}: fixed row label", $words[1], end( $contact_leaf['use']['options'] )['label'] );
+	assert_same( "contact leaf {$contact_tag}: key label", 'Meta/Option Field Key', $contact_leaf['key']['label'] );
+	assert_same( "contact leaf {$contact_tag}: first use row is strip-marked", true, ! empty( $contact_leaf['use']['_strip_default'] ) );
+	assert_same( "contact leaf {$contact_tag}: readTag names the row", $contact_tag, $contact_leaf['use']['readTag'] );
+	assert_same( "contact leaf {$contact_tag}: fixed input is bws-format-input", 'bws-format-input', $contact_leaf['fixed']['type'] );
+	assert_same( "contact leaf {$contact_tag}: no show_if (caller overlay)", false, isset( $contact_leaf['key']['show_if'] ) || isset( $contact_leaf['fixed']['show_if'] ) );
+}
+
 // ============================================================
 // bws_build_slot_read_options() — the READ twin (build step 4)
 // ============================================================
@@ -244,14 +268,14 @@ echo "\nbws_build_slot_read_options\n";
 
 // --- Slot 1: base enum verbatim, no `same` row regardless of $allow_same. ---
 $r1 = bws_build_slot_read_options( 1, $leaf['use'], true );
-assert_same( 'slot1 read options = key,title (no same)', array( 'key', 'title' ), array_column( $r1['options'], 'value' ) );
+assert_same( 'slot1 read options = key,title,fixed (no same)', array( 'key', 'title', 'fixed' ), array_column( $r1['options'], 'value' ) );
 assert_same( 'slot1 read label "1: Text Field"', '1: Text Field', $r1['label'] );
 assert_same( 'slot1 read type select', 'select', $r1['type'] );
 assert_same( 'slot1 read _strip_default derived from base', true, $r1['_strip_default'] );
 
 // --- Slot ≥2 SELECTING (try_): `same` row prepended, shipped string. ---
 $r2 = bws_build_slot_read_options( 2, $leaf['use'], true );
-assert_same( 'slot2 selecting prepends same', array( 'same', 'key', 'title' ), array_column( $r2['options'], 'value' ) );
+assert_same( 'slot2 selecting prepends same', array( 'same', 'key', 'title', 'fixed' ), array_column( $r2['options'], 'value' ) );
 assert_same( 'slot2 same row label', 'Same as Previous Field', $r2['options'][0]['label'] );
 assert_same( 'slot2 read label "2: Text Field"', '2: Text Field', $r2['label'] );
 
@@ -267,6 +291,7 @@ assert_same(
 		'options'        => array(
 			array( 'value' => 'key',   'label' => 'Meta/Option Field' ),
 			array( 'value' => 'title', 'label' => 'Title/Name' ),
+			array( 'value' => 'fixed', 'label' => 'Fixed Text' ),
 		),
 		'_strip_default' => true,
 	),
@@ -522,7 +547,7 @@ assert_same(
 // derived config alone — the control picks its rendering from these fields, never from
 // the container name, so the shapes must be distinguishable HERE.
 //
-// KEY-ONLY (try_email / try_phone: a per-slot key with no `use` enum). No read rows, a
+// KEY-ONLY (a per-slot key with no `use` enum: try_email / try_phone until FW-141 05). No read rows, a
 // key definition present: the control renders the picker alone, and an empty field is
 // how that slot says "carry over".
 $key_only = bws_build_fold_slot_options(

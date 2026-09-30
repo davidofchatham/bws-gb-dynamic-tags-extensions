@@ -59,7 +59,7 @@
 		timeSep: [ 'format', 6 ],
 		showCurrentYear: [ 'format', 7 ],
 		showMidnight: [ 'format', 8 ],
-		// source (per-slot: src → ref → srcTermIn → limit → sep → use → key → datetime keys)
+		// source (per-slot: src → ref → srcTermIn → limit → sep → use → key → fixed → datetime keys)
 		src: [ 'source', 0 ],
 		ref: [ 'source', 1 ],
 		srcTermIn: [ 'source', 2 ],
@@ -67,11 +67,12 @@
 		sep: [ 'source', 4 ],
 		use: [ 'source', 5 ],
 		key: [ 'source', 6 ],
-		timeKey: [ 'source', 7 ],
-		startKey: [ 'source', 8 ],
-		startTimeKey: [ 'source', 9 ],
-		endKey: [ 'source', 10 ],
-		endTimeKey: [ 'source', 11 ],
+		fixed: [ 'source', 7 ],
+		timeKey: [ 'source', 8 ],
+		startKey: [ 'source', 9 ],
+		startTimeKey: [ 'source', 10 ],
+		endKey: [ 'source', 11 ],
+		endTimeKey: [ 'source', 12 ],
 		// link (after source; entity-link OR email/phone own-anchor set subject → noLink)
 		linkTo: [ 'link', 0 ],
 		linkKey: [ 'link', 1 ],

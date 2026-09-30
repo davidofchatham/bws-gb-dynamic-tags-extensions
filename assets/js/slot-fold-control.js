@@ -103,6 +103,8 @@
 			container: c.container || 'join',
 			combining: !! c.combining,
 			perSlotUse: false !== c.perSlotUse,
+			// The era the legacy flat wire was authored in (defaults to the live shape).
+			flatPerSlotUse: fold.flatEraPerSlotUse( c ),
 			min: c.min || 2,
 			max: c.max || 5,
 			noun: c.noun || '',
@@ -428,7 +430,7 @@
 			var parsed = fold.parseSlot( raw, conf.container );
 			return parsed.error ? null : parsed;
 		}
-		var rec = fold.foldFromFlat( n, migrate.mapperState( state, conf ), conf.combining, conf.perSlotUse );
+		var rec = fold.foldFromFlat( n, migrate.mapperState( state, conf ), conf.combining, conf.flatPerSlotUse );
 		return ( rec && rec.slot ) ? rec.slot : null;
 	}
 
@@ -443,7 +445,7 @@
 		for ( var i = 1; i <= conf.max; i++ ) {
 			if ( state[ fold.slotKey( i ) ] ) {
 				highest = i;
-			} else if ( fold.foldFromFlat( i, legacy, conf.combining, conf.perSlotUse ) ) {
+			} else if ( fold.foldFromFlat( i, legacy, conf.combining, conf.flatPerSlotUse ) ) {
 				highest = i;
 			}
 		}
@@ -1124,7 +1126,7 @@
 				slot = parsed;
 			}
 		} else {
-			var rec = fold.foldFromFlat( ordinal, migrate.mapperState( state, conf ), conf.combining, conf.perSlotUse );
+			var rec = fold.foldFromFlat( ordinal, migrate.mapperState( state, conf ), conf.combining, conf.flatPerSlotUse );
 			if ( rec && rec.slot ) {
 				slot = rec.slot;
 				recovered = true;
@@ -1334,6 +1336,7 @@
 			var impliedRead = ordinal >= 2 ? ( conf.combining ? '' : 'same' ) : ( conf.defaultRead || '' );
 			var readVal = read ? '' : impliedRead;
 			if ( read && 'key' === read.kind ) { readVal = 'key'; }
+			if ( read && 'fixed' === read.kind ) { readVal = 'fixed'; }
 			if ( read && 'analog' === read.kind ) { readVal = read.slug; }
 			if ( read && 'same' === read.kind ) { readVal = 'same'; }
 
@@ -1351,6 +1354,8 @@
 						writeRead( { kind: 'same' } );
 					} else if ( 'key' === v ) {
 						writeRead( { kind: 'key', field: ( read && read.field ) || '' } );
+					} else if ( 'fixed' === v ) {
+						writeRead( { kind: 'fixed', text: ( read && read.text ) || '' } );
 					} else if ( v ) {
 						writeRead( { kind: 'analog', slug: v } );
 					} else {
@@ -1410,6 +1415,22 @@
 						slotNoun
 					) ) );
 				}
+			}
+
+			if ( 'fixed' === readVal ) {
+				var fixedCfg = conf.fixedOption || {};
+				readNodes.push( el( 'div', { key: 'readArg', style: STACKED, className: 'bws-slot-fold' },
+					el( TextControl, {
+						label: fixedCfg.label,
+						help: fixedCfg.help,
+						placeholder: fixedCfg.placeholder,
+						value: ( read && read.text ) || '',
+						onChange: function ( v ) {
+							writeRead( { kind: 'fixed', text: v } );
+						},
+						__nextHasNoMarginBottom: true
+					} )
+				) );
 			}
 
 			// keyOnly has no read definition to take a noun from, so the caption comes

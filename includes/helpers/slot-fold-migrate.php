@@ -62,7 +62,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * @since 1.17.0
  * @param string $tag_name Live tag name.
- * @return array{container:string,combining:bool,per_slot_use:bool,max:int,tag_level:string[]}|null
+ * @return array{container:string,combining:bool,per_slot_use:bool,flat_per_slot_use?:bool,max:int,tag_level:string[]}|null
  */
 function bws_fold_migration_container( string $tag_name ): ?array {
 	if ( 'join' === $tag_name ) {
@@ -84,6 +84,8 @@ function bws_fold_migration_container( string $tag_name ): ?array {
 			'container'    => 'try',
 			'combining'    => false,
 			'per_slot_use' => ! empty( $tpl['try_per_slot_use'] ),
+			// The era the legacy flat wire was authored in; see try_flat_era_per_slot_use().
+			'flat_per_slot_use' => \BWS\DynamicTags\TagTemplateRegistry::try_flat_era_per_slot_use( $tpl ),
 			// Five slots, as generate_base_try_tags() registers.
 			'max'          => 5,
 			'tag_level'    => \BWS\DynamicTags\TagTemplateRegistry::try_slot_axes( $tpl )['tag_level'],
@@ -313,7 +315,7 @@ function bws_fold_migrate_slots( array $options, array $cfg ) {
 			continue;
 		}
 
-		$rec = bws_fold_from_flat( $n, $slot_view, ! empty( $cfg['combining'] ), ! empty( $cfg['per_slot_use'] ) );
+		$rec = bws_fold_from_flat( $n, $slot_view, ! empty( $cfg['combining'] ), ! empty( $cfg['flat_per_slot_use'] ?? $cfg['per_slot_use'] ) );
 		if ( null === $rec ) {
 			continue;
 		}

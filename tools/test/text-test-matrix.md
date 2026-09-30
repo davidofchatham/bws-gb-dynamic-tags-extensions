@@ -190,6 +190,41 @@ T10.2 read the same defect on `{{fixture_text}}`, the class route, and is **reti
 
 The page carries two more rows, LK.5 and LK.6, which are the `try_title` twins of LK.2 and LK.4 and belong to a different change — they are [`fold-test-matrix.md`](fold-test-matrix.md) §F9b F9b.4b/F9b.4c, and what they assert is stated there.
 
+## T12 — the fixed read (FW-141)
+
+The `fixed` read prints the author's text once per resolved source. Visible on `/matrix-post-meta/` (section "Text T12") except T12.8, which is render-tag only: a tag string carrying literal HTML cannot sit inside a fixture text block without the block markup parsing it first. T12.11–T12.13 need their own ambient contexts and are render-tag only for the same reason as T4. Verified 2026-09-29 via `render-tag` / an in-process sweep.
+
+| # | Tag (on `/matrix-post-meta/` unless stated) | Expected |
+|---|---|---|
+| T12.1 | `{{text fixed:Varsity}}` | `Varsity` |
+| T12.2 | `{{text src:refs,related_staff\|fixed:Read more\|linkTo:permalink}}` | `Read more` twice, each anchor on its OWN staff permalink (jane, then tom), `, ` outside both |
+| T12.3 | `{{text src:refs,related_staff\|fixed:Staff\|sep: / }}` | `Staff / Staff` |
+| T12.4 | `{{text src:refs,related_staff,limit(1)\|fixed:Staff}}` | `Staff` once — the step limit applies |
+| T12.5 | `{{text src:refs,no_such_rel\|fixed:Read more\|fallback:NONE}}` | `NONE` — nothing resolved, so the fixed text does not print and the fallback fires |
+| T12.6 | `{{text fixed:Varsity\|case:upper}}` | `VARSITY` — GB's text transforms apply |
+| T12.7 | `{{text fixed:Note\: see \| this}}` | `Note: see \| this` — GB unescapes `\:` / `\|` |
+| T12.8 | `{{text fixed:<b>Bold</b> text}}` | `Bold text` — HTML stripped. Render-tag only |
+| T12.9 | `{{text key:main_line\|fixed:Bar}}` | `(987) 654-3210` — a stored `key`+`fixed` pair reads the key |
+| T12.10 | `{{text src:site\|fixed:Varsity}}` | `Varsity` |
+| T12.11 | `{{text fixed:Varsity\|linkTo:permalink}}` on `/department/support/` | `Varsity` linked to the Support term archive (term-analog arm) |
+| T12.12 | same on `/author/fixture-author/` | `Varsity` linked to the author archive (user arm) |
+| T12.13 | same on `/staff/` | `Varsity`, unlinked (query-context arm: no link identity) |
+
+## T13 — a fixed `try_text` attempt (FW-141 03)
+
+A `try_text` attempt can be the fixed read. It takes its turn like any attempt: a field attempt with a value before it wins, an empty one falls through to it, and a fixed attempt whose own chain resolves nothing is empty and falls through too. Visible on `/matrix-post-meta/` (section "Text T13"). Verified 2026-09-29 via an in-process sweep.
+
+| # | Tag (on `/matrix-post-meta/`) | Expected |
+|---|---|---|
+| T13.1 | `{{try_text A:fixed(Varsity)}}` | `Varsity` |
+| T13.2 | `{{try_text A:key(main_line)\|B:fixed(Bar)}}` | `(987) 654-3210` — the field attempt has a value, so the fixed attempt never runs |
+| T13.3 | `{{try_text A:key(nonexistent_field)\|B:fixed(Team)\|fallback:NONE}}` | `Team` — the empty field attempt falls through to the fixed one |
+| T13.4 | `{{try_text A:src(refs,no_such_rel);fixed(Read more)\|B:fixed(Team)\|fallback:NONE}}` | `Team` — the first fixed attempt resolved no source, so it is empty and the next attempt runs |
+| T13.5 | `{{try_text A:src(refs,no_such_rel);fixed(Read more)\|fallback:NONE}}` | `NONE` — every attempt empty, so the fallback fires |
+| T13.6 | `{{try_text A:src(refs,related_staff);fixed(Staff)\|sep: / }}` | `Staff / Staff` — once per resolved source |
+| T13.7 | `{{try_text A:src(refs,related_staff);fixed(Read more)\|linkTo:permalink}}` | `Read more` twice, each linked to its own staff page |
+| T13.8 | `{{try_text A:fixed(Note\: see \| this, and; more)}}` | `Note: see \| this, and; more` — escapes and slot separators inert inside the bracket |
+
 ## Fail triage
 
 - **T1.2/T3.3/T4.2/T7.4 value right but unlinked:** shell wrap gate — `link_id`/`link_type` not

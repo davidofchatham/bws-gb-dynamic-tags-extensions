@@ -117,6 +117,8 @@ $leaves = array(
 	'text'    => bws_get_text_field_options(),
 	'content' => bws_get_content_field_options(),
 	'image'   => bws_get_image_field_options(),
+	'email'   => bws_get_contact_field_options( 'email' ),
+	'phone'   => bws_get_contact_field_options( 'phone' ),
 );
 
 $from_leaves = array();
@@ -161,7 +163,7 @@ assert_same(
 // Absence is a STATEMENT, not a gap: a tag with no `use` enum has no read axis, and a
 // dispatcher asking for its default must get '' rather than a plausible 'key'. This is
 // the assertion that makes bws_site_resolve_value's title/permalink arms correct.
-foreach ( array( 'title', 'permalink', 'email', 'phone', 'datetime_single', 'table' ) as $tag ) {
+foreach ( array( 'title', 'permalink', 'datetime_single', 'table' ) as $tag ) {
 	assert_same( "{$tag}: no read axis, so no default", '', bws_use_stripped_default( $tag ) );
 }
 
@@ -325,7 +327,7 @@ echo "\n§5 — bws_use_effective(): the read rule (FW-142)\n";
 // Per tag, because the implied mode only MOVES a render where the stripped default is an
 // analog (content); on text/image it agrees with the default, and that agreement is
 // itself the "no behavior change" claim for those two.
-$explicit = array( 'text' => 'title', 'content' => 'excerpt', 'image' => 'featured' );
+$explicit = array( 'text' => 'title', 'content' => 'excerpt', 'image' => 'featured', 'email' => 'fixed', 'phone' => 'fixed' );
 foreach ( BWS_USE_STRIPPED_DEFAULTS as $tag => $default ) {
 	assert_same( "{$tag}: nothing set → the stripped default", $default, bws_use_effective( $tag, array() ) );
 	assert_same( "{$tag}: key alone → the keyed read", 'key', bws_use_effective( $tag, array( 'key' => 'foo' ) ) );
@@ -340,6 +342,23 @@ foreach ( BWS_USE_STRIPPED_DEFAULTS as $tag => $default ) {
 	assert_same( "{$tag}: key '' counts as absent → the stripped default", $default, bws_use_effective( $tag, array( 'key' => '' ) ) );
 	assert_same( "{$tag}: use:key with no key → key (keyed, pending)", 'key', bws_use_effective( $tag, array( 'use' => 'key' ) ) );
 }
+
+// `fixed` (FW-141) is the second implied token, and the one whose mode reads nothing. Its
+// row sits AFTER `key`, so a stored pair the editor never writes resolves the keyed read
+// until the mount normalize drops `fixed`.
+assert_same( 'text: fixed alone → the fixed read', 'fixed', bws_use_effective( 'text', array( 'fixed' => 'Varsity' ) ) );
+assert_same( 'text: key + fixed → key (map order)', 'key', bws_use_effective( 'text', array( 'key' => 'foo', 'fixed' => 'Bar' ) ) );
+assert_same( 'text: explicit use:title wins over fixed', 'title', bws_use_effective( 'text', array( 'use' => 'title', 'fixed' => 'Bar' ) ) );
+assert_same( 'text: fixed \'\' counts as absent → the stripped default', 'key', bws_use_effective( 'text', array( 'fixed' => '' ) ) );
+assert_same( 'text: use:fixed with no fixed → fixed (pending)', 'fixed', bws_use_effective( 'text', array( 'use' => 'fixed' ) ) );
+// email and phone (FW-141 04) enrol the same two implied tokens; key-mode is their default.
+foreach ( array( 'email', 'phone' ) as $tag ) {
+	assert_same( "{$tag}: fixed alone → the fixed read", 'fixed', bws_use_effective( $tag, array( 'fixed' => 'x' ) ) );
+	assert_same( "{$tag}: key + fixed → key (map order)", 'key', bws_use_effective( $tag, array( 'key' => 'foo', 'fixed' => 'x' ) ) );
+	assert_same( "{$tag}: fixed '' counts as absent → the stripped default", 'key', bws_use_effective( $tag, array( 'fixed' => '' ) ) );
+	assert_same( "{$tag}: use:fixed with no fixed → fixed (pending)", 'fixed', bws_use_effective( $tag, array( 'use' => 'fixed' ) ) );
+}
+assert_same( 'the map lists key before fixed', array( 'key', 'fixed' ), array_keys( BWS_USE_IMPLIED_BY_TOKEN ) );
 
 // No read axis → no inference. permalink ignores `key` by design; a mode here would be
 // a read axis the tag does not have.

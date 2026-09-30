@@ -119,12 +119,34 @@ require __DIR__ . '/../../includes/helpers/serialization-order.php';
 require __DIR__ . '/../../includes/helpers/slot-fold.php';
 require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
 // BWS_USE_STRIPPED_DEFAULTS + bws_use_stripped_default(): what an absent per-template
-// `use` means. The preview reads it UNGUARDED, so a missing require fatals here rather
+// `use` means. The base and join previews read it UNGUARDED (the try_ preview takes the
+// walk's config instead, TRY_CFG below), so a missing require fatals here rather
 // than quietly rendering every template as having no read axis — which is what a
 // function_exists guard did instead, and it cost a real assertion (the content
 // default-collapse case) before the guard came out.
 require __DIR__ . '/../../includes/helpers/registration-helpers.php';
 require __DIR__ . '/../../includes/helpers/preview-helpers.php';
+// THE WALK, so the gate-agreement rows drive the real attempt loop against the preview.
+// bws_clamp_limit (field-helpers) and the engine's input-kinds (traversal-pipeline) are
+// the walk's own dependencies, same as try-slot-loop-test.php's.
+require __DIR__ . '/../../includes/helpers/field-helpers.php';
+require __DIR__ . '/../../includes/helpers/traversal-pipeline.php';
+require __DIR__ . '/../../includes/helpers/try-slot-loop.php';
+
+// Each try_ template's walk config (TRY_CFG), pinned against the live descriptors by
+// control-order-test.php §8c.
+require __DIR__ . '/lib-try-cfg.php';
+
+/**
+ * The try_ preview, called with the template's real walk config.
+ *
+ * @param array  $options  Tag options.
+ * @param string $template Template key.
+ * @return string Preview label.
+ */
+function try_preview( array $options, string $template ): string {
+	return bws_build_try_preview_label( $options, $template, TRY_CFG[ $template ] );
+}
 
 $failures = 0;
 $count    = 0;
@@ -311,6 +333,36 @@ check(
 	bws_build_preview_label( [ 'use' => 'title' ], 'text' ),
 	'[Title]'
 );
+// Text fixed read (FW-141): the author's text in curly quotes, no missing-key warning.
+check(
+	'text fixed read',
+	bws_build_preview_label( [ 'fixed' => 'Varsity' ], 'text' ),
+	'[“Varsity”]'
+);
+check(
+	'text fixed read over a source',
+	bws_build_preview_label( [ 'src' => 'ref', 'ref' => 'rel', 'fixed' => 'Read more' ], 'text' ),
+	"[“Read more” from Ref 'rel']"
+);
+check(
+	'text fixed read with no text yet → warns',
+	bws_build_preview_label( [ 'use' => 'fixed' ], 'text' ),
+	'[⚠ Fixed text not entered]'
+);
+check(
+	'text fixed read, no text, plus a missing ref → both clauses',
+	bws_build_preview_label( [ 'src' => 'ref', 'use' => 'fixed' ], 'text' ),
+	'[⚠ No ref key set; fixed text not entered]'
+);
+// Email / phone fixed read (FW-141 04): the typed value after the tag label, and its own
+// warning clause when nothing is typed. A keyed read with no key still warns as before.
+check( 'email fixed read', bws_build_preview_label( [ 'fixed' => 'info@example.com' ], 'email' ), '[Email: “info@example.com”]' );
+check( 'phone fixed read', bws_build_preview_label( [ 'fixed' => '555-0100' ], 'phone' ), '[Phone: “555-0100”]' );
+check( 'email fixed read over a source', bws_build_preview_label( [ 'src' => 'ref', 'ref' => 'rel', 'fixed' => 'a@b.co' ], 'email' ), "[Email: “a@b.co” from Ref 'rel']" );
+check( 'email fixed read with no text yet → warns', bws_build_preview_label( [ 'use' => 'fixed' ], 'email' ), '[⚠ Fixed email not entered]' );
+check( 'phone fixed read with no number yet → warns', bws_build_preview_label( [ 'use' => 'fixed' ], 'phone' ), '[⚠ Fixed phone number not entered]' );
+check( 'email keyed read with no key still warns', bws_build_preview_label( [], 'email' ), '[⚠ No field key set]' );
+check( 'phone fixed read carries the fallback', bws_build_preview_label( [ 'fixed' => '555-0100', 'fallback' => '555-0000' ], 'phone' ), '[Phone: “555-0100” (fallback: “555-0000”)]' );
 // Content default (use defaults to 'content') → bare 'Content'.
 check(
 	'content default',
@@ -709,19 +761,19 @@ echo "\nbuild_try_preview_label — slot chains (non-datetime)\n";
 // trips the missing-key warning first. This asserts that actual fired warning.
 check(
 	'text empty → A no key warn',
-	bws_build_try_preview_label( [], 'text' ),
+	try_preview( [], 'text' ),
 	'[⚠ Try: A no key]'
 );
 // Single text slot, key set → bare field part (text has no template label).
 check(
 	'single text slot',
-	bws_build_try_preview_label( [ 'key' => 'sku' ], 'text' ),
+	try_preview( [ 'key' => 'sku' ], 'text' ),
 	"[Try 'sku']"
 );
 // Two slots, same field, varying source → 'from <list>'.
 check(
 	'2 slots vary source',
-	bws_build_try_preview_label(
+	try_preview(
 		[ 'key' => 'sku', '2-src' => 'ref', '2-ref' => 'rel' ],
 		'text'
 	),
@@ -732,7 +784,7 @@ check(
 // wiped and the slot collapses. The override must carry an explicit `2-use` to count.
 check(
 	'2 slots vary field',
-	bws_build_try_preview_label(
+	try_preview(
 		[ 'key' => 'sku', '2-use' => 'key', '2-key' => 'alt_sku' ],
 		'text'
 	),
@@ -742,7 +794,7 @@ check(
 // Only a source override on slot 2 → uniform field, varying source.
 check(
 	'carry-forward field',
-	bws_build_try_preview_label(
+	try_preview(
 		[ 'key' => 'sku', '2-src' => 'ref', '2-ref' => 'rel' ],
 		'text'
 	),
@@ -751,26 +803,26 @@ check(
 // Content single slot at template default → collapses to bare label.
 check(
 	'content default collapse',
-	bws_build_try_preview_label( [], 'content' ),
+	try_preview( [], 'content' ),
 	'[Try Content]'
 );
 // Title single → always-uniform bare label.
 check(
 	'try title',
-	bws_build_try_preview_label( [ 'key' => 'x' ], 'title' ),
+	try_preview( [ 'key' => 'x' ], 'title' ),
 	'[Try Title]'
 );
 // Permalink excluded (URL context).
 check(
 	'try permalink → excluded',
-	bws_build_try_preview_label( [], 'permalink' ),
+	try_preview( [], 'permalink' ),
 	''
 );
 // Mixed: slot1 text key, slot2 ref + DIFFERENT key (with explicit 2-use so the key
 // survives the use=same discard) → field AND source both vary → per-slot enumeration.
 check(
 	'mixed enumeration',
-	bws_build_try_preview_label(
+	try_preview(
 		[ 'key' => 'sku', '2-src' => 'ref', '2-ref' => 'rel', '2-use' => 'key', '2-key' => 'alt' ],
 		'text'
 	),
@@ -782,7 +834,7 @@ check(
 // send the author after the wrong thing.
 check(
 	'slot ref no ref → warn',
-	bws_build_try_preview_label(
+	try_preview(
 		[ 'src' => 'ref' ],
 		'text'
 	),
@@ -791,7 +843,7 @@ check(
 // Fallback annotation on try.
 check(
 	'try fallback',
-	bws_build_try_preview_label( [ 'key' => 'sku', 'fallback' => 'N/A' ], 'text' ),
+	try_preview( [ 'key' => 'sku', 'fallback' => 'N/A' ], 'text' ),
 	"[Try 'sku' (fallback: “N/A”)]"
 );
 
@@ -799,32 +851,61 @@ check(
 // Empty key → warn (default key-mode, no native default field → unconfigured).
 check(
 	'try email empty key → warn',
-	bws_build_try_preview_label( [], 'email' ),
+	try_preview( [], 'email' ),
 	'[⚠ Try: A no key]'
 );
 check(
 	'try phone empty key → warn',
-	bws_build_try_preview_label( [], 'phone' ),
+	try_preview( [], 'phone' ),
 	'[⚠ Try: A no key]'
 );
 // Configured single slot → Try Email/Phone: 'key'.
 check(
 	'try email configured',
-	bws_build_try_preview_label( [ 'key' => 'contact_email' ], 'email' ),
+	try_preview( [ 'key' => 'contact_email' ], 'email' ),
 	"[Try Email: 'contact_email']"
 );
 check(
 	'try phone configured',
-	bws_build_try_preview_label( [ 'key' => 'tel' ], 'phone' ),
+	try_preview( [ 'key' => 'tel' ], 'phone' ),
 	"[Try Phone: 'tel']"
 );
 // Site slot resolves a key (site re-allowed for email/phone). Single uniform slot
 // → source-part omitted, only the field shown (same shape as a current-source slot).
 check(
 	'try email site slot',
-	bws_build_try_preview_label( [ 'src' => 'site', 'key' => 'admin_email' ], 'email' ),
+	try_preview( [ 'src' => 'site', 'key' => 'admin_email' ], 'email' ),
 	"[Try Email: 'admin_email']"
 );
+
+// --- gate agreement (FW-141 03b): the preview warns "no key" exactly where the walk ---
+// skips. One keyless slot per read, driven through BOTH the real walk (resolver always
+// answers, so a null walk = the gate skipped it) and the preview; the expected verdict
+// is stated too, so a walk that broke the same way as the preview still fails. Per-slot read, key-only
+// and no-read shapes, each with the template's real config.
+$gate_rows = array(
+	array( 'text',    array( 'A' => 'use(key)' ), 'skip' ),
+	array( 'text',    array( 'A' => 'use(title)' ), 'read' ),
+	array( 'content', array( 'A' => 'use(key)' ), 'skip' ),
+	array( 'content', array( 'A' => 'use(excerpt)' ), 'read' ),
+	array( 'image',   array( 'A' => 'use(featured)', 'as' => 'alt' ), 'read' ),
+	// `fixed` hand-typed where the family does not serve it: the walk wants a key.
+	array( 'content', array( 'A' => 'use(fixed)' ), 'skip' ),
+	array( 'image',   array( 'A' => 'use(fixed)', 'as' => 'alt' ), 'skip' ),
+	array( 'email',   array(), 'skip' ),
+	array( 'title',   array(), 'read' ),
+);
+foreach ( $gate_rows as [ $tpl, $opts, $expect ] ) {
+	$walked = bws_try_run_attempts( $opts, null, TRY_CFG[ $tpl ], static function () {
+		return array( 'value' => 'v', 'link_id' => 0, 'link_type' => 'post' );
+	} );
+	$warned = str_contains( try_preview( $opts, $tpl ), 'no key' );
+	check(
+		"gate agreement: {$tpl} " . ( $opts['A'] ?? '(bare)' ),
+		'preview ' . ( $warned ? 'skip' : 'read' ) . ', walk ' . ( null === $walked ? 'skip' : 'read' ),
+		"preview {$expect}, walk {$expect}"
+	);
+}
 
 // ---------------------------------------------------------------------------
 echo "\nbuild_join_preview_label — {{join}} combining tag\n";
@@ -967,6 +1048,31 @@ check(
 	bws_build_join_preview_label( [ 'key' => 'a', 'B' => 'src(refs,rel_post);key(b)', '3-key' => 'c' ] ),
 	"[Join 'a', 'b' from Ref 'rel_post', 'c' from Ref 'rel_post']"
 );
+// Fixed-text read (FW-141 02): the author's own text, curly-quoted like the base tag's
+// preview (bws_build_preview_label) — one convention, both consumers.
+check(
+	'folded: a fixed-text slot alone',
+	bws_build_join_preview_label( [ 'A' => 'fixed(Varsity)' ] ),
+	'[Join “Varsity”]'
+);
+check(
+	'folded: a fixed-text slot beside a keyed field slot',
+	bws_build_join_preview_label( [ 'A' => 'key(name_first)', 'B' => 'fixed(Team)' ] ),
+	"[Join 'name_first', “Team”]"
+);
+// `use(fixed)` with no text entered yet — the read-axis twin of a keyed read with no
+// key, worded for what is actually missing (there is no field to pick).
+check(
+	'folded: use(fixed) with no text entered warns',
+	bws_build_join_preview_label( [ 'A' => 'use(fixed)' ] ),
+	'[⚠ Join: A fixed text not entered]'
+);
+// Template mode substitutes the fixed slot's text bare: the format is already wrapped in “…”.
+check(
+	'folded: template mode substitutes a fixed-text slot',
+	bws_build_join_preview_label( [ 'mode' => 'template', 'format' => '%A (%B)', 'A' => 'fixed(Varsity)', 'B' => 'key(name_last)' ] ),
+	'[Join “Varsity (\'name_last\')”]'
+);
 
 // ---------------------------------------------------------------------------
 echo "\nbuild_try_preview_label — FOLDED wire (FW-56/57)\n";
@@ -976,23 +1082,50 @@ echo "\nbuild_try_preview_label — FOLDED wire (FW-56/57)\n";
 // container rules, which is what the last three cases pin.
 check(
 	'folded: single text slot',
-	bws_build_try_preview_label( [ 'A' => 'key(sku)' ], 'text' ),
+	try_preview( [ 'A' => 'key(sku)' ], 'text' ),
 	"[Try 'sku']"
 );
 check(
 	'folded: two slots vary source',
-	bws_build_try_preview_label( [ 'A' => 'key(sku)', 'B' => 'src(refs,rel)' ], 'text' ),
+	try_preview( [ 'A' => 'key(sku)', 'B' => 'src(refs,rel)' ], 'text' ),
 	"[Try 'sku' from Current, Ref 'rel']"
 );
 check(
 	'folded: two slots vary field',
-	bws_build_try_preview_label( [ 'A' => 'key(sku)', 'B' => 'src(same);key(alt_sku)' ], 'text' ),
+	try_preview( [ 'A' => 'key(sku)', 'B' => 'src(same);key(alt_sku)' ], 'text' ),
 	"[Try 'sku', 'alt_sku']"
 );
 check(
 	'folded: bare tag still warns on the missing slot-1 key',
-	bws_build_try_preview_label( [], 'text' ),
+	try_preview( [], 'text' ),
 	'[⚠ Try: A no key]'
+);
+// Fixed-text attempt (FW-141 03): curly-quoted like join's fixed slot and the base tag.
+check(
+	'folded: a fixed-text attempt alone',
+	try_preview( [ 'A' => 'fixed(Varsity)' ], 'text' ),
+	'[Try “Varsity”]'
+);
+check(
+	'folded: a field attempt then a fixed-text attempt',
+	try_preview( [ 'A' => 'key(nickname)', 'B' => 'fixed(Team)' ], 'text' ),
+	"[Try 'nickname', “Team”]"
+);
+check(
+	'folded: use(fixed) with no text entered warns, and asks for no key',
+	try_preview( [ 'A' => 'use(fixed)' ], 'text' ),
+	'[⚠ Try: A fixed text not entered]'
+);
+// Fixed attempt on email / phone (FW-141 05): same shape, family noun in the warning.
+check(
+	'folded: a fixed-email attempt after a field attempt',
+	try_preview( [ 'A' => 'key(contact_email)', 'B' => 'fixed(info@example.com)' ], 'email' ),
+	"[Try Email: 'contact_email', “info@example.com”]"
+);
+check(
+	'folded: a fixed-phone attempt with no number entered warns',
+	try_preview( [ 'A' => 'use(fixed)' ], 'phone' ),
+	'[⚠ Try: A fixed phone number not entered]'
 );
 // A read-less slot CARRIES OVER in a selecting container (the mirror of join's skip), so
 // slot 2 previews with slot 1's field rather than vanishing — here with its own term
@@ -1000,25 +1133,25 @@ check(
 // (`2-srcTermIn:category` with no read of its own).
 check(
 	'folded: read-less slot 2 carries over the field, keeps its own term hop',
-	bws_build_try_preview_label( [ 'A' => 'key(sku)', 'B' => 'src(terms,category)' ], 'text' ),
+	try_preview( [ 'A' => 'key(sku)', 'B' => 'src(terms,category)' ], 'text' ),
 	"[Try 'sku' from Current, Current → Category Term]"
 );
 check(
 	'…and its legacy twin previews identically',
-	bws_build_try_preview_label( [ 'key' => 'sku', '2-srcTermIn' => 'category' ], 'text' ),
+	try_preview( [ 'key' => 'sku', '2-srcTermIn' => 'category' ], 'text' ),
 	"[Try 'sku' from Current, Current → Category Term]"
 );
 // A container with no per-slot read axis: slots are source chains, and the label is
 // the template's own.
 check(
 	'folded: chain-only container (title) previews its sources',
-	bws_build_try_preview_label( [ 'A' => '', 'B' => 'src(refs,rel)' ], 'title' ),
+	try_preview( [ 'A' => '', 'B' => 'src(refs,rel)' ], 'title' ),
 	"[Try Title from Current, Ref 'rel']"
 );
 // MIXED era: folded slot 2 between legacy slots 1 and 3, one accumulator.
 check(
 	'folded: mixed-era try_ wire previews with one carry-forward',
-	bws_build_try_preview_label( [ 'key' => 'a', 'B' => 'src(refs,rel);key(b)', '3-use' => 'key', '3-key' => 'c' ], 'text' ),
+	try_preview( [ 'key' => 'a', 'B' => 'src(refs,rel);key(b)', '3-use' => 'key', '3-key' => 'c' ], 'text' ),
 	"[Try 'a' from Current, 'b' from Ref 'rel', 'c' from Ref 'rel']"
 );
 
@@ -1050,12 +1183,12 @@ check(
 );
 check(
 	'try_: a second ref hop resolves on a selecting container too',
-	bws_build_try_preview_label( [ 'A' => 'key(sku)', 'B' => 'src(refs,a;refs,b);key(x)' ], 'text' ),
+	try_preview( [ 'A' => 'key(sku)', 'B' => 'src(refs,a;refs,b);key(x)' ], 'text' ),
 	"[Try 'sku' from Current, 'x' from Ref 'a' Ref 'b']"
 );
 check(
 	'try_: a lone `rows` slot is a slot, not "no slots configured"',
-	bws_build_try_preview_label( [ 'A' => 'src(rows,team_members);key(name)' ], 'text' ),
+	try_preview( [ 'A' => 'src(rows,team_members);key(name)' ], 'text' ),
 	"[Try 'name' from Current Rows 'team_members']"
 );
 // A `same` root with nothing to be the same AS gets its OWN wording (#74). Reusing
@@ -1083,7 +1216,7 @@ check(
 );
 check(
 	'try_: same, on a selecting container',
-	bws_build_try_preview_label( [ 'A' => 'key(sku)', 'B' => 'src(terms);key(x)' ], 'text' ),
+	try_preview( [ 'A' => 'key(sku)', 'B' => 'src(terms);key(x)' ], 'text' ),
 	'[⚠ Try: B no taxonomy]'
 );
 // An UNCONFIGURED combining slot stays SILENT — it is a normal in-progress state,
@@ -1118,7 +1251,7 @@ check(
 // one act to name; dropping this branch is a pinned mutation.
 check(
 	'try_: two slots, distinct issues → letters and no detail',
-	bws_build_try_preview_label( [ 'A' => 'use(key)', 'B' => 'src(terms);key(x)' ], 'text' ),
+	try_preview( [ 'A' => 'use(key)', 'B' => 'src(terms);key(x)' ], 'text' ),
 	'[⚠ Try: A, B misconfigured]'
 );
 // …and that same case pins the SORT. The two walks raise skips (walk pass) and per-slot
@@ -1253,7 +1386,7 @@ check(
 );
 check(
 	'try_: a retired token on a slot names its repair',
-	bws_build_try_preview_label( [ 'A' => 'src(related_post);use(key);key(name)' ], 'text' ),
+	try_preview( [ 'A' => 'src(related_post);use(key);key(name)' ], 'text' ),
 	'[⚠ Try: A source no longer supported — run the Tag Converter]'
 );
 // An inert source reports ALONE — the slot reads nothing whatever its key says, so `no
@@ -1263,13 +1396,13 @@ check(
 // UNCONFIGURED and stays silent by decision, so join cannot reach the shape at all.)
 check(
 	'try_: an inert slot reports its source, not its missing key',
-	bws_build_try_preview_label( [ 'A' => 'src(bogus,x);use(key)' ], 'text' ),
+	try_preview( [ 'A' => 'src(bogus,x);use(key)' ], 'text' ),
 	"[⚠ Try: A unknown source 'bogus']"
 );
 // Two slots, two DIFFERENT unknown tokens → distinct details → the collapse rule fires.
 check(
 	'try_: two inert slots with different tokens collapse',
-	bws_build_try_preview_label(
+	try_preview(
 		[ 'A' => 'src(bogus,x);use(key);key(name)', 'B' => 'src(currnet);use(key);key(role)' ],
 		'text'
 	),
