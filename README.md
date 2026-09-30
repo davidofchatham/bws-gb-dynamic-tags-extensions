@@ -40,7 +40,7 @@ When a tag's source is one specific term or post, the list goes the other way an
 
 ### Type the output yourself **[UNRELEASED]**
 
-Instead of reading a field, `text`, `email` and `phone` can print text you type in, and so can `join` slots and `try_text`, `try_email` and `try_phone` attempts. Choose the Fixed option (Fixed Text, Fixed Email or Fixed Phone Number) and enter the value. It shows once for each source the tag reaches, so a list of posts repeats it and a limit of 1 gives a single result, and a tag whose source finds nothing shows its fallback as usual. An email or phone number you type is validated, formatted and linked like a stored one. Handy for link text over related posts, or a label beside the fields in a `join`.
+Instead of reading a field, `text`, `email` and `phone` can print text you type in, and so can `join` slots and `try_text`, `try_email` and `try_phone` attempts. Choose the Fixed option (Fixed Text, Fixed Email or Fixed Phone Number) and enter the value. It shows once for each source the tag reaches, so a list of posts repeats it and a limit of 1 gives a single result, and a tag whose source finds nothing shows its fallback as usual. In a `try_` tag a fixed attempt takes its turn like any other, so it shows only when the attempts before it came up empty. An email or phone number you type is validated, formatted and linked like a stored one. Handy for link text over related posts, or a label beside the fields in a `join`.
 
 ### Special handling
 
@@ -60,7 +60,7 @@ If you use GB's `{{featured_image key:alt|…}}` for alt text, an image that exi
 
 | Tag | Description | Specific Limitations |
 |---|---|---|
-| `text` | Return simple meta/option text fields or post title/term name (useful in `try_` tags). **[UNRELEASED]** Or skip a source altogether and type fixed text straight into the tag. | |
+| `text` | Return simple meta/option text fields or post title/term name (useful in `try_` tags). | |
 | `image` | Return an image from a meta field or the post featured image or site logo field, with return options like GB's (alt text, etc.) and a Media Library fallback image selector. | Since terms have no native image fields, a field name must be supplied to retrieve images from a term source. |
 | `content` | Return post content/term description via a processing pipeline that handles block-rendered content safely, including consolidating block CSS for embedded post content into the page footer. | Since there's no site-wide body/content field, an option field name must be supplied to use this tag with the "site" source. |
 | `datetime_single` | Format combined datetime fields or separate date and time fields you want to show as a single date and time. By default, also hides midnight times and the current year. Multi-result sources (taxonomy terms or a reference/relationship field) can render a delimited date list, joined by the same Result Separator as `text` and bounded by each source step's own limit. | |
@@ -77,8 +77,6 @@ Instead of stringing together multiple tags in separate `span` elements, use one
 - **Separator mode** joins every non-empty value with a separator string (default `", "`), skipping empties so a missing middle value never leaves a doubled separator.
 - **Template mode** places values by position in a format string, using tokens `%A`-`%J` to represent the configured slots (the same letters the slot panels are labelled with). The older `%1`-`%10` tokens still work. Punctuation attached to an empty value drops with it: an empty bracketed part sheds its brackets, an empty middle part its comma, a missing unit value its mark. One format string can return both *Dr. Tom M. Smith Jr., PhD, USN (Ret.)* and *Jane Johnson*.
 
-**[UNRELEASED]** A slot can also hold fixed text you type in, instead of reading a field, handy for a label alongside the read ones.
-
 Output is plain text; no link options are currently available.
 
 **Note:** For height and feet units, use the prime marks `′` and `″` rather than straight quotes (`%A′%B″` renders **5′11″**, or **5′** with no inches value). WordPress converts a straight `'`/`"` to a curly quote in normal page content, but not when the block renders through a GP Element or a hooked layout, so straight marks render inconsistently depending on where the block lives. The prime marks look the same everywhere.
@@ -88,9 +86,6 @@ Output is plain text; no link options are currently available.
 `try_*` tags (e.g. `try_text`, `try_image`, `try_content`, `try_datetime_single`, `try_email`, `try_phone`) allow using the first available (populated) field from an editor-selected list of up to five sources/fields. Each slot resolves exactly as the standalone tag would (`try_email` outputs a finished `mailto:` link per slot, `try_phone` a `tel:` link), so a contact chain like "personal email → team email → site-wide address" works without multiple blocks and complicated visibility conditions.
 
 Other than `try_datetime_`, the `try_` tags accept a site source per slot, so a chain can end in a site-wide fallback value.
-
-**[UNRELEASED]** A `try_text` attempt can also be fixed text you type in. It takes its turn like any other attempt: shown when every attempt before it came up empty, and skipped when its own source finds nothing.
-
 ## Return custom function output with `call` tag
 
 The `call` tag hands off a post ID to a PHP function and returns its output. I've grouped it with GB's Post tags since it's strictly post-based, unlike the other tags. However, it still allows using a post related to the current context via a reference/relational field, and it can also pass correct post IDs when used within a Post Meta Query Loop on a reference/relational field.
