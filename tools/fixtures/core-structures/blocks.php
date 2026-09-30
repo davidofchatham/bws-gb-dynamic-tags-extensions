@@ -583,6 +583,10 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'J31 (expect Team - empty field slot drops)', '{{join A:fixed(Team)|B:key(nonexistent_field)}}' ),
 		bws_fixture_gb_row( 'J32 (expect Varsity, Inc: The Best|Team)', '{{join A:fixed(Varsity, Inc\: The Best\|Team)}}' ),
 		bws_fixture_gb_row( 'J33 (expect empty - unresolvable chain refuses before the fixed text is reached)', '{{join A:src(refs,missing_rel);fixed(Team)}}' ),
+		bws_fixture_gb_row( 'J34 (expect Team, Team - once per resolved source)', '{{join A:src(refs,related_staff);fixed(Team)}}' ),
+		bws_fixture_gb_row( 'J35 (expect Team, Jane - step limit[1] bounds the fixed slot)', '{{join A:src(refs,related_staff,limit[1]);fixed(Team)|B:key(name_first)}}' ),
+		bws_fixture_gb_row( 'J36 (expect NONE - no source, so the tag fallback fires)', '{{join A:src(refs,missing_rel);fixed(Team)|fallback:NONE}}' ),
+		bws_fixture_gb_row( 'J37 (expect Other - the sourceless fixed slot drops)', '{{join A:src(refs,missing_rel);fixed(Team)|B:fixed(Other)}}' ),
 	) );
 
 	$sections[] = bws_fixture_gb_section( 'Join - unit suffix (height)', array(

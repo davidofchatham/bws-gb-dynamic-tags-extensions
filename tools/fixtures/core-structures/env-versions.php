@@ -61,7 +61,7 @@ return array(
 	// The date the baseline under `tools/test/snapshots/` was captured. Prose only —
 	// nothing compares it; it is here so a reader can place the record in time.
 	//
-	// 2026-09-29 (FW-141): a new join section (J29-J33) on `page-matrix-post-meta`, plus
+	// 2026-09-29 (FW-141): a new join section (J29-J37) on `page-matrix-post-meta`, plus
 	// catch-up for rows deleted from the blueprint by earlier commits without a re-capture
 	// (`page-matrix-post-meta`, `page-matrix-pinned-roots`). `active` now names
 	// `site-views` where it named `bws-portal-system`, read off the live plugin list.
