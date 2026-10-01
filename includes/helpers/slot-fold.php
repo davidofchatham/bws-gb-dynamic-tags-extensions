@@ -1,11 +1,10 @@
 <?php
 /**
- * Folded slot-value grammar — THE single PHP owner of the FW-56/57 wire.
+ * Folded slot-value grammar — THE single PHP owner of the folded slot wire.
  *
  * One option key per slot (`{{join A:…|B:…}}`), whose VALUE carries the slot's
  * whole configuration: an ordered source CHAIN, the field READ, and any per-slot
- * options. Grammar APPROVED 2026-07-31; ADR 0006 owns which chars may enter an
- * accept class at all:
+ * options. ADR 0006 owns which chars may enter an accept class at all:
  *
  *   slot value := token ( ';' token )*
  *   token      := name '(' value ')'  |  bare-name          (bracket-kv, no `=`)
@@ -16,17 +15,17 @@
  *
  * Load-bearing properties, each with the reason it exists:
  *
- * - **ONE grammar owner.** The spike carried FOUR copies of these constants and
- *   all four sat on a superseded step char at once. This file is the PHP owner;
- *   `assets/js/slot-fold-grammar.js` is its unavoidable twin (different language,
- *   so agreement must be TESTED, not assumed) and carries no independent decisions.
+ * - **ONE grammar owner.** Copies of these constants drift together onto a stale
+ *   char. This file is the PHP owner; `assets/js/slot-fold-grammar.js` is its
+ *   unavoidable twin (different language, so agreement must be TESTED, not assumed)
+ *   and carries no independent decisions.
  * - **Bracket ALTERNATION by depth, never a fixed char.** `limit` sits one level
  *   INSIDE whatever encloses its chain, so its bracket is `bracket_pair(enclosing+1)`:
  *   `limit(3)` on a base tag's `src:` (enclosing level 0) and `limit[3]` inside a
- *   slot's `src(...)` (enclosing level 1). Same construct, two spellings — reviewed
- *   and kept, because alternation is what keeps depth trackable for nesting (FW-24).
- *   The emitter that prints the wrapper passes its own level down; nothing
- *   recomputes depth independently (both shipped-spike emitter bugs came from that).
+ *   slot's `src(...)` (enclosing level 1). Same construct, two spellings, because
+ *   alternation is what keeps depth trackable for nesting (FW-24). The emitter that
+ *   prints the wrapper passes its own level down; nothing recomputes depth
+ *   independently.
  * - **Parse LENIENT, emit CANONICAL.** Parse accepts either bracket pair at either
  *   depth, `,` as an opt separator, and both `0`/`-1` for unlimited; emit
  *   re-canonicalizes on the next control commit. `+` and `/` are RESERVED — NOT
@@ -40,12 +39,11 @@
  *   defaults already contain them (`Date/time TBA`, `F j, Y g:i A`).
  * - **Read axis is single-valued, resolved by NAME precedence, never by order.**
  *   `use` wins when present and not `key`; otherwise `key` supplies the read. The
- *   flat wire reads the same way (bws_use_effective()), so no tag that
- *   renders today changes meaning — and it kills the order-dependence that a
- *   last-token-wins switch would re-import into bracket-kv.
+ *   flat wire reads the same way (bws_use_effective()), and no order-dependence
+ *   enters bracket-kv the way a last-token-wins switch would bring one.
  * - **Token ORDER is never semantic**, and canonical order is not restated here:
- *   emit ranks tokens through `bws_serialization_order_sort()` (FW-52's canonical
- *   KEY_MAP), so a fifth copy of the group ranks cannot drift.
+ *   emit ranks tokens through `bws_serialization_order_sort()` (the canonical
+ *   KEY_MAP), so a copy of the group ranks cannot drift.
  *
  * Pure: no WP or GB symbols (beyond the serialization-order helper, itself pure),
  * so `tools/test/slot-fold-test.php` loads this file rather than copying it.
@@ -71,9 +69,8 @@ const BWS_FOLD_STEP_CLASS = array( ';' );
 /** Canonical separator inside one chain step (slug, arg, limit token). */
 const BWS_FOLD_PART_SEP = ',';
 /**
- * STRICT — `,` only. Narrowed when `;` became the canonical step char: step and step
- * share a position (both inside the chain), so `;` can no longer be forgiven as a
- * step separator. Machine-checked by bws_fold_grammar_validate().
+ * STRICT — `,` only. Step and part share a position (both inside the chain), so `;`
+ * cannot be forgiven as a part separator. Machine-checked by bws_fold_grammar_validate().
  */
 const BWS_FOLD_PART_CLASS = array( ',' );
 /** Accepted bracket pairs, in alternation order: level 1 `()`, level 2 `[]`. */
@@ -132,20 +129,17 @@ const BWS_FOLD_SLOT_KEY_RE = '/^[A-Z]+$/';
 /**
  * The FOLDED slot key for slot $n — the wire spelling of a slot ordinal. `1` → `A`.
  *
- * THE SINGLE OWNER of the digit→letter mapping, because the same answer is needed by two
- * registrations, the converter migrator, the editor control, both order parsers, nine
- * option LABELS and `{{join}}`'s format tokens. Nine hand-typed `chr( 64 + $n )` calls is
- * precisely the drift the leaf/twin extractions removed.
+ * THE SINGLE OWNER of the digit→letter mapping, because the same answer is needed by the
+ * registrations, the converter migrator, the editor control, both order parsers, the
+ * option LABELS and `{{join}}`'s format tokens; hand-typed `chr( 64 + $n )` calls drift.
  *
- * WHY CAPITALS AND NOT DIGITS (decided 2026-08-04): an all-digit key is a JS array-index
- * property, which ECMAScript enumerates ahead of every string key whatever order the
- * object was built in, and GB serializes with `Object.entries( extraTagParams )`. Digit
- * slots are therefore FIXED to the front of the saved string and no sort — ours or GB's —
- * can move them. Capitals hand rank back to bws_serialization_order_sort() and its JS
- * port, letting `format` and a container's tag-level options lead as
- * docs/tag-reference.md §Option order intends. The prefix itself reads slightly worse than
- * a digit; that was weighed and accepted against the ordering, and the format TOKENS
- * (`%A`) read better.
+ * WHY CAPITALS AND NOT DIGITS: an all-digit key is a JS array-index property, which
+ * ECMAScript enumerates ahead of every string key whatever order the object was built in,
+ * and GB serializes with `Object.entries( extraTagParams )`. Digit slots are therefore
+ * FIXED to the front of the saved string and no sort — ours or GB's — can move them.
+ * Capitals hand rank back to bws_serialization_order_sort() and its JS port, letting
+ * `format` and a container's tag-level options lead as docs/tag-reference.md §Option
+ * order intends.
  *
  * @since 1.17.0
  * @param int $n 1-based slot ordinal.
@@ -201,20 +195,20 @@ const BWS_FOLD_FLAT_AXES = array( 'src', 'ref', 'srcTermIn', 'use', 'key', 'limi
 /**
  * Legacy `src` VALUES the fold must refuse to fold — the four retired source tokens.
  *
- * These name the related-post source classes made inert in 1.17.0 (#56). A slot spelling
- * one is not foldable HERE, because the information needed to rewrite it faithfully is
- * the relationship field in `rel` (or `key`), and `rel` is not a fold axis at all while a
- * container's `key` may be tag-level and filtered out before the mapper sees it. The
- * converter's own entry (bws_migrate_related_post_src) reads the undifferentiated option
- * array — exactly what the retired class read — and rewrites the token to `src:ref`
- * BEFORE the fold entry runs, so on that path this list is never reached.
+ * These name the retired related-post source classes. A slot spelling one is not foldable
+ * HERE, because the information needed to rewrite it faithfully is the relationship field
+ * in `rel` (or `key`), and `rel` is not a fold axis at all while a container's `key` may
+ * be tag-level and filtered out before the mapper sees it. The converter's own entry
+ * (bws_migrate_related_post_src) reads the undifferentiated option array and rewrites the
+ * token to `src:ref` BEFORE the fold entry runs, so on that path this list is never
+ * reached.
  *
  * The MOUNT path has no entry chain, so without this guard it would fold `related_post`
- * verbatim into a chain root that now resolves to nothing — storing the tag one way while
- * the converter stores it another, which is the exact divergence the twin exists to stop.
- * Declining is what keeps that impossible: the slot keeps its legacy keys, the tag is
- * left as it was, and the converter (or a later mount, once it has run) still fixes it.
- * Writing NOTHING is not a second way to store a tag; writing the wrong wire is.
+ * verbatim into a chain root that resolves to nothing — storing the tag one way while the
+ * converter stores it another, the exact divergence the twin exists to stop. Declining
+ * keeps that impossible: the slot keeps its legacy keys, the tag is left as it was, and
+ * the converter (or a later mount, once it has run) still fixes it. Writing NOTHING is
+ * not a second way to store a tag; writing the wrong wire is.
  *
  * @since 1.17.0
  */
@@ -233,9 +227,9 @@ const BWS_FOLD_RETIRED_SRC_TOKENS = array(
  * they must not each compute it: the converter migrator strips these keys
  * (bws_fold_migration_slot_keys), the registered fold config ships them to the editor as
  * `flatAxes` (bws_build_fold_slot_options), and the editor's mount migrator + control
- * read that config to decide which siblings to fold and delete. A control that kept its
- * own list deleted the tag-level `limit` off a `try_text` and the tag-level `key` off a
- * `try_datetime_single` the first time a slot was touched.
+ * read that config to decide which siblings to fold and delete. A control keeping its own
+ * list would delete a container's tag-level axis (`limit` on `try_text`, `key` on
+ * `try_datetime_single`) the first time a slot was touched.
  *
  * @since 1.17.0
  * @param string[] $tag_level Axes this container owns at TAG level (never per slot).
@@ -248,11 +242,10 @@ function bws_fold_slot_flat_axes( array $tag_level = array() ): array {
 /**
  * Is this container COMBINING ({{join}}, {{table}}) or SELECTING (`try_*`)?
  *
- * ONE derivation, and the reason it is worth a function: `container` is the
- * representation everything passes around — it names all three containers, it is what
- * bws_fold_parse_slot() takes and what the fold config carries — while `combining` is a
- * derived PROPERTY of it that several seams branch on. Every site that spelled
- * `'try' !== $x` inline was a place the two names could drift apart, and the failure is
+ * ONE derivation: `container` is the representation everything passes around — it names
+ * all three containers, it is what bws_fold_parse_slot() takes and what the fold config
+ * carries — while `combining` is a derived PROPERTY of it that several seams branch on.
+ * An inline `'try' !== $x` is a place the two names can drift apart, and the failure is
  * silent: a wrong bool swaps what an ABSENT read means (skip vs carry-over), which changes
  * rendered output with no error anywhere.
  *
@@ -270,18 +263,16 @@ function bws_fold_is_combining( string $container ): bool {
  *
  * SINGLE OWNER, for the same reason try_'s facts live on
  * TagTemplateRegistry::try_slot_axes(): join is hand-described (there is no template
- * descriptor to derive from), so without one home bws_get_join_options() and
- * bws_fold_migration_container() are two hand-kept copies of the same four facts. They
- * disagree silently and expensively — a stale `max` leaves a slot unmigrated, a stale
- * `tag_level` folds an option the resolver reads at TAG level — and nothing fails until
- * a stored tag is rewritten wrong.
+ * descriptor to derive from), so bws_get_join_options() and bws_fold_migration_container()
+ * would otherwise be two hand-kept copies of the same four facts. They disagree silently
+ * — a stale `max` leaves a slot unmigrated, a stale `tag_level` folds an option the
+ * resolver reads at TAG level — and nothing fails until a stored tag is rewritten wrong.
  *
- * `tag_level` is EMPTY, which is the fact worth stating rather than just asserting.
- * Join's tag-level options (mode/valueSep/format/fallback) share no name with a legacy
- * slot axis, and `limit` IS a join SLOT axis: join registered one per slot
- * (`limit`/`N-limit`) and threaded it into that slot's text resolve. try_ is the
- * opposite — a bare `limit` there bounds every slot — which is why this list is
- * per-container data and not one shared constant.
+ * `tag_level` is EMPTY: join's tag-level options (mode/valueSep/format/fallback) share no
+ * name with a legacy slot axis, and `limit` IS a join SLOT axis (`limit`/`N-limit`,
+ * threaded into that slot's text resolve). try_ is the opposite — a bare `limit` there
+ * bounds every slot — which is why this list is per-container data and not one shared
+ * constant.
  *
  * @since 1.17.0
  * @return array{container:string,combining:bool,per_slot_use:bool,max:int,tag_level:string[]}
@@ -318,7 +309,6 @@ function bws_fold_bracket_pair( int $level ): array {
  * THE safety condition for lenient accept classes: roles are disambiguated by
  * POSITION, so two classes may overlap across positions (opt and step both once
  * accepted `,;`) but must be disjoint WITHIN one. step and part share a position.
- * This caught the `;`-step change putting `;` in two same-position classes.
  *
  * @return string[] Violation strings; empty array = safe.
  */
@@ -391,10 +381,10 @@ function bws_fold_unescape( string $value ): string {
  * author can pick the pair their content avoids — `label[Note (TBD]` is legal).
  *
  * Used at all three positions (slot tokens, chain steps, intra-step). It is
- * bracket-aware at the STEP position too, which the spike's naive `preg_split`
- * was not: `limit[5]` survived a naive split only because a bare integer cannot
- * contain a separator, and the moment a step token carries free-form or nested
- * content (FW-24's whole-tag-in-slot) a naive split shreds it mid-token.
+ * bracket-aware at the STEP position too, never a naive `preg_split`: `limit[5]`
+ * survives a naive split only because a bare integer cannot contain a separator, and
+ * the moment a step token carries free-form or nested content (FW-24's whole-tag-in-slot)
+ * a naive split shreds it mid-token.
  *
  * @param string   $value Input.
  * @param string[] $class Accepted separator chars.
@@ -616,8 +606,7 @@ function bws_fold_emit_chain( array $steps, int $enclosing_level = 1 ): string {
 /**
  * Parse a folded slot value into its structure.
  *
- * Container shapes the parse in exactly two places, both already-settled
- * container sensitivities rather than new ones:
+ * Container shapes the parse in exactly two places:
  *   - a TYPE token leads only in format-AGNOSTIC containers ({{join}}, {{table}});
  *     `try_*` slots inherit the template's fixed type, so a bare type word there is
  *     an unknown token and is preserved as such;
@@ -626,7 +615,7 @@ function bws_fold_emit_chain( array $steps, int $enclosing_level = 1 ): string {
  *
  * Both the read axis and the datetime `key` meaning are resolved AFTER the token
  * loop, never inside it: a hand-edited wire may state the type last, and assigning
- * during the scan is what made the spike's read order-dependent.
+ * during the scan would make the read order-dependent.
  *
  * @param string $value     Slot value (escaped or unescaped — normalized here).
  * @param string $container 'try' (format-fixed) | 'join' | 'table' (agnostic).
@@ -727,10 +716,9 @@ function bws_fold_parse_slot( string $value, string $container = 'join' ) {
 		// the state the editor is in between picking "Meta/Option Field" and picking the
 		// field. It has to round-trip (emit writes it back), because the control rewrites
 		// the whole value on every commit and derives the read select's value by RE-PARSING
-		// it: a shape that parses but never emits made the kind un-selectable (it reverted
-		// to unset on commit, and with it the field picker it reveals). Legacy-shaped in
-		// origin, canonical now for the empty-field case only — with a field present the
-		// bare `key(x)` still wins (bws_fold_emit_slot).
+		// it: a shape that parses but never emits would revert the kind to unset on commit,
+		// and with it the field picker it reveals. Canonical for the empty-field case only —
+		// with a field present the bare `key(x)` still wins (bws_fold_emit_slot).
 		$slot['read'] = array( 'kind' => 'key', 'field' => '' );
 	} elseif ( 'fixed' === $use_tok ) {
 		// `use(fixed)` with no `fixed` token is the fixed-read twin of the `key` pending
@@ -753,8 +741,8 @@ function bws_fold_parse_slot( string $value, string $container = 'join' ) {
  * Emit a slot structure as its canonical wire value.
  *
  * Order: `label` → type → canonically-ranked tokens → preserved unknowns. The rank
- * comes from bws_serialization_order_sort() (FW-52's canonical KEY_MAP), so the
- * fold adds no fifth copy of the group ranks. Redundancy drops: the `default`
+ * comes from bws_serialization_order_sort() (the canonical KEY_MAP), so the fold
+ * adds no copy of the group ranks. Redundancy drops: the `default`
  * analog (absent IS default), and an analog naming the slot's own type.
  *
  * @param array $slot  Slot struct (as parsed).
@@ -776,7 +764,7 @@ function bws_fold_emit_slot( array $slot, int $level = 1 ): string {
 			// Field chosen → the bare `key(x)` IS the keyed read (`use` is redundant).
 			// Field not chosen yet → `use(key)` is the only spelling of "keyed, pending",
 			// and it must be written or the editor loses the author's kind choice on
-			// commit. Renders exactly as the flat-era `use:key` with an empty key did.
+			// commit.
 			if ( '' !== $read['field'] ) {
 				$values['key'] = $read['field'];
 			} else {
@@ -844,7 +832,7 @@ function bws_fold_emit_slot( array $slot, int $level = 1 ): string {
  *     materializes as `use(same)` — identical behaviour, intent now explicit. A
  *     slot whose ONLY legacy content was a `key` is SKIPPED by the shipped
  *     resolver (the key is discarded first, then `$has_new` is false), so it maps
- *     to nothing at all — this is the FW-51 shape, faithfully preserved.
+ *     to nothing at all, faithfully preserved.
  *     That materialization is COSMETIC — an absent read and `use(same)` resolve
  *     identically in a selecting container — so it is written only where the UI
  *     can show it: `$per_slot_use`. The four try_ templates with no per-slot read
@@ -905,7 +893,7 @@ function bws_fold_from_flat( int $n, array $options, bool $combining = false, bo
 
 	// An explicitly key-moded selecting slot ≥2 with NO key of its own BORROWED the
 	// carried key under the flat resolver: the picker sat there empty and the slot
-	// rendered a field named somewhere else — FW-51's ambiguity from the other side.
+	// rendered a field named somewhere else.
 	// Read it as the `same` it was, so `use(same)` carries both axes. That reproduces
 	// the shipped result whenever the carried read was itself key-moded, which is every
 	// shape the shipped UI could author: a slot in an ANALOG mode hides its key field,
@@ -939,13 +927,11 @@ function bws_fold_from_flat( int $n, array $options, bool $combining = false, bo
 		$chain[] = $step( 'same' );
 	} elseif ( '' !== $src ) {
 		// An EXPLICIT `current` becomes a step like any other source value, even though an
-		// empty chain also resolves against the ambient entity. Treating it as "nothing"
-		// DELETED slots: on a container with no per-slot read axis (try_permalink,
+		// empty chain also resolves against the ambient entity. Mapping it to "nothing"
+		// DELETES slots: on a container with no per-slot read axis (try_permalink,
 		// try_title, try_datetime_*) a fallback attempt whose entire content was
-		// `{N}-src:current` folded to an empty struct, which emits the empty string, which
-		// means the slot key is never written — the attempt vanished. It renders under the
-		// legacy wire and under `{N}:src(current)`, verified both ways on the testbed, so
-		// the step is the output-preserving mapping and the omission was a bug.
+		// `{N}-src:current` would fold to an empty struct, which emits the empty string,
+		// which means the slot key is never written — the attempt vanishes.
 		$chain[] = $step( $src );
 	}
 	// A SITE ROOT NEVER TAKES THE LEGACY TERM STEP, which is the same refusal
@@ -954,19 +940,16 @@ function bws_fold_from_flat( int $n, array $options, bool $combining = false, bo
 	// a hand-edited `srcTermIn`"). `srcTermIn` registers `show_if src: not:site`, so the
 	// pair is hand-edit-only, and every arm has always let the site read win.
 	//
-	// It became LOAD-BEARING at #104 and was harmless before it: the retired flatten
-	// collapsed this chain back to a triple, and the chain reader dropped the step off the
-	// triple, so appending it here changed nothing. Now the chain IS the hand-off, so
-	// appending it makes the slot resolve a term step off a site source — no post input,
-	// hence empty — where the identically-keyed base tag still reads the site. That is the
-	// [I6]/[I16] parity §F9b.5 closed one release earlier, re-opened from the other side.
+	// The chain IS the hand-off, so appending the step would make the slot resolve a term
+	// step off a site source — no post input, hence empty — where the identically-keyed
+	// base tag still reads the site: a break of [I6]/[I16] parity.
 	//
 	// ONE FIX, THREE PATHS: the render dual-read, the converter's slot mapper and the
 	// editor's mount migrator all build a slot's chain here (bws_fold_migrate_slots() calls
 	// this), so a stored tag, a converted one and an editor-touched one cannot disagree.
 	if ( '' !== $tax && 'site' !== $src ) {
 		// srcTermIn always FOLLOWS ref: the term step needs a post input, which the
-		// ref step produces (issue #44's order, one global rule in one builder).
+		// ref step produces.
 		$chain[] = $step( 'terms', $tax );
 	}
 
@@ -1005,9 +988,8 @@ function bws_fold_from_flat( int $n, array $options, bool $combining = false, bo
 	// Read AFTER the emptiness test above, never before: a tag-level limit is not content,
 	// and folding it in earlier would conjure a slot out of every unused ordinal. And read
 	// only where THIS slot's chain fans — the same predicate everything else here shares —
-	// so a slot with nothing to bound gets no limit, per #60. It loses nothing: a slot that
-	// fans by CARRY-OVER is handed the bound with the source it carries
-	// (bws_fold_slot_chain_options), which is what let the key itself be retired (#61).
+	// so a slot with nothing to bound gets no limit. It loses nothing: a slot that fans by
+	// CARRY-OVER is handed the bound with the source it carries (bws_fold_slot_chain_options).
 	if ( '' === $limit && ! $combining && bws_fold_chain_fanning_steps( $chain ) ) {
 		$limit = trim( (string) ( $options['limit'] ?? '' ) );
 	}
@@ -1016,11 +998,8 @@ function bws_fold_from_flat( int $n, array $options, bool $combining = false, bo
 	//
 	// A FOLDED SLOT DEFAULTS TO UNLIMITED, exactly as a base tag spelled the same way
 	// does (bws_limit_default). So the flat era's implied `1` has to be MATERIALIZED
-	// here. It used to arrive for free — the retired bws_fold_slot_flat_options() re-spelled every
-	// slot as a flat triple before any container arm resolved a limit, so the default
-	// was chosen from wire the slot no longer had, and every slot answered 1 whatever
-	// it was spelled as. Once the seam hands its ERA back (#60), that prop is gone and
-	// migration has to state what the old spelling implied.
+	// here: migration has to state what the old spelling implied, because the seam hands
+	// the slot's ERA back and nothing else supplies it.
 	//
 	// ONE OWNER FOR BOTH DEPTHS: the rule that bounds a migrated base tag's chain
 	// bounds a migrated slot's, positional `N`-on-the-last-fanning-step and all
@@ -1107,16 +1086,11 @@ function bws_fold_chain_fanning_steps( array $chain ): array {
  * Materialize the limit a LEGACY flat source implied, as per-step limits on the chain
  * that respells it.
  *
- * THE ONE OWNER, at both depths. It was first written as the base tag's half alone, on
- * the reasoning that a folded SLOT needed only the explicit case: the flatten seam
- * collapsed a slot's chain back to a flat triple before any container arm resolved a
- * limit, so the default was chosen from wire the slot no longer had and folding a slot
- * could not change what it rendered. That prop is gone — the seam now hands its ERA back
- * (#60) and a slot's own spelling decides its own default exactly as a base tag's does —
- * so bws_fold_from_flat() materializes through this same function, and the two depths
- * cannot drift into two rules for one idea.
+ * THE ONE OWNER, at both depths. A slot's own spelling decides its own default exactly
+ * as a base tag's does, so bws_fold_from_flat() materializes through this same function
+ * and the two depths cannot drift into two rules for one idea.
  *
- * A LIMIT IS STATED WHERE THE SOURCE IS STATED (user, 2026-08-06; ADR 0005). A chain
+ * A LIMIT IS STATED WHERE THE SOURCE IS STATED (ADR 0005). A chain
  * states its source as steps, so migration writes the limit onto the steps and never as
  * a tag-level `limit`: a number attached to the step it bounds says which quantity it
  * bounds, where a tag-level `1` beside a two-step chain does not. The tag-level control
@@ -1158,7 +1132,7 @@ function bws_fold_chain_fanning_steps( array $chain ): array {
  * `$consume_unlimited` IS THE DEPTH-0 POSITION, and the asymmetry is the point. At depth 0
  * the rewrite is the whole story: the chain spelling itself selects unlimited
  * (`bws_limit_default`), so an explicit `0`/`-1` left behind states nothing the wire does
- * not already say — and since #62 retired the tag-level control there is no field left to
+ * not already say — and with the tag-level control retired there is no field left to
  * see or clear it in, which makes it a token on chain wire that no editor surface can
  * reach. So the depth-0 callers ask for it to be consumed. A SLOT caller must NOT: the
  * same mapper renders UNMIGRATED flat wire, where an absent limit takes the flat era's 1,
@@ -1204,12 +1178,11 @@ function bws_fold_chain_apply_legacy_limit( array $chain, $limit, bool $consume_
 	// a limit that large already reads as unlimited in both eras, and the tag-level key is
 	// left exactly as authored, so the reader still answers what it always answered.
 	//
-	// It is NOT consumed at depth 0 either, and that is the one acknowledged hole in #62's
-	// promise: the key survives on chain wire with no control to reach it. Left deliberately
-	// — the value is a stated BOUND, not the explicit unlimited the consume rule is written
-	// for, so deleting it would answer a question the author asked with a number of our own.
-	// Hand-written wire only (no control could ever produce a magnitude this large), which
-	// is also the wire ADR 0004 says must keep meaning what it says.
+	// It is NOT consumed at depth 0 either: the key survives on chain wire with no control
+	// to reach it. Deliberate — the value is a stated BOUND, not the explicit unlimited the
+	// consume rule is written for, so deleting it would answer a question the author asked
+	// with a number of our own. Hand-written wire only (no control could produce a
+	// magnitude this large), which is the wire ADR 0004 says must keep meaning what it says.
 	if ( $explicit && abs( (float) $raw ) > BWS_FOLD_MAX_SAFE_LIMIT ) {
 		return array( 'chain' => $chain, 'consumed' => false );
 	}
@@ -1260,8 +1233,8 @@ function bws_fold_chain_apply_legacy_limit( array $chain, $limit, bool $consume_
  * THE ERA RIDES ON THE STRUCT, under a non-grammar `era` key, because this is the only
  * function that can see it: one step later the chain has been collapsed to a flat
  * `src`/`ref`/`srcTermIn` triple, which is structurally blind to how the slot was
- * SPELLED. Reading the default off that triple is what made every slot answer 1
- * whatever it was spelled as (#60). `era` is provenance, not wire — bws_fold_emit_slot()
+ * SPELLED. Reading the default off that triple would make every slot answer 1
+ * whatever it was spelled as. `era` is provenance, not wire — bws_fold_emit_slot()
  * reads the six grammar keys by name and never sees it, and nothing round-trips it.
  *
  * @since 1.17.0
@@ -1325,9 +1298,8 @@ function bws_fold_empty_slot(): array {
  * ONE OWNER for the seed, beside the seam that reads it. Every axis but the READ starts
  * empty and the seam fills the rest in through its own `+=` defaults, so the only thing a
  * caller has to state is what an ABSENT slot-1 read means on its template — which is the
- * one axis the seam cannot know. Four call sites held the literal before #104 (both
- * container loops, both preview walks) and the fold's own rename had to edit all four in
- * lockstep, which is the tell.
+ * one axis the seam cannot know. Four call sites (both container loops, both preview
+ * walks) would otherwise each hold the literal and have to be edited in lockstep.
  *
  * @since 1.17.0
  * @param string $default_read The stripped first `use` value of the leaf the container's
@@ -1354,14 +1326,9 @@ function bws_fold_empty_carry( string $default_read = '' ): array {
  * parser, same resolution path; only STORAGE differs, and that is [I13]'s axis. So this
  * seam EMITS the slot's resolved chain as depth-0 CHAIN WIRE in `$opts['src']` — the
  * option key a base tag states its source in — and never as a `src`/`ref`/`srcTermIn`
- * triple. It replaced bws_fold_slot_flat_options(), which re-spelled every slot as that
- * triple: one relationship step plus one term step, whatever the wire said. That respelling
- * is what made a multi-step slot inexpressible, and it was DELETED rather than adapted —
- * a seam serving both shapes is the shape that guarantees a half-shipped divergence.
- *
- * Carry-forward, `same` resolution, the read axis, the skip-reason out-param and the #60
- * limit-era out-param all stayed exactly where they were. ONLY THE SOURCE AXIS CHANGED
- * SHAPE.
+ * triple. A triple is one relationship step plus one term step, whatever the wire said,
+ * which makes a multi-step slot inexpressible; and a seam serving both shapes guarantees
+ * a half-shipped divergence.
  *
  * WIRE, NOT A PARSED STRUCTURE, and that is a corollary of ADR 0004 rather than a fresh
  * choice. `$opts['src']` is already read by several things that are not the chain parser —
@@ -1389,49 +1356,40 @@ function bws_fold_empty_carry( string $default_read = '' ): array {
  *
  * ACCUMULATOR. `$carry` is `{chain, ref, use, key, limit}` and is updated ONLY by a slot
  * that actually resolves. A skipped slot must not feed it: shipped join `continue`s before
- * its carry-forward, so a half-configured slot 2 leaves slot 3 resolving `same` against slot 1 — feeding
- * the accumulator first would re-point slot 3 at a source the author never chose. `ref` is
- * passed through even under a non-`ref` source (inert there, but a later slot carrying back
- * to the same relationship needs it — shipped behaviour, and the one thing an ARGLESS
- * `refs` step consumes).
+ * its carry-forward, so a half-configured slot 2 leaves slot 3 resolving `same` against
+ * slot 1 — feeding the accumulator first would re-point slot 3 at a source the author
+ * never chose. `ref` is passed through even under a non-`ref` source (inert there, but a
+ * later slot carrying back to the same relationship needs it — shipped behaviour, and the
+ * one thing an ARGLESS `refs` step consumes).
  *
- * THE CARRY IS CHAIN-SHAPED, WHICH DELETED A SPECIAL CASE. `src(same)` copies the prior
- * slot's RESOLVED CHAIN rather than four scalars, so a slot spelling `same` carries the prior
- * slot's HOPS for free. The `$tax_inherit` branch this used to need existed only because a
- * flat triple cannot carry a step, so a slot spelling `same` took the root alone and landed on
- * the ambient entity — [I15]'s corollary ("a carried source carries what it IS, not
- * merely its root") stops being enforced by a branch.
+ * THE CARRY IS CHAIN-SHAPED. `src(same)` copies the prior slot's RESOLVED CHAIN rather
+ * than four scalars, so a slot spelling `same` carries the prior slot's HOPS structurally:
+ * [I15]'s corollary ("a carried source carries what it IS, not merely its root") is not
+ * enforced by a branch.
  *
  * WHAT SURVIVES THE CARRY BECOMING A CHAIN is the corollary's second half: a carried hop
  * is a DEFAULT, not a step this chain took, so part of the carried chain can GIVE WAY to a
  * step this slot states of its own. That is a rule about what `same` MEANS — a slot sentinel
  * the container resolves before compiling — and not about the chain grammar, which is why a
  * base tag's `terms,a;terms,b` still hops twice. WHAT DECIDES HOW MUCH GIVES WAY IS OWNED BY
- * bws_fold_chain_join() (slot-fold-compile.php) AND IS NOT RESTATED HERE — it changed axis
- * three times during #104, and every site that had named an axis went stale, including two in
- * this file. See the merge at the end of the source axis.
+ * bws_fold_chain_join() (slot-fold-compile.php) AND IS NOT RESTATED HERE. See the merge at
+ * the end of the source axis.
  *
  * CONTAINER SENSITIVITY IS ON THE READ AXIS, AND ONLY THERE — specifically on what
  * ABSENCE means. An explicit `use(same)` carries over in BOTH containers (so the read is
  * always tracked in the accumulator); an ABSENT read is UNCONFIGURED in a combining
  * container (skip the slot) and CARRY-OVER in a selecting one.
  *
- * THE `'chain'` REFUSAL DISSOLVED — a chain with no flat spelling — because there is no flat
- * spelling left to fail at, so the branch has nothing to test. The other four are correct at
- * any emit shape and STAY; a FIFTH arrived with the emit change, so the count is five and not
- * four wherever it is restated. Each has its own author-facing answer:
+ * FIVE skip reasons, each with its own author-facing answer:
  *   - `'read'`         an unconfigured combining slot. Silent (a resting state).
  *   - `'same'`         a `same` root with nothing to be the same AS.
  *   - `'step:refs'`    a relationship step with no field AND nothing carried to supply one.
  *   - `'step:terms'`   a term step with no taxonomy.
- *   - `'step:rows'` a repeater step with no field. It is listed apart from the other two
- *                      because it is the one the FLATTEN never reached: `rows` was refused
- *                      outright as inexpressible, argument or not, so an unfinished one had
- *                      nowhere to be reported from. The rule is the fanning family's, not a
- *                      per-slug decision — an argless fanning step of any slug is unfinished.
- * The repeater-row refusal MOVED rather than dissolving: whether a `meta_row` renders is
- * the question of the read that consumes it — each family's base resolve seam, and
- * `{{table}}`'s own arm — not of this seam.
+ *   - `'step:rows'`    a repeater step with no field. The rule is the fanning family's, not
+ *                      a per-slug decision — an argless fanning step of any slug is
+ *                      unfinished.
+ * Whether a `meta_row` renders is not decided here: it is the question of the read that
+ * consumes it — each family's base resolve seam, and `{{table}}`'s own arm.
  *
  * WHY THE SKIP REASON IS AN OUT-PARAM. The editor PREVIEW has to tell the skips apart — an
  * unconfigured slot is a normal in-progress state and says nothing, while an unfinished step
@@ -1440,13 +1398,12 @@ function bws_fold_empty_carry( string $default_read = '' ): array {
  * second copy of the skip rule, i.e. the exact drift this seam removed, so the reason is
  * reported BY THE OWNER. Optional and by reference: the render callers pass nothing.
  *
- * WHY THE LIMIT DEFAULT IS AN OUT-PARAM TOO, AND WHY IT IS NOW LOAD-BEARING. A SLOT'S OWN
+ * WHY THE LIMIT DEFAULT IS AN OUT-PARAM TOO, AND WHY IT IS LOAD-BEARING. A SLOT'S OWN
  * SOURCE SPELLING DECIDES ITS OWN DEFAULT, exactly as a base tag's does — chain wire returns
  * everything, flat wire bounds at 1 (bws_limit_default). The emitted `src` is CHAIN WIRE ON
- * EVERY SLOT now, so bws_limit_default() read off it answers *unlimited* even for a slot
+ * EVERY SLOT, so bws_limit_default() read off it answers *unlimited* even for a slot
  * recovered from legacy flat keys. Both containers write the resolved number back into
- * `$slot_opts['limit']` explicitly; that line stopped being a nicety the moment this seam
- * landed and must not be removed or "simplified".
+ * `$slot_opts['limit']` explicitly; that line must not be removed or "simplified".
  *
  * A CHAIN-SPELLED SLOT ONLY TAKES THE UNLIMITED DEFAULT WHERE ITS OWN CHAIN FANS
  * (bws_fold_chain_fanning_steps — the same predicate the migrator stamps by, which is the
@@ -1454,10 +1411,9 @@ function bws_fold_empty_carry( string $default_read = '' ): array {
  * states no list of its own: it fans only by CARRYING OVER an earlier slot's source, and that
  * slot already stated its own bound.
  *
- * WHICH IS WHY, ON A SELECTING CONTAINER, THAT BOUND IS CARRIED (#61). `src(same)` names
- * the same SOURCE and a limit is one of a source's parameters, so an attempt that carries
- * the source over carries what bounds it. That is what let `try_`'s TAG-LEVEL `limit` be
- * retired without moving output.
+ * WHICH IS WHY, ON A SELECTING CONTAINER, THAT BOUND IS CARRIED. `src(same)` names the same
+ * SOURCE and a limit is one of a source's parameters, so an attempt that carries the source
+ * over carries what bounds it.
  *
  * CONTAINER-SENSITIVE, and it is the contrast this file already draws twice
  * (bws_fold_from_flat's tag-level read is the other). A COMBINING container registered
@@ -1466,7 +1422,7 @@ function bws_fold_empty_carry( string $default_read = '' ): array {
  * slot-fold-test.php §P13.1 `term hop with limit` is the case that says so. A SELECTING
  * container never had a per-slot limit at all, so absence there can only mean carry-over.
  *
- * @since 1.17.0 Replaces bws_fold_slot_flat_options() (#104, FW-71).
+ * @since 1.17.0
  * @param array  $slot        Slot struct (bws_fold_parse_slot / bws_fold_from_flat shape).
  * @param array  $carry       Carry-forward accumulator, BY REFERENCE: {chain,ref,use,key,limit}.
  *                            `limit` is WRITTEN on every container so the accumulator
@@ -1490,9 +1446,9 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 		: 1;
 	// `_fed` is not a wire axis — it records whether ANY slot has fed the accumulator
 	// yet, which the `same` root needs and no other key can answer: `chain` initialises to
-	// the empty chain, and the empty chain is also how the ambient entity is spelled, so an
+	// the empty chain, and the empty chain is also how the ambient entity is spelled, so a
 	// carry-over off a fresh accumulator is indistinguishable from a carry-over off an ambient
-	// slot 1 (#74).
+	// slot 1.
 	$carry += array( 'chain' => array(), 'ref' => '', 'use' => '', 'key' => '', 'fixed' => '', 'limit' => null, '_fed' => false );
 
 	// ── read axis ──────────────────────────────────────────────────────────
@@ -1542,16 +1498,14 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 	//
 	// Everything here is a chain-to-chain rewrite of exactly two sentinels — `same` at the
 	// root, and an argless `refs` taking the carried relationship field. Every other step
-	// passes through verbatim, which is what makes a multi-step source resolve at all: the
-	// old flattener had to REJECT what it could not re-spell.
+	// passes through verbatim, which is what makes a multi-step source resolve at all.
 	$steps = array_values( $slot['chain'] ?? array() );
 	// The carried chain is held APART from this slot's own steps until both are known,
 	// because part of the carried chain can GIVE WAY to a step this slot states of its own
 	// rather than being followed by it — bws_fold_chain_join() owns what decides how much, and
-	// this comment deliberately does not restate it (see the merge below). Appending blind is
-	// what the first draft of #104 did, and it silently deleted a slot: legacy
-	// `2-src:same|2-srcTermIn:office` behind a slot that already hopped `department` came out
-	// as two term steps and hopped twice.
+	// this comment deliberately does not restate it (see the merge below). Appending blind
+	// silently deletes a slot: legacy `2-src:same|2-srcTermIn:office` behind a slot that
+	// already hopped `department` would come out as two term steps and hop twice.
 	$carried = array();
 	$own     = array();
 	$ref     = $carry['ref'];
@@ -1568,7 +1522,7 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 				// Nothing has resolved yet, so there is no source to be the same AS.
 				// Falling through would carry over the accumulator's initialiser, which
 				// spells the ambient entity — and at slot ≥2 ambient is not a default to
-				// fall back to, it is something the wire has to SAY (#74).
+				// fall back to, it is something the wire has to SAY.
 				//
 				// Its OWN reason: `same` names a perfectly expressible chain with
 				// nothing yet to be the same as, and the author-facing answer is "finish
@@ -1577,11 +1531,9 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 					$skip_reason = 'same';
 					return null;
 				}
-				// THE WHOLE CHAIN, hops and all. A flat triple could only carry the root,
-				// which is why the taxonomy needed a scalar of its own; a chain carries
-				// what it IS, so [I15]'s corollary stops needing that scalar. What it does
-				// NOT stop needing is the corollary's second half — a carried hop is a
-				// DEFAULT, not a step this chain took — which is the merge below.
+				// THE WHOLE CHAIN, hops and all: a chain carries what it IS ([I15]'s
+				// corollary). The corollary's second half — a carried hop is a DEFAULT,
+				// not a step this chain took — is the merge below.
 				$carried = array_values( $carry['chain'] );
 				$ref     = $carry['ref'];
 				continue;
@@ -1594,7 +1546,7 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 				// COMPLETE that way — the carry supplied its argument. With nothing carried
 				// there is no argument from anywhere and the step is unfinished; skipping is
 				// what stops it compiling to a rootless chain, which resolves the AMBIENT
-				// entity and hands back a plausible wrong value (#74).
+				// entity and hands back a plausible wrong value.
 				if ( '' === $carry['ref'] ) {
 					$skip_reason = 'step:refs';
 					return null;
@@ -1632,22 +1584,16 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 	// with it — but a slot that goes on to state a step of its OWN may be refining that source
 	// rather than hopping again off the end of it, so part of the carried chain can GIVE WAY.
 	//
-	// WHAT DECIDES HOW MUCH IS OWNED BY bws_fold_chain_join() AND IS NOT RESTATED HERE. It
-	// changed axis three times during #104 — append, then same-slug, then the join — each
-	// reading correct on every legacy shape and wrong on a different hand-written one, and the
-	// sites that had restated an axis all went stale while the sites naming only the consequence
-	// stayed true. Two of the stale ones were in this file (#106). The derivation, both wrong
-	// cuts and what each cost live in that function's docblock; CLAUDE.md §Documentation
-	// ownership is the general rule this is an instance of.
+	// WHAT DECIDES HOW MUCH IS OWNED BY bws_fold_chain_join() AND IS NOT RESTATED HERE; its
+	// docblock holds the derivation. CLAUDE.md §Documentation ownership is the general rule
+	// this is an instance of.
 	//
 	// WHAT IS LOCAL HERE is that the shape is EDITOR-AUTHORABLE at all, which a pure chain
 	// function cannot know: leave slot 2's source alone and pick a different taxonomy, and the
 	// old panel wrote `2-src:same|2-srcTermIn:office`, which the flat resolver read as "the
 	// carried source, into office terms". So this is shipped wire, not a hand-edit hazard.
-	// MEASURED both ways on the testbed; §P16.4 has pinned the shape since #74.
+	// §P16.4 pins the shape.
 	//
-	// THIS IS NOT THE SPECIAL CASE #104 DELETED. That one was `$tax_inherit`, a SCALAR held
-	// beside the flat triple because a triple cannot carry a step; it is gone and stays gone.
 	// This is a rule about what `same` MEANS, and `same` is a slot sentinel the container
 	// resolves BEFORE compiling (bws_fold_chain_root never interprets one), so it is the
 	// container's vocabulary rather than the chain grammar's. A base tag cannot write it, so
@@ -1666,13 +1612,12 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 	// ride the emitted wire and bound the ENGINE's hops. A LIMIT APPLIES TO THE STEP IT
 	// IS STATED ON (ADR 0005's own sentence, one level down; ADR 0007) — so only the
 	// FINAL step's number can be the item bound, because the final step's outputs ARE
-	// the rendered items. The selection this replaced kept the last step that STATED
-	// one, which let a number written on `terms` go on governing output after the
-	// author appended an unbounded `refs` — a number stated in one place silently
-	// acting on another. An earlier step's limit still bounds its own step, in the
-	// engine, exactly as its position says. (Consequence, correct and not a
-	// regression: a bound whose step is no longer last stops governing rendered items
-	// and goes back to bounding how far its own step spreads.)
+	// the rendered items. Keeping the last step that STATES one would let a number
+	// written on `terms` go on governing output after the author appended an unbounded
+	// `refs` — a number stated in one place silently acting on another. An earlier
+	// step's limit still bounds its own step, in the engine, exactly as its position
+	// says. (Consequence: a bound whose step is no longer last stops governing rendered
+	// items and goes back to bounding how far its own step spreads.)
 	//
 	// Read off the slot's OWN steps, never the resolved chain: a carried step's
 	// bound belongs to the slot that stated it, and re-reading it here would restate
@@ -1727,10 +1672,8 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 		'srcTermIn' => '',
 		// The read is the CARRY's, seeded by the container with its template's stripped
 		// default (bws_fold_empty_carry) — this seam knows no tag, so it states no
-		// default of its own. It held a literal 'key' here through 1.18.x, which was
-		// right only because `content` (the one non-key default) always seeded its own;
-		// the CANONICALIZATION that literal was also doing is kept, at the read axis
-		// above, where it can use the carry instead of guessing a value.
+		// default of its own; the read-axis canonicalization above uses the carry
+		// rather than guessing a value.
 		'use'       => $use,
 		'key'       => $key,
 		'fixed'     => $fixed,
