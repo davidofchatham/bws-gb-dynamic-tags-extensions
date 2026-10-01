@@ -88,6 +88,12 @@ already disagree, resolve it as drift; this clause is about not writing the sent
 | Claude in-repo behavior + this policy | `CLAUDE.md` | Dependencies, dev workflow, and the §Update triggers INDEX (last section — trigger + harnesses + link); all schema and all trigger RULES deferred to `docs/` |
 | Agent-skill config (issue tracker, triage labels, domain doc layout) | `docs/agents/*.md` | Consumed by Pocock engineering skills; set via `/setup-matt-pocock-skills` |
 
+### Code comments
+
+**A comment states the CURRENT rule and its reason, once, as short as it stays true.** Keep every invariant, every "never X, because Y" guard, and anything a doc points at (a "see `fn()`'s PHPDoc" citation makes that docblock load-bearing). Cut what only explains how the code got here — what it replaced, what a draft did, which release fixed what — because `git log -S` finds it; the CLAUDE.md budget test applies (would the sentence be true had the instance never happened?). Cite FW/ADR/`#N` ids only where they point to live work or a decision, never as provenance. One reason gets stated once; other sites point to it.
+
+**A comment that states a rule another site owns may MOVE to the owner** (the axis rule above), leaving a pointer — relocation, never duplication. Trim when already editing a file; whole-file passes only when asked, verified by an unchanged `php -w` strip plus the file's harnesses.
+
 ### Line wrapping
 
 **Markdown prose is NOT hard-wrapped — one paragraph, one line.** Table rows, list items and code blocks keep their own lines. No exceptions by destination: a repo doc and a GitHub issue body take the same treatment. Commit messages are the one surface that stays wrapped (not Markdown, never reflowed, `git log` does not soft-wrap). What the rule costs on a POSTED surface is in `docs/agents/issue-tracker.md`.
