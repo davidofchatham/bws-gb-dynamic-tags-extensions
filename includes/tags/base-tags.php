@@ -8,31 +8,23 @@
  *
  * Registered tags: text, content, title, permalink, image, datetime_single, datetime_range
  *
- * Resolution (since 1.14.0 — the L1-full traversal pipeline, NOT source classes):
- *   L1 base source — `bws_resolve_base_source()` (includes/helpers/traversal-pipeline.php)
- *     resolves the ambient/explicit base resolved source: a query-loop item of a shape
- *     it knows → ambient term (term archive) → current post, or an explicit `src:site` /
- *     registry source. An item of any OTHER shape ENDS the precedence instead of
- *     continuing down it: the read is refused, not answered from ambient (step 2e in
- *     that function, which owns why).
- *     `$post` / get_the_ID() is NEVER an ambient fallback (SPEC §V1).
- *   L1 steps — `src:ref` appends a generic `ref` step (ACF relationship step,
- *     plural), `srcTermIn` a term-step step; run through `bws_run_traversal()`.
- *   L2 read — dispatched by resolved-source KIND (post → post cores /
- *     bws_read_field, term → term cores / bws_read_term_field, site → option read).
+ * Resolution (traversal pipeline, NOT source classes):
+ *   L1 base source — `bws_resolve_base_source()` (traversal-pipeline.php): a known-shape
+ *     query-loop item → ambient term → current post, or explicit `src:site` / registry
+ *     source. An item of any OTHER shape ENDS the precedence: the read is refused (that
+ *     function's step 2e owns why). `$post` / get_the_ID() is NEVER an ambient fallback.
+ *   L1 steps — the compiled chain, run through `bws_run_traversal()`.
+ *   L2 read — by resolved-source KIND (post → post cores / bws_read_field, term → term
+ *     cores / bws_read_term_field, site → option read).
  *
- * The N×M source classes (RelatedPost / TermRelatedPost / SecondRelatedPost /
- * PostTermRelatedPost) NO LONGER resolve base or modifier tags — the factory +
- * ref step subsume them. They stay registered ONLY for the deprecated tag
- * wrappers that still call their resolve_id() (SPEC §C4 / deprecated-tags.php).
+ * The N×M source classes (RelatedPost etc.) resolve only the deprecated tag wrappers.
  *
- * Term-ambient: on a term archive a bare base tag resolves the TERM analog
- * (title → name, content → description, permalink → term URL; image = honest gap
- * #29), via bws_base_term_analog_read() (SPEC §V7).
+ * Term-ambient: a bare base tag on a term archive reads the TERM analog via
+ * bws_base_term_analog_read().
  *
  * @package BWS_Dynamic_Tags
  * @since 1.6.0
- * @since 1.14.0 Resolution moved to the traversal pipeline; source-class dispatch retired for base/modifier tags.
+ * @since 1.14.0 Resolution moved to the traversal pipeline.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -58,19 +50,14 @@ function bws_register_base_tags(): void {
 	}
 	$registered = true;
 
-	// Base tags author their source as a CHAIN (FW-56): a root plus ordered fanning
-	// steps. The derived families keep the plain select — see bws_build_src_chain_option().
+	// Base tags author their source as a CHAIN (see bws_build_src_chain_option()).
 	$source_opt     = bws_build_src_chain_option();
-	// The SAME chain control with the collapsing capability set (ADR 0007) — one extra
-	// build call shared by content/permalink/image, so the editor suppresses the
-	// per-step limit control on exactly the tags whose render ignores it.
+	// Same control with the collapsing capability (ADR 0007), for content/permalink/image:
+	// the editor hides the per-step limit their render ignores.
 	$source_opt_fu  = bws_build_src_chain_option( array( 'takes_first_usable' => true ) );
-	// Group-end FANNING ADVISORY for the collapsing tags (ADR 0007 pass two). One line
-	// at the end of the source group, shown only when the chain actually fans — the
-	// editor control (src-chain-control.js) owns the conditional; the COPY lives here.
-	// The field configuration note cannot carry this fact: it is attached to a FIELD,
-	// while fanning is the CHAIN's property (a terms step has no field key at all).
-	// `srcFanNote` holds no value and is never serialized; the control only displays.
+	// FANNING ADVISORY for the collapsing tags, at the end of the source group. The
+	// control (src-chain-control.js) owns when it shows; the COPY lives here. Not on the
+	// field note: fanning is the CHAIN's property, not a field's. Never serialized.
 	$fan_advisory = array(
 		'srcFanNote' => array(
 			'type' => 'bws-fanning-advisory',
@@ -78,9 +65,7 @@ function bws_register_base_tags(): void {
 		),
 	);
 	$traversal_opts = bws_base_traversal_options();
-	// One field-option LEAF per tag with a read axis; the base registration and the
-	// modifier template below are two COMPOSITIONS of each, never two definitions.
-	// Every text consumer reads `fixed` (FW-141): {{text}}, join slots, try_text attempts.
+	// One field-option LEAF per tag with a read axis; consumers compose, never redefine.
 	$text_field     = bws_get_text_field_options();
 	$content_field  = bws_get_content_field_options();
 	$image_field    = bws_get_image_field_options();
@@ -94,37 +79,24 @@ function bws_register_base_tags(): void {
 		'tag'      => 'text',
 		'type'     => 'cross-source',
 		'supports' => array(),
-		// Canonical CONTROL order (FW-52): source → format → link → fallback.
-		// text has no format group. Within source: src → ref → srcTermIn → sep → use
-		// → key (sep before the field keys — list length is a source property). The
-		// tag-level `limit` CONTROL retired in 1.17.0 (#62); the KEY still ranks between
-		// srcTermIn and sep when stored wire carries one (serialization-order.php).
+		// Canonical CONTROL order: source → format → link → fallback (no format group).
+		// Within source: src → ref → srcTermIn → sep → use → key (sep first: list length
+		// is a source property). A stored `limit` ranks before sep (serialization-order.php).
 		'options'  => bws_prepare_registration_options( array_merge(
 			$source_opt,
 			$traversal_opts,
 			array(
-				// NO TAG-LEVEL `limit` (#62). A LIMIT IS STATED WHERE THE SOURCE IS STATED:
-				// this tag authors its source as a CHAIN, so each fanning step carries its
-				// own limit and a tag-level one is never useful — with one fanning step it
-				// is the same knob as that step's, and with two it slices the flattened
-				// walk at a position set by fan-out widths the author cannot see,
-				// parent-major only because bws_run_traversal happens to iterate that way.
-				// The flat-select families state one step, so `term_*` keeps the key (#63).
+				// NO TAG-LEVEL `limit` CONTROL: a limit is stated where the source is, so
+				// each chain step carries its own. A tag-level one would slice the flattened
+				// walk at positions set by fan-out widths the author can't see. Unregistered
+				// outright (the mount migrator chains flat wire before the panel paints).
 				//
-				// UNREGISTERED, not gated on flat wire: the mount migrator rewrites a flat
-				// tag to a chain before the panel paints, so a flat-only predicate would be
-				// effectively unreachable.
+				// The VALUE is still read (`bws_clamp_limit`): unmigrated flat wire and
+				// hand-edited wire still render it — removing a control never removes an
+				// option (ADR 0004).
 				//
-				// The VALUE is still read (`bws_clamp_limit`): unmigrated flat wire has no
-				// other bound, and hand-edited chain wire carrying one still renders it —
-				// removing a control never removes an option (ADR 0004; GB seeds state
-				// from the tag string, not the registry). Migration carries an author's
-				// number onto the STEPS, so nothing arrives here needing to be cleared.
-				//
-				// `sep` STAYS, and keeps `chain_fans`: it joins printed output, which a
-				// chain does as much as a flat source, so it has no "which step" question
-				// to answer. Ordered before the field keys (list length is a source
-				// property, FW-52).
+				// `sep` STAYS (with `chain_fans`): it joins printed output, whatever the
+				// source spelling.
 				'sep'      => array(
 					'type'        => 'text',
 					'label'       => __( 'Result Separator', 'generateblocks' ),
@@ -132,18 +104,13 @@ function bws_register_base_tags(): void {
 					'placeholder' => ', ',
 					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => array( 'ref', 'chain_fans' ) ),
 				),
-				// use/key/fixed from the text FIELD LEAF (single source; the template, join
-				// and the folded control consume the same builder). show_if is the
-				// caller's overlay by leaf contract.
+				// use/key/fixed from the text FIELD LEAF; show_if is the caller's overlay.
 				'use'      => $text_field['use'],
 				'key'      => array_merge(
 					$text_field['key'],
 					array(
-						// Key-mode = empty/'key'. Hidden for named data (title) and
-						// author text (fixed). Under src:site, key-mode reads a wp_options
-						// key. Site tagline has NO tag path (B7): GB native {{site_tagline}}
-						// or key:blogdescription (nothing unique to add until multislot-feed
-						// decouple — see #26).
+						// Hidden for title and fixed. Under src:site, key-mode reads a
+						// wp_options key (tagline: GB {{site_tagline}} or key:blogdescription).
 						'show_if' => array( 'use' => 'not_in:title,fixed' ),
 					)
 				),
@@ -183,9 +150,8 @@ function bws_register_base_tags(): void {
 				'key'      => array_merge(
 					$content_field['key'],
 					array(
-						// Key-mode only (use:key). Under src:site, use:key reads a wp_options
-						// value (rich render); use:content default → '' (site has no content
-						// analog — B7; tagline has no tag path, use GB {{site_tagline}}).
+						// Under src:site, use:key reads a wp_options value (rich render);
+						// default use:content → '' (site has no content analog).
 						'show_if' => array(
 							'use' => 'key',
 						),
@@ -214,10 +180,7 @@ function bws_register_base_tags(): void {
 			$source_opt,
 			$traversal_opts,
 			array(
-				// NO TAG-LEVEL `limit` (#62) — same call as {{text}} above, and the full
-				// reasoning is there: a chain states its limits on its STEPS, the value is
-				// still read wherever it is written, and `sep` stays because it joins
-				// printed output whatever the source spelling.
+				// NO TAG-LEVEL `limit` control — see {{text}} above.
 				'sep' => array(
 					'type'        => 'text',
 					'label'       => __( 'Separator', 'generateblocks' ),
@@ -240,9 +203,8 @@ function bws_register_base_tags(): void {
 		'tag'      => 'permalink',
 		'type'     => 'cross-source',
 		'supports' => array(),
-		// No `key` control under src:site — permalink is the source entity's own URL,
-		// never an arbitrary option read. Bare {{permalink src:site}} → home_url()
-		// (V9 narrowed: URL-valued options reachable via {{text src:site|key:...}}).
+		// No `key`: permalink is the entity's own URL. {{permalink src:site}} → home_url();
+		// URL-valued options via {{text src:site|key:...}}.
 		'options'  => bws_prepare_registration_options( array_merge(
 			$source_opt_fu,
 			$traversal_opts,
@@ -252,14 +214,10 @@ function bws_register_base_tags(): void {
 	) );
 
 	// =========================================================
-	// image — custom field or featured image; type 'cross-source'.
-	// `as` is the folded return-mode + size token (bws-as-size, FW-52), always
-	// serialized (`as:url,<size>` for url; bare mode for nullary returns). The
-	// composite owns the whole `as` widget; GB's native image-size support is DROPPED
-	// (size folds into `as`'s value — see docs/tag-reference.md §`as` serialization
-	// opt-out + assets/js/as-size-control.js).
-	// `fallback` uses custom JS control (image-tag-controls.js).
-	// `use:featured` hidden when srcTerm set — terms have no featured image.
+	// image — custom field or featured image.
+	// `as` = folded return-mode + size (bws-as-size), always serialized; GB's native
+	// image-size support is DROPPED (docs/tag-reference.md §`as` serialization opt-out).
+	// `fallback`: image-tag-controls.js. `use` hidden under srcTerm (no featured image).
 	// =========================================================
 
 	bws_gb_register_tag( array(
@@ -267,11 +225,8 @@ function bws_register_base_tags(): void {
 		'tag'      => 'image',
 		'type'     => 'cross-source',
 		'supports' => array(),
-		// Canonical CONTROL order (FW-52): source → format → link(none) → fallback.
-		// `as` is a FORMAT option: control-LATE (after source/field), serialize-EARLY
-		// (the normalizer lifts it to the front of the string for copy-visibility — the
-		// `as` serialization opt-out means it is always present). Its `size` argument
-		// rides inside the `as` value (as+size fold) — no separate size option.
+		// Canonical CONTROL order: source → format → link(none) → fallback. `as` is FORMAT:
+		// control-LATE, serialize-EARLY (the normalizer lifts it to the front).
 		'options'  => bws_prepare_registration_options( array_merge(
 			$source_opt_fu,
 			$traversal_opts,
@@ -285,25 +240,15 @@ function bws_register_base_tags(): void {
 				'key'      => array_merge(
 					$image_field['key'],
 					array(
-						// use:key → custom-field (post/term) or wp_options (site) read.
-						// Hidden for use:featured, which under src:site → site logo (V9, resolver).
+						// Hidden for use:featured (under src:site → site logo).
 						'show_if' => array( 'use' => 'not:featured' ),
 					)
 				),
-				// Folded return-mode + size. The bws-as-size composite renders the mode
-				// dropdown + a size dropdown (url only) and owns the whole token.
-				//
-				// `default` IS the always-serialize mechanism, and it is not decorative:
-				// GB seeds extraTagParams from every non-empty `default` at tag-SELECT
-				// time (DynamicTagSelect.jsx `updateDynamicTag`), which is the only thing
-				// that puts an untouched `as` on the wire. The fold dropped it in 1.16.0
-				// on the theory that the composite would write on mount; it writes on
-				// CHANGE only, so `{{image}}` serialized no `as` at all. Mount-writing
-				// instead would mean opening a tag edits it — see the fold control's
-				// stripDefaultRoot for why that is the wrong trade.
-				//
-				// GB does not validate a default against the option rows, so the folded
-				// `url,full` seeds fine even though it is not one of them.
+				// `default` IS the always-serialize mechanism — never drop it: GB seeds
+				// extraTagParams from non-empty defaults at tag-SELECT time
+				// (DynamicTagSelect.jsx `updateDynamicTag`); the composite writes on CHANGE
+				// only, and writing on mount would make opening a tag edit it. GB doesn't
+				// validate defaults against the rows, so `url,full` seeds fine.
 				'as'       => array(
 					'type'    => 'bws-as-size',
 					'label'   => __( 'Return As', 'generateblocks' ),
@@ -352,11 +297,8 @@ function bws_register_base_tags(): void {
 	) );
 
 	// =========================================================
-	// join — standalone COMBINING tag (third structural position: neither a
-	// base tag nor a modifier). Absorbs up to BWS_JOIN_MAX_SLOTS base `text`
-	// reads as slots and assembles all non-empty values into ONE string
-	// (separator or template mode). One GB tag — no prefix fan-out, no
-	// per-source variants. Shares the base-tag picker group for UX only.
+	// join — standalone COMBINING tag. Up to BWS_JOIN_MAX_SLOTS `text` reads as slots,
+	// non-empty values assembled into ONE string (separator or template mode).
 	// =========================================================
 
 	bws_gb_register_tag( array(
@@ -371,11 +313,9 @@ function bws_register_base_tags(): void {
 	// =========================================================
 	// Register the base template descriptors.
 	//
-	// Each descriptor is stored in TagTemplateRegistry::$modifier_templates and consumed by
-	// generate_base_try_tags() (generates try_* GB tags) and, through
-	// get_modifier_templates(), by the converter's per-template migration entries. The
-	// term_ constructor was the other consumer until register_modifier() was withdrawn
-	// in 1.21.0; the list and the key name outlived it.
+	// Stored in TagTemplateRegistry::$modifier_templates; consumed by
+	// generate_base_try_tags() and (via get_modifier_templates()) the converter's
+	// per-template migration entries.
 	//
 	// 'leading_options' — Group 1 options (as, size, format, etc.) prepended before slots in try_ tags.
 	// 'options'         — template-specific options; for try_ tags, keys matching leading_options are
@@ -383,7 +323,7 @@ function bws_register_base_tags(): void {
 	// 'term_fn'         — fn($term_id, $opts, $inst) for the direct term-entity path.
 	// 'post_fn'         — fn($post_id, $opts, $inst) for the ref-traversal path (term → post).
 	// 'resolve_fn'      — the base tag's own resolve seam; every try_ attempt reads
-	//                     through it (FW-136).
+	//                     through it, inheriting whatever the base read gains.
 	// =========================================================
 
 	TagTemplateRegistry::register_modifier_template( array(
@@ -391,10 +331,8 @@ function bws_register_base_tags(): void {
 		'title'                 => __( 'Text Fields', 'generateblocks' ),
 		'supports_link_wrap'    => true,
 		'options'               => array_merge(
-			// Same LEAF the base {{text}} registration consumes — the template is a
-			// different COMPOSITION, not a second definition. No LITERAL `show_if`
-			// here: try_'s per-slot picker qualifies on try_use_no_key_values below
-			// (#88), so the fact is declared once and derived, never hand-copied.
+			// Same LEAF as base {{text}}. No LITERAL `show_if`: try_ derives it from
+			// try_use_no_key_values below.
 			$text_field,
 			array(
 				'fallback' => array(
@@ -404,15 +342,9 @@ function bws_register_base_tags(): void {
 				),
 			)
 		),
-		// term_fn/post_fn dispatch on `use` (#88): a bare core never read it, so
-		// `use:title` rendered empty on every term_/view_/fixture_ text tag. The
-		// try_ family's own per-slot dispatchers already do this correctly —
-		// reused here rather than duplicated.
+		// Dispatchers, not bare cores: a bare core never reads `use`.
 		'term_fn'               => 'bws_try_text_term_dispatch',
 		'post_fn'               => 'bws_try_text_post_dispatch',
-		// THE RESOLVE SEAM (FW-136). An attempt reads through the same function
-		// {{text}} does, so `try_text` inherits whatever the base read gains — per-item
-		// link wrap (FW-85/FW-135) being the first.
 		'resolve_fn'            => 'bws_base_text_resolve_value',
 		'try_allow_site_slot'   => true,
 		'supports_try'          => true,
@@ -427,9 +359,7 @@ function bws_register_base_tags(): void {
 		'key'                   => 'content',
 		'title'                 => __( 'Content', 'generateblocks' ),
 		'options'               => array_merge(
-			// Same LEAF the base {{content}} registration consumes; no LITERAL `show_if`
-			// overlay here — try_ derives it from try_use_no_key_values below (#88),
-			// same as the text template.
+			// Same LEAF as base {{content}}; no LITERAL `show_if` (as text).
 			$content_field,
 			array(
 				'fallback' => array(
@@ -439,17 +369,9 @@ function bws_register_base_tags(): void {
 				),
 			)
 		),
-		// term_fn/post_fn dispatch on `use` (#88): bare cores read `type`, never `use`
-		// (a different key content's own base registration wires but the modifier
-		// template never did), so use:key/use:excerpt silently rendered the post
-		// content instead of empty or the right value on every term_/view_/fixture_
-		// content tag. Reuses the try_ family's own per-slot dispatchers.
+		// Dispatchers, not bare cores: bare cores read `type`, never `use`.
 		'term_fn'               => 'bws_try_content_term_dispatch',
 		'post_fn'               => 'bws_try_content_post_dispatch',
-		// FW-136 — try_content resolves each attempt through the BASE seam, so an attempt
-		// reads exactly as {{content}} does: the whole fan searched for its first usable
-		// read, the repeater-row branch that refuses the analogs a row cannot answer, and
-		// the cores' own stated-fallback emit.
 		'resolve_fn'            => 'bws_base_content_resolve_value',
 		'try_allow_site_slot'   => true,
 		'supports_try'          => true,
@@ -467,9 +389,6 @@ function bws_register_base_tags(): void {
 		'options'            => array(),
 		'term_fn'      => 'bws_term_title_core',
 		'post_fn'      => 'bws_post_title_core',
-		// THE RESOLVE SEAM (FW-136) — try_title resolves each attempt through the BASE
-		// seam, so a fanning attempt inherits the fold's per-item link wrap (FW-135) the
-		// way {{title}} already does.
 		'resolve_fn'   => 'bws_base_title_resolve_value',
 		'try_allow_site_slot' => true,
 		'supports_try' => true,
@@ -483,7 +402,6 @@ function bws_register_base_tags(): void {
 		'options'      => array(),
 		'term_fn'      => 'bws_term_permalink_core',
 		'post_fn'      => 'bws_post_permalink_core',
-		// FW-136 — try_permalink resolves each attempt through the BASE seam.
 		'resolve_fn'   => 'bws_base_permalink_resolve_value',
 		'try_allow_site_slot' => true,
 		'supports_try' => true,
@@ -497,9 +415,7 @@ function bws_register_base_tags(): void {
 		'key'                   => 'image',
 		'title'                 => __( 'Image', 'generateblocks' ),
 		'leading_options'       => array(
-			// Folded return-mode + size (bws-as-size, FW-52). `default` carries the
-			// always-serialize rule — see the base {{image}} registration above for why
-			// it is load-bearing rather than decorative.
+			// `default` is load-bearing — see the base {{image}} registration.
 			'as' => array(
 				'type'    => 'bws-as-size',
 				'label'   => __( 'Return As', 'generateblocks' ),
@@ -526,9 +442,7 @@ function bws_register_base_tags(): void {
 					array( 'value' => 'caption', 'label' => __( 'Caption', 'generateblocks' ) ),
 				),
 			),
-			// Same LEAF the base {{image}} registration consumes. No literal `show_if`
-			// here either (#88): try_ derives it from try_use_no_key_values below,
-			// same as text/content.
+			// Same LEAF as base {{image}}; no literal `show_if` (as text).
 			'use'      => $image_field['use'],
 			'key'      => $image_field['key'],
 			'fallback' => array(
@@ -536,19 +450,12 @@ function bws_register_base_tags(): void {
 				'label' => __( 'Fallback Image', 'generateblocks' ),
 			),
 		),
-		// post_fn is deliberately NOT bws_try_image_post_dispatch, unlike text/content
-		// (#88): make_modifier_callback() already carries its own `use`-dispatch closure
-		// ($image_post_dispatch) ahead of calling post_fn, predating #88, so post_fn
-		// staying the bare core is correct here, not a relapse. term_fn has no such
-		// closure and needs none — `featured` is a post-only concept, so there is
-		// nothing to dispatch. Do not "fix" this to match text/content without first
-		// removing $image_post_dispatch.
+		// Bare cores DELIBERATELY, unlike text/content: make_modifier_callback()'s
+		// $image_post_dispatch closure already dispatches `use` before post_fn, and
+		// `featured` is post-only so term_fn has nothing to dispatch. Do not "fix" this
+		// without first removing $image_post_dispatch.
 		'term_fn'               => 'bws_term_custom_image_core',
 		'post_fn'               => 'bws_custom_image_core',
-		// FW-136 — try_image resolves each attempt through the BASE seam, so an attempt
-		// reads exactly as {{image}} does: the whole fan searched for its first usable
-		// picture, the repeater-row read that preserves an array return format, and the
-		// cores' own stated-fallback emit.
 		'resolve_fn'            => 'bws_base_image_resolve_value',
 		'try_allow_site_slot'   => true,
 		'supports_try'          => true,
@@ -581,9 +488,6 @@ function bws_register_base_tags(): void {
 				: $opts;
 			return bws_datetime_single_core( $post_id, $mapped, $inst );
 		},
-		// FW-136 — try_datetime_single resolves each attempt through the BASE seam, so a
-		// fanning attempt inherits the fold's per-item link wrap (FW-135) the way
-		// {{datetime_single}} already does.
 		'resolve_fn'   => 'bws_base_datetime_single_resolve_value',
 		'try_allow_site_slot' => true,
 		'supports_try' => true,
@@ -612,19 +516,14 @@ function bws_register_base_tags(): void {
 				: $opts;
 			return bws_datetime_range_core( $post_id, $mapped, $inst );
 		},
-		// FW-136 — try_datetime_range resolves each attempt through the BASE seam, so a
-		// fanning attempt inherits the fold's per-item link wrap (FW-135) the way
-		// {{datetime_range}} already does.
 		'resolve_fn'   => 'bws_base_datetime_range_resolve_value',
 		'try_allow_site_slot' => true,
 		'supports_try' => true,
 		'is_image'     => false,
 	) );
 
-	// Register the email/phone modifier TEMPLATES (descriptors) before try_ generation,
-	// so try_email/try_phone fall out of the shared machinery. The standalone
-	// {{email}}/{{phone}} GB tags register separately
-	// (bws_register_email_tag/_phone_tag). [SPEC §32]
+	// Email/phone TEMPLATES register before try_ generation so try_email/try_phone come
+	// from the shared machinery. Standalone {{email}}/{{phone}} register separately.
 	if ( function_exists( 'bws_register_email_template' ) ) {
 		bws_register_email_template();
 	}
@@ -653,20 +552,17 @@ function bws_register_base_tags(): void {
  * rows    + use:title   → '' (analogs refuse on a row — it is not an entity)
  * any     + use:fixed   → bws_fixed_text_read() once per resolved source (FW-141)
  *
- * Every arm dispatches the `use` fork through the try_ family's dispatchers
- * (bws_try_text_term_dispatch / _post_dispatch / _row_dispatch) — one owner for the
- * fork per source kind, shared with the try_ arms.
+ * Every arm forks `use` through the try_ dispatchers (bws_try_text_*_dispatch): one
+ * owner per source kind.
  *
- * ABSORB INVARIANT: the returned value must stay byte-equivalent to what
- * {{text}} renders before link-wrap — including the src:site arm, the
- * srcTermIn / src:ref list modes (text's own sep/limit), and '0' preservation
- * (hooks.php maps '0' downstream; no emptiness re-decision here). Other tags
- * absorb the text read through this seam (planned: {{join}} per-slot resolve),
- * so any text read change lands here, never in a caller's copy.
+ * ABSORB INVARIANT: the value stays byte-equivalent to {{text}} before link-wrap —
+ * src:site arm, list modes (sep/limit), '0' preserved (hooks.php maps it downstream;
+ * no emptiness re-decision here). Other tags absorb the text read here, so any text
+ * read change lands here, never in a caller's copy.
  *
  * @since 1.14.1 Extracted from bws_base_text_callback().
- * @since 1.16.0 List branches ride the shared bws_collect_value_list fold (FW-49).
- * @since 1.21.0 The `meta_row` list branch — a `rows` chain reads its rows (FW-74).
+ * @since 1.16.0 List branches ride bws_collect_value_list.
+ * @since 1.21.0 The `meta_row` list branch.
  *
  * @param array $options  Tag options.
  * @param mixed $instance GB tag instance.
@@ -686,44 +582,32 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 		);
 	}
 
-	// L1 — resolve the base source once (SPEC §V1); ambient term archive → term
-	// analog (SPEC §V7). Explicit src/loop/id already won inside the factory.
+	// L1 — resolve the base source once. Explicit src/loop/id already won inside the factory.
 	$base = bws_base_resolve_source_for_callback( $options, $instance );
 
-	// REFUSED (GH #75/#76/#109) — read nothing. The empty triple IS this arm's own empty
-	// path: bws_base_text_callback() then runs the preview label or the stated fallback
-	// exactly as it does for a read that found nothing. Covers {{join}}'s slots too,
-	// which absorb their read through this seam rather than through an arm of their own —
-	// a combining tag drops that field from the composite rather than substituting the
-	// current entry's value.
+	// REFUSED — read nothing. The empty triple IS the empty path (the callback then runs
+	// preview label or fallback). Covers {{join}} slots too: the field drops out of the
+	// composite rather than taking the current entry's value.
 	if ( bws_base_read_refused( $res, $base, array( 'meta_row' ) ) ) {
 		return array( 'value' => '', 'link_id' => 0, 'link_type' => 'post' );
 	}
 
-	// Ambient dispatch (term archive → analog, author archive → user analog/meta,
-	// FW-48 seam half) through the one kind-dispatching seam. Closing it HERE closes
-	// it for every ABSORB-seam reader — which is {{join}}'s slots, and NOT try_text: a
-	// try_ slot runs its own dispatcher, whose arms are wired separately (#108). The
-	// seam's triple IS this arm's return shape, tail and all.
+	// Ambient dispatch (term/author/query-context archive) through the one seam; its
+	// triple IS this arm's return shape.
 	$ambient = bws_base_ambient_analog( 'text', $base, $options, $instance );
 	if ( null !== $ambient ) {
 		return $ambient;
 	}
-	// Both list branches run their own plural traversal below, so the collapsing
-	// resolve is deferred into the singular arms — computing it here would run the
-	// chain twice (review #3).
+	// The singular collapse is deferred into the singular arm: list branches run their
+	// own traversal, and computing it here would run the chain twice.
 	$link_id   = 0;
 	$link_type = 'post';
 
-	// List branches ride the shared fold (FW-49): slice/suppress/drop/per-item
-	// link wrap/join live in bws_collect_value_list, which is why these branches
-	// leave link_id at 0 — their values are wrapped already. Per-item reads get
-	// $item_opts with 'fallback' unset — it fires ONCE in the callback on all-empty
-	// output, never per item (GH #51: else an empty term/post inside the limit window
-	// injects the fallback text into the list, and would be linked as though it were
-	// a real value it is not). Matches datetime's contract and try_'s
-	// (TagTemplateRegistry). The singular arms below keep the full $options: no list
-	// to pollute, and the cores' own fallback emit is the shipped behavior there.
+	// List branches ride bws_collect_value_list (slice/drop/per-item link wrap/join), so
+	// they leave link_id 0 — already wrapped. Per-item reads get 'fallback' unset: it
+	// fires ONCE in the callback on all-empty output, never per item (else an empty item
+	// injects linked fallback text into the list). Same contract as datetime and try_.
+	// The singular arm keeps full $options (cores emit their own fallback).
 	if ( 'term' === $res['kind'] ) {
 		$collected = bws_collect_value_list(
 			bws_base_term_ids_from_source( $base, $options ),
@@ -737,10 +621,7 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 		);
 		$value = $collected['value'];
 	} elseif ( 'post' === $res['kind'] ) {
-		// Post LIST mode (SPEC §V14): read EVERY fanned-out target, not just the
-		// first. `sep` is offered whenever the chain fans and a stored `limit` still
-		// bounds the list whether or not a control ever wrote it (#62), so honor both —
-		// mirrors the term branch.
+		// Post LIST mode: EVERY fanned-out target. Honors `sep` and any stored `limit`.
 		$post_ids  = bws_base_post_ids_from_source( $base, $options );
 		$collected = bws_collect_value_list(
 			$post_ids,
@@ -754,24 +635,15 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 		);
 		$value = $collected['value'];
 	} elseif ( 'meta_row' === $res['kind'] ) {
-		// REPEATER-ROW LIST (FW-74). The third list branch, and the one that reads
-		// SOURCES rather than ids: a row has no entity behind it, so
-		// bws_base_source_ids_of_kind() — which drops `id <= 0` — cannot express it.
+		// REPEATER-ROW LIST: reads SOURCES, not ids (a row has no id).
 		//
-		// THE KIND TESTED HERE IS THE WIRE'S ($res), NEVER THE RESOLVED BASE'S. The two
-		// share the noun and need opposite answers: `src(rows,…)` means the author asked
-		// for repeater rows and this branch consumes them, while a $base of the same kind
-		// means the query loop positioned us INSIDE a row and the read must keep falling
-		// through to the post tail, whose core re-infers the row through bws_read_field()'s
-		// own loop inference. Conflating them deletes a live shipped path
-		// (fold-test-matrix.md §F9c, mutation-verified).
+		// THE KIND TESTED IS THE WIRE'S ($res), NEVER THE RESOLVED BASE'S. `src(rows,…)`
+		// asks for rows; a $base of that kind means the query loop put us INSIDE a row,
+		// and the read must fall through to the post tail (bws_read_field()'s loop
+		// inference). Conflating them deletes a live path (fold-test-matrix.md §F9c).
 		//
-		// The per-row read is bws_try_text_row_dispatch(), the SAME function the try_ row
-		// arm runs — reused rather than duplicated, exactly as the term and post branches
-		// reuse their own try_ dispatchers above. It owns the `use` fork, including the
-		// analog refusal: a row is not an entity and has no title, so `use:title` renders
-		// empty here (an already-supported state) rather than reading some other entity's.
-		// Link identity stays 0/'post' — a row has none (CONTEXT.md I12).
+		// bws_try_text_row_dispatch() owns the `use` fork, including the analog refusal
+		// (`use:title` on a row → ''). No link identity for a row (CONTEXT.md I12).
 		$collected = bws_collect_value_list(
 			bws_base_sources_of_kind( $base, $options, 'meta_row' ),
 			static fn( $row_source, array $item_opts ) => bws_try_text_row_dispatch( $row_source, $item_opts, $instance ),
@@ -795,24 +667,19 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 /**
  * Callback for the `text` base tag.
  *
- * Shell over bws_base_text_resolve_value(): resolve the value, link-wrap what the
- * singular arms returned (a list arm wrapped its own values per item and reports
- * link_id 0), then on empty output apply the editor preview label
- * (editor) or the fallback (front end).
+ * Shell over bws_base_text_resolve_value(): link-wrap singular results (list arms
+ * wrap per item, link_id 0), then on empty output the preview label (editor) or the
+ * fallback (front end).
  *
- * The fallback fires HERE, once, on all-empty output — the list loops in
- * bws_base_text_resolve_value() suppress it per item (GH #51). Singular reads
- * still emit it from inside the core, so this path only fires for them when the
- * core produced nothing at all; `''` either way, so the double route is inert.
+ * The fallback fires HERE, once, on all-empty output. Singular cores also emit it,
+ * so this path fires for them only when the core produced nothing — inert either way.
  *
- * Preview label outranks the fallback in the editor: the author needs to see the
- * tag's configuration, not the masked-empty output. Matches {{join}} and
- * datetime.
+ * Preview label outranks the fallback in the editor (author sees the configuration).
+ * Matches {{join}} and datetime.
  *
  * @since 1.6.0
  * @since 1.14.1 Value resolution extracted to bws_base_text_resolve_value().
- * @since 1.16.0 All-empty fallback path (GH #51) — list mode no longer emits the
- *               fallback per item.
+ * @since 1.16.0 All-empty fallback path.
  */
 function bws_base_text_callback( $options, $block, $instance ): string {
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
@@ -844,35 +711,20 @@ function bws_base_text_callback( $options, $block, $instance ): string {
 }
 
 /**
- * Build the {{join}} option definitions: one FOLDED key per slot (`A`, `B`, …,
- * FW-56/57) followed by the tag-level assembly options.
+ * Build the {{join}} option definitions: one FOLDED key per slot (`A`, `B`, …)
+ * followed by the tag-level assembly options.
  *
- * The slot definitions come from bws_build_fold_slot_options(), which derives every
- * enum and label from the shipped builders and hands them to the `bws-slot-fold`
- * repeater control. Join supplies the container facts: combining, site arm allowed,
- * one term step, no read `same` row, and the slot noun.
+ * Slot definitions come from bws_build_fold_slot_options(); join supplies the
+ * container facts. Cardinality is EXPLICIT (repeater add/remove). Legacy flat wire
+ * still renders (the callback dual-reads it); the editor folds a slot on first touch.
  *
- * WHAT THE FOLD REPLACED, and why the reveal machinery went with it: through 1.16.x
- * this registered SIX flat keys per slot (`{N}-src`/`ref`/`srcTermIn`/`use`/`key`/
- * `limit`, slot 1 bare) plus a combining-shaped `show_if_any` reveal that armed slot
- * N+1 once slot N had a key or a non-default use. Cardinality is now EXPLICIT
- * (add/remove in the repeater) rather than inferred from how far configuration got, so
- * the reveal predicates have nothing left to express. Legacy wire still renders — the
- * callback dual-reads it — and the editor rewrites a slot to folded form on first
- * touch.
+ * Per-slot `limit` lives on the step it bounds, inside the slot value.
  *
- * Per-slot `limit` moved INTO the slot value, attached to the step it bounds (a chain
- * can fan more than once, so a slot-level limit has no single meaning). It has no
- * control surface yet; a migrated or hand-written one round-trips untouched.
- *
- * No per-slot inner `sep` (ADR 0003): a list-mode slot joins its own items with
- * text's default ', '. The original blocker — a slot-1 bare `sep` colliding with the
- * tag-level assembly `sep` on GB's flat option map — dissolved twice over, first when
- * the assembly key was renamed to `valueSep` (1.16.0, FW-52) and again under the fold,
- * where a slot's options live inside its own value. Still deferred scope.
+ * No per-slot inner `sep` (ADR 0003): a list-mode slot joins with text's default ', '.
+ * Deferred scope, not blocked.
  *
  * @since 1.15.0
- * @since 1.17.0 Folded slot keys replace the six flat per-slot keys (FW-56/57).
+ * @since 1.17.0 Folded slot keys replace the flat per-slot keys.
  * @return array Option definitions keyed by option name.
  */
 function bws_get_join_options(): array {
@@ -880,14 +732,9 @@ function bws_get_join_options(): array {
 		? bws_get_text_field_options()
 		: array( 'use' => array(), 'key' => array(), 'fixed' => array() );
 
-	// FOLDED slot keys (`A`, `B`, …) — one option per slot, the whole slot in its
-	// value. Replaces the six flat keys per slot join registered through 1.16.x; the
-	// renderer dual-reads the old wire, and the editor rewrites a slot to folded form
-	// the first time it is touched.
 	// `container`/`combining`/`per_slot_use`/`max`/`tag_level` come from
-	// bws_join_fold_container() — the MIGRATOR reads the same array, and a hand-kept
-	// second copy of `max` or `tag_level` disagrees with it silently. Everything below is
-	// registration-only (control shape, labels, enums), which the migrator has no use for.
+	// bws_join_fold_container(), which the MIGRATOR also reads — never re-type them here.
+	// Everything below is registration-only.
 	$options = function_exists( 'bws_build_fold_slot_options' ) && function_exists( 'bws_join_fold_container' )
 		? bws_build_fold_slot_options(
 			array_merge( bws_join_fold_container(), array(
@@ -895,24 +742,14 @@ function bws_get_join_options(): array {
 				'base_read'       => $text_field['use'],
 				'base_key'        => $text_field['key'],
 				'base_fixed'      => $text_field['fixed'] ?? array(),
-				// Site arm allowed: join is standalone, so the base source list passes
-				// through whole (the try_ site filter is a modifier-only concern).
 				'allow_site'      => true,
-				// No read `same` row yet — per-slot HANDLERS are not built, which is
-				// also why bws_build_slot_read_options() is called at $allow_same=false
-				// (see its PHPDoc; `use(same)` is legal in combining and the renderer
-				// honors a hand-written one, it just has no UI row until handlers ship).
+				// No `same` read row until per-slot handlers ship (a hand-written
+				// `use(same)` still renders) — see bws_build_slot_read_options().
 				'allow_same_read' => false,
-				// A slot's source is a base tag's source (#104, [I16]), so the offer is the
-				// base tag's: the seam hands the whole chain on as depth-0 chain wire and
-				// the arms dispatch on what it resolves to, so nothing here truncates it.
-				// `rows` joins it in 1.21.0 for that same reason — a slot's read absorbs
-				// through the text seam, which consumes a `meta_row` — and it lands here
-				// in the same change as the base tag's, since the two lists are asserted
-				// equal (control-order-test.php §7).
+				// A slot's source is a base tag's source ([I16]): same offer, asserted
+				// equal by control-order-test.php §7.
 				'steps'            => array( 'refs', 'terms', 'rows' ),
-				// One noun, both surfaces: "+ Add field" and the header "Field A"
-				// (bws_build_fold_slot_options derives the header — no label parameter).
+				// "+ Add field" and header "Field A".
 				'noun'            => __( 'field', 'generateblocks' ),
 			) )
 		)
@@ -935,14 +772,9 @@ function bws_get_join_options(): array {
 		'placeholder' => ', ',
 		'show_if'     => array( 'mode' => 'not:template' ),
 	);
-	// %A (not {A}) — GB's tag parser rejects `}` anywhere in a tag's options
-	// (find_matches captures options as [^}]+; docs/gb-constraints.md), so the
-	// wire token syntax is brace-free. bws_join_wire_format() translates.
-	//
-	// The token letter IS the slot's option key, which is the whole reason it is a
-	// letter: `A:key(x)|format:%A` reads as one statement. The help names only the
-	// canonical spelling — `%1` still resolves, but documenting two alphabets would
-	// invite authors to mix them in one string.
+	// %A (not {A}): GB's tag parser rejects `}` in options (docs/gb-constraints.md).
+	// bws_join_wire_format() translates. The letter IS the slot's option key. Help
+	// documents only letters; `%1` still resolves but one alphabet avoids mixing.
 	$options['format'] = array(
 		'type'        => 'text',
 		'label'       => __( 'Format', 'generateblocks' ),
@@ -962,28 +794,20 @@ function bws_get_join_options(): array {
 /**
  * Callback for the {{join}} tag — the COLLECT-ALL slot loop.
  *
- * Visits every slot (never short-circuits — the combining counterpart to
- * try_'s selecting fold), resolves each through the absorbed text read
- * (bws_join_resolve_slot → bws_base_text_resolve_value; link identity
- * ignored, no per-slot link-wrap), then assembles via separator or template
- * mode. All-empty output falls back to `fallback` (or '' so GB's
- * empty-render handling hides the block).
+ * Visits every slot (never short-circuits), resolves each through the text read
+ * (bws_join_resolve_slot → bws_base_text_resolve_value; no per-slot link-wrap), then
+ * assembles via separator or template mode. All-empty → `fallback` (or '' so GB hides
+ * the block).
  *
- * WIRE ERAS. Slot configuration reads through the FOLD seam
- * (bws_fold_slot_struct + bws_fold_slot_chain_options), which resolves each slot from
- * its folded value when it has one and recovers it from the legacy flat keys when it
- * does not. Era is decided per SLOT, not per tag: a half-applied migration or a
- * hand-edit can leave slot 2 folded between legacy slots 1 and 3, and both feed the
- * ONE carry-forward accumulator this loop holds.
+ * WIRE ERAS are decided per SLOT via the FOLD seam (bws_fold_slot_struct +
+ * bws_fold_slot_chain_options): a folded slot can sit between legacy ones, and all feed
+ * the ONE carry-forward accumulator.
  *
- * Carry-forward semantics are unchanged and now live in the seam: the source resolves `same`
- * ('' / `same` src = prior resolved source), the read never does unless the wire
- * says `use(same)`, a read-less slot is unconfigured and is skipped BEFORE it can feed
- * the accumulator, and a carried `ref` survives a non-ref source override (inert
- * there, but a later slot stepping back to the same relationship needs it).
+ * Carry-forward lives in the seam: source resolves `same` ('' / `same` = prior
+ * source); the read never does unless `use(same)`; a read-less slot is skipped BEFORE
+ * feeding the accumulator; a carried `ref` survives a non-ref source override.
  *
- * Join never re-decides value emptiness: "empty" is exactly '' everywhere,
- * and a stored '0' renders (base text's shipped falsy-guard, absorbed).
+ * Never re-decides emptiness: empty is exactly ''; a stored '0' renders.
  *
  * @since 1.15.0
  * @since 1.17.0 Slots read through the folded-slot seam, dual-reading legacy wire.
@@ -991,22 +815,14 @@ function bws_get_join_options(): array {
 function bws_join_callback( $options, $block, $instance ): string {
 	$values = array(); // 1-based; $values[$n] = finished slot string or ''.
 	// The accumulator's source axis is a CHAIN, not a token — `src(same)` carries over the
-	// prior slot's whole chain, hops and all (#104). The READ seeds the stripped default
-	// of the leaf {{join}}'s slots read through (the text leaf, per bws_get_join_options),
-	// so a slot that states no read resolves as the same read a bare {{text}} does: the
-	// seam carries the seed forward and writes no default of its own.
+	// prior slot's whole chain. The READ seeds the text leaf's stripped default, so a
+	// slot stating no read resolves as a bare {{text}}.
 	$carry  = bws_fold_empty_carry( bws_use_stripped_default( 'text' ) );
 
-	// Tag-level explicit post id — GB's editor preview REST route injects
-	// `id:<postId>` into the tag string so `get_id()` (whose post fallback is
-	// get_the_ID(), false in the REST context) resolves the edited post. That id
-	// lives at the JOIN level; each slot builds its own option set, so it must be
-	// threaded into every post-based slot below or the current/ref slots resolve
-	// empty in the editor (showing only the preview label, unlike the sibling
-	// {{text}}). Inert on the front end — GB injects `id` only in the editor, so
-	// there $explicit_id is '' and the loop/ambient context (I9) resolves instead.
-	// This is CONTEXT.md I11 (composing-tag id-threading); see also the join
-	// $slot_opts['id'] assignment for the src:site exclusion.
+	// Tag-level explicit post id: GB's editor preview REST route injects `id:<postId>`
+	// (get_the_ID() is false there). It lives at the JOIN level, so it must be threaded
+	// into every post-based slot or they render empty in the editor. Inert on the front
+	// end ('' there). CONTEXT.md I11.
 	$explicit_id = $options['id'] ?? '';
 
 	for ( $n = 1; $n <= BWS_JOIN_MAX_SLOTS; $n++ ) {
@@ -1019,15 +835,10 @@ function bws_join_callback( $options, $block, $instance ): string {
 			continue;
 		}
 
-		// Resolve to the option set the absorb seam consumes, threading the ONE
-		// carry-forward accumulator. The slot's source arrives as DEPTH-0 CHAIN WIRE in
-		// `src` — the same key and the same language a base tag states its source in
-		// (CONTEXT.md I16) — with `ref`/`srcTermIn` explicitly emptied by the seam's
-		// contract, so nothing tag-level can leak a step into a slot's chain. Null = the
-		// slot is unconfigured (combining reads an absent field as "not set yet") or holds
-		// an unfinished step; either way it renders nothing AND does not feed the
-		// accumulator. Join's tag-level `valueSep` (assembly) is NEVER passed through: a
-		// list-mode slot joins its own items with text's default ', ' (ADR 0003).
+		// Resolve to the absorb seam's option set, threading the ONE accumulator. Source
+		// arrives as DEPTH-0 CHAIN WIRE in `src` (CONTEXT.md I16), `ref`/`srcTermIn`
+		// emptied so nothing tag-level leaks in. Null = unconfigured or unfinished step:
+		// renders nothing, feeds nothing. `valueSep` is NEVER passed through (ADR 0003).
 		$skip_reason   = '';
 		$limit_default = 1;
 		$slot_opts     = bws_fold_slot_chain_options( $slot, $carry, true, $skip_reason, $limit_default );
@@ -1035,22 +846,13 @@ function bws_join_callback( $options, $block, $instance ): string {
 			continue;
 		}
 
-		// A SLOT'S OWN SOURCE SPELLING DECIDES ITS OWN LIMIT DEFAULT (#60) — chain wire
-		// returns everything, flat wire bounds at 1. The seam reports the era because the
-		// `src` above cannot: it is CHAIN WIRE on every slot now, including one recovered
-		// from legacy flat keys, so bws_base_text_resolve_value() re-resolving the default
-		// from it would answer *unlimited* for a slot that has always bounded at 1. Writing
-		// the resolved number back is what stops that, and is load-bearing rather than
-		// tidy — do not "simplify" it away (#104).
+		// A SLOT'S OWN SOURCE SPELLING DECIDES ITS LIMIT DEFAULT: chain wire → all, flat
+		// → 1. `src` is chain wire even for a recovered flat slot, so the seam reports the
+		// era and the resolved number is written back. Load-bearing — do not "simplify".
 		$slot_opts['limit'] = (string) bws_clamp_limit( $slot_opts['limit'] ?? null, $limit_default );
 
-		// Thread the editor's injected post id into every post-based slot (see
-		// $explicit_id note). src:ref bases its step on this id too (the current
-		// post is the ref origin), so it must carry. Only src:site is entity-blind
-		// — it reads an option, never a post — so the id is left off there.
-		// The test is on the RESOLVED KIND, not on the token: `src` is chain wire now, so
-		// `'site' === $slot_opts['src']` only happened to work for a root-only chain and
-		// would have gone quietly wrong the moment a slot hopped off the site store ([I11]).
+		// Thread the injected id into every slot except entity-blind site reads. Test the
+		// RESOLVED KIND, never the `src` token: chain wire can step off the site root ([I11]).
 		if ( '' !== $explicit_id && 'site' !== bws_base_src_resolution( $slot_opts )['kind'] ) {
 			$slot_opts['id'] = $explicit_id;
 		}
@@ -1061,11 +863,7 @@ function bws_join_callback( $options, $block, $instance ): string {
 	$assembled = bws_join_assemble( $values, (array) $options );
 
 	if ( '' === $assembled ) {
-		// Editor-time: the target fields rarely exist on the editing context, so
-		// show the configuration preview (target fields + assembly, with the
-		// fallback annotated) rather than the literal fallback — the author needs
-		// to see the config, not the masked-empty output. Front end below shows
-		// the real fallback. Matches every other base tag's preview ordering.
+		// Editor: configuration preview outranks the fallback (as every base tag).
 		$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 		if ( $is_preview && function_exists( 'bws_build_join_preview_label' ) ) {
 			return bws_build_join_preview_label( (array) $options );
@@ -1090,37 +888,25 @@ function bws_join_callback( $options, $block, $instance ): string {
  * rows    + use unset   → '' (analogs refuse on a row — it is not an entity)
  * rows    + use:excerpt → '' (same)
  *
- * THE FAMILY'S RESOLVE SEAM (FW-136): `{{try_content}}`'s attempts run through this same
- * function, so an attempt reads exactly as the base tag does and inherits whatever the
- * base read gains. Registered as `resolve_fn` on the content modifier template; the shells
- * on both sides own what the seam leaves out.
+ * THE FAMILY'S RESOLVE SEAM: `{{try_content}}` attempts run through it too
+ * (`resolve_fn`); the shells on both sides own what the seam leaves out.
  *
- * THE COLLAPSE IS NOT RE-STATED HERE, and this seam reads no `limit` of its own. The
- * one-result rule is a fact of the family's template record (`takes_first_usable`,
- * ADR 0007), enforced above this function on both sides.
+ * Reads no `limit`: the one-result rule (`takes_first_usable`, ADR 0007) is enforced
+ * above this function.
  *
- * THE PREVIEW QUESTION IS ASKED TWICE, and both times because an arm has to STOP where
- * the tail alone could not tell it to:
- *   - the REFUSAL arm, the one arm where the label and the stated fallback can both
- *     apply — the fallback half lives inside bws_post_content_core(), which a refusal
- *     must not call, so this arm emits it directly and answers '' in preview so the
- *     shell has an empty read to put its label on (image's refusal arm, same shape);
- *   - the AMBIENT arm, whose empty path is FW-116's per-tag fix carried verbatim (see
- *     the comment on that arm). It terminates in preview and falls THROUGH on the front
- *     end, and only the preview flag separates the two.
- * Neither test is guarded on function_exists( 'bws_build_preview_label' ) the way the
- * pre-split callback's were: this seam emits no label at all, and the guard belongs with
- * the emit, in the shell (bws_base_image_resolve_value() set that precedent).
+ * THE PREVIEW QUESTION IS ASKED TWICE, where an arm must STOP:
+ *   - REFUSAL arm: the fallback lives inside bws_post_content_core(), which a refusal
+ *     must not call, so the arm emits it directly and answers '' in preview (the shell
+ *     labels it). Same shape as image's.
+ *   - AMBIENT arm: terminates in preview, falls THROUGH on the front end (FW-116).
+ * Neither is guarded on function_exists( 'bws_build_preview_label' ): the guard belongs
+ * with the emit, in the shell.
  *
- * NO LIST SEAM, so nothing here reads `sep` and nothing joins.
- *
- * NO LINK IDENTITY TO REPORT — `link_id` is a constant 0 and `link_type` the uniform
- * triple's filler. {{content}} registers no link options: the value is rich markup, which
- * a caller does not wrap. The triple's shape is uniform across all nine families
- * precisely so the attempt walk branches on nothing (includes/helpers/try-slot-loop.php).
+ * No list mode, no link identity (`link_id` constant 0; rich markup isn't wrapped). The
+ * triple is uniform across families so the attempt walk branches on nothing.
  *
  * @since 1.6.0
- * @since 1.21.0 The `meta_row` branch — a `rows` chain reads its rows (FW-74).
+ * @since 1.21.0 The `meta_row` branch.
  * @since 1.21.0 Extracted from bws_base_content_callback().
  *
  * @param array $options  Tag options.
@@ -1146,30 +932,17 @@ function bws_base_content_resolve_value( array $options, $instance ): array {
 		return $out;
 	}
 
-	// L1 base source (SPEC §V1); ambient term archive → description/key analog (§V7).
 	$base = bws_base_resolve_source_for_callback( $options, $instance );
 
-	// REFUSED (GH #75/#76/#109) — read nothing. This arm's empty path is SPLIT: the
-	// preview half is the shell's tail, but the fallback half lives inside
-	// bws_post_content_core(), which the refusal must not call. So the fallback is
-	// stated here, and preview answers '' — the tail's own preview-outranks-fallback
-	// order, expressed across the split.
+	// REFUSED — read nothing; fallback stated here, '' in preview (see PHPDoc).
 	if ( bws_base_read_refused( $res, $base, array( 'meta_row' ) ) ) {
 		$out['value'] = $is_preview ? '' : bws_base_stated_fallback( $options, $instance );
 		return $out;
 	}
 
-	// Ambient dispatch (term description/key analog §V7; author bio, #19) through
-	// the one kind-dispatching seam; this arm's own tail stays here. An EMPTY claim
-	// does NOT terminate here on the front end (unlike the other ambient-reading
-	// tags): `content`'s cores (bws_post_content_core, both branches) own a
-	// self-contained stated-fallback emit on a falsy post id, the same shape image's
-	// cores use — falling through to the term/post route below (rather than returning
-	// bare '' ) gives a configured `fallback` its chance to run there, on a
-	// term-ambient, user-ambient, or query-context-ambient empty read alike. That
-	// fallthrough is FW-116's per-tag fix for this family, and it is carried here
-	// VERBATIM: the seam's empty-triple-vs-null contract is a fixed input to FW-136,
-	// and a wrong read under it is evidence recorded on FW-116, not repaired here.
+	// Ambient dispatch. An EMPTY claim does NOT terminate on the front end (unlike other
+	// tags): falling through lets bws_post_content_core's own falsy-id fallback emit run.
+	// FW-116's per-tag fix — a wrong read here is evidence for FW-116, not a local repair.
 	$ambient = bws_base_ambient_analog( 'content', $base, $options, $instance );
 	if ( null !== $ambient ) {
 		if ( '' !== $ambient['value'] ) {
@@ -1181,24 +954,13 @@ function bws_base_content_resolve_value( array $options, $instance ): array {
 		}
 	}
 	if ( 'meta_row' === $res['kind'] ) {
-		// REPEATER-ROW READ (FW-74). Collapsing, not listing: {{content}} is
-		// takes_first_usable, so the whole fan is compiled with step limits stripped
-		// and the FIRST row's read is the output — the same rule the term and post
-		// routes below take, applied to rows. {{content}} registers no `limit` and no
-		// `sep`; the listing twin of this read is {{text}}'s §F9.5.
+		// REPEATER-ROW READ, collapsing: FIRST row of the unbounded fan.
 		//
-		// THE KIND TESTED HERE IS THE WIRE'S ($res), NEVER THE RESOLVED BASE'S — the
-		// trap this area sets, stated in full at the {{text}} branch above and pinned
-		// by fold-test-matrix.md §F9c.
+		// THE KIND TESTED IS THE WIRE'S ($res), NEVER THE BASE'S (see {{text}}; §F9c).
 		//
-		// This branch is where use:content and use:excerpt STOP READING THE AMBIENT
-		// POST. Before it, a `rows` chain fell into the post route, resolved no row to
-		// a post id, and the collapsing selector's empty-fan leg read the current post
-		// — so {{content src:rows,…}} printed the whole surrounding page. A row is not
-		// an entity and has no content or excerpt of its own, so the analog arms REFUSE
-		// here and only use:key reads. bws_try_content_row_dispatch()
-		// owns that fork and is the try_ row arm's function too, the same reuse the
-		// term and post routes make of their own try_ dispatchers.
+		// Without this branch a `rows` chain falls to the post route and reads the current
+		// post. A row has no content/excerpt, so analogs REFUSE and only use:key reads
+		// (bws_try_content_row_dispatch owns the fork).
 		$found        = bws_read_bounded_sources(
 			bws_base_sources_of_kind( $base, $options, 'meta_row', true ),
 			static fn( $row_source ) => bws_try_content_row_dispatch( $row_source, $opts, $instance ),
@@ -1209,8 +971,7 @@ function bws_base_content_resolve_value( array $options, $instance ): array {
 	}
 
 	if ( 'term' === $res['kind'] ) {
-		// takes_first_usable (ADR 0007): search the WHOLE fan — every step limit is
-		// stripped at compile — and output the first usable read.
+		// takes_first_usable (ADR 0007): first read of the unbounded fan.
 		$out['value'] = bws_base_term_first_usable(
 			$base,
 			$options,
@@ -1221,10 +982,7 @@ function bws_base_content_resolve_value( array $options, $instance ): array {
 		return $out;
 	}
 
-	// The POST route takes the first USABLE read too — same rule as the term
-	// route, same selector, whole compiled chain (not the wrapper's leading ref
-	// run). Its old shape — first resolved source, read once — was the surviving
-	// instance of the single-target collapse CONTEXT.md §Language names a defect.
+	// POST route: same selector, whole compiled chain (not the wrapper's ref-only run).
 	$out['value'] = bws_base_post_first_usable( $base, $options, static function ( $post_id ) use ( $use, $opts, $instance ) {
 		if ( 'excerpt' === $use ) {
 			return bws_post_excerpt_core( $post_id, $opts, $instance );
@@ -1245,12 +1003,9 @@ function bws_base_content_resolve_value( array $options, $instance ): array {
  * Shell over bws_base_content_resolve_value(): resolve the value, then on empty output the
  * editor preview label. No link wrap — this family registers no link options.
  *
- * NO STATED FALLBACK HERE, unlike bws_base_text_callback(). The fallback is part of the
- * seam's VALUE on every arm that has one — the post route's cores emit it on a falsy id
- * (bws_post_content_core, both branches), and the refusal arm emits it without reaching a
- * core — so a value that arrives empty has already been past whatever fallback there was
- * to try. Hoisting it up here would MOVE OUTPUT: a site read with no content option, an
- * empty term fan and a `rows` chain with no rows all call no core and print nothing today.
+ * NO STATED FALLBACK HERE, unlike bws_base_text_callback(): the fallback is already in
+ * the seam's VALUE (cores and the refusal arm emit it). Hoisting it here would MOVE
+ * OUTPUT for site reads, empty term fans and empty `rows` chains, which print nothing.
  *
  * @since 1.6.0
  * @since 1.21.0 Value resolution extracted to bws_base_content_resolve_value().
@@ -1273,19 +1028,13 @@ function bws_base_content_callback( $options, $block, $instance ): string {
  * Resolves entity via `source`, applies srcTerm step when set.
  * srcTerm iterates terms with limit/sep applied.
  *
- * THE FAMILY'S RESOLVE SEAM (FW-136): `{{try_title}}`'s attempts run through this same
- * function, so an attempt reads exactly as the base tag does and inherits whatever the
- * base read gains. Registered as `resolve_fn` on the title modifier template; the shells
- * on both sides own what the seam leaves out.
+ * THE FAMILY'S RESOLVE SEAM: `{{try_title}}` attempts run through it too (`resolve_fn`).
  *
- * The SECOND of the four families that register link options, so this is the second
- * place FW-135 dissolves: a list arm's values arrive wrapped per item out of
- * bws_collect_value_list() and report `link_id` 0, while a singular read reports its own
- * entity and the shell wraps once. The attempt walk branches on neither — one triple,
- * one contract (includes/helpers/try-slot-loop.php).
+ * Link wrap: list arms wrap per item (bws_collect_value_list) and report `link_id` 0; a
+ * singular read reports its entity and the shell wraps once.
  *
  * @since 1.6.0
- * @since 1.16.0 List branches ride the shared bws_collect_value_list fold (FW-49).
+ * @since 1.16.0 List branches ride bws_collect_value_list.
  * @since 1.21.0 Extracted from bws_base_title_callback().
  *
  * @param array $options  Tag options.
@@ -1307,7 +1056,6 @@ function bws_base_title_resolve_value( array $options, $instance ): array {
 		);
 	}
 
-	// L1 base source (SPEC §V1); ambient term archive → term name analog (§V7).
 	$base = bws_base_resolve_source_for_callback( $options, $instance );
 
 	// REFUSED (GH #75/#76/#109) — read nothing. The empty triple IS this arm's own empty
@@ -1317,21 +1065,18 @@ function bws_base_title_resolve_value( array $options, $instance ): array {
 		return array( 'value' => '', 'link_id' => 0, 'link_type' => 'post' );
 	}
 
-	// Ambient dispatch (term name §V7; author display name, #19 — user archives
-	// have a canonical URL via get_author_posts_url, so both kinds link-wrap on the
-	// seam's derived identity) through the one kind-dispatching seam. The seam's triple
-	// IS this arm's return shape, tail and all.
+	// Ambient dispatch; the seam's triple IS this arm's return shape (term and user both
+	// link-wrap on the derived identity).
 	$ambient = bws_base_ambient_analog( 'title', $base, $options, $instance );
 	if ( null !== $ambient ) {
 		return $ambient;
 	}
-	// Both list branches run their own plural traversal, so the collapsing resolve
-	// is deferred into the singular arm (review #3).
+	// Singular collapse deferred into the singular arm (list branches traverse themselves).
 	$link_id   = 0;
 	$link_type = 'post';
 
-	// List branches ride the shared fold (FW-49). Fallback suppression is inert
-	// here — the title cores never read 'fallback' (unlike the text cores).
+	// List branches ride bws_collect_value_list. Fallback suppression is inert here
+	// (title cores never read 'fallback').
 	if ( 'term' === $res['kind'] ) {
 		$collected = bws_collect_value_list(
 			bws_base_term_ids_from_source( $base, $options ),
@@ -1345,8 +1090,7 @@ function bws_base_title_resolve_value( array $options, $instance ): array {
 		);
 		$value = $collected['value'];
 	} elseif ( 'post' === $res['kind'] ) {
-		// Post LIST mode (SPEC §V14): read EVERY fanned-out target, honoring
-		// limit/sep — mirrors the term branch above.
+		// Post LIST mode: EVERY fanned-out target, honoring limit/sep.
 		$post_ids  = bws_base_post_ids_from_source( $base, $options );
 		$collected = bws_collect_value_list(
 			$post_ids,
@@ -1376,9 +1120,8 @@ function bws_base_title_resolve_value( array $options, $instance ): array {
 /**
  * Callback for the `title` base tag.
  *
- * Shell over bws_base_title_resolve_value(): resolve the value, link-wrap what the
- * singular arms returned (a list arm wrapped its own values per item and reports
- * link_id 0), then on empty output apply the editor preview label.
+ * Shell over bws_base_title_resolve_value(): link-wrap singular results, then on empty
+ * output the editor preview label.
  *
  * NO STATED FALLBACK HERE — {{title}} registers no `fallback` option, so the empty path
  * is the label or nothing at all.
@@ -1415,20 +1158,10 @@ function bws_base_title_callback( $options, $block, $instance ): string {
  * Resolves entity via `source`, applies srcTerm step when set.
  * srcTerm returns first non-empty term URL.
  *
- * THE FAMILY'S RESOLVE SEAM (FW-136): `{{try_permalink}}`'s attempts run through this
- * same function, so an attempt reads exactly as the base tag does and inherits
- * whatever the base read gains. Registered as `resolve_fn` on the permalink modifier
- * template; the shells on both sides own what the seam leaves out.
+ * THE FAMILY'S RESOLVE SEAM: `{{try_permalink}}` attempts run through it too
+ * (`resolve_fn`). Reads no `limit` (`takes_first_usable`, ADR 0007, enforced above).
  *
- * THE COLLAPSE IS NOT RE-STATED HERE, and this seam reads no `limit` of its own. The
- * one-result rule is a fact of the family's template record (`takes_first_usable`,
- * ADR 0007), enforced above this function on both sides.
- *
- * NO LINK IDENTITY TO REPORT — `link_id` is a constant 0 and `link_type` the uniform
- * triple's filler. {{permalink}} registers no link options: the value IS a URL, so
- * there is nothing for a caller to wrap it in. The triple's shape is uniform across all
- * nine families precisely so the attempt walk branches on nothing (see
- * includes/helpers/try-slot-loop.php).
+ * No link identity (`link_id` constant 0): the value IS a URL.
  *
  * @since 1.21.0 Extracted from bws_base_permalink_callback().
  *
@@ -1450,20 +1183,15 @@ function bws_base_permalink_resolve_value( array $options, $instance ): array {
 		return $out;
 	}
 
-	// L1 base source (SPEC §V1); ambient term archive → term URL analog (§V7).
 	$base = bws_base_resolve_source_for_callback( $options, $instance );
 
-	// REFUSED (GH #75/#76/#109) — read nothing. {{permalink}} is the one arm with NO empty
-	// path to route into: it registers neither a `fallback` option nor a preview label
-	// (a bracketed placeholder would break the href it usually feeds), so '' is the whole
-	// of it, and it is what the term branch below already returns on an empty read.
+	// REFUSED — read nothing. No fallback and no preview label (a bracketed placeholder
+	// would break the href), so '' is the whole empty path.
 	if ( bws_base_read_refused( $res, $base ) ) {
 		return $out;
 	}
 
-	// Ambient dispatch (term URL analog §V7) through the one kind-dispatching seam.
-	// {{permalink}} has no tail (see the refusal note above), so the seam's value is
-	// the whole return, '' included — matching the old bare-return term arm.
+	// Ambient dispatch; no tail, so the seam's value is the whole return.
 	$ambient = bws_base_ambient_analog( 'permalink', $base, $options, $instance );
 	if ( null !== $ambient ) {
 		$out['value'] = $ambient['value'];
@@ -1481,8 +1209,7 @@ function bws_base_permalink_resolve_value( array $options, $instance ): array {
 		return $out;
 	}
 
-	// POST route: first usable URL off the whole fan — same rule as the term route
-	// (ADR 0007). The helper keeps today's single falsy-id read on an empty fan.
+	// POST route: first read off the whole fan (ADR 0007).
 	$out['value'] = bws_base_post_first_usable(
 		$base,
 		$options,
@@ -1494,10 +1221,8 @@ function bws_base_permalink_resolve_value( array $options, $instance ): array {
 /**
  * Callback for the `permalink` base tag.
  *
- * Shell over bws_base_permalink_resolve_value(), and the thinnest of the nine: this
- * family registers no `fallback` option and emits no preview label (a bracketed
- * placeholder would break the href it usually feeds — see the refusal note in the
- * seam), so '' is the whole of its empty path and the seam's value is the whole return.
+ * Shell over bws_base_permalink_resolve_value(); no fallback, no preview label (see the
+ * seam's refusal note), so the seam's value is the whole return.
  *
  * @since 1.6.0
  * @since 1.21.0 Value resolution extracted to bws_base_permalink_resolve_value().
@@ -1523,32 +1248,16 @@ function bws_base_permalink_callback( $options, $block, $instance ): string {
  * `use:featured` is hidden in the editor when srcTerm is set (terms have no
  * featured image), so that branch is unreachable in normal usage.
  *
- * THE FAMILY'S RESOLVE SEAM (FW-136): `{{try_image}}`'s attempts run through this same
- * function, so an attempt reads exactly as the base tag does and inherits whatever the
- * base read gains. Registered as `resolve_fn` on the image modifier template; the shells
- * on both sides own what the seam leaves out.
+ * THE FAMILY'S RESOLVE SEAM: `{{try_image}}` attempts run through it too
+ * (`resolve_fn`). Reads no `limit` (`takes_first_usable`, ADR 0007, enforced above).
  *
- * THE COLLAPSE IS NOT RE-STATED HERE, and this seam reads no `limit` of its own. The
- * one-result rule is a fact of the family's template record (`takes_first_usable`,
- * ADR 0007), enforced above this function on both sides.
+ * THE STATED FALLBACK STAYS IN THE VALUE (unlike text): the cores emit it
+ * (bws_image_stated_fallback) on a falsy id, so a fallback image is a NON-EMPTY read and
+ * doesn't yield to the next attempt. Arms reaching no core (`meta_row`, refusal) emit it
+ * themselves. Lifting it into the shell would MOVE OUTPUT (site with no logo, empty term
+ * fan print nothing today).
  *
- * THE STATED FALLBACK STAYS IN THE VALUE, which is where this family's split parts from
- * text's. The cores own that emit (bws_image_stated_fallback, image-tags.php, their shared
- * owner) and fire it on a falsy entity id, so a configured Media Library image is a
- * NON-EMPTY read: it renders rather than yielding to the next attempt. The two arms that
- * reach no core state it themselves — the `meta_row` branch for the reason its own comment
- * gives, the refusal arm because a refusal must not reach a core at all. The shell is left
- * with the preview label alone, and lifting the fallback up to join it would MOVE OUTPUT:
- * a site read with no logo and a term fan with no terms call no core either, and both
- * print nothing today.
- *
- * NO LIST SEAM, so nothing here reads `sep` and nothing joins.
- *
- * NO LINK IDENTITY TO REPORT — `link_id` is a constant 0 and `link_type` the uniform
- * triple's filler. {{image}} registers no link options: its value is a URL, an id or an
- * attachment string, none of which a caller wraps. The triple's shape is uniform across
- * all nine families precisely so the attempt walk branches on nothing (see
- * includes/helpers/try-slot-loop.php).
+ * No list mode, no link identity (`link_id` constant 0).
  *
  * @since 1.21.0 Extracted from bws_base_image_callback().
  *
@@ -1571,20 +1280,11 @@ function bws_base_image_resolve_value( array $options, $instance ): array {
 		return $out;
 	}
 
-	// L1 base source (SPEC §V1); ambient term archive → term image field (by key),
-	// or the configured Media Library fallback when no key (I1 gap #29: no intrinsic
-	// term image analog, but the fallback still applies). §V7.
 	$base = bws_base_resolve_source_for_callback( $options, $instance );
 
-	// REFUSED (GH #75/#76/#109) — read nothing. The fallback half lives inside the image
-	// cores (bws_image_stated_fallback, their shared owner), which the refusal must not
-	// reach through a core, so this arm emits it directly.
-	//
-	// THE PREVIEW QUESTION IS ASKED HERE AND NOWHERE ELSE IN THIS SEAM, and it is the one
-	// place in the family where it has to be: preview outranks the fallback image, and this
-	// is the ONLY arm where both can apply at once. Every other arm's empty path is the
-	// label or nothing, so the shell's tail can order those with no help. Answering ''
-	// in preview is what hands the shell an empty read to put its label on.
+	// REFUSED — read nothing; emit the fallback directly (no core may be reached).
+	// THE ONLY PREVIEW TEST IN THIS SEAM: the one arm where label and fallback image can
+	// both apply. '' in preview hands the shell an empty read to label.
 	if ( bws_base_read_refused( $res, $base, array( 'meta_row' ) ) ) {
 		$out['value'] = empty( $instance->context['bwsEditorPreview'] )
 			? bws_image_stated_fallback( $options, $instance )
@@ -1592,42 +1292,24 @@ function bws_base_image_resolve_value( array $options, $instance ): array {
 		return $out;
 	}
 
-	// Ambient dispatch (term image field by key, or the configured Media Library
-	// fallback — see the §V7 note above) through the one kind-dispatching seam. The
-	// seam does NOT claim the user or query_context kinds for image (its PHPDoc
-	// has the measurement): an author archive, or a query-context archive
-	// (post-type/date/search/404/front-page), falls through to the post route
-	// below, where the image cores' stated-fallback emit still applies.
+	// Ambient dispatch. User/query_context aren't claimed for image (see the seam's
+	// PHPDoc): they fall through to the post route's fallback emit.
 	$ambient = bws_base_ambient_analog( 'image', $base, $options, $instance );
 	if ( null !== $ambient ) {
-		// The term analog's core already tried the stated fallback on a no-key read
-		// (bws_base_term_analog_read()'s `image` case owns that rule), so an empty value
-		// here has been past the fallback and the shell has only its label to add.
+		// The term core already tried the fallback; only the shell's label remains.
 		$out['value'] = $ambient['value'];
 		return $out;
 	}
 	if ( 'meta_row' === $res['kind'] ) {
-		// REPEATER-ROW READ (FW-74 ticket 05). Collapsing, not listing, exactly as
-		// {{content}}'s row branch is: {{image}} is takes_first_usable (ADR 0007), so the
-		// whole fan is compiled with step limits stripped and the FIRST row's photo is the
-		// output. It registers no `limit` and no `sep`, so there is no list seam to honor
-		// here; {{text}}'s §F9.5 is the fanning twin of this read.
+		// REPEATER-ROW READ, collapsing: FIRST row of the unbounded fan (as {{content}}).
 		//
-		// THE KIND TESTED HERE IS THE WIRE'S ($res), NEVER THE RESOLVED BASE'S — the trap
-		// this area sets, stated in full at the {{text}} branch above and pinned by
-		// fold-test-matrix.md §F9c.
+		// THE KIND TESTED IS THE WIRE'S ($res), NEVER THE BASE'S (see {{text}}; §F9c).
 		//
-		// THE READ IS THE RAW SEAM'S, and this family is why that seam was split out:
-		// an ACF image sub-field is an ARRAY under the default return_format, and the
-		// string seam every other row arm reads through drops arrays. The row core owns
-		// that read; the analog refuses, since a row has no featured image of its own.
+		// RAW seam read: an ACF image sub-field is an ARRAY, which the string seam drops.
+		// The analog (`featured`) refuses on a row.
 		//
-		// THE FALLBACK IS EMITTED HERE rather than inside the core, which is the one
-		// place this branch differs in shape from the post route below. There the cores
-		// emit it per read (they have an id to merge, a row has none), and an empty fan
-		// still reaches one through the selector's falsy-id leg. Stating it on the empty
-		// result gives a `rows` chain the same two fallback occasions the post route has:
-		// a row that carries no image, and a repeater with no rows at all.
+		// FALLBACK EMITTED HERE, not in the core (a row has no id to merge): covers both
+		// an imageless row and a repeater with no rows, like the post route.
 		$found = bws_read_bounded_sources(
 			bws_base_sources_of_kind( $base, $options, 'meta_row', true ),
 			static fn( $row_source ) => bws_try_image_row_dispatch( $row_source, $options, $instance ),
@@ -1753,21 +1435,10 @@ function bws_site_allowlist_ok( string $key ): bool {
  * Datetime tags do NOT route here — they read ACF options-page fields via
  * bws_datetime_single_core('option', ...) (see datetime callbacks).
  *
- * Dispatch by `use` — UNIFORM with every other source (Model B, V9). The `use`
- * VALUE is the analog-vs-option lever, NOT key-presence; `use:key` resolves a
- * wp_options key read. `src:site` selects the wp_options namespace the same way
- * `src:current` selects post meta. There is NO `use:option` value (option is a
- * key-read reached by `use:key`, not a distinct field type — V8).
+ * Dispatch by `use`, UNIFORM with every other source (Model B): the `use` VALUE is the
+ * analog-vs-option lever, `use:key` a wp_options read. There is NO `use:option` value.
  *
- * STRIP-DEFAULT (B6): an EMPTY wire `use` is the tag's FIRST enum value (stripped
- * at registration), NOT a third "no use" state. This function canonicalizes up front
- * through bws_use_effective(), as every read site does. So `{{text src:site|
- * key:blogname}}` (no explicit `use`) reads the option, because text's stripped
- * default IS key-mode.
- *
- * Do NOT branch the analog on `'' === $key` (that was B5 — a misapplied future
- * custom-control principle that made `use` dead under site and rendered an enum of
- * ignored post/term values).
+ * Do NOT branch the analog on `'' === $key` (B5: it made `use` dead under site).
  *
  * @invariant Site option reads (the use:key branch) MUST pass
  * bws_site_allowlist_ok() before GenerateBlocks_Meta_Handler::get_option() (via
@@ -1775,34 +1446,21 @@ function bws_site_allowlist_ok( string $key ): bool {
  * (NOT empty) — see bws_site_allowlist_ok and
  * docs/adr/0001-site-option-read-allowlist.md.
  *
- * THE B6 REGRESSION HAPPENED HERE, which is why the rule it produced is worth
- * reading beside this function rather than only at its owner. This dispatcher
- * branched on the literal empty string, and for every tag whose stripped default IS
- * key-mode that silently dropped the option read: an unset `use` is the FIRST enum
- * value, never a third "no use" state. So the canonicalization below runs before any
- * branch, and it takes its value from BWS_USE_STRIPPED_DEFAULTS
- * (registration-helpers.php), which owns both that obligation and the rule that the
- * stripped default stays key-mode wherever key-mode and a named analog share an enum.
- * Consequence worth stating here: title and permalink register no `use` enum, so they
- * canonicalize to '' — the ternary this replaced gave them 'key', inertly, because
- * every branch that could read it tests the tag name first.
+ * THE B6 REGRESSION HAPPENED HERE (worked instance; the rule is owned by
+ * BWS_USE_STRIPPED_DEFAULTS in registration-helpers.php). This dispatcher branched on
+ * the literal empty string, silently dropping the option read for every tag whose
+ * stripped default IS key-mode: an unset `use` is the FIRST enum value, never a third
+ * "no use" state. So `use` is canonicalized before any branch. title/permalink have no
+ * `use` enum and canonicalize to ''.
  *
- * Per-tag site dispatch (V9 Model B; default = the tag's stripped first enum value,
- * per BWS_USE_STRIPPED_DEFAULTS):
+ * Per-tag site dispatch (default = the tag's stripped first enum value):
  *   - title     → site name (get_bloginfo('name'))       [tag has no use enum]
  *   - text      → DEFAULT 'key' → option (key:X); use:title → name; empty key → ''
- *   - content   → no site content analog (B7): DEFAULT 'content' and use:excerpt
- *                 both → ''. Site's only long-text datum is the tagline — a SHORT
- *                 string with no unique value over GB native {{site_tagline}}, so
- *                 no tag path this release. use:key → option (rich render).
- *   - permalink → ALWAYS home_url() (source's own URL; `key` ignored — no option read)
- *   - image     → DEFAULT 'key' → option attachment-id (bare/no-key → ''); the site
- *                 LOGO is the EXPLICIT use:featured value (get_theme_mod('custom_logo'),
- *                 respects as/size). Logo is NOT the stripped default — `featured` is
- *                 always serialized; making it the default is FW-143 (the stale-key
- *                 reason against it went with FW-142, see BWS_USE_STRIPPED_DEFAULTS).
- * Parallels post→{title,content,permalink,featured} / term→{name,description,URL,—},
- * EXCEPT image's site analog (logo) is reached by explicit use:featured, not bare.
+ *   - content   → no site content analog (B7): DEFAULT 'content' and use:excerpt → ''
+ *                 (tagline: GB native {{site_tagline}}). use:key → option (rich render).
+ *   - permalink → ALWAYS home_url(); `key` ignored
+ *   - image     → DEFAULT 'key' → option attachment-id (no key → ''); site LOGO is the
+ *                 EXPLICIT use:featured (respects as/size). Logo-as-default is FW-143.
  *
  * @since 1.9.0
  * @param string $tag      Base tag name: text|title|permalink|image|content.
@@ -1813,10 +1471,7 @@ function bws_site_allowlist_ok( string $key ): bool {
 function bws_site_resolve_value( string $tag, array $options, $instance ): string {
 	$key = (string) ( $options['key'] ?? '' );
 
-	// Canonicalize `use` before any branch — an unset `use` is never a third "no use"
-	// state (B6). bws_use_effective() owns what it canonicalizes TO; title/permalink
-	// register no `use` enum and get '' from it, which the ternary this replaced had
-	// been reading as 'key'.
+	// Canonicalize `use` before any branch (B6; see PHPDoc).
 	$use = bws_use_effective( $tag, $options );
 
 	// title base tag (no `use` enum) and text use:title → site name.
@@ -1824,21 +1479,17 @@ function bws_site_resolve_value( string $tag, array $options, $instance ): strin
 		return (string) get_bloginfo( 'name' );
 	}
 
-	// text use:fixed → the author's text (FW-141); the site is always a source. Scoped
-	// to text: no other tag offers the fixed read, so a hand-typed one is ignored there.
+	// text use:fixed → the author's text. Text only: other tags ignore a hand-typed one.
 	if ( 'text' === $tag && 'fixed' === $use ) {
 		return bws_fixed_text_read( $options, $instance );
 	}
 
-	// permalink = the source entity's own URL, never an option read (V9 narrowed).
-	// Always home_url(); any `key` is ignored (control suppressed under site too).
-	// URL-valued options are reachable via {{text src:site|key:...}}.
+	// permalink = the entity's own URL, never an option read; `key` ignored.
 	if ( 'permalink' === $tag ) {
 		return (string) home_url();
 	}
 
-	// use:key → wp_options key read (Model B, V9: `use` is the lever, not key
-	// emptiness). The shared gated reader (allowlist + dot-path + ACF filter).
+	// use:key → wp_options read via the shared gated reader (allowlist + dot-path + ACF).
 	if ( 'key' === $use ) {
 		$raw = bws_site_read_option( $key );
 		// content: route block/HTML option markup through the shared content
@@ -1849,15 +1500,10 @@ function bws_site_resolve_value( string $tag, array $options, $instance ): strin
 		return $raw;
 	}
 
-	// Analog `use` tokens (and each tag's empty/default). Dispatch the intrinsic
-	// site analog per tag (V9 Model B).
+	// Analog `use` tokens: the intrinsic site analog per tag.
 	switch ( $tag ) {
 		case 'content':
-			// Site has NO content analog (B7): the only site long-text datum is the
-			// tagline, which is a SHORT string (not body text) AND has no unique value
-			// to add over GB native {{site_tagline}} — so no tag path this release.
-			// use:content (default) and use:excerpt both → '' under site. content is
-			// only meaningful with use:key (wp_options rich-render, handled above).
+			// No site content analog (B7; see PHPDoc).
 			return '';
 
 		case 'image':
@@ -1866,7 +1512,7 @@ function bws_site_resolve_value( string $tag, array $options, $instance ): strin
 			if ( ! $logo_id || ! function_exists( 'bws_get_attachment_data' ) ) {
 				return '';
 			}
-			// as+size fold (FW-52): `as` may carry a `,<size>` arg; legacy `size:` falls back.
+			// `as` may carry a `,<size>` arg; legacy `size:` falls back.
 			$as     = function_exists( 'bws_parse_as_option' )
 				? bws_parse_as_option( $options )
 				: array( 'mode' => $options['as'] ?? 'url', 'size' => $options['size'] ?? 'full' );
@@ -1878,9 +1524,8 @@ function bws_site_resolve_value( string $tag, array $options, $instance ): strin
 			if ( empty( $result ) ) {
 				return '';
 			}
-			// Route through the GB output boundary for fallback/markup parity with
-			// the image tag. The class_exists guard stays: it is what keeps a
-			// GB-less install returning the bare value rather than fatalling.
+			// GB output boundary for parity with the image tag. The guard keeps a
+			// GB-less install returning the bare value rather than fataling.
 			return class_exists( 'GenerateBlocks_Dynamic_Tag_Callbacks' )
 				? (string) bws_gb_tag_output( $result, $options, $instance )
 				: (string) $result;
@@ -1914,12 +1559,10 @@ function bws_try_text_post_dispatch( $post_id, $options, $instance ) {
 }
 
 /**
- * Try-tag repeater-ROW-slot dispatch for `text` template (FW-74).
+ * Try-tag repeater-ROW-slot dispatch for `text` template.
  *
- * The `use` fork's third arm, and the one where `title` has nowhere to go: a row is not
- * an entity, so the ANALOG REFUSES and the slot renders empty — an already-supported
- * state, not a gap. The hop a `use:title` would imply is spellable with no new
- * vocabulary (`rows,team_members;refs,lead_ref` then `use:title`).
+ * A row is not an entity, so `use:title` REFUSES (empty). Spell the hop instead:
+ * `rows,team_members;refs,lead_ref` then `use:title`.
  *
  * Takes the resolved SOURCE, not an id (a row has none).
  *
@@ -1973,16 +1616,11 @@ function bws_try_content_post_dispatch( $post_id, $options, $instance ) {
 }
 
 /**
- * Try-tag repeater-ROW-slot dispatch for `content` template (FW-74).
+ * Try-tag repeater-ROW-slot dispatch for `content` template.
  *
- * The `use` fork with BOTH analog arms refusing: a row is not an entity, so it has no
- * post content and no excerpt, and only use:key has anywhere to go — the same refusal
- * bws_try_text_row_dispatch() makes of `use:title`, on the family that had been reading
- * the AMBIENT post instead of refusing (see the base branch in
- * bws_base_content_callback()). The keyed read is bws_row_custom_text_core() rather than
- * a content-shaped twin, because {{content|use:key}} and {{text|use:key}} already read one key by one rule —
- * bws_post_content_core()'s custom_field branch is bws_post_custom_text_core() with a
- * different empty-read fallback, and a LIST arm has no per-item fallback to emit (GH #51).
+ * Both analogs REFUSE (a row has no content/excerpt); only use:key reads. Via
+ * bws_row_custom_text_core(): {{content|use:key}} and {{text|use:key}} read a key by
+ * one rule, differing only in empty-read fallback, which a row read doesn't emit.
  *
  * Takes the resolved SOURCE, not an id (a row has none).
  *
@@ -2025,16 +1663,12 @@ function bws_try_image_post_dispatch( $post_id, $options, $instance ) {
 }
 
 /**
- * Try-tag repeater-ROW-slot dispatch for `image` template (FW-74).
+ * Try-tag repeater-ROW-slot dispatch for `image` template.
  *
- * The `use` fork's row arm, with `featured` REFUSING for the reason
- * bws_try_text_row_dispatch() refuses `title`: a row is not an entity, so it has no
- * featured image, and reading one would print the surrounding post's picture — a
- * plausible wrong value where an empty one is the honest answer. The hop that spelling
- * implies needs no new vocabulary (`rows,team_members;refs,lead_ref` then `use:featured`).
+ * `featured` REFUSES (a row has no featured image; reading one would print the
+ * surrounding post's). Spell the hop: `rows,team_members;refs,lead_ref` + `use:featured`.
  *
- * Takes the resolved SOURCE, not an id (a row has none). Called by the BASE arm — which
- * is what keeps the base tag and its try_ twin reading one way.
+ * Takes the resolved SOURCE, not an id. Also called by the BASE arm, so both read alike.
  *
  * @since 1.21.0
  */
