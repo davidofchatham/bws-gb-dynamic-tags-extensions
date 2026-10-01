@@ -13,17 +13,11 @@ A WordPress plugin extending GenerateBlocks & GB Pro's Dynamic Tags with a conci
 
 No build pipeline or linter. Edit PHP directly, test in a WordPress environment.
 
-**Two test layers — run the pure harness always, route integration through the testbed.** Pure
-harnesses under `tools/test/` run via `php tools/test/<name>.php`; no CI runs these, run them
-locally before commit. WordPress integration runs through a seeded WP site, the **testbed**, on the
-local wp-litespeed OpenLiteSpeed/Docker env — the two entrypoints are `bin/wp.sh testbed bws
-render-tag` and `bin/seed.sh testbed core-structures`. **Prefer routing integration smoke tests
-through it over hand-built pages or live-site probes.**
+**Large files are read in ranges, never whole.** Several source files run 1,500–3,000 lines and are mostly PHPDoc (`base-shared.php`, `base-tags.php`, `deprecated-tags.php`, `slot-fold.php`, `field-helpers.php`, `preview-helpers.php`, among others); one full read of a pair costs a large slice of the context window. Find the function with Grep (`-n`) first, then `Read` with `offset`/`limit` around it, or pull a single function with the codebase-memory `get_code_snippet` tool. After an edit, re-read only the edited range, never the whole file.
 
-Full harness catalog (which harness is pure vs. requires-the-real-file, the three impure ones, the
-node-based ones): [`docs/testing.md`](docs/testing.md). Operating the testbed (the two staleness
-layers, seeding, the visible-row mandate, sweep cost, running page snapshots): [`docs/testbed.md`](docs/testbed.md),
-and reading it is not optional before an integration run.
+**Two test layers — run the pure harness always, route integration through the testbed.** Pure harnesses under `tools/test/` run via `php tools/test/<name>.php`; no CI runs these, run them locally before commit. WordPress integration runs through a seeded WP site, the **testbed**, on the local wp-litespeed OpenLiteSpeed/Docker env — the two entrypoints are `bin/wp.sh testbed bws render-tag` and `bin/seed.sh testbed core-structures`. **Prefer routing integration smoke tests through it over hand-built pages or live-site probes.**
+
+Full harness catalog (which harness is pure vs. requires-the-real-file, the three impure ones, the node-based ones): [`docs/testing.md`](docs/testing.md). Operating the testbed (the two staleness layers, seeding, the visible-row mandate, sweep cost, running page snapshots): [`docs/testbed.md`](docs/testbed.md), and reading it is not optional before an integration run.
 
 ## Documentation ownership
 
