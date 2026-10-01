@@ -15,37 +15,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Whether a field key is refused by GenerateBlocks' dynamic-tag security gate.
- *
- * THE single authority on the DISALLOWED_KEYS check. The field readers
- * (bws_read_field, bws_read_term_field) refuse these keys, and field discovery
- * (bws_field_discovery_filter_disallowed) filters the offered list through the
- * same predicate, so "offered ⟺ resolvable" (SPEC V6) cannot drift: the offer
- * side and the resolve side share ONE definition of "disallowed".
- *
- * NOTE: this blocks only the explicit DISALLOWED_KEYS credential/auth list.
- * General `_`-prefixed protected meta is allowed on the frontend (matches GB
- * Meta_Handler), so e.g. Pie Calendar `_piecal_*` keys stay readable/offerable.
- *
- * When the GB security class is absent, nothing is blocked (returns false).
- *
- * @since 1.13.0
- * @param string $key Meta/ACF resolution key.
- * @return bool True if the key is on the DISALLOWED_KEYS list.
- */
-/**
  * Whether a root-argument token is a STRICT digit string — an id an author actually typed,
- * not merely something PHP happens to consider numeric (FW-39, ticket 03).
+ * not merely something PHP happens to consider numeric.
  *
  * THE ONE VALIDATOR both declaring roots' `resolve_root_argument()` call
  * (`TaxonomyTerm`, `CurrentPost`) before trusting an argument enough to look it up. Shared
- * so a future declaring root with a numeric id (a third kind, or an integrator's own) reaches
- * the same rule rather than a third hand-copy.
+ * so a future declaring root with a numeric id reaches the same rule rather than a third
+ * hand-copy.
  *
  * `ctype_digit()`, NOT `is_numeric()` + cast: "34.9", "3e1" and " 34" are all PHP-numeric
  * and would silently TRUNCATE under `(int)` rather than round-trip (`(int) "34.9"` is 34,
- * `(int) "3e1"` is 3, neither being what was authored) — the shape is verified here, not
- * merely cast and trusted.
+ * `(int) "3e1"` is 3, neither being what was authored).
  *
  * @since 1.20.0
  * @param string $arg The root argument as authored, verbatim.
@@ -57,6 +37,25 @@ function bws_strict_digit_id( string $arg ): bool {
 }
 }
 
+/**
+ * Whether a field key is refused by GenerateBlocks' dynamic-tag security gate.
+ *
+ * THE single authority on the DISALLOWED_KEYS check. The field readers
+ * (bws_read_field, bws_read_term_field) refuse these keys, and field discovery
+ * (bws_field_discovery_filter_disallowed) filters the offered list through the
+ * same predicate, so "offered ⟺ resolvable" cannot drift: the offer side and the
+ * resolve side share ONE definition of "disallowed".
+ *
+ * NOTE: this blocks only the explicit DISALLOWED_KEYS credential/auth list.
+ * General `_`-prefixed protected meta is allowed on the frontend (matches GB
+ * Meta_Handler), so e.g. Pie Calendar `_piecal_*` keys stay readable/offerable.
+ *
+ * When the GB security class is absent, nothing is blocked (returns false).
+ *
+ * @since 1.13.0
+ * @param string $key Meta/ACF resolution key.
+ * @return bool True if the key is on the DISALLOWED_KEYS list.
+ */
 if ( ! function_exists( 'bws_field_key_disallowed' ) ) {
 function bws_field_key_disallowed( string $key ): bool {
 	return class_exists( 'GenerateBlocks_Dynamic_Tag_Security' )
@@ -70,25 +69,25 @@ function bws_field_key_disallowed( string $key ): bool {
  * THE one reader for every src:site option value. Both the value resolver
  * (bws_site_resolve_value key-mode branch, base-tags.php) and the link path
  * (bws_resolve_link_url, entity_type 'site', link-helpers.php) route through
- * here so the two reads cannot diverge (V2 — the site value read and the site
+ * here so the two reads cannot diverge (the site value read and the site
  * linkTo:key read MUST agree). It enforces the allowlist gate (ADR 0001), then
  * delegates to GenerateBlocks_Meta_Handler::get_option, which supplies dot-path
  * traversal (ACF group subfields, e.g. organization_social.facebook) AND the
  * ACF get_field filter. Raw get_option() reaches neither — never read a site
  * option without going through this function.
  *
- * Lives here (field-helpers, loaded before link-helpers and base-tags) so the
- * shared reader is defined ahead of every caller; bws_site_allowlist_ok is
- * resolved at call time (base-tags), so the load-order gap is harmless.
+ * Lives here (loaded before link-helpers and base-tags) so the shared reader is
+ * defined ahead of every caller; bws_site_allowlist_ok is resolved at call time
+ * (base-tags), so the load-order gap is harmless.
  *
- * @invariant (SPEC V2, single-reader corollary, B4) The two wp_options site
- * reads — key-mode value read (bws_site_resolve_value) and linkTo:key
- * (bws_resolve_link_url, entity_type 'site') — MUST both route through THIS
- * function. Hand-rolling a second get_option() for either path silently
- * diverges on ACF-group subfields (organization_social.facebook): dot-path
- * traversal + the ACF get_field filter live in Meta_Handler::get_option, not
- * in raw get_option. The datetime path reads ACF FIELDS via
- * get_field($key,'option') — a different datum, separate reader, same gate.
+ * @invariant The two wp_options site reads — key-mode value read
+ * (bws_site_resolve_value) and linkTo:key (bws_resolve_link_url, entity_type
+ * 'site') — MUST both route through THIS function. Hand-rolling a second
+ * get_option() for either path silently diverges on ACF-group subfields
+ * (organization_social.facebook): dot-path traversal + the ACF get_field filter
+ * live in Meta_Handler::get_option, not in raw get_option. The datetime path
+ * reads ACF FIELDS via get_field($key,'option') — a different datum, separate
+ * reader, same gate.
  *
  * @invariant TWO INDEPENDENT GATES, both required, neither substituting for the
  * other. WHICH KEYS may ever be read is the allowlist — bws_site_allowlist_ok(),
@@ -99,7 +98,7 @@ function bws_field_key_disallowed( string $key ): bool {
  * stays unreadable however trusted the viewer.
  *
  * @since 1.9.0
- * @since 1.19.2 Per-user REST gate (ADR 0008).
+ * @since 1.19.2 Per-user REST gate.
  * @param string $key Option key (may contain a dot-path for wp_options arrays).
  * @return string Resolved string value, or '' on disallow / miss / non-string.
  */
@@ -134,18 +133,16 @@ function bws_site_read_option( string $key ): string {
  * anonymous REST is left alone deliberately because blanking it would break headless
  * parity for sites reading their own published pages over the API.
  *
- * The per-user question itself is not asked here — bws_gb_option_allowed_for_current_user()
- * is the one place this plugin asks GB anything about the current user, and it already
- * short-circuits true for a user who may author dynamic data. So the negation below is
- * Pro's full conjunction (`! can_author && ! key_allowed_for_user`) with the first half
- * folded into the seam.
+ * The per-user question itself is asked in bws_gb_option_allowed_for_current_user(), the
+ * one place this plugin asks GB anything about the current user; it short-circuits true
+ * for a user who may author dynamic data. So the negation below is Pro's full conjunction
+ * (`! can_author && ! key_allowed_for_user`) with the first half folded into the seam.
  *
  * THE POLARITY IS DELIBERATE AND IS WHY THE NAME SAYS "withheld". Its neighbour
  * bws_gb_option_allowed_for_current_user() is true-for-ALLOW; this is true-for-REFUSE, and
  * two adjacent predicates of opposite sense is how a call site ends up missing a negation.
  * Both call sites therefore read `if ( bws_site_option_withheld_from_user( $key ) ) return '';`
- * with no `!` next to the empty return — the refusal is in the name, not in an operator a
- * reader can skip.
+ * with no `!` next to the empty return.
  *
  * @since 1.19.2
  * @param string $key Option key, optionally dot-notated.
@@ -280,27 +277,23 @@ function bws_extract_post_id( $post_data ) {
  * THE RESIDUAL HOLE, WHICH THIS DOES NOT CLOSE AND CANNOT: A BARE INTEGER IS READ AS
  * A POST ID. Nothing distinguishes the integer 7 meaning post 7 from the integer 7
  * meaning term 7 or user 7 — that shape carries no kind, so a producer handing over a
- * bare term id still collides with the post of that number, which is the original
- * defect (#123) surviving in the one item shape with no room to say what it is. It is
- * narrower than it was (an OBJECT term or user is now recognized) and it is not gone.
- * The only real repair is upstream, in an item shape that names its own kind. Do not
- * read the numeric arm as safe because the object arms are.
+ * bare term id still collides with the post of that number. The only real repair is
+ * upstream, in an item shape that names its own kind. Do not read the numeric arm as
+ * safe because the object arms are.
  *
- * WHERE THAT HOLE IS ACTUALLY REACHABLE IS ONE LEVEL UP, NOT HERE. #123's own route
- * was never a bare-integer loop ITEM: the co-resident extension's term items are
- * `WP_Term` objects, which this now recognizes. The integer arrived instead through
- * `generateblocks_dynamic_tag_id`, which our own post source reaches by calling GB's
- * get_id() (`CurrentPost::resolve_id()`), and which GB does not tell what entity kind
- * its id stood for -- so a hook returns a term id where a post id was asked for and
- * nothing downstream can tell. Backtraced 2026-08-26 against GB 2.4.1; the GB half is
- * recorded in docs/gb-constraints.md. This arm is the same hole in a shape we own;
- * that one is the same hole in a shape we do not.
+ * WHERE THAT HOLE IS ACTUALLY REACHABLE IS ONE LEVEL UP, NOT HERE. The co-resident
+ * extension's term items are `WP_Term` objects, which the term arm recognizes. A bare
+ * integer arrives instead through `generateblocks_dynamic_tag_id`, which our own post
+ * source reaches by calling GB's get_id() (`CurrentPost::resolve_id()`), and which GB
+ * does not tell what entity kind its id stood for -- so a hook returns a term id where a
+ * post id was asked for and nothing downstream can tell (measured against GB 2.4.1; the
+ * GB half is recorded in docs/gb-constraints.md). This arm is the same hole in a shape
+ * we own; that one is the same hole in a shape we do not.
  *
- * THE DUCK-TYPED ARMS ARE LOAD-BEARING, NOT DEFENSIVE. Measured on the reference
- * site 2026-08-26: the co-resident extension's TERM items are `WP_Term` instances,
- * but its USER items are plain `stdClass` records (`ID`, `user_login`,
- * `user_nicename`, `user_email`, `display_name`, …) and are NOT `WP_User`. An
- * `instanceof`-only recognizer would leave every user loop leaking. The markers
+ * THE DUCK-TYPED ARMS ARE LOAD-BEARING, NOT DEFENSIVE. The co-resident extension's TERM
+ * items are `WP_Term` instances, but its USER items are plain `stdClass` records (`ID`,
+ * `user_login`, `user_nicename`, `user_email`, `display_name`, …) and are NOT
+ * `WP_User`. An `instanceof`-only recognizer would leave every user loop leaking. The markers
  * chosen are WordPress's own user-record field names, which is what makes the arm
  * hold for a producer nobody has met. The same holds for the object-shaped post arm,
  * whose evidence is the item's own claims AGREEING WITH THE DATABASE rather than any
@@ -496,10 +489,8 @@ function bws_loop_item_user_id( $item ): int {
  */
 if ( ! function_exists( 'bws_loop_item_post_id' ) ) {
 function bws_loop_item_post_id( $item ): int {
-	// The slug must be a STRING, not merely present. This is a foreign record, and an
-	// `id` beside a `slug` holding an array is a shape that would otherwise reach a
-	// string cast and answer "Array" — which compares against no post_name, so the
-	// outcome is the same refusal, arrived at through a PHP notice.
+	// The slug must be a STRING, not merely present: this is a foreign record, and a
+	// slug holding an array would reach a string cast and raise a PHP notice.
 	if ( ! isset( $item->id, $item->slug ) || ! is_numeric( $item->id ) || (int) $item->id <= 0 || ! is_string( $item->slug ) ) {
 		return 0;
 	}
@@ -550,22 +541,20 @@ function bws_loop_item_url_key( string $url ): string {
  * caller refuses on the first and resolves ambient on the second ([I15]).
  *
  * `item_post_id` HOLDS A POST AND ONLY A POST. A term or user item leaves it false
- * while `in_loop` is true, which is now an ordinary state rather than an edge case.
- * Anything reading it as "the loop's entity" is reading it wrong; `item_kind` +
- * `item_id` are what carry the entity.
+ * while `in_loop` is true. Anything reading it as "the loop's entity" is reading it
+ * wrong; `item_kind` + `item_id` are what carry the entity.
  *
  * IT IS ALSO UNGATED — a bare identity, carrying no claim that the viewer may read the
- * post it names. Code about to READ off it wants bws_loop_item_gated_post_id() (#122);
- * this key is what that helper is derived FROM. Three things read it: that helper, then
+ * post it names. Code about to READ off it wants bws_loop_item_gated_post_id(); this
+ * key is what that helper is derived FROM. Three things read it: that helper, then
  * bws_resolve_base_source(), whose own route is gated one layer down by
  * bws_run_traversal, and a debug probe that only REPORTS the identity and never reads a
  * field off it. loop-item-classify-test.php §C8.7 is a tree-wide census that fails by
- * name when a fourth appears, because a consumer forgetting to gate is how #122 was made.
+ * name when a fourth appears, because a consumer forgetting to gate reads an
+ * unreadable post's meta.
  *
  * `in_loop` MEANS "AN ITEM IS PRESENT" AND NOTHING MORE — not that a field read can
- * be served from it. Through 1.18.x the two coincided, because the only items
- * recognized were the two that a read CAN be served from; they no longer do. A caller
- * about to skip its own "no entity, give up" bail wants
+ * be served from it. A caller about to skip its own "no entity, give up" bail wants
  * bws_loop_item_is_post_or_row(), which is that question and owns its own answer.
  *
  * Result cached on $instance->context['bws/loopItemEntity'] so callers paying for
@@ -583,7 +572,7 @@ function bws_loop_item_url_key( string $url ): string {
  *
  * @since 1.7.0
  * @since 1.19.0 Reads the term and user item shapes; reports `item_kind`/`item_id`;
- *               an unreadable item is `unknown` rather than "not in a loop" (#123).
+ *               an unreadable item is `unknown` rather than "not in a loop".
  * @param mixed $instance Block instance (WP_Block) or anything else.
  * @return array
  */
@@ -605,8 +594,7 @@ function bws_get_loop_item_context( $instance ): array {
 
 	// WHETHER THERE IS AN ITEM AT ALL IS bws_classify_loop_item()'s ANSWER, not a test
 	// repeated here: it returns the '' kind for the three absences, so `in_loop` is
-	// derived from the classification rather than raced against it. The two used to be
-	// written twice and could disagree, which is a state with no meaning.
+	// derived from the classification and the two cannot disagree.
 	$entity = $instance->context['bws/loopItemEntity'] ?? null;
 	if ( ! is_array( $entity ) ) {
 		$entity = bws_classify_loop_item(
@@ -645,15 +633,11 @@ function bws_get_loop_item_context( $instance ): array {
  * caller about to skip its own "no entity, give up" bail because a read might still
  * succeed is asking THIS, and only this.
  *
- * NOT `in_loop`. Since 1.19.0 `in_loop` is true for a TERM, a USER and an
- * unrecognized item too, and every one of those reaches a post-meta read that cannot
- * serve it. The read then falls past both loop branches to bws_read_field()'s
- * TERM-ARCHIVE fallback, and on an archive page that returns the SURROUNDING
- * archive's term meta — a plausible value from an entity the wire never named, which
- * is the [I15] failure this release exists to remove. Measured 2026-08-26 on the
- * reference site: a USER loop rendered on `/department/support/` returned that
- * department's `event_date` from `{{datetime_single key:event_date}}` while `in_loop`
- * alone gated the bail.
+ * NOT `in_loop`, which is true for a TERM, a USER and an unrecognized item too, and
+ * every one of those reaches a post-meta read that cannot serve it. The read then falls
+ * past both loop branches to bws_read_field()'s TERM-ARCHIVE fallback, and on an archive
+ * page that returns the SURROUNDING archive's term meta — a plausible value from an
+ * entity the wire never named ([I15]).
  *
  * A term or user item is not "no loop" either, and callers must not read this as
  * saying so. It means the entity was resolved ABOVE the field read — by the source
@@ -679,13 +663,11 @@ function bws_loop_item_is_post_or_row( $instance ): bool {
  * restate what it decides. `item_post_id` on the context is the UNGATED identity and
  * stays that way; a caller about to READ off a loop item wants this instead.
  *
- * WHY IT EXISTS (#122). Two things answer "which entity does this tag read", and
- * until 1.19.0 only one of them was gated: bws_resolve_base_source() turns a loop
- * item into a {kind:post} source and bws_run_traversal gates it, while
- * bws_read_field() read `item_post_id` straight through to a meta read. A draft, a
- * private post and a TRASHED one all rendered their meta inside a query loop — the
- * last of them for every viewer including none, which contradicts the 1.18.0 gate
- * outright rather than merely falling short of it.
+ * WHY IT EXISTS. Two things answer "which entity does this tag read":
+ * bws_resolve_base_source() turns a loop item into a {kind:post} source and
+ * bws_run_traversal gates it, while bws_read_field() reads `item_post_id` through to a
+ * meta read. Without the gate here, a draft, a private post and a TRASHED one all
+ * render their meta inside a query loop.
  *
  * THE FACTORY ROUTE DOES NOT SHARE THIS, DELIBERATELY, and must not be "unified"
  * with it. Both call bws_source_gate(), so the criterion is single-owned; what
@@ -737,15 +719,14 @@ function bws_loop_item_gated_post_id( $instance ) {
  *  4. Term archive (non-REST, no explicit id)             → read term meta on queried term
  *  5. null
  *
- * BEING IN A LOOP IS NOT ITSELF A BRANCH HERE. Since 1.19.0 a loop item may be a TERM
- * or a USER, in which case `in_loop` is true and neither 2 nor 3 fires — the read falls
- * past both, exactly as it should: the entity a term/user item names is resolved ABOVE
- * this function, by the source factory, and reaches the term/user reader arms rather
- * than a post-meta read. Nothing here needs to know that; the branch order already
- * expresses it, and this note exists so the fallthrough is not read as a hole.
+ * BEING IN A LOOP IS NOT ITSELF A BRANCH HERE. A loop item may be a TERM or a USER, in
+ * which case `in_loop` is true and neither 2 nor 3 fires — the read falls past both,
+ * exactly as it should: the entity a term/user item names is resolved ABOVE this
+ * function, by the source factory, and reaches the term/user reader arms rather than a
+ * post-meta read. This note exists so the fallthrough is not read as a hole.
  *
  * A LOOP POST THE SOURCE GATE REFUSES STOPS THE READ AT BRANCH 2 — it does not continue
- * to 3 or 4, and returning null there is the point rather than a shortcut (#122).
+ * to 3 or 4, and returning null there is the point rather than a shortcut.
  * bws_loop_item_gated_post_id() owns the decision to apply the gate here and owns why
  * the factory route does not share it; bws_source_gate() owns the criterion itself.
  *
@@ -753,7 +734,7 @@ function bws_loop_item_gated_post_id( $instance ) {
  * inference. Try-loop `src:ref` slots resolve a target post via `bws_resolve_post_by_source()`
  * and pass that id here; if loop-item inference were allowed to override it, the slot would
  * silently read from the page entity instead of the resolved ref target — breaking
- * fall-through across slots inside any GB query loop. (Bugfix v1.7.1.)
+ * fall-through across slots inside any GB query loop.
  *
  * @since 1.7.0
  * @param string         $key         Meta/ACF field key.
@@ -779,7 +760,7 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
 
 	$loop = bws_get_loop_item_context( $instance );
 	if ( $loop['in_loop'] && ! $has_explicit_post_id ) {
-		// A post — read its meta, if it may be read at all (#122).
+		// A post — read its meta, if it may be read at all.
 		// THE REFUSAL RETURNS, it does not fall through to the branch below. A post item's
 		// raw value is a WP_Post or an id rather than an array, so a merely-skipped branch
 		// walks on to the TERM-ARCHIVE read and serves the SURROUNDING archive's meta:
@@ -804,13 +785,11 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
 		return bws_meta_handler_read( (int) $post_id, $key, $single_only, 'get_post_meta' );
 	}
 
-	// Term archive fallback. bws_wp_is_term_archive() owns the criterion — this branch
-	// used to ask a bare get_queried_object() instead, which claimed a term the page was
-	// not about, and the REST_REQUEST guard below was standing in for the real gate.
+	// Term archive fallback. bws_wp_is_term_archive() owns the criterion.
 	//
-	// THE GUARD IS KEPT ON PURPOSE, THOUGH IT IS NOW SUBSUMED: the predicate already refuses
-	// under a REST render on its own. It is dead rather than load-bearing,
-	// and nothing measures REST behaviour here (text-test-matrix.md §T4 runs through
+	// THE REST_REQUEST GUARD IS SUBSUMED, AND KEPT ON PURPOSE: the predicate already
+	// refuses under a REST render on its own. It is dead rather than load-bearing, and
+	// nothing measures REST behaviour here (text-test-matrix.md §T4 runs through
 	// `bws render-tag`, which is CLI). Deleting dead code with no pin buys nothing; it goes
 	// when FW-7 deletes the whole branch.
 	if ( ! ( defined( 'REST_REQUEST' ) && REST_REQUEST ) && bws_wp_is_term_archive() ) {
@@ -820,16 +799,14 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
 		}
 	}
 
-	// DT-1: src:site datetime — ACF options-page field value read. The 'option'
-	// sentinel reaches here only from bws_datetime_single_core('option', ...) (site
-	// datetime path); all other callers pass int/loop ids and never hit this branch,
-	// so behavior is unchanged for them. Gated through the SAME TWO gates as use:option
-	// and site linkTo:key (V2) — the key allowlist and the per-user REST gate. ACF field
-	// keys are flat — no dot-path split. This branch does NOT route through
-	// bws_site_read_option() (it reads an ACF FIELD via get_field, a different datum), so
-	// both gates are restated here rather than inherited — which is the whole reason
-	// ADR 0001's "option reads are option reads regardless of which control triggers
-	// them" is worth having as a sentence.
+	// src:site datetime — ACF options-page field value read. The 'option' sentinel
+	// reaches here only from bws_datetime_single_core('option', ...) (site datetime
+	// path). Gated through the SAME TWO gates as use:option and site linkTo:key — the
+	// key allowlist and the per-user REST gate. ACF field keys are flat — no dot-path
+	// split. This branch does NOT route through bws_site_read_option() (it reads an ACF
+	// FIELD via get_field, a different datum), so both gates are restated here rather
+	// than inherited: ADR 0001's "option reads are option reads regardless of which
+	// control triggers them".
 	// See docs/adr/0001-site-option-read-allowlist.md and
 	// docs/adr/0008-site-option-per-user-rest-gate.md.
 	if ( 'option' === $post_id && function_exists( 'get_field' ) ) {
@@ -863,17 +840,15 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
  * because that is the common case and answers it in one read.
  *
  * TWO CALLERS, AND THE SECOND ONE IS WHY THIS IS A FUNCTION RATHER THAN A LINE
- * INSIDE THE SEAM. FW-74 ticket 01 asked for this read to live in
- * bws_read_resolved_source_value()'s post arm, with bws_get_meta_image_data()
- * entering through it. The getter cannot: bws_custom_image_core() calls it with
- * NO post id at all whenever the block stands in a loop item (its $read_may_serve
- * branch), and that is a shape the seam's post arm does not serve — its own
- * guard comment owns why. Routing the getter through the seam would have blanked
- * every repeater-row image read. Both callers therefore share this, which is what
- * the ticket wanted from the move: one owner for the read, not two copies.
+ * INSIDE THE SEAM. The L2 seam's post arm (bws_read_resolved_source_value()) reads
+ * through it, and so does bws_get_meta_image_data(), which cannot enter through the
+ * seam: bws_custom_image_core() calls it with NO post id at all whenever the block
+ * stands in a loop item (its $read_may_serve branch), a shape the seam's post arm does
+ * not serve — its own guard comment owns why. Routing the getter through the seam
+ * would blank every repeater-row image read. Both callers therefore share this: one
+ * owner for the read, not two copies.
  *
- * @since 1.21.0 Extracted from bws_get_meta_image_data() (which read this way
- *               since 1.7.1) so the L2 read seam's post arm reads the same way.
+ * @since 1.21.0
  * @param string    $key      Meta/ACF field key.
  * @param mixed     $instance Block instance (WP_Block) — bws_read_field context cache.
  * @param int|false $post_id  Resolved post ID, or false.
@@ -912,21 +887,20 @@ function bws_read_term_field( string $key, int $term_id, bool $single_only = tru
 }
 }
 
-// bws_field_values_assemble_steps() — the step-assembly half of this seam — MOVED to
-// includes/helpers/slot-fold-compile.php in 1.17.0 (5h). It is now a thin adapter over
-// the chain COMPILE, so the flat `src`/`ref`/`srcTermIn` reading and the folded wire's
-// chain produce steps through one code path (and a multi-step chain resolves instead of
-// stopping at one relationship step plus one term step). #44's compound order lives there too.
+// bws_field_values_assemble_steps(), the step-assembly half of this seam, lives in
+// includes/helpers/slot-fold-compile.php: a thin adapter over the chain COMPILE, so the
+// flat `src`/`ref`/`srcTermIn` reading and the folded wire's chain produce steps through
+// one code path.
 
 /**
- * Read one resolved source's field value at L2, dispatched by KIND (SPEC §V12).
+ * Read one resolved source's field value at L2, dispatched by KIND.
  *
  * THE KIND DISPATCH LIVES HERE, and so does the post/0 guard. The factory owns
  * source-SELECTION; this owns the READ. site → option read; term → term meta;
- * post → post meta with an EXPLICIT id (triggers the v1.7.1 explicit-wins rule
- * in bws_read_field, bypassing ITS own loop/term inference so the factory's
- * resolved source is authoritative — no double resolution). meta_row → the row's
- * own key. user → plain user meta (FW-48 seam half).
+ * post → post meta with an EXPLICIT id (triggers the explicit-wins rule in
+ * bws_read_field, bypassing ITS own loop/term inference so the factory's resolved
+ * source is authoritative — no double resolution). meta_row → the row's own key.
+ * user → plain user meta.
  *
  * RETURNS WHAT THE STORE HOLDS, arrays included. bws_read_resolved_source() is
  * the string coercion over this, and every reader that wants one value takes
@@ -937,7 +911,7 @@ function bws_read_term_field( string $key, int $term_id, bool $single_only = tru
  * and are not widened here: an array-preserving term read answers '' for a
  * filter-populated scalar, which would move what the string seam returns.
  *
- * @since 1.21.0 Split out of bws_read_resolved_source(), which keeps its signature.
+ * @since 1.21.0
  * @param array  $source   One resolved source ({kind,id}|{kind:site}|{kind:meta_row,row}).
  * @param string $key      Field key.
  * @param object $instance GB instance (bws_read_field context cache).
@@ -959,13 +933,12 @@ function bws_read_resolved_source_value( array $source, string $key, $instance )
 			return is_array( $row ) ? ( $row[ $key ] ?? '' ) : '';
 
 		case 'user':
-			// FW-48 (seam half): plain user-meta read, NOT the analog reader
-			// (bws_base_user_analog_read lives in base-shared, loaded AFTER this
-			// file — and it reads analogs, not meta; different concern). Currently
-			// unreachable at runtime — no traversal step or factory path yields a
-			// user-kind source into the seam until the post→author step (FW-48
-			// proper) lands — but a user-less kind switch would ship a hole the
-			// ABSORB seam converged onto and force re-opening this function.
+			// Plain user-meta read, NOT the analog reader (bws_base_user_analog_read
+			// lives in base-shared, loaded AFTER this file — and it reads analogs, not
+			// meta; different concern). Currently unreachable at runtime — no
+			// traversal step or factory path yields a user-kind source into the seam
+			// until the post→author step (FW-48) lands — but a switch without a user
+			// kind would ship a hole and force re-opening this function.
 			$user_id = (int) ( $source['id'] ?? 0 );
 			if ( $user_id <= 0 || bws_field_key_disallowed( $key ) ) {
 				return '';
@@ -973,13 +946,13 @@ function bws_read_resolved_source_value( array $source, string $key, $instance )
 			return get_user_meta( $user_id, $key, true );
 
 		case 'post':
-			// Explicit id → v1.7.1 explicit-wins → bypasses bws_read_field's own
-			// loop/term inference (SPEC §V12). Factory already resolved the row.
-			// GUARD id 0 (SPEC §V18): a {kind:post,id:0} means the factory found NO
-			// current post. bws_read_field treats a passed 0 as NOT explicit (guard
-			// requires >0), so it would re-run its own loop/term inference and could
-			// read a context the factory rejected (the two-layers-fight edge, B7).
-			// Reading a field off post 0 is meaningless → return '' directly.
+			// Explicit id → explicit-wins → bypasses bws_read_field's own loop/term
+			// inference. Factory already resolved the row.
+			// GUARD id 0: a {kind:post,id:0} means the factory found NO current post.
+			// bws_read_field treats a passed 0 as NOT explicit (guard requires >0), so
+			// it would re-run its own loop/term inference and could read a context the
+			// factory rejected (the two layers fight). Reading a field off post 0 is
+			// meaningless → return '' directly.
 			$post_source_id = (int) ( $source['id'] ?? 0 );
 			if ( $post_source_id <= 0 ) {
 				return '';
@@ -999,8 +972,8 @@ function bws_read_resolved_source_value( array $source, string $key, $instance )
  * one at the raw seam — which is the whole reason the two are separate.
  *
  * @since 1.14.0
- * @since 1.16.0 user kind (FW-48 seam half; unreachable until the post→author step).
- * @since 1.21.0 The kind dispatch moved to bws_read_resolved_source_value().
+ * @since 1.16.0 user kind (unreachable until the post→author step).
+ * @since 1.21.0 The kind dispatch lives in bws_read_resolved_source_value().
  * @param array  $source   One resolved source ({kind,id}|{kind:site}|{kind:meta_row,row}).
  * @param string $key      Field key.
  * @param object $instance GB instance (bws_read_field context cache).
@@ -1047,7 +1020,7 @@ function bws_source_link_identity( array $source ): ?array {
 			return array( 'kind' => 'site', 'id' => 1 );
 
 		case 'query_context':
-			// Entity-less by construction (#19 / FW-9) — no id exists to link.
+			// Entity-less by construction (FW-9) — no id exists to link.
 			return null;
 	}
 
@@ -1058,12 +1031,8 @@ function bws_source_link_identity( array $source ): ?array {
 /**
  * THE single interpreter of a `limit` option value (list mode).
  *
- * One rule, three call sites — the seam (bws_resolve_field_values), the shared
- * list fold (bws_collect_value_list), and try_ slot dispatch
- * (class-tag-template-registry.php). Each carried its own inline copy of
- * `max( 1, (int) $limit )` until 1.17.0; extracting them here is a deliberate
- * PREREQUISITE for changing what `0` means, so that "unset", "0" and "garbage"
- * cannot drift apart between the three paths mid-change.
+ * One rule shared by every call site, so that "unset", "0" and "garbage" cannot
+ * drift apart between the paths that read a `limit`.
  *
  * Semantics:
  *   - non-numeric (null, '', 'abc') ⇒ treated as UNSET ⇒ 1 (the default);
@@ -1077,12 +1046,10 @@ function bws_source_link_identity( array $source ): ?array {
  * control that fights a hand-typed -1 works against ADR 0004, and tolerance
  * already covers it.
  *
- * A pre-1.17.0 `limit:0` / `limit:-1` on saved wire therefore starts fanning out
- * where it used to render one value. That is intentional: the old behavior was a
- * `max( 1, … )` CLAMP silently discarding a written value, not a designed
- * semantic — nobody typing 0 meant 1. Honor the written value.
+ * A written `limit:0` / `limit:-1` means unlimited: honor the written value rather
+ * than silently clamping it to 1 — nobody typing 0 meant 1.
  *
- * The is_numeric() gate is what keeps the new rule safe: (int)'abc' === 0, so
+ * The is_numeric() gate is what keeps the rule safe: (int)'abc' === 0, so
  * without it a typo would silently fan out a whole relationship. Garbage must
  * resolve to the DEFAULT, never to "no limit".
  *
@@ -1122,14 +1089,13 @@ function bws_clamp_limit( $raw, int $default ): int {
  * a block widget the content scanner never sees, a tag stored inside an ACF field.
  * An unmigrated tag gets its default from its own spelling, wherever it lives.
  *
- * Why the default had to become spelling-dependent rather than simply flipping:
- * `bws_clamp_limit`'s default-1 is the single-read defect the plural source model
- * already names (CONTEXT.md §Language: `ref` and `srcTermIn` are PLURAL), sitting
- * at the tag-level position instead of the per-step one. It only ever bites on a
- * plural source — on a singular one the slice is a no-op. But ~110 authored
- * instances across the surveyed databases depend on it, with no author present, so
- * it cannot just be flipped. Naming the spelling that is entitled to it keeps every
- * stored tag rendering exactly as before while new wire gets the honest default.
+ * Why the default is spelling-dependent rather than a flat 0: a default of 1 is the
+ * single-read defect the plural source model already names (CONTEXT.md §Language:
+ * `ref` and `srcTermIn` are PLURAL), sitting at the tag-level position instead of the
+ * per-step one. It only bites on a plural source — on a singular one the slice is a
+ * no-op. But authored instances depend on it with no author present, so it cannot be
+ * flipped. Naming the spelling that is entitled to it keeps every stored tag rendering
+ * as before while new wire gets the honest default.
  *
  * Two costs, both accepted: the same conceptual source is bounded differently by spelling
  * (an ADR-0004 readability cost, paid to avoid touching a stored row), and a list links
@@ -1139,8 +1105,7 @@ function bws_clamp_limit( $raw, int $default ): int {
  *
  * Resolved ONCE, from the options. No call site is new-or-old — all of them serve
  * both eras — so "new sites pass 0, old sites pass 1" has no referent. A call site
- * growing its own spelling test would re-inline half the rule bws_clamp_limit was
- * extracted to own.
+ * growing its own spelling test would re-inline half the rule bws_clamp_limit owns.
  *
  * @since 1.17.0
  * @param array $options Tag options (reads `src`/`source` only).
@@ -1156,7 +1121,7 @@ function bws_limit_default( array $options ): int {
 /**
  * The L1 half of the shared pipeline: the resolved, limit-sliced source list.
  *
- * Extracted from bws_resolve_field_values() so the fixed read (FW-141) walks the SAME
+ * Shared by bws_resolve_field_values() and the fixed read, so both walk the SAME
  * sources without a second copy of the resolve/traverse/slice sequence.
  *
  * @since 1.21.0
@@ -1264,7 +1229,7 @@ function bws_contact_read_raw( string $use, array $options, $instance ): array {
 }
 
 /**
- * The FIXED read's values (FW-141): the author's `fixed` text, once per resolved source.
+ * The FIXED read's values: the author's `fixed` text, once per resolved source.
  *
  * bws_resolve_field_values()' twin for a read that reads nothing. The count is the
  * resolved-source count, so list mode repeats it, `limit` applies, and a path that
@@ -1302,32 +1267,28 @@ function bws_resolve_fixed_values( array $options, $instance ): array {
  * to a list of raw candidate field-value strings.
  *
  * The single source-resolution seam (CONTEXT.md §L1/L2/L3, ADR 0002) the
- * value-list tags share. Since 1.14.0 (traversal pipeline Phase 1) the L1 half
- * delegates to the source factory + step engine:
- *   - L1 resolve source: bws_resolve_base_source (ambient/explicit/loop/site,
- *     SPEC §V1) → base resolved source.
+ * value-list tags share. The L1 half delegates to the source factory + step engine:
+ *   - L1 resolve source: bws_resolve_base_source (ambient/explicit/loop/site) → base
+ *     resolved source.
  *   - L1 traversal: bws_field_values_assemble_steps (src:ref → ref step,
- *     srcTermIn → term-step step; both compound as [ref, srcTermIn] when set, #44)
- *     run through bws_run_traversal — ref now FANS OUT to all targets (SPEC §V6
- *     plural; no first-only collapse), and a term archive bases ref on the
- *     ambient term (SPEC §V11).
- *   - L2 read: per resolved source by KIND (bws_read_resolved_source, SPEC §V12).
+ *     srcTermIn → term-step step; both compound as [ref, srcTermIn] when set)
+ *     run through bws_run_traversal — ref FANS OUT to all targets (plural; no
+ *     first-only collapse), and a term archive bases ref on the ambient term.
+ *   - L2 read: per resolved source by KIND (bws_read_resolved_source).
  *   - list mode: slice the resolved-source list to `limit` (list mode originates
- *     at the plural source, CONTEXT.md §Target cardinality); `sep` join stays in
- *     the caller's L3.
+ *     at the plural source); `sep` join stays in the caller's L3.
  *
- * Signature + string[] return are FROZEN (SPEC §V3) — every existing caller
- * (email/phone × 2) renders identically except the limit>1 ref-plural change.
- * The optional $links out-param (FW-49) is ADDITIVE: existing callers omit it
- * and see zero change; callers that pass a variable receive one link identity
- * per RETURNED value (parallel arrays — $links[i] belongs to the returned
- * value [i]), each bws_source_link_identity({kind,id})|null per CONTEXT.md I12.
+ * Signature + string[] return are FROZEN. The optional $links out-param is
+ * ADDITIVE: callers that omit it see no change; callers that pass a variable
+ * receive one link identity per RETURNED value (parallel arrays — $links[i]
+ * belongs to the returned value [i]), each bws_source_link_identity({kind,id})|null
+ * per CONTEXT.md I12.
  * Returns RAW, UNVALIDATED strings — per-tag validation + L3 composition stay in
  * each tag's callback. The resolver is composition-blind.
  *
  * @since 1.11.0
  * @since 1.14.0 Delegates L1 to the source factory + traversal engine; ref plural.
- * @since 1.16.0 Optional $links out-param carries per-value link identity (FW-49).
+ * @since 1.16.0 Optional $links out-param carries per-value link identity.
  * @param array      $options  Tag options (key, src, ref, srcTermIn, limit, …).
  * @param object     $instance GB tag instance.
  * @param array|null $links    Optional out-param: filled with one link identity
@@ -1358,8 +1319,7 @@ function bws_resolve_field_values( array $options, $instance, ?array &$links = n
 	$sources = bws_resolve_field_sources( $options, $instance );
 
 	// L2 — read each resolved source by kind; drop empties. Link identity is
-	// carried out per KEPT value (FW-49) instead of being discarded with the
-	// source — $links stays parallel to the returned strings.
+	// carried out per KEPT value — $links stays parallel to the returned strings.
 	$out   = array();
 	$links = array();
 	foreach ( $sources as $source ) {
@@ -1376,29 +1336,28 @@ function bws_resolve_field_values( array $options, $instance, ?array &$links = n
 /**
  * Fold a list of read targets into a joined value list carrying link identity (L3).
  *
- * THE shared combining fold for list-mode output (FW-49 convergence). One
- * implementation replaces the hand-written slice/suppress/render/drop/join
- * loops in base text/title (srcTermIn + src:ref branches) and datetime
- * single/range (bws_datetime_collect_list). The seam
- * (bws_resolve_field_values) does NOT route through this — its string[]
- * return is frozen (SPEC §V3); it only carries link identity out per value.
+ * THE shared combining fold for list-mode output, used by base text/title
+ * (srcTermIn + src:ref branches) and datetime single/range
+ * (bws_datetime_collect_list). The seam (bws_resolve_field_values) does NOT
+ * route through this — its string[] return is frozen; it only carries link
+ * identity out per value.
  *
  * Owns, in order:
  *  1. slice to `limit` (bws_clamp_limit — default 1, `0` = unlimited);
  *  2. per-item fallback suppression — $render receives $options with
  *     'fallback' unset, so the fallback fires ONCE in the caller on all-empty
- *     output, never per item (GH #51: a per-item fallback would pollute the list,
- *     and would have linked as though it were a value it is not);
+ *     output, never per item (a per-item fallback would pollute the list, and
+ *     would link as though it were a value it is not);
  *  3. render each item ('' or empty 'value' drops silently);
  *  4. per-value link capture;
- *  5. per-item link wrap, each value against its OWN identity (FW-85);
+ *  5. per-item link wrap, each value against its OWN identity;
  *  6. `sep` join (default ', ') over the wrapped parts.
  *
  * @invariant (CONTEXT.md I12) Link-wrappability is a property of the VALUE,
  * not of the source kind. Each collected value carries `link` — the {kind,id}
  * pair bws_resolve_link_url consumes (post|term|user|site) — or null. "No link
  * identity" is null, NEVER a sentinel id; kinds with no link identity
- * (meta_row, the #19 query_context kind since 1.19.0) are normal, not
+ * (meta_row, query_context) are normal, not
  * exceptional — they collect fine and simply cannot be link-wrapped.
  *
  * A LIST LINKS PER ITEM: each value is wrapped against its own identity and
@@ -1454,7 +1413,7 @@ function bws_collect_value_list( array $items, callable $render, array $options 
 		);
 	}
 
-	// PER-ITEM link wrap (FW-85), between capture and join: each value is wrapped
+	// PER-ITEM link wrap, between capture and join: each value is wrapped
 	// against its OWN identity, so the separator joins already-wrapped strings and
 	// can never land inside an anchor. A value with no identity — a repeater row, a
 	// query-context read — stays plain, and so does one whose URL field is empty:
@@ -1491,8 +1450,7 @@ function bws_collect_value_list( array $items, callable $render, array $options 
  * they render.
  *
  * @invariant SELECTION IS FIELD-INDEPENDENT BY DEFAULT — this PHPDoc is the AXIS
- * OWNER for that rule (CLAUDE.md §Documentation ownership; the 2026-08-21
- * determinism reversal, ADR 0007 §Why the read-based axis was reversed). With no
+ * OWNER for that rule (CLAUDE.md §Documentation ownership; ADR 0007). With no
  * $populated predicate, the bound counts SOURCES READ: the first $n sources are read
  * (0 or less = all), each source consumes its slot whatever its read returns, and
  * only EMPTY VALUES ('' / false / null) are dropped from the RETURN — never from
@@ -1506,19 +1464,18 @@ function bws_collect_value_list( array $items, callable $render, array $options 
  * When supplied, the walk becomes collect-then-slice: a source whose reads all
  * fail the predicate is skipped WITHOUT consuming a slot, and the walk stops as
  * soon as $n surviving values exist (the reader is not called again). That is the
- * pre-reversal "search past empty fields" behaviour, preserved for a possible
- * tag-level OPT-IN — bws_value_is_populated() is the predicate it would
- * wire. It must never become a default: the instability it reintroduces is the
- * defect the reversal removed.
+ * "search past empty fields" behaviour, kept for a possible tag-level OPT-IN —
+ * bws_value_is_populated() is the predicate it would wire. It must never become a
+ * default: the field-dependent selection it brings back is what the default axis
+ * above exists to rule out.
  *
  * PURE, and provenance-blind BY CONTRACT. Reader and predicate are injected and
  * no WP symbol is named, which is what lets tools/test/read-bounded-sources-test.php
- * require this real file rather than copy the rule. Extracted FROM the try_ emit
- * loop; the collapsing base tags (content/permalink/image, takes_first_usable)
- * consume it at $n = 1 and try_ consumes it with the slot's own bound.
+ * require this real file rather than copy the rule. The collapsing base tags
+ * (content/permalink/image, takes_first_usable) consume it at $n = 1 and try_
+ * consumes it with the slot's own bound.
  *
- * @since 1.18.0
- * @since 1.18.0 $populated — the dormant opt-in predicate (default null = none).
+ * @since 1.18.0 The optional $populated predicate (default null = none) is the dormant opt-in.
  * @param array         $sources Candidates in document order (resolved sources,
  *                               entity ids — whatever $read consumes; opaque here).
  * @param callable      $read    fn( $source ): string|array — one candidate's read.
@@ -1547,7 +1504,7 @@ function bws_read_bounded_sources( array $sources, callable $read, int $n, ?call
 		return $out;
 	}
 	// Dormant opt-in path: collect-then-slice, skipping sources whose reads fail
-	// the predicate — the pre-reversal search behaviour (FW-88).
+	// the predicate — the "search past empty fields" behaviour (FW-88).
 	foreach ( $sources as $source ) {
 		if ( $n > 0 && count( $out ) >= $n ) {
 			break; // Enough surviving values — the reader is not called again.
@@ -1574,8 +1531,7 @@ function bws_read_bounded_sources( array $sources, callable $read, int $n, ?call
  * nothing shipped passes it, and it must never become the default.
  *
  * The dormant ROLE is what tools/test/read-bounded-sources-test.php pins, so the
- * behaviour cannot rot while unwired; the test is the donor emit loop's
- * normalizer test, verbatim.
+ * behaviour cannot rot while unwired.
  *
  * @since 1.18.0
  * @param mixed $value One value from a source's read.
@@ -1632,7 +1588,7 @@ function bws_meta_handler_read( int $object_id, string $key, bool $single_only, 
  * INVARIANT: tags that read ACF field-config metadata in loop contexts MUST
  * use this resolver rather than passing a bare false/0 to get_field_object();
  * doing so causes datetime return_format misses on TYPE_OPTION and
- * TYPE_POST_META repeater rows (issue #22, bugfix v1.7.2).
+ * TYPE_POST_META repeater rows.
  *
  * @since 1.7.2
  * @param mixed     $instance Block instance (WP_Block) — used for queryType/postId context.
