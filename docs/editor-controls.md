@@ -79,6 +79,12 @@ it for the whole of 1.17.0 development with nothing to disagree with it
 ([#95](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/95)). Hence the
 strikethrough in the catalog rather than a quiet deletion, and hence the table below.
 
+### First-step menu order and the entity picker
+
+**The first step's menu is grouped, not a flat list.** Top to bottom: the lead entries (`same` in a slot 2+, Current Context), the step types under a native "From Current Context" `<optgroup>`, the plugin's own roots (Specific Post, Specific Term), Site, then roots other plugins register under a native "Integrations" `<optgroup>`. `rootMenu()` in `slot-fold-control.js` decides the order and the grouping; `bws_registered_root_rows()` supplies the `integration` flag that sends a row to the last group.
+
+**The Specific Post / Specific Term selector is a capped browse list.** Each group (a taxonomy for a term, a post type for a post) lists at most 20 entries in the All view and 100 once a group is chosen, and a caution above the combobox says when entries are cut short; the Post Type / Taxonomy filter and search are how an author reaches the rest. The filter's options arrive inlined as `window.bwsEntityGroups`, so the control renders on mount without a REST call. A missing global falls back to the `groups` the browse response carries, while a present but empty one is trusted. The caps and the request contract live in `includes/rest/entity-lookup.php`, the control in `assets/js/entity-picker-control.js`.
+
 ### Chain step controls
 
 **These rows are POSITIONS INSIDE THE CHAIN VALUE, not option keys.** Every one of them edits part
