@@ -4,21 +4,9 @@
 
 `src:site` lets tags read `wp_options` (site option key-mode, site `linkTo:key`, and ACF options-page date fields via `get_field(…, 'option')`). We gate every such read through `apply_filters( 'generateblocks_dynamic_tags_allowed_options', $seed )` before fetching, where `$seed` **mirrors GB Pro's `get_option` callback exactly**. A key renders only if its root segment is in the seed or added by the filter.
 
-## The seed (matches GB Pro `class-register.php:268-291`)
+## The seed (matches GB Pro's `get_option` callback)
 
-```php
-$seed = [ 'siteurl', 'blogname', 'blogdescription', 'home', 'time_format', 'user_count' ];
-
-// Every registered ACF options-page field — registration IS the opt-in.
-if ( class_exists( 'GenerateBlocks_Pro_Dynamic_Tags_ACF' ) ) {
-    $seed = array_merge(
-        $seed,
-        array_keys( GenerateBlocks_Pro_Dynamic_Tags_ACF::get_instance()->get_acf_option_fields() )
-    );
-}
-
-$allowed = apply_filters( 'generateblocks_dynamic_tags_allowed_options', $seed );
-```
+The seed is six common WP options (`siteurl`, `blogname`, `blogdescription`, `home`, `time_format`, `user_count`), plus, when `GenerateBlocks_Pro_Dynamic_Tags_ACF` is loaded, every key of its `get_acf_option_fields()`: registering an ACF options-page field IS the opt-in. The seed then passes through `apply_filters( 'generateblocks_dynamic_tags_allowed_options', $seed )`, and the filtered list is the allowlist.
 
 So out of the box: the six common WP options **and every ACF options-page field** read without any manual filter. Arbitrary *non-ACF, non-default* wp_options keys still require an explicit `add_filter`.
 
@@ -31,7 +19,7 @@ So out of the box: the six common WP options **and every ACF options-page field*
 
 ## The trap this records (most important)
 
-`GenerateBlocks_Meta_Handler::get_option()` does **not** enforce the allowlist — it only applies a *blocklist* (`DISALLOWED_KEYS`: passwords, activation keys). The `generateblocks_dynamic_tags_allowed_options` filter lives in GB Pro's `get_option` *callback* (`class-register.php:268-296`), upstream of the handler call. **Calling the handler directly skips the allowlist entirely.** Therefore the gate is OUR resolver's responsibility, applied before the handler/`get_field` call — never delegated to the handler. A maintainer who "simplifies" by relying on the handler to gate would silently open every non-blocklisted option.
+`GenerateBlocks_Meta_Handler::get_option()` does **not** enforce the allowlist — it only applies a *blocklist* (`DISALLOWED_KEYS`: passwords, activation keys). The `generateblocks_dynamic_tags_allowed_options` filter lives in GB Pro's `get_option` *callback*, upstream of the handler call. **Calling the handler directly skips the allowlist entirely.** Therefore the gate is OUR resolver's responsibility, applied before the handler/`get_field` call — never delegated to the handler. A maintainer who "simplifies" by relying on the handler to gate would silently open every non-blocklisted option.
 
 ## Consequences
 
