@@ -1164,7 +1164,7 @@ Blocked by: —  •  Interacts with: FW-53 (a working sentinel plus a table loo
 
 Facts about third-party plugins, cross-project practices and the date-and-time rules are each written or re-measured separately in several projects (the date-only convention alone differs three ways), and the paid-plugin detail already sits in public repos. One private repo would state each once: `plugins/`, `practices/`, copy-in `templates/`, and the datetime `semantics/` with test `vectors/` each consumer's pure harness loads. No runtime code until a second consumer ships.
 
-Detail home: `.scratch/plans/shared-reference.md`
+Detail home: `.scratch/plans/shared-reference.md` in the shared reference repo (`d:\Dev\Shared\reference\`), moved there 2026-10-02
 
 Progress: Scope widened and shape settled in a grill (user, 2026-10-02): one private repo at `d:\Dev\Shared\reference\`, tasks T1 to T10 in the detail home. The repo now exists with its skeleton (README, light CLAUDE.md, its own `docs/future-work.md` carrying the T8 to T10 and core-structures rows, `docs/agents/`); its guards and CI self-test (T4's second half) are not in yet. Each remaining task is its own session; the first tranche is T1 to T7.
 
