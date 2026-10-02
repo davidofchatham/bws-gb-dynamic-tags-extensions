@@ -31,7 +31,7 @@
  * the anchors that come with them (linking is per item, FW-85). Writing the default
  * it is leaving behind keeps conversion a pure respelling, and writing it into the
  * step's own field makes the change evidence rather than a surprise — a `1` next to
- * `In Taxonomy Term: Department` says which quantity it bounds, where a tag-level
+ * `Terms in Taxonomy: Department` says which quantity it bounds, where a tag-level
  * number does not.
  *
  * One stored shape across every path. The scanner, the mount migrator and this

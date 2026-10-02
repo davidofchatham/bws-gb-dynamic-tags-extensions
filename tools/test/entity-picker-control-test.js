@@ -420,6 +420,15 @@ async function main() {
 	);
 	const filterSel = walk( cutShort ).filter( function ( n ) { return n.props && 'taxfilter' === n.props.key; } )[ 0 ];
 	check( 'a term picker\'s group filter is labeled Taxonomy', filterSel && filterSel.props.label, 'Taxonomy' );
+	// A group change drops the old group's caution at once, before the new response lands.
+	filterSel.props.onChange( KINDS[ 0 ].groups[ 0 ].scope );
+	hooks.idx = 0;
+	hooks.effects = [];
+	check(
+		'changing the group clears the caution until the new response arrives',
+		findAll( EntityPickerControl( { kind: 'term', value: '', label: 'Term', onChange: function () {} } ), 'p' ).some( function ( n ) { return 'truncated' === n.props.key; } ),
+		false
+	);
 	responses[ 'kind=term&mode=browse' ] = { rows: KINDS[ 0 ].rows, groups: KINDS[ 0 ].groups, truncated: false };
 	const whole = await render( EntityPickerControl, { kind: 'term', value: '', label: 'Term', onChange: function () {} } );
 	check( 'a complete response shows no hint', findAll( whole, 'p' ).some( function ( n ) { return 'truncated' === n.props.key; } ), false );

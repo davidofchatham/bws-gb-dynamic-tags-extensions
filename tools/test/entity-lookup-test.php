@@ -645,6 +645,7 @@ check(
 	$q['fields']
 );
 check( 'the narrowed rows are kept out of the post cache (partial rows must not poison get_post)', false, $q['args']['cache_results'] );
+check( 'post search matches the title only, never body or excerpt', array( 'post_title' ), $q['args']['search_columns'] );
 check( 'the narrowing filter is removed once the query ran', array(), $GLOBALS['bws_test_filters']['posts_fields'] );
 check(
 	'the term group list is every readable taxonomy, whatever the rows hold',

@@ -214,8 +214,8 @@
 					options: [ { value: '', label: __( 'All', 'generateblocks' ) } ].concat(
 						groups.map( function ( g ) { return { value: g.scope, label: g.label }; } )
 					),
-					// The old group's rows would be the wrong list while the new one loads.
-					onChange: function ( g ) { setRows( [] ); setTaxFilter( g ); },
+					// The old group's rows and caution would be the wrong list while the new one loads.
+					onChange: function ( g ) { setRows( [] ); setTruncated( false ); setTaxFilter( g ); },
 					__nextHasNoMarginBottom: true,
 				} )
 				: null,

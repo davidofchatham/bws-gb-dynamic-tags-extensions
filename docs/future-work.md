@@ -748,6 +748,18 @@ Open: Measure it: reseed against each plugin state, or read the taxonomy's terms
 
 Blocked by: —  •  Interacts with: FW-97 (fixture reorganization; any row move shares its re-capture rule)
 
+#### FW-147 — The entity picker's browse cap, caution, loading state and title-only search have no matrix rows
+
+The specific-post / specific-term picker caps each group's browse list (20 in the All view, 100 once a group is chosen), says so in a caution above the combobox, reads "Loading…" until the first rows land, labels its filter Post Type / Taxonomy, and searches post titles only. The pure harnesses pin each piece; no `*-test-matrix.md` row or visible fixture page shows any of it, and the cap needs a fixture group holding more than 20 entries that the seed may not have.
+
+Detail home: CHANGELOG 1.21.0 (the Changed and Fixed entries for the picker); commits `982e7d0` and `fd130b9`
+
+Progress: Gap noted 2026-10-02 in a code review of those two commits. The behaviors are pinned by `entity-lookup-test.php` and `entity-picker-control-test.js`; nothing is pinned at the rendered-page level.
+
+Open: Whether the fixture needs an oversized group, then the rows in `field-selector-test-matrix.md`, generated as visible GB blocks with the reseed and snapshot re-capture the matrix rules require. Separately, whether the caution should state the cap itself ("showing the first 20"), which means the REST response carrying the limit it applied.
+
+Blocked by: —  •  Interacts with: FW-97 (fixture reorganization; a new fixture page shares its re-capture rule), FW-145 (fixture rows with unmeasured causes)
+
 ### Docs & vocabulary
 
 Repairs to the documentation corpus itself: prose that has outgrown its reader, pointers that no longer resolve, and vocabulary the docs use inconsistently. Split out of §Testing & infrastructure 2026-08-28 — those items had nothing in common with a fixture site beyond "not a feature and not a bug".

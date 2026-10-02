@@ -414,7 +414,7 @@ function bws_entity_lookup_rest_response( $request ) {
 	// list is cut short instead of looking complete.
 	$truncated = false;
 	$rows      = $fns['browse'] ? call_user_func_array( $fns['browse'], array( $q, $group, &$truncated ) ) : array();
-	$groups = $fns['groups'] ? call_user_func( $fns['groups'] ) : array();
+	$groups    = $fns['groups'] ? call_user_func( $fns['groups'] ) : array();
 
 	return rest_ensure_response(
 		array(
@@ -572,9 +572,10 @@ function bws_entity_lookup_term_row( $term, string $group ): array {
  * (FW-39 ticket 03).
  *
  * NO MINIMUM-CHARACTER GATE (D17), same as the term browse. Matching is WP's own `s`
- * search parameter — title and content — which is the same "widest match that still
- * narrows" posture the term browse takes with a plain substring, adapted to what
- * WP_Query already does well rather than a hand-rolled title-only filter.
+ * search parameter narrowed to the title by `search_columns`, which is the same "widest
+ * match that still narrows" posture the term browse takes with a plain substring,
+ * adapted to what WP_Query already does well. The picker shows only titles, so a body
+ * match would list a post with no visible reason.
  *
  * THE STATUS SET IS DERIVED PER POST TYPE, ONCE (D18) — bws_entity_lookup_post_type_statuses()
  * — and handed to the query as its `post_status` argument, so nothing here inspects an
