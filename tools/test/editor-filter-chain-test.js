@@ -700,8 +700,8 @@ const LIMIT_LABEL = 'Limit Terms Read';
 function stepsConf( extra ) {
 	return repeaterX.foldConfig( { fold: Object.assign( {
 		steps: {
-			refs:  { label: 'In Reference/Relational Field', arg: 'field', produces: 'post' },
-			terms: { label: 'In Taxonomy Term', limitLabel: LIMIT_LABEL, arg: 'slug', produces: 'term' }
+			refs:  { label: 'Posts in Reference/Relational Field', arg: 'field', produces: 'post' },
+			terms: { label: 'Terms in Taxonomy', limitLabel: LIMIT_LABEL, arg: 'slug', produces: 'term' }
 		},
 		roots: { site: 'site' },
 		retiredSrc: [],

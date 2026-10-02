@@ -44,6 +44,39 @@
 	var SelectControl   = wp.components.SelectControl;
 	var __ = ( wp.i18n && wp.i18n.__ ) ? wp.i18n.__ : function ( s ) { return s; };
 
+	// WordPress's warning-notice colors on the field configuration note's panel shape.
+	var CAUTION_PANEL = {
+		fontSize: '11px',
+		lineHeight: 1.5,
+		margin: '8px 0',
+		padding: '8px 10px',
+		background: '#fcf9e8',
+		borderLeft: '3px solid #dba617',
+		color: '#1e1e1e',
+	};
+
+	/**
+	 * The cut-short-list caution, in the kind's own nouns. Offers the group filter only
+	 * when it is shown.
+	 *
+	 * @param {string}  kind      Resolved-source kind.
+	 * @param {boolean} hasFilter Whether the group filter is rendered.
+	 * @return {string}
+	 */
+	function truncatedNote( kind, hasFilter ) {
+		if ( 'post' === kind ) {
+			return hasFilter
+				? __( 'Not every post is listed. Search by title, or choose a post type to narrow the list.', 'generateblocks' )
+				: __( 'Not every post is listed. Search by title to narrow the list.', 'generateblocks' );
+		}
+		if ( 'term' === kind ) {
+			return hasFilter
+				? __( 'Not every term is listed. Search, or choose a taxonomy to narrow the list.', 'generateblocks' )
+				: __( 'Not every term is listed. Search to narrow the list.', 'generateblocks' );
+		}
+		return __( 'Not every entry is listed. Search to narrow the list.', 'generateblocks' );
+	}
+
 	/**
 	 * The route path for one request — browse/search or resolve-by-id (D14's two modes).
 	 *
@@ -173,7 +206,10 @@
 			groups.length > 1
 				? el( SelectControl, {
 					key:    'taxfilter',
-					label:  __( 'Filter', 'generateblocks' ),
+					// Groups are post types for a post, taxonomies for a term (the REST `scope`).
+					label:  'post' === kind ? __( 'Post Type', 'generateblocks' )
+						: 'term' === kind ? __( 'Taxonomy', 'generateblocks' )
+						: __( 'Filter', 'generateblocks' ),
 					value:  taxFilter,
 					options: [ { value: '', label: __( 'All', 'generateblocks' ) } ].concat(
 						groups.map( function ( g ) { return { value: g.scope, label: g.label }; } )
@@ -185,12 +221,13 @@
 				: null,
 			// The server caps each group's rows; say so rather than let a cut-short list read
 			// as the whole set. ABOVE the combobox, not below: the open list covers whatever
-			// sits under the input.
+			// sits under the input. A caution panel, the field configuration note's shape in
+			// the warning hue, so it does not read as the filter's help text.
 			truncated
 				? el( 'p', {
 					key: 'truncated',
-					style: { fontSize: '11px', opacity: 0.75, margin: '0 0 4px' },
-				}, __( 'Some entries are not shown. Search or choose a filter to narrow the list.', 'generateblocks' ) )
+					style: CAUTION_PANEL,
+				}, truncatedNote( kind, groups.length > 1 ) )
 				: null,
 			el( ComboboxControl, {
 				key:         'combo',

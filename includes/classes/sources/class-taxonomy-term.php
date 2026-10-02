@@ -23,7 +23,7 @@ class TaxonomyTerm extends AbstractSource {
 	}
 
 	public function get_source_label(): string {
-		return __( 'Term', 'generateblocks' );
+		return __( 'Specific Term', 'generateblocks' );
 	}
 
 	public function get_tag_prefix(): string {

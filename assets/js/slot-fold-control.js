@@ -200,6 +200,71 @@
 	}
 
 	/**
+	 * The first step's menu ORDER: the ambient lead (`same`, the default root), the steps
+	 * that start from it grouped as "From Current Context", then our own roots, `site`,
+	 * and last any integration roots grouped as "Integrations".
+	 *
+	 * A grouped row carries its group's label as `group`; optionNodes() turns runs of
+	 * them into native <optgroup>s. A value already offered keeps its first row, so a
+	 * slot's `refs` (a root row there, respelled from flat `ref`) and the `refs` step
+	 * show once.
+	 *
+	 * @param {Array}  roots       The surface's root rows (`integration` flags another plugin's).
+	 * @param {Array}  steps       The step rows offered at position 0.
+	 * @param {string} defaultRoot The root an absent source means.
+	 * @return {Array} Rows, ordered and de-duplicated.
+	 */
+	function rootMenu( roots, steps, defaultRoot ) {
+		function isLead( r ) {
+			return 'same' === r.value || ( !! defaultRoot && defaultRoot === r.value );
+		}
+		function inGroup( label ) {
+			return function ( r ) { return Object.assign( {}, r, { group: label } ); };
+		}
+		var seen = {};
+		return roots.filter( isLead )
+			.concat( steps.map( inGroup( __( 'From Current Context', 'generateblocks' ) ) ) )
+			.concat( roots.filter( function ( r ) { return ! isLead( r ) && ! r.integration && 'site' !== r.value; } ) )
+			.concat( roots.filter( function ( r ) { return 'site' === r.value; } ) )
+			.concat( roots.filter( function ( r ) { return r.integration; } ).map( inGroup( __( 'Integrations', 'generateblocks' ) ) ) )
+			.filter( function ( r ) {
+				if ( seen[ r.value ] ) {
+					return false;
+				}
+				seen[ r.value ] = true;
+				return true;
+			} );
+	}
+
+	/**
+	 * A SelectControl's children for rows that carry a `group`: each run of one group
+	 * becomes a native <optgroup> (its heading is not selectable), the rest plain options.
+	 *
+	 * @param {Array} rows `{ value, label, group? }` rows.
+	 * @return {Array} Elements.
+	 */
+	function optionNodes( rows ) {
+		var out = [];
+		var run = null;
+		rows.forEach( function ( r ) {
+			var opt = el( 'option', { key: r.value, value: r.value }, r.label );
+			if ( ! r.group ) {
+				run = null;
+				out.push( opt );
+				return;
+			}
+			if ( ! run || run.label !== r.group ) {
+				run = { label: r.group, kids: [] };
+				out.push( run );
+			}
+			run.kids.push( opt );
+		} );
+		return out.map( function ( n ) {
+			return n.kids ? el( 'optgroup', { key: 'g:' + n.label, label: n.label }, n.kids ) : n;
+		} );
+	}
+
+	/**
 	 * The ROOT ARGUMENT declaration for one root slug, or null (FW-39, D5/D6).
 	 *
 	 * Read off the SAME `srcRows`/`srcRowsWithSame` rows the root's own SelectControl
@@ -795,7 +860,7 @@
 				rows = offerableSteps( idx, held );
 			} else {
 				var roots = props.sameOnEmpty ? conf.srcRowsWithSame : conf.srcRows;
-				rows = roots.concat( offerableSteps( 0, held ) );
+				rows = rootMenu( roots, offerableSteps( 0, held ), conf.defaultRoot );
 			}
 			if ( held && ! rows.some( function ( r ) { return r.value === held; } ) ) {
 				var def = stepDef( conf, held );
@@ -838,6 +903,8 @@
 				] ) );
 			}
 
+			var menu = rowsAt( i );
+			var grouped = menu.some( function ( r ) { return r.group; } );
 			stepKids.push( el( SelectControl, {
 				key: 'src',
 				// The label is ALWAYS present (an unlabelled control is unusable to a
@@ -846,7 +913,10 @@
 				label: __( 'Source', 'generateblocks' ),
 				hideLabelFromVision: chain.length <= 1,
 				value: stepObj.slug,
-				options: rowsAt( i ),
+				// Grouped rows render as <optgroup> children, which SelectControl takes in
+				// place of `options`.
+				options: grouped ? undefined : menu,
+				children: grouped ? optionNodes( menu ) : undefined,
 				onChange: function ( v ) {
 					if ( ! v ) {
 						writeChainAt( i, null );

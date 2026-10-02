@@ -24,7 +24,7 @@ class CurrentPost extends AbstractSource {
 	}
 
 	public function get_source_label(): string {
-		return __( 'Post', 'generateblocks' );
+		return __( 'Specific Post', 'generateblocks' );
 	}
 
 	public function get_tag_prefix(): string {

@@ -388,9 +388,9 @@ const HOPS = rep.foldConfig( {
 	fold: {
 		container: 'join', combining: true, min: 2, max: 10,
 		steps: {
-			refs: { label: 'In Reference/Relational Field', arg: 'field' },
-			terms: { label: 'In Taxonomy Term', arg: 'slug' },
-			rows: { label: 'In Repeater Rows', arg: 'field' }
+			refs: { label: 'Posts in Reference/Relational Field', arg: 'field' },
+			terms: { label: 'Terms in Taxonomy', arg: 'slug' },
+			rows: { label: 'Rows in Repeater Field', arg: 'field' }
 		}
 	}
 } );
@@ -441,7 +441,7 @@ const CHAIN_FOLD = {
 	// stored step's slug, so no translation stands between the row and the wire.
 	srcRows: [
 		{ value: 'current', label: 'Current' },
-		{ value: 'refs', label: 'In Reference/Relational Field' }
+		{ value: 'refs', label: 'Posts in Reference/Relational Field' }
 	],
 	srcRowsWithSame: [
 		{ value: 'same', label: 'Same as Previous Source' },
@@ -454,9 +454,9 @@ const CHAIN_FOLD = {
 	// owns which roots have one; this fixture declares only `site`, and PIN_CONF below
 	// declares the two pinning roots).
 	steps: {
-		refs: { label: 'In Reference/Relational Field', arg: 'field', accepts: [ 'post', 'term', 'user', 'meta_row', 'site' ], produces: 'post' },
-		terms: { label: 'In Taxonomy Term', arg: 'slug', accepts: [ 'post' ], produces: 'term' },
-		rows: { label: 'In Repeater Rows', arg: 'field', accepts: [ 'post', 'term', 'user', 'meta_row', 'site' ], produces: 'meta_row' }
+		refs: { label: 'Posts in Reference/Relational Field', arg: 'field', accepts: [ 'post', 'term', 'user', 'meta_row', 'site' ], produces: 'post' },
+		terms: { label: 'Terms in Taxonomy', arg: 'slug', accepts: [ 'post' ], produces: 'term' },
+		rows: { label: 'Rows in Repeater Field', arg: 'field', accepts: [ 'post', 'term', 'user', 'meta_row', 'site' ], produces: 'meta_row' }
 	},
 	offer: [ 'terms', 'refs', 'rows' ],
 	roots: { site: 'site' },
@@ -476,6 +476,26 @@ const CHAIN_FOLD = {
 	}
 };
 const CHAIN_CONF = rep.foldConfig( { fold: CHAIN_FOLD } );
+
+/**
+ * A picker's rows, whichever way it was handed them: `options`, or <optgroup>/<option>
+ * children (each row then carries its optgroup's label as `group`).
+ */
+function rowsOf( props ) {
+	if ( ! props.children ) {
+		return props.options || [];
+	}
+	const out = [];
+	( function walk( n, group ) {
+		if ( ! n ) { return; }
+		if ( Array.isArray( n ) ) { n.forEach( function ( c ) { walk( c, group ); } ); return; }
+		if ( 'optgroup' === n.type ) { walk( n.children, n.props.label ); return; }
+		if ( 'option' === n.type ) {
+			out.push( Object.assign( { value: n.props.value, label: n.children[ 0 ] }, group ? { group: group } : {} ) );
+		}
+	}( props.children, null ) );
+	return out;
+}
 
 /**
  * The STEP pickers in a rendered tree, in order.
@@ -578,12 +598,12 @@ const unknownPicker = selectsIn( unknownStored )[ 0 ];
 check( 'a stored unknown slug paints its own value', unknownPicker.value, 'sideways' );
 check(
 	'...its own row is in its own list',
-	( unknownPicker.options || [] ).some( function ( r ) { return 'sideways' === r.value; } ),
+	rowsOf( unknownPicker ).some( function ( r ) { return 'sideways' === r.value; } ),
 	true
 );
 check(
 	'...and every offered step is still offered',
-	( unknownPicker.options || [] ).some( function ( r ) { return 'terms' === r.value; } ),
+	rowsOf( unknownPicker ).some( function ( r ) { return 'terms' === r.value; } ),
 	true
 );
 
@@ -595,7 +615,7 @@ check(
 /** Option values of the LAST picker in a rendered chain (the one a step would follow). */
 function lastPickerValues( nodes ) {
 	const sels = selectsIn( nodes );
-	return ( sels[ sels.length - 1 ].options || [] ).map( function ( r ) { return r.value; } );
+	return rowsOf( sels[ sels.length - 1 ] ).map( function ( r ) { return r.value; } );
 }
 
 const afterSite = renderChain( [ { slug: 'site', arg: null, limit: null }, { slug: 'refs', arg: 'partner', limit: null } ], false );
@@ -672,9 +692,9 @@ const TERMS_ONLY = rep.foldConfig( { fold: Object.assign( {}, {
 	srcRows: [ { value: 'current', label: 'Current' }, { value: 'site', label: 'Site' } ],
 	srcRowsWithSame: [],
 	steps: {
-		refs: { label: 'In Reference/Relational Field', arg: 'field', produces: 'post' },
-		terms: { label: 'In Taxonomy Term', arg: 'slug', accepts: [ 'post' ], produces: 'term' },
-		rows: { label: 'In Repeater Rows', arg: 'field', produces: 'meta_row' }
+		refs: { label: 'Posts in Reference/Relational Field', arg: 'field', produces: 'post' },
+		terms: { label: 'Terms in Taxonomy', arg: 'slug', accepts: [ 'post' ], produces: 'term' },
+		rows: { label: 'Rows in Repeater Field', arg: 'field', produces: 'meta_row' }
 	},
 	offer: [ 'terms' ],
 	roots: { site: 'site' },
@@ -1048,7 +1068,7 @@ const PIN_CONF = rep.foldConfig( { fold: Object.assign( {}, CHAIN_FOLD, {
 	roots: { site: 'site', term: 'term', post: 'post' },
 	srcRows: [
 		{ value: 'current', label: 'Current' },
-		{ value: 'refs', label: 'In Reference/Relational Field' },
+		{ value: 'refs', label: 'Posts in Reference/Relational Field' },
 		{ value: 'term', label: 'Term', arg: { label: 'Term', control: 'bws-entity-picker', argless: 'refuse', kind: 'term' } },
 		{ value: 'post', label: 'Post', arg: { label: 'Post', control: 'bws-entity-picker', argless: 'refuse', kind: 'post' } }
 	],
@@ -1154,6 +1174,43 @@ check( 'an ordinary (non-pinning) root mounts no entity-picker control', !! pick
 // slot 1 does.
 const pinSlot2 = renderPinChain( [ { slug: 'term', arg: '5', limit: null } ], ENTITY_PICKER_STUB, true );
 check( 'slot ≥2 offers the same pinned-root control (D11 — base and slot ship together)', !! pickerIn( pinSlot2, ENTITY_PICKER_STUB ), true );
+
+// FIRST-STEP MENU ORDER: ambient lead, its steps in a native "From Current Context"
+// optgroup, our own roots, `site`, then integration roots in an "Integrations" optgroup —
+// and a slot's `refs` root row folds into the `refs` step row rather than showing twice.
+const ORDER_CONF = rep.foldConfig( { fold: Object.assign( {}, CHAIN_FOLD, {
+	defaultRoot: 'current',
+	srcRows: [
+		{ value: 'current', label: 'Current' },
+		{ value: 'refs', label: 'Posts in Reference/Relational Field' },
+		{ value: 'site', label: 'Site' },
+		{ value: 'post', label: 'Specific Post' },
+		{ value: 'term', label: 'Specific Term' },
+		{ value: 'ext', label: 'External Root', integration: true }
+	],
+	srcRowsWithSame: [ { value: 'same', label: 'Same Previous Source' }, { value: 'current', label: 'Current' }, { value: 'site', label: 'Site' } ]
+} ) } );
+function firstMenuRows( sameOnEmpty ) {
+	const sels = selectsIn( rep.chainSteps( {
+		conf: ORDER_CONF,
+		chain: [ { slug: sameOnEmpty ? 'same' : 'current', arg: null, limit: null } ],
+		onChange: function () {},
+		sameOnEmpty: sameOnEmpty,
+		slotNoun: 'attempt',
+		stepContext: function () { return { state: {}, setState: function () {} }; }
+	} ) );
+	return rowsOf( sels[ 0 ] );
+}
+function firstMenu( sameOnEmpty ) {
+	return firstMenuRows( sameOnEmpty ).map( function ( r ) { return r.value; } );
+}
+const ORDER_ROWS = firstMenuRows( false );
+const groupOf = function ( v ) { const r = ORDER_ROWS.find( function ( x ) { return v === x.value; } ); return r && r.group; };
+check( 'first-step menu: Current, steps, own roots, Site, integration roots', firstMenu( false ).join( ',' ), [ 'current' ].concat( ORDER_CONF.offer, [ 'post', 'term', 'site', 'ext' ] ).join( ',' ) );
+check( 'steps sit in the "From Current Context" optgroup', ORDER_CONF.offer.map( groupOf ).join( ',' ), ORDER_CONF.offer.map( function () { return 'From Current Context'; } ).join( ',' ) );
+check( 'integration roots sit in the "Integrations" optgroup', groupOf( 'ext' ), 'Integrations' );
+check( 'Current Context and our own roots are ungrouped, labels untouched', [ 'current', 'post', 'term', 'site' ].map( groupOf ).filter( Boolean ).length + ':' + ORDER_ROWS.find( function ( r ) { return 'post' === r.value; } ).label, '0:Specific Post' );
+check( 'slot ≥2 menu: `same` and Current lead, Site last, no Integrations group without integrations', firstMenu( true ).join( ',' ), [ 'same', 'current' ].concat( ORDER_CONF.offer, [ 'site' ] ).join( ',' ) );
 
 // ── STEPS OFF A PINNED ROOT (FW-39 ticket 04, D3) ────────────────────────────
 //

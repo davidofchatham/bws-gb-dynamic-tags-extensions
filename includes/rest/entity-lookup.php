@@ -638,6 +638,10 @@ function bws_entity_lookup_query_posts( $post_type, string $search, int $limit )
 			'post_type'              => $post_type->name,
 			'post_status'            => bws_entity_lookup_post_type_statuses( $post_type ),
 			's'                      => $search,
+			// Title only: the picker shows only titles, so a match on body or excerpt
+			// text would list a post with no visible reason, and a content LIKE is the
+			// costliest part of a query that runs as the author types.
+			'search_columns'         => array( 'post_title' ),
 			'orderby'                => 'title',
 			'order'                  => 'ASC',
 			'posts_per_page'         => $limit,

@@ -82,7 +82,7 @@ assert_same(
 	'slot1 src options = current,ref (site filtered, no same)',
 	array(
 		array( 'value' => 'current', 'label' => 'Current Context' ),
-		array( 'value' => 'ref',     'label' => 'In Reference/Relational Field' ),
+		array( 'value' => 'ref',     'label' => 'Posts in Reference/Relational Field' ),
 	),
 	$s1['src']['options']
 );
@@ -120,7 +120,7 @@ assert_same(
 	array(
 		array( 'value' => 'same',    'label' => 'Same as Previous Source' ),
 		array( 'value' => 'current', 'label' => 'Current Context' ),
-		array( 'value' => 'ref',     'label' => 'In Reference/Relational Field' ),
+		array( 'value' => 'ref',     'label' => 'Posts in Reference/Relational Field' ),
 	),
 	$s2['src']['options']
 );
@@ -156,7 +156,7 @@ assert_same(
 	'rooting-modifier src = current,ref (site filtered)',
 	array(
 		array( 'value' => 'current', 'label' => 'Current Context' ),
-		array( 'value' => 'ref',     'label' => 'In Reference/Relational Field' ),
+		array( 'value' => 'ref',     'label' => 'Posts in Reference/Relational Field' ),
 	),
 	$mod_src['src']['options']
 );
@@ -176,7 +176,7 @@ assert_same(
 	'pick current,ref → exactly those rows, base labels',
 	array(
 		array( 'value' => 'current', 'label' => 'Current Context' ),
-		array( 'value' => 'ref',     'label' => 'In Reference/Relational Field' ),
+		array( 'value' => 'ref',     'label' => 'Posts in Reference/Relational Field' ),
 	),
 	$picked['src']['options']
 );
@@ -406,7 +406,7 @@ assert_same( 'readLabel is the base read noun, not a container copy', 'Text Fiel
 // shipped as an ordered slug array — the builders' `steps` parameter as-is, not rows.
 // Labels live on the shared vocabulary record, declared once (#70).
 assert_same( 'offer carries only the requested steps, as wire slugs', array( 'terms' ), $fold['offer'] );
-assert_same( 'step label declared once on the vocabulary, step-shaped', 'In Taxonomy Term', $fold['steps']['terms']['label'] );
+assert_same( 'step label declared once on the vocabulary, step-shaped', 'Terms in Taxonomy', $fold['steps']['terms']['label'] );
 
 // Picker configs come off the base definitions (label/help/placeholder), so the
 // repeater's field pickers read exactly like the flat ones did.
@@ -863,8 +863,13 @@ assert_same(
 );
 assert_same(
 	'...labelled by the source\'s OWN accessor, so an integrator names their concept',
-	array( 'Test Root', 'Post', 'Term', 'Filter Root', 'Arg Filter Root', 'Arg Filter Half' ),
+	array( 'Test Root', 'Specific Post', 'Specific Term', 'Filter Root', 'Arg Filter Root', 'Arg Filter Half' ),
 	array_map( static function ( $row ) { return $row['label']; }, $appended )
+);
+assert_same(
+	'...and every root another plugin registered (class or filter route) is flagged `integration`, ours are not',
+	array( 'testroot', 'filterroot', 'argfilterroot', 'argfilterhalf' ),
+	$root_values( array_values( array_filter( $appended, static function ( $row ) { return ! empty( $row['integration'] ); } ) ) )
 );
 // The collision rule, stated as an outcome rather than as an absence: the key resolves to
 // the CLASS-route source, whose label is intact.

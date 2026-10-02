@@ -410,6 +410,16 @@ async function main() {
 		[ 'truncated', 'combo' ]
 	);
 	check( 'a truncated response shows the narrowing hint', findAll( cutShort, 'p' ).some( function ( n ) { return 'truncated' === n.props.key; } ), true );
+	const hint = findAll( cutShort, 'p' ).filter( function ( n ) { return 'truncated' === n.props.key; } )[ 0 ];
+	check(
+		'the hint names the kind, and the filter by its own noun when the filter shows',
+		hint && hint.children.join( '' ),
+		KINDS[ 0 ].groups.length > 1
+			? 'Not every term is listed. Search, or choose a taxonomy to narrow the list.'
+			: 'Not every term is listed. Search to narrow the list.'
+	);
+	const filterSel = walk( cutShort ).filter( function ( n ) { return n.props && 'taxfilter' === n.props.key; } )[ 0 ];
+	check( 'a term picker\'s group filter is labeled Taxonomy', filterSel && filterSel.props.label, 'Taxonomy' );
 	responses[ 'kind=term&mode=browse' ] = { rows: KINDS[ 0 ].rows, groups: KINDS[ 0 ].groups, truncated: false };
 	const whole = await render( EntityPickerControl, { kind: 'term', value: '', label: 'Term', onChange: function () {} } );
 	check( 'a complete response shows no hint', findAll( whole, 'p' ).some( function ( n ) { return 'truncated' === n.props.key; } ), false );

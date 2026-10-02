@@ -239,16 +239,16 @@ const FOLD = {
 	noun: 'attempt',
 	srcRows: [
 		{ value: 'current', label: 'Current' },
-		{ value: 'refs', label: 'In Reference/Relational Field' },
+		{ value: 'refs', label: 'Posts in Reference/Relational Field' },
 	],
 	srcRowsWithSame: [
 		{ value: 'same', label: 'Same as Previous Source' },
 		{ value: 'current', label: 'Current' },
 	],
 	steps: {
-		refs: { label: 'In Reference/Relational Field', arg: 'field', accepts: [ 'post', 'term', 'user', 'meta_row', 'site' ], produces: 'post' },
-		terms: { label: 'In Taxonomy Term', arg: 'slug', accepts: [ 'post' ], produces: 'term' },
-		rows: { label: 'In Repeater Rows', arg: 'field', accepts: [ 'post', 'term', 'user', 'meta_row', 'site' ], produces: 'meta_row' },
+		refs: { label: 'Posts in Reference/Relational Field', arg: 'field', accepts: [ 'post', 'term', 'user', 'meta_row', 'site' ], produces: 'post' },
+		terms: { label: 'Terms in Taxonomy', arg: 'slug', accepts: [ 'post' ], produces: 'term' },
+		rows: { label: 'Rows in Repeater Field', arg: 'field', accepts: [ 'post', 'term', 'user', 'meta_row', 'site' ], produces: 'meta_row' },
 	},
 	offer: [ 'terms', 'refs', 'rows' ],
 	roots: { site: 'site' },

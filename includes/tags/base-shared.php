@@ -43,7 +43,7 @@ function bws_base_source_option(): array {
 			'label'          => __( 'Source', 'generateblocks' ),
 			'options'        => array(
 				array( 'value' => 'current', 'label' => __( 'Current Context', 'generateblocks' ) ),
-				array( 'value' => 'ref',     'label' => __( 'In Reference/Relational Field', 'generateblocks' ) ),
+				array( 'value' => 'ref',     'label' => __( 'Posts in Reference/Relational Field', 'generateblocks' ) ),
 				array( 'value' => 'site',    'label' => __( 'Site', 'generateblocks' ) ),
 			),
 			'_strip_default' => true,
@@ -77,7 +77,8 @@ function bws_base_source_option(): array {
  *
  * @since 1.17.0
  * @since 1.20.0 Rows carry a declared root `arg` (FW-39).
- * @return array[] `{ value, label }` rows, plus `arg` where the root declares one, in
+ * @return array[] `{ value, label }` rows, plus `arg` where the root declares one and
+ *                 `integration` where another plugin registered it, in
  *                 registration order. Empty when the registry is absent (a harness
  *                 loading this file alone) or nothing has opted in.
  */
@@ -91,6 +92,12 @@ function bws_registered_root_rows(): array {
 			'value' => (string) $key,
 			'label' => $source->get_source_label(),
 		);
+		// Another plugin's root (class route or the filter route's CallbackRoot) is listed
+		// under the menu's Integrations heading, apart from our own.
+		if ( 0 !== strpos( get_class( $source ), 'BWS\\DynamicTags\\Sources\\' )
+			|| $source instanceof \BWS\DynamicTags\Sources\CallbackRoot ) {
+			$row['integration'] = true;
+		}
 		$arg = bws_root_argument_row( $source->get_root_argument() );
 		if ( array() !== $arg ) {
 			// The entity KIND the argument's control browses, DERIVED from the source's
@@ -228,9 +235,9 @@ function bws_fold_wire_vocabulary(): array {
 	// The limit label names what the step PRODUCES (ADR 0007), authored rather than
 	// derived from `produces`: kinds like `meta_row` are internals, not author nouns.
 	$labels = array(
-		'refs'  => array( __( 'In Reference/Relational Field', 'generateblocks' ), __( 'Limit Posts Read', 'generateblocks' ) ),
-		'terms' => array( __( 'In Taxonomy Term', 'generateblocks' ), __( 'Limit Terms Read', 'generateblocks' ) ),
-		'rows'  => array( __( 'In Repeater Rows', 'generateblocks' ), __( 'Limit Repeater Rows Read', 'generateblocks' ) ),
+		'refs'  => array( __( 'Posts in Reference/Relational Field', 'generateblocks' ), __( 'Limit Posts Read', 'generateblocks' ) ),
+		'terms' => array( __( 'Terms in Taxonomy', 'generateblocks' ), __( 'Limit Terms Read', 'generateblocks' ) ),
+		'rows'  => array( __( 'Rows in Repeater Field', 'generateblocks' ), __( 'Limit Repeater Rows Read', 'generateblocks' ) ),
 	);
 
 	$steps = array();
