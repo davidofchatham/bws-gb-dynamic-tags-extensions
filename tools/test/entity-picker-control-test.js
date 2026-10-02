@@ -146,7 +146,14 @@ global.wp = {
 		Object.keys( responses ).forEach( function ( needle ) {
 			if ( opts.path.indexOf( needle ) !== -1 ) { hit = responses[ needle ]; }
 		} );
-		return Promise.resolve( hit || { rows: [] } );
+		// The fixture server honors `group` the way the route does: it narrows the
+			// ROWS to one scope and leaves `groups` whole.
+			const m = /[?&]group=([^&]*)/.exec( opts.path );
+			if ( hit && m ) {
+				const scope = decodeURIComponent( m[ 1 ] );
+				hit = { rows: hit.rows.filter( function ( r ) { return scope === r.scope; } ), groups: hit.groups };
+			}
+			return Promise.resolve( hit || { rows: [] } );
 	},
 	i18n: {
 		__: function ( s ) { return s; },
@@ -228,24 +235,32 @@ const KINDS = [
 	{
 		kind: 'term',
 		rows: [
-			{ id: 5, label: '#5 News', group: 'Category' },
-			{ id: 3, label: '#3 Announcements', group: 'Category' },
-			{ id: 34, label: '#34 Support', group: 'Benefit Tier' },
+			{ id: 5, label: '#5 News', group: 'Category', scope: 'category' },
+			{ id: 3, label: '#3 Announcements', group: 'Category', scope: 'category' },
+			{ id: 34, label: '#34 Support', group: 'Benefit Tier', scope: 'benefit_tier' },
+		],
+		groups: [
+			{ scope: 'benefit_tier', label: 'Benefit Tier' },
+			{ scope: 'category', label: 'Category' },
 		],
 	},
 	{
 		kind: 'post',
 		rows: [
-			{ id: 5, label: '#5 Hello World', group: 'Post' },
-			{ id: 3, label: '#3 A Draft (draft)', group: 'Post' },
-			{ id: 34, label: '#34 Support', group: 'Landing Page' },
+			{ id: 5, label: '#5 Hello World', group: 'Post', scope: 'post' },
+			{ id: 3, label: '#3 A Draft (draft)', group: 'Post', scope: 'post' },
+			{ id: 34, label: '#34 Support', group: 'Landing Page', scope: 'page' },
+		],
+		groups: [
+			{ scope: 'page', label: 'Landing Page' },
+			{ scope: 'post', label: 'Post' },
 		],
 	},
 ];
 
 async function main() {
 	for ( const fixture of KINDS ) {
-		responses[ 'kind=' + fixture.kind + '&mode=browse' ] = { rows: fixture.rows };
+		responses[ 'kind=' + fixture.kind + '&mode=browse' ] = { rows: fixture.rows, groups: fixture.groups };
 
 		requestedPaths.length = 0;
 		const tree = await render( EntityPickerControl, {
@@ -285,15 +300,15 @@ async function main() {
 			selects( tree ).length,
 			1
 		);
-		const expectedGroups = Array.from( new Set( fixture.rows.map( function ( r ) { return r.group; } ) ) ).sort();
 		check(
-			`${fixture.kind}: …with an "All" row plus one per distinct group, alphabetical`,
+			`${fixture.kind}: …with an "All" row plus one per group the route lists`,
 			labels( selects( tree )[ 0 ].options ),
-			[ 'All' ].concat( expectedGroups )
+			[ 'All' ].concat( fixture.groups.map( function ( g ) { return g.label; } ) )
 		);
 
-		// D16: selecting the taxonomy filter narrows the SHOWN list without a second
-		// REST request — it is UI state, never sent as a `tax` param.
+		// D16: the filter is request-time UI state. It rides the browse request as
+		// `group` (the server caps each group's rows, so narrowing client-side would
+		// hide entities) and is never a `tax` param nor part of the stored value.
 		requestedPaths.length = 0;
 		const filterProps = {
 			kind: fixture.kind,
@@ -301,16 +316,26 @@ async function main() {
 			label: 'Term',
 			onChange: function () {},
 		};
-		const targetGroup = expectedGroups[ 0 ];
-		selects( tree )[ 0 ].onChange( targetGroup );
+		const targetGroup = fixture.groups[ 0 ];
+		selects( tree )[ 0 ].onChange( targetGroup.scope );
 		const filtered = await rerender( EntityPickerControl, filterProps );
 		check(
-			`${fixture.kind}: D16 — the taxonomy filter narrows client-side…`,
-			labels( combo( filtered ).options ),
-			fixture.rows.filter( function ( r ) { return targetGroup === r.group; } ).map( function ( r ) { return r.label; } )
+			`${fixture.kind}: D16 — choosing a group asks the route for that group…`,
+			requestedPaths.some( function ( p ) { return -1 !== p.indexOf( 'group=' + targetGroup.scope ); } ),
+			true
 		);
 		check(
-			`${fixture.kind}: …and is NEVER sent as a request parameter`,
+			`${fixture.kind}: …the list shows only that group's rows`,
+			labels( combo( filtered ).options ),
+			fixture.rows.filter( function ( r ) { return targetGroup.scope === r.scope; } ).map( function ( r ) { return r.label; } )
+		);
+		check(
+			`${fixture.kind}: …the selector still lists every group`,
+			labels( selects( filtered )[ 0 ].options ),
+			[ 'All' ].concat( fixture.groups.map( function ( g ) { return g.label; } ) )
+		);
+		check(
+			`${fixture.kind}: …and the filter is NEVER sent as a tax parameter`,
 			requestedPaths.every( function ( p ) { return -1 === p.indexOf( 'tax=' ); } ),
 			true
 		);
@@ -375,6 +400,48 @@ async function main() {
 		findAll( missing, 'p' ).some( function ( n ) { return 'resolved' === n.props.key; } ),
 		false
 	);
+
+	// TRUNCATION HINT: shown only when the route says the list was cut short.
+	responses[ 'kind=term&mode=browse' ] = { rows: KINDS[ 0 ].rows, groups: KINDS[ 0 ].groups, truncated: true };
+	const cutShort = await render( EntityPickerControl, { kind: 'term', value: '', label: 'Term', onChange: function () {} } );
+	check(
+		'the hint sits BEFORE the combobox, so the open list does not cover it',
+		walk( cutShort ).map( function ( n ) { return n.props && n.props.key; } ).filter( function ( k ) { return 'truncated' === k || 'combo' === k; } ),
+		[ 'truncated', 'combo' ]
+	);
+	check( 'a truncated response shows the narrowing hint', findAll( cutShort, 'p' ).some( function ( n ) { return 'truncated' === n.props.key; } ), true );
+	responses[ 'kind=term&mode=browse' ] = { rows: KINDS[ 0 ].rows, groups: KINDS[ 0 ].groups, truncated: false };
+	const whole = await render( EntityPickerControl, { kind: 'term', value: '', label: 'Term', onChange: function () {} } );
+	check( 'a complete response shows no hint', findAll( whole, 'p' ).some( function ( n ) { return 'truncated' === n.props.key; } ), false );
+
+	// INLINED GROUPS: the selector's options come from `window.bwsEntityGroups`, so it is
+	// there on the FIRST render, before any response. A present global is trusted even
+	// when it is empty for this kind — only an ABSENT one falls back to the response.
+	responses[ 'kind=term&mode=browse' ] = { rows: KINDS[ 0 ].rows, groups: KINDS[ 0 ].groups };
+	global.window.bwsEntityGroups = { term: [ { scope: 'a', label: 'Inlined A' }, { scope: 'b', label: 'Inlined B' } ] };
+	hooks.cells = [];
+	hooks.idx = 0;
+	hooks.effects = [];
+	const firstPaint = EntityPickerControl( { kind: 'term', value: '', label: 'Term', onChange: function () {} } );
+	check(
+		'inlined groups render the selector on first paint, before any response',
+		labels( selects( firstPaint )[ 0 ].options ),
+		[ 'All', 'Inlined A', 'Inlined B' ]
+	);
+	// LOADING: until the first rows land the list says so, rather than "No items found",
+	// and picking that placeholder never reaches onChange.
+	const picked = [];
+	hooks.cells = [];
+	hooks.idx = 0;
+	hooks.effects = [];
+	const loadingTree = EntityPickerControl( { kind: 'term', value: '', label: 'Term', onChange: function ( v ) { picked.push( v ); } } );
+	check( 'before the first response the list reads Loading', labels( combo( loadingTree ).options ), [ 'Loading…' ] );
+	combo( loadingTree ).onChange( combo( loadingTree ).options[ 0 ].value );
+	check( 'choosing the Loading placeholder does not change the value', picked, [] );
+	global.window.bwsEntityGroups = {};
+	const trusted = await render( EntityPickerControl, { kind: 'term', value: '', label: 'Term', onChange: function () {} } );
+	check( 'a present-but-empty inline is trusted: no selector, no fallback to the response', selects( trusted ).length, 0 );
+	delete global.window.bwsEntityGroups;
 
 	console.log( '' );
 	console.log( total + ( fail ? ` run, ${fail} FAILED` : ' passed' ) );

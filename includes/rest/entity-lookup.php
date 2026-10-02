@@ -17,7 +17,10 @@
  *   - `mode=browse` (the default) — a flat, grouped list of entities. Supports `q`
  *     (free-text, matched against the entity's name/title — no minimum length, D17) and
  *     the KIND-NEUTRAL `group` param (narrow to one taxonomy for `term`, one post type for
- *     `post`; UI STATE ONLY, never part of the stored wire — D16).
+ *     `post`; UI STATE ONLY, never part of the stored wire — D16). Each group contributes at
+ *     most bws_entity_lookup_group_limit() rows, and the response carries `groups` (every
+ *     readable group, independent of the rows) so the filter never depends on them, and
+ *     `truncated` (true when any group held more than the cap) so the picker can say so.
  *   - `mode=resolve` — one id in, one row out (or null), for the picker's reopen label,
  *     which the preview text and the D22 field-scoping filter both need too.
  *
@@ -51,6 +54,26 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 const BWS_ENTITY_LOOKUP_REST_ROUTE = '/entities';
+
+/**
+ * Most rows ONE group (taxonomy / post type) contributes to a browse response. An unbounded
+ * browse loads every post of every type on every picker mount; typing a search or choosing
+ * the group filter is how an author reaches past this. The unfiltered view fans out across
+ * every group, so each gets a smaller share; choosing one group spends the room on it.
+ */
+const BWS_ENTITY_LOOKUP_LIMIT_ALL_GROUPS = 20;
+const BWS_ENTITY_LOOKUP_LIMIT_ONE_GROUP  = 100;
+
+/**
+ * The per-group row cap for a browse request — the one place that picks between the two.
+ *
+ * @since 1.21.0
+ * @param string $group The request's `group` filter, '' = every group.
+ * @return int
+ */
+function bws_entity_lookup_group_limit( string $group ): int {
+	return '' === $group ? BWS_ENTITY_LOOKUP_LIMIT_ALL_GROUPS : BWS_ENTITY_LOOKUP_LIMIT_ONE_GROUP;
+}
 
 /**
  * Register the entity-lookup REST route.
@@ -207,6 +230,114 @@ function bws_entity_lookup_post_type_readable( $post_type ): bool {
 }
 
 /**
+ * Every taxonomy the current user may browse, optionally narrowed to one slug — the ONE
+ * place the readable set is derived, shared by the browse list and the group list.
+ *
+ * @since 1.21.0
+ * @param string $only Taxonomy slug, '' = every readable one.
+ * @return WP_Taxonomy[]
+ */
+function bws_entity_lookup_readable_taxonomies( string $only = '' ): array {
+	$out = array();
+	foreach ( get_taxonomies( array(), 'objects' ) as $taxonomy ) {
+		if ( ( '' === $only || $taxonomy->name === $only ) && bws_entity_lookup_taxonomy_readable( $taxonomy ) ) {
+			$out[] = $taxonomy;
+		}
+	}
+	return $out;
+}
+
+/**
+ * Post-type twin of bws_entity_lookup_readable_taxonomies().
+ *
+ * @since 1.21.0
+ * @param string $only Post type slug, '' = every readable one.
+ * @return WP_Post_Type[]
+ */
+function bws_entity_lookup_readable_post_types( string $only = '' ): array {
+	$out = array();
+	foreach ( get_post_types( array(), 'objects' ) as $post_type ) {
+		if ( ( '' === $only || $post_type->name === $only ) && bws_entity_lookup_post_type_readable( $post_type ) ) {
+			$out[] = $post_type;
+		}
+	}
+	return $out;
+}
+
+/**
+ * The group filter's option set for `term` — every readable taxonomy THAT HAS TERMS,
+ * derived from the taxonomies themselves and NOT from the rows a browse returned, so the
+ * filter lists every populated group whatever the typed search or the per-group cap left in
+ * the rows. A registered taxonomy with nothing in it offers nothing to filter to, and on a
+ * stock install most of the registered ones are exactly that.
+ *
+ * @since 1.21.0
+ * @return array[] `{ scope, label }` — `scope` is the slug the `group` param takes.
+ */
+function bws_entity_lookup_term_groups(): array {
+	$groups = array();
+	foreach ( bws_entity_lookup_readable_taxonomies() as $taxonomy ) {
+		if ( ! (int) wp_count_terms( array( 'taxonomy' => $taxonomy->name, 'hide_empty' => false ) ) ) {
+			continue;
+		}
+		$groups[] = array(
+			'scope' => (string) $taxonomy->name,
+			'label' => (string) ( $taxonomy->labels->singular_name ?? $taxonomy->name ),
+		);
+	}
+	return $groups;
+}
+
+/**
+ * Post-type twin of bws_entity_lookup_term_groups(): a type is listed only when it holds a
+ * post in a status THIS user's browse would query (bws_entity_lookup_post_type_statuses()),
+ * so the registered-but-internal types with no candidates (revisions, changesets, oEmbed
+ * cache, and so on) stay out of the filter.
+ *
+ * @since 1.21.0
+ * @return array[] `{ scope, label }`.
+ */
+function bws_entity_lookup_post_groups(): array {
+	$groups = array();
+	foreach ( bws_entity_lookup_readable_post_types() as $post_type ) {
+		$counts = wp_count_posts( $post_type->name );
+		$held   = 0;
+		foreach ( bws_entity_lookup_post_type_statuses( $post_type ) as $status ) {
+			$held += (int) ( $counts->$status ?? 0 );
+		}
+		if ( ! $held ) {
+			continue;
+		}
+		$groups[] = array(
+			'scope' => (string) $post_type->name,
+			'label' => (string) ( $post_type->labels->singular_name ?? $post_type->name ),
+		);
+	}
+	return $groups;
+}
+
+/**
+ * Every served kind's group list, for inlining into the editor page (`window.bwsEntityGroups`)
+ * so the picker's filter renders on mount instead of waiting on a REST round trip that
+ * queues behind the tag previews. A group list is bounded and stable — unlike the entities
+ * themselves, which is why only this half ships up front (see the file header, D14).
+ *
+ * A kind the user may not browse is PRESENT and empty, never omitted: the picker treats an
+ * absent global as "inline failed" and falls back to the browse response's own `groups`.
+ *
+ * @since 1.21.0
+ * @return array<string,array[]> Kind => `{ scope, label }` rows.
+ */
+function bws_entity_lookup_groups_by_kind(): array {
+	$out = array();
+	foreach ( array_keys( bws_entity_lookup_kind_readable_predicates() ) as $kind ) {
+		$fn          = bws_entity_lookup_kind_functions( $kind )['groups'];
+		$out[ $kind ] = ( $fn && bws_entity_lookup_kind_readable( $kind ) ) ? call_user_func( $fn ) : array();
+	}
+	return $out;
+}
+
+/**
  * The STATUS SET a post type's candidates are queried against, derived from the current
  * user's capabilities ONCE per post type — never a per-post capability check over a browse
  * page (D18's explicit rule: "no per-post check over a browse page").
@@ -275,13 +406,23 @@ function bws_entity_lookup_rest_response( $request ) {
 
 	$q      = (string) $request->get_param( 'q' );
 	// A KIND-NEUTRAL param name, deliberately not `tax`: it narrows to one taxonomy for
-	// `term` and one post type for `post` (D16 — UI state, never sent by the shipped
-	// picker either way, but the REST contract itself must not promise a taxonomy answer
-	// to an integrator reading it for `kind=post`).
+	// `term` and one post type for `post` (D16 — request-time UI state, never part of the
+	// stored wire; the REST contract itself must not promise a taxonomy answer to an
+	// integrator reading it for `kind=post`).
 	$group  = (string) $request->get_param( 'group' );
-	$rows   = $fns['browse'] ? call_user_func( $fns['browse'], $q, $group ) : array();
+	// `$truncated` is set when ANY group held more than the cap, so the picker can say the
+	// list is cut short instead of looking complete.
+	$truncated = false;
+	$rows      = $fns['browse'] ? call_user_func_array( $fns['browse'], array( $q, $group, &$truncated ) ) : array();
+	$groups = $fns['groups'] ? call_user_func( $fns['groups'] ) : array();
 
-	return rest_ensure_response( array( 'rows' => $rows ) );
+	return rest_ensure_response(
+		array(
+			'rows'      => $rows,
+			'groups'    => $groups,
+			'truncated' => $truncated,
+		)
+	);
 }
 
 /**
@@ -297,22 +438,25 @@ function bws_entity_lookup_rest_response( $request ) {
  *
  * @since 1.20.0
  * @param string $kind Resolved-source kind.
- * @return array{browse:?callable,resolve:?callable}
+ * @return array{browse:?callable,resolve:?callable,groups:?callable}
  */
 function bws_entity_lookup_kind_functions( string $kind ): array {
 	$table = array(
 		'term' => array(
 			'browse'  => 'bws_entity_lookup_browse_terms',
 			'resolve' => 'bws_entity_lookup_resolve_term',
+			'groups'  => 'bws_entity_lookup_term_groups',
 		),
 		'post' => array(
 			'browse'  => 'bws_entity_lookup_browse_posts',
 			'resolve' => 'bws_entity_lookup_resolve_post',
+			'groups'  => 'bws_entity_lookup_post_groups',
 		),
 	);
 	return $table[ $kind ] ?? array(
 		'browse'  => null,
 		'resolve' => null,
+		'groups'  => null,
 	);
 }
 
@@ -329,28 +473,19 @@ function bws_entity_lookup_kind_functions( string $kind ): array {
  * `orderby => 'name'` does this without a second sort here.
  *
  * @since 1.20.0
- * @param string $search Free-text filter, '' = none.
- * @param string $tax    Narrow to one taxonomy slug, '' = every readable one.
+ * @param string $search    Free-text filter, '' = none.
+ * @param string $tax       Narrow to one taxonomy slug, '' = every readable one.
+ * @param bool   $truncated Out: set true when any group held more than the cap.
  * @return array[] `{ id, label, group, scope }` rows. `label` is "#<id> <name>" (D15).
  */
-function bws_entity_lookup_browse_terms( string $search = '', string $tax = '' ): array {
+function bws_entity_lookup_browse_terms( string $search = '', string $tax = '', &$truncated = false ): array {
 	if ( ! function_exists( 'get_taxonomies' ) ) {
 		return array();
 	}
 
-	$taxonomies = array();
-	foreach ( get_taxonomies( array(), 'objects' ) as $taxonomy ) {
-		if ( '' !== $tax && $taxonomy->name !== $tax ) {
-			continue;
-		}
-		if ( ! bws_entity_lookup_taxonomy_readable( $taxonomy ) ) {
-			continue;
-		}
-		$taxonomies[] = $taxonomy;
-	}
-
-	$rows = array();
-	foreach ( $taxonomies as $taxonomy ) {
+	$rows  = array();
+	$limit = bws_entity_lookup_group_limit( $tax );
+	foreach ( bws_entity_lookup_readable_taxonomies( $tax ) as $taxonomy ) {
 		$terms = get_terms(
 			array(
 				'taxonomy'   => $taxonomy->name,
@@ -358,10 +493,15 @@ function bws_entity_lookup_browse_terms( string $search = '', string $tax = '' )
 				'orderby'    => 'name',
 				'order'      => 'ASC',
 				'search'     => $search,
+				'number'     => $limit + 1,
 			)
 		);
 		if ( is_wp_error( $terms ) || empty( $terms ) ) {
 			continue;
+		}
+		if ( count( $terms ) > $limit ) {
+			$truncated = true;
+			$terms     = array_slice( $terms, 0, $limit );
 		}
 		foreach ( $terms as $term ) {
 			$rows[] = bws_entity_lookup_term_row( $term, $taxonomy->labels->singular_name ?? $taxonomy->name );
@@ -434,10 +574,10 @@ function bws_entity_lookup_term_row( $term, string $group ): array {
  * NO MINIMUM-CHARACTER GATE (D17), same as the term browse. Matching is WP's own `s`
  * search parameter — title and content — which is the same "widest match that still
  * narrows" posture the term browse takes with a plain substring, adapted to what
- * `get_posts()` already does well rather than a hand-rolled title-only filter.
+ * WP_Query already does well rather than a hand-rolled title-only filter.
  *
  * THE STATUS SET IS DERIVED PER POST TYPE, ONCE (D18) — bws_entity_lookup_post_type_statuses()
- * — and handed to `get_posts()` as its `post_status` argument, so nothing here inspects an
+ * — and handed to the query as its `post_status` argument, so nothing here inspects an
  * individual post's status to decide whether to keep it. `trash` is never in that set, so
  * trashed posts never reach this list (see that function's own doc for why).
  *
@@ -446,44 +586,70 @@ function bws_entity_lookup_term_row( $term, string $group ): array {
  * @since 1.20.0
  * @param string $search    Free-text filter, '' = none.
  * @param string $post_type_filter Narrow to one post type slug, '' = every readable one.
+ * @param bool   $truncated        Out: set true when any group held more than the cap.
  * @return array[] `{ id, label, group, scope }` rows. `label` is "#<id> <title>" with a
  *                 ` — <status>` suffix on anything not published (D18).
  */
-function bws_entity_lookup_browse_posts( string $search = '', string $post_type_filter = '' ): array {
+function bws_entity_lookup_browse_posts( string $search = '', string $post_type_filter = '', &$truncated = false ): array {
 	if ( ! function_exists( 'get_post_types' ) ) {
 		return array();
 	}
 
-	$post_types = array();
-	foreach ( get_post_types( array(), 'objects' ) as $post_type ) {
-		if ( '' !== $post_type_filter && $post_type->name !== $post_type_filter ) {
-			continue;
+	$rows  = array();
+	$limit = bws_entity_lookup_group_limit( $post_type_filter );
+	foreach ( bws_entity_lookup_readable_post_types( $post_type_filter ) as $post_type ) {
+		$posts = bws_entity_lookup_query_posts( $post_type, $search, $limit + 1 );
+		if ( count( $posts ) > $limit ) {
+			$truncated = true;
+			$posts     = array_slice( $posts, 0, $limit );
 		}
-		if ( ! bws_entity_lookup_post_type_readable( $post_type ) ) {
-			continue;
-		}
-		$post_types[] = $post_type;
-	}
-
-	$rows = array();
-	foreach ( $post_types as $post_type ) {
-		$posts = get_posts(
-			array(
-				'post_type'      => $post_type->name,
-				'post_status'    => bws_entity_lookup_post_type_statuses( $post_type ),
-				's'              => $search,
-				'orderby'        => 'title',
-				'order'          => 'ASC',
-				'posts_per_page' => -1,
-				'no_found_rows'  => true,
-			)
-		);
-		foreach ( (array) $posts as $post ) {
+		foreach ( $posts as $post ) {
 			$rows[] = bws_entity_lookup_post_row( $post, $post_type->labels->singular_name ?? $post_type->name );
 		}
 	}
 
 	return $rows;
+}
+
+/**
+ * One post type's browse page — only the four columns a picker row reads (ID, title,
+ * status, type), never `post_content`.
+ *
+ * `get_posts()` returns whole `WP_Post` rows, and on a page-builder site the content is
+ * most of the bytes. A narrowed SELECT is only safe because `cache_results` is off:
+ * WP_Query would otherwise write these PARTIAL rows into the post cache, where the next
+ * `get_post()` anywhere in the request would read a post with no content. `get_posts()`
+ * is not used because it suppresses the filter this relies on.
+ *
+ * @since 1.21.0
+ * @param WP_Post_Type $post_type Registered post type object.
+ * @param string       $search    Free-text filter, '' = none.
+ * @param int          $limit     Most rows to fetch.
+ * @return object[] Rows carrying `ID`, `post_title`, `post_status`, `post_type`.
+ */
+function bws_entity_lookup_query_posts( $post_type, string $search, int $limit ): array {
+	$columns = static function () {
+		global $wpdb;
+		return "{$wpdb->posts}.ID, {$wpdb->posts}.post_title, {$wpdb->posts}.post_status, {$wpdb->posts}.post_type";
+	};
+	add_filter( 'posts_fields', $columns );
+	$query = new WP_Query(
+		array(
+			'post_type'              => $post_type->name,
+			'post_status'            => bws_entity_lookup_post_type_statuses( $post_type ),
+			's'                      => $search,
+			'orderby'                => 'title',
+			'order'                  => 'ASC',
+			'posts_per_page'         => $limit,
+			'ignore_sticky_posts'    => true,
+			'no_found_rows'          => true,
+			'cache_results'          => false,
+			'update_post_meta_cache' => false,
+			'update_post_term_cache' => false,
+		)
+	);
+	remove_filter( 'posts_fields', $columns );
+	return (array) $query->posts;
 }
 
 /**

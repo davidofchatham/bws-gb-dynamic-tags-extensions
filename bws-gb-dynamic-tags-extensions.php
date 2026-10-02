@@ -568,6 +568,20 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);
+	// The picker's GROUP filter options (taxonomies / post types), inlined for the same
+	// reason the field envelope is: no REST call to queue behind the tag previews. Same
+	// trust-seam rule — a user who may not author dynamic data gets `{}`, present rather
+	// than omitted, so the picker does not mistake it for a failed inline.
+	if ( function_exists( 'bws_entity_lookup_groups_by_kind' ) ) {
+		$bws_entity_groups = ( ! function_exists( 'bws_gb_user_can_author_dynamic_data' ) || bws_gb_user_can_author_dynamic_data() )
+			? bws_entity_lookup_groups_by_kind()
+			: array();
+		wp_add_inline_script(
+			'bws-dynamic-tags-entity-picker-control',
+			'window.bwsEntityGroups = ' . wp_json_encode( (object) $bws_entity_groups ) . ';',
+			'before'
+		);
+	}
 	// Folded slot wire (FW-56/57). The GRAMMAR is the tested twin of
 	// includes/helpers/slot-fold.php and carries no decisions of its own; the CONTROL
 	// is the repeater that owns one folded slot value. The control must load after the

@@ -117,7 +117,7 @@ if ( ! function_exists( 'get_terms' ) ) {
 			} ) );
 		}
 		usort( $rows, function ( $a, $b ) { return strcmp( $a->name, $b->name ); } );
-		return $rows;
+		return isset( $args['number'] ) ? array_slice( $rows, 0, (int) $args['number'] ) : $rows;
 	}
 }
 if ( ! function_exists( 'get_term' ) ) {
@@ -194,8 +194,36 @@ if ( ! function_exists( 'get_post_type_object' ) ) {
 		return null;
 	}
 }
-if ( ! function_exists( 'get_posts' ) ) {
-	function get_posts( $args = array() ) {
+// The post browse reads through a NARROWED WP_Query (bws_entity_lookup_query_posts()), so the
+// stand-in records what the real one would be asked: the `posts_fields` filter live DURING the
+// query, and the args that keep partial rows out of the post cache.
+$GLOBALS['wpdb']            = (object) array( 'posts' => 'wp_posts' );
+$GLOBALS['bws_test_filters'] = array();
+$GLOBALS['bws_test_queries'] = array();
+if ( ! function_exists( 'add_filter' ) ) {
+	function add_filter( $tag, $fn ) { $GLOBALS['bws_test_filters'][ $tag ][] = $fn; return true; }
+}
+if ( ! function_exists( 'remove_filter' ) ) {
+	function remove_filter( $tag, $fn ) {
+		$GLOBALS['bws_test_filters'][ $tag ] = array_values( array_filter( $GLOBALS['bws_test_filters'][ $tag ] ?? array(), function ( $f ) use ( $fn ) { return $f !== $fn; } ) );
+		return true;
+	}
+}
+if ( ! class_exists( 'WP_Query' ) ) {
+	class WP_Query {
+		public $posts = array();
+		public function __construct( $args = array() ) {
+			$fields = '';
+			foreach ( $GLOBALS['bws_test_filters']['posts_fields'] ?? array() as $fn ) {
+				$fields = $fn( $fields );
+			}
+			$GLOBALS['bws_test_queries'][] = array( 'args' => $args, 'fields' => $fields );
+			$this->posts = bws_test_get_posts( $args );
+		}
+	}
+}
+if ( ! function_exists( 'bws_test_get_posts' ) ) {
+	function bws_test_get_posts( $args = array() ) {
 		$post_type = $args['post_type'] ?? 'post';
 		$statuses  = (array) ( $args['post_status'] ?? array( 'publish' ) );
 		$search    = strtolower( (string) ( $args['s'] ?? '' ) );
@@ -207,7 +235,8 @@ if ( ! function_exists( 'get_posts' ) ) {
 			return '' === $search || false !== strpos( strtolower( $p->post_title ), $search );
 		} ) );
 		usort( $rows, function ( $a, $b ) { return strcmp( $a->post_title, $b->post_title ); } );
-		return $rows;
+		$limit = (int) ( $args['posts_per_page'] ?? -1 );
+		return $limit >= 0 ? array_slice( $rows, 0, $limit ) : $rows;
 	}
 }
 if ( ! function_exists( 'get_post' ) ) {
@@ -220,6 +249,22 @@ if ( ! function_exists( 'get_post' ) ) {
 			}
 		}
 		return null;
+	}
+}
+
+// The group lists skip a group with nothing in it, asked through WP's own counters.
+if ( ! function_exists( 'wp_count_terms' ) ) {
+	function wp_count_terms( $args = array() ) {
+		return count( $GLOBALS['bws_test_terms'][ $args['taxonomy'] ?? '' ] ?? array() );
+	}
+}
+if ( ! function_exists( 'wp_count_posts' ) ) {
+	function wp_count_posts( $type ) {
+		$counts = array();
+		foreach ( $GLOBALS['bws_test_posts'][ $type ] ?? array() as $p ) {
+			$counts[ $p->post_status ] = ( $counts[ $p->post_status ] ?? 0 ) + 1;
+		}
+		return (object) $counts;
 	}
 }
 
@@ -523,6 +568,10 @@ check(
 			array( 'id' => 3, 'label' => '#3 Announcements', 'group' => 'Category', 'scope' => 'category' ),
 			array( 'id' => 5, 'label' => '#5 News', 'group' => 'Category', 'scope' => 'category' ),
 		),
+		'groups' => array(
+			array( 'scope' => 'category', 'label' => 'Category' ),
+		),
+		'truncated' => false,
 	),
 	bws_entity_lookup_rest_response( new BWS_Test_Request( array( 'kind' => 'term' ) ) )
 );
@@ -538,6 +587,10 @@ check(
 			array( 'id' => 3, 'label' => '#3 A Draft (draft)', 'group' => 'Post', 'scope' => 'post' ),
 			array( 'id' => 5, 'label' => '#5 Hello World', 'group' => 'Post', 'scope' => 'post' ),
 		),
+		'groups' => array(
+			array( 'scope' => 'post', 'label' => 'Post' ),
+		),
+		'truncated' => false,
 	),
 	bws_entity_lookup_rest_response( new BWS_Test_Request( array( 'kind' => 'post' ) ) )
 );
@@ -548,9 +601,85 @@ check(
 );
 check(
 	'an unimplemented kind (user, D12) answers empty, never a REST error',
-	array( 'rows' => array() ),
+	array( 'rows' => array(), 'groups' => array(), 'truncated' => false ),
 	bws_entity_lookup_rest_response( new BWS_Test_Request( array( 'kind' => 'user' ) ) )
 );
+
+echo "
+the per-group cap and the group list
+";
+$GLOBALS['bws_test_caps'] = array( 'edit_posts' => true, 'assign_benefit_tier' => true, 'edit_landing_pages' => true );
+for ( $i = 100; $i < 100 + BWS_ENTITY_LOOKUP_LIMIT_ONE_GROUP + 5; $i++ ) {
+	$GLOBALS['bws_test_terms']['category'][] = bws_test_term( $i, 'Bulk ' . $i, 'category' );
+	$GLOBALS['bws_test_posts']['post'][]     = bws_test_post( $i, 'Bulk ' . $i, 'post' );
+}
+$cat = array_filter( bws_entity_lookup_browse_terms(), function ( $r ) { return 'category' === $r['scope']; } );
+check( 'unfiltered, a term group contributes at most the ALL-groups cap', BWS_ENTITY_LOOKUP_LIMIT_ALL_GROUPS, count( $cat ) );
+check( 'with the group chosen, it gets the larger cap', BWS_ENTITY_LOOKUP_LIMIT_ONE_GROUP, count( bws_entity_lookup_browse_terms( '', 'category' ) ) );
+check( 'a small group is untouched by the cap', 1, count( bws_entity_lookup_browse_terms( '', 'benefit_tier' ) ) );
+$posts = array_filter( bws_entity_lookup_browse_posts(), function ( $r ) { return 'post' === $r['scope']; } );
+check( 'unfiltered, a post-type group contributes at most the ALL-groups cap', BWS_ENTITY_LOOKUP_LIMIT_ALL_GROUPS, count( $posts ) );
+check( 'with the type chosen, it gets the larger cap', BWS_ENTITY_LOOKUP_LIMIT_ONE_GROUP, count( bws_entity_lookup_browse_posts( '', 'post' ) ) );
+$cut = false;
+bws_entity_lookup_browse_terms( '', '', $cut );
+check( 'a term group over the cap reports truncated', true, $cut );
+$cut = false;
+bws_entity_lookup_browse_terms( '', 'benefit_tier', $cut );
+check( 'a group under the cap does not', false, $cut );
+$cut = false;
+bws_entity_lookup_browse_posts( '', '', $cut );
+check( 'a post-type group over the cap reports truncated', true, $cut );
+$cut = false;
+bws_entity_lookup_browse_terms( '', 'category', $cut );
+check( 'a chosen group over the larger cap still reports truncated', true, $cut );
+check( 'the REST response carries truncated', true, bws_entity_lookup_rest_response( new BWS_Test_Request( array( 'kind' => 'term' ) ) )['truncated'] );
+check(
+	'...and clears it once the filter narrows to a group under the cap',
+	false,
+	bws_entity_lookup_rest_response( new BWS_Test_Request( array( 'kind' => 'term', 'group' => 'benefit_tier' ) ) )['truncated']
+);
+$q = end( $GLOBALS['bws_test_queries'] );
+check(
+	'the post browse selects ONLY the four row columns, never post_content',
+	'wp_posts.ID, wp_posts.post_title, wp_posts.post_status, wp_posts.post_type',
+	$q['fields']
+);
+check( 'the narrowed rows are kept out of the post cache (partial rows must not poison get_post)', false, $q['args']['cache_results'] );
+check( 'the narrowing filter is removed once the query ran', array(), $GLOBALS['bws_test_filters']['posts_fields'] );
+check(
+	'the term group list is every readable taxonomy, whatever the rows hold',
+	array(
+		array( 'scope' => 'category', 'label' => 'Category' ),
+		array( 'scope' => 'benefit_tier', 'label' => 'Benefit Tier' ),
+	),
+	bws_entity_lookup_rest_response( new BWS_Test_Request( array( 'kind' => 'term', 'q' => 'Support', 'group' => 'benefit_tier' ) ) )['groups']
+);
+// A registered-but-EMPTY type and taxonomy: readable, nothing in them, so nothing to filter to.
+$GLOBALS['bws_test_post_types'][] = bws_test_post_type( 'revision', 'Revision', 'edit_posts' );
+$GLOBALS['bws_test_taxonomies'][] = bws_test_tax( 'empty_tax', 'Empty Tax', 'edit_posts' );
+check( 'an empty taxonomy is left out of the term group list', false, in_array( 'empty_tax', array_column( bws_entity_lookup_term_groups(), 'scope' ), true ) );
+check( 'a post type holding nothing this user can browse is left out of the post group list', false, in_array( 'revision', array_column( bws_entity_lookup_post_groups(), 'scope' ), true ) );
+check(
+	'the post group list is every readable post type that holds posts',
+	array(
+		array( 'scope' => 'post', 'label' => 'Post' ),
+		array( 'scope' => 'landing_page', 'label' => 'Landing Page' ),
+	),
+	bws_entity_lookup_post_groups()
+);
+check(
+	'the inlined groups are one entry per served kind',
+	array( 'term', 'post' ),
+	array_keys( bws_entity_lookup_groups_by_kind() )
+);
+check( 'the inlined term groups match the route groups', bws_entity_lookup_term_groups(), bws_entity_lookup_groups_by_kind()['term'] );
+$GLOBALS['bws_test_caps'] = array();
+check(
+	'a kind the user may not browse is PRESENT and empty, never omitted',
+	array( 'term' => array(), 'post' => array() ),
+	bws_entity_lookup_groups_by_kind()
+);
+$GLOBALS['bws_test_caps'] = array( 'edit_posts' => true );
 
 echo "\n" . ( $failures ? "FAILED {$failures}/{$count}\n" : "PASSED {$count}/{$count}\n" );
 exit( $failures ? 1 : 0 );
