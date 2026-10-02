@@ -94,25 +94,13 @@ Driven by a shell loop over the context list, one `wp eval-file … --url=<ctx>`
 
 ### The page cache
 
-**Front-end pages are LiteSpeed-cached — always cache-bust when eyeballing after a reseed:**
-
-```
-curl -sk "https://testbed.test/matrix-post-meta/?nocache=$RANDOM"
-```
-
-**`$RANDOM` IS A BASH-ISM AND THE CONTAINER'S SHELL IS `dash`** — inside `docker exec … sh -c '…'`
-it expands to EMPTY, so every "bust" hits one URL and you read the same cached page all session.
-Generate the value in the OUTER shell (`N=$(date +%s%N)`) and interpolate it in.
-
-A plain curl can return the pre-reseed page, so new fixture rows read as MISSING when they seeded
-fine. `bin/wp.sh testbed litespeed-purge all` does NOT work from the wpcli container — use the query
-string instead.
+**Front-end pages are LiteSpeed-cached, so cache-bust when eyeballing after a reseed** — otherwise new fixture rows read as MISSING when they seeded fine. The bust command, its shell traps and when `litespeed-purge` works instead are owned by the env repo `README.md` §"Page cache".
 
 ### The bytecode cache — quieter, and it invalidates whole experiments
 
 The container runs `opcache.revalidate_freq = 120`, so a front-end request within two minutes of a source edit runs STALE BYTECODE while the disk bytes are already correct — no cache-bust and no file check can see it.
 
-That makes front-end MUTATION testing silently vacuous: two mutations that blank a whole fixture section both read as "no change". Recycle the lsphp workers between arms — `docker compose exec -T litespeed bash -c 'killall lsphp 2>/dev/null; true'` — instead of restarting the whole container or waiting the window out. Near-instant, and it's the fix this env's own docs already validate for the identical symptom (env repo `README.md:688-696`).
+That makes front-end MUTATION testing silently vacuous: two mutations that blank a whole fixture section both read as "no change". Recycle the lsphp workers between arms — `docker compose exec -T litespeed bash -c 'killall lsphp 2>/dev/null; true'` — instead of restarting the whole container or waiting the window out. Near-instant, and it's the fix this env's own docs already validate for the identical symptom (env repo `README.md` §"Caching that fails green").
 
 WP-CLI is exempt (`opcache.enable_cli = Off`), so `render-tag` sweeps need none of this.
 
