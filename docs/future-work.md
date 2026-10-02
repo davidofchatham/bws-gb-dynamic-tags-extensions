@@ -1166,7 +1166,7 @@ Facts about third-party plugins, cross-project practices and the date-and-time r
 
 Detail home: `.scratch/plans/shared-reference.md`
 
-Progress: Scope widened and shape settled in a grill (user, 2026-10-02): one private repo at `d:\Dev\Shared\reference\`, tasks T1 to T10 in the detail home, nothing created yet. Each task is its own session; the first tranche is T1 to T7.
+Progress: Scope widened and shape settled in a grill (user, 2026-10-02): one private repo at `d:\Dev\Shared\reference\`, tasks T1 to T10 in the detail home. The repo now exists with its skeleton (README, light CLAUDE.md, its own `docs/future-work.md` carrying the T8 to T10 and core-structures rows, `docs/agents/`); its guards and CI self-test (T4's second half) are not in yet. Each remaining task is its own session; the first tranche is T1 to T7.
 
 Open: The WooCommerce session-cookie disagreement between Site Views and Mitchells, this plugin's In-flight tracker section against Site Views' convention, and the datetime questions (T10) the old handoff lists eight of, now its last section.
 
