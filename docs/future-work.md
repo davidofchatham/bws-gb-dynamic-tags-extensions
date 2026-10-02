@@ -73,7 +73,7 @@ Progress: Half (a) shipped 1.15.0 — term-ambient parity, the resolved-source r
 
 Open: Full seam routing (datetime VALUE reads going through `bws_resolve_field_values` rather than the cores) still needs the field-object-formats read the seam does not currently expose. For a REPEATER-ROW source the inputs that read needs are now recorded — FW-74 ticket 02 (1.21.0) stamps `parent_kind`, `parent_id`, `repeater` and `index` on every row a `rows` step produces — but the read itself is still this item's, and datetime on a wire row ships format-agnostic until it lands.
 
-Blocked by: decision:field-object formats through the seam  •  Interacts with: FW-43, FW-35
+Blocked by: decision:field-object formats through the seam  •  Interacts with: FW-43, FW-35, FW-146 (a shared home for the facts and rules they each state)
 
 #### FW-7 — Collapse bws_read_field's internal term-archive resolution
 
@@ -952,7 +952,7 @@ Progress: Designed 2026-08-24. Not a position in FW-81's read fold — a boolean
 
 Open: The whole item waits on FW-61's bracketed free-form value escape discipline, since the note is a bracketed free-form value and blocks the whole feature (shipping `key,<field>` alone would need a migration once `midnight` later joins). FW-59 came off the blockers when it closed 2026-09-29: the half this depends on, free-form text inside our own grammar, already ships in the slot fold.
 
-Blocked by: row:FW-61  •  Interacts with: FW-27 (a date test in `when` ignores the tag's `allDay`, which describes the displayed field, not the tested one; forcing a tested datetime to mean its whole day arrives later as a named token inside the test, on this item), FW-3, FW-81, FW-13 (the flag field is itself a discovered field), FW-134 (`_piecal_is_allday` is the motivating field, and its two save paths are why the option holds an exclusive predicate)
+Blocked by: row:FW-61  •  Interacts with: FW-27 (a date test in `when` ignores the tag's `allDay`, which describes the displayed field, not the tested one; forcing a tested datetime to mean its whole day arrives later as a named token inside the test, on this item), FW-3, FW-81, FW-13 (the flag field is itself a discovered field), FW-134 (`_piecal_is_allday` is the motivating field, and its two save paths are why the option holds an exclusive predicate), FW-146 (a shared home for the facts and rules they each state)
 
 #### FW-44 — join per-slot inner list sep ({N}-sep)
 
@@ -1110,7 +1110,7 @@ Progress: Design converged 2026-08-18, parked — nothing committed, no ticket. 
 
 Open: Whether the verb enum (`key`/`modified`/`now`) also needs `published` — a scalar default can be stripped, but a list position with siblings may force a token; if so, whether that token appears only above cardinality 1 or always.
 
-Blocked by: —  •  Interacts with: FW-60, FW-13, FW-14 (FU-3 stacking), FW-20, FW-24, FW-64, FW-35, FW-134 (its injected keys land on the key controls this collapses), FW-113 (its site 2 seam-join should land on the merged callback, not before), FW-136 (closed; it extracted a resolve seam from each datetime callback, so this collapses two seams and two shells rather than two callbacks)
+Blocked by: —  •  Interacts with: FW-60, FW-13, FW-14 (FU-3 stacking), FW-20, FW-24, FW-64, FW-35, FW-134 (its injected keys land on the key controls this collapses), FW-113 (its site 2 seam-join should land on the merged callback, not before), FW-136 (closed; it extracted a resolve seam from each datetime callback, so this collapses two seams and two shells rather than two callbacks), FW-146 (a shared home for the facts and rules they each state)
 
 #### FW-134 — Pie Calendar event meta is invisible to the field picker
 
@@ -1122,7 +1122,7 @@ Progress: Researched 2026-06-30 against the plugin's source, corrected 2026-08-2
 
 Open: Whether to inject at all, given that FW-13's protected-postmeta question is the general form of the same decision; and whether `bws_parse_combined_date_time` accepts the literal `T` separator, which is likely but unverified.
 
-Blocked by: decision:whether protected keys are offerable at all (FW-13)  •  Interacts with: FW-13 (the general question this is one population of), FW-35 (designed off this plugin's all-day flag), FW-81 (it collapses the datetime key controls this would inject into, so the injection target moves with it)
+Blocked by: decision:whether protected keys are offerable at all (FW-13)  •  Interacts with: FW-13 (the general question this is one population of), FW-35 (designed off this plugin's all-day flag), FW-81 (it collapses the datetime key controls this would inject into, so the injection target moves with it), FW-146 (a shared home for the facts and rules they each state)
 
 #### FW-138 — `list:ul` / `list:ol`, a list output shape on multi-result tags
 
@@ -1160,17 +1160,17 @@ Open: The plan's §7 questions, most of them browser tests: whether the `dl` loo
 
 Blocked by: —  •  Interacts with: FW-53 (a working sentinel plus a table loop map would overlap its repeater rows), FW-139
 
-#### FW-146 — A shared home for the date-and-time rules several of our projects re-implement
+#### FW-146 — A shared reference repo for what several of our projects re-implement or re-discover
 
-The phase frame, site time, date-only as a whole day, date-time as an instant and the missing-date policy are written separately in `when`, the datetime tags, the Block Visibility ACF Date-Time extension and Meta Conductor, and the date-only convention already differs three ways. A neutral place would state them once, with a table of test vectors each consumer's pure harness loads. No runtime code until a second consumer ships.
+Facts about third-party plugins, cross-project practices and the date-and-time rules are each written or re-measured separately in several projects (the date-only convention alone differs three ways), and the paid-plugin detail already sits in public repos. One private repo would state each once: `plugins/`, `practices/`, copy-in `templates/`, and the datetime `semantics/` with test `vectors/` each consumer's pure harness loads. No runtime code until a second consumer ships.
 
-Detail home: `.scratch/plans/shared-datetime-semantics.md`
+Detail home: `.scratch/plans/shared-reference.md`
 
-Progress: Direction agreed in the FW-27 grill (user, 2026-10-02): extract to a neutral location outside `Plugins/` (`d:\Dev\Shared\datetime` floated, name open); nothing created. The user will explore it in a separate session, starting from the handoff.
+Progress: Scope widened and shape settled in a grill (user, 2026-10-02): one private repo at `d:\Dev\Shared\reference\`, tasks T1 to T10 in the detail home, nothing created yet. Each task is its own session; the first tranche is T1 to T7.
 
-Open: Location and shape, the scope (datetime only or the shared test grammar too), whether a GB Conditions extension is feasible (only the registry signature was read), and the boundary-instant and granularity rules the vectors must pin. The handoff lists eight.
+Open: The WooCommerce session-cookie disagreement between Site Views and Mitchells, this plugin's In-flight tracker section against Site Views' convention, and the datetime questions (T10) the old handoff lists eight of, now its last section.
 
-Blocked by: —  •  Interacts with: FW-27 (`when` states these rules for itself and could load the vectors later), FW-35, FW-3, FW-81
+Blocked by: —  •  Interacts with: FW-27 (`when` states the datetime rules for itself and could load the vectors later), FW-35, FW-134 (Pie Calendar facts, T7), FW-3, FW-81
 
 ## Closed / Retired
 
