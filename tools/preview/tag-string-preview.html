@@ -314,6 +314,11 @@ button:hover { border-color: var(--accent); color: var(--accent); }
       <option value="w2br">W2 (open) — as W2, reads bracketed: key(x), use(content)</option>
       <option value="w2nv">W2 — ADOPTED: reads bracketed, key(x),noValue; not(…) on relations + lists only</option>
     </select>
+    <div class="sb-h">{{table}} column root (FW-53 Q14, unbuilt)</div>
+    <select id="sel-table-root" style="width:100%">
+      <option value="explicit">explicit — every column writes src(inherit) (spec's assumption)</option>
+      <option value="stripped">stripped — default root dropped, a bare column has no src</option>
+    </select>
   </div>
 
   <!-- Permutations (the only view — the Configure tab was removed 2026-09-01, FW-79: it built
@@ -346,12 +351,17 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 const PRESETS = {
   src:             ['src','source','via','from'],
   ref:             ['ref','rel'],
-  // `label` is the SHIPPED spelling of this reserved freeform slug (BWS_FOLD_FREEFORM) and stays
-  // the default — table-tag.md §GRILLED Q3 (2026-08-30) provisionally proposes renaming it to
-  // `header` for {{table}}'s column-header use, but that rename isn't in code yet, so this page
-  // doesn't pre-empt it. Add 'header' as a pickable alternate once the rename actually locks.
+  // `label` is the SHIPPED spelling of this reserved freeform slug (BWS_FOLD_FREEFORM), and the older
+  // table groups keep it. The provisional `header` rename is its own id below, rendered only by the
+  // 'table v1' group, so the two spellings sit side by side until the rename locks.
   label:           ['label','head','col'],
   caption:         ['caption'],
+  // {{table}} v1 naming pass (FW-53 ticket 00) — UNSHIPPED, provisional spellings first. Rendered
+  // only by the 'table v1' group; respell them in the sidebar to judge a candidate on real wire.
+  header:          ['header','label','head','th'],
+  align:           ['align','textAlign','justify'],
+  stripes:         ['stripes','striped','zebra'],
+  fixedLayout:     ['fixedLayout','layoutFixed','fixedWidth'],
   // SHIPPED default first. `srcTerm` (the old boolean, paired with `tax`) is SUPERSEDED and kept
   // only as a look-back alternative — see docs/deprecated-tags-options.md.
   srcTermIn:       ['srcTermIn','inTerm','fromTerm','asTerm','useTerm','andTerm','viaTerm','srcTerm'],
@@ -402,6 +412,9 @@ const VALUE_PRESETS = {
   // FW-141 fixed-text read — UNSHIPPED, the one exception to "shipped slugs only". Named `fixed`
   // (if-option.md Q9b, decided 2026-09-25).
   fixed:    ['fixed'],
+  // {{table}} bare-column root (FW-53 ticket 00/02) — UNSHIPPED. `parent` is deliberately NOT a
+  // candidate: it is reserved for the real hierarchical relation (table-tag.md Settled #46).
+  inherit:  ['inherit','row','here'],
 };
 
 // Separator candidates — ALL gb-constraints-safe per gb-constraints.md §Separator-safe
@@ -915,6 +928,55 @@ const SCENARIO_GROUPS = [
              {label:'Lead title',tag:'title',read:{kind:'analog',slug:'title'}}],
       note:'per table-tag.md §D4 decision (a), analog dispatch is specified to refuse on a repeater row — hop explicitly (rows,team_members;refs,lead_ref) before use(title) instead'},
   ]},
+  // TABLE v1 — the naming pass and the column-root serialization (FW-53 spec ticket 00, unbuilt).
+  // Every provisional name is a PRESETS / VALUE_PRESETS id (header, align, stripes, fixedLayout,
+  // inherit), so the rename sidebar respells it here; the column NOUN is editor copy, not wire,
+  // and has nothing to show on this page. The sidebar's column-root select flips every row between
+  // the two Q14 shapes (tableColumnChain). The row chain is the tag-level src, as above.
+  { get title() { return `table v1 — naming pass, columns ${S.tableRoot === 'explicit' ? 'EXPLICIT src(inherit)' : 'STRIPPED'} (FW-53 ticket 00, unbuilt)`; },
+    isContrast:true, variants:['folded'], foldClass:'table', tableV1:true, scenarios:[
+    {label:'bare column beside a chained one',
+      rowChain:[{slug:'refs',arg:'related_staff'}],
+      slots:[{label:'Name',tag:'title',read:{kind:'analog',slug:'title'}},
+             {label:'Office',tag:'text',chain:[{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}}]},
+    {label:'header-only column beside a headered + chained one',
+      rowChain:[{slug:'refs',arg:'related_staff'}],
+      slots:[{label:'Office',tag:'text',chain:[{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}},
+             {label:'Notes'}],
+      note:'a header-only column is valid and renders empty cells (table-tag.md Settled #25)'},
+    {label:'column carrying align',
+      rowChain:[{slug:'rows',arg:'products'}],
+      slots:[{label:'Product',tag:'text',read:{kind:'key',field:'name'}},
+             {label:'Price',tag:'text',read:{kind:'key',field:'price'},align:'right'}]},
+    {label:'fixed-text columns, bare + hopping, beside fixedLayout',
+      rowChain:[{slug:'rows',arg:'teams'}], fixedLayout:true,
+      slots:[{label:'Team',tag:'text',read:{kind:'key',field:'team_name'}},
+             {label:'Level',tag:'text',read:{kind:'fixed',text:'Varsity'}},
+             {label:'Sponsor',tag:'text',chain:[{slug:'refs',arg:'sponsor_ref'}],read:{kind:'fixed',text:'Sponsored'}}],
+      note:'the slot read fixed(…) and the tag flag fixedLayout in one tag; the hopping column shows only where the ref resolves'},
+    {label:'both presentation flags',
+      rowChain:[{slug:'terms',arg:'$tax'}], caption:'Categories', stripes:true, fixedLayout:true,
+      slots:[{label:'Term',tag:'title',read:{kind:'analog',slug:'title'}},
+             {label:'Count',tag:'text',read:{kind:'key',field:'post_count'}}]},
+    {label:'neither presentation flag',
+      rowChain:[{slug:'terms',arg:'$tax'}], caption:'Categories',
+      slots:[{label:'Term',tag:'title',read:{kind:'analog',slug:'title'}},
+             {label:'Count',tag:'text',read:{kind:'key',field:'post_count'}}]},
+    {label:'src(same) after a chained sibling',
+      rowChain:[{slug:'refs',arg:'related_staff'}],
+      slots:[{label:'Office',tag:'text',chain:[{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}},
+             {label:'Office phone',tag:'phone',chain:[{slug:'same'}],read:{kind:'key',field:'phone'}}],
+      note:'same carries column A’s whole chain, root included (table-tag.md Settled #15)'},
+    {label:'src(same) after a BARE sibling',
+      rowChain:[{slug:'refs',arg:'related_staff'}],
+      slots:[{label:'Name',tag:'title',read:{kind:'analog',slug:'title'}},
+             {label:'Email',tag:'email',chain:[{slug:'same'}],read:{kind:'key',field:'email'}}],
+      note:'stripped: A writes no src, so B carries an empty chain, which is also how the ambient entity is spelled (slot-fold.php carry-over note). explicit: B carries [inherit]'},
+    {label:'ten columns (wire bulk)',
+      rowChain:[{slug:'rows',arg:'staff_members'}],
+      slots:['name','role','email','phone','office','department','start_date','extension','room','status']
+        .map(f=>({label:f.replace(/_/g,' ').replace(/^./,ch=>ch.toUpperCase()),tag:'text',read:{kind:'key',field:f}}))},
+  ].map(sc => ({previewOnly:true, ...sc}))},
 
   // DATETIME folded slots — the multi-key pivot (user 2026-07-29). rule2 can only carry ONE
   // terminal key → these BREAK/lose keys in rule2, resolve fully in respell. dtKeys = the flat
@@ -1223,6 +1285,7 @@ const S = {
   linkCombined: false,  // fold linkKey into linkTo value → linkTo:key,<field> (else separate keys)
   fw81DtCollapse: false, // FW-81 (parked): show the collapsed use: reading beside today's six-key wire.
   whenMode: 'w1',       // FW-27 `when` encoding: 'w1' decided wire | 'w2' / 'w2br' / 'w2nv' the OPEN W2 proposal (serializeIf).
+  tableRoot: 'explicit', // FW-53 Q14: 'explicit' = every column writes src(inherit) | 'stripped' = the default root drops (tableColumnChain).
   dummies: {key1:'custom_field',key2:'other_field',imgKey:'image_field',dateKey:'event_date',timeKey:'event_time',startKey:'start_date',endKey:'end_date',ref:'rel_post',tax:'category',urlKey:'url_field',fallback:'N/A',rangeSep:' – ',format:'F j, Y'},
 };
 
@@ -1486,12 +1549,13 @@ const RESPELL_KEY_MAP = {
   src:[1,0], ref:[1,1], srcTermIn:[1,2], limit:[1,3], sep:[1,4], use:[1,5], key:[1,6],
   timeKey:[1,7], startKey:[1,8], startTimeKey:[1,9], endKey:[1,10], endTimeKey:[1,11],
   if:[1,12],   // FW-27 `when`, unshipped — same source-group tail as DEFAULT_ORDER
+  align:[0,9], // {{table}} v1, unshipped — PROVISIONAL rank (format-group tail); ticket 05 decides
   linkTo:[2,0], linkKey:[2,1], newTab:[2,2], fallback:[3,0],
 };
 // Collect ALL slot options as canonical entries. The src-CHAIN is a pre-serialized bracket string
 // occupying the source group's `src` slot (rank [1,0]). REDUNDANCIES base tags never emit are
 // dropped: no `use=<analog>` equal to the leading type.
-function respellEntries(chain, read, link, dtKeys, typeTag, fallback, ifCond) {
+function respellEntries(chain, read, link, dtKeys, typeTag, fallback, ifCond, align) {
   const E=[];
   const rb = S.respellReadBracket;
   const push=(name,val,br)=>E.push({name,val,br:!!br,rank:RESPELL_KEY_MAP[name]||[1,99]});
@@ -1545,6 +1609,7 @@ function respellEntries(chain, read, link, dtKeys, typeTag, fallback, ifCond) {
     else push('linkTo',link.to,false);
     if (link.newTab) E.push({name:'newTab', flag:true, rank:RESPELL_KEY_MAP.newTab});
   }
+  if (align) push('align', align, false);   // {{table}} v1 column token, unshipped (ticket 05 owns the real rank)
   if (fallback!==undefined && fallback!=='') push('fallback', fallback, false);   // free-form → escaped in emit
   if (ifCond) E.push({name:'if', val:serializeIf(ifCond, 1), rank:RESPELL_KEY_MAP.if});   // FW-27, unshipped
   return E;
@@ -1555,7 +1620,7 @@ function respellEntries(chain, read, link, dtKeys, typeTag, fallback, ifCond) {
 // a SECOND parser WE own, made balance-aware so BALANCED inner brackets are free. What GB actually
 // splits on is unescaped `:` and `|` → those MUST be `\:` / `\|`-escaped (GB unescapes on read;
 // precedent: bws-format-input). `{ }` are hard-unsafe (no escape) but ~never appear in these values.
-const RESPELL_FREEFORM = new Set(['format','fallback','sep','valueSep','rangeSep','timeSep','label']);
+const RESPELL_FREEFORM = new Set(['format','fallback','sep','valueSep','rangeSep','timeSep','label','header']);
 // Escape a free-form value for the GB tag string: backslash the two GB-structural chars (`:` `|`).
 // GB's parse_options() unescapes both before the kv/pair split. Brackets are NOT escaped — inert to
 // GB; our own balance-aware sub-parser handles balanced inner brackets.
@@ -1694,8 +1759,10 @@ function unbalancedBrackets(v, open, close) {
 const SLOT_SCHEMAS = {
   'bracket-kv': { optSep: ';', kvChar: '', wrap: 'bracket-val', readBr: false, stepSep: ';' },
 };
-function serializeSlot(typeTag, chain, read, link, dtKeys, label, forceSrc, fallback, ifCond) {
-  const entries = respellEntries(chain, read, link, dtKeys, typeTag, fallback, ifCond);
+// `labelName` = the option id the column-header text rides: 'label' (the reserved shipped token)
+// unless the {{table}} v1 group passes 'header'.
+function serializeSlot(typeTag, chain, read, link, dtKeys, label, forceSrc, fallback, ifCond, labelName, align) {
+  const entries = respellEntries(chain, read, link, dtKeys, typeTag, fallback, ifCond, align);
   // Slot-1 forced src (user 2026-07-29): when the always-serialize-src toggle is on AND this slot
   // has no chain of its own, inject an explicit `src:current` so slot 1 declares its source.
   if (forceSrc && !serializeChain(chain)) {
@@ -1748,7 +1815,7 @@ function serializeSlot(typeTag, chain, read, link, dtKeys, label, forceSrc, fall
   const toks = entries.map(emit).filter(Boolean);
   // TABLE label folds into the slot value as the FIRST token, ahead of the type (user draft
   // 2026-07-29: `2:label[Date];datetime_single;key[due]`). label is free-form → schema-wrapped.
-  let labelTok = (label!==undefined && label!=='') ? emit({name:'label', val:label}) : '';
+  let labelTok = (label!==undefined && label!=='') ? emit({name:labelName||'label', val:label}) : '';
   // UNBALANCED-bracket flag: a lone `]`/`)` in a free-form value defeats even a balance-aware
   // sub-parser → mark it in the preview so the hazard is visible (⚠ is preview-only, not wire).
   if (labelTok && unbalancedBrackets(label, SO, SC)) labelTok += '⚠';
@@ -2234,8 +2301,22 @@ function splitTagLevelParts(shippedSlots, foldClass) {
   }));
   return { tagLevel, perSlot };
 }
-function slotValueFor(s, typeTag, label, forceSrc) {
-  return serializeSlot(typeTag, s.chain||[], s.read||null, s.link||null, s.dtKeys||null, label, forceSrc, s.fallback, s.if);
+function slotValueFor(s, typeTag, label, forceSrc, labelName) {
+  return serializeSlot(typeTag, s.chain||[], s.read||null, s.link||null, s.dtKeys||null, label, forceSrc, s.fallback, s.if, labelName, s.align);
+}
+// {{table}} v1 column chain under the FW-53 Q14 toggle (S.tableRoot). Scenario chains are authored
+// WITHOUT `inherit`, the way the step-first menu writes them. 'explicit' prepends it to any chain
+// that does not already start at a root; 'stripped' leaves the chain as authored. That is what the
+// real control writes for an UNTOUCHED column on any ordinal (its displayed root is never written)
+// and for a step picked straight from the root menu. A root picked and then `+ Add step`ed writes
+// `inherit;…` even when stripped (`stripDefaultRoot()` drops only a lone root), so the stripped
+// state shows the step-first spelling, not every one an author could produce.
+// Root slugs are hand-listed: a root added later gets `inherit` prepended here until listed.
+const TABLE_ROOT_SLUGS = new Set(['inherit','same','current','site','post','term','user']);
+function tableColumnChain(chain) {
+  const c = chain || [];
+  if (S.tableRoot !== 'explicit' || (c.length && TABLE_ROOT_SLUGS.has(c[0].slug))) return c;
+  return [{slug:'inherit'}, ...c];
 }
 function buildFoldedSlot(i, slot, containerClass) {
   const s = resolveSlot(slot);
@@ -2266,11 +2347,14 @@ function buildFoldedTag(group, sc) {
     if (rc) tagParts.push(`${kn('src')}:${rc}`);
     if (sc.rowIf) tagParts.push(`${kn('if')}:${serializeIf(sc.rowIf, 0)}`);   // FW-27, unshipped: filters rows
     if ((sc.caption||'')!=='') tagParts.push(`${kn('caption')}:${sc.caption}`);
+    // v1 presentation flags: bare keys (table-tag.md Settled #28 Fork B), so no value.
+    if (group.tableV1) ['stripes','fixedLayout'].forEach(f=>{ if (sc[f]) tagParts.push(kn(f)); });
     slots.forEach((col,ci)=>{
       // columns are 1-indexed folded values (no bare slot-1 — the row set is src:, not a column).
       // label FOLDS into the slot value as the first token (user 2026-07-29), NOT a sibling.
-      const c = resolveSlot(col);
-      slotParts.push(`${foldedSlotKey(ci)}${slotValueFor(c, c.tag||'', col.label||'')}`);
+      let c = resolveSlot(col);
+      if (group.tableV1) c = { ...c, chain: tableColumnChain(c.chain) };
+      slotParts.push(`${foldedSlotKey(ci)}${slotValueFor(c, c.tag||'', col.label||'', false, group.tableV1 ? 'header' : 'label')}`);
     });
   } else {
     // Declared tag-level options (join's format/valueSep) first — format group leads the canonical
@@ -2516,6 +2600,9 @@ document.getElementById('cb-fw81').addEventListener('change',e=>{
 });
 document.getElementById('sel-when').addEventListener('change',e=>{
   S.whenMode=e.target.value; renderPerms();
+});
+document.getElementById('sel-table-root').addEventListener('change',e=>{
+  S.tableRoot=e.target.value; renderPerms();
 });
 document.getElementById('add-name-row').addEventListener('click', addNameRow);
 
