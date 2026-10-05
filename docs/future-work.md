@@ -1180,7 +1180,7 @@ Detail home: `.scratch/plans/shared-reference.md` in the shared reference repo (
 
 Progress: Scope widened and shape settled in a grill (user, 2026-10-02): one private repo at `d:\Dev\Shared\reference\`, tasks T1 to T10 in the detail home. The repo now exists with its skeleton (README, light CLAUDE.md, its own `docs/future-work.md` carrying the T8 to T10 and core-structures rows, `docs/agents/`); its guards and CI self-test (T4's second half) are not in yet. Each remaining task is its own session; the first tranche is T1 to T7.
 
-Open: The WooCommerce session-cookie disagreement between Site Views and Mitchells, this plugin's In-flight tracker section against Site Views' convention, and the datetime questions (T10) the old handoff lists eight of, now its last section.
+Open: The WooCommerce session-cookie disagreement between Site Views and the MP project, this plugin's In-flight tracker section against Site Views' convention, and the datetime questions (T10) the old handoff lists eight of, now its last section.
 
 Blocked by: —  •  Interacts with: FW-27 (`when` states the datetime rules for itself and could load the vectors later), FW-35, FW-134 (Pie Calendar facts, T7), FW-3, FW-81
 
