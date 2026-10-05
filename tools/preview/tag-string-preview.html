@@ -12,7 +12,7 @@
   --border: #d8d8db;
   --border2: #b8b8bb;
   --text: #1d1d1f;
-  --muted: #86868b;
+  --muted: #6e6e73;
   --accent: #0066cc;
   --accent-light: #e8f0fb;
   /* GB's own tag-modal font for the serialized string — match it in our previews (user 2026-07-29). */
@@ -189,9 +189,10 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 .perm-tags { display: flex; flex-direction: column; gap: 7px; }
 .perm-row { display: flex; align-items: center; gap: 10px; }
 .perm-lbl {
-  font-size: 11px; color: var(--muted); width: 160px;
-  flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: 14px; font-weight: 600; color: var(--text); width: 200px;
+  flex-shrink: 0; overflow-wrap: anywhere;
 }
+.perm-lbl-desc { display: block; font-size: 12px; font-weight: 400; color: #55555a; margin-top: 2px; }
 .perm-str {
   font-family: var(--gb-font);
   font-size: 13px; color: var(--text);
@@ -215,9 +216,15 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 .perm-chain .perm-str { border-color: var(--accent); background: var(--accent-light); }
 .perm-legacy .perm-str { opacity: 0.85; border-style: dashed; background: transparent; }
 .perm-legacy .perm-tagname { color: #6e6e73; }
-.perm-current .perm-tagname { color: var(--text); font-weight: 700; }
+.perm-current .perm-tagname { color: var(--text); font-weight: 500; }
 .perm-none .perm-str { color: var(--muted); font-style: italic; user-select: none; }
-.perm-note { font-size: 11px; color: var(--muted); padding-left: 60px; }
+.perm-note { font-size: 12px; color: #55555a; padding-left: 60px; }
+/* Names in labels, descriptions and captions are monospace; the preview strings (.perm-str) are not. */
+.perm-lbl code, .perm-lbl-desc code, .perm-note code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1em; font-weight: inherit; color: inherit;
+  background: rgba(255,255,255,0.7); border: .0625rem solid var(--surface2); border-radius: .25em; padding: 0 .25em;
+}
 
 /* ── Sidebar toggle + scrim ─────────────── */
 /* Hidden on desktop; the drawer only exists below the breakpoint. */
@@ -314,28 +321,6 @@ button:hover { border-color: var(--accent); color: var(--accent); }
       <option value="w2br">W2 (open) — as W2, reads bracketed: key(x), use(content)</option>
       <option value="w2nv">W2 — ADOPTED: reads bracketed, key(x),noValue; not(…) on relations + lists only</option>
     </select>
-    <div class="sb-h">table presentation (FW-53, Fork A reopen)</div>
-    <select id="sel-tpres" style="width:100%">
-      <option value="b">Fork B (Settled #28) — bare-key flags, width its own key</option>
-      <option value="abr">Fork A — style:stripes,layout(fixed),width(600px)</option>
-      <option value="apair">Fork A, paired — style:stripes;layout,fixed;width,600px</option>
-      <option value="tgt">Target lists (round 3) — stripe:rows(even,#eee),cols · fill:table(…) · width: · layout:</option>
-    </select>
-    <select id="sel-tlayout" style="width:100%;margin-top:4px">
-      <option value="fixedCols">layout token: fixedCols (bare)</option>
-      <option value="layout">layout token: layout(fixed)</option>
-      <option value="fixed">layout token: fixed (bare)</option>
-      <option value="fixedLayout">layout token: fixedLayout (bare)</option>
-    </select>
-    <label class="toggle-row">
-      <input type="checkbox" id="cb-twidthkey">
-      <span class="toggle-desc">Fork A only: width as its own key (A2) instead of a style token (A1)</span>
-    </label>
-    <select id="sel-tcolwidth" style="width:100%;margin-top:4px">
-      <option value="width">column width token: width(…) — same as tag level (Q8a)</option>
-      <option value="colWidth">column width token: colWidth(…) (Q8b)</option>
-      <option value="off">no column width — v1 without it (Q7b)</option>
-    </select>
   </div>
 
   <!-- Permutations (the only view — the Configure tab was removed 2026-09-01, FW-79: it built
@@ -377,18 +362,15 @@ const PRESETS = {
   // only by the 'table v1' group; respell them in the sidebar to judge a candidate on real wire.
   header:          ['header','label','head','th'],
   align:           ['align','textAlign','justify'],
-  stripes:         ['stripes','striped','zebra'],
-  fixedLayout:     ['fixedLayout','layoutFixed','fixedWidth'],
-  // Fork A reopen (2026-10-03, unshipped): the one presentation key, and the two valued tokens.
-  style:           ['style','look','display'],
+  // {{table}} v1 presentation, target-list shape (user 2026-10-05, leaning). `layout` is a valued key
+  // (value id `layoutFixed` in VALUE_PRESETS; `fixed` there clashes with the fixed-text read, so the
+  // value can be respelled to judge it). `width` and `fill` are ONE id each: the column token and the
+  // tag-level key share a name, split by form (bracket vs key).
   layout:          ['layout'],
   width:           ['width'],
-  fixedCols:       ['fixedCols'],
-  colWidth:        ['colWidth'],
-  // Round 3 target-list skins (2026-10-05): singular-verb set first, plural to compare.
-  stripe:          ['stripe','stripes'],
-  fill:            ['fill','fills','bg'],
-  border:          ['border','borders'],
+  stripe:          ['stripe'],
+  fill:            ['fill'],
+  border:          ['border'],
   // SHIPPED default first. `srcTerm` (the old boolean, paired with `tax`) is SUPERSEDED and kept
   // only as a look-back alternative — see docs/deprecated-tags-options.md.
   srcTermIn:       ['srcTermIn','inTerm','fromTerm','asTerm','useTerm','andTerm','viaTerm','srcTerm'],
@@ -437,8 +419,12 @@ const VALUE_PRESETS = {
   post:     ['post','post_id'],
   term:     ['term','term_id'],
   // FW-141 fixed-text read — UNSHIPPED, the one exception to "shipped slugs only". Named `fixed`
-  // (if-option.md Q9b, decided 2026-09-25).
-  fixed:    ['fixed'],
+  // (if-option.md Q9b, decided 2026-09-25). The extra candidates are for the Q3 disambiguation test
+  // against the layout value below.
+  fixed:    ['fixed','text','literal','static'],
+  // {{table}} valued layout shape (`layout:fixed`) — UNSHIPPED; the VALUE, distinct from the
+  // fixed-text option name above. Rendered only when the layout shape select is "valued".
+  layoutFixed: ['fixed','equal','even'],
   // {{table}} bare-column root (FW-53 ticket 00/02) — UNSHIPPED. `parent` is deliberately NOT a
   // candidate: it is reserved for the real hierarchical relation (table-tag.md Settled #46).
   inherit:  ['inherit','row','here'],
@@ -505,67 +491,67 @@ const SCENARIO_GROUPS = [
   // same options as Legacy (still live to non-chain toggles), not a "no equivalent" line; that
   // line is reserved for a genuine wire gap (see the pinned-term row below, FW-39).
   { tmpl:'text', title:'text — options + built src chain (current, 1.17.0) ⟷ flat (legacy, FW-56)', isContrast:true, scenarios:[
-    {label:'meta key',              parts:[['key','$key1']],
+    {label:'Meta key',              parts:[['key','$key1']],
       rest:[['key','$key1']]},
-    {label:'title',                 parts:[['use','title']],
+    {label:'`title`',                 parts:[['use','title']],
       rest:[['use','title']]},
-    {label:'meta key + fallback',   parts:[['key','$key1'],['fallback','$fallback']],
+    {label:'Meta key + `fallback`',   parts:[['key','$key1'],['fallback','$fallback']],
       rest:[['key','$key1'],['fallback','$fallback']]},
-    {label:'parent → key',          parts:[['source','parent'],['key','$key1']],
+    {label:'`parent` → `key`',          parts:[['source','parent'],['key','$key1']],
       previewOnly:true, previewHow:'parts',
-      note:'src:parent is Planned, not implemented in either wire yet (tag-reference.md §src option values) — shown for shape only'},
-    {label:'key + link permalink',  parts:[['key','$key1'],['_link',{to:'permalink'}]],
+      note:'`src:parent` is Planned, not implemented in either wire yet (tag-reference.md §src option values) — shown for shape only'},
+    {label:'`key` + link permalink',  parts:[['key','$key1'],['_link',{to:'permalink'}]],
       rest:[['key','$key1'],['_link',{to:'permalink'}]]},
-    {label:'key + link permalink, new tab', parts:[['key','$key1'],['_link',{to:'permalink',newTab:true}]],
+    {label:'`key` + link permalink, new tab', parts:[['key','$key1'],['_link',{to:'permalink',newTab:true}]],
       rest:[['key','$key1'],['_link',{to:'permalink',newTab:true}]]},
-    {label:'key + link url field',  parts:[['key','$key1'],['_link',{to:'key',key:'$urlKey'}]],
+    {label:'`key` + link url field',  parts:[['key','$key1'],['_link',{to:'key',key:'$urlKey'}]],
       rest:[['key','$key1'],['_link',{to:'key',key:'$urlKey'}]]},
-    {label:'title + link, new tab', parts:[['use','title'],['_link',{to:'permalink',newTab:true}]],
+    {label:'`title` + link, new tab', parts:[['use','title'],['_link',{to:'permalink',newTab:true}]],
       rest:[['use','title'],['_link',{to:'permalink',newTab:true}]]},
-    {label:'ref hop → key',
+    {label:'`ref` hop → `key`',
       parts:[['source','ref'],['ref','$ref'],['key','$key1']],
       chain:[{slug:'refs',arg:'$ref'}], rest:[['key','$key1']]},
-    {label:'ref hop → title',
+    {label:'`ref` hop → `title`',
       parts:[['source','ref'],['ref','$ref'],['use','title']],
       chain:[{slug:'refs',arg:'$ref'}], rest:[['use','title']]},
-    {label:'ref hop, limit 3 + sep',
+    {label:'`ref` hop, `limit` 3 + `sep`',
       parts:[['source','ref'],['ref','$ref'],['limit','3'],['sep',', '],['key','$key1']],
       chain:[{slug:'refs',arg:'$ref',limit:'3'}], rest:[['sep',', '],['key','$key1']]},
-    {label:'term hop → title',
+    {label:'`term` hop → `title`',
       parts:[['_inTerm','$tax'],['use','title']],
       chain:[{slug:'terms',arg:'$tax'}], rest:[['use','title']]},
-    {label:'term hop → term meta key',
+    {label:'`term` hop → term meta key',
       parts:[['_inTerm','$tax'],['key','$key1']],
       chain:[{slug:'terms',arg:'$tax'}], rest:[['key','$key1']]},
-    {label:'term hop, limit 5 + sep',
+    {label:'`term` hop, `limit` 5 + `sep`',
       parts:[['_inTerm','$tax'],['limit','5'],['sep',' / '],['use','title']],
       chain:[{slug:'terms',arg:'$tax',limit:'5'}], rest:[['sep',' / '],['use','title']]},
-    {label:'ref hop THEN term hop',
+    {label:'`ref` hop THEN `term` hop',
       parts:[['source','ref'],['ref','$ref'],['_inTerm','$tax'],['use','title']],
       chain:[{slug:'refs',arg:'$ref'},{slug:'terms',arg:'$tax'}], rest:[['use','title']]},
-    {label:'ref hop THEN term hop → key',
+    {label:'`ref` hop THEN `term` hop → `key`',
       parts:[['source','ref'],['ref','$ref'],['key','$key1'],['_inTerm','$tax']],
       chain:[{slug:'refs',arg:'$ref'},{slug:'terms',arg:'$tax'}], rest:[['key','$key1']]},
-    {label:'ref+term hop, per-step limits',
+    {label:'`ref`+`term` hop, per-step `limit`s',
       parts:[['source','ref'],['ref','$ref'],['_inTerm','$tax'],['limit','5'],['use','title']],
       chain:[{slug:'refs',arg:'$ref',limit:'2'},{slug:'terms',arg:'$tax',limit:'5'}], rest:[['use','title']],
-      note:'shipped limit binds the FINAL step only; chain limits EACH'},
+      note:'Shipped `limit` binds the FINAL step only; chain limits EACH'},
     // SPECULATIVE per-step `sep` (see serializeStep) — the ONLY rows where a step carries TWO kv
     // tokens, which is the case that separates the two limit spellings. Read them under both.
-    {label:'ref+term hop, per-step limits AND per-step seps',
+    {label:'`ref`+`term` hop, per-step `limit`s AND per-step `sep`s',
       parts:[['source','ref'],['ref','$ref'],['_inTerm','$tax'],['limit','5'],['sep',', '],['use','title']],
       chain:[{slug:'refs',arg:'$ref',sep:'; ',limit:'2'},{slug:'terms',arg:'$tax',sep:', ',limit:'5'}], rest:[['use','title']]},
-    {label:'term hop, sep only (no limit)',
+    {label:'`term` hop, `sep` only (no `limit`)',
       parts:[['_inTerm','$tax'],['sep',' / '],['use','title']],
       chain:[{slug:'terms',arg:'$tax',sep:' / '}], rest:[['use','title']]},
     // One retained VALUE-shape sample (2026-09-02: deleted the other five — bare glyph, step-sep
     // char, opt/hop-sep char, kv-char, slash — as redundant duplicates of each other and of the two
     // rows above, since none of them render distinguishably: S.perStepSep has no live toggle and
     // sits hardcoded false, so no sep value ever reaches output in any of these rows).
-    {label:'per-step sep CONTAINS a GB-reserved char (|)',
+    {label:'Per-step `sep` CONTAINS a GB-reserved char (`|`)',
       parts:[['_inTerm','$tax'],['sep',' | '],['use','title']],
       chain:[{slug:'terms',arg:'$tax',sep:' | '}], rest:[['use','title']]},
-    {label:'3 hops, sep on each',
+    {label:'3 hops, `sep` on each',
       parts:null,
       chain:[{slug:'refs',arg:'$ref',sep:'; '},{slug:'terms',arg:'$tax',sep:', '},{slug:'refs',arg:'office',sep:' / '}],
       rest:[['key','address']]},
@@ -577,34 +563,34 @@ const SCENARIO_GROUPS = [
     // ⚠ PROVISIONAL — user is checking the GB editor interface before this locks. Not urgent; no
     // picker offers the value yet.
     // The rows stay for SHAPE review: 0 renders as an ordinary count in both spellings.
-    {label:'limit 0 on the INTERMEDIATE step',
+    {label:'`limit` 0 on the INTERMEDIATE step',
       parts:null,
       chain:[{slug:'refs',arg:'$ref',limit:'0'},{slug:'terms',arg:'$tax',limit:'5'}], rest:[['use','title']],
       note:'0 = unlimited (GB editor convention) — loosen the multiply-guard for one hop'},
-    {label:'limit 0 mid-chain of 3, capped ends',
+    {label:'`limit` 0 mid-chain of 3, capped ends',
       parts:null,
       chain:[{slug:'refs',arg:'$ref',limit:'2'},{slug:'terms',arg:'$tax',limit:'0'},{slug:'refs',arg:'office',limit:'3'}],
       rest:[['key','address']],
       note:'0 = unlimited between two real caps'},
-    {label:'ref hop → key + fallback + link',
+    {label:'`ref` hop → `key` + `fallback` + link',
       parts:[['source','ref'],['ref','$ref'],['key','$key1'],['_link',{to:'permalink'}],['fallback','$fallback']],
       chain:[{slug:'refs',arg:'$ref'}], rest:[['key','$key1'],['_link',{to:'permalink'}],['fallback','$fallback']]},
     // NO flat/legacy equivalent — the chain is strictly more expressive here. (Re-measured
     // 2026-09-01, FW-79: the first two rows below now DO have a current [chain] form — they
     // couldn't be spelled at all before 1.17.0. Only the third remains unbuilt on both wires.)
-    {label:'term hop THEN ref hop',
+    {label:'`term` hop THEN `ref` hop',
       parts:null,
       chain:[{slug:'terms',arg:'$tax'},{slug:'refs',arg:'office'}], rest:[['key','address']],
-      note:'no flat/legacy form: srcTermIn was terminal pre-1.17.0, nothing could hop off a term — the chain closes this'},
-    {label:'2× ref hop (staff → dept)',
+      note:'No flat/legacy form: `srcTermIn` was terminal pre-1.17.0, nothing could hop off a term — the chain closes this'},
+    {label:'2× `ref` hop (staff → dept)',
       parts:null,
       chain:[{slug:'refs',arg:'related_staff'},{slug:'refs',arg:'department'}], rest:[['use','title']],
-      note:'no flat/legacy form: the flat wire allows only one ref key per tag — multiple refs hops now ship via the chain'},
-    {label:'pinned term start → key',
+      note:'No flat/legacy form: the flat wire allows only one `ref` key per tag — multiple `refs` hops now ship via the chain'},
+    {label:'Pinned `term` start → `key`',
       parts:null,
       chain:[{slug:'term',arg:'42'}], rest:[['key','$key1']],
       previewOnly:true, previewHow:'chain',
-      note:'no flat/legacy form, and still no chain form either: a pinned-entity chain root is unbuilt — tracked as FW-39, shown for shape only'},
+      note:'No flat/legacy form, and still no chain form either: a pinned-entity chain root is unbuilt — tracked as FW-39, shown for shape only'},
   ]},
   // _asSize part = {mode,size}; folded at render via foldAsSize so the value separator drives
   // the comma (as:url<sep>medium). Nullary modes (alt/id/caption) drop size.
@@ -612,34 +598,34 @@ const SCENARIO_GROUPS = [
   // legacy wire, `chain`+`rest` is the current 1.17.0 chain wire. Rows with no source hop carry
   // no `chain` — Current then renders `rest` (identical to `parts`), same convention as text.
   { tmpl:'image', title:'image — options + built src chain (current, 1.17.0) ⟷ flat (legacy, FW-56)', isContrast:true, scenarios:[
-    {label:'url, meta key',           parts:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']],
+    {label:'`url`, meta key',           parts:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']],
       rest:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']]},
-    {label:'url, meta key, medium',   parts:[['_asSize',{mode:'url',size:'medium'}],['key','$imgKey']],
+    {label:'`url`, meta key, `medium`',   parts:[['_asSize',{mode:'url',size:'medium'}],['key','$imgKey']],
       rest:[['_asSize',{mode:'url',size:'medium'}],['key','$imgKey']]},
-    {label:'url, meta key, thumb',    parts:[['_asSize',{mode:'url',size:'thumbnail'}],['key','$imgKey']],
+    {label:'`url`, meta key, `thumb`',    parts:[['_asSize',{mode:'url',size:'thumbnail'}],['key','$imgKey']],
       rest:[['_asSize',{mode:'url',size:'thumbnail'}],['key','$imgKey']]},
-    {label:'url, featured',           parts:[['_asSize',{mode:'url',size:'full'}],['use','featured']],
+    {label:'`url`, `featured`',           parts:[['_asSize',{mode:'url',size:'full'}],['use','featured']],
       rest:[['_asSize',{mode:'url',size:'full'}],['use','featured']]},
-    {label:'alt, meta key',           parts:[['_asSize',{mode:'alt'}],['key','$imgKey']],
+    {label:'`alt`, meta key',           parts:[['_asSize',{mode:'alt'}],['key','$imgKey']],
       rest:[['_asSize',{mode:'alt'}],['key','$imgKey']]},
-    {label:'id, meta key',            parts:[['_asSize',{mode:'id'}], ['key','$imgKey']],
+    {label:'`id`, meta key',            parts:[['_asSize',{mode:'id'}], ['key','$imgKey']],
       rest:[['_asSize',{mode:'id'}],['key','$imgKey']]},
-    {label:'url, via ref → key',      parts:[['_asSize',{mode:'url',size:'full'}],['source','ref'],['ref','$ref'],['key','$imgKey']],
+    {label:'`url`, via `ref` → `key`',      parts:[['_asSize',{mode:'url',size:'full'}],['source','ref'],['ref','$ref'],['key','$imgKey']],
       chain:[{slug:'refs',arg:'$ref'}], rest:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']]},
-    {label:'url, key, in term',       parts:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey'],['_inTerm','$tax']],
+    {label:'`url`, `key`, in `term`',       parts:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey'],['_inTerm','$tax']],
       chain:[{slug:'terms',arg:'$tax'}], rest:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']]},
-    {label:'url, key + fallback',     parts:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey'],['fallback','$fallback']],
+    {label:'`url`, `key` + `fallback`',     parts:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey'],['fallback','$fallback']],
       rest:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey'],['fallback','$fallback']]},
   ]},
   { tmpl:'content', title:'content — options + built src chain (current, 1.17.0) ⟷ flat (legacy, FW-56)', isContrast:true, scenarios:[
-    {label:'post content',          parts:[], rest:[]},
-    {label:'excerpt',               parts:[['use','excerpt']], rest:[['use','excerpt']]},
+    {label:'Post content',          parts:[], rest:[]},
+    {label:'`excerpt`',               parts:[['use','excerpt']], rest:[['use','excerpt']]},
     {label:'ACF field',             parts:[['_content_key','$key1']], rest:[['_content_key','$key1']]},
-    {label:'via ref',               parts:[['source','ref'],['ref','$ref']],
+    {label:'Via `ref`',               parts:[['source','ref'],['ref','$ref']],
       chain:[{slug:'refs',arg:'$ref'}], rest:[]},
-    {label:'via ref → ACF',         parts:[['source','ref'],['ref','$ref'],['_content_key','$key1']],
+    {label:'Via `ref` → ACF',         parts:[['source','ref'],['ref','$ref'],['_content_key','$key1']],
       chain:[{slug:'refs',arg:'$ref'}], rest:[['_content_key','$key1']]},
-    {label:'in term',               parts:[['_inTerm','$tax']],
+    {label:'In `term`',               parts:[['_inTerm','$tax']],
       chain:[{slug:'terms',arg:'$tax'}], rest:[]},
   ]},
   // isContrast + a dynamic `variants` fn (toggle cb-fw81): six-key wire always shows; the FW-81
@@ -651,28 +637,28 @@ const SCENARIO_GROUPS = [
   // real, only-shipped name for the six-key variant on this row.
   { tmpl:'datetime_single', title:'datetime_single ⟷ merged {{datetime}} (FW-81, parked/unshipped)',
     isContrast:true, variants:['sixKey','collapsed'], scenarios:[
-    {label:'date',                  parts:[['as','date'],['key','$dateKey']]},
-    {label:'datetime',              parts:[['key','$dateKey'],['timeKey','$timeKey']]},
-    {label:'time',                  parts:[['as','time'],['key','$timeKey']]},
-    {label:'date + show year',      parts:[['as','date'],['showCurrentYear',true],['key','$dateKey']]},
-    {label:'date, custom format',   parts:[['as','date'],['format','$format'],['key','$dateKey']]},
-    {label:'via ref → date',        parts:[['as','date'],['source','ref'],['ref','$ref'],['key','$dateKey']]},
-    {label:'date + link permalink',  parts:[['as','date'],['key','$dateKey'],['_link',{to:'permalink'}]]},
-    {label:'date + link url field',  parts:[['as','date'],['key','$dateKey'],['_link',{to:'key',key:'$urlKey',newTab:true}]]},
+    {label:'Date',                  parts:[['as','date'],['key','$dateKey']]},
+    {label:'Datetime',              parts:[['key','$dateKey'],['timeKey','$timeKey']]},
+    {label:'Time',                  parts:[['as','time'],['key','$timeKey']]},
+    {label:'Date + show year',      parts:[['as','date'],['showCurrentYear',true],['key','$dateKey']]},
+    {label:'Date, custom `format`',   parts:[['as','date'],['format','$format'],['key','$dateKey']]},
+    {label:'Via `ref` → date',        parts:[['as','date'],['source','ref'],['ref','$ref'],['key','$dateKey']]},
+    {label:'Date + link permalink',  parts:[['as','date'],['key','$dateKey'],['_link',{to:'permalink'}]]},
+    {label:'Date + link url field',  parts:[['as','date'],['key','$dateKey'],['_link',{to:'key',key:'$urlKey',newTab:true}]]},
   ]},
   { tmpl:'datetime_range', title:'datetime_range ⟷ merged {{datetime}} (FW-81, parked/unshipped)',
     isContrast:true, variants:['sixKey','collapsed'], scenarios:[
-    {label:'date range',            parts:[['as','date'],['startKey','$startKey'],['endKey','$endKey']]},
-    {label:'date range + sep',      parts:[['as','date'],['rangeSep','$rangeSep'],['startKey','$startKey'],['endKey','$endKey']]},
-    {label:'datetime range',        parts:[['startKey','$startKey'],['startTimeKey','$timeKey'],['endKey','$endKey'],['endTimeKey','$timeKey']]},
-    {label:'date range + show year',parts:[['as','date'],['showCurrentYear',true],['startKey','$startKey'],['endKey','$endKey']]},
-    {label:'via ref → date range',  parts:[['as','date'],['source','ref'],['ref','$ref'],['startKey','$startKey'],['endKey','$endKey']]},
+    {label:'Date range',            parts:[['as','date'],['startKey','$startKey'],['endKey','$endKey']]},
+    {label:'Date range + `sep`',      parts:[['as','date'],['rangeSep','$rangeSep'],['startKey','$startKey'],['endKey','$endKey']]},
+    {label:'Datetime range',        parts:[['startKey','$startKey'],['startTimeKey','$timeKey'],['endKey','$endKey'],['endTimeKey','$timeKey']]},
+    {label:'Date range + show year',parts:[['as','date'],['showCurrentYear',true],['startKey','$startKey'],['endKey','$endKey']]},
+    {label:'Via `ref` → date range',  parts:[['as','date'],['source','ref'],['ref','$ref'],['startKey','$startKey'],['endKey','$endKey']]},
     // No six-key form exists AT ALL — an open-ended range (end = "now") has nothing to hold it;
     // the flat wire has no verb slot. S10 settles `now` itself; O7 (published) stays unmodelled.
-    {label:'range, ongoing (end = now)', parts:null,
+    {label:'Range, ongoing (end = now)', parts:null,
       collapsed:[{verb:'key',args:['$startKey','$timeKey']},{verb:'now'}],
       previewOnly:true,
-      note:'no six-key equivalent: the flat wire has no verb position, so "ongoing" is unspellable today'},
+      note:'No six-key equivalent: the flat wire has no verb position, so "ongoing" is unspellable today'},
   ]},
   // The unfolded `try_text` group was MERGED into the contrast group below (2026-07-31); its
   // two leftover shipped-only rows (a 3-slot ref+term chain, and chain-level `_link`) folded
@@ -685,31 +671,31 @@ const SCENARIO_GROUPS = [
   // `image`'s are featured + the as/size format options, which stay slot options under the fold.
   { tmpl:'content', title:'try_content — folded (current, 1.17.0) ⟷ flat (legacy, FW-57)', isContrast:true,
     variants:['shipped','foldedCurrent','folded'], foldClass:'try', scenarios:[
-    {label:'2: content, ACF',
+    {label:'2: `content`, ACF',
       shippedSlots:[[],[['_content_key','$key1']]],
       slots:[{read:{kind:'analog',slug:'default'}},{read:{kind:'key',field:'$key1'}}]},
-    {label:'2: ACF, via ref',
+    {label:'2: ACF, via `ref`',
       shippedSlots:[[['_content_key','$key1']],[['source','ref'],['ref','$ref']]],
       slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref'}],read:{kind:'analog',slug:'default'}}]},
-    {label:'3: ACF, ref, in term',
+    {label:'3: ACF, `ref`, in `term`',
       shippedSlots:[[['_content_key','$key1']],[['source','ref'],['ref','$ref']],[['_inTerm','$tax']]],
       slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref'}],read:{kind:'analog',slug:'default'}},{chain:[{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'default'}}]},
-    {label:'2: ACF, excerpt',
+    {label:'2: ACF, `excerpt`',
       shippedSlots:[[['_content_key','$key1']],[['use','excerpt']]],
       slots:[{read:{kind:'key',field:'$key1'}},{read:{kind:'analog',slug:'excerpt'}}]},
   ]},
   { tmpl:'image', title:'try_image — folded (current, 1.17.0) ⟷ flat (legacy, FW-57)', isContrast:true,
     variants:['shipped','foldedCurrent','folded'], foldClass:'try', scenarios:[
-    {label:'2: key, featured',
+    {label:'2: `key`, `featured`',
       shippedSlots:[[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']],[['_asSize',{mode:'url',size:'full'}],['use','featured']]],
       slots:[{read:{kind:'key',field:'$imgKey'}},{read:{kind:'analog',slug:'featured'}}]},
-    {label:'2: key, via ref key',
+    {label:'2: `key`, via `ref` `key`',
       shippedSlots:[[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']],[['_asSize',{mode:'url',size:'full'}],['source','ref'],['ref','$ref'],['key','$imgKey']]],
       slots:[{read:{kind:'key',field:'$imgKey'}},{chain:[{slug:'refs',arg:'$ref'}],read:{kind:'key',field:'$imgKey'}}]},
-    {label:'2: key medium, fallback',
+    {label:'2: `key` medium, `fallback`',
       shippedSlots:[[['_asSize',{mode:'url',size:'medium'}],['key','$imgKey']],[['_asSize',{mode:'url',size:'full'}],['key','$imgKey'],['fallback','$fallback']]],
       slots:[{read:{kind:'key',field:'$imgKey'}},{read:{kind:'key',field:'$imgKey'},fallback:'$fallback'}]},
-    {label:'2: featured, ref→featured',
+    {label:'2: `featured`, `ref`→`featured`',
       shippedSlots:[[['_asSize',{mode:'url',size:'full'}],['use','featured']],[['_asSize',{mode:'url',size:'full'}],['source','ref'],['ref','$ref'],['use','featured']]],
       slots:[{read:{kind:'analog',slug:'featured'}},{chain:[{slug:'refs',arg:'$ref'}],read:{kind:'analog',slug:'featured'}}]},
   ]},
@@ -732,30 +718,30 @@ const SCENARIO_GROUPS = [
   // for the fold, so it is shown rather than hidden.
   { tmpl:'text', title:'try_text — folded (current, 1.17.0) ⟷ flat (legacy, FW-57)', isContrast:true,
     variants:['shipped','foldedCurrent','folded'], foldClass:'try', scenarios:[
-    {label:'2: key, key',
+    {label:'2: `key`, `key`',
       shippedSlots:[[['key','$key1']],[['key','$key2']]],
       slots:[{read:{kind:'key',field:'$key1'}},{read:{kind:'key',field:'$key2'}}]},
-    {label:'2: key, title',
+    {label:'2: `key`, `title`',
       shippedSlots:[[['key','$key1']],[['use','title']]],
       slots:[{read:{kind:'key',field:'$key1'}},{read:{kind:'analog',slug:'title'}}]},
-    {label:'2: key, via ref → key',
+    {label:'2: `key`, via `ref` → `key`',
       shippedSlots:[[['key','$key1']],[['source','ref'],['ref','$ref'],['key','$key1']]],
       slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref'}],read:{kind:'key',field:'$key1'}}]},
     // NB the folded read is `use(title)`, NOT `use(same)`: shipped `2-srcTerm|2-tax:x` with no
     // read option resolves the TERM'S TITLE, whereas `same` would inherit slot 1's meta key. The
     // pair must express the same read or the contrast is misleading.
-    {label:'2: key, in term',
+    {label:'2: `key`, in `term`',
       shippedSlots:[[['key','$key1']],[['_inTerm','$tax']]],
       slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'title'}}]},
-    {label:'3: key, ref→key, title',
+    {label:'3: `key`, `ref`→`key`, `title`',
       shippedSlots:[[['key','$key1']],[['source','ref'],['ref','$ref'],['key','$key1']],[['use','title']]],
       slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref'}],read:{kind:'key',field:'$key1'}},{read:{kind:'analog',slug:'title'}}]},
-    {label:'3: key, ref→key, in term',
+    {label:'3: `key`, `ref`→`key`, in `term`',
       shippedSlots:[[['key','$key1']],[['source','ref'],['ref','$ref'],['key','$key1']],[['_inTerm','$tax']]],
       slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref'}],read:{kind:'key',field:'$key1'}},{chain:[{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'title'}}]},
     // try_ link is CHAIN-LEVEL (one unprefixed linkTo for the winning slot's entity —
     // link-helpers.php:184), NOT per-slot. Modeled via scenario.chainLink, format-agnostic.
-    {label:'2: key, key + chain link',
+    {label:'2: `key`, `key` + chain link',
       shippedSlots:[[['key','$key1']],[['key','$key2']]],
       slots:[{read:{kind:'key',field:'$key1'}},{read:{kind:'key',field:'$key2'}}],
       chainLink:{to:'permalink',newTab:true}},
@@ -767,38 +753,38 @@ const SCENARIO_GROUPS = [
     // inheriting an AMBIENT (empty) chain. `bws_fold_chain_join()` carries the WHOLE prior chain,
     // not just a single hop — this row proves it: slot 2's `src(same)` inherits BOTH of slot 1's
     // steps, then reads a different key off the same 2-hop context.
-    {label:'same inherits a MULTI-STEP chain (FW-71)',
+    {label:'`same` inherits a MULTI-STEP chain (FW-71)',
       slots:[{chain:[{slug:'refs',arg:'related_staff'},{slug:'refs',arg:'department'}],read:{kind:'key',field:'phone'}},
              {chain:[{slug:'same'}],read:{kind:'key',field:'email'}}]},
     // longer chains (multi-hop + start-kind + limit) — stress the chain inside a slot value:
-    {label:'2: key, 2-hop staff→dept→key', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'related_staff'},{slug:'refs',arg:'department'}],read:{kind:'key',field:'phone'}}]},
-    {label:'2: key, post→ref limited→title',slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'post',arg:'9999'},{slug:'refs',arg:'related_staff',limit:'5'}],read:{kind:'analog',slug:'title'}}]},
-    {label:'3: key, term-hop, ref→ref→key', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'title'}},{chain:[{slug:'refs',arg:'office'},{slug:'refs',arg:'region'}],read:{kind:'key',field:'name'}}]},
+    {label:'2: `key`, 2-hop staff→dept→`key`', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'related_staff'},{slug:'refs',arg:'department'}],read:{kind:'key',field:'phone'}}]},
+    {label:'2: `key`, `post`→`ref` limited→`title`',slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'post',arg:'9999'},{slug:'refs',arg:'related_staff',limit:'5'}],read:{kind:'analog',slug:'title'}}]},
+    {label:'3: `key`, `term`-hop, `ref`→`ref`→`key`', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'title'}},{chain:[{slug:'refs',arg:'office'},{slug:'refs',arg:'region'}],read:{kind:'key',field:'name'}}]},
     // BUILT-SRC scenarios (user 2026-07-31): the chain slugs `refs` / `terms` REPLACE the shipped
     // `src:ref`+`ref:<key>` and `srcTermIn:<tax>` pairs. These exercise the replacements inside the
     // fold, incl. list mode (limit rides the step; sep is a slot sibling — see the sep-carrier note).
-    {label:'refs replaces src:ref → key', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref'}],read:{kind:'key',field:'$key2'}}]},
-    {label:'terms replaces srcTermIn → title',slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'title'}}]},
-    {label:'terms → term meta key',      slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'terms',arg:'$tax'}],read:{kind:'key',field:'$key2'}}]},
-    {label:'terms + limit (list mode)',  slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'terms',arg:'$tax',limit:'3'}],read:{kind:'analog',slug:'title'}}]},
-    {label:'refs + limit (list mode)',   slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref',limit:'3'}],read:{kind:'key',field:'$key2'}}]},
+    {label:'`refs` replaces `src:ref` → `key`', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref'}],read:{kind:'key',field:'$key2'}}]},
+    {label:'`terms` replaces `srcTermIn` → `title`',slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'title'}}]},
+    {label:'`terms` → `term` meta key',      slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'terms',arg:'$tax'}],read:{kind:'key',field:'$key2'}}]},
+    {label:'`terms` + `limit` (list mode)',  slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'terms',arg:'$tax',limit:'3'}],read:{kind:'analog',slug:'title'}}]},
+    {label:'`refs` + `limit` (list mode)',   slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref',limit:'3'}],read:{kind:'key',field:'$key2'}}]},
     // srcTermIn AT src:ref — shipped wire's `src:ref|ref:x|srcTermIn:cat` (term hop off the hopped
     // post). Two flat options + a modifier collapse to ONE ordered 2-step chain.
-    {label:'refs→terms (srcTermIn at src:ref)',slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref'},{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'title'}}]},
-    {label:'refs→terms, both limited',   slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref',limit:'2'},{slug:'terms',arg:'$tax',limit:'3'}],read:{kind:'key',field:'$key2'}}]},
+    {label:'`refs`→`terms` (`srcTermIn` at `src:ref`)',slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref'},{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'title'}}]},
+    {label:'`refs`→`terms`, both limited',   slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref',limit:'2'},{slug:'terms',arg:'$tax',limit:'3'}],read:{kind:'key',field:'$key2'}}]},
     // SPECULATIVE per-step `sep` INSIDE a slot — the depth case: both kv tokens take the L2 bracket
     // while the limit char (slash candidate) stays bare, so this is where the two spellings diverge
     // most. See serializeStep.
-    {label:'refs→terms, limits AND seps', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref',sep:'; ',limit:'2'},{slug:'terms',arg:'$tax',sep:', ',limit:'3'}],read:{kind:'key',field:'$key2'}}]},
+    {label:'`refs`→`terms`, `limit`s AND `sep`s', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref',sep:'; ',limit:'2'},{slug:'terms',arg:'$tax',sep:', ',limit:'3'}],read:{kind:'key',field:'$key2'}}]},
     // limit 0 INSIDE a slot — same undecided semantics as the base-tag rows above, at L2 brackets.
-    {label:'refs→terms, intermediate limit 0', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref',limit:'0'},{slug:'terms',arg:'$tax',limit:'3'}],read:{kind:'key',field:'$key2'}}]},
+    {label:'`refs`→`terms`, intermediate `limit` 0', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref',limit:'0'},{slug:'terms',arg:'$tax',limit:'3'}],read:{kind:'key',field:'$key2'}}]},
     // reverse order — terms then refs off the TERM (unreachable on the shipped wire: srcTermIn is a
     // terminal modifier, no ref hop continues from it). Chain makes it expressible.
-    {label:'terms→refs (NEW: unreachable today)',slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'terms',arg:'$tax'},{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}}]},
+    {label:'`terms`→`refs` (NEW: unreachable today)',slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'terms',arg:'$tax'},{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}}]},
     // start-kind seeds a chain that then hops — pinned term / pinned post as the chain root.
-    {label:'term start → refs → key',    slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'term',arg:'42'},{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}}]},
-    {label:'post start → terms → title', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'post',arg:'9999'},{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'title'}}]},
-    {label:'3-hop refs→terms→refs',      slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref'},{slug:'terms',arg:'$tax'},{slug:'refs',arg:'region'}],read:{kind:'key',field:'name'}}]},
+    {label:'`term` start → `refs` → `key`',    slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'term',arg:'42'},{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}}]},
+    {label:'`post` start → `terms` → `title`', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'post',arg:'9999'},{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'title'}}]},
+    {label:'3-hop `refs`→`terms`→`refs`',      slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref'},{slug:'terms',arg:'$tax'},{slug:'refs',arg:'region'}],read:{kind:'key',field:'name'}}]},
   ]},
   // JOIN — AGNOSTIC combiner: each slot NAMES its processing tag (Option R type token).
   // Heterogeneous tags per slot for free (no recursive braces): 1:title | 2:phone,key(mobile).
@@ -808,32 +794,32 @@ const SCENARIO_GROUPS = [
   // is exactly what Option R's per-slot type token buys, so those render "no shipped equivalent".
   { title:'join — folded (current, 1.17.0), heterogeneous ⟷ flat (legacy, FW-57 Option R)', isContrast:true,
     variants:['shipped','foldedCurrent','folded'], foldClass:'join', tmpl:'text', scenarios:[
-    {label:'name + phone',           slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'phone',read:{kind:'key',field:'mobile'}}]},
-    {label:'title + email + text',   slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'email',read:{kind:'key',field:'contact_email'}},{tag:'text',read:{kind:'key',field:'note'}}]},
-    {label:'plain field (text, no tag token)',
+    {label:'Name + phone',           slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'phone',read:{kind:'key',field:'mobile'}}]},
+    {label:'`title` + `email` + `text`',   slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'email',read:{kind:'key',field:'contact_email'}},{tag:'text',read:{kind:'key',field:'note'}}]},
+    {label:'Plain field (`text`, no tag token)',
       shippedSlots:[[['key','$key1']],[['key','$key2']]],
       slots:[{tag:'text',read:{kind:'key',field:'$key1'}},{tag:'text',read:{kind:'key',field:'$key2'}}]},
-    {label:'two titles (homogeneous)',
+    {label:'Two titles (homogeneous)',
       shippedSlots:[[['use','title']],[['source','ref'],['ref','office'],['use','title']]],
       slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'title',chain:[{slug:'refs',arg:'office'}],read:{kind:'analog',slug:'title'}}]},
-    {label:'ref-hop slot',           slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'title',chain:[{slug:'refs',arg:'office'}],read:{kind:'analog',slug:'title'}}]},
+    {label:'`ref`-hop slot',           slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'title',chain:[{slug:'refs',arg:'office'}],read:{kind:'analog',slug:'title'}}]},
     {label:'Path A across slots',
       shippedSlots:[[['key','first']],[['source','ref'],['ref','spouse'],['key','first']]],
       slots:[{tag:'text',read:{kind:'key',field:'first'}},{tag:'text',chain:[{slug:'refs',arg:'spouse'}],read:{kind:'same'}}]},
     // per-slot LINK (the primary case: name links to its own entity permalink)
-    {label:'name→permalink + phone', slots:[{tag:'title',read:{kind:'analog',slug:'title'},link:{to:'permalink'}},{tag:'phone',read:{kind:'key',field:'mobile'}}]},
-    {label:'name→url field new tab + phone',slots:[{tag:'title',read:{kind:'analog',slug:'title'},link:{to:'key',key:'$urlKey',newTab:true}},{tag:'phone',read:{kind:'key',field:'mobile'}}]},
+    {label:'Name→permalink + phone', slots:[{tag:'title',read:{kind:'analog',slug:'title'},link:{to:'permalink'}},{tag:'phone',read:{kind:'key',field:'mobile'}}]},
+    {label:'Name→url field new tab + phone',slots:[{tag:'title',read:{kind:'analog',slug:'title'},link:{to:'key',key:'$urlKey',newTab:true}},{tag:'phone',read:{kind:'key',field:'mobile'}}]},
     // STACKED handlers: transform AND link on one cell (email the field, then link it)
-    {label:'email+link + name (2 handlers)',slots:[{tag:'email',read:{kind:'key',field:'contact_email'},link:{to:'key',key:'$urlKey'}},{tag:'title',read:{kind:'analog',slug:'title'}}]},
+    {label:'Email+link + name (2 handlers)',slots:[{tag:'email',read:{kind:'key',field:'contact_email'},link:{to:'key',key:'$urlKey'}},{tag:'title',read:{kind:'analog',slug:'title'}}]},
     // DATETIME slot — the pivot case: datetime_range needs up to 4 keys (start/end date+time).
     // rule2 view can only carry ONE terminal key (breaks); respell view holds all as flat options.
-    {label:'name + datetime_range (multi-key)',slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_range',read:{kind:'key',field:'start_date'},dtKeys:{startKey:'start_date',endKey:'end_date',as:'date',format:'F j, Y'}}]},
+    {label:'Name + `datetime_range` (multi-key)',slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_range',read:{kind:'key',field:'start_date'},dtKeys:{startKey:'start_date',endKey:'end_date',as:'date',format:'F j, Y'}}]},
     // BUILT-SRC in an AGNOSTIC container (user 2026-07-31): type token AND a refs/terms chain in
     // the same slot value — the two leading tokens must stay legible side by side.
-    {label:'name + terms hop (title of term)',slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'title',chain:[{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'title'}}]},
-    {label:'name + refs hop email',   slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'email',chain:[{slug:'refs',arg:'office'}],read:{kind:'key',field:'contact_email'}}]},
-    {label:'terms limited + refs limited',slots:[{tag:'text',chain:[{slug:'terms',arg:'$tax',limit:'3'}],read:{kind:'analog',slug:'title'}},{tag:'phone',chain:[{slug:'refs',arg:'office',limit:'2'}],read:{kind:'key',field:'mobile'}}]},
-    {label:'refs→terms chain + link',  slots:[{tag:'title',chain:[{slug:'refs',arg:'$ref'},{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'title'},link:{to:'permalink'}},{tag:'text',read:{kind:'key',field:'$key1'}}]},
+    {label:'Name + `terms` hop (`title` of term)',slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'title',chain:[{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'title'}}]},
+    {label:'Name + `refs` hop email',   slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'email',chain:[{slug:'refs',arg:'office'}],read:{kind:'key',field:'contact_email'}}]},
+    {label:'`terms` limited + `refs` limited',slots:[{tag:'text',chain:[{slug:'terms',arg:'$tax',limit:'3'}],read:{kind:'analog',slug:'title'}},{tag:'phone',chain:[{slug:'refs',arg:'office',limit:'2'}],read:{kind:'key',field:'mobile'}}]},
+    {label:'`refs`→`terms` chain + link',  slots:[{tag:'title',chain:[{slug:'refs',arg:'$ref'},{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'title'},link:{to:'permalink'}},{tag:'text',read:{kind:'key',field:'$key1'}}]},
   ]},
   // JOIN — TEMPLATE MODE. Added 2026-08-04 (user: "{{join}} samples have no format strings; add
   // them"). This is the group the KEY-spelling decision actually turns on, for two reasons:
@@ -850,7 +836,7 @@ const SCENARIO_GROUPS = [
   // `format:%1 (%2)` keeps rendering with no converter entry. The `%%` row is what that costs.
   { title:'join — TEMPLATE MODE, format tokens (%N follows the key spelling)', isContrast:true,
     variants:['shipped','foldedCurrent','folded'], foldClass:'join', tmpl:'text', scenarios:[
-    {label:'name (nickname) — 2 slots', format:'%1 (%2)',
+    {label:'Name (nickname) — 2 slots', format:'%1 (%2)',
       shippedSlots:[[['key','name_first']],[['key','nickname']]],
       slots:[{tag:'text',read:{kind:'key',field:'name_first'}},{tag:'text',read:{kind:'key',field:'nickname'}}]},
     {label:'3 slots, middle dot', format:'%1 %2 · %3',
@@ -858,7 +844,7 @@ const SCENARIO_GROUPS = [
       slots:[{tag:'text',read:{kind:'key',field:'name_first'}},{tag:'text',read:{kind:'key',field:'name_last'}},{tag:'text',read:{kind:'key',field:'suffix'}}]},
     // ~…~ unit group: a token and its unit text shed TOGETHER when the field is empty (the Format
     // control's help text, base-tags.php). The tilde wraps a TOKEN, so it travels with the spelling.
-    {label:'unit group ~(%2 lbs.)~', format:'%1 ~(%2 lbs.)~',
+    {label:'Unit group `~(%2 lbs.)~`', format:'%1 ~(%2 lbs.)~',
       shippedSlots:[[['key','name_first']],[['key','weight']]],
       slots:[{tag:'text',read:{kind:'key',field:'name_first'}},{tag:'text',read:{kind:'key',field:'weight'}}]},
     // `%%` = literal percent before a digit. Under digits it protects `%2`; with the digit FALLBACK
@@ -866,22 +852,22 @@ const SCENARIO_GROUPS = [
     // both spellings — it is the one place the fallback costs something, and the escape rule widens
     // from "before a digit" to "before a digit or a SLOT LETTER" (how far depends on the CONTAINER's
     // slot count, not on the letter class — the grammar allows A-Z, join tokenizes 10).
-    {label:'literal %% before a digit', format:'%1 (%%2 off)',
+    {label:'Literal `%%` before a digit', format:'%1 (%%2 off)',
       shippedSlots:[[['key','name_first']],[['key','discount']]],
       slots:[{tag:'text',read:{kind:'key',field:'name_first'}},{tag:'text',read:{kind:'key',field:'discount'}}]},
     // TENTH slot: `%10` is why bws_join_wire_format() substitutes HIGH→LOW. Single-char letters have
     // no prefix relation, so capitals delete that ordering rule — visible here as `%J`.
-    {label:'10 slots, %10 prefix hazard', format:'%1-%2-%3-%4-%5-%6-%7-%8-%9 (%10)',
+    {label:'10 slots, `%10` prefix hazard', format:'%1-%2-%3-%4-%5-%6-%7-%8-%9 (%10)',
       shippedSlots:[...Array(10)].map((_,i)=>[['key',`f${i+1}`]]),
       slots:[...Array(10)].map((_,i)=>({tag:'text',read:{kind:'key',field:`f${i+1}`}}))},
     // SEPARATOR mode spelled out: no format, one tag-level valueSep. Every other join group on this
     // page is implicitly this mode with the default ', ' — here it sits beside a template row.
-    {label:'separator mode (no format)', valueSep:' / ',
+    {label:'Separator mode (no `format`)', valueSep:' / ',
       shippedSlots:[[['key','name_first']],[['key','name_last']]],
       slots:[{tag:'text',read:{kind:'key',field:'name_first'}},{tag:'text',read:{kind:'key',field:'name_last'}}]},
     // The two proposals COMPOUND: a per-slot type token AND a token in the format. No shipped
     // equivalent — join is text-only today, which is what Option R's type token buys.
-    {label:'title + phone in a format', format:'%1 - %2',
+    {label:'`title` + `phone` in a format', format:'%1 - %2',
       slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'phone',read:{kind:'key',field:'mobile'}}]},
   ]},
   // TABLE — folded-only (re-based 2026-09-01, FW-79, per table-tag.md's REOPENED 2026-08-30
@@ -901,20 +887,20 @@ const SCENARIO_GROUPS = [
   // default rather than pre-empting an unlocked rename (see PRESETS.label below).
   { title:'table — folded, unreleased (REOPENED 2026-08-30)', isContrast:true,
     variants:['foldedCurrent','folded'], foldClass:'table', scenarios:[
-    {label:'staff rows: name→link + office',
+    {label:'Staff rows: name→link + office',
       rowChain:[{slug:'refs',arg:'related_staff'}],
       slots:[{label:'Name',tag:'title',read:{kind:'analog',slug:'title'},link:{to:'permalink'}},
              {label:'Office',tag:'text',chain:[{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}}]},
-    {label:'repeater rows: name + role + email',
+    {label:'Repeater rows: name + role + email',
       rowChain:[{slug:'rows',arg:'staff_members'}],
       slots:[{label:'Name',tag:'text',read:{kind:'key',field:'name'}},
              {label:'Role',tag:'text',read:{kind:'key',field:'role'}},
              {label:'Email',tag:'email',read:{kind:'key',field:'email'}}]},
-    {label:'terms rows + caption',
+    {label:'`terms` rows + `caption`',
       rowChain:[{slug:'terms',arg:'category'}], caption:'Categories',
       slots:[{label:'Term',tag:'title',read:{kind:'analog',slug:'title'}},
              {label:'Count',tag:'text',read:{kind:'key',field:'post_count'}}]},
-    {label:'start post → limited ref, 2 cols',
+    {label:'Start post → limited `ref`, 2 cols',
       rowChain:[{slug:'post',arg:'9999'},{slug:'refs',arg:'related_staff',limit:'5'}],
       slots:[{label:'Name',tag:'title',read:{kind:'analog',slug:'title'}},
              {label:'Phone',tag:'phone',read:{kind:'key',field:'mobile'}}]},
@@ -922,22 +908,22 @@ const SCENARIO_GROUPS = [
     // shapes is not the rule. This row is the plainest instance: a chain that resolves to exactly
     // ONE post, with no fan-out step at all, still makes a valid (one-row) table. Not a special
     // case — cardinality just falls out of the chain the way it always does.
-    {label:'single post, no fan-out (one-row table, D2a)',
+    {label:'Single post, no fan-out (one-row table, D2a)',
       rowChain:[{slug:'post',arg:'9999'}],
       slots:[{label:'Title',tag:'title',read:{kind:'analog',slug:'title'}},
              {label:'Note',tag:'text',read:{kind:'key',field:'internal_note'}}]},
     // BUILT-SRC in table (user 2026-07-31): rows and COLUMNS each carry their own refs/terms
     // chain. Terms as the ROW SET is the srcTermIn replacement at tag level; a column chain is
     // the per-cell hop the shipped wire has no form for at all.
-    {label:'terms rows, limited + per-col refs',
+    {label:'`terms` rows, limited + per-col `refs`',
       rowChain:[{slug:'terms',arg:'$tax',limit:'10'}],
       slots:[{label:'Term',tag:'title',read:{kind:'analog',slug:'title'}},
              {label:'Lead',tag:'text',chain:[{slug:'refs',arg:'lead_staff'}],read:{kind:'analog',slug:'title'}}]},
-    {label:'refs rows → per-col terms hop',
+    {label:'`refs` rows → per-col `terms` hop',
       rowChain:[{slug:'refs',arg:'related_staff'}],
       slots:[{label:'Name',tag:'title',read:{kind:'analog',slug:'title'}},
              {label:'Depts',tag:'text',chain:[{slug:'terms',arg:'department',limit:'3'}],read:{kind:'analog',slug:'title'}}]},
-    {label:'refs→terms rows (2-hop row set)',
+    {label:'`refs`→`terms` rows (2-hop row set)',
       rowChain:[{slug:'refs',arg:'$ref'},{slug:'terms',arg:'$tax'}],
       slots:[{label:'Term',tag:'title',read:{kind:'analog',slug:'title'}},
              {label:'Count',tag:'text',read:{kind:'key',field:'post_count'}}]},
@@ -949,81 +935,79 @@ const SCENARIO_GROUPS = [
     // note that the wire below is syntactically valid but targets a read the design does not
     // wire up. The hop must be spelled explicitly instead: `rows,team_members;refs,lead_ref`
     // then `use(title)` on THAT slot reads the linked post's title, per D4's own worked example.
-    {label:'analog on a repeater row (D4 decision a — see note)',
+    {label:'Analog on a repeater row (D4 decision a — see note)',
       rowChain:[{slug:'rows',arg:'team_members'}],
       slots:[{label:'Name',tag:'text',read:{kind:'key',field:'name'}},
              {label:'Lead title',tag:'title',read:{kind:'analog',slug:'title'}}],
-      note:'per table-tag.md §D4 decision (a), analog dispatch is specified to refuse on a repeater row — hop explicitly (rows,team_members;refs,lead_ref) before use(title) instead'},
+      note:'Per table-tag.md §D4 decision (a), analog dispatch is specified to refuse on a repeater row — hop explicitly (`rows,team_members;refs,lead_ref`) before `use(title)` instead'},
   ]},
   // TABLE v1 — the naming pass (FW-53 spec ticket 00, unbuilt). Every provisional name is a
-  // PRESETS / VALUE_PRESETS id (header, align, stripes, fixedLayout, inherit), so the rename
+  // PRESETS / VALUE_PRESETS id (header, align, stripe, layout, inherit), so the rename
   // sidebar respells it here; the column NOUN is editor copy, not wire, and has nothing to show on
   // this page. Columns render in the decided shape (tableColumnChain). The row chain is the
   // tag-level src, as above.
   { title: 'table v1 — naming pass (FW-53 ticket 00, unbuilt)',
     isContrast:true, variants:['folded'], foldClass:'table', tableV1:true, scenarios:[
-    {label:'bare column beside a chained one',
+    {label:'Bare column beside a chained one',
       rowChain:[{slug:'refs',arg:'related_staff'}],
       slots:[{label:'Name',tag:'title',read:{kind:'analog',slug:'title'}},
              {label:'Office',tag:'text',chain:[{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}}]},
-    {label:'header-only column beside a headered + chained one',
+    {label:'Header-only column beside a headered + chained one',
       rowChain:[{slug:'refs',arg:'related_staff'}],
       slots:[{label:'Office',tag:'text',chain:[{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}},
              {label:'Notes'}],
-      note:'a header-only column is valid and renders empty cells (table-tag.md Settled #25)'},
-    {label:'column carrying align',
+      note:'A header-only column is valid and renders empty cells (table-tag.md Settled #25)'},
+    {label:'Column carrying `align`',
       rowChain:[{slug:'rows',arg:'products'}],
       slots:[{label:'Product',tag:'text',read:{kind:'key',field:'name'}},
              {label:'Price',tag:'text',read:{kind:'key',field:'price'},align:'right'}]},
-    {label:'fixed-text columns, bare + hopping, beside the fixed-layout token',
+    {label:'`fixed`-text columns, bare + hopping, beside the fixed-layout token',
       rowChain:[{slug:'rows',arg:'teams'}], layout:'fixed',
       slots:[{label:'Team',tag:'text',read:{kind:'key',field:'team_name'}},
              {label:'Level',tag:'text',read:{kind:'fixed',text:'Varsity'}},
              {label:'Sponsor',tag:'text',chain:[{slug:'refs',arg:'sponsor_ref'}],read:{kind:'fixed',text:'Sponsored'}}],
-      note:'the slot read fixed(…) and the layout token in one tag (Q3: compare the three layout spellings here); the hopping column shows only where the ref resolves'},
-    {label:'column widths — the same width(…) token as the tag level',
+      note:'The slot read `fixed(…)` and the layout token in one tag (set the `fixed` and `layoutFixed` rename rows equal here to judge the clash); the hopping column shows only where the `ref` resolves'},
+    {label:'Column widths — same name as the tag-level `width`',
       rowChain:[{slug:'rows',arg:'products'}], layout:'fixed', width:'100%',
       slots:[{label:'Product',tag:'text',read:{kind:'key',field:'name'}},
              {label:'SKU',tag:'text',read:{kind:'key',field:'sku'},width:'8rem'},
              {label:'Price',tag:'text',read:{kind:'key',field:'price'},align:'right',width:'15%',fill:'#fff8e1'}],
-      note:'columns without a width split what is left equally; a column width needs fixed layout to be honored exactly (auto layout treats it as a hint)'},
-    // Presentation round 1 (Fork A reopen, 2026-10-03): one scenario per question. The sidebar's
-    // "table presentation" controls switch Q1 (width key), Q2 (bracketed vs paired), Q3 (layout).
+      note:'Columns without a `width` split what is left equally; a column `width` needs fixed layout to be honored exactly (auto layout treats it as a hint)'},
+    // Presentation scenarios, target-list shape (the only shape left). One per question.
     ...[
-      {label:'stripes only', stripes:true},
-      {label:'fixed layout only', layout:'fixed'},
-      {label:'width auto — the Mitchells case (Q4a)', width:'auto'},
-      {label:'width as a length (Q4b)', width:'600px'},
-      {label:'all three', stripes:true, layout:'fixed', width:'40rem'},
-      {label:'fixed layout + width auto — conflict (Q6)', layout:'fixed', width:'auto',
-        note:'Q6 proposal: rendered as written (fixed layout does nothing at auto width) and flagged in the editor, like when:all(before,after)'},
-      {label:'per-tag stripe color — LATER (Q5b)', stripes:'#eee', layout:'fixed',
-        note:'allowed by the grammar, not built in v1; #30\'s allowlist would gate the value'},
-      // Round 3 (2026-10-05) — pick "Target lists" in the presentation select. In the other
-      // shapes these fall back to the plain stripes flag and drop fill/border.
-      {label:'row + column stripes, parity + color (round 3)', stripe:{rows:{parity:'even',color:'#eee'}, cols:{parity:'odd'}}},
-      {label:'row stripes, defaults (round 3 minimum)', stripe:{rows:{}},
-        note:'no bare stripe key: stripe:rows is the least that serializes'},
-      {label:'rgba stripe — commas at two depths (round 3)', stripe:{rows:{color:'rgba(0,0,0,.04)'}}},
-      {label:'table + header fill, rows(even) to keep bands apart (round 3)', fill:{table:{color:'#fafafa'}, header:{color:'#333'}}, stripe:{rows:{parity:'even'}},
-        note:'header filled + row 1 filled-plus-stripe would be two shaded bands in contact (C5 tripwire); even moves the first stripe to row 2'},
-      {label:'border targets — DEFERRED, shape only (round 3)', border:{rows:{color:'#ccc'}, outer:{}}, layout:'fixed', width:'100%'},
-      {label:'no presentation'},
+      {label:'Row stripes only', stripe:{rows:{}}},
+      {label:'Fixed layout only', layout:'fixed',
+        note:'Leaning: `layout:fixed` also emits `width:100%` when no `width` key is set (reopen note, item 13)'},
+      {label:'`width` auto', width:'auto'},
+      {label:'`width` as a length', width:'600px'},
+      {label:'Stripes, fixed layout and a length width', stripe:{rows:{}}, layout:'fixed', width:'40rem'},
+      {label:'Fixed layout + `width` auto — conflict', layout:'fixed', width:'auto',
+        note:'Rendered as written (fixed layout does nothing at auto width) and flagged in the editor, like `when:all(before,after)`'},
+      {label:'Row stripes with a per-tag color', stripe:{rows:{color:'#eee'}}, layout:'fixed',
+        note:'In v1 (reopen note, item 11); #30\'s allowlist gates the value'},
+      {label:'Row + column stripes, parity + color (round 3)', stripe:{rows:{parity:'even',color:'#eee'}, cols:{parity:'odd'}}},
+      {label:'Row stripes, defaults (round 3 minimum)', stripe:{rows:{}},
+        note:'No bare `stripe` key: `stripe:rows` is the least that serializes'},
+      {label:'`rgba` stripe — commas at two depths (round 3)', stripe:{rows:{color:'rgba(0,0,0,.04)'}}},
+      {label:'`table` + `header` fill, `rows(even)` to keep bands apart (round 3)', fill:{table:{color:'#fafafa'}, header:{color:'#333'}}, stripe:{rows:{parity:'even'}},
+        note:'`header` filled + row 1 filled-plus-stripe would be two shaded bands in contact (C5 tripwire); `even` moves the first stripe to row 2'},
+      {label:'Border targets — DEFERRED, shape only (round 3)', border:{rows:{color:'#ccc'}, outer:{}}, layout:'fixed', width:'100%'},
+      {label:'No presentation'},
     ].map(p => ({ rowChain:[{slug:'terms',arg:'$tax'}], caption:'Categories',
       slots:[{label:'Term',tag:'title',read:{kind:'analog',slug:'title'}},
              {label:'Count',tag:'text',read:{kind:'key',field:'post_count'}}], ...p })),
-    {label:'current-context columns, root-only and with a path',
+    {label:'`current`-context columns, root-only and with a path',
       rowChain:[{slug:'refs',arg:'related_staff'}],
       slots:[{label:'Name',tag:'title',read:{kind:'analog',slug:'title'}},
              {label:'Page',tag:'title',chain:[{slug:'current'}],read:{kind:'analog',slug:'title'}},
              {label:'Page office',tag:'text',chain:[{slug:'current'},{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}}],
-      note:'current is not the default, so it is written even root-only (table-tag.md Settled #55)'},
-    {label:'copied chain beside its source column',
+      note:'`current` is not the default, so it is written even root-only (table-tag.md Settled #55)'},
+    {label:'Copied chain beside its source column',
       rowChain:[{slug:'refs',arg:'related_staff'}],
       slots:[{label:'Office',tag:'text',chain:[{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}},
              {label:'Office phone',tag:'phone',chain:[{slug:'refs',arg:'office'}],read:{kind:'key',field:'phone'}}],
-      note:'"Copy Previous Column’s Source" writes the chain itself, never same (table-tag.md Settled #50)'},
-    {label:'ten columns (wire bulk)',
+      note:'"Copy Previous Column’s Source" writes the chain itself, never `same` (table-tag.md Settled #50)'},
+    {label:'Ten columns (wire bulk)',
       rowChain:[{slug:'rows',arg:'staff_members'}],
       slots:['name','role','email','phone','office','department','start_date','extension','room','status']
         .map(f=>({label:f.replace(/_/g,' ').replace(/^./,ch=>ch.toUpperCase()),tag:'text',read:{kind:'key',field:f}}))},
@@ -1033,24 +1017,24 @@ const SCENARIO_GROUPS = [
   // terminal key → these BREAK/lose keys in rule2, resolve fully in respell. dtKeys = the flat
   // option set (as/format + 1-4 keys). Shown in join (agnostic → type leads) + table columns.
   { title:'join — FOLDED datetime (multi-key pivot)', isContrast:true, variants:['foldedCurrent','folded'], foldClass:'join', scenarios:[
-    {label:'name + 1 key single date',   slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_date'},dtKeys:{as:'date',key:'event_date',format:'F j, Y'}}]},
-    {label:'name + 2 key single datetime',slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_date'},dtKeys:{key:'event_date',timeKey:'event_time'}}]},
-    {label:'name + 2 key date range',    slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_range',read:{kind:'key',field:'start_date'},dtKeys:{as:'date',startKey:'start_date',endKey:'end_date'}}]},
-    {label:'name + 4 key datetime range',slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_range',read:{kind:'key',field:'start_date'},dtKeys:{startKey:'start_date',startTimeKey:'start_time',endKey:'end_date',endTimeKey:'end_time'}}]},
-    {label:'range + link + name',        slots:[{tag:'datetime_range',read:{kind:'key',field:'start_date'},dtKeys:{as:'date',startKey:'start_date',endKey:'end_date'},link:{to:'permalink'}},{tag:'title',read:{kind:'analog',slug:'title'}}]},
+    {label:'Name + 1 key single date',   slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_date'},dtKeys:{as:'date',key:'event_date',format:'F j, Y'}}]},
+    {label:'Name + 2 key single datetime',slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_date'},dtKeys:{key:'event_date',timeKey:'event_time'}}]},
+    {label:'Name + 2 key date range',    slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_range',read:{kind:'key',field:'start_date'},dtKeys:{as:'date',startKey:'start_date',endKey:'end_date'}}]},
+    {label:'Name + 4 key datetime range',slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_range',read:{kind:'key',field:'start_date'},dtKeys:{startKey:'start_date',startTimeKey:'start_time',endKey:'end_date',endTimeKey:'end_time'}}]},
+    {label:'Range + link + name',        slots:[{tag:'datetime_range',read:{kind:'key',field:'start_date'},dtKeys:{as:'date',startKey:'start_date',endKey:'end_date'},link:{to:'permalink'}},{tag:'title',read:{kind:'analog',slug:'title'}}]},
     // NAME COLLISION worth seeing: `format` is join's TEMPLATE string AND datetime's DATE format.
     // Folded, the date format rides INSIDE the slot value, so the tag-level `format` is unambiguous
     // and both can coexist. On a flat wire both want the bare key `format:` — one more reason a
     // datetime slot has no shipped join spelling at all.
-    {label:'template format + datetime slot format', format:'%1 - %2',
+    {label:'Template `format` + datetime slot `format`', format:'%1 - %2',
       slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_date'},dtKeys:{as:'date',key:'event_date',format:'F j, Y'}}]},
   ]},
   { title:'table — FOLDED datetime cols (multi-key)', isContrast:true, variants:['foldedCurrent','folded'], foldClass:'table', scenarios:[
-    {label:'event rows: name + date range',
+    {label:'Event rows: name + date range',
       rowChain:[{slug:'refs',arg:'events'}],
       slots:[{label:'Event',tag:'title',read:{kind:'analog',slug:'title'}},
              {label:'When',tag:'datetime_range',read:{kind:'key',field:'start_date'},dtKeys:{as:'date',startKey:'start_date',endKey:'end_date',format:'M j'}}]},
-    {label:'repeater rows: milestone + datetime',
+    {label:'Repeater rows: milestone + datetime',
       rowChain:[{slug:'rows',arg:'milestones'}],
       slots:[{label:'Milestone',tag:'text',read:{kind:'key',field:'name'}},
              {label:'Date',tag:'datetime_single',read:{kind:'key',field:'due'},dtKeys:{as:'date',key:'due'}}]},
@@ -1062,17 +1046,17 @@ const SCENARIO_GROUPS = [
   // unsafe but ~never in these values. Eyeball: the `:` in `g:i A` / `Price: $5` must appear as `\:`,
   // and the balanced `(cm)` / `[TBD]` must survive; an UNBALANCED bracket is flagged in the label.
   { title:'escape hazards — free-form values (\\: \\| + brackets)', isContrast:true, variants:['foldedCurrent','folded'], foldClass:'join', scenarios:[
-    {label:'time format g:i A + name', slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_time'},dtKeys:{as:'time',key:'event_time',format:'g:i A'}}]},
-    {label:'datetime l, F jS g:i A',   slots:[{tag:'datetime_single',read:{kind:'key',field:'event'},dtKeys:{key:'event',format:'l, F jS \\a\\t g:i A'}},{tag:'title',read:{kind:'analog',slug:'title'}}]},
-    {label:'fallback with colon + name',slots:[{tag:'text',read:{kind:'key',field:'note'},dtKeys:null,fallback:'Status: (pending)'},{tag:'title',read:{kind:'analog',slug:'title'}}]},
+    {label:'Time `format` `g:i A` + name', slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_time'},dtKeys:{as:'time',key:'event_time',format:'g:i A'}}]},
+    {label:'Datetime `l, F jS g:i A`',   slots:[{tag:'datetime_single',read:{kind:'key',field:'event'},dtKeys:{key:'event',format:'l, F jS \\a\\t g:i A'}},{tag:'title',read:{kind:'analog',slug:'title'}}]},
+    {label:'`fallback` with colon + name',slots:[{tag:'text',read:{kind:'key',field:'note'},dtKeys:null,fallback:'Status: (pending)'},{tag:'title',read:{kind:'analog',slug:'title'}}]},
     // TAG-LEVEL free-form value: the join template is authored prose, so it carries colons as
     // readily as a fallback does. Eyeball `format:Price\: %A (%B)` — the colon escaped, the tokens
     // NOT (a `%` is inert to every parser layer).
-    {label:'format with a colon (Price: …)', format:'Price: %1 (%2)',
+    {label:'`format` with a colon (`Price: …`)', format:'Price: %1 (%2)',
       slots:[{tag:'text',read:{kind:'key',field:'price'}},{tag:'text',read:{kind:'key',field:'unit'}}]},
   ]},
   { title:'escape hazards — table labels (brackets + colon)', isContrast:true, variants:['foldedCurrent','folded'], foldClass:'table', scenarios:[
-    {label:'balanced brackets + colon in labels',
+    {label:'Balanced brackets + colon in labels',
       rowChain:[{slug:'rows',arg:'products'}],
       slots:[{label:'Size (cm)',tag:'text',read:{kind:'key',field:'size'}},
              {label:'Price: USD',tag:'text',read:{kind:'key',field:'price'}}]},
@@ -1093,170 +1077,170 @@ const SCENARIO_GROUPS = [
   // `fixed` is its own token (Q9a (B), decided). A row carrying NEITHER (a baseline beside a gated
   // twin) sets `previewOnly:false` and renders as Current, because that string does ship.
   { tmpl:'text', title:'when: + fixed text on BASE tags (FW-27 / FW-141, unbuilt)', isContrast:true, scenarios:[
-    {label:'list: skip empties (FW-88), field named',
+    {label:'List: skip empties (FW-88), field named',
       chain:[{slug:'refs',arg:'related_staff',limit:'3'}], rest:[['sep',', '],['key','phone'],['_if',{test:'hasValue',subject:{kind:'key',field:'phone'}}]],
-      note:'when filters BEFORE limit (G1): first 3 staff that HAVE a phone. No own-read form: the tested field is named even when it is the shown one'},
-    {tmpl:'datetime_single', label:'repeater: next 3 upcoming sessions',
+      note:'`when` filters BEFORE `limit` (G1): first 3 staff that HAVE a phone. No own-read form: the tested field is named even when it is the shown one'},
+    {tmpl:'datetime_single', label:'Repeater: next 3 upcoming sessions',
       chain:[{slug:'rows',arg:'sessions',limit:'3'}], rest:[['as','date'],['sep',', '],['key','session_date'],['_if',{any:['before','during'],subject:{kind:'key',field:'session_date'}}]]},
-    {tmpl:'image', label:'first related item with an image',
+    {tmpl:'image', label:'First related item with an image',
       chain:[{slug:'refs',arg:'$ref'}], rest:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey'],['_if',{test:'hasValue',subject:{kind:'key',field:'$imgKey'}}]],
-      note:'on a collapsing tag, when picks the first source that PASSES (G1)'},
-    {label:'linked title if it has content, 1 of 2',
+      note:'On a collapsing tag, `when` picks the first source that PASSES (G1)'},
+    {label:'Linked title if it has content, 1 of 2',
       rest:[['use','title'],['_if',{test:'hasValue',subject:{kind:'analog',slug:'content'}}],['_link',{to:'permalink'}]],
-      note:'the use(content) case: link only to pages with something on them'},
-    {label:'plain title if no content, 2 of 2',
+      note:'The `use(content)` case: link only to pages with something on them'},
+    {label:'Plain title if no content, 2 of 2',
       rest:[['use','title'],['_if',{test:'noValue',subject:{kind:'analog',slug:'content'}}]],
-      note:'adjacency-exclusion: when cannot gate the link alone, so the either-or is two tags'},
-    {label:'price if sale_price set',   rest:[['key','price'],['_if',{test:'hasValue',subject:{kind:'key',field:'sale_price'}}]]},
-    {label:'price if NO sale_price',    rest:[['key','price'],['_if',{test:'noValue',subject:{kind:'key',field:'sale_price'}}]]},
-    {label:'boolean true',              rest:[['use','title'],['_if',{test:'true',subject:{kind:'key',field:'is_varsity'}}]]},
-    {label:'boolean false (unset = false, G13)', rest:[['use','title'],['_if',{test:'false',subject:{kind:'key',field:'is_varsity'}}]]},
-    {label:'text is',                   rest:[['use','title'],['_if',{test:'is',arg:'Yes',subject:{kind:'key',field:'featured'}}]]},
-    {label:'text isNot',                rest:[['use','title'],['_if',{test:'isNot',arg:'Archived',subject:{kind:'key',field:'status'}}]]},
-    {label:'is operand with a colon',   rest:[['use','title'],['_if',{test:'is',arg:'Status: open',subject:{kind:'key',field:'status'}}]],
-      note:'operand is author text: GB-structural `:` escaped, same as fallback'},
-    {label:'is operand with ; and (…)', rest:[['use','title'],['_if',{test:'is',arg:'Red (dark); matte',subject:{kind:'key',field:'finish'}}]],
-      note:'the bracket is what keeps the operand\'s `;` and `,` from reading as a separator'},
-    {label:'subject = built-in field: use(excerpt)', rest:[['key','$key1'],['_if',{test:'hasValue',subject:{kind:'analog',slug:'excerpt'}}]]},
-    {label:'upcoming incl. today, next 3',
+      note:'Adjacency-exclusion: `when` cannot gate the link alone, so the either-or is two tags'},
+    {label:'`price` if `sale_price` set',   rest:[['key','price'],['_if',{test:'hasValue',subject:{kind:'key',field:'sale_price'}}]]},
+    {label:'`price` if NO `sale_price`',    rest:[['key','price'],['_if',{test:'noValue',subject:{kind:'key',field:'sale_price'}}]]},
+    {label:'Boolean true',              rest:[['use','title'],['_if',{test:'true',subject:{kind:'key',field:'is_varsity'}}]]},
+    {label:'Boolean false (unset = false, G13)', rest:[['use','title'],['_if',{test:'false',subject:{kind:'key',field:'is_varsity'}}]]},
+    {label:'Text `is`',                   rest:[['use','title'],['_if',{test:'is',arg:'Yes',subject:{kind:'key',field:'featured'}}]]},
+    {label:'Text `isNot`',                rest:[['use','title'],['_if',{test:'isNot',arg:'Archived',subject:{kind:'key',field:'status'}}]]},
+    {label:'`is` operand with a colon',   rest:[['use','title'],['_if',{test:'is',arg:'Status: open',subject:{kind:'key',field:'status'}}]],
+      note:'Operand is author text: GB-structural `:` escaped, same as `fallback`'},
+    {label:'`is` operand with `;` and (…)', rest:[['use','title'],['_if',{test:'is',arg:'Red (dark); matte',subject:{kind:'key',field:'finish'}}]],
+      note:'The bracket is what keeps the operand\'s `;` and `,` from reading as a separator'},
+    {label:'Subject = built-in field: `use(excerpt)`', rest:[['key','$key1'],['_if',{test:'hasValue',subject:{kind:'analog',slug:'excerpt'}}]]},
+    {label:'Upcoming incl. today, next 3',
       chain:[{slug:'refs',arg:'related_events',limit:'3'}], rest:[['sep',', '],['use','title'],['_if',{any:['before','during'],subject:{kind:'key',field:'$dateKey'}}]],
-      note:'date-only field = the whole day (G4b), so today counts as during'},
-    {label:'over',                      rest:[['use','title'],['_if',{test:'after',subject:{kind:'key',field:'$endKey'}}]]},
-    {label:'today only (date-only field)', rest:[['use','title'],['_if',{test:'during',subject:{kind:'key',field:'$dateKey'}}]]},
-    {label:'upcoming or no date yet (C1)', rest:[['use','title'],['_if',{any:['before','noValue'],subject:{kind:'key',field:'$dateKey'}}]],
-      note:'any() mixes families: a missing date is in no phase, so noValue has to be listed'},
-    {label:'has a real value (C1)',     rest:[['key','status'],['_if',{all:['hasValue',{test:'isNot',arg:'TBD'}],subject:{kind:'key',field:'status'}}]],
-      note:'all() pairs a positive with a negative; the operand drops one bracket level inside the list'},
-    {label:'neither of two values (C1)', rest:[['use','title'],['_if',{all:[{test:'isNot',arg:'Archived'},{test:'isNot',arg:'Draft'}],subject:{kind:'key',field:'status'}}]],
-      note:'the comparison any-of G4d parked: isNot pairs under all(), never any()'},
-    {label:'all three phases (flagged)', rest:[['use','title'],['_if',{any:['before','during','after'],subject:{kind:'key',field:'$dateKey'}}]],
-      note:'parses; always passes for a set date, so the editor warns (C3b)'},
-    {label:'contradiction (flagged)',   rest:[['use','title'],['_if',{all:['before','after'],subject:{kind:'key',field:'$dateKey'}}]],
-      note:'parses; never passes, so the editor warns (C3b)'},
-    {label:'field with a time: during?', rest:[['use','title'],['_if',{test:'during',subject:{kind:'key',field:'event_start'}}]],
-      note:'a value WITH a time is an instant, so during never passes on one read (G4b). when ignores the tag\'s allDay; a forced whole-day read is later, on FW-35'},
-    {label:'range, two reads (LATER, G6)', rest:[['use','title'],['_if',{test:'during',subject:[{kind:'key',field:'$startKey'},{kind:'key',field:'$endKey'}]}]],
-      note:'not v1: a second read arrives with FW-81\'s read form'},
-    {label:'date + time split (FW-81 read)',     rest:[['use','title'],['_if',{test:'before',subject:{kind:'key',field:'$dateKey',time:'start_time'}}]],
-      note:'FW-81\'s key,date,time read (G7 widening): a time makes the value an instant (G4b)'},
-    {label:'range, time-only end (LATER, G6)',  rest:[['use','title'],['_if',{test:'during',subject:[{kind:'key',field:'$dateKey',time:'start_time'},{kind:'key',field:'end_time'}]}]],
-      note:'FW-81: a time-only end INHERITS the start date; the reads\' `;` sits inside use(), so the top level is still subject,test (W1) / property,test (W2)'},
-    {label:'ref chain then other field', chain:[{slug:'refs',arg:'$ref'},{slug:'terms',arg:'$tax'}], rest:[['use','title'],['_if',{test:'true',subject:{kind:'key',field:'is_featured'}}]],
-      note:'tested on the FINAL sources (the terms), never the ref post in between'},
-    {label:'term list, featured terms only',
+      note:'Date-only field = the whole day (G4b), so today counts as `during`'},
+    {label:'`over`',                      rest:[['use','title'],['_if',{test:'after',subject:{kind:'key',field:'$endKey'}}]]},
+    {label:'Today only (date-only field)', rest:[['use','title'],['_if',{test:'during',subject:{kind:'key',field:'$dateKey'}}]]},
+    {label:'Upcoming or no date yet (C1)', rest:[['use','title'],['_if',{any:['before','noValue'],subject:{kind:'key',field:'$dateKey'}}]],
+      note:'`any()` mixes families: a missing date is in no phase, so `noValue` has to be listed'},
+    {label:'Has a real value (C1)',     rest:[['key','status'],['_if',{all:['hasValue',{test:'isNot',arg:'TBD'}],subject:{kind:'key',field:'status'}}]],
+      note:'`all()` pairs a positive with a negative; the operand drops one bracket level inside the list'},
+    {label:'Neither of two values (C1)', rest:[['use','title'],['_if',{all:[{test:'isNot',arg:'Archived'},{test:'isNot',arg:'Draft'}],subject:{kind:'key',field:'status'}}]],
+      note:'The comparison any-of G4d parked: `isNot` pairs under `all()`, never `any()`'},
+    {label:'All three phases (flagged)', rest:[['use','title'],['_if',{any:['before','during','after'],subject:{kind:'key',field:'$dateKey'}}]],
+      note:'Parses; always passes for a set date, so the editor warns (C3b)'},
+    {label:'Contradiction (flagged)',   rest:[['use','title'],['_if',{all:['before','after'],subject:{kind:'key',field:'$dateKey'}}]],
+      note:'Parses; never passes, so the editor warns (C3b)'},
+    {label:'Field with a time: `during`?', rest:[['use','title'],['_if',{test:'during',subject:{kind:'key',field:'event_start'}}]],
+      note:'A value WITH a time is an instant, so `during` never passes on one read (G4b). `when` ignores the tag\'s `allDay`; a forced whole-day read is later, on FW-35'},
+    {label:'Range, two reads (LATER, G6)', rest:[['use','title'],['_if',{test:'during',subject:[{kind:'key',field:'$startKey'},{kind:'key',field:'$endKey'}]}]],
+      note:'Not v1: a second read arrives with FW-81\'s read form'},
+    {label:'Date + time split (FW-81 read)',     rest:[['use','title'],['_if',{test:'before',subject:{kind:'key',field:'$dateKey',time:'start_time'}}]],
+      note:'FW-81\'s `key,date,time` read (G7 widening): a time makes the value an instant (G4b)'},
+    {label:'Range, time-only end (LATER, G6)',  rest:[['use','title'],['_if',{test:'during',subject:[{kind:'key',field:'$dateKey',time:'start_time'},{kind:'key',field:'end_time'}]}]],
+      note:'FW-81: a time-only end INHERITS the start date; the reads\' `;` sits inside `use()`, so the top level is still subject,test (W1) / property,test (W2)'},
+    {label:'`ref` chain then other field', chain:[{slug:'refs',arg:'$ref'},{slug:'terms',arg:'$tax'}], rest:[['use','title'],['_if',{test:'true',subject:{kind:'key',field:'is_featured'}}]],
+      note:'Tested on the FINAL sources (the terms), never the `ref` post in between'},
+    {label:'Term list, featured terms only',
       chain:[{slug:'terms',arg:'$tax'}], rest:[['use','title'],['_if',{test:'true',subject:{kind:'key',field:'is_featured'}}]],
-      note:'tested field is read from each term, the same location as the displayed field (decision 3)'},
-    {label:'abbr-else-name, tag 1 of 2', rest:[['key','abbr']], previewOnly:false,
-      note:'no when needed: an empty abbr already renders nothing'},
-    {label:'abbr-else-name, tag 2 of 2', rest:[['key','name'],['_if',{test:'noValue',subject:{kind:'key',field:'abbr'}}]]},
-    {label:'with link + fallback',      rest:[['key','price'],['_if',{test:'hasValue',subject:{kind:'key',field:'sale_price'}}],['_link',{to:'permalink'}],['fallback','$fallback']],
-      note:'when serializes at the tail of the source group, ahead of link + fallback (decided 2026-09-25)'},
-    {label:'fixed text, gated',         rest:[['_fixed',{text:'Varsity'}],['_if',{test:'true',subject:{kind:'key',field:'is_varsity'}}]],
-      note:'no use:fixed: the token implies the read (FW-142\'s map gains a fixed row)'},
-    {label:'fixed text with a colon',   rest:[['_fixed',{text:'Note: varsity'}],['_if',{test:'true',subject:{kind:'key',field:'is_varsity'}}]]},
-    {tmpl:'content', label:'content: public refs only',
+      note:'Tested field is read from each term, the same location as the displayed field (decision 3)'},
+    {label:'Abbr-else-name, tag 1 of 2', rest:[['key','abbr']], previewOnly:false,
+      note:'No `when` needed: an empty abbr already renders nothing'},
+    {label:'Abbr-else-name, tag 2 of 2', rest:[['key','name'],['_if',{test:'noValue',subject:{kind:'key',field:'abbr'}}]]},
+    {label:'With link + `fallback`',      rest:[['key','price'],['_if',{test:'hasValue',subject:{kind:'key',field:'sale_price'}}],['_link',{to:'permalink'}],['fallback','$fallback']],
+      note:'`when` serializes at the tail of the source group, ahead of link + `fallback` (decided 2026-09-25)'},
+    {label:'`fixed` text, gated',         rest:[['_fixed',{text:'Varsity'}],['_if',{test:'true',subject:{kind:'key',field:'is_varsity'}}]],
+      note:'No `use:fixed`: the token implies the read (FW-142\'s map gains a `fixed` row)'},
+    {label:'`fixed` text with a colon',   rest:[['_fixed',{text:'Note: varsity'}],['_if',{test:'true',subject:{kind:'key',field:'is_varsity'}}]]},
+    {tmpl:'content', label:'`content`: public refs only',
       chain:[{slug:'refs',arg:'$ref'}], rest:[['_if',{test:'true',subject:{kind:'key',field:'is_public'}}]]},
-    {label:'not upcoming, INCLUDING no date (W2 gain)', rest:[['use','title'],['_if',{any:['during','after','noValue'],subject:{kind:'key',field:'$dateKey'}}]],
-      note:'W2 spells it as the negation of "upcoming"; W1 has to list noValue beside the phases'},
+    {label:'Not upcoming, INCLUDING no date (W2 gain)', rest:[['use','title'],['_if',{any:['during','after','noValue'],subject:{kind:'key',field:'$dateKey'}}]],
+      note:'W2 spells it as the negation of "upcoming"; W1 has to list `noValue` beside the phases'},
     // Property tests (P1–P9 + the 2026-09-27 property list): a step-shaped subject, no read.
-    {label:'filed under term 34 (P1)',        rest:[['use','title'],['_if',{test:'hasValue',subject:{kind:'step',slug:'term',arg:'34'}}]]},
+    {label:'Filed under term 34 (P1)',        rest:[['use','title'],['_if',{test:'hasValue',subject:{kind:'step',slug:'term',arg:'34'}}]]},
     {label:'NOT filed under term 34',         rest:[['use','title'],['_if',{test:'noValue',subject:{kind:'step',slug:'term',arg:'34'}}]]},
-    {label:'filed under any category (T3a)',  rest:[['use','title'],['_if',{test:'hasValue',subject:{kind:'step',slug:'terms',arg:'$tax'}}]]},
-    {label:'has a visible related post (P4)', rest:[['use','title'],['_if',{test:'hasValue',subject:{kind:'step',slug:'refs',arg:'$ref'}}]],
-      note:'gated: counts only posts that would show, unlike a presence test on the raw field'},
-    {label:'has no session rows',             rest:[['use','title'],['_if',{test:'noValue',subject:{kind:'step',slug:'rows',arg:'sessions'}}]]},
-    {label:'either of two terms',             rest:[['use','title'],['_if',{props:'any',items:[{kind:'step',slug:'term',arg:'34'},{kind:'step',slug:'term',arg:'35'}]}]]},
-    {label:'neither of two terms',            rest:[['use','title'],['_if',{props:'any',neg:true,items:[{kind:'step',slug:'term',arg:'34'},{kind:'step',slug:'term',arg:'35'}]}]]},
+    {label:'Filed under any category (T3a)',  rest:[['use','title'],['_if',{test:'hasValue',subject:{kind:'step',slug:'terms',arg:'$tax'}}]]},
+    {label:'Has a visible related post (P4)', rest:[['use','title'],['_if',{test:'hasValue',subject:{kind:'step',slug:'refs',arg:'$ref'}}]],
+      note:'Gated: counts only posts that would show, unlike a presence test on the raw field'},
+    {label:'Has no session rows',             rest:[['use','title'],['_if',{test:'noValue',subject:{kind:'step',slug:'rows',arg:'sessions'}}]]},
+    {label:'Either of two terms',             rest:[['use','title'],['_if',{props:'any',items:[{kind:'step',slug:'term',arg:'34'},{kind:'step',slug:'term',arg:'35'}]}]]},
+    {label:'Neither of two terms',            rest:[['use','title'],['_if',{props:'any',neg:true,items:[{kind:'step',slug:'term',arg:'34'},{kind:'step',slug:'term',arg:'35'}]}]]},
     // `src` inside `when` (W2 round 1): anchored at the current context, evaluated once.
-    {label:'provider phone if THIS post uses a 3rd party (src)',
+    {label:'Provider phone if THIS post uses a 3rd party (`src`)',
       chain:[{slug:'refs',arg:'support_provider'}], rest:[['key','support_phone'],['_if',{src:[{slug:'current'}],test:'is',arg:'3rd-party',subject:{kind:'key',field:'support_source'}}]],
-      note:'the driving case: the test reads the current context, not the provider; one answer gates the whole list (Q2)'},
-    {label:'related titles if THIS post has a category (src)',
+      note:'The driving case: the test reads the current context, not the provider; one answer gates the whole list (Q2)'},
+    {label:'Related titles if THIS post has a category (`src`)',
       chain:[{slug:'refs',arg:'$ref'}], rest:[['sep',', '],['use','title'],['_if',{src:[{slug:'current'}],test:'hasValue',subject:{kind:'step',slug:'terms',arg:'$tax'}}]]},
   ].map(sc => ({previewOnly:true, previewHow:'chain', ...sc}))},
 
   { title:'join — when: + fixed text per slot (FW-27 / FW-141, unbuilt)', isContrast:true,
     variants:['foldedCurrent','folded'], foldClass:'join', tmpl:'text', scenarios:[
-    {label:'team + fixed "Varsity"',
+    {label:'Team + `fixed` "Varsity"',
       slots:[{tag:'text',read:{kind:'key',field:'team_name'}},
              {tag:'text',read:{kind:'fixed',text:'Varsity'},if:{test:'true',subject:{kind:'key',field:'is_varsity'}}}],
-      note:'the FW-141 driving case; the token name implies the read, as key(x) already does, so no use(fixed)'},
-    {label:'sale ~(was price)~', format:'%1 ~(was %2)~',
+      note:'The FW-141 driving case; the token name implies the read, as `key(x)` already does, so no `use(fixed)`'},
+    {label:'Sale `~(was price)~`', format:'%1 ~(was %2)~',
       slots:[{tag:'text',read:{kind:'key',field:'sale_price'}},
              {tag:'text',read:{kind:'key',field:'price'},if:{test:'hasValue',subject:{kind:'key',field:'sale_price'}}}],
-      note:'a failed slot is empty, so the ~…~ unit group sheds with it'},
-    {label:'name + upcoming events (list slot)',
+      note:'A failed slot is empty, so the `~…~` unit group sheds with it'},
+    {label:'Name + upcoming events (list slot)',
       slots:[{tag:'title',read:{kind:'analog',slug:'title'}},
              {tag:'title',chain:[{slug:'refs',arg:'related_events',limit:'3'}],read:{kind:'analog',slug:'title'},if:{any:['before','during'],subject:{kind:'key',field:'$dateKey'}}}],
-      note:'when filters that slot\'s chain only (G2); the any list takes the L2 bracket'},
-    {label:'is operand in a slot',
+      note:'`when` filters that slot\'s chain only (G2); the `any` list takes the L2 bracket'},
+    {label:'`is` operand in a slot',
       slots:[{tag:'title',read:{kind:'analog',slug:'title'},if:{test:'is',arg:'Yes',subject:{kind:'key',field:'featured'}}},
              {tag:'text',read:{kind:'key',field:'$key1'}}]},
-    {label:'is operand with colon + brackets',
+    {label:'`is` operand with colon + brackets',
       slots:[{tag:'title',read:{kind:'analog',slug:'title'},if:{test:'is',arg:'Tier: gold (A)',subject:{kind:'key',field:'tier'}}},
              {tag:'text',read:{kind:'key',field:'$key1'}}]},
-    {label:'all() with an operand in a slot (C1)',
+    {label:'`all()` with an operand in a slot (C1)',
       slots:[{tag:'title',read:{kind:'analog',slug:'title'}},
              {tag:'text',read:{kind:'key',field:'status'},if:{all:['hasValue',{test:'isNot',arg:'TBD'}],subject:{kind:'key',field:'status'}}}],
-      note:'the deepest v1 spelling: slot bracket, list at L2, operand back at L1'},
-    {label:'fixed over a fanning chain',
+      note:'The deepest v1 spelling: slot bracket, list at L2, operand back at L1'},
+    {label:'`fixed` over a fanning chain',
       slots:[{tag:'title',read:{kind:'analog',slug:'title'}},
              {tag:'text',chain:[{slug:'terms',arg:'$tax'}],read:{kind:'fixed',text:'Sponsor'},if:{test:'true',subject:{kind:'key',field:'is_sponsor'}}}],
-      note:'the word repeats once per passing term: odd in join, right in a table (note, not a blocker)'},
-    {label:'every slot gated, all fail',
+      note:'The word repeats once per passing term: odd in `join`, right in a `table` (note, not a blocker)'},
+    {label:'Every slot gated, all fail',
       slots:[{tag:'text',read:{kind:'key',field:'$key1'},if:{test:'true',subject:{kind:'key',field:'show_a'}}},
              {tag:'text',read:{kind:'key',field:'$key2'},if:{test:'true',subject:{kind:'key',field:'show_b'}}}],
-      note:'all slots empty, so the join is empty and its fallback fires'},
-    {label:'phone slot, skip empties (field named)',
+      note:'All slots empty, so the `join` is empty and its `fallback` fires'},
+    {label:'Phone slot, skip empties (field named)',
       slots:[{tag:'title',read:{kind:'analog',slug:'title'}},
              {tag:'phone',chain:[{slug:'refs',arg:'office'}],read:{kind:'key',field:'mobile'},if:{test:'hasValue',subject:{kind:'key',field:'mobile'}}}]},
-    {label:'range in a slot (LATER, G6)',
+    {label:'Range in a slot (LATER, G6)',
       slots:[{tag:'title',read:{kind:'analog',slug:'title'}},
              {tag:'title',chain:[{slug:'refs',arg:'related_events'}],read:{kind:'analog',slug:'title'},if:{test:'during',subject:[{kind:'key',field:'$startKey'},{kind:'key',field:'$endKey'}]}}],
-      note:'FW-81\'s read list in its slot form, use[…], one bracket level below the slot\'s if(…)'},
-    {label:'built-in field in a slot',
+      note:'FW-81\'s read list in its slot form, `use[…]`, one bracket level below the slot\'s `if(…)`'},
+    {label:'Built-in field in a slot',
       slots:[{tag:'text',read:{kind:'key',field:'$key1'},if:{test:'hasValue',subject:{kind:'analog',slug:'excerpt'}}},
              {tag:'text',read:{kind:'key',field:'$key2'}}],
-      note:'use[excerpt], as the slot would spell an excerpt read'},
+      note:'`use[excerpt]`, as the slot would spell an excerpt read'},
     {label:'Varsity / JV, both slots gated',
       slots:[{tag:'text',read:{kind:'fixed',text:'Varsity'},if:{test:'true',subject:{kind:'key',field:'is_varsity'}}},
              {tag:'text',read:{kind:'fixed',text:'JV'},if:{test:'false',subject:{kind:'key',field:'is_varsity'}}}],
-      note:'adjacency-exclusion inside one join: true/false on the same field, exactly one slot survives'},
-    {label:'slot gated on a term, and on its absence',
+      note:'Adjacency-exclusion inside one `join`: true/false on the same field, exactly one slot survives'},
+    {label:'Slot gated on a term, and on its absence',
       slots:[{tag:'text',read:{kind:'fixed',text:'Varsity'},if:{test:'hasValue',subject:{kind:'step',slug:'term',arg:'34'}}},
              {tag:'text',read:{kind:'fixed',text:'JV'},if:{test:'noValue',subject:{kind:'step',slug:'term',arg:'34'}}}]},
-    {label:'ref slot gated on the current post (src)',
+    {label:'`ref` slot gated on the current post (`src`)',
       slots:[{tag:'title',read:{kind:'analog',slug:'title'}},
              {tag:'text',chain:[{slug:'refs',arg:'$ref'}],read:{kind:'key',field:'$key1'},if:{src:[{slug:'current'}],test:'true',subject:{kind:'key',field:'show_related'}}}],
-      note:'src(current) resets to where the tag sits, not the slot\'s ref; deepest when bracket in a slot'},
+      note:'`src(current)` resets to where the tag sits, not the slot\'s `ref`; deepest `when` bracket in a slot'},
   ].map(sc => ({previewOnly:true, ...sc}))},
 
   { tmpl:'text', title:'try_text — when: per attempt (FW-27, unbuilt)', isContrast:true,
     variants:['foldedCurrent','folded'], foldClass:'try', scenarios:[
-    {label:'sale price while the sale runs, else price',
+    {label:'Sale price while the sale runs, else price',
       slots:[{read:{kind:'key',field:'sale_price'},if:{any:['before','during'],subject:{kind:'key',field:'sale_end'}}},
              {read:{kind:'key',field:'price'}}],
-      note:'a failed when moves to the next attempt (G3); nothing else changes (decided 2026-09-25)'},
-    {label:'field of the first public ref',
+      note:'A failed `when` moves to the next attempt (G3); nothing else changes (decided 2026-09-25)'},
+    {label:'Field of the first public `ref`',
       slots:[{chain:[{slug:'refs',arg:'$ref'}],read:{kind:'key',field:'$key1'},if:{test:'true',subject:{kind:'key',field:'is_public'}}},
              {read:{kind:'key',field:'$key1'}}]},
-    {label:'abbr else name, one tag',
+    {label:'Abbr else name, one tag',
       slots:[{read:{kind:'key',field:'abbr'}},{read:{kind:'key',field:'name'}}], previewOnly:false,
-      note:'no when: try_ already covers either-or on emptiness. when earns its place only when the TEST field differs from the SHOWN one'},
+      note:'No `when`: `try_` already covers either-or on emptiness. `when` earns its place only when the TEST field differs from the SHOWN one'},
   ].map(sc => ({previewOnly:true, ...sc}))},
 
   { title:'table — when: on rows vs cells (FW-27, unbuilt)', isContrast:true,
     variants:['foldedCurrent','folded'], foldClass:'table', scenarios:[
-    {label:'column when: empty the cell, keep the row',
+    {label:'Column `when`: empty the cell, keep the row',
       rowChain:[{slug:'refs',arg:'related_staff'}],
       slots:[{label:'Name',tag:'title',read:{kind:'analog',slug:'title'}},
              {label:'Phone',tag:'phone',read:{kind:'key',field:'mobile'},if:{test:'true',subject:{kind:'key',field:'phone_public'}}}]},
-    {label:'tag-level when: drop the row',
+    {label:'Tag-level `when`: drop the row',
       rowChain:[{slug:'refs',arg:'related_events'}], rowIf:{any:['before','during'],subject:{kind:'key',field:'$dateKey'}},
       slots:[{label:'Event',tag:'title',read:{kind:'analog',slug:'title'}},
              {label:'Date',tag:'datetime_single',read:{kind:'key',field:'event_date'},dtKeys:{as:'date',key:'event_date'}}],
-      note:'whether table builds tag-level when, column when, or both is table-tag.md §OPEN L'},
-    {label:'fixed column, gated',
+      note:'Whether `table` builds tag-level `when`, column `when`, or both is table-tag.md §OPEN L'},
+    {label:'`fixed` column, gated',
       rowChain:[{slug:'rows',arg:'teams'}],
       slots:[{label:'Team',tag:'text',read:{kind:'key',field:'team_name'}},
              {label:'Level',tag:'text',read:{kind:'fixed',text:'Varsity'},if:{test:'true',subject:{kind:'key',field:'is_varsity'}}}]},
@@ -1336,10 +1320,6 @@ const S = {
   linkCombined: false,  // fold linkKey into linkTo value → linkTo:key,<field> (else separate keys)
   fw81DtCollapse: false, // FW-81 (parked): show the collapsed use: reading beside today's six-key wire.
   whenMode: 'w1',       // FW-27 `when` encoding: 'w1' decided wire | 'w2' / 'w2br' / 'w2nv' the OPEN W2 proposal (serializeIf).
-  tablePres: 'b',       // table v1 presentation: 'b' Fork B flags | 'abr' Fork A bracketed | 'apair' Fork A paired (tablePresentationParts).
-  tableLayoutTok: 'fixedCols', // the fixed-layout token: 'layout' = layout(fixed) | a bare name ('fixedCols' / 'fixed' / 'fixedLayout').
-  tableColWidthTok: 'width', // column width token name: 'width' | 'colWidth' | 'off' (not emitted).
-  tableWidthKey: false, // Fork A only: width as its own key (A2) rather than a style token (A1).
   dummies: {key1:'custom_field',key2:'other_field',imgKey:'image_field',dateKey:'event_date',timeKey:'event_time',startKey:'start_date',endKey:'end_date',ref:'rel_post',tax:'category',urlKey:'url_field',fallback:'N/A',rangeSep:' – ',format:'F j, Y'},
 };
 
@@ -1603,10 +1583,11 @@ const RESPELL_KEY_MAP = {
   src:[1,0], ref:[1,1], srcTermIn:[1,2], limit:[1,3], sep:[1,4], use:[1,5], key:[1,6],
   timeKey:[1,7], startKey:[1,8], startTimeKey:[1,9], endKey:[1,10], endTimeKey:[1,11],
   if:[1,12],   // FW-27 `when`, unshipped — same source-group tail as DEFAULT_ORDER
-  align:[0,9], // {{table}} v1, unshipped — PROVISIONAL rank (format-group tail); ticket 05 decides
-  width:[0,10], colWidth:[0,10], // {{table}} column width, unshipped (presentation round 1, 2026-10-03) — PROVISIONAL rank
-  fill:[0,11], // {{table}} column fill, unshipped (round 3, 2026-10-05) — PROVISIONAL rank
   linkTo:[2,0], linkKey:[2,1], newTab:[2,2], fallback:[3,0],
+  // {{table}} v1 styling tail, unshipped: its own group AFTER fallback (user 2026-10-05, leaning — see
+  // presentation-reopen.md item 22), so use/key stay with src. One bare name orders both the tag and
+  // column level; `border` is deferred, listed for the order only, nothing reserved. Ticket 05 owns the ranks.
+  layout:[4,0], align:[4,1], width:[4,2], border:[4,3], fill:[4,4], stripe:[4,5],
 };
 // Collect ALL slot options as canonical entries. The src-CHAIN is a pre-serialized bracket string
 // occupying the source group's `src` slot (rank [1,0]). REDUNDANCIES base tags never emit are
@@ -1666,7 +1647,7 @@ function respellEntries(chain, read, link, dtKeys, typeTag, fallback, ifCond, al
     if (link.newTab) E.push({name:'newTab', flag:true, rank:RESPELL_KEY_MAP.newTab});
   }
   if (align) push('align', align, false);   // {{table}} v1 column token, unshipped (ticket 05 owns the real rank)
-  if (colWidth && S.tableColWidthTok !== 'off') push(S.tableColWidthTok, colWidth, false);   // {{table}} column width, unshipped
+  if (colWidth) push('width', colWidth, false);   // {{table}} column width, unshipped; same id as the tag-level key
   if (colFill) push('fill', colFill, false);   // {{table}} column fill, unshipped
   if (fallback!==undefined && fallback!=='') push('fallback', fallback, false);   // free-form → escaped in emit
   if (ifCond) E.push({name:'if', val:serializeIf(ifCond, 1), rank:RESPELL_KEY_MAP.if});   // FW-27, unshipped
@@ -2383,51 +2364,32 @@ function buildFoldedSlot(i, slot, containerClass) {
   const val = slotValueFor(s, typeTag, undefined, forceSrc);
   return [`${foldedSlotKey(i)}${val}`];
 }
-// {{table}} v1 presentation (unshipped). Scenario keys: stripes (true | a color, per-tag color is
-// LATER), layout ('fixed'), width ('auto' | a length). S.tablePres picks the shape:
-//   'b'     Fork B, Settled #28 — each option its own key; a bare key when it carries no value.
-//   'abr'   Fork A reopen — one `style` list, `,` between tokens, a value in brackets.
-//   'apair' Fork A reopen — one `style` list, tokens paired like a chain step, so `;` between them.
-//   'tgt'   target lists (round 3, 2026-10-05) — each skin its own key, value = targets with
-//           optional args: stripe:rows(even,#eee),cols · fill:table(…),header(…) · border:… ;
-//           width:/layout: as plain keys. Scenario keys stripe/fill/border = {target: {args…}}.
-// S.tableWidthKey (Fork A only) pulls width out to its own key (A2). Under Fork B it always is.
-// Outside 'tgt', a target-shaped `stripe` falls back to the plain stripes flag; fill/border do not render.
-function tablePresentationParts(sc) {
-  if (S.tablePres === 'tgt') return tableTargetParts(sc);
-  const toks = [];   // [name, value|null]
-  const stripes = sc.stripes || (sc.stripe ? true : null);
-  if (stripes) toks.push(['stripes', stripes === true ? null : stripes]);
-  if (sc.layout) toks.push(S.tableLayoutTok === 'layout' ? ['layout', sc.layout] : [S.tableLayoutTok, null]);
-  const ownWidthKey = S.tablePres === 'b' || S.tableWidthKey;
-  if (sc.width && !ownWidthKey) toks.push(['width', sc.width]);
-  const out = [];
-  if (S.tablePres === 'b') toks.forEach(([n, v]) => out.push(v == null ? kn(n) : `${kn(n)}:${v}`));
-  else if (toks.length) {
-    const b = bracketAt(1) || '()';
-    const one = S.tablePres === 'apair' ? ([n, v]) => v == null ? kn(n) : `${kn(n)},${v}`
-                                        : ([n, v]) => v == null ? kn(n) : `${kn(n)}${b[0]}${v}${b[1]}`;
-    out.push(`${kn('style')}:${toks.map(one).join(S.tablePres === 'apair' ? ';' : ',')}`);
-  }
-  if (sc.width && ownWidthKey) out.push(`${kn('width')}:${sc.width}`);
-  return out;
+// {{table}} v1 presentation (unshipped), target-list shape (round 3, 2026-10-05; the only shape
+// left, the Fork A / Fork B alternatives were cut). Each skin is its own key whose value is a
+// `,`-list of targets with optional args: stripe:rows(even,#eee),cols · fill:table(…),header(…) ·
+// border:… ; `layout` and `width` are plain valued keys. Scenario keys stripe/fill/border =
+// {target: {parity, color}}; layout ('fixed'), width ('auto' | a length).
+// The valued layout token as [key id, value]; the caller spells the key through kn(). The value
+// renames via vn('layoutFixed'), apart from the fixed-text option's vn('fixed').
+function tableLayoutTok(sc) {
+  return ['layout', sc.layout === 'fixed' ? vn('layoutFixed') : sc.layout];
 }
-// 'tgt' shape. A target's args are typed by value (parity keyword vs color), so their order is
-// free; emitted as the scenario lists them. A target with no args is bare: `cols`.
+function tablePresentationParts(sc) { return tableTargetParts(sc); }
+// A target's args are typed by value (parity keyword vs color), so their order is free; emitted as
+// the scenario lists them. A target with no args is bare: `cols`.
 function tableTargetParts(sc) {
   const b = bracketAt(1) || '()';
   const list = (key, targets) => `${kn(key)}:` + Object.entries(targets).map(([t, a]) => {
     const args = [a.parity, a.color].filter(Boolean);
     return args.length ? `${t}${b[0]}${args.join(',')}${b[1]}` : t;
   }).join(',');
-  // Legacy scenario keys map onto the target shape: stripes:true → rows, stripes:'#eee' → rows(#eee).
-  const stripe = sc.stripe || (sc.stripes ? { rows: sc.stripes === true ? {} : { color: sc.stripes } } : null);
+  const stripe = sc.stripe;
   const out = [];
-  if (sc.layout) out.push(S.tableLayoutTok === 'layout' ? `${kn('layout')}:${sc.layout}` : kn(S.tableLayoutTok));
+  if (sc.layout) { const [n, v] = tableLayoutTok(sc); out.push(`${kn(n)}:${v}`); }
   if (sc.width) out.push(`${kn('width')}:${sc.width}`);
+  if (sc.border) out.push(list('border', sc.border));
   if (sc.fill) out.push(list('fill', sc.fill));
   if (stripe) out.push(list('stripe', stripe));
-  if (sc.border) out.push(list('border', sc.border));
   return out;
 }
 // Build a whole folded-container tag (try_ / join / table). scenario.slots = [slot,…].
@@ -2575,6 +2537,8 @@ function scenarioFreeform(sc) {
   const out = [];
   const take = v => { if (typeof v === 'string' && v !== '') out.push(resolveVal(v)); };
   take(sc.caption);
+  // table target colors: a CSS color function (`rgba(0,0,0,.04)`) keeps its own brackets inside the target's args.
+  ['stripe', 'fill', 'border'].forEach(k => Object.values(sc[k] || {}).forEach(a => take(a && a.color)));
   (sc.slots || []).forEach(s => {
     if (!s || typeof s !== 'object') return;
     take(s.label);
@@ -2607,6 +2571,15 @@ function flagIssues(container, str, freeform) {
   return issues.length;
 }
 
+// Label, description and caption text mark option/value/tag names with backticks; render each
+// backticked run as <code>. DOM nodes only (never innerHTML), so wire text like `{{x}}` or `<` is inert.
+function appendMarkup(el, text) {
+  text.split("`").forEach((seg, i) => {
+    if (!seg) return;
+    if (i % 2) { const c = document.createElement("code"); c.textContent = seg; el.appendChild(c); }
+    else el.appendChild(document.createTextNode(seg));
+  });
+}
 function renderPerms() {
   const el=document.getElementById('perm-output'); el.innerHTML='';
   let totalIssues = 0;
@@ -2617,7 +2590,11 @@ function renderPerms() {
     const tags=document.createElement('div'); tags.className='perm-tags';
     group.scenarios.forEach(sc=>{
       const row=document.createElement('div'); row.className='perm-row';
-      const lbl=document.createElement('span'); lbl.className='perm-lbl'; lbl.title=sc.label; lbl.textContent=sc.label;
+      // A label with " — " splits there: the head is the row label, the tail a quieter description.
+      // A dash inside parentheses is part of the label, not a split point.
+      const [head, ...tail]=sc.label.split(/ — (?![^(]*\))/);
+      const lbl=document.createElement('span'); lbl.className='perm-lbl'; lbl.title=sc.label.replace(/`/g,''); appendMarkup(lbl, head);
+      if (tail.length) { const d=document.createElement('span'); d.className='perm-lbl-desc'; appendMarkup(d, tail.join(' — ').replace(/^[a-z]/, c=>c.toUpperCase())); lbl.appendChild(d); }
       row.appendChild(lbl);
       if (group.isContrast) {
         // N stacked strings, one per variant: existing spellings muted, proposals accented.
@@ -2645,7 +2622,7 @@ function renderPerms() {
           // and legitimately does not satisfy it (no brackets at all), so checking it is noise.
           if (!v.missing && v.cls==='perm-chain') totalIssues += flagIssues(stack, v.str, ff);
         });
-        if (sc.note) { const n=document.createElement('div'); n.className='perm-note'; n.textContent='↳ '+sc.note; stack.appendChild(n); }
+        if (sc.note) { const n=document.createElement('div'); n.className='perm-note'; n.textContent='↳ '; appendMarkup(n, sc.note); stack.appendChild(n); }
         row.appendChild(stack);
       } else {
         const tag=buildPermTag(group,sc);
@@ -2701,18 +2678,6 @@ document.getElementById('cb-fw81').addEventListener('change',e=>{
 });
 document.getElementById('sel-when').addEventListener('change',e=>{
   S.whenMode=e.target.value; renderPerms();
-});
-document.getElementById('sel-tpres').addEventListener('change',e=>{
-  S.tablePres=e.target.value; renderPerms();
-});
-document.getElementById('sel-tlayout').addEventListener('change',e=>{
-  S.tableLayoutTok=e.target.value; renderPerms();
-});
-document.getElementById('sel-tcolwidth').addEventListener('change',e=>{
-  S.tableColWidthTok=e.target.value; renderPerms();
-});
-document.getElementById('cb-twidthkey').addEventListener('change',e=>{
-  S.tableWidthKey=e.target.checked; renderPerms();
 });
 document.getElementById('add-name-row').addEventListener('click', addNameRow);
 
