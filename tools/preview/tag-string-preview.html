@@ -139,7 +139,7 @@ input.name-inp:focus { outline: none; border-color: var(--accent); }
 
 /* ── Shared button base ──────────────────── */
 /* Used by the sidebar's mobile toggle (.sb-toggle) and the preset-menu button; the Configure tab's
-   own button styling (btn-row/snap-*/order-row/arr-*/card/opt-row/cfg-*) was removed with it
+   own button styling (btn-row, snap-…, order-row, arr-…, card, opt-row, cfg-…) was removed with it
    2026-09-01 (FW-79) since nothing outside that tab used it. */
 button {
   background: var(--surface); border: 1px solid var(--border2);
@@ -314,10 +314,27 @@ button:hover { border-color: var(--accent); color: var(--accent); }
       <option value="w2br">W2 (open) — as W2, reads bracketed: key(x), use(content)</option>
       <option value="w2nv">W2 — ADOPTED: reads bracketed, key(x),noValue; not(…) on relations + lists only</option>
     </select>
-    <div class="sb-h">{{table}} column root (FW-53 Q14, unbuilt)</div>
-    <select id="sel-table-root" style="width:100%">
-      <option value="explicit">explicit — every column writes src(inherit) (spec's assumption)</option>
-      <option value="stripped">stripped — default root dropped, a bare column has no src</option>
+    <div class="sb-h">table presentation (FW-53, Fork A reopen)</div>
+    <select id="sel-tpres" style="width:100%">
+      <option value="b">Fork B (Settled #28) — bare-key flags, width its own key</option>
+      <option value="abr">Fork A — style:stripes,layout(fixed),width(600px)</option>
+      <option value="apair">Fork A, paired — style:stripes;layout,fixed;width,600px</option>
+      <option value="tgt">Target lists (round 3) — stripe:rows(even,#eee),cols · fill:table(…) · width: · layout:</option>
+    </select>
+    <select id="sel-tlayout" style="width:100%;margin-top:4px">
+      <option value="fixedCols">layout token: fixedCols (bare)</option>
+      <option value="layout">layout token: layout(fixed)</option>
+      <option value="fixed">layout token: fixed (bare)</option>
+      <option value="fixedLayout">layout token: fixedLayout (bare)</option>
+    </select>
+    <label class="toggle-row">
+      <input type="checkbox" id="cb-twidthkey">
+      <span class="toggle-desc">Fork A only: width as its own key (A2) instead of a style token (A1)</span>
+    </label>
+    <select id="sel-tcolwidth" style="width:100%;margin-top:4px">
+      <option value="width">column width token: width(…) — same as tag level (Q8a)</option>
+      <option value="colWidth">column width token: colWidth(…) (Q8b)</option>
+      <option value="off">no column width — v1 without it (Q7b)</option>
     </select>
   </div>
 
@@ -362,6 +379,16 @@ const PRESETS = {
   align:           ['align','textAlign','justify'],
   stripes:         ['stripes','striped','zebra'],
   fixedLayout:     ['fixedLayout','layoutFixed','fixedWidth'],
+  // Fork A reopen (2026-10-03, unshipped): the one presentation key, and the two valued tokens.
+  style:           ['style','look','display'],
+  layout:          ['layout'],
+  width:           ['width'],
+  fixedCols:       ['fixedCols'],
+  colWidth:        ['colWidth'],
+  // Round 3 target-list skins (2026-10-05): singular-verb set first, plural to compare.
+  stripe:          ['stripe','stripes'],
+  fill:            ['fill','fills','bg'],
+  border:          ['border','borders'],
   // SHIPPED default first. `srcTerm` (the old boolean, paired with `tax`) is SUPERSEDED and kept
   // only as a look-back alternative — see docs/deprecated-tags-options.md.
   srcTermIn:       ['srcTermIn','inTerm','fromTerm','asTerm','useTerm','andTerm','viaTerm','srcTerm'],
@@ -928,12 +955,12 @@ const SCENARIO_GROUPS = [
              {label:'Lead title',tag:'title',read:{kind:'analog',slug:'title'}}],
       note:'per table-tag.md §D4 decision (a), analog dispatch is specified to refuse on a repeater row — hop explicitly (rows,team_members;refs,lead_ref) before use(title) instead'},
   ]},
-  // TABLE v1 — the naming pass and the column-root serialization (FW-53 spec ticket 00, unbuilt).
-  // Every provisional name is a PRESETS / VALUE_PRESETS id (header, align, stripes, fixedLayout,
-  // inherit), so the rename sidebar respells it here; the column NOUN is editor copy, not wire,
-  // and has nothing to show on this page. The sidebar's column-root select flips every row between
-  // the two Q14 shapes (tableColumnChain). The row chain is the tag-level src, as above.
-  { get title() { return `table v1 — naming pass, columns ${S.tableRoot === 'explicit' ? 'EXPLICIT src(inherit)' : 'STRIPPED'} (FW-53 ticket 00, unbuilt)`; },
+  // TABLE v1 — the naming pass (FW-53 spec ticket 00, unbuilt). Every provisional name is a
+  // PRESETS / VALUE_PRESETS id (header, align, stripes, fixedLayout, inherit), so the rename
+  // sidebar respells it here; the column NOUN is editor copy, not wire, and has nothing to show on
+  // this page. Columns render in the decided shape (tableColumnChain). The row chain is the
+  // tag-level src, as above.
+  { title: 'table v1 — naming pass (FW-53 ticket 00, unbuilt)',
     isContrast:true, variants:['folded'], foldClass:'table', tableV1:true, scenarios:[
     {label:'bare column beside a chained one',
       rowChain:[{slug:'refs',arg:'related_staff'}],
@@ -948,30 +975,54 @@ const SCENARIO_GROUPS = [
       rowChain:[{slug:'rows',arg:'products'}],
       slots:[{label:'Product',tag:'text',read:{kind:'key',field:'name'}},
              {label:'Price',tag:'text',read:{kind:'key',field:'price'},align:'right'}]},
-    {label:'fixed-text columns, bare + hopping, beside fixedLayout',
-      rowChain:[{slug:'rows',arg:'teams'}], fixedLayout:true,
+    {label:'fixed-text columns, bare + hopping, beside the fixed-layout token',
+      rowChain:[{slug:'rows',arg:'teams'}], layout:'fixed',
       slots:[{label:'Team',tag:'text',read:{kind:'key',field:'team_name'}},
              {label:'Level',tag:'text',read:{kind:'fixed',text:'Varsity'}},
              {label:'Sponsor',tag:'text',chain:[{slug:'refs',arg:'sponsor_ref'}],read:{kind:'fixed',text:'Sponsored'}}],
-      note:'the slot read fixed(…) and the tag flag fixedLayout in one tag; the hopping column shows only where the ref resolves'},
-    {label:'both presentation flags',
-      rowChain:[{slug:'terms',arg:'$tax'}], caption:'Categories', stripes:true, fixedLayout:true,
+      note:'the slot read fixed(…) and the layout token in one tag (Q3: compare the three layout spellings here); the hopping column shows only where the ref resolves'},
+    {label:'column widths — the same width(…) token as the tag level',
+      rowChain:[{slug:'rows',arg:'products'}], layout:'fixed', width:'100%',
+      slots:[{label:'Product',tag:'text',read:{kind:'key',field:'name'}},
+             {label:'SKU',tag:'text',read:{kind:'key',field:'sku'},width:'8rem'},
+             {label:'Price',tag:'text',read:{kind:'key',field:'price'},align:'right',width:'15%',fill:'#fff8e1'}],
+      note:'columns without a width split what is left equally; a column width needs fixed layout to be honored exactly (auto layout treats it as a hint)'},
+    // Presentation round 1 (Fork A reopen, 2026-10-03): one scenario per question. The sidebar's
+    // "table presentation" controls switch Q1 (width key), Q2 (bracketed vs paired), Q3 (layout).
+    ...[
+      {label:'stripes only', stripes:true},
+      {label:'fixed layout only', layout:'fixed'},
+      {label:'width auto — the Mitchells case (Q4a)', width:'auto'},
+      {label:'width as a length (Q4b)', width:'600px'},
+      {label:'all three', stripes:true, layout:'fixed', width:'40rem'},
+      {label:'fixed layout + width auto — conflict (Q6)', layout:'fixed', width:'auto',
+        note:'Q6 proposal: rendered as written (fixed layout does nothing at auto width) and flagged in the editor, like when:all(before,after)'},
+      {label:'per-tag stripe color — LATER (Q5b)', stripes:'#eee', layout:'fixed',
+        note:'allowed by the grammar, not built in v1; #30\'s allowlist would gate the value'},
+      // Round 3 (2026-10-05) — pick "Target lists" in the presentation select. In the other
+      // shapes these fall back to the plain stripes flag and drop fill/border.
+      {label:'row + column stripes, parity + color (round 3)', stripe:{rows:{parity:'even',color:'#eee'}, cols:{parity:'odd'}}},
+      {label:'row stripes, defaults (round 3 minimum)', stripe:{rows:{}},
+        note:'no bare stripe key: stripe:rows is the least that serializes'},
+      {label:'rgba stripe — commas at two depths (round 3)', stripe:{rows:{color:'rgba(0,0,0,.04)'}}},
+      {label:'table + header fill, rows(even) to keep bands apart (round 3)', fill:{table:{color:'#fafafa'}, header:{color:'#333'}}, stripe:{rows:{parity:'even'}},
+        note:'header filled + row 1 filled-plus-stripe would be two shaded bands in contact (C5 tripwire); even moves the first stripe to row 2'},
+      {label:'border targets — DEFERRED, shape only (round 3)', border:{rows:{color:'#ccc'}, outer:{}}, layout:'fixed', width:'100%'},
+      {label:'no presentation'},
+    ].map(p => ({ rowChain:[{slug:'terms',arg:'$tax'}], caption:'Categories',
       slots:[{label:'Term',tag:'title',read:{kind:'analog',slug:'title'}},
-             {label:'Count',tag:'text',read:{kind:'key',field:'post_count'}}]},
-    {label:'neither presentation flag',
-      rowChain:[{slug:'terms',arg:'$tax'}], caption:'Categories',
-      slots:[{label:'Term',tag:'title',read:{kind:'analog',slug:'title'}},
-             {label:'Count',tag:'text',read:{kind:'key',field:'post_count'}}]},
-    {label:'src(same) after a chained sibling',
-      rowChain:[{slug:'refs',arg:'related_staff'}],
-      slots:[{label:'Office',tag:'text',chain:[{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}},
-             {label:'Office phone',tag:'phone',chain:[{slug:'same'}],read:{kind:'key',field:'phone'}}],
-      note:'same carries column A’s whole chain, root included (table-tag.md Settled #15)'},
-    {label:'src(same) after a BARE sibling',
+             {label:'Count',tag:'text',read:{kind:'key',field:'post_count'}}], ...p })),
+    {label:'current-context columns, root-only and with a path',
       rowChain:[{slug:'refs',arg:'related_staff'}],
       slots:[{label:'Name',tag:'title',read:{kind:'analog',slug:'title'}},
-             {label:'Email',tag:'email',chain:[{slug:'same'}],read:{kind:'key',field:'email'}}],
-      note:'stripped: A writes no src, so B carries an empty chain, which is also how the ambient entity is spelled (slot-fold.php carry-over note). explicit: B carries [inherit]'},
+             {label:'Page',tag:'title',chain:[{slug:'current'}],read:{kind:'analog',slug:'title'}},
+             {label:'Page office',tag:'text',chain:[{slug:'current'},{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}}],
+      note:'current is not the default, so it is written even root-only (table-tag.md Settled #55)'},
+    {label:'copied chain beside its source column',
+      rowChain:[{slug:'refs',arg:'related_staff'}],
+      slots:[{label:'Office',tag:'text',chain:[{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}},
+             {label:'Office phone',tag:'phone',chain:[{slug:'refs',arg:'office'}],read:{kind:'key',field:'phone'}}],
+      note:'"Copy Previous Column’s Source" writes the chain itself, never same (table-tag.md Settled #50)'},
     {label:'ten columns (wire bulk)',
       rowChain:[{slug:'rows',arg:'staff_members'}],
       slots:['name','role','email','phone','office','department','start_date','extension','room','status']
@@ -1285,7 +1336,10 @@ const S = {
   linkCombined: false,  // fold linkKey into linkTo value → linkTo:key,<field> (else separate keys)
   fw81DtCollapse: false, // FW-81 (parked): show the collapsed use: reading beside today's six-key wire.
   whenMode: 'w1',       // FW-27 `when` encoding: 'w1' decided wire | 'w2' / 'w2br' / 'w2nv' the OPEN W2 proposal (serializeIf).
-  tableRoot: 'explicit', // FW-53 Q14: 'explicit' = every column writes src(inherit) | 'stripped' = the default root drops (tableColumnChain).
+  tablePres: 'b',       // table v1 presentation: 'b' Fork B flags | 'abr' Fork A bracketed | 'apair' Fork A paired (tablePresentationParts).
+  tableLayoutTok: 'fixedCols', // the fixed-layout token: 'layout' = layout(fixed) | a bare name ('fixedCols' / 'fixed' / 'fixedLayout').
+  tableColWidthTok: 'width', // column width token name: 'width' | 'colWidth' | 'off' (not emitted).
+  tableWidthKey: false, // Fork A only: width as its own key (A2) rather than a style token (A1).
   dummies: {key1:'custom_field',key2:'other_field',imgKey:'image_field',dateKey:'event_date',timeKey:'event_time',startKey:'start_date',endKey:'end_date',ref:'rel_post',tax:'category',urlKey:'url_field',fallback:'N/A',rangeSep:' – ',format:'F j, Y'},
 };
 
@@ -1550,12 +1604,14 @@ const RESPELL_KEY_MAP = {
   timeKey:[1,7], startKey:[1,8], startTimeKey:[1,9], endKey:[1,10], endTimeKey:[1,11],
   if:[1,12],   // FW-27 `when`, unshipped — same source-group tail as DEFAULT_ORDER
   align:[0,9], // {{table}} v1, unshipped — PROVISIONAL rank (format-group tail); ticket 05 decides
+  width:[0,10], colWidth:[0,10], // {{table}} column width, unshipped (presentation round 1, 2026-10-03) — PROVISIONAL rank
+  fill:[0,11], // {{table}} column fill, unshipped (round 3, 2026-10-05) — PROVISIONAL rank
   linkTo:[2,0], linkKey:[2,1], newTab:[2,2], fallback:[3,0],
 };
 // Collect ALL slot options as canonical entries. The src-CHAIN is a pre-serialized bracket string
 // occupying the source group's `src` slot (rank [1,0]). REDUNDANCIES base tags never emit are
 // dropped: no `use=<analog>` equal to the leading type.
-function respellEntries(chain, read, link, dtKeys, typeTag, fallback, ifCond, align) {
+function respellEntries(chain, read, link, dtKeys, typeTag, fallback, ifCond, align, colWidth, colFill) {
   const E=[];
   const rb = S.respellReadBracket;
   const push=(name,val,br)=>E.push({name,val,br:!!br,rank:RESPELL_KEY_MAP[name]||[1,99]});
@@ -1610,6 +1666,8 @@ function respellEntries(chain, read, link, dtKeys, typeTag, fallback, ifCond, al
     if (link.newTab) E.push({name:'newTab', flag:true, rank:RESPELL_KEY_MAP.newTab});
   }
   if (align) push('align', align, false);   // {{table}} v1 column token, unshipped (ticket 05 owns the real rank)
+  if (colWidth && S.tableColWidthTok !== 'off') push(S.tableColWidthTok, colWidth, false);   // {{table}} column width, unshipped
+  if (colFill) push('fill', colFill, false);   // {{table}} column fill, unshipped
   if (fallback!==undefined && fallback!=='') push('fallback', fallback, false);   // free-form → escaped in emit
   if (ifCond) E.push({name:'if', val:serializeIf(ifCond, 1), rank:RESPELL_KEY_MAP.if});   // FW-27, unshipped
   return E;
@@ -1761,8 +1819,8 @@ const SLOT_SCHEMAS = {
 };
 // `labelName` = the option id the column-header text rides: 'label' (the reserved shipped token)
 // unless the {{table}} v1 group passes 'header'.
-function serializeSlot(typeTag, chain, read, link, dtKeys, label, forceSrc, fallback, ifCond, labelName, align) {
-  const entries = respellEntries(chain, read, link, dtKeys, typeTag, fallback, ifCond, align);
+function serializeSlot(typeTag, chain, read, link, dtKeys, label, forceSrc, fallback, ifCond, labelName, align, colWidth, colFill) {
+  const entries = respellEntries(chain, read, link, dtKeys, typeTag, fallback, ifCond, align, colWidth, colFill);
   // Slot-1 forced src (user 2026-07-29): when the always-serialize-src toggle is on AND this slot
   // has no chain of its own, inject an explicit `src:current` so slot 1 declares its source.
   if (forceSrc && !serializeChain(chain)) {
@@ -2302,20 +2360,17 @@ function splitTagLevelParts(shippedSlots, foldClass) {
   return { tagLevel, perSlot };
 }
 function slotValueFor(s, typeTag, label, forceSrc, labelName) {
-  return serializeSlot(typeTag, s.chain||[], s.read||null, s.link||null, s.dtKeys||null, label, forceSrc, s.fallback, s.if, labelName, s.align);
+  return serializeSlot(typeTag, s.chain||[], s.read||null, s.link||null, s.dtKeys||null, label, forceSrc, s.fallback, s.if, labelName, s.align, s.width, s.fill);
 }
-// {{table}} v1 column chain under the FW-53 Q14 toggle (S.tableRoot). Scenario chains are authored
-// WITHOUT `inherit`, the way the step-first menu writes them. 'explicit' prepends it to any chain
-// that does not already start at a root; 'stripped' leaves the chain as authored. That is what the
-// real control writes for an UNTOUCHED column on any ordinal (its displayed root is never written)
-// and for a step picked straight from the root menu. A root picked and then `+ Add step`ed writes
-// `inherit;…` even when stripped (`stripDefaultRoot()` drops only a lone root), so the stripped
-// state shows the step-first spelling, not every one an author could produce.
+// {{table}} v1 column chain, as the control writes it (table-tag.md Settled #49, #55, #58): a lone
+// `inherit` strips to empty (the row), and a chain with steps always writes its root, so a
+// step-first chain gains `inherit`. Scenario chains may be authored either way.
 // Root slugs are hand-listed: a root added later gets `inherit` prepended here until listed.
 const TABLE_ROOT_SLUGS = new Set(['inherit','same','current','site','post','term','user']);
 function tableColumnChain(chain) {
   const c = chain || [];
-  if (S.tableRoot !== 'explicit' || (c.length && TABLE_ROOT_SLUGS.has(c[0].slug))) return c;
+  if (c.length === 1 && c[0].slug === 'inherit') return [];
+  if (!c.length || TABLE_ROOT_SLUGS.has(c[0].slug)) return c;
   return [{slug:'inherit'}, ...c];
 }
 function buildFoldedSlot(i, slot, containerClass) {
@@ -2327,6 +2382,53 @@ function buildFoldedSlot(i, slot, containerClass) {
   const forceSrc = S.slotForceSrc && i===0 && (containerClass==='join'||containerClass==='try');
   const val = slotValueFor(s, typeTag, undefined, forceSrc);
   return [`${foldedSlotKey(i)}${val}`];
+}
+// {{table}} v1 presentation (unshipped). Scenario keys: stripes (true | a color, per-tag color is
+// LATER), layout ('fixed'), width ('auto' | a length). S.tablePres picks the shape:
+//   'b'     Fork B, Settled #28 — each option its own key; a bare key when it carries no value.
+//   'abr'   Fork A reopen — one `style` list, `,` between tokens, a value in brackets.
+//   'apair' Fork A reopen — one `style` list, tokens paired like a chain step, so `;` between them.
+//   'tgt'   target lists (round 3, 2026-10-05) — each skin its own key, value = targets with
+//           optional args: stripe:rows(even,#eee),cols · fill:table(…),header(…) · border:… ;
+//           width:/layout: as plain keys. Scenario keys stripe/fill/border = {target: {args…}}.
+// S.tableWidthKey (Fork A only) pulls width out to its own key (A2). Under Fork B it always is.
+// Outside 'tgt', a target-shaped `stripe` falls back to the plain stripes flag; fill/border do not render.
+function tablePresentationParts(sc) {
+  if (S.tablePres === 'tgt') return tableTargetParts(sc);
+  const toks = [];   // [name, value|null]
+  const stripes = sc.stripes || (sc.stripe ? true : null);
+  if (stripes) toks.push(['stripes', stripes === true ? null : stripes]);
+  if (sc.layout) toks.push(S.tableLayoutTok === 'layout' ? ['layout', sc.layout] : [S.tableLayoutTok, null]);
+  const ownWidthKey = S.tablePres === 'b' || S.tableWidthKey;
+  if (sc.width && !ownWidthKey) toks.push(['width', sc.width]);
+  const out = [];
+  if (S.tablePres === 'b') toks.forEach(([n, v]) => out.push(v == null ? kn(n) : `${kn(n)}:${v}`));
+  else if (toks.length) {
+    const b = bracketAt(1) || '()';
+    const one = S.tablePres === 'apair' ? ([n, v]) => v == null ? kn(n) : `${kn(n)},${v}`
+                                        : ([n, v]) => v == null ? kn(n) : `${kn(n)}${b[0]}${v}${b[1]}`;
+    out.push(`${kn('style')}:${toks.map(one).join(S.tablePres === 'apair' ? ';' : ',')}`);
+  }
+  if (sc.width && ownWidthKey) out.push(`${kn('width')}:${sc.width}`);
+  return out;
+}
+// 'tgt' shape. A target's args are typed by value (parity keyword vs color), so their order is
+// free; emitted as the scenario lists them. A target with no args is bare: `cols`.
+function tableTargetParts(sc) {
+  const b = bracketAt(1) || '()';
+  const list = (key, targets) => `${kn(key)}:` + Object.entries(targets).map(([t, a]) => {
+    const args = [a.parity, a.color].filter(Boolean);
+    return args.length ? `${t}${b[0]}${args.join(',')}${b[1]}` : t;
+  }).join(',');
+  // Legacy scenario keys map onto the target shape: stripes:true → rows, stripes:'#eee' → rows(#eee).
+  const stripe = sc.stripe || (sc.stripes ? { rows: sc.stripes === true ? {} : { color: sc.stripes } } : null);
+  const out = [];
+  if (sc.layout) out.push(S.tableLayoutTok === 'layout' ? `${kn('layout')}:${sc.layout}` : kn(S.tableLayoutTok));
+  if (sc.width) out.push(`${kn('width')}:${sc.width}`);
+  if (sc.fill) out.push(list('fill', sc.fill));
+  if (stripe) out.push(list('stripe', stripe));
+  if (sc.border) out.push(list('border', sc.border));
+  return out;
 }
 // Build a whole folded-container tag (try_ / join / table). scenario.slots = [slot,…].
 // try_: name = try_<baseTag>. join: name = join. table: name = table (row chain in src:, cols {N}:).
@@ -2347,8 +2449,7 @@ function buildFoldedTag(group, sc) {
     if (rc) tagParts.push(`${kn('src')}:${rc}`);
     if (sc.rowIf) tagParts.push(`${kn('if')}:${serializeIf(sc.rowIf, 0)}`);   // FW-27, unshipped: filters rows
     if ((sc.caption||'')!=='') tagParts.push(`${kn('caption')}:${sc.caption}`);
-    // v1 presentation flags: bare keys (table-tag.md Settled #28 Fork B), so no value.
-    if (group.tableV1) ['stripes','fixedLayout'].forEach(f=>{ if (sc[f]) tagParts.push(kn(f)); });
+    if (group.tableV1) tagParts.push(...tablePresentationParts(sc));
     slots.forEach((col,ci)=>{
       // columns are 1-indexed folded values (no bare slot-1 — the row set is src:, not a column).
       // label FOLDS into the slot value as the first token (user 2026-07-29), NOT a sibling.
@@ -2601,8 +2702,17 @@ document.getElementById('cb-fw81').addEventListener('change',e=>{
 document.getElementById('sel-when').addEventListener('change',e=>{
   S.whenMode=e.target.value; renderPerms();
 });
-document.getElementById('sel-table-root').addEventListener('change',e=>{
-  S.tableRoot=e.target.value; renderPerms();
+document.getElementById('sel-tpres').addEventListener('change',e=>{
+  S.tablePres=e.target.value; renderPerms();
+});
+document.getElementById('sel-tlayout').addEventListener('change',e=>{
+  S.tableLayoutTok=e.target.value; renderPerms();
+});
+document.getElementById('sel-tcolwidth').addEventListener('change',e=>{
+  S.tableColWidthTok=e.target.value; renderPerms();
+});
+document.getElementById('cb-twidthkey').addEventListener('change',e=>{
+  S.tableWidthKey=e.target.checked; renderPerms();
 });
 document.getElementById('add-name-row').addEventListener('click', addNameRow);
 
