@@ -161,6 +161,25 @@ Two consequences the plugin depends on:
   cancelling exactly it. It is a `--bws-optgroup-gap` custom property rather than a literal for that
   reason. The same gap is why controls inside our own boxes carry no `marginBottom`.
 
+### Tag modal geometry
+
+GB renders the tag modal as WP's `Modal` with `size:"medium"` and `className:"gb-dynamic-tag-modal"` (GB 2.4.1, `dist/blocks/element/index.js`), so its size comes from two stylesheets, GB's and WP's. The rules below were read off the CSS files the local testbed serves (GB 2.4.1, WP 7.1.2), 2026-10-06. The usable-size figures under the table are arithmetic over those rules, not measured in a browser.
+
+| Piece | Rule | Stylesheet |
+|---|---|---|
+| Frame width, viewport 600px and up | `width:100%`, `max-width:var(--wpds-dimension-surface-width-lg,560px)` (`has-size-medium`), `min-width:var(--wpds-dimension-surface-width-sm,320px)` | WP components |
+| Frame, viewport under 600px | a bottom sheet: `align-self:flex-end`, `width:100%`, `max-height:calc(100% - 40px)` | WP components |
+| Frame height | `height:min(70%,700px)`; on viewports 600px and up WP also sets `max-height:calc(100% - 128px)` | GB `loop-item/index.css` (height), WP components (max-height) |
+| Content area | `flex:1`, `margin-top:72px`, `padding:4px 24px 24px`, `overflow:auto` | WP components |
+| Content column | `display:flex`, `flex-direction:column`, `gap:15px`, `min-height:250px` | GB |
+| Inside the modal | WP `text-control` and `select-control` inputs forced to `height:35px!important`; `.components-base-control__field` and `.components-base-control__help` get `margin-bottom:0`; a checkbox's help gets `margin-top:0`; `.components-button` gets `align-self:flex-start` | GB |
+
+**Usable width.** 560px frame minus 2 × 24px of content padding is 512px for a control at the column's edge, less a scrollbar when the content overflows. Inside one of the plugin's option-group boxes (`.bws-optgroup`, `1px` border and `12px` padding, [`option-group.js`](../assets/js/option-group.js)) it is 486px. Under a 600px viewport the frame fills the viewport, so the figure is the viewport width minus the 48px padding.
+
+**Usable height.** The content area is the frame height minus 100px (the 72px top margin plus 4px and 24px of vertical padding). With the frame at `min(70%, 700px)` that is about 440px on a 768px-tall viewport and 600px at the cap, which a viewport of about 1000px or taller reaches. The area scrolls, so a tall tag scrolls inside the frame instead of growing it, and a `position:sticky` control would stick to `.components-modal__content` (not tried).
+
+**Selector scope.** The GB rules in the last table row target WP component classes. A control that renders its own raw `<input>` or `<select>` matches none of them, so it gets neither the 35px height nor the zeroed margins.
+
 ## Replacement is gated on block NAME — and the gate is filterable
 
 GB hooks WP's `render_block` at priority 10 (`includes/dynamic-tags/class-dynamic-tags.php:25`), so
