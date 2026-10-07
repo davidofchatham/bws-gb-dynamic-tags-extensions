@@ -180,6 +180,21 @@ GB renders the tag modal as WP's `Modal` with `size:"medium"` and `className:"gb
 
 **Selector scope.** The GB rules in the last table row target WP component classes. A control that renders its own raw `<input>` or `<select>` matches none of them, so it gets neither the 35px height nor the zeroed margins.
 
+### Control typography in the modal
+
+The look of a modal control's label, checkbox and radio is WP's, not GB's: GB's modal rules (the table above) set margins and input heights and nothing about label typography. The values below were read on 2026-10-07 off the testbed's WP 7.1.2 `wp-includes/js/dist/components.js` and `css/dist/components/style.css`, and off GB 2.4.0's release CSS. They are source readings, not computed styles measured in a live editor.
+
+| Piece | Rule | Where |
+|---|---|---|
+| BaseControl label (`.components-base-control__label`, also `BaseControl.VisualLabel`) | `font-size:11px`, `font-weight:600`, `line-height:1.4`, `text-transform:uppercase`, `display:block`, `margin-bottom:8px` (`space(2)`), `padding:0` | `components.js`, emotion (`baseLabelTypography` + `labelStyles`); in no static stylesheet |
+| BaseControl help | `font-size:12px`, `COLORS.gray[700]`, `margin-top:8px`, `margin-bottom:0` | `components.js` |
+| CheckboxControl, viewport 600px and up | a 16px box (`--checkbox-input-size`), `1px solid #949494`, `border-radius:2px`, white; checked fills with `--wp-admin-theme-color` and shows a white check; `8px` between box and label; label `line-height` equals the box size and nothing else, so its text inherits the surrounding style (regular weight, regular case) | `style.css` |
+| RadioControl, viewport 600px and up | a 16px circle, `1px solid #1e1e1e` (darker than the checkbox border), white; checked fills with `--wp-components-color-accent` (falls back to `--wp-admin-theme-color`, then `#3858e9`) with an 8px white dot; `8px` column gap to the label, label `line-height:16px` | `style.css` |
+| Either, under 600px (the bottom-sheet modal) | the box or circle is 24px and the label `line-height` 24px | `style.css` |
+| PanelBody title (`.components-panel__body-toggle`) | `font-weight:600`, `color:#1e1e1e`, `font-size` inherited, no `text-transform` | `style.css` |
+
+Two consequences for our own controls. A checkbox label is regular case at the surrounding weight, so a heading drawn as a `CheckboxControl` cannot read as the uppercase BaseControl label unless the plugin styles it. And WP has no style for a quieter sub-caption (a non-uppercase label under a group heading): any such caption, and any group heading meant to outrank the 11px uppercase labels, is plugin-chosen, drawn the way `slot-fold-control.js` and [`option-group.js`](../assets/js/option-group.js) draw theirs. The live accent color is `var(--wp-admin-theme-color)` and follows the user's admin color scheme; `#3858e9` is only the fallback in WP's CSS.
+
 ## Replacement is gated on block NAME — and the gate is filterable
 
 GB hooks WP's `render_block` at priority 10 (`includes/dynamic-tags/class-dynamic-tags.php:25`), so
