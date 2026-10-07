@@ -658,6 +658,18 @@ Open: The render change: bare `{{image src:site}}` goes from empty to the site l
 
 Blocked by: —  •  Interacts with: FW-142 (closed; its stale-`key` drop removed the stated reason), FW-80 (a flip would lead with the analog value FW-80 may rename to `default`), FW-141 (closed)
 
+#### FW-148 — Collapsible slots: a card that folds to a one-line summary
+
+Slot-style repeaters render every slot expanded, as the real modal does today. A collapsible card (the header toggles the body, a one-line summary of the values that are set shows while it is closed, several can stay open at once) would shorten a tall slot list. It could be a general affordance of the folded-slot control or specific to `{{table}}`'s Columns cards.
+
+Detail home: `.scratch/table-tag/presentation-reopen.md` (the styling prototype's handoff; the collapsible card was prototyped in `.scratch/table-tag/prototype/styling-group-3.html` round 9 and cut from it in favor of expanded)
+
+Progress: Not started. Only a throwaway prototype toggle ever existed, and it is removed.
+
+Open: Whether it generalizes (the folded-slot control behind `{{join}}` and `try_` slots gets it too) or stays table-only, and whether the closed-state summary can come from the same struct the editor preview text reads rather than a second summarizer.
+
+Blocked by: —  •  Interacts with: FW-53 (the Columns cards are where it would land first)
+
 ### Testing & infrastructure
 
 #### FW-97 — Fixture-page reorganization
