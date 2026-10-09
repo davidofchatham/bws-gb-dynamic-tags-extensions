@@ -2,9 +2,9 @@
 /**
  * Taxonomy term core functions.
  *
- * These cores served the `term_` modifier family until FW-129 unregistered it in
- * 1.21.0. They stay because the modifier TEMPLATES still name them (`term_fn`) and
- * `try_` slots dispatch through the same descriptors.
+ * These cores are the term reads behind the base tags: a term-kind source (an
+ * archive's own term or a `terms` step) dispatches to them, per-tag, in base-shared.php
+ * and base-tags.php.
  *
  * @package BWS_Dynamic_Tags
  * @since 1.0.0

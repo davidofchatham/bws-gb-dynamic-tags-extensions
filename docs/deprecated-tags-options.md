@@ -83,13 +83,7 @@ The ☐ cells reflect the former per-source opt-in defaults, preserved here as d
 
 ## Modifier prefix → base tag with a registered root (1.17.0)
 
-A **modifier family** (`TagTemplateRegistry::register_modifier()`) is the pre-chain way of spelling
-one option value: `{{view_text key:x}}` says with a tag name what `{{text src:view|key:x}}` says with
-a source. Now that a registered source can be [offered as a chain
-root](tag-reference.md#root-enum-membership-1170-83), the two spellings are the same read, and the
-converter rewrites the first into the second
-([#84](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/84),
-[#86](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/86)).
+A **modifier family** (minted by `TagTemplateRegistry::register_modifier()`, withdrawn in 1.21.0 and deleted in 1.22.0) was the pre-chain way of spelling one option value: `{{view_text key:x}}` says with a tag name what `{{text src:view|key:x}}` says with a source. Now that a registered source can be [offered as a chain root](tag-reference.md#root-enum-membership-1170-83), the two spellings are the same read, and the converter rewrites the first into the second ([#84](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/84), [#86](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/86)).
 
 **The owning plugin registers its own entries** (`bws_register_modifier_root_migrations()`), and
 registration never retires ahead of migration. The API, the registration timing, the converter's
@@ -132,7 +126,7 @@ A row above states one entry's rewrite. An older prefix pointing at a newer one 
 
 Nine GB tags — `term_text`, `term_content`, `term_title`, `term_permalink`, `term_image`, `term_datetime_single`, `term_datetime_range`, `term_email`, `term_phone` — minted by `TagTemplateRegistry::register_modifier()` off the same modifier templates the base tags and `try_` are built from. **Nine because nine templates were registered**: seven in `bws_register_base_tags()` plus `email` and `phone`, whose own files register theirs. The table this section replaced in `tag-reference.md` showed seven term-variant rows and marked email/phone *(no term_ variant)*, contradicting that file's own Email/phone section a thousand lines below it; the count above is the one the code produced, and it is what `control-order-test.php` §C3 counts the surviving converter entries against. Deprecated in v1.20.0 (FW-33), **unregistered in v1.21.0** (FW-129). This section moved here from [`tag-reference.md`](tag-reference.md) at the removal: it stopped being current-state architecture the moment the tags stopped existing.
 
-**A stored `{{term_*}}` string renders its own braces until it is converted.** Nothing registers the name, so GenerateBlocks emits the literal text (measured on the reference fixture site 2026-09-16, and the nine moved `tools/test/snapshots/` pages are where it is held). The migration entries are the repair and they are still shipped — run the Migration Tool, and see [§Modifier prefix → base tag](#modifier-prefix--base-tag-with-a-registered-root-1170) above for what each stored shape becomes. Retiring those entries is a separate later release.
+**A stored `{{term_*}}` string renders its own braces until it is converted.** Nothing registers the name, so GenerateBlocks emits the literal text (measured on the reference fixture site 2026-09-16, and the nine moved `tools/test/snapshots/` pages are where it is held). The migration entries are the repair and they are still shipped — run the Migration Tool, and see [§Modifier prefix → base tag](#modifier-prefix--base-tag-with-a-registered-root-1170) above for what each stored shape becomes. **Stored `term_*` tags stay convertible by the Migration Tool**, and no retirement is scheduled; retiring that path would be a major release.
 
 ### What the tags carried
 

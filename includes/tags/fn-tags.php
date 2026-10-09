@@ -230,7 +230,7 @@ function bws_register_call_function( string $fn, array $meta = array() ): bool {
  *
  * Derived from bws_base_source_option() via the ALLOWLIST helper
  * bws_pick_src_values() (keep current + ref), NOT a hand-copied menu. The
- * allowlist (not the `site`-blocklist bws_filter_site_from_src) is the right
+ * allowlist is the right
  * primitive here: `{{call}}` has a CLOSED source set (both values post-yielding,
  * since a `$post_id`-contract function can't consume a non-post source, VC2), so
  * a future non-post base source must be excluded by default, not inherited. The

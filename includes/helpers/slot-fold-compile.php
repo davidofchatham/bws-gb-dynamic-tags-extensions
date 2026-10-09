@@ -614,7 +614,7 @@ function bws_field_values_assemble_steps( array $options, bool $ignore_limits = 
  *
  * Post-semantic: bws_resolve_post_by_source() and the base helpers built on it collapse
  * to a POST id, and a `srcTermIn` post→term step is DELIBERATELY excluded — the wrapper's
- * callers own that downstream on the returned post id (bws_get_srcterm_terms). Contrast
+ * callers own that downstream on the returned post id. Contrast
  * bws_field_values_assemble_steps(), which compiles the WHOLE chain because it reads
  * fields by kind (§V6/§V12).
  *

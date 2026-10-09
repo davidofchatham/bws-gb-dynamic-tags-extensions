@@ -1550,8 +1550,8 @@ function bws_fixture_page_content_matrix_fixture_roots() {
 		bws_fixture_gb_row( 'FR2b.2 the ambient contrast, same key, no root (-> Ambient Page Role)', '{{text key:role}}' ),
 	) );
 
-	// FR3 - THE RETIRED-PREFIX CORPUS. The fixture stands down from register_modifier()
-	// ahead of FW-129's withdrawal of it, so nothing mints a `fixture_*` tag and every row
+	// FR3 - THE RETIRED-PREFIX CORPUS. register_modifier() is deleted, so
+	// nothing mints a `fixture_*` tag and every row
 	// here renders its own braces: this is seeded wire for a prefix whose family is gone,
 	// which is the population the converter exists for and the state a retirement leaves on
 	// a published page. Each label states the
@@ -1586,10 +1586,8 @@ function bws_fixture_page_content_matrix_fixture_roots() {
 	) );
 
 	// FR7 (#88) is GONE, not moved. Its two rows measured register_modifier()'s `use`
-	// dispatch on a minted `fixture_*` tag, and this fixture no longer mints one — there is
-	// no dispatch left to observe on this prefix. (The constructor itself is still live and
-	// still mints `term_`; FW-129 takes that away later, and `term_`'s own rows go with it.)
-	// The base tags' own `use` dispatch is
+	// dispatch on a minted `fixture_*` tag; the constructor is deleted, so there is no
+	// dispatch left to observe. The base tags' own `use` dispatch is
 	// covered by text-test-matrix.md §T1 and content-test-matrix.md §CT3, which never rode
 	// the modifier path.
 

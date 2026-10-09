@@ -19,17 +19,13 @@ class TagTemplateRegistry {
 	/**
 	 * @var array[] Base template descriptors used by generate_base_try_tags() (try_ constructor)
 	 *              and, through get_modifier_templates(), by the converter's per-template
-	 *              migration-entry generator. The `modifier` in the name is historical: the
-	 *              term_ constructor was the second consumer until register_modifier() was
-	 *              withdrawn in 1.21.0.
+	 *              migration-entry generator. The `modifier` in the name is historical.
 	 *
 	 * Each entry shape:
 	 *   key              string    Template key (e.g. 'text', 'image').
 	 *   title            string    Display title fragment (e.g. 'Text Fields').
 	 *   options          array     Template-specific options excluding via/traversal sub-options.
-	 *   term_fn          callable  fn($term_id, $opts, $inst): string — term-entity handler.
-	 *   post_fn          callable  fn($post_id, $opts, $inst): string — post-entity handler (term_ via:'ref').
-	 *   resolve_fn       callable  fn(array $opts, $inst): array{value:string, link_id:int,
+	 *   resolve_fn      callable  fn(array $opts, $inst): array{value:string, link_id:int,
 	 *                    link_type:string} — the BASE tag's own resolve seam (FW-136). A try_
 	 *                    attempt reads through it, so it reads exactly as the base tag does
 	 *                    and inherits every rule the base read holds rather than
@@ -39,9 +35,9 @@ class TagTemplateRegistry {
 	 *                    silent behavior change.
 	 *   supports_try     bool      Whether this template generates a try_ tag.
 	 *   leading_options       array    Global formatting options (as, size, the datetime format
-	 *                    cluster). Named for the term_ constructor, where they LEAD; the try_
-	 *                    constructor registers them in canonical control order, i.e. after the
-	 *                    attempts and their field reads. Both read the same key.
+	 *                    cluster). The name is historical; the try_ constructor registers
+	 *                    them in canonical control order, i.e. after the attempts and their
+	 *                    field reads.
 	 *   try_per_slot_key      bool     Each try_ slot reads its own field key.
 	 *   try_per_slot_use      bool     Each try_ slot gets its own read (`use`) selector.
 	 *                    The PAIR names the slot's READ SHAPE, which is what the folded
@@ -86,12 +82,13 @@ class TagTemplateRegistry {
 	 * Stores metadata needed by generate_base_try_tags() and by the converter's per-template
 	 * migration-entry generator, which reads the same list through get_modifier_templates().
 	 *
-	 * NOT AFFECTED BY THE 1.21.0 WITHDRAWAL. register_modifier() was the second consumer and
-	 * is now a stub; this one stays, and external callers registering a template still get a
-	 * try_-prefixed tag out of it — provided the template sets `supports_try` and names its
-	 * base tag's resolve seam as `resolve_fn` (see the descriptor shape above).
+	 * INTERNAL. Not an integrator surface: a template yields only a try_ tag, and only when
+	 * it names a base tag's resolve seam as `resolve_fn`, so an outside caller would have to
+	 * run a base tag of its own first. A source that wants the base-tag surface registers a
+	 * chain root instead (docs/plugin-integration.md §1a).
 	 *
 	 * @since 1.6.0
+	 * @internal
 	 */
 	public static function register_modifier_template( array $config ): void {
 		self::$modifier_templates[] = $config;
@@ -105,209 +102,6 @@ class TagTemplateRegistry {
 	 */
 	public static function get_modifier_templates(): array {
 		return self::$modifier_templates;
-	}
-
-	/**
-	 * Register a context modifier group — WITHDRAWN, registers nothing.
-	 *
-	 * Minted a prefixed family of GB tags (prefix + '_' + template_key) backed by one
-	 * entity-resolution strategy. A registered chain root supersedes it: a source that
-	 * wants to be a starting point registers a root and gets the whole base-tag surface
-	 * (source paths, per-step limits, field pickers, previews) rather than a second copy
-	 * of it that every new capability has to be built into by hand.
-	 *
-	 * NO GRACE FAMILY, DELIBERATELY. Minting a reduced family would keep alive the exact
-	 * duplicate-capability surface the withdrawal exists to remove. The method survives
-	 * as a warn-and-return only so a stale caller gets a notice instead of a fatal —
-	 * five lines is a cheap price for that, and the hard delete lands in 1.22.0.
-	 *
-	 * Integrator-facing route out: docs/plugin-integration.md §1a (offer the source as a
-	 * chain root) and §9 (convert stored prefixed tags to base tags in one converter run).
-	 *
-	 * TWO DIFFERENT VERSIONS RIDE THIS METHOD, and neither is a typo for the other.
-	 * `@deprecated` takes the release that DEPRECATED it — 1.20.0, where the CHANGELOG
-	 * announced it under `### Deprecated` and the method still minted a full family.
-	 * `_doing_it_wrong()`'s third argument is WordPress's own `$version`, documented as
-	 * the version the MESSAGE was added in, and the message is new in 1.21.0 because
-	 * that is when the method stopped registering anything.
-	 *
-	 * @since 1.6.0
-	 * @deprecated 1.20.0 Register a chain root instead. Mints nothing since 1.21.0; deleted in 1.22.0.
-	 *
-	 * @param array $config Former modifier config. Ignored.
-	 */
-	public static function register_modifier( array $config ): void {
-		_doing_it_wrong(
-			__METHOD__,
-			'Context modifier families are withdrawn. Register a chain root instead (see docs/plugin-integration.md §1a), and use §9 to convert stored tags. No tags were registered.',
-			'1.21.0'
-		);
-	}
-
-	/**
-	 * Build a modifier tag callback that dispatches to term_fn (via unset) or post_fn (via:'ref').
-	 *
-	 * ORPHANED SINCE 1.21.0 — register_modifier() was its only caller and now mints nothing,
-	 * so nothing reaches this. It goes with the stub in 1.22.0, which is FW-129's remaining
-	 * step. Left standing until then because its dispatch is cited by docs/adr/0005,
-	 * docs/future-work.md's row on the base-source seam, and several in-tree comments — a
-	 * deletion that has to repoint those is its own change, not a side effect of stubbing.
-	 *
-	 * Under the traversal pipeline (SPEC §T7/§V5) the modifier resolves its BASE
-	 * source via base_source_key (term_ → TaxonomyTerm term-kind, view_ →
-	 * an external post-kind source), then steps `src:ref` through the generic `ref` step —
-	 * the per-combination traversal source class (TermRelatedPost and its external twin)
-	 * is no longer invoked. `$traversal_src_key` is ACCEPTED-BUT-IGNORED: kept in the
-	 * signature so register_modifier() (and external callers)
-	 * pass it without change, but never read — the ref step does the traversal
-	 * generically. An external family renders identically with zero changes on its side (SPEC §V5).
-	 *
-	 * @since 1.6.0
-	 * @since 1.14.0 Pipeline-assembled; traversal_source_key accept-but-ignore (§V5).
-	 */
-	private static function make_modifier_callback(
-		string $base_src_key,
-		string $traversal_src_key,
-		callable $term_fn,
-		callable $post_fn,
-		string $tag_name = '',
-		bool $is_image = false,
-		bool $supports_link = false
-	): callable {
-		unset( $traversal_src_key ); // Accept-but-ignore (SPEC §V5); ref step replaces it.
-		return static function ( $opts, $block, $inst ) use ( $base_src_key, $term_fn, $post_fn, $tag_name, $is_image, $supports_link ) {
-			$is_preview = $tag_name && ! empty( $inst->context['bwsEditorPreview'] );
-
-			$source = $opts['src'] ?? $opts['source'] ?? 'current';
-			if ( '' === $source ) {
-				$source = 'current';
-			}
-
-			// `site` is filtered from the rooting-modifier src dropdown (see register_modifier
-			// + CONTEXT.md I4). The UI filter can't stop a hand-typed `src:site`; guard it
-			// here so it resolves EMPTY rather than silently reading term meta under the
-			// option key (the #37 wrong-read). A site read belongs on the base tag. [#37]
-			if ( 'site' === $source ) {
-				return $is_preview && function_exists( 'bws_build_preview_label' )
-					? bws_build_preview_label( $opts, $tag_name )
-					: '';
-			}
-
-			$link_to  = $supports_link ? ( $opts['linkTo'] ?? 'none' ) : 'none';
-			$link_key = $supports_link ? ( $opts['linkKey'] ?? '' ) : '';
-			$new_tab  = $supports_link && ! empty( $opts['newTab'] );
-
-			// Image template: post-context paths dispatch by `use` (featured vs custom field).
-			// `post_fn` (= bws_custom_image_core) only handles custom-field path; featured needs bws_featured_image_core.
-			$image_post_dispatch = static function ( $entity_id, $opts, $inst ) use ( $post_fn ) {
-				if ( 'featured' === bws_use_effective( 'image', $opts ) && function_exists( 'bws_featured_image_core' ) ) {
-					return bws_featured_image_core( $entity_id, $opts, $inst );
-				}
-				return $post_fn( $entity_id, $opts, $inst );
-			};
-
-			$srcterm_tax = sanitize_key( $opts['srcTermIn'] ?? '' );
-
-			// srcTermIn dispatch: resolve target post (current or via ref), then call term_fn
-			// against each taxonomy term on that post; first non-empty wins. Mirrors
-			// bws_base_image_resolve_value's term-step loop. For term-context base sources, the
-			// option is hidden when src=current (UI gating), so this only runs when src=ref.
-			// Returns [ 'value' => string, 'term_id' => int ] so caller can apply link wrap.
-			$srcterm_dispatch = static function ( $post_id, $opts, $inst, $tax ) use ( $term_fn ) {
-				if ( ! $post_id || '' === $tax ) {
-					return [ 'value' => '', 'term_id' => 0 ];
-				}
-				if ( ! function_exists( 'bws_get_srcterm_terms' ) ) {
-					return [ 'value' => '', 'term_id' => 0 ];
-				}
-				$terms = bws_get_srcterm_terms( (int) $post_id, $tax );
-				foreach ( $terms as $term ) {
-					$result = $term_fn( $term->term_id, $opts, $inst );
-					if ( '' !== $result && false !== $result ) {
-						return [ 'value' => $result, 'term_id' => (int) $term->term_id ];
-					}
-				}
-				return [ 'value' => '', 'term_id' => 0 ];
-			};
-
-			$link_entity_id   = 0;
-			$link_entity_type = 'post';
-
-			// L1 — resolve the modifier's BASE resolved source via base_src_key (SPEC
-			// §V5): term_ → TaxonomyTerm (term kind), an external prefix → its own source (post kind).
-			// The pipeline engine then steps it; traversal_src_key is accepted-but-
-			// IGNORED (SPEC §V5 — an integrator still passes it, we never read it). The old
-			// per-combination traversal source class (TermRelatedPost and its external twin)
-			// is replaced by the generic `ref` step off this base source.
-			$base_src   = SourceRegistry::get_source( $base_src_key );
-			$base_kind  = ( $base_src && 'term' === $base_src->get_context_type() ) ? 'term' : 'post';
-			$base_id    = $base_src ? (int) $base_src->resolve_id( $opts, $inst ) : 0;
-			$base_source = $base_id ? array( 'kind' => $base_kind, 'id' => $base_id ) : array();
-
-			if ( 'ref' === $source ) {
-				// Traversal: step the base source's relationship field → post[] via the
-				// generic ref step (SPEC §V5/§V6). Modifier link semantics are single-
-				// valued, so collapse to the first post id after the step.
-				$ref_field = $opts['ref'] ?? '';
-				$entity_id = 0;
-				if ( $base_source && '' !== $ref_field && function_exists( 'bws_run_traversal' ) ) {
-					$stepped   = bws_run_traversal(
-						array( $base_source ),
-						array( array( 'type' => 'refs', 'field' => $ref_field ) )
-					);
-					$entity_id = function_exists( 'bws_first_post_id_from_sources' )
-						? (int) bws_first_post_id_from_sources( $stepped )
-						: 0;
-				}
-
-				if ( '' !== $srcterm_tax ) {
-					$dispatch         = $srcterm_dispatch( $entity_id, $opts, $inst, $srcterm_tax );
-					$value            = $dispatch['value'];
-					$link_entity_id   = $dispatch['term_id'];
-					$link_entity_type = 'term';
-				} elseif ( $is_image ) {
-					$value = $image_post_dispatch( $entity_id, $opts, $inst );
-				} else {
-					$value            = $post_fn( $entity_id, $opts, $inst );
-					$link_entity_id   = (int) $entity_id;
-					$link_entity_type = 'post';
-				}
-			} else {
-				// Source unset — read the base resolved source directly, dispatching by
-				// its KIND (term → term_fn, post → post_fn/image). Mirrors the base-tag
-				// kind dispatch (SPEC §V7 posture). term_ modifier bases a term; view_
-				// modifier bases a post.
-				$entity_id = $base_id;
-
-				// srcTermIn at src=current is only meaningful for post-context base sources.
-				// Term-context bases hide the control via show_if=src:ref (UI gating).
-				if ( '' !== $srcterm_tax && 'term' !== $base_kind ) {
-					$dispatch         = $srcterm_dispatch( $entity_id, $opts, $inst, $srcterm_tax );
-					$value            = $dispatch['value'];
-					$link_entity_id   = $dispatch['term_id'];
-					$link_entity_type = 'term';
-				} elseif ( 'term' === $base_kind ) {
-					$value            = $term_fn( $entity_id, $opts, $inst );
-					$link_entity_id   = (int) $entity_id;
-					$link_entity_type = 'term';
-				} elseif ( $is_image ) {
-					$value = $image_post_dispatch( $entity_id, $opts, $inst );
-				} else {
-					$value            = $post_fn( $entity_id, $opts, $inst );
-					$link_entity_id   = (int) $entity_id;
-					$link_entity_type = 'post';
-				}
-			}
-
-			if ( '' !== $value ) {
-				if ( $supports_link && $link_entity_id && function_exists( 'bws_wrap_with_link' ) ) {
-					$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, $link_entity_id, $link_entity_type );
-				}
-				return $value;
-			}
-
-			return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $opts, $tag_name ) : '';
-		};
 	}
 
 	/**
@@ -478,14 +272,12 @@ class TagTemplateRegistry {
 
 		// Snapshot existing tags for the dup-check inside the template loop.
 		//
-		// AXIS - A try_ TAG WHOSE NAME IS ALREADY TAKEN IS NOT REGISTERED, same yield as the
-		// term_ constructor above and for the same reason: a fallback-chain tag is an extra
-		// over the base tag it is built from, so a name clash costs an affordance rather
-		// than an already-rendering page. The base half overwrites instead - the asymmetry
-		// is deliberate and is explained at bws_gb_register_tag().
+		// AXIS - A try_ TAG WHOSE NAME IS ALREADY TAKEN IS NOT REGISTERED: a fallback-chain
+		// tag is an extra over the base tag it is built from, so a name clash costs an
+		// affordance rather than an already-rendering page. The base tags overwrite instead
+		// - the asymmetry is deliberate and is explained at bws_gb_register_tag().
 		//
-		// AND THE YIELD IS REPORTED, same as the term_ half: bws_gb_note_tag_yielded() at the
-		// dup-check below. The whole registry is kept rather than its keys because the report
+		// AND THE YIELD IS REPORTED: bws_gb_note_tag_yielded() at the dup-check below. The whole registry is kept rather than its keys because the report
 		// names who holds the name.
 		$existing_tags = \GenerateBlocks_Register_Dynamic_Tag::get_tags() ?? [];
 		$existing      = array_keys( $existing_tags );
@@ -514,9 +306,9 @@ class TagTemplateRegistry {
 			$list_options    = ! empty( $tpl['try_list_options'] );
 			$allow_site_slot = ! empty( $tpl['try_allow_site_slot'] );
 			$tpl_options     = $tpl['options'] ?? [];
-			// The descriptor key still reads `leading_options` — it is the term_ constructor's
-			// too, where these DO lead. On try_ they no longer do (canonical control order,
-			// 1.17.0), so the local name states what they are rather than where they sit.
+			// The descriptor key reads `leading_options`, but on try_ these no longer lead
+			// (canonical control order, 1.17.0), so the local name states what they are
+			// rather than where they sit.
 			$format_options  = $tpl['leading_options'] ?? [];
 			$is_image        = ! empty( $tpl['is_image'] );
 			$supports_link   = ! empty( $tpl['supports_link_wrap'] ) && ! $is_image;
@@ -750,7 +542,7 @@ class TagTemplateRegistry {
 	 * @param callable $callback   Return callback: fn( $options, $block, $instance ): string.
 	 * @param array    $visibility Optional GB `visibility` block-attribute gate
 	 *                             (e.g. tagName NOT_IN ['a','button','img','picture']).
-	 *                             Threaded through so template-registered tags (term_*, try_*)
+	 *                             Threaded through so template-registered tags (try_*)
 	 *                             can carry the same gate the standalone tags register
 	 *                             directly. Omitted from the registration array when empty
 	 *                             (preserves byte-identical registration for gateless tags).
@@ -780,9 +572,9 @@ class TagTemplateRegistry {
 			$args['visibility'] = $visibility;
 		}
 		// THE plugin's one registration site is bws_gb_register_tag(), in
-		// includes/helpers/gb-registration-boundary.php. Both template constructors reach GB
-		// through it. Neither can hand it a taken name: each skips one at its dup-check
-		// (see the two AXIS comments above), so every collision that function reports is
+		// includes/helpers/gb-registration-boundary.php. The try_ constructor reaches GB
+		// through it. It cannot hand it a taken name: it skips one at its dup-check
+		// (see the AXIS comment above), so every collision that function reports is
 		// a base-tag collision.
 		bws_gb_register_tag( $args );
 	}

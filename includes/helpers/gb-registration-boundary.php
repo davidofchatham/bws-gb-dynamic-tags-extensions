@@ -216,12 +216,12 @@ function bws_gb_recheck_tag_ownership(): void {
 }
 
 /**
- * Record and report a tag name the modifier or fallback-chain constructor stood down from.
+ * Record and report a tag name the fallback-chain constructor stood down from.
  *
  * THE THIRD DIRECTION, and the only one where nothing of ours ever runs. bws_gb_register_tag()
  * reports a name we took, bws_gb_recheck_tag_ownership() a name we were taken off; this
  * reports a name we never claimed. The YIELD ITSELF IS CORRECT AND IS NOT CHANGED BY THIS —
- * each constructor's own AXIS comment owns why standing down is right for its family. What
+ * the constructor's own AXIS comment owns why standing down is right for its family. What
  * was wrong was that it was silent: `{{term_title}}` is documented as ours, a co-resident
  * plugin registering that name first means our tag does not exist, and until 1.19.0 the only
  * evidence anywhere was the tag missing from a dropdown.
@@ -237,7 +237,7 @@ function bws_gb_recheck_tag_ownership(): void {
  * consequence of the ownership rule; bws_gb_recheck_tag_ownership() states the axis.
  *
  * @since 1.19.0
- * @internal Called by the two template constructors at their dup-check, nowhere else.
+ * @internal Called by the try_ constructor at its dup-check, nowhere else.
  * @param string $tag      The name that was already taken.
  * @param mixed  $existing GB's registry entry for that name, or null when unavailable.
  * @return void

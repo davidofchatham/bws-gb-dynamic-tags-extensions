@@ -49,9 +49,8 @@ class RelatedPost extends AbstractSource {
 	 *
 	 * This used to answer "which field holds the relationship?" from `rel`, falling back
 	 * to a legacy `key`. Nothing else in the plugin reads either spelling: the chain
-	 * compiler builds its `refs` step from `ref` alone (bws_fold_chain_from_options), and
-	 * so does the modifier callback's traversal arm. Two readers of one question, on
-	 * DISJOINT vocabularies, is what made a hand-typed `key:` silently read the ambient
+	 * compiler builds its `refs` step from `ref` alone (bws_fold_chain_from_options). Two
+	 * readers of one question, on DISJOINT vocabularies, is what made a hand-typed `key:` silently read the ambient
 	 * entity under `src:ref` while resolving correctly under `src:related_post`.
 	 *
 	 * The `key` fallback was the sharper half: `key` is the live FIELD-key option on every

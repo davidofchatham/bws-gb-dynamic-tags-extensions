@@ -538,11 +538,11 @@ assert_eq( 'V5.10 the entry names the BASE tag as its target',
 assert_eq( 'V5.11 the owner\'s `since` reaches the entry (the admin list shows it)',
 	'1.17.0', $fixture_entry['since'] ?? '' );
 
-// LIVENESS. Migrating does not retire the family — `register_modifier()` goes on minting
-// its GB tags — so the entries belong in the settings page's Deprecated box. is_entry_live()
-// still reads callback-presence as its interim proxy (FW-38 replaces it), so a generated
-// entry carries the marker; filing a live family under "no longer registers with
-// GenerateBlocks" would be false while it renders.
+// LIVENESS. Migrating does not retire a family by itself — an entry without `prefix_removed`
+// describes a family whose tags are still registered — so it belongs in the settings page's
+// Deprecated box. is_entry_live() still reads callback-presence as its interim proxy
+// (FW-38 replaces it), so a generated entry carries the marker; filing a live family under
+// "no longer registers with GenerateBlocks" would be false while it renders.
 assert_eq( 'V5.12 a migrated-but-not-retired family is DEPRECATED, not removed',
 	true, MigrationRegistry::is_entry_live( $fixture_entry ) );
 

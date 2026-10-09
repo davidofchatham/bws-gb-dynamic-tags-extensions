@@ -668,9 +668,9 @@ foreach ( $tags as $tag => $args ) {
 	}
 }
 
-// The third constructor (register_modifier / term_) authors no chain and no folded
-// slot, so it has no surface to suppress — asserted so a future term_ chain control
-// cannot pick the capability up by accident without a row here changing.
+// No `term_` tag exists any more, so none carries a surface to suppress — asserted so a
+// future `term_` chain control cannot pick the capability up by accident without a row
+// here changing.
 foreach ( $tags as $tag => $args ) {
 	if ( 0 !== strpos( $tag, 'term_' ) ) {
 		continue;
@@ -935,22 +935,17 @@ assert_same( 'a free name records no collision', false, isset( bws_gb_tag_name_c
 
 // --- C. the OTHER half of the asymmetry: a template constructor yields ------
 
-// MEASURED IN §F, not here. This arm used to drive register_modifier() with a synthetic
-// prefix whose first template name was pre-taken. That driver is scheduled for withdrawal
-// (FW-129) and this harness detached from it ahead of the removal, so the whole yield arm
-// now runs on the `try_` constructor, which enforces the same rule at the same boundary.
-// §F carries every assertion that stood here, plus the re-entry guard it already owned.
+// MEASURED IN §F, not here: the whole yield arm runs on the `try_` constructor, the only
+// family constructor left. §F carries every assertion for it, plus the re-entry guard.
 //
-// The lettering below is unchanged on purpose. register_modifier() is a stub since 1.21.0 and
-// builds nothing, and C3 never read its output: it reads GB's live registry against the
+// The lettering below is unchanged on purpose: C3 reads GB's live registry against the
 // migration entries, a different subject from what a constructor stands down from.
 
-// --- C2. RETIRED by FW-136 -------------------------------------------------
+// --- C2. RETIRED ------------------------------------------------------------
 //
-// It censused each template's term_fn/post_fn against its try_ dispatch twin
-// (try_term_fn/try_core_fn), the #88 guard. FW-136 deleted the twins with the arm table,
-// and the only reader of term_fn/post_fn is make_modifier_callback(), which nothing
-// reaches since register_modifier() became a stub — so there is nothing left to pin.
+// It censused each template's term_fn/post_fn against its try_ dispatch twin, the #88
+// guard. Both the descriptor keys and the constructor that read them are deleted, so there
+// is nothing left to pin.
 
 // --- C3. the `term_` family is GONE from the picker, its entries are NOT ------
 //
@@ -963,12 +958,11 @@ assert_same( 'a free name records no collision', false, isset( bws_gb_tag_name_c
 // after it, which is the shipped init pass's shape since the removal — so a constructor
 // call restored anywhere reachable from `bws_register_base_tags()` fails the first loop.
 //
-// WHAT WENT WITH THE FAMILY, and is not pinned anywhere else: C2's dispatch census still
-// covers the template wiring, but the `key` control's derived `show_if` (built from
-// try_use_no_key_values inside register_modifier(), #88) had the `term_*` tags as its only
-// live readers. It is not reasserted against `try_`, which spends the same descriptor key
-// on its folded-slot config rather than on a flat `key` control. The derivation dies with
-// the constructor body.
+// WHAT WENT WITH THE FAMILY, and is not pinned anywhere else: the `key` control's derived
+// `show_if` (built from try_use_no_key_values inside the deleted register_modifier(), #88)
+// had the `term_*` tags as its only live readers. It is not reasserted against `try_`,
+// which spends the same descriptor key on its folded-slot config rather than on a flat
+// `key` control.
 $live_tags = \GenerateBlocks_Register_Dynamic_Tag::get_tags();
 $live_term = array_values( array_filter(
 	array_keys( $live_tags ),
@@ -1193,10 +1187,7 @@ assert_same(
 // --- F. the yielding constructor, its record, and the re-entry guard --------
 
 // THE WHOLE YIELD ARM, and the only one now: it drives generate_base_try_tags() against a
-// real `try_` name a stranger has taken. register_modifier() enforces the same rule and is
-// still live for `term_`, but this harness no longer drives it — its probe was detached
-// ahead of FW-129's withdrawal, so the rule is pinned at the constructor that will outlive
-// it. It runs LAST on purpose: taking a real try_ name away from us is exactly what arms D
+// real `try_` name a stranger has taken. It runs LAST on purpose: taking a real try_ name away from us is exactly what arms D
 // and E would otherwise have read as a loss of ours.
 //
 // THE YIELD SPEAKS, AND THAT IS WHAT THIS ARM ONCE CHANGED. Through 1.18.0 the assertion was

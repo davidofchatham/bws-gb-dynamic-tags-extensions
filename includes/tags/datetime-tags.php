@@ -684,7 +684,7 @@ function bws_term_datetime_range_core( $term_id, $options, $instance ) {
  * is already canonical and passes through untouched.
  *
  * INVARIANT: this function is the ONLY place public datetime keys are parsed.
- * Both render paths (base callbacks, try_/modifier template closures) and the
+ * Both render paths (base callbacks, try_ template closures) and the
  * editor preview call it — they can never disagree about what an option means.
  * A future folded key value is an edit to this function alone, not a re-sweep of
  * the read sites. FW-41 (`key:date,time`) was the original form of that change;

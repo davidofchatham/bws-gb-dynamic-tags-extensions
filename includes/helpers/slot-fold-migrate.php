@@ -486,7 +486,7 @@ function bws_migrate_base_src_chain( string $tag_string ): string {
  *
  * Deliberately not derived from "every registered tag": the migration target is the
  * AUTHORING surface, so this list must track `bws_build_src_chain_option()`'s callers
- * and nothing else. A `term_*` modifier or a `try_` slot keeps the flat select and
+ * and nothing else. A `try_` slot keeps the flat select and
  * would be migrated to wire its own control cannot edit.
  *
  * @since 1.17.0

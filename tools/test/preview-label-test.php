@@ -12,7 +12,7 @@
  *   bws_try_preview_field_part()          (mode-value / quoted-key field parts)
  *   bws_try_preview_source_part()         (source segments off a slot's chain wire)
  *   bws_wrap_preview_label_with_link()    (link annotation + <a> wrap)
- *   bws_build_preview_label()             (base/modifier tags, NON-datetime)
+ *   bws_build_preview_label()             (base tags, NON-datetime)
  *   bws_build_try_preview_label()         (try_ slot chains, NON-datetime)
  *
  * EXCLUDED — datetime templates (datetime_single / datetime_range). Those branches
@@ -39,9 +39,7 @@ if ( ! function_exists( 'esc_html' ) ) {
 	function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 }
 
-// apply_filters: identity passthrough. The only filtered value the covered paths
-// read is the modifier map, and tests assert against the built-in default, so a
-// passthrough (return $value) is exactly the production default behaviour.
+// apply_filters: identity passthrough, the production default behavior.
 if ( ! function_exists( 'apply_filters' ) ) {
 	function apply_filters( $hook, $value ) { return $value; }
 }
@@ -229,22 +227,15 @@ check(
 	"Ref 'rel'"
 );
 // The arrow means "hopped FROM"; a term step that opens the whole label has nothing to
-// point back at, and a caller whose own segment precedes says so with `lead`.
+// point back at.
 check(
 	'term step alone → no arrow',
 	implode( ' ', bws_preview_source_segments( $chain_term ) ),
 	'Event Category Term'
 );
-check(
-	'term step behind a caller segment → arrow',
-	implode( ' ', bws_preview_source_segments( $chain_term, [ 'lead' => true ] ) ),
-	'→ Event Category Term'
-);
-// `site`/`terms` off: a rooting modifier short-circuits a site root to its own warning, and
-// a term_* tag builds its taxonomy segment from GB's native `tax` instead.
+// `site` off: the slot door names no site segment.
 check( 'site root named',        implode( ' ', bws_preview_source_segments( $chain_site ) ),                    'Site' );
 check( 'site off → no segment',  implode( ' ', bws_preview_source_segments( $chain_site, [ 'site' => false ] ) ), '' );
-check( 'terms off → no segment', implode( ' ', bws_preview_source_segments( $chain_term, [ 'terms' => false ] ) ), '' );
 // (`roots` is exercised against the real registry in the #83 section below, where one is
 // bootstrapped.)
 // An argless fanning step is REPORTED, never rendered: the engine answers empty for it, so
@@ -260,11 +251,6 @@ check( '…and the slug is the report', implode( ',', array_keys( $missing ) ), 
 $missing = [];
 bws_preview_source_segments( bws_fold_parse_chain( 'refs;terms' ), [], $missing );
 check( 'both fanning steps report', implode( ',', array_keys( $missing ) ), 'refs,terms' );
-// A step the caller silenced reports nothing either — a term_* tag must not warn about a
-// taxonomy it was never going to name.
-$missing = [];
-bws_preview_source_segments( bws_fold_parse_chain( 'refs;terms' ), [ 'terms' => false ], $missing );
-check( 'silenced step does not report', implode( ',', array_keys( $missing ) ), 'refs' );
 // The ambient entity is named from the TOKEN that spells it, never from a merely absent
 // root: a chain LEADING with a step has no root token either, and naming that would anchor
 // the hop it makes. This is the one shape the flat door could not produce and chain wire can.
@@ -320,7 +306,7 @@ check(
 );
 
 // ---------------------------------------------------------------------------
-echo "\nbuild_preview_label — base & modifier tags (non-datetime)\n";
+echo "\nbuild_preview_label — base tags (non-datetime)\n";
 // Text base, current source, key set → bare quoted key, no 'from' segment.
 check(
 	'text current key',
@@ -398,32 +384,7 @@ check(
 	bws_build_preview_label( [ 'src' => 'ref', 'ref' => 'rel', 'key' => 'sku' ], 'text' ),
 	"['sku' from Ref 'rel']"
 );
-// term_ modifier prefix → base resolves to text, modifier label 'Term'.
-check(
-	'term_text current',
-	bws_build_preview_label( [ 'key' => 'sku' ], 'term_text' ),
-	"['sku' from Term]"
-);
-// term_ modifier with explicit tax → tax name merged into Term segment, no arrow.
-check(
-	'term_text w/ tax',
-	bws_build_preview_label( [ 'key' => 'sku', 'tax' => 'event_category' ], 'term_text' ),
-	"['sku' from Event Category Term]"
-);
-// #37: hand-typed src:site on a term_ modifier → invalid-combo warning (matches the
-// empty frontend; the src dropdown filters site, but a hand-typed value slips it).
-check(
-	'term_text src:site → invalid-combo warning',
-	bws_build_preview_label( [ 'src' => 'site', 'use' => 'key', 'key' => 'blogdescription' ], 'term_text' ),
-	'[⚠ Site source not valid on Term tag — use the base tag]'
-);
-// Warning still appends fallback note when one is set.
-check(
-	'term_text src:site warning + fallback',
-	bws_build_preview_label( [ 'src' => 'site', 'key' => 'x', 'fallback' => 'N/A' ], 'term_text' ),
-	'[⚠ Site source not valid on Term tag — use the base tag (fallback: “N/A”)]'
-);
-// Base (non-modifier) text src:site is VALID — no warning, normal label.
+// Base text src:site is VALID — no warning, normal label.
 check(
 	'text src:site (base) → from Site, no warning',
 	bws_build_preview_label( [ 'src' => 'site', 'use' => 'key', 'key' => 'blogdescription' ], 'text' ),
@@ -493,8 +454,7 @@ check(
 //
 // This is the WHOLE editor experience for such a tag, not a nicety: a source that resolves
 // from request context cannot resolve in the editor, so the tag previews rather than
-// renders every time. The existing prefix-keyed modifier map is keyed on TAG NAME and can
-// never fire for a base tag, which is why the label comes off the registry instead.
+// renders every time, so the label comes off the registry.
 require_once __DIR__ . '/lib-source-registry.php';
 \BWS\DynamicTags\SourceRegistry::register_source( new BWS_Test_Offered_Source() );
 \BWS\DynamicTags\SourceRegistry::register_source( new BWS_Test_Unoffered_Source() );

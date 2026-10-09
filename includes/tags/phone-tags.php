@@ -586,68 +586,11 @@ function bws_phone_finish_values( array $raw, array $options ): array {
 }
 
 /**
- * Try-tag post-slot dispatch for the `phone` template.
- *
- * Returns finished tel/plain number strings for the slot (CONTEXT.md I6). Honors
- * the registry-resolved $post_id for post/term sources; src:site reads the option.
- *
- * @since 1.11.0
- * @return string[] Finished per-item strings.
- */
-function bws_try_phone_post_dispatch( $post_id, $options, $instance ) {
-	// The fixed read (FW-141) reads no field: the author's value, finished like any other.
-	// The site is always a source; a post or term needs an id.
-	$fixed = bws_try_fixed_dispatch( 'phone', bws_try_post_has_source( $post_id, (array) $options ), (array) $options );
-	if ( null !== $fixed ) {
-		return bws_phone_finish_values( $fixed, (array) $options );
-	}
-	// The SITE branch is taken by what the chain RESOLVES TO — the dispatch axis every
-	// base arm uses (bws_base_src_resolution, computable from the wire alone) — never
-	// by comparing the serialized token to a literal. The compare this replaced
-	// ('site' === $options['src']) missed every chain spelling of the same source
-	// (`site,limit[2]`, any decorated root), fell into the post branch, and read the
-	// AMBIENT entity: a plausible value from the wrong entity, which a selecting try_
-	// slot then treats as a WIN, so the author's fallback chain never ran ([I15], the
-	// FW-71 class). Pinned at the dispatch seam: slot-fold-test.php §P19.
-	if ( 'site' === bws_base_src_resolution( (array) $options )['kind'] ) {
-		return bws_phone_finish_values( bws_resolve_field_values( (array) $options, $instance ), (array) $options );
-	}
-
-	$key = sanitize_text_field( $options['key'] ?? '' );
-	if ( '' === $key || ( function_exists( 'bws_is_valid_meta_key' ) && ! bws_is_valid_meta_key( $key ) ) ) {
-		return array();
-	}
-	$raw = bws_read_field( $key, $instance, $post_id );
-	$raw = ( is_scalar( $raw ) && '' !== (string) $raw ) ? array( (string) $raw ) : array();
-	return bws_phone_finish_values( $raw, (array) $options );
-}
-
-/**
- * Try-tag srcTermIn-slot dispatch for the `phone` template.
- *
- * @since 1.11.0
- * @return string[] Finished per-item strings for this term.
- */
-function bws_try_phone_term_dispatch( $term_id, $options, $instance ) {
-	$fixed = bws_try_fixed_dispatch( 'phone', (bool) $term_id, (array) $options );
-	if ( null !== $fixed ) {
-		return bws_phone_finish_values( $fixed, (array) $options );
-	}
-	$key = sanitize_text_field( $options['key'] ?? '' );
-	if ( '' === $key || ( function_exists( 'bws_is_valid_meta_key' ) && ! bws_is_valid_meta_key( $key ) ) ) {
-		return array();
-	}
-	$raw = bws_read_term_field( $key, (int) $term_id );
-	$raw = ( is_scalar( $raw ) && '' !== (string) $raw ) ? array( (string) $raw ) : array();
-	return bws_phone_finish_values( $raw, (array) $options );
-}
-
-/**
  * Try-tag repeater-ROW-slot dispatch for the `phone` template (FW-74).
  *
- * The row twin of the post dispatch's keyed branch: read the sub-field off the row, then
- * run it through the SAME finisher (normalize-as-validity, cc, tel wrap), so a row number
- * and a post number compose identically. No SITE branch — a `rows` step never resolves to
+ * Read the sub-field off the row, then run it through the SAME finisher
+ * (normalize-as-validity, cc, tel wrap) the base read uses, so a row number and a post
+ * number compose identically. No SITE branch — a `rows` step never resolves to
  * the site store — and no `use` fork, because {{phone}} has no analog.
  *
  * NO base arm is its twin: base {{phone}} reads through bws_resolve_field_values(), which
@@ -674,29 +617,6 @@ function bws_try_phone_row_dispatch( $source, $options, $instance ) {
 	}
 	$raw = bws_read_resolved_source( (array) $source, $key, $instance );
 	return bws_phone_finish_values( '' === $raw ? array() : array( $raw ), (array) $options );
-}
-
-/**
- * Modifier post-source reader for the `phone` template (post_fn). String contract
- * for make_modifier_callback (term_phone at src:ref).
- *
- * @since 1.11.0
- * @return string Joined finished numbers, or '' on empty.
- */
-function bws_phone_post_core( $post_id, $options, $instance ): string {
-	$sep = $options['sep'] ?? ', ';
-	return implode( $sep, bws_try_phone_post_dispatch( $post_id, $options, $instance ) );
-}
-
-/**
- * Modifier term-source reader for the `phone` template (term_fn).
- *
- * @since 1.11.0
- * @return string Joined finished numbers, or '' on empty.
- */
-function bws_phone_term_core( $term_id, $options, $instance ): string {
-	$sep = $options['sep'] ?? ', ';
-	return implode( $sep, bws_try_phone_term_dispatch( $term_id, $options, $instance ) );
 }
 
 /**
@@ -731,7 +651,7 @@ function bws_register_phone_template(): void {
 				'help'  => __( 'Phone number to use if the field is empty or invalid (e.g. a main switchboard). Normalized like a stored number.', 'generateblocks' ),
 			),
 		),
-		// VP-vis — hide on interactive/void elements (threaded to term_/try_ tags).
+		// VP-vis — hide on interactive/void elements (threaded to try_ tags).
 		'visibility'          => array(
 			'attributes' => array(
 				array(
@@ -741,8 +661,6 @@ function bws_register_phone_template(): void {
 				),
 			),
 		),
-		'term_fn'             => 'bws_phone_term_core',
-		'post_fn'             => 'bws_phone_post_core',
 		// FW-136 — try_phone resolves each attempt through the BASE seam.
 		'resolve_fn'          => 'bws_base_phone_resolve_value',
 		'supports_try'        => true,

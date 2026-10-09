@@ -320,8 +320,6 @@ function bws_register_base_tags(): void {
 	// 'leading_options' — Group 1 options (as, size, format, etc.) prepended before slots in try_ tags.
 	// 'options'         — template-specific options; for try_ tags, keys matching leading_options are
 	//                     stripped so they don't appear twice; remaining keys become Group 3 trailing.
-	// 'term_fn'         — fn($term_id, $opts, $inst) for the direct term-entity path.
-	// 'post_fn'         — fn($post_id, $opts, $inst) for the ref-traversal path (term → post).
 	// 'resolve_fn'      — the base tag's own resolve seam; every try_ attempt reads
 	//                     through it, inheriting whatever the base read gains.
 	// =========================================================
@@ -342,9 +340,6 @@ function bws_register_base_tags(): void {
 				),
 			)
 		),
-		// Dispatchers, not bare cores: a bare core never reads `use`.
-		'term_fn'               => 'bws_try_text_term_dispatch',
-		'post_fn'               => 'bws_try_text_post_dispatch',
 		'resolve_fn'            => 'bws_base_text_resolve_value',
 		'try_allow_site_slot'   => true,
 		'supports_try'          => true,
@@ -369,9 +364,6 @@ function bws_register_base_tags(): void {
 				),
 			)
 		),
-		// Dispatchers, not bare cores: bare cores read `type`, never `use`.
-		'term_fn'               => 'bws_try_content_term_dispatch',
-		'post_fn'               => 'bws_try_content_post_dispatch',
 		'resolve_fn'            => 'bws_base_content_resolve_value',
 		'try_allow_site_slot'   => true,
 		'supports_try'          => true,
@@ -387,8 +379,6 @@ function bws_register_base_tags(): void {
 		'title'              => __( 'Title/Name', 'generateblocks' ),
 		'supports_link_wrap' => true,
 		'options'            => array(),
-		'term_fn'      => 'bws_term_title_core',
-		'post_fn'      => 'bws_post_title_core',
 		'resolve_fn'   => 'bws_base_title_resolve_value',
 		'try_allow_site_slot' => true,
 		'supports_try' => true,
@@ -400,8 +390,6 @@ function bws_register_base_tags(): void {
 		'key'          => 'permalink',
 		'title'        => __( 'Permalink', 'generateblocks' ),
 		'options'      => array(),
-		'term_fn'      => 'bws_term_permalink_core',
-		'post_fn'      => 'bws_post_permalink_core',
 		'resolve_fn'   => 'bws_base_permalink_resolve_value',
 		'try_allow_site_slot' => true,
 		'supports_try' => true,
@@ -450,12 +438,6 @@ function bws_register_base_tags(): void {
 				'label' => __( 'Fallback Image', 'generateblocks' ),
 			),
 		),
-		// Bare cores DELIBERATELY, unlike text/content: make_modifier_callback()'s
-		// $image_post_dispatch closure already dispatches `use` before post_fn, and
-		// `featured` is post-only so term_fn has nothing to dispatch. Do not "fix" this
-		// without first removing $image_post_dispatch.
-		'term_fn'               => 'bws_term_custom_image_core',
-		'post_fn'               => 'bws_custom_image_core',
 		'resolve_fn'            => 'bws_base_image_resolve_value',
 		'try_allow_site_slot'   => true,
 		'supports_try'          => true,
@@ -476,18 +458,6 @@ function bws_register_base_tags(): void {
 		'options'         => function_exists( 'bws_get_datetime_single_template_options' )
 			? bws_get_datetime_single_template_options()
 			: array(),
-		'term_fn'      => static function ( $term_id, $opts, $inst ) {
-			$mapped = function_exists( 'bws_normalize_datetime_options' )
-				? bws_normalize_datetime_options( $opts )
-				: $opts;
-			return bws_term_datetime_single_core( $term_id, $mapped, $inst );
-		},
-		'post_fn'      => static function ( $post_id, $opts, $inst ) {
-			$mapped = function_exists( 'bws_normalize_datetime_options' )
-				? bws_normalize_datetime_options( $opts )
-				: $opts;
-			return bws_datetime_single_core( $post_id, $mapped, $inst );
-		},
 		'resolve_fn'   => 'bws_base_datetime_single_resolve_value',
 		'try_allow_site_slot' => true,
 		'supports_try' => true,
@@ -504,18 +474,6 @@ function bws_register_base_tags(): void {
 		'options'         => function_exists( 'bws_get_datetime_range_template_options' )
 			? bws_get_datetime_range_template_options()
 			: array(),
-		'term_fn'      => static function ( $term_id, $opts, $inst ) {
-			$mapped = function_exists( 'bws_normalize_datetime_options' )
-				? bws_normalize_datetime_options( $opts, true )
-				: $opts;
-			return bws_term_datetime_range_core( $term_id, $mapped, $inst );
-		},
-		'post_fn'      => static function ( $post_id, $opts, $inst ) {
-			$mapped = function_exists( 'bws_normalize_datetime_options' )
-				? bws_normalize_datetime_options( $opts, true )
-				: $opts;
-			return bws_datetime_range_core( $post_id, $mapped, $inst );
-		},
 		'resolve_fn'   => 'bws_base_datetime_range_resolve_value',
 		'try_allow_site_slot' => true,
 		'supports_try' => true,
@@ -1601,26 +1559,6 @@ function bws_try_text_term_dispatch( $term_id, $options, $instance ) {
 }
 
 /**
- * Try-tag post-slot dispatch for `content` template.
- *
- * Reads $options['use'] to route between content/excerpt/key modes.
- *
- * @since 1.6.0
- */
-function bws_try_content_post_dispatch( $post_id, $options, $instance ) {
-	$use = bws_use_effective( 'content', $options );
-	if ( 'excerpt' === $use ) {
-		return bws_post_excerpt_core( $post_id, $options, $instance );
-	}
-	if ( 'key' === $use ) {
-		$opts         = $options;
-		$opts['type'] = 'custom_field';
-		return bws_post_content_core( $post_id, $opts, $instance );
-	}
-	return bws_post_content_core( $post_id, $options, $instance );
-}
-
-/**
  * Try-tag repeater-ROW-slot dispatch for `content` template.
  *
  * Both analogs REFUSE (a row has no content/excerpt); only use:key reads. Via
@@ -1636,20 +1574,6 @@ function bws_try_content_row_dispatch( $source, $options, $instance ) {
 		return '';
 	}
 	return bws_row_custom_text_core( (array) $source, $options, $instance );
-}
-
-/**
- * Try-tag srcTermIn-slot dispatch for `content` template.
- *
- * @since 1.6.0
- */
-function bws_try_content_term_dispatch( $term_id, $options, $instance ) {
-	$use = bws_use_effective( 'content', $options );
-	if ( 'key' === $use ) {
-		return bws_term_custom_text_core( $term_id, $options, $instance );
-	}
-	// content (default) and excerpt both fall back to term description on terms.
-	return bws_term_description_core( $term_id, $options, $instance );
 }
 
 /**
