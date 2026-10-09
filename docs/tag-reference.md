@@ -206,7 +206,7 @@ What each tag reads where it has no `src`, no query-loop item and no `id`, measu
 | `content` | post content | term description | user bio | — | type description | — | GP 404 text (— without GP) | — |
 | `permalink` | post URL | term URL | — | — | — | — | — | — |
 | `image` (`use:featured`) | featured image | — | — | — | — | — | — | — |
-| `image` (meta field) | post meta | term meta (ACF array return only, [#143](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/143)) | user meta | — | — | — | — | — |
+| `image` (meta field) | post meta | term meta | user meta | — | — | — | — | — |
 | `text` (meta field) | post meta | term meta | user meta | — | — | — | — | — |
 | `email`, `phone` | post meta | term meta | user meta | — | — | — | — | — |
 | `datetime_single`, `datetime_range` | post meta | term meta | — | — | — | — | — | — |
@@ -214,7 +214,7 @@ What each tag reads where it has no `src`, no query-loop item and no `id`, measu
 - **Every `try_` variant matches its base tag** in every cell, and a `{{join}}` slot follows the `text` rows (`use:title` gives the heading, a `key` gives the meta field).
 - **"Singular"** includes an assigned front page or posts page, which is a page entity and takes the post column. **"Latest-posts home"** is the front page with no page assigned.
 - **A "meta field" read** is whatever the context's own field store holds: post meta, term meta (ACF `term_<id>`), or user meta. The five query-context kinds, which carry no entity (date, post type archive, search, 404, latest-posts home) have no store, so a keyed read is empty there.
-- **One cell is a known gap, not design.** The term image read answers only for an ACF array return, because `bws_get_term_field_image_data()` asks for the array-preserving read, which drops URL and ID values (#143). The author image read answers for every way a user image can be stored, because ACF keeps the attachment ID in user meta whichever return format a field declares; the avatar analog for `use:featured` is the separate, still-open design call on [FW-47](future-work.md).
+- **The term and author image reads answer for every ACF image return format** (Image Array, Image URL, Image ID), and the author read also for a plain user meta holding an attachment ID. The avatar analog for `use:featured` on an author is the separate, still-open design call on [FW-47](future-work.md).
 - **Search is measured for the heading and the empty analogs** (`title`, `content`, `permalink`, and a stated `fallback` on `content` and both datetime tags). Its keyed-field cells follow from the context carrying no entity and were not read individually. `render-tag` reaches search only since the query string began populating `$_GET` (`tools/cli/class-render-tag-command.php`).
 - **`content` with `use:key`** follows the `text` meta-field row; it was not measured separately.
 

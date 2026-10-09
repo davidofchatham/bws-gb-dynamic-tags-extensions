@@ -1561,12 +1561,12 @@ function bws_meta_handler_read( int $object_id, string $key, bool $single_only, 
 /**
  * Read an entity's field by id without losing a SCALAR or an ARRAY — two passes.
  *
- * Neither $single_only setting of bws_meta_handler_read() is usable on its own. GB's
- * Meta_Handler answers the fallback ('') for a plain scalar when an upstream filter
- * (ACF's generateblocks_get_meta_pre_value) populated the value and the caller asked
- * array-preserving, so a URL/ID-return ACF image field or a single Post-ID Post Object
- * field reads empty; asking single-only coerces an array away instead. Ask single-only
- * first, and fall through to the array-preserving pass only when that yields nothing.
+ * Neither $single_only setting of bws_meta_handler_read() is usable on its own. Asked
+ * array-preserving, GB's Meta_Handler answers '' for a scalar (docs/gb-constraints.md
+ * §GenerateBlocks_Meta_Handler::get_value() drops a SCALAR once single_only is false), so a
+ * URL/ID-return ACF image field or a single Post-ID Post Object field reads empty; asked
+ * single-only, it coerces an array away instead. Ask single-only first, and fall through
+ * to the array-preserving pass only when that yields nothing.
  *
  * THE ORDER IS NOT LOAD-BEARING, and that was measured rather than assumed: the passes
  * answer '' for opposite inputs and no value is both, so either order recovers the same

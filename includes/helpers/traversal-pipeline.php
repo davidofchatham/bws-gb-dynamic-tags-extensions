@@ -1072,7 +1072,7 @@ function bws_pipeline_default_reader( array $step, array $source ) {
 				return get_post_meta( $post_ref_id, $field, true );
 			case 'term':
 				// Scalar or array: a Relationship field holds a list, a single
-				// Post Object field returning Post ID a scalar (#143).
+				// Post Object field returning Post ID a scalar.
 				return function_exists( 'bws_meta_handler_read_preserving_arrays' )
 					? bws_meta_handler_read_preserving_arrays( (int) ( $source['id'] ?? 0 ), $field, 'get_term_meta' )
 					: ( function_exists( 'get_field' )
