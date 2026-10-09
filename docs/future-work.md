@@ -115,7 +115,7 @@ Detail home: `.scratch/plans/context-aware-base-tags.md` §Tag Dispatch (author 
 
 Progress: The permalink soft gate — a non-ambient user source — is MET since 1.19.0: query-loop item recognition now reads a user item as a user (#123, closed), and inside such a loop `{{permalink}}` is no longer circular (it used to resolve as the POST'S permalink instead, per loop-item-wins-over-ambient). The 1.19.0 ambient-analog collapse (`bws_base_ambient_analog`) also dropped the build cost for either analog to one reader case plus a carve-out flip in `bws_base_user_analog_read()`. **Why this item states the new fact rather than the old wait condition:** the doc/code drift here was resolved CODE-ward, and the code change WAS the decision — `3ed3ce1` deliberately made a user loop item resolve as a user, which is what satisfied the gate this item was written to wait on. Nothing was left unfinished against this row's text; `git log` answers the question the drift rule exists to ask. **Measured 2026-10-09 (testbed, ACF Pro):** on `/author/fixture-author/`, `{{image key:<field>}}` and `{{try_image A:key(<field>)}}` render EMPTY for an ACF image field in all three return formats (array, URL, ID) and for a raw attachment-ID user meta; the same fields on a term render for the array format (term gap for URL/ID: #143). `bws_base_ambient_analog()` returns null for `image` on the `user` kind, so the tag falls to the post route with no post id; filed as #144. **Fixed (#144):** the user kind claims `image` through `bws_user_custom_image_core()`; rows `text-test-matrix.md` T8.13–T8.28.
 
-Open: image — no clean intrinsic analog (parity with the #29 term-image gap); the avatar (`get_avatar_url`) candidate adds external Gravatar HTTP + privacy surface and isn't "featured-image" semantics (a `use:key` ACF user-image field already covers key-mode). permalink — whether a user query loop alone is enough to ship on, or it still waits for a user source the wire can NAME (FW-48's `src:author` hop, `src:ref`→user, or FW-39's ID source). **Decided 2026-10-09: the code moves.** The parenthetical above and the `bws_base_user_analog_read()` PHPDoc stay as the intent, and the read they promise was a bug (#144, fixed): the user kind had no image arm, so the measurement in Progress was the defect rather than the claim being wrong. What is left here is only the avatar analog for `use:featured`, which `decision:image-avatar-analog` still gates.
+Open: image — no clean intrinsic analog (parity with the FW-34 term-image gap); the avatar (`get_avatar_url`) candidate adds external Gravatar HTTP + privacy surface and isn't "featured-image" semantics (a `use:key` ACF user-image field already covers key-mode). permalink — whether a user query loop alone is enough to ship on, or it still waits for a user source the wire can NAME (FW-48's `src:author` hop, `src:ref`→user, or FW-39's ID source). **Decided 2026-10-09: the code moves.** The parenthetical above and the `bws_base_user_analog_read()` PHPDoc stay as the intent, and the read they promise was a bug (#144, fixed): the user kind had no image arm, so the measurement in Progress was the defect rather than the claim being wrong. What is left here is only the avatar analog for `use:featured`, which `decision:image-avatar-analog` still gates.
 
 Blocked by: `decision:image-avatar-analog`  •  Interacts with: FW-9, FW-48, FW-39 (closed), FW-101, FW-113
 
@@ -420,7 +420,7 @@ Blocked by: —  •  Interacts with: FW-24 (multi-arg CSV shares the same techn
 
 Relabel a select's `options[]` by the tag's active source.
 
-Detail home: GH #33
+Detail home: `.scratch/plans/src-dynamic-use-labels.md` (imported from GH #33, closed as moved)
 
 Progress: Not started.
 
@@ -430,7 +430,7 @@ Blocked by: —  •  Interacts with: FW-18
 
 Gate individual `options[]` entries visible/hidden by another option's value.
 
-Detail home: GH #27
+Detail home: `.scratch/plans/per-value-show-if.md` (imported from GH #27, closed as moved)
 
 Progress: Not started.
 
@@ -486,11 +486,11 @@ Blocked by: decision:opt-in vs unconditional suppression  •  Interacts with: F
 
 The Tag Converter reaches `post_content` and, with #99 (closed), the GB Pro pattern cache; tag wire in custom field values, other plugins' caches, and other page builders' stored data are unreachable by the scanner.
 
-Detail home: GH #100
+Detail home: `.scratch/plans/converter-coverage.md` (imported from GH #100, closed as moved)
 
-Progress: Settled for #99 as DISCLOSURE, not enumeration — the Migration Tool states its reach boundary in its own section copy rather than sweeping for unreachable wire. Detection already exists in maintainer tooling (`tools/harvest-replay/replay-tags.php` + the env repo's harvest script), which is `.distignore`d. #99's reconcile reports through a persisted settings-page summary line rather than an upgrade-time notice; a notice was deferred to FW-66/#77.
+Progress: Settled for #99 as DISCLOSURE, not enumeration — the Migration Tool states its reach boundary in its own section copy rather than sweeping for unreachable wire. Detection already exists in maintainer tooling (`tools/harvest-replay/replay-tags.php` + the env repo's harvest script), which is `.distignore`d. #99's reconcile reports through a persisted settings-page summary line rather than an upgrade-time notice; a notice was deferred to FW-66.
 
-Open: The enumeration half (a sweep of postmeta/options/termmeta reporting what unreachable wire it finds) stays deferred as undesigned. Whether the deferred notice rides FW-66/#77's `announcement` lifecycle is undecided — its remit (a release CHANGED output) does not cleanly cover "there is maintenance work to run".
+Open: The enumeration half (a sweep of postmeta/options/termmeta reporting what unreachable wire it finds) stays deferred as undesigned. Whether the deferred notice rides FW-66's `announcement` lifecycle is undecided — its remit (a release CHANGED output) does not cleanly cover "there is maintenance work to run".
 
 Blocked by: decision:disclosure vs enumeration  •  Interacts with: FW-66 (notice deferral, reopened), FW-128 (the report half of the same instrument — this row is where the walk REACHES, that one is what a walk can answer; whether the enumeration half lands there instead is open on both rows)
 
@@ -964,7 +964,7 @@ Blocked by: —  •  Interacts with: FW-30
 
 Let an author configure the default field key read per source and tag type.
 
-Detail home: GH #29 (memory `project_default_field_keys.md`)
+Detail home: `.scratch/plans/default-field-keys.md` (imported from GH #29, closed as moved)
 
 Progress: Not started.
 
@@ -974,7 +974,7 @@ Blocked by: —  •  Interacts with: —
 
 One option holding a single exclusive predicate — `allDay:midnight` (00:00 means all-day) or `allDay:key,<field>` (a boolean field decides) — rather than a single boolean field option, because an ordered fallback needs `false` distinguishable from `absent` and the motivating Pie Calendar field can't supply that distinction.
 
-Detail home: `.scratch/plans/all-day-flag.md` (design + the Pie Calendar evidence); GH #41
+Detail home: `.scratch/plans/all-day-flag.md` (design + the Pie Calendar evidence, plus GH #41 imported verbatim, closed as moved)
 
 Progress: Designed 2026-08-24. Not a position in FW-81's read fold — a boolean read is a different kind from a date read, so the two items are independent. `showMidnight` does not retire: with an authoritative flag a 00:00 on a not-all-day event is a real midnight time and should still print. Zero migration either way (`allDay` absent = today exactly).
 
@@ -1108,7 +1108,7 @@ Blocked by: —  •  Interacts with: FW-62 (the same control's authored labels)
 
 A channel for telling authors a release CHANGED what a tag renders, distinct from telling them there is migration work to run — two surfaces (editor preview, upgrade-scan list) and two lifecycles (`standing`, self-resolving; `announcement`, dismissible and from-version gated).
 
-Detail home: GH #77
+Detail home: `.scratch/plans/advisory-channel.md` (imported from GH #77, closed as moved)
 
 Progress: Not a prerequisite for anything (user, 2026-08-19) — FW-69/FW-70 shipped without it. Known callers at filing: the taxonomy carry from #74 (closed) (`standing`) and the 1.6-era converter-dropped switches (`announcement`).
 

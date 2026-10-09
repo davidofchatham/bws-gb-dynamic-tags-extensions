@@ -8,6 +8,7 @@ Two homes, split by ONE question: **must the record outlive the change?**
 | A spec (PRD) for one in-flight piece of work | `.scratch/<feature-slug>/spec.md` | Rewritable in place; readable during a GitHub outage; dies at merge |
 | The build tickets it breaks into | `.scratch/<feature-slug>/issues/<NN>-<slug>.md` | Numbered per feature from `01`, so they never collide with `#N` |
 | PUBLICATION of in-flight work | the pull request body | One durable public record, at the moment it is reviewable |
+| Enhancements, open questions | a `.scratch/plans/` home **plus** a `docs/future-work.md` item | Nobody outside waits on them; the committed tracker item keeps them visible |
 
 `.scratch/` is gitignored. Nothing under it is ever committed. Two things live there and they are
 not the same shape: `.scratch/<feature-slug>/` is one piece of in-flight work and dies at merge,
