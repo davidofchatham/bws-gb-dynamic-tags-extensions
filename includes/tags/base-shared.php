@@ -1440,6 +1440,8 @@ function bws_base_term_analog_read( string $tag, int $term_id, array $options, $
  *   title   → display name          (get_the_author_meta('display_name'))
  *   content → biographical info      (get_the_author_meta('description'))
  *   text    → use:title = display name; key-mode = user meta field
+ *   image   → key-mode = the user's own image field (bws_user_custom_image_core); no key or
+ *             use:featured = the stated fallback alone
  *
  * Values route through bws_gb_tag_output() so GB's per-tag transforms apply.
  *
@@ -1447,13 +1449,14 @@ function bws_base_term_analog_read( string $tag, int $term_id, array $options, $
  *   - permalink: get_author_posts_url() exists (link-wrap uses it), but a bare
  *     {{permalink}} is circular on the author's own archive. Non-circular uses need a
  *     NON-ambient user source.
- *   - image: no clean analog (parity with the #29 term-image gap); the avatar adds a
- *     Gravatar HTTP + privacy surface. use:key user-image reads work today.
+ *   - image: no clean intrinsic analog (parity with the #29 term-image gap); the avatar adds
+ *     a Gravatar HTTP + privacy surface. use:key user-image reads work.
  *   - datetime: folds in with FW-9's remaining datetime context work.
  *
  * @since 1.15.0
  * @since 1.16.0 text case.
- * @param string $tag      One of title|content|text (others → '').
+ * @since 1.21.0 image case.
+ * @param string $tag      One of title|content|text|image (others → '').
  * @param int    $user_id  Ambient user id.
  * @param array  $options  Tag options.
  * @param object $instance GB instance.
@@ -1470,6 +1473,11 @@ function bws_base_user_analog_read( string $tag, int $user_id, array $options, $
 				return '';
 			}
 			return bws_gb_tag_output( $name, $options, $instance );
+
+		case 'image':
+			// No intrinsic author image (FW-47 holds the avatar call): a key reads the
+			// user's own field, anything else is the stated fallback alone.
+			return bws_user_custom_image_core( $user_id, $options, $instance );
 
 		case 'text':
 			// Mirrors the term text dispatch; key-mode shaped like
@@ -1628,11 +1636,13 @@ function bws_base_query_context_analog_read( string $tag, array $base, array $op
  * path are per-TAG in each callback's tail: a non-null triple runs that tail, null falls
  * through to the post/term/list path.
  *
- * Unhandled (tag, kind) pairs render '' through the seam. TWO measured carve-outs, same
- * reason: the user kind is claimed only for title/content/text, and query_context for
- * every tag EXCEPT image — because {{image}} there reaches bws_custom_image_core() via
- * the post route, where a configured Media Library fallback still renders (the seam's
- * '' would drop it). {{permalink}} stays out of the user claim until FW-47 adds the analog.
+ * Unhandled (tag, kind) pairs render '' through the seam. TWO carve-outs: query_context is
+ * claimed for every tag EXCEPT image — because {{image}} there reaches bws_custom_image_core()
+ * via the post route, where a configured Media Library fallback still renders (the seam's
+ * '' would drop it) — and the user kind is claimed only for what bws_base_user_analog_read()
+ * answers, so {{permalink}} and the datetime tags stay out until they get an analog (FW-47,
+ * FW-9). The user kind can claim image because its own core, bws_user_custom_image_core(),
+ * emits that fallback itself.
  *
  * Link identity is DERIVED from bws_source_link_identity() (CONTEXT.md I12); null on an
  * entity kind (id 0) returns null → caller's post path.
@@ -1671,8 +1681,8 @@ function bws_base_ambient_analog( string $tag, array $base, array $options, $ins
 			);
 
 		case 'user':
-			// The measured image/permalink carve-out — see the PHPDoc above.
-			if ( ! in_array( $tag, array( 'title', 'content', 'text' ), true ) ) {
+			// Only what the reader answers — see the PHPDoc above.
+			if ( ! in_array( $tag, array( 'title', 'content', 'text', 'image' ), true ) ) {
 				return null;
 			}
 			$identity = bws_source_link_identity( $base );

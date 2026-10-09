@@ -1241,6 +1241,7 @@ function bws_base_permalink_callback( $options, $block, $instance ): string {
  * Resolves entity via `source`, applies srcTerm step when set, then
  * dispatches based on `use`:
  *
+ * ambient author       → bws_user_custom_image_core() (via the ambient seam)
  * srcTerm              → bws_term_custom_image_core() (first usable term)
  * post + use unset     → bws_custom_image_core()
  * post + use:featured  → bws_featured_image_core()
@@ -1292,8 +1293,8 @@ function bws_base_image_resolve_value( array $options, $instance ): array {
 		return $out;
 	}
 
-	// Ambient dispatch. User/query_context aren't claimed for image (see the seam's
-	// PHPDoc): they fall through to the post route's fallback emit.
+	// Ambient dispatch. query_context isn't claimed for image (see the seam's PHPDoc): it
+	// falls through to the post route's fallback emit.
 	$ambient = bws_base_ambient_analog( 'image', $base, $options, $instance );
 	if ( null !== $ambient ) {
 		// The term core already tried the fallback; only the shell's label remains.

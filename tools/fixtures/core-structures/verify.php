@@ -141,6 +141,21 @@ $check(
 		. ' support=' . ( $term ? var_export( get_term_meta( $term->term_id, 'blurb', true ), true ) : 'no term' )
 );
 
+// Author image corpus (v29, #144): every user field holds the SAME seeded attachment id, so the
+// four rows that read them (text matrix T8.13-T8.16) can only differ by the read, never the data.
+$author_user = get_user_by( 'login', 'fixture-author' );
+$photo_atts  = get_posts( array( 'post_type' => 'attachment', 'post_status' => 'any', 'numberposts' => 1, 'meta_key' => '_bws_fixture_slug', 'meta_value' => 'fixture-photo', 'fields' => 'ids' ) );
+$photo_id    = (int) ( $photo_atts[0] ?? 0 );
+$photo_stored = array();
+foreach ( array( 'author_photo_array', 'author_photo_url', 'author_photo_id', 'author_photo_plain' ) as $photo_key ) {
+	$photo_stored[ $photo_key ] = $author_user ? (int) get_user_meta( $author_user->ID, $photo_key, true ) : 0;
+}
+$check(
+	'fixture-author carries the fixture photo id in all four author_photo_* user meta keys',
+	$photo_id > 0 && 4 === count( array_filter( $photo_stored, static fn( $v ) => $v === $photo_id ) ),
+	'photo=' . $photo_id . ' stored=' . wp_json_encode( $photo_stored )
+);
+
 // -----------------------------------------------------------------------------
 // External-source contract (#85): the two registered roots, the fixture source's
 // deterministic resolution, and the migration entries the FR3 corpus converts through.

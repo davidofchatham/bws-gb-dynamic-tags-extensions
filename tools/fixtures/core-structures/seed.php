@@ -149,6 +149,11 @@ $field_keys = array(
 		'charter'    => 'field_bwsfx_charter',   // v12 first-usable corpus (§F15).
 		'dept_lead'  => 'field_bwsfx_dept_lead', // v20 pinned-root chain step (§F20).
 	),
+	'user'   => array(
+		'author_photo_array' => 'field_bwsfx_author_photo_array', // v29 author image corpus (#144).
+		'author_photo_url'   => 'field_bwsfx_author_photo_url',
+		'author_photo_id'    => 'field_bwsfx_author_photo_id',
+	),
 );
 
 // Manifest value tokens. {CURRENT_YEAR} → the seed-time year (keeps the
@@ -315,6 +320,29 @@ foreach ( ( $manifest['attachments'] ?? array() ) as $slug => $def ) {
 	$attachment_ids[ $slug ] = $att_id;
 }
 $log( 'attachments: ' . count( $attachment_ids ) . ' upserted' );
+
+// ---------------------------------------------------------------------------
+// 3c. User fields (author image corpus, #144).
+//
+// After the attachments because the values ARE attachment ids. A name with an ACF key is
+// written through update_field() so ACF stores the field reference beside the value, as a
+// real profile edit would; any other name is plain user meta (the non-ACF shape).
+// ---------------------------------------------------------------------------
+foreach ( ( $manifest['user_fields'] ?? array() ) as $user_slug => $fields ) {
+	if ( ! isset( $user_ids[ $user_slug ] ) ) {
+		continue;
+	}
+	$uid = $user_ids[ $user_slug ];
+	foreach ( $fields as $name => $value ) {
+		$value = $attachment_ids[ $value ] ?? $value;
+		if ( $have_acf && isset( $field_keys['user'][ $name ] ) ) {
+			update_field( $field_keys['user'][ $name ], $value, 'user_' . $uid );
+		} else {
+			update_user_meta( $uid, $name, $value );
+		}
+	}
+}
+$log( 'user fields applied' );
 
 // ---------------------------------------------------------------------------
 // 4. Posts (content regenerated from blocks.php each run).

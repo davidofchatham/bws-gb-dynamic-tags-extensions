@@ -132,7 +132,34 @@ to sit outside the loop, and the blueprint has to say so.
 | T8.9 | `{{try_title}}` | `Fixture Author` — second template |
 | T8.10 | `{{try_content}}` | the fixture bio — third template |
 | T8.11 | `{{try_text use:title\|linkTo:permalink}}` | `<a href="…/author/fixture-author/">Fixture Author</a>` — user link identity survives an attempt. It was the arm table's `link:'user'` column's only evidence until FW-136 took `try_text` off the table; the table is deleted since, and this row moved onto the seam's own user analog without moving its output |
-| T8.12 | `{{try_permalink}}` / `{{try_image}}` / `{{try_datetime_single key:event_date}}` / `{{try_datetime_range startKey:event_date}}` | **empty — unchanged**, captured BEFORE (`main@e1bff07`) as well as after. These six families never carried a `try_user_fn`, and since FW-136 read through their base seams like the rest; `permalink` and `image` measured byte-identical across that move (ticket 10's sweep). The two DATETIME families stopped reaching it at FW-136 tickets 07 and 08, for the reason `fold-test-matrix.md` F19.4 states: their base seams answer `''` a layer earlier, and the `user` kind never claimed them anyway. Same empty, two routes. Without the before-capture the row is unfalsifiable — an empty result proves nothing on its own |
+| T8.12 | `{{try_permalink}}` / `{{try_image}}` / `{{try_datetime_single key:event_date}}` / `{{try_datetime_range startKey:event_date}}` | **empty — unchanged** (BARE `try_image`: a keyed one reads since #144, T8.13–T8.28 below), captured BEFORE (`main@e1bff07`) as well as after. These six families never carried a `try_user_fn`, and since FW-136 read through their base seams like the rest; `permalink` and `image` measured byte-identical across that move (ticket 10's sweep). The two DATETIME families stopped reaching it at FW-136 tickets 07 and 08, for the reason `fold-test-matrix.md` F19.4 states: their base seams answer `''` a layer earlier, and the `user` kind never claimed them anyway. Same empty, two routes. Without the before-capture the row is unfalsifiable — an empty result proves nothing on its own |
+
+### T8.13–T8.28 — the keyed `{{image}}` read
+
+The user arm claims `image`: its reader's image case is `bws_user_custom_image_core()`, which reads the author's own field and emits the stated fallback itself. A user query-loop row reaches the same ambient `user` base kind (`bws_resolve_base_source`), but no fixture row measures it. Fixture: `fixture-author` carries `fixture-photo` in four user-meta keys, three ACF image fields (array, URL and ID return formats) and one plain-meta key. ACF stores the attachment ID in user meta whichever format a field returns, so the first three rows are the same stored value read three ways. The fallback rows name the `fixture-photo-alice` attachment, resolved at build time, so a hit and a fallback never print the same number.
+
+**All sixteen rows are visible.** The context element (`generate_after_header`, outside the archive loop, so the read is the author's and not the loop post's) carries them on all seven context pages, and the page snapshots pin them. The pure branches of the core (when it reads, which exits emit the fallback) are `user-image-core-test.php`.
+
+| # | Tag (on `/author/fixture-author/`) | Expected |
+|---|---|---|
+| T8.13 | `{{image key:author_photo_array\|as:id}}` | the `fixture-photo` attachment id (128 on this testbed). Empty on the other six contexts |
+| T8.14 | `{{image key:author_photo_url\|as:id}}` | same id as T8.13: the URL return format still stores the ID |
+| T8.15 | `{{image key:author_photo_id\|as:id}}` | same id as T8.13 |
+| T8.16 | `{{image key:author_photo_plain\|as:id}}` | same id as T8.13: a bare attachment ID in user meta, no ACF field behind it |
+| T8.17 | `{{image key:author_photo_array\|as:alt}}` | `Fixture photo alt text` |
+| T8.18 | `{{image key:author_photo_missing\|as:id}}` | empty on all seven: a miss with no stated fallback |
+| T8.19 | `{{image use:featured\|as:id}}` | empty on all seven: an author has no featured image, and the avatar analog is the open design call at FW-47 |
+| T8.20 | `{{try_image A:key(author_photo_id)\|as:id}}` | same id as T8.13: the slot reads through the same seam, so it agrees with the standalone tag by construction |
+| T8.21 | `{{try_image A:key(author_photo_missing)\|B:key(author_photo_array)\|as:id}}` | same id as T8.13: a user key MISS skips to the next attempt |
+| T8.22 | `{{image key:author_photo_missing\|as:id\|fallback:<alice id>}}` | the Alice id, on all seven: a keyed miss prints the stated fallback |
+| T8.23 | `{{image use:featured\|as:id\|fallback:<alice id>}}` | the Alice id, on all seven: no featured image, the fallback alone |
+| T8.24 | `{{image key:author_photo_id\|as:id\|fallback:<alice id>}}` | the `fixture-photo` id on the author archive (a hit beats the fallback); the Alice id on the other six |
+| T8.25 | `{{try_image A:key(author_photo_missing)\|as:id\|fallback:<alice id>}}` | the Alice id, on all seven: the fallback prints once every attempt has missed |
+| T8.26 | `{{image as:id}}` | empty on all seven: no key and no fallback |
+| T8.27 | `{{image as:id\|fallback:<alice id>}}` | the Alice id, on all seven |
+| T8.28 | `{{try_image A:key(author_photo_missing)\|B:key(author_photo_array)\|as:id\|fallback:<alice id>}}` | the `fixture-photo` id on the author archive: a stated fallback does not end the walk at attempt A. The Alice id on the other six |
+
+Measured 2026-10-09: the author-archive column of every row on the testbed with `render-tag`, and all seven contexts through the page snapshots (`ctx-author` and the six others). Before the fix (measured on the `includes/` of the parent commit) T8.13–T8.21 printed empty and T8.24 printed the fallback instead of the hit, which is the shape a configured fallback gave the defect: it hid the read. T8.22, T8.23 and T8.25 printed what they print now. `{{image use:featured|key:author_photo_id}}` is empty by the explicit-`use`-wins rule and is not a row.
 
 T8.1–T8.6 verified 2026-07-21 (build f6f8d1e). T8.6 flipped and T8.7–T8.12 added + verified 2026-08-17 (#108), all via `render-tag`; T8.12's before-values captured on a stashed tree at `main@e1bff07`. All twelve re-run 2026-09-23 on both builds of FW-136 ticket 08's flip (`datetime_range` onto its base resolve seam, the ninth and last) — byte-identical across the whole section, the datetime_range leg added to T8.12 and measured empty on both. Re-run again the same day on both builds of FW-136 ticket 10 (the arm table's deletion), byte-identical.
 

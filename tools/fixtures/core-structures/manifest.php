@@ -15,7 +15,7 @@
 
 return array(
 	'blueprint' => 'core-structures',
-	'version'   => 28, // 28: EMAIL OBFUSCATION seeded OFF (FW-137) — one key in the `bws_dynamic_tags_settings` baseline, sitting beside the phone pair that was already there. `antispambot()` flips a coin per CHARACTER, so an obfuscated `{{email}}` differs from ITSELF between two renders of one build, and a before/after `render-tag` sweep reports one address under two encodings as confidently as a regression — measured during FW-136 ticket 02, where the first parity sweep returned 83 such phantom cells. Seeds NO new entity and moves NO baseline: all 23 snapshot pages pass with the toggle in either position, because the snapshot normalizer decodes ASCII numeric references once (page-snapshot-normalize-test.php §P9) and OFF is the degenerate encoding. A FIXTURE default only — the plugin still ships obfuscation ON. The rows whose expectation text named the encoding (src-site §R6.1/§R6.9, fold §F7c.5/§F9.5f) are reworded in the same commit, and §R6.9 reverses direction: it is now the row that turns the toggle ON and back.
+	'version'   => 29, // 29: AUTHOR IMAGE corpus (#144) — an ACF `Author Details` group on users (`author_photo_array`/`_url`/`_id`, one per ACF image return format) plus a plain-meta `author_photo_plain`, all on `fixture-author` pointing at the seeded `fixture-photo`; and the visible C-rows that read them on the author archive. ACF stores the attachment ID in user meta whichever format a field returns, so the trio buys a pin on "the stored value, not the formatted one" rather than three different shapes. Additive; no existing row names any of the four keys. 28: EMAIL OBFUSCATION seeded OFF (FW-137) — one key in the `bws_dynamic_tags_settings` baseline, sitting beside the phone pair that was already there. `antispambot()` flips a coin per CHARACTER, so an obfuscated `{{email}}` differs from ITSELF between two renders of one build, and a before/after `render-tag` sweep reports one address under two encodings as confidently as a regression — measured during FW-136 ticket 02, where the first parity sweep returned 83 such phantom cells. Seeds NO new entity and moves NO baseline: all 23 snapshot pages pass with the toggle in either position, because the snapshot normalizer decodes ASCII numeric references once (page-snapshot-normalize-test.php §P9) and OFF is the degenerate encoding. A FIXTURE default only — the plugin still ships obfuscation ON. The rows whose expectation text named the encoding (src-site §R6.1/§R6.9, fold §F7c.5/§F9.5f) are reworded in the same commit, and §R6.9 reverses direction: it is now the row that turns the toggle ON and back.
 	                   // 27: PER-ITEM LINK corpus (FW-85 ticket 03) — a new `matrix-links` page (blocks.php 'matrix_links') plus the state its rows read: three plain-meta reference lists on the page (`link_term_host`, `link_staff`, `link_staff_gap`) and a `profile_url` plain meta on three staff singles, with `staff-fixture-root` deliberately carrying none. Per-item link wrapping shipped with no rendered page at all: the harness pins the markup, but "each value is an anchor to its OWN entity" is a claim about hrefs, and a link pointing at the wrong sibling reads identically to a correct one unless every entity in the list has a DISTINCT destination — which is what this corpus buys and what no existing page could supply. Its own page rather than more rows on matrix-post-meta, because that page already carries ~380 blocks and every family's rows, and this concern needs the term, post-permalink and URL-field arms side by side. `profile_url` deliberately is NOT a permalink, so a key-mode read that fell back to the permalink route prints a different href rather than the same one. The page is assigned NO department term and its term arm hops to /matrix-terms-mixed/ instead: every department term's count is printed on /matrix-loops/ (QL3.2), so a direct assignment moves a baseline this change has nothing to do with — measured, not assumed. Additive; no existing row names any of the three reference lists, `profile_url` or the new page, and no existing row's VALUE is produced by anything this version seeds (the two QL3.2 term counts the baseline re-records moved because their cached counts were stale, which the commit states).
 	                   // 26: NESTED REPEATER corpus (FW-74 ticket 08) — the `duty_roster` repeater whose rows each carry a `shifts` repeater, on a NEW `matrix-repeaters` page (blocks.php 'matrix_repeaters'), the visible half of fold-test-matrix.md §F23. The engine has admitted `meta_row` as a `rows` input since 1.17.0 and the arm has read rows since 1.21.0, but NO blueprint post carried a repeater inside a repeater, so the nested case was reachable only as a MISS: F9c.4 states a nested source and passes by finding nothing, which reads the same whether the nested read works or is broken. Its own page rather than more rows on matrix-post-meta, because that page already carries ~380 blocks and every family's rows, and a nested repeater needs its own field group anyway (a sub-repeater on `team_members` would become a {{table}} column and move the TB rows). Four shifts across two members, interleaved, so the fan-out ORDER is readable off the rendered string. Additive; no existing row names `duty_roster`, `shifts` or the new page.
 	                   // 25: DATETIME row targets (FW-74 ticket 06) — `contract_start`/`contract_end`/`review_dmy` sub-fields on the matrix-post-meta `team_members` rows. A PAIR, because `{{datetime_range}}` is a separate family with its own refusal call site and one date field cannot exercise it. `review_dmy` is the FORMAT BOUNDARY probe: a row reaches no sub-field config, so every row date parses format-agnostically, and its two values are chosen so row 1 is ambiguous under that walk and row 2 is not — the boundary is READABLE off the page instead of asserted. Additive; no {{table}} column, no F9c row and no loop row names any of the three.
@@ -36,6 +36,7 @@ return array(
 			'group_bwsfx_features',
 			'group_bwsfx_page_builder',
 			'group_bwsfx_department',
+			'group_bwsfx_author',
 		),
 		'registered_meta' => array( 'bws_global_note', 'bws_page_only', 'subtitle', 'bws_cat_note' ),
 		'users'           => array( 'fixture-author' ),
@@ -66,6 +67,18 @@ return array(
 			'display_name'  => 'Other Author',
 			'user_email'    => 'other-author@example.test',
 			'role'          => 'author',
+		),
+	),
+
+	// User meta per fixture user slug (#144). Values are ATTACHMENT slugs, resolved to the
+	// seeded attachment id at write time. A name with an ACF key in seed.php's `user` map is
+	// written through update_field(); any other name is plain user meta (the non-ACF shape).
+	'user_fields' => array(
+		'author-fixture' => array(
+			'author_photo_array' => 'fixture-photo',
+			'author_photo_url'   => 'fixture-photo',
+			'author_photo_id'    => 'fixture-photo',
+			'author_photo_plain' => 'fixture-photo',
 		),
 	),
 

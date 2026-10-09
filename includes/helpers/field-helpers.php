@@ -935,10 +935,9 @@ function bws_read_resolved_source_value( array $source, string $key, $instance )
 		case 'user':
 			// Plain user-meta read, NOT the analog reader (bws_base_user_analog_read
 			// lives in base-shared, loaded AFTER this file — and it reads analogs, not
-			// meta; different concern). Currently unreachable at runtime — no
-			// traversal step or factory path yields a user-kind source into the seam
-			// until the post→author step (FW-48) lands — but a switch without a user
-			// kind would ship a hole and force re-opening this function.
+			// meta; different concern). Reached today by bws_user_custom_image_core()
+			// alone (the ambient author's keyed image read); the post→author step
+			// (FW-48) will add the rest.
 			$user_id = (int) ( $source['id'] ?? 0 );
 			if ( $user_id <= 0 || bws_field_key_disallowed( $key ) ) {
 				return '';
@@ -972,7 +971,7 @@ function bws_read_resolved_source_value( array $source, string $key, $instance )
  * one at the raw seam — which is the whole reason the two are separate.
  *
  * @since 1.14.0
- * @since 1.16.0 user kind (unreachable until the post→author step).
+ * @since 1.16.0 user kind (first reached in 1.21.0 by the author image read).
  * @since 1.21.0 The kind dispatch lives in bws_read_resolved_source_value().
  * @param array  $source   One resolved source ({kind,id}|{kind:site}|{kind:meta_row,row}).
  * @param string $key      Field key.

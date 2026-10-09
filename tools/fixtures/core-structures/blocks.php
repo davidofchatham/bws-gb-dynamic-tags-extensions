@@ -2449,6 +2449,10 @@ function bws_fixture_element_content_context_header() {
 	$support_id = function_exists( 'bws_fixture_seeded_term_id' )
 		? (int) bws_fixture_seeded_term_id( 'support', 'department' )
 		: 0;
+	// The T8.22..T8.28 fallback rows name an attachment by id; resolved here for the reason above.
+	$fallback_att_id = function_exists( 'bws_fixture_seeded_attachment_id' )
+		? bws_fixture_seeded_attachment_id( 'fixture-photo-alice' )
+		: 0;
 
 	return bws_fixture_gb_section(
 		'Query-context rows (C-rows)',
@@ -2472,6 +2476,78 @@ function bws_fixture_element_content_context_header() {
 			bws_fixture_gb_row(
 				'C-C2 content WITH a fallback - fires on the three analog-less contexts (date/search/latest-home -> No description available), stays out of the way of a real analog on the other three (PTA/author/404, unchanged from C12/C13/C16). context-test-matrix.md has the per-context table',
 				'{{content fallback:No description available}}'
+			),
+			// T8.13..T8.21 — the author archive's keyed {{image}} read (#144). Text-matrix T8
+			// owns the expectations; they live HERE because this element sits outside the
+			// archive loop (generate_after_header), so the rows read the AUTHOR and not the
+			// loop's post. Every row is an empty row: each is empty on the six contexts that
+			// have no user to read.
+			bws_fixture_gb_empty_row(
+				'T8.13 image, ACF array-format user field -> the fixture photo attachment id on the AUTHOR archive, EMPTY on the other six',
+				'{{image key:author_photo_array|as:id}}'
+			),
+			bws_fixture_gb_empty_row(
+				'T8.14 image, ACF URL-format user field -> SAME id as T8.13 on the author archive (ACF stores the id whichever format the field returns)',
+				'{{image key:author_photo_url|as:id}}'
+			),
+			bws_fixture_gb_empty_row(
+				'T8.15 image, ACF ID-format user field -> SAME id as T8.13 on the author archive',
+				'{{image key:author_photo_id|as:id}}'
+			),
+			bws_fixture_gb_empty_row(
+				'T8.16 image, plain user meta holding a bare attachment id (no ACF field) -> SAME id as T8.13 on the author archive',
+				'{{image key:author_photo_plain|as:id}}'
+			),
+			bws_fixture_gb_empty_row(
+				'T8.17 image as:alt -> Fixture photo alt text on the author archive',
+				'{{image key:author_photo_array|as:alt}}'
+			),
+			bws_fixture_gb_empty_row(
+				'T8.18 image, a key no user carries -> EMPTY on all seven (a miss with no stated fallback)',
+				'{{image key:author_photo_missing|as:id}}'
+			),
+			bws_fixture_gb_empty_row(
+				'T8.19 image use:featured -> EMPTY on all seven. An author has no featured image; the avatar analog is the open design call at FW-47',
+				'{{image use:featured|as:id}}'
+			),
+			bws_fixture_gb_empty_row(
+				'T8.20 try_image, a keyed attempt -> SAME id as T8.13 on the author archive (slot == standalone, I6)',
+				'{{try_image A:key(author_photo_id)|as:id}}'
+			),
+			bws_fixture_gb_empty_row(
+				'T8.21 try_image, attempt A misses and B hits -> SAME id as T8.13 on the author archive: a user key MISS skips to the next attempt',
+				'{{try_image A:key(author_photo_missing)|B:key(author_photo_array)|as:id}}'
+			),
+			// T8.22..T8.28 carry a stated fallback, naming an attachment OTHER than the fixture
+			// photo so a hit and a fallback cannot print the same number. A fallback prints on
+			// every context with nothing to read, so these are ordinary rows, not empty rows.
+			bws_fixture_gb_row(
+				'T8.22 image, a keyed miss WITH a stated fallback -> the fallback attachment id (not the fixture photo) on all seven',
+				"{{image key:author_photo_missing|as:id|fallback:{$fallback_att_id}}}"
+			),
+			bws_fixture_gb_row(
+				'T8.23 image use:featured WITH a stated fallback -> the fallback attachment id on all seven (an author has no featured image)',
+				"{{image use:featured|as:id|fallback:{$fallback_att_id}}}"
+			),
+			bws_fixture_gb_row(
+				'T8.24 image, a keyed HIT with a stated fallback -> the fixture photo id on the author archive (a hit beats the fallback), the fallback id on the other six',
+				"{{image key:author_photo_id|as:id|fallback:{$fallback_att_id}}}"
+			),
+			bws_fixture_gb_row(
+				'T8.25 try_image, every attempt misses, WITH a stated fallback -> the fallback attachment id on all seven',
+				"{{try_image A:key(author_photo_missing)|as:id|fallback:{$fallback_att_id}}}"
+			),
+			bws_fixture_gb_empty_row(
+				'T8.26 image with NO key and no fallback -> EMPTY on all seven',
+				'{{image as:id}}'
+			),
+			bws_fixture_gb_row(
+				'T8.27 image with NO key WITH a stated fallback -> the fallback attachment id on all seven',
+				"{{image as:id|fallback:{$fallback_att_id}}}"
+			),
+			bws_fixture_gb_row(
+				'T8.28 try_image, attempt A misses and B hits, WITH a stated fallback -> the fixture photo id on the author archive (the fallback does not end the walk), the fallback id on the other six',
+				"{{try_image A:key(author_photo_missing)|B:key(author_photo_array)|as:id|fallback:{$fallback_att_id}}}"
 			),
 			bws_fixture_gb_row(
 				'C-DT1 datetime_single WITH a fallback (-> TBA on every context here - none carries a datetime analog)',

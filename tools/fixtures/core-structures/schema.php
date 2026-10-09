@@ -842,6 +842,48 @@ function bws_fixture_core_structures_register_acf() {
 		)
 	);
 
+	// --- Author Details (user meta) — the author-archive image read (#144). ---
+	//
+	// THE THREE RETURN FORMATS, one field each, because the format is a property of the
+	// FIELD, not of the stored value: ACF writes the attachment ID to user meta whichever
+	// format it returns, so a plain `get_user_meta()` hands back the same ID for all three.
+	// The trio is here to pin exactly that, so a read that went through `get_field()`
+	// formatting instead of the stored value would change at least one row.
+	// `author_photo_plain` is the non-ACF shape (a bare attachment ID in user meta with no
+	// field definition) and is seeded by seed.php, not declared here.
+	acf_add_local_field_group(
+		array(
+			'key'      => 'group_bwsfx_author',
+			'title'    => 'Author Details',
+			'fields'   => array(
+				array(
+					'key'           => 'field_bwsfx_author_photo_array',
+					'name'          => 'author_photo_array',
+					'label'         => 'Author Photo (array)',
+					'type'          => 'image',
+					'return_format' => 'array',
+				),
+				array(
+					'key'           => 'field_bwsfx_author_photo_url',
+					'name'          => 'author_photo_url',
+					'label'         => 'Author Photo (URL)',
+					'type'          => 'image',
+					'return_format' => 'url',
+				),
+				array(
+					'key'           => 'field_bwsfx_author_photo_id',
+					'name'          => 'author_photo_id',
+					'label'         => 'Author Photo (ID)',
+					'type'          => 'image',
+					'return_format' => 'id',
+				),
+			),
+			'location' => array(
+				array( array( 'param' => 'user_form', 'operator' => '==', 'value' => 'all' ) ),
+			),
+		)
+	);
+
 	// --- Department Details (term meta on department) — term-hop value fields. ---
 	acf_add_local_field_group(
 		array(
@@ -955,6 +997,31 @@ function bws_fixture_seeded_term_id( $slug, $taxonomy ) {
 	}
 	$cache[ $ck ] = (int) $term->term_id;
 	return $cache[ $ck ];
+}
+
+/**
+ * A seeded attachment's id, looked up by its fixture slug (`_bws_fixture_slug` meta).
+ *
+ * For a row that must NAME an attachment in its tag (a `fallback` is a Media Library id), which
+ * no static string in blocks.php can do. Attachments are seeded before page and element content
+ * is built, so the lookup resolves at build time; a miss returns 0, which renders no fallback on
+ * either side of a pair and reads as "reseed" rather than as a broken row.
+ *
+ * @param string $slug Attachment fixture slug.
+ * @return int
+ */
+function bws_fixture_seeded_attachment_id( $slug ) {
+	$found = get_posts(
+		array(
+			'post_type'   => 'attachment',
+			'post_status' => 'any',
+			'numberposts' => 1,
+			'meta_key'    => '_bws_fixture_slug',
+			'meta_value'  => $slug,
+			'fields'      => 'ids',
+		)
+	);
+	return (int) ( $found[0] ?? 0 );
 }
 
 /**

@@ -172,3 +172,44 @@ function bws_row_custom_image_core( array $source, $options, $instance ) {
 	return '' === $result ? '' : bws_gb_tag_output( $result, $options, $instance );
 }
 
+/**
+ * User custom image core — the `user` sibling of bws_term_custom_image_core().
+ *
+ * Reached through bws_base_user_analog_read( 'image' ), which the ambient seam
+ * (bws_base_ambient_analog()) claims for the author archive. Same core under a
+ * `{{try_image}}` slot, because the try_ family reads through the base resolve seam.
+ *
+ * THE READ IS THE STORED VALUE, NOT THE FIELD'S FORMATTED ONE: bws_read_resolved_source_value()'s
+ * `user` arm is a plain user-meta read, and ACF stores an image field's attachment ID in user
+ * meta whichever return format it declares. So the array, URL and ID formats all arrive as the
+ * same ID, and bws_process_meta_image_value() — the processor the post and row routes already
+ * share — turns it into `as`'s output.
+ *
+ * NO KEY, OR `use:featured`, READS NOTHING and emits the stated fallback alone: an author has
+ * no featured image (the avatar analog is the open design call at FW-47). A keyed miss emits
+ * the same fallback, as the post and term cores do.
+ *
+ * @since 1.21.0
+ * @param int    $user_id  Resolved user ID.
+ * @param array  $options  Tag options (key/field_key, as, fallback/id).
+ * @param object $instance Block instance.
+ * @return string
+ */
+function bws_user_custom_image_core( $user_id, $options, $instance ) {
+	$field_key = sanitize_text_field( $options['key'] ?? $options['field_key'] ?? '' );
+
+	if ( '' !== $field_key && 'featured' !== bws_use_effective( 'image', $options ) && bws_is_valid_meta_key( $field_key ) ) {
+		$raw = bws_read_resolved_source_value( array( 'kind' => 'user', 'id' => (int) $user_id ), $field_key, $instance );
+		if ( $raw ) {
+			// as+size fold (FW-52): `as` may carry a `,<size>` arg; legacy `size:` falls back.
+			$as     = bws_parse_as_option( $options );
+			$result = bws_process_meta_image_value( $raw, $as['mode'], $as['size'] );
+			if ( '' !== $result ) {
+				return bws_gb_tag_output( $result, $options, $instance );
+			}
+		}
+	}
+
+	return bws_image_stated_fallback( $options, $instance );
+}
+

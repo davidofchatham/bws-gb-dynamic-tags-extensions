@@ -153,6 +153,7 @@ require __DIR__ . '/../../includes/helpers/field-helpers.php';
 // reverse) surfaces as the wrong sentinel rather than as a silent ''.
 function bws_term_title_core( $term_id, $options, $instance ) { return 'TERM_TITLE_' . (int) $term_id; }
 function get_the_author_meta( $field, $user_id ) { return 'USER_' . $field . '_' . (int) $user_id; }
+function bws_user_custom_image_core( $user_id, $options, $instance ) { return 'USER_IMAGE_' . (int) $user_id; }
 function bws_gb_tag_output( $value, $options = array(), $instance = null ) { return $value; }
 
 // §V14 src:ref list-mode collapse — the post-kind id extraction from a fanned-out
@@ -932,13 +933,16 @@ eq( 'author srcTermIn set -> null', null, seam_title( user_src( 7 ), array( 'src
 // ── the user carve-out (build-ticket 03 deviation, measured 2026-08-29) ───────
 //
 // The user arm claims exactly the tags bws_base_user_analog_read() answers
-// (title/content/text). {{image}} keeps its post route: the image cores'
-// stated-fallback emit still renders a configured Media Library fallback off
-// the falsy-id read there, and a seam claim's '' would silently drop it.
-// {{permalink}} is byte-equal either way and stays out on the same
-// claim-what-you-answer rule. The arm widens when FW-47 gives the reader those
-// analogs — at which point these two rows are the ones to flip.
-eq( 'user x image -> null (post route keeps the stated-fallback emit)', null, bws_base_ambient_analog( 'image', user_src( 7 ), array(), null ) );
+// (title/content/text/image). {{image}} is claimed because the reader's image case is
+// bws_user_custom_image_core(), which emits the stated Media Library fallback itself, so
+// the claim cannot drop it the way a bare '' would. {{permalink}} is byte-equal either way
+// and stays out on the claim-what-you-answer rule; the arm widens when FW-47 gives the
+// reader that analog — at which point that row is the one to flip.
+eq(
+	'user x image -> claimed (its own core emits the stated fallback)',
+	array( 'value' => 'USER_IMAGE_7', 'link_id' => 7, 'link_type' => 'user' ),
+	bws_base_ambient_analog( 'image', user_src( 7 ), array(), null )
+);
 eq( 'user x permalink -> null (claim-what-you-answer)', null, bws_base_ambient_analog( 'permalink', user_src( 7 ), array(), null ) );
 
 // ── #19 / FW-9 — the seam's query-context arm ─────────────────────────────────
@@ -952,7 +956,8 @@ eq( 'user x permalink -> null (claim-what-you-answer)', null, bws_base_ambient_a
 // further WP surface is touched (the other sub-kinds call live primitives and
 // are pinned by the C-rows on the testbed).
 //
-// `image` is the SAME carve-out as the user arm above, for the same reason: a
+// `image` is a carve-out here (the user arm above has none, because its own core emits
+// the fallback), for this reason: a
 // query-context archive (post-type/date/search/404/front-page) reaches
 // bws_custom_image_core() through the post route today, and a configured Media
 // Library fallback still renders there off the falsy-id read — a seam claim's
@@ -1036,7 +1041,12 @@ eq(
 // through its own bws_term_custom_image_core arm, which owns the identical
 // no-key -> fallback shape directly — CONTEXT.md I9's term paragraph states
 // it), so there is no seam-level claim here to carve out or pin.
-foreach ( array_diff( $ambient_kinds, array( 'term' ) ) as $kind ) {
+//
+// `user` is the other exemption, for the opposite reason: it CLAIMS image, because
+// its reader's image case is bws_user_custom_image_core(), which emits the stated
+// fallback itself. It is listed so a kind added later cannot slip past by
+// being "like user"; the claim itself is pinned by 'user x image -> claimed' above.
+foreach ( array_diff( $ambient_kinds, array( 'term', 'user' ) ) as $kind ) {
 	$base = 'query_context' === $kind
 		? array( 'kind' => 'query_context', 'sub' => 'date', 'payload' => array() )
 		: array( 'kind' => $kind, 'id' => 7 );
