@@ -1,13 +1,12 @@
 # Future work tracker
 
-**Not a roadmap for future work.** No committed timeline on anything below. One exception: an **In-flight** item names a target version, but even that holds no progress detail — the item points at the branch / plan / unreleased CHANGELOG, which own the real build state. This is a single visible index of non-bug work — future AND in-flight — one heading block per **`FW-N` id**.
+**Not a roadmap for future work.** No committed timeline on anything below; an item being built points at the branch / plan / unreleased CHANGELOG, which own the real build state. This is a single visible index of non-bug work, one heading block per **`FW-N` id**. Its shape follows a cross-project convention kept in the private bws-reference repo (`practices/tracker.md`); the operative rules are copied in below.
 
 ## Index
 
 - [Item shape](#item-shape)
 - [The no-status-column rule, revised](#the-no-status-column-rule-revised)
 - [Trackers](#trackers)
-  - [In flight](#in-flight)
   - [Correctness, Consistency, Architecture](#correctness-consistency-architecture)
   - [Feature follow-ups & UX](#feature-follow-ups--ux)
   - [Testing & infrastructure](#testing--infrastructure)
@@ -22,7 +21,6 @@ Each item is a `#### FW-N — <title>` heading followed by a fixed set of labele
 
 - A **description** paragraph (1-3 sentences): what the item IS. Stable, rarely re-edited — not current state, not history.
 - **Detail home:** where the design/rationale + implicit certainty (concept vs planned) live — a GH issue, a `.scratch/plans/*.md` file, a `docs/design-history/*.md` file, or a memory note. Never duplicated here; open the link for the full story.
-- **Target:** *(In-flight items only)* the version the work is landing in, or `—` where no release carries it (tooling/instrument work has no landing version).
 - **Progress:** fact-based, present-tense, permanent-once-true statements only — "half X shipped", "measured on Y", "condition Z is met". Always present, even if just "Not started."
 - **Open:** what's still undecided or unbuilt, when there's a real done/open split. Omitted when there's nothing beyond Progress worth stating separately.
 - **Blocked by: / Interacts with:** unchanged in meaning from the old table columns — see below.
@@ -34,32 +32,14 @@ The old rule banned tracking phase, commit, or percent-done in a cell, because t
 - **`FW-N` ids are permanent.** Cross-refs use the id, never prose, so a reworded item never orphans a reference. A shipped/cut item's id retires to the Closed/Retired ledger and is never reused or reassigned.
 - **Bugs do NOT go here** → GitHub Issues (`bug` label).
 - **No detail duplication.** An item states that something exists, what gates it, what it touches, and where to read more — it does not carry the design itself. Certainty (concept vs planned) is read from the detail home, not stated here.
-- **Lifecycle is the SECTION, not a line.** An item starts in a future section, moves to `### In flight` when committed build work begins, and moves to Closed / Retired on ship. It keeps its `FW-N` and its Detail-home line through all three — only the section changes. This coarse move is the only progress signal an item's SECTION carries.
+- **There is no In-flight section.** Lifecycle is two-valued: an item is in a tracker section, or it is in Closed / Retired. Progress carries the "someone is building this" bit by naming the branch or commit that holds the real state.
 - Some homes are local/hidden (`.scratch/plans/` is gitignored, memory files sit outside the working dir). This tracker is the tracked, reviewable surface over them. Migrate detail into `docs/` opportunistically; until then the link still points home.
 
-> **Agent pickup:** a future-section item is startable when its `Blocked by:` line is `—` or every `row:`/`ship:` gate it names is satisfied. `decision:`/`code:` gates are human-resolved — don't auto-start those. `Interacts with:` never blocks. An **In-flight** item is already being built — do NOT pick it up as new work; read its Detail home for real state before touching it.
+> **Agent pickup:** an item is startable when its `Blocked by:` line is `—` or every `row:`/`ship:`/`code:` gate it names is satisfied. A `code:` gate is re-derivable by grep, so an agent may clear it, but must state the check in Progress. **A `decision:` gate is human-resolved** — don't auto-start it, and don't resolve the decision yourself to unblock it. `Interacts with:` never blocks. An item whose Progress says a build is live is already being worked — do NOT pick it up as new work; read its Detail home for real state before touching it.
 
 `Blocked by:` uses the same typed vocabulary as before: `row:FW-N` (another item) · `ship:X.Y.Z` (a version — satisfied once shipped) · `decision:<what>` (an open choice) · `code:<condition>` (a code state) · `—` (unblocked). A blocker states a CODE FACT, never a scheduling preference — "this cannot land until X", not "do this after X" — so a rescan may re-derive one from the code and swap it without asking what the ordering was meant to achieve. `Interacts with:` is softer coupling (reshapes / reshaped-by / ship-near) as `FW-N` ids + external `#issue` refs — never a gate.
 
 ## Trackers
-
-### In flight
-
-Committed build work. **Pointer-only, like every other item** — the branch / plan / unreleased CHANGELOG own the real build state; an item here names only that the work is live, what it touches, where to read it, and its target version. An item lands here from a future section when build starts and leaves for Closed / Retired on ship. **An item may sit here with no Target** — no release carries a harness or an instrument fix, so `Target: —` is the honest statement ("no release carries this"), not a gap.
-
-#### FW-96 — Dependency replay over the harvest corpus
-
-The third replay axis: our build and the wire both held fixed, one DEPENDENCY's version varied between the two renders (`tools/harvest-replay/README.md` §The replays).
-
-Detail home: `tools/harvest-replay/README.md` §The replays
-
-Target: —
-
-Progress: Both halves shipped 2026-08 — the env half (built 2026-08-24) records which dependency version was installed on each arm and asserts the two sides disagree before any diff is read; this repo's half (landed 2026-08-28), `diff-replays.php --dependency-replay`, requires identical build identity on both sides and moves the varying axis to that record. Exercised live only for GenerateBlocks so far (2.4.1 vs 2.4.0, 9962 renders per arm, CHANGED 0).
-
-Open: GB Pro, GB Query Enhancements and ACF Pro are supported by construction but never run; the licensed add-a-version path is unexercised. Inherits the harvest-side stratification caveat — a clean diff says nothing about a context-kind stratum the sample never drew.
-
-Blocked by: —  •  Interacts with: FW-78 (closed; the other half of the same change), FW-99 (the other consumer of a version record)
 
 ### Correctness, Consistency, Architecture
 
@@ -684,6 +664,18 @@ Blocked by: —  •  Interacts with: FW-53 (the Columns cards are where it woul
 
 ### Testing & infrastructure
 
+#### FW-96 — Dependency replay over the harvest corpus
+
+The third replay axis: our build and the wire both held fixed, one DEPENDENCY's version varied between the two renders (`tools/harvest-replay/README.md` §The replays).
+
+Detail home: `tools/harvest-replay/README.md` §The replays
+
+Progress: Both halves shipped 2026-08 — the env half (built 2026-08-24) records which dependency version was installed on each arm and asserts the two sides disagree before any diff is read; this repo's half (landed 2026-08-28), `diff-replays.php --dependency-replay`, requires identical build identity on both sides and moves the varying axis to that record. Exercised live only for GenerateBlocks so far (2.4.1 vs 2.4.0, 9962 renders per arm, CHANGED 0).
+
+Open: GB Pro, GB Query Enhancements and ACF Pro are supported by construction but never run; the licensed add-a-version path is unexercised. Inherits the harvest-side stratification caveat — a clean diff says nothing about a context-kind stratum the sample never drew.
+
+Blocked by: —  •  Interacts with: FW-78 (closed; the other half of the same change), FW-99 (the other consumer of a version record)
+
 #### FW-97 — Fixture-page reorganization
 
 The fixture pages are cut by source-state (`matrix-post-meta`, `matrix-terms-*`, `matrix-content`, `matrix-gate`, `matrix-fixture-roots`) and tag families have accreted into them since, so which page a row group lands on is now part convention, part history.
@@ -1200,11 +1192,11 @@ Blocked by: —  •  Interacts with: FW-53 (a working sentinel plus a table loo
 
 Facts about third-party plugins, cross-project practices and the date-and-time rules are each written or re-measured separately in several projects (the date-only convention alone differs three ways), and the paid-plugin detail already sits in public repos. One private repo would state each once: `plugins/`, `practices/`, copy-in `templates/`, and the datetime `semantics/` with test `vectors/` each consumer's pure harness loads. No runtime code until a second consumer ships.
 
-Detail home: `.scratch/plans/shared-reference.md` in the shared reference repo (`d:\Dev\Shared\reference\`), moved there 2026-10-02
+Detail home: `.scratch/plans/shared-reference.md` in the private bws-reference repo, moved there 2026-10-02
 
-Progress: Scope widened and shape settled in a grill (user, 2026-10-02): one private repo at `d:\Dev\Shared\reference\`, tasks T1 to T10 in the detail home. The repo now exists with its skeleton (README, light CLAUDE.md, its own `docs/future-work.md` carrying the T8 to T10 and core-structures rows, `docs/agents/`); its guards and CI self-test (T4's second half) are not in yet. Each remaining task is its own session; the first tranche is T1 to T7.
+Progress: Scope widened and shape settled in a grill (user, 2026-10-02): one private repo at `d:\Dev\Shared\reference\`, tasks T1 to T10 in the detail home. The repo now exists with its skeleton (README, light CLAUDE.md, its own `docs/future-work.md` carrying the T8 to T10 and core-structures rows, `docs/agents/`); its guards and CI self-test (T4's second half) are not in yet. Each remaining task is its own session; the first tranche is T1 to T7. T11 done 2026-10-09: this tracker dropped its In-flight section and `Target:` lines to match the shared convention.
 
-Open: The WooCommerce session-cookie disagreement between Site Views and the MP project, this plugin's In-flight tracker section against Site Views' convention, and the datetime questions (T10) the old handoff lists eight of, now its last section.
+Open: The datetime questions (T10) the old handoff lists eight of, now its last section.
 
 Blocked by: —  •  Interacts with: FW-27 (`when` states the datetime rules for itself and could load the vectors later), FW-35, FW-134 (Pie Calendar facts, T7), FW-3, FW-81
 
@@ -1275,7 +1267,7 @@ Append-only ledger of closed, shipped, or cut work — both `FW-N` items deleted
 ## Maintenance
 
 - New non-bug idea → add a `#### FW-N` heading block with the next unused id — **(highest id in the live trackers ∪ highest id in Retired IDs) + 1**; never reuse a retired id + put detail in its home (plan file / issue / memory). Don't let an item exist *only* in a hidden file with no tracker item.
-- **Build starts** (branch + committed work) → **move the item to `### In flight`** and add a **Target:** line — the landing version, or `—` where no release carries the work (tooling, instruments). The item keeps its `FW-N`, its description, and all pointer/gate lines — only its section changes. Do NOT start recording phase/commit/remaining-tasks in the item; that state stays in the branch / plan / unreleased CHANGELOG (the FW-52 staleness rule). The section IS the lifecycle signal.
-- Item ships (or is cut/merged) → delete its heading block (from wherever it sits, In-flight included) once CHANGELOG records it, **and append a line to the Closed/Retired table** (id + outcome + where it landed). Its `FW-N` retires — do not reassign it. Update any surviving item that referenced it (`row:FW-N` → satisfied gate can be dropped; `Interacts with` id removed).
-- Blocker clears or a new interaction surfaces → update the `Blocked by:` / `Interacts with:` line; that's the point of those lines. Certainty (concept → planned) is read from the detail home, not tracked here. **Lifecycle** (future → in-flight → shipped) is read from the section, not a line.
+- **Build starts** (branch + committed work) → say so in `Progress:`, naming the branch or commit that owns the real state. The item stays in its section. Do NOT record phase/commit/remaining-tasks in the item; that state stays in the branch / plan / unreleased CHANGELOG (the FW-52 staleness rule).
+- Item ships (or is cut/merged) → delete its heading block once CHANGELOG records it, **and append a line to the Closed/Retired table** (id + outcome + where it landed). Its `FW-N` retires — do not reassign it. Update any surviving item that referenced it (`row:FW-N` → satisfied gate can be dropped; `Interacts with` id removed).
+- Blocker clears or a new interaction surfaces → update the `Blocked by:` / `Interacts with:` line; that's the point of those lines. Certainty (concept → planned) is read from the detail home, not tracked here. **Lifecycle** is two-valued (live item → Closed / Retired); a live build is said in `Progress:`.
 - **An item may carry a COUNT only when the count IS the deliverable.** An *inventory* count is a worklist the item exists to hand over — FW-76's per-file citation tallies; you re-run the grep anyway, so a stale figure costs a re-count and nothing else. An *argument* count is evidence for a claim the item is making ("40 of 74 items sit in one section, so the split has failed"), and it decays into a false statement that still reads as current — the same failure as the phase / percent-done lines the preamble bans, wearing different clothes. Strip the second kind. **Date-stamping does not rescue it:** both of the two counts FW-77 once carried were stamped, and both were read as current anyway.
