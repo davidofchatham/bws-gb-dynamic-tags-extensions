@@ -196,6 +196,28 @@ Where a source has **no** intrinsic analog for a tag (term image, site content-b
 
 This principle governs `src:site` below and should guide every future source (`parent`, `ancestor`, external) and any new base tag.
 
+#### Coverage by ambient context
+
+What each tag reads where it has no `src`, no query-loop item and no `id`, measured on the testbed 2026-10-09 (`wp bws render-tag --url=…`). A cell names the datum the tag returns there; a dash means the tag renders empty (never `$post`'s value, and a stated `fallback` still fires). This is the consequence of the dispatch above, which stays the owner of how a context is told apart ([`CONTEXT.md` I9](../CONTEXT.md)). An explicit source or a query-loop item overrides every column.
+
+| Tag (read) | Singular | Term archive | Author archive | Date archive | Post type archive | Search | 404 | Latest-posts home |
+|---|---|---|---|---|---|---|---|---|
+| `title`, `text` (`use:title`) | post title | term name | display name | date span (`July 2026`) | archive label (`Staff`) | `Search Results for “…”` | GP 404 title, else GP default (core `Page not found` without GP) | site name |
+| `content` | post content | term description | user bio | — | type description | — | GP 404 text (— without GP) | — |
+| `permalink` | post URL | term URL | — | — | — | — | — | — |
+| `image` (`use:featured`) | featured image | — | — | — | — | — | — | — |
+| `image` (meta field) | post meta | term meta (ACF array return only, [#143](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/143)) | — ([#144](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/144)) | — | — | — | — | — |
+| `text` (meta field) | post meta | term meta | user meta | — | — | — | — | — |
+| `email`, `phone` | post meta | term meta | user meta | — | — | — | — | — |
+| `datetime_single`, `datetime_range` | post meta | term meta | — | — | — | — | — | — |
+
+- **Every `try_` variant matches its base tag** in every cell, and a `{{join}}` slot follows the `text` rows (`use:title` gives the heading, a `key` gives the meta field).
+- **"Singular"** includes an assigned front page or posts page, which is a page entity and takes the post column. **"Latest-posts home"** is the front page with no page assigned.
+- **A "meta field" read** is whatever the context's own field store holds: post meta, term meta (ACF `term_<id>`), or user meta. The five query-context kinds, which carry no entity (date, post type archive, search, 404, latest-posts home) have no store, so a keyed read is empty there.
+- **Two cells are known gaps, not design.** The term image read answers only for an ACF array return, because `bws_get_term_field_image_data()` asks for the array-preserving read, which drops URL and ID values (#143). The author image read has no arm at all, so a `use:key` user image renders nothing in any return format (#144, [FW-47](future-work.md)); the avatar analog for `use:featured` is the separate, still-open design call on FW-47.
+- **Search is measured for the heading and the empty analogs** (`title`, `content`, `permalink`, and a stated `fallback` on `content` and both datetime tags). Its keyed-field cells follow from the context carrying no entity and were not read individually. `render-tag` reaches search only since the query string began populating `$_GET` (`tools/cli/class-render-tag-command.php`).
+- **`content` with `use:key`** follows the `text` meta-field row; it was not measured separately.
+
 #### Qualifying test for new `use:` values
 
 Before adding a named `use:` value (or a per-source analog) for a new field target, it must clear this gate. A value that fails it is *noise* — it grows the enum, the label surface, and the per-source dispatch table without earning its place. Until **cross-token filtering** lands (the JS seam that shows only source-valid `use` entries — V10b/[#27](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/27)), every value hangs on the base tag in *every* source, so the cost is real.
