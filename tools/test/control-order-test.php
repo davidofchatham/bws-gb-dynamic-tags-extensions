@@ -164,7 +164,7 @@ bws_register_phone_tag();
 // The `term_` family's converter ENTRIES, which the plugin still registers (FW-129 removed
 // the tags, not the migration path). No constructor follows them any more — that is the
 // subject of §C3 below, and running the generator here is what gives it something to read.
-bws_register_modifier_root_migrations( 'term', 'term', array( 'since' => '1.20.0' ) );
+bws_register_modifier_root_migrations( 'term', 'term', array( 'since' => '1.20.0', 'prefix_removed' => true ) );
 
 $registered = GenerateBlocks_Register_Dynamic_Tag::get_tags();
 
@@ -999,6 +999,23 @@ assert_same(
 	'the migration registry stamps its tag entries deprecated',
 	array( 'deprecated' ),
 	array_values( array_unique( $term_entry_types ) )
+);
+// The settings page's Removed box: the family is unregistered, so no entry may read live.
+// The bootstrap above is a COPY of the shipped call, so the shipped file is checked too.
+$term_live = array();
+foreach ( \BWS\DynamicTags\MigrationRegistry::get_by_type( 'tag' ) as $entry ) {
+	if ( 0 === strpos( (string) ( $entry['match_tag'] ?? '' ), 'term_' ) && \BWS\DynamicTags\MigrationRegistry::is_entry_live( $entry ) ) {
+		$term_live[] = $entry['match_tag'];
+	}
+}
+assert_same( 'no term_ entry reads live (settings page lists them under Removed)', array(), $term_live );
+assert_same(
+	'the shipped term_ migrations call passes prefix_removed',
+	1,
+	preg_match(
+		"~bws_register_modifier_root_migrations\(\s*'term',\s*'term',\s*array\([^)]*'prefix_removed'\s*=>\s*true~",
+		(string) file_get_contents( $root . '/bws-gb-dynamic-tags-extensions.php' )
+	)
 );
 
 // --- D. the late re-read is quiet while every name is still ours ------------

@@ -1144,7 +1144,7 @@ function bws_fixture_core_structures_chain_roots( $roots ) {
  */
 function bws_fixture_core_structures_register_migrations() {
 	if ( function_exists( 'bws_register_modifier_root_migrations' ) ) {
-		bws_register_modifier_root_migrations( 'fixture', 'fixture', array( 'since' => '1.17.0' ) );
+		bws_register_modifier_root_migrations( 'fixture', 'fixture', array( 'since' => '1.17.0', 'prefix_removed' => true ) );
 	}
 }
 
