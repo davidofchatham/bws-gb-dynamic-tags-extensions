@@ -71,6 +71,14 @@ Boot once per CONTEXT instead and render the whole tag list in-process, through 
 $tags = json_decode( file_get_contents( $args[0] ), true );
 $ctx  = (string) ( WP_CLI::get_runner()->config['url'] ?? '' );
 if ( '' !== $ctx ) {
+	// --url sets QUERY_STRING, not $_GET: without this a ?s= URL renders as the home page.
+	// A plugin that froze $_GET at plugins_loaded never sees it (limit stated in tools/harvest-replay/replay-tags.php).
+	$query = (string) parse_url( $ctx, PHP_URL_QUERY );
+	if ( '' !== $query ) {
+		parse_str( $query, $parsed );
+		$_GET     = $parsed;
+		$_REQUEST = array_merge( $_REQUEST, $parsed );
+	}
 	wp();   // --url only set $_SERVER; this is what makes the main query genuine.
 }
 $instance          = new stdClass();

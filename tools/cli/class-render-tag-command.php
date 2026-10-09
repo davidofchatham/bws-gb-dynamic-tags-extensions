@@ -89,6 +89,16 @@ class BWS_Render_Tag_Command {
 
 		// --url only set $_SERVER; run the real main query so ambient context is genuine.
 		if ( '' !== $url ) {
+			// WP-CLI sets QUERY_STRING but not $_GET, and WP::parse_request() reads public
+			// query vars from $_GET: without this a `?s=` URL collapses to the front page.
+			// Same lines as tools/harvest-replay/replay-tags.php, which owns the coverage
+			// limit (a plugin that freezes $_GET at plugins_loaded never sees them).
+			$query = (string) parse_url( $url, PHP_URL_QUERY );
+			if ( '' !== $query ) {
+				parse_str( $query, $parsed );
+				$_GET     = $parsed;
+				$_REQUEST = array_merge( $_REQUEST, $parsed );
+			}
 			wp();
 		}
 

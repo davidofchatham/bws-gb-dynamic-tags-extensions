@@ -10,7 +10,7 @@ empties the date archive to a 404).
 
 **Staging pattern = FW-3 D7 (expected-fail → flip on ship).** Term kind SHIPPED 1.14.0, author kind 1.15.0, and the five QUERY-CONTEXT kinds (date / PTA / search / 404 / latest-home) SHIPPED 1.19.0 — every row below is flipped to its dispatch value and re-measured (2026-08-29, render-tag + front end). The pre-1.19.0 leak baselines each row used to pin are kept in the "Leaked (pre-1.19.0)" column as the regression direction: a row showing its leak value again means the factory's query-context branch stopped firing.
 
-**`?s=` does not survive `render-tag --url`** (measured 2026-08-29: `--url=/?s=searchpin` resolved latest-home, not search — the query string is dropped). C4/C14 are front-end rows only; every other row agrees across both instruments.
+**`render-tag --url` carries a `?s=` query string** (since 2026-10-09). Before that it resolved `/?s=searchpin` to latest-home, not search: WP-CLI sets `QUERY_STRING` but not `$_GET`, which `WP::parse_request()` reads. The command now fills `$_GET` from the URL before `wp()`. Re-measured that day via `render-tag --porcelain` on `/?s=searchpin`: C4 `Search Results for &#8220;searchpin&#8221;`, C14 empty, C-C2.4 `No description available`, C-DT1/C-DT2.4 `TBA`. The C-element pins only C4's and C14's `{{title}}` and `{{content}}` on the front end (C-T1, C-C1); the fallback rows are `render-tag` rows. A plugin that freezes `$_GET` at `plugins_loaded` will not see the query string under `render-tag` (the coverage limit `tools/harvest-replay/replay-tags.php` states); core search and these tags read it lazily.
 
 **VISIBLE SINCE 2026-08-29, and the exception is retired.** All C-rows need a non-singular main query (archive / search / 404 / home), where page content cannot exist — so these rows could not be `blocks.php` rows and were `render-tag`-only. The surface this note called eventual is now built: a GP block element (`elements` in the blueprint manifest, content in `bws_fixture_element_content_context_header()`) hooked at `generate_after_header` and scoped by GP's display conditions to blog + archive + search + 404. It carries C-T1 (`{{title}}`) and C-C1 (`{{content}}`), and the query-context page snapshots pin what they render. Scoped deliberately AWAY from `general:singular`, so the element never appears on the ten singular snapshot pages.
 
@@ -27,7 +27,7 @@ Baselines captured 2026-07-18, **re-measured on the front end 2026-08-29** when 
 | C1 | Date archive (month) | `/2026/07/` | `July 2026` (core's month-archive format `F Y`; a day archive takes `get_the_date()`, a year archive `Y`) | `Sample Event` — first-row `$post` leak | **PASS (1.19.0)** |
 | C2 | Post type archive | `/staff/` | PTA label `Staff` (unprefixed `post_type_archive_title`) | `Grace Published` | **PASS (1.19.0)** |
 | C3 | Author archive | `/author/fixture-author/` | `Fixture Author` (display name) | — | **PASS (1.15.0)** |
-| C4 | Search (results) | `/?s=searchpin` | `Search Results for &#8220;searchpin&#8221;` (core msgid; entities render curly on the page, `wptexturize` does not double-transform — eyeballed on the front end 2026-08-29). **Front-end row only** — `render-tag` drops `?s=` (header note). URL history: changed from `?s=matrix` 2026-08-29 so the term matches exactly one post this blueprint owns | `Home Lead Post` — first-hit leak (was the sharpest silent-wrong case) | **PASS (1.19.0)** |
+| C4 | Search (results) | `/?s=searchpin` | `Search Results for &#8220;searchpin&#8221;` (core msgid; entities render curly on the page, `wptexturize` does not double-transform — eyeballed on the front end 2026-08-29). URL history: changed from `?s=matrix` 2026-08-29 so the term matches exactly one post this blueprint owns | `Home Lead Post` — first-hit leak (was the sharpest silent-wrong case) | **PASS (1.19.0)** |
 | C5 | 404 (override arm) | `/no-such-page-xyz/` | `Fixture 404 Title (filter)` — the site's own `generate_404_title` callback wins (the blueprint registers one for exactly this row; §C5 below has the arm pairing) | empty (benign) | **PASS (1.19.0)** |
 | C6 | Latest-posts home | `/` (testbed: `show_on_front:posts`, nothing assigned) | `BWS Testbed` (site name, `get_bloginfo('name')`) | `Home Lead Post` — first-row leak | **PASS (1.19.0)** |
 | C7 | Term archive (control) | `/department/sales/` | `Sales` (term name) | — | **PASS (1.14.0)** |
@@ -39,7 +39,7 @@ Baselines captured 2026-07-18, **re-measured on the front end 2026-08-29** when 
 | C11 | Date archive | `/2026/07/` | empty | empty (coincidentally) | **PASS (1.19.0)** |
 | C12 | Post type archive | `/staff/` | the staff type's description, `<p>`-wrapped (core's own `wpautop` on the `get_the_post_type_description` filter): `The staff directory. This description is the post type archive content analog on the staff archive.` — the blueprint gives the CPT a description for exactly this row, else the read is indistinguishable from no read | a leading post's **full rendered GB page content** — worst leak in the set | **PASS (1.19.0)** |
 | C13 | Author archive | `/author/fixture-author/` | author bio (`description` user meta) | — | **PASS (1.15.0)** |
-| C14 | Search | `/?s=searchpin` | empty. **Front-end row only** (header note) | leaked first hit's body | **PASS (1.19.0)** |
+| C14 | Search | `/?s=searchpin` | empty | leaked first hit's body | **PASS (1.19.0)** |
 | C15 | Latest-posts home | `/` | empty — the one deliberate break: anyone who built a featured-post home on this leak loses it (named in the CHANGELOG) | the leaked first post's **whole rendered body** | **PASS (1.19.0)** |
 | C16 | 404 (default arm) | `/no-such-page-xyz/` | GP's own default through the borrow: `It looks like nothing was found at this location. Maybe try searching?` (no fixture callback on `generate_404_text` — §C5 below). Without GP: empty | empty | **PASS (1.19.0)** |
 | C17 | Term archive (control) | `/department/sales/` | Sales term description | — | **PASS (1.15.0 fixture)** |
@@ -53,13 +53,13 @@ Baselines captured 2026-07-18, **re-measured on the front end 2026-08-29** when 
 | C-C2.1 | Date archive | `/2026/07/` | empty | `No description available` | no content analog on this sub-kind |
 | C-C2.2 | Post type archive | `/staff/` | *(not a regression)* | the staff type's description (C12, unchanged) | a real, non-empty analog — the fallback never gets a turn |
 | C-C2.3 | Author archive | `/author/fixture-author/` | *(not a regression)* | the author bio (C13, unchanged) | real analog, same reasoning |
-| C-C2.4 | Search | `/?s=searchpin` | empty | `No description available` | no analog. **Front-end row only** (header note) |
+| C-C2.4 | Search | `/?s=searchpin` | empty | `No description available` | no analog |
 | C-C2.5 | Latest-posts home | `/` | empty | `No description available` | no analog |
 | C-C2.6 | 404 | `/no-such-page-xyz/` | *(not a regression)* | GP's default borrow text (C16, unchanged) | a real analog on this GP testbed |
 | C-DT1/C-DT2.1 | Date archive | `/2026/07/` | empty | `TBA` | datetime has no analog on ANY query-context sub-kind |
 | C-DT1/C-DT2.2 | Post type archive | `/staff/` | empty | `TBA` | same |
 | C-DT1/C-DT2.3 | Author archive | `/author/fixture-author/` | `TBA` (already correct) | `TBA` | not claimed by the `user` kind at all — always reached the post route |
-| C-DT1/C-DT2.4 | Search | `/?s=searchpin` | empty | `TBA` | no analog. **Front-end row only** |
+| C-DT1/C-DT2.4 | Search | `/?s=searchpin` | empty | `TBA` | no analog |
 | C-DT1/C-DT2.5 | Latest-posts home | `/` | empty | `TBA` | no analog |
 | C-DT1/C-DT2.6 | 404 | `/no-such-page-xyz/` | empty | `TBA` | no analog (datetime has no 404 borrow, unlike content) |
 | C-I1 | Date archive | `/2026/07/` | empty | the fallback IMAGE renders | **`render-tag` only, exception stated per the visible-rows rule** — `fallback` is a Media Library id assigned at seed time, so no static string in `blocks.php` can name it, same reasoning as F11b.3. Pass the seeded `fixture-photo` attachment's id (`wp post list --post_type=attachment`); repeat against `/staff/`, `/?s=searchpin`, `/`, `/no-such-page-xyz/` — image has no analog on any of the five, so all five were broken and all five are fixed the same way |
@@ -120,7 +120,7 @@ The C-TERM rows above measure the resolution itself, in the spelling that surviv
 
 The ARGLESS rewrite is not output-neutral, which is why this section exists at all: a `term_*` tag addresses a term and nothing else, a base tag addresses whatever the page is about (the capability difference recorded in [`docs/design-history/term-family-kind-lock.md`](../../docs/design-history/term-family-kind-lock.md)), and off a term page the first renders nothing where the second renders the page. Whether a migration may do that is FW-39's decision, recorded with the ship; this table is the measurement it rests on. The entity-naming rewrite is a different question — an `id` was never an ambient read, so that difference does not reach it — and C-CONV10/11 are what says the answer is "no change at all".
 
-Measured 2026-09-10 via `bws render-tag --porcelain` on all seven contexts; the entity-naming rows (C-CONV10..14) 2026-09-11 the same way. Search is the one context `render-tag` cannot reach (header note) and is front-end only.
+Measured 2026-09-10 via `bws render-tag --porcelain` on all seven contexts; the entity-naming rows (C-CONV10..14) 2026-09-11 the same way. Search was the one context `render-tag` could not reach at that date (header note); it can now, but these rows were not re-measured on it.
 
 **The EDITOR half of C-CONV13/14, measured the same day** via `bws render-tag --preview --porcelain`, because a row that renders nothing has to be distinguishable from a row that is broken and only the editor does that: `{{text src:term,999999|use:title}}` previews as `[Title from term 999999 (missing)]`, while the live `{{text src:term,<support>|use:title}}` previews as its resolved value (`Support`) and claims no bracket at all. `preview-label-test.php` owns the namer's own rules; this records that the wire the MIGRATION emits is wire that namer reads.
 
