@@ -61,6 +61,12 @@ return array(
 	// The date the baseline under `tools/test/snapshots/` was captured. Prose only —
 	// nothing compares it; it is here so a reader can place the record in time.
 	//
+	// 2026-10-09: a DEPENDENCY MOVE, on top of the author-image rows (#144, one commit earlier,
+	// whose seven `ctx-*` baselines were re-captured under the 2026-09-29 record). WooCommerce
+	// 11.1.2 -> 11.2.0 moved ONE line on `product-desk-riser`: the currency symbol <span> gained
+	// `dir="auto"`. WordPress 7.1.2 -> 7.1.3 moved in the same window and is attributable for no
+	// line: the pre-capture run showed only that one. Active set unchanged.
+	//
 	// 2026-09-29 (FW-141): a new join section (J29-J37) on `page-matrix-post-meta`, plus
 	// catch-up for rows deleted from the blueprint by earlier commits without a re-capture
 	// (`page-matrix-post-meta`, `page-matrix-pinned-roots`). `active` now names
@@ -104,15 +110,15 @@ return array(
 	// The 2026-09-14 capture is WooCommerce joining the fixture site (chrome only, no
 	// rendered tag moved); the 2026-09-03 one is where the head-deletion rule arrived — a
 	// reader hitting an ~800-line deletion further back in `git log` is looking at that.
-	'captured' => '2026-09-29',
+	'captured' => '2026-10-09',
 
 	// WordPress core, as `get_bloginfo( 'version' )` reports it. A change is a WARNING like a
 	// plugin version change, never a failure. First recorded 2026-09-25, read off the site
 	// with a 7.1.2 update pending and the 2026-09-24 baseline not re-captured, so it is the
 	// version that baseline was running under unless core moved that one day. The evidence for
 	// readme.txt's `Tested up to`: page-snapshot-normalize-test.php fails if that line names a
-	// newer major.minor than the one recorded here. 7.1.2 since the 2026-09-25 capture.
-	'wordpress' => '7.1.2',
+	// newer major.minor than the one recorded here. 7.1.2 from the 2026-09-25 capture, 7.1.3 since 2026-10-09.
+	'wordpress' => '7.1.3',
 
 	// EVERY PLUGIN THAT WAS RUNNING, not only the four this record requires. The version
 	// list below answers "were the dependencies the same"; this answers "what else was in
@@ -187,7 +193,7 @@ return array(
 		// naming WooCommerce is a better failure than 19 page diffs with no stated cause.
 		'woocommerce/woocommerce.php' => array(
 			'label'    => 'WooCommerce',
-			'version'  => '11.1.2',
+			'version'  => '11.2.0',
 			'required' => true,
 		),
 	),
