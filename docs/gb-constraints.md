@@ -63,6 +63,31 @@ Re-emit conditions:
 - `source` → `src` (registered as option migration)
 - `tax` → `srcTermIn` on cross-source base tags (replaces `srcTerm` + `tax` pair)
 
+### Reserved keys are destructured into GB-private state and re-serialized even when unsupported
+
+**Dropping a `supports` value stops GB RENDERING that control, but does NOT stop GB owning and
+re-emitting its reserved key.** Verified GB 2.2.1 (`DynamicTagSelect.jsx`):
+
+- **Parse** (`:385-395`) destructures `id`, `source`, `key`, `link`, `required`, `tax`, `size`,
+  `dateFormat` out of `parsedTag.params` **unconditionally** — before `extraParams` (which becomes
+  `extraTagParams`) is formed. `size` then goes into GB's own `imageSize` state (`:443`, ungated).
+- **Serialize** (`:541`) re-emits it from that private state — `if ( imageSize && 'full' !== imageSize )
+  options.push('size:'+imageSize)` — also **ungated on `supports`**.
+- **Render** (`:800`) is the ONLY support-gated step (`tagSupportsImageSize`).
+
+So a tag that drops `'image-size'` support still round-trips a saved `size:` token: invisible in the
+modal, absent from `extraTagParams`, yet re-serialized on every save. The `tagSpecificControls`
+filter receives only `{ state: extraTagParams, setState: setExtraTagParams }` (`:112`), so **a custom
+control can neither read nor clear these reserved keys** — there is no plugin-side lever. The one
+exception is `key` on a tag without `meta` support, which lands back in `extraTagParams` (§Reserved
+Option Keys above).
+
+**Consequence for migrations:** a legacy reserved-key token can only be rewritten by transforming the
+**raw tag string before GB parses it** (our `TagConverter` path). An editor-open / control-mount fold
+is impossible for reserved keys. (This is the stranded-reserved-token trap that forced the
+`tax` → `srcTermIn` rename, in a different guise; hit again by the 1.16.0 image `as`+`size` fold —
+see [`tag-reference.md` §`as` serialization opt-out + `as`+`size` fold](tag-reference.md).)
+
 ## Option Default Serialization
 
 GB editor serializes named default values into the stored tag string even when the user never changed them. A PHP option definition like `'default' => 'none'` results in `{{tag key:none}}` on save, even for untouched options — creating unwieldy tags. Empty-string defaults (`''`) are dropped from the serialized tag.
@@ -95,32 +120,13 @@ Built-in options (`source`, `id`, `key`, `link`, `size`, `dateFormat`, `required
 - A custom control **can force canonical order** by rebuilding the whole `extraTagParams` object (re-inserting keys in the desired order) inside its `setState`, instead of spreading-and-appending. The stock `TextControl` path cannot — it only spreads-and-appends.
 - **Folding multiple fields into one composite-owned key** (e.g. `start:date,time`) makes intra-field order structural — the control builds the comma string itself, so GB never orders those sub-values. This is the only way to *guarantee* a fixed order between two values without owning every control that might touch the object. (Comma is opaque to GB's `parseTag()` — see §Tag string escape syntax.)
 
-### Reserved keys are destructured into GB-private state and re-serialized even when unsupported
+### Serialization order is independent of control (render) order — GB itself proves it
 
-**Dropping a `supports` value stops GB RENDERING that control, but does NOT stop GB owning and
-re-emitting its reserved key.** Verified GB 2.2.1 (`DynamicTagSelect.jsx`):
+The order options **serialize** in the tag string is a separate axis from the order their controls **render** top-to-bottom in the modal. **GB's own `post_date` demonstrates the split:** its modal renders **Date Format ABOVE Link To**, yet it serializes `{{post_date id:100|link:author_archive|dateFormat:F j, Y}}` — **link before format** (render puts format first, serialization puts it last). Render order is fixed by the control-render sequence; serialization order is `extraTagParams` insertion order (above). The two need not agree, and for `post_date` they don't.
 
-- **Parse** (`:385-395`) destructures `id`, `source`, `key`, `link`, `required`, `tax`, `size`,
-  `dateFormat` out of `parsedTag.params` **unconditionally** — before `extraParams` (which becomes
-  `extraTagParams`) is formed. `size` then goes into GB's own `imageSize` state (`:443`, ungated).
-- **Serialize** (`:541`) re-emits it from that private state — `if ( imageSize && 'full' !== imageSize )
-  options.push('size:'+imageSize)` — also **ungated on `supports`**.
-- **Render** (`:800`) is the ONLY support-gated step (`tagSupportsImageSize`).
+This is the affordance the plugin's reorder normalizer stands on: a per-tag JS normalizer (gated by tag name via `generateblocks.editor.tagSpecificControls`) rebuilds `extraTagParams` in a canonical serialization order inside `setState`, WITHOUT touching control render order (which stays the registration/PHP option-definition order). The gate is per-tag-name so a tag with a value-writing composite and the order-normalizer can coexist: they converge iff their guards test **disjoint** properties — the normalizer touches key-ORDER only, a composite touches key-VALUE only (spread-preserve `setState`), so neither perturbs the other's axis. The plugin's canonical orders and the normalizer's status live in [`tag-reference.md` §Option order](tag-reference.md#option-order); this is the pure GB fact that makes the decoupling possible.
 
-So a tag that drops `'image-size'` support still round-trips a saved `size:` token: invisible in the
-modal, absent from `extraTagParams`, yet re-serialized on every save. The `tagSpecificControls`
-filter receives only `{ state: extraTagParams, setState: setExtraTagParams }` (`:112`), so **a custom
-control can neither read nor clear these reserved keys** — there is no plugin-side lever. The one
-exception is `key` on a tag without `meta` support, which lands back in `extraTagParams` (§Reserved
-Option Keys above).
-
-**Consequence for migrations:** a legacy reserved-key token can only be rewritten by transforming the
-**raw tag string before GB parses it** (our `TagConverter` path). An editor-open / control-mount fold
-is impossible for reserved keys. (This is the stranded-reserved-token trap that forced the
-`tax` → `srcTermIn` rename, in a different guise; hit again by the 1.16.0 image `as`+`size` fold —
-see [`tag-reference.md` §`as` serialization opt-out + `as`+`size` fold](tag-reference.md).)
-
-### Switching tag type in the modal DISCARDS all options — there is no carry-over
+## Switching tag type in the modal DISCARDS all options — there is no carry-over
 
 Picking a different tag in the modal's tag selector resets the option state: nothing the author had
 configured on the previous tag survives the switch, even where the two tags share option keys
@@ -138,28 +144,18 @@ Today the author's workaround is hand-editing the tag string (retype the name, k
 That path holds only while both tags spell their options identically — the FW-57 slot fold ends it
 for base → `try_`, which is the trigger that surfaced this constraint.
 
-### Serialization order is independent of control (render) order — GB itself proves it
+## The tag modal: layout, typography and mountable components
 
-The order options **serialize** in the tag string is a separate axis from the order their controls **render** top-to-bottom in the modal. **GB's own `post_date` demonstrates the split:** its modal renders **Date Format ABOVE Link To**, yet it serializes `{{post_date id:100|link:author_archive|dateFormat:F j, Y}}` — **link before format** (render puts format first, serialization puts it last). Render order is fixed by the control-render sequence; serialization order is `extraTagParams` insertion order (above). The two need not agree, and for `post_date` they don't.
-
-This is the affordance the plugin's reorder normalizer stands on: a per-tag JS normalizer (gated by tag name via `generateblocks.editor.tagSpecificControls`) rebuilds `extraTagParams` in a canonical serialization order inside `setState`, WITHOUT touching control render order (which stays the registration/PHP option-definition order). The gate is per-tag-name so a tag with a value-writing composite and the order-normalizer can coexist: they converge iff their guards test **disjoint** properties — the normalizer touches key-ORDER only, a composite touches key-VALUE only (spread-preserve `setState`), so neither perturbs the other's axis. The plugin's canonical orders and the normalizer's status live in [`tag-reference.md` §Option order](tag-reference.md#option-order); this is the pure GB fact that makes the decoupling possible.
+What GB's editor modal does to the controls a tag registers: how they are laid out, how they look, and which of GB's own components a consumer can reuse. Serialization of the values they write is the section above.
 
 ### Option controls are flat siblings in a 15px-gap flex column
 
-`applyFilters( 'generateblocks.editor.tagSpecificControls', … )` is called once **per option**, and
-the returned elements are spread as siblings into the modal's content column — there is no per-option
-wrapper GB adds, and no seam that sees two options at once. The column is
-`.gb-dynamic-tag-modal__content{display:flex;flex-direction:column;gap:15px}` (GB 2.3.0 editor CSS).
+`applyFilters( 'generateblocks.editor.tagSpecificControls', … )` is called once **per option**, and the returned elements are spread as siblings into the modal's content column — there is no per-option wrapper GB adds, and no seam that sees two options at once. The column is `.gb-dynamic-tag-modal__content{display:flex;flex-direction:column;gap:15px}` (GB 2.3.0 editor CSS).
 
 Two consequences the plugin depends on:
 
-- **A filter cannot group options structurally.** Any visual grouping of separately-registered
-  options has to be drawn per member and joined by CSS across siblings, or else one control has to
-  swallow the others (and then own their `show_if` reveal). `assets/js/option-group.js` takes the
-  first route; FW-64 tracks the second.
-- **The 15px is a load-bearing number**, since closing the gap between two joined members means
-  cancelling exactly it. It is a `--bws-optgroup-gap` custom property rather than a literal for that
-  reason. The same gap is why controls inside our own boxes carry no `marginBottom`.
+- **A filter cannot group options structurally.** Any visual grouping of separately-registered options has to be drawn per member and joined by CSS across siblings, or else one control has to swallow the others (and then own their `show_if` reveal). `assets/js/option-group.js` takes the first route; FW-64 tracks the second.
+- **The 15px is a load-bearing number**, since closing the gap between two joined members means cancelling exactly it. It is a `--bws-optgroup-gap` custom property rather than a literal for that reason. The same gap is why controls inside our own boxes carry no `marginBottom`.
 
 ### Tag modal geometry
 
@@ -194,6 +190,25 @@ The look of a modal control's label, checkbox and radio is WP's, not GB's: GB's 
 | PanelBody title (`.components-panel__body-toggle`) | `font-weight:600`, `color:#1e1e1e`, `font-size` inherited, no `text-transform` | `style.css` |
 
 Two consequences for our own controls. A checkbox label is regular case at the surrounding weight, so a heading drawn as a `CheckboxControl` cannot read as the uppercase BaseControl label unless the plugin styles it. And WP has no style for a quieter sub-caption (a non-uppercase label under a group heading): any such caption, and any group heading meant to outrank the 11px uppercase labels, is plugin-chosen, drawn the way `slot-fold-control.js` and [`option-group.js`](../assets/js/option-group.js) draw theirs. The live accent color is `var(--wp-admin-theme-color)` and follows the user's admin color scheme; `#3858e9` is only the fallback in WP's CSS.
+
+### GB's own components can be mounted in the modal, but only some, and only unofficially
+
+GB 2.4.1 registers three script packages, `generateblocks-components`, `generateblocks-styles-builder` and `generateblocks-block-styles` (`includes/general.php`, the `edge22_packages` loop), each setting a global (`window.gb.components`, `window.gb.stylesBuilder`, `window.gb.blockStyles`). Each also gets a style handle that is an empty stub depending on `generateblocks-packages` (`packages.css`). None of it is documented as an API. The export list and the behavior below were read from the minified `dist/` bundles of GB 2.4.1 on 2026-10-08; the rows marked MEASURED were then confirmed in the testbed's block editor the same day by mounting the component in an open tag modal.
+
+| Piece | Fact | Basis |
+|---|---|---|
+| Load | In the editor, `window.gb.stylesBuilder` and its CSS were already on the page before our scripts ran (`preloaded: true`, nothing had to be loaded). That says nothing about load order on other pages or versions, so a consumer still declares the script handle and enqueues the style handle | MEASURED |
+| `stylesBuilder.UnitControl` | Needs no provider. Props `value`, `onChange`, `label`, `units` (default `px em % rem vw vh ch`), `placeholder`, `min`, `max`, `allowOtherUnits`. The field holds only the number and a flag button on the right shows the unit; typing `2rem` moves the unit to the flag. Emits one string (`"2rem"`) | MEASURED |
+| Unit parsing | A value that is not a plain number (`var(--x)`, `calc(...)`) is kept verbatim, the flag is hidden and no unit is applied. A bare `0` drops the unit. The flag menu lists the `units` prop; a parsed unit outside it takes over the last slot. Parsing recognizes about 30 units (the `dvh` and `svh` families, `fr`, `s`, `ms` and others) | MEASURED for `var()`, `calc()`, the restricted list and the default list; the rest read from source |
+| `UnitControl` menu | A hard-coded "Learn more about units" item, an MDN link, ends every unit menu | MEASURED (the `?` icon) |
+| `min` | Defaults to `0` but is not enforced on typing, and the arrow-key handler does not clamp | Read from source |
+| `stylesBuilder.ButtonIconControl`, `stylesBuilder.ColorPicker` and `components.ColorPicker` | Also need no provider. `ColorPicker` writes a fixed `rgba()` when an opacity is applied, so a color variable and an opacity cannot be held together in its output | Read from source; the `rgba()` consequence is the author's observation of the sidebar |
+| `stylesBuilder.Control` (the label with the ⋮ menu) and `stylesBuilder.DimensionsControl` | Read `StylesBuilderContext` (`atRule`, `inheritedSources`, `controlFilters`), so they do not mount without that provider | Read from source |
+| The Typography panel | Not exported. Its Font Weight is a WP `SelectControl` with a fixed option list and its Text Alignment a `ButtonIconControl` group; the Font Size and Font Style controls were not read | Read from source |
+| Flag placement collision | GB's modal rule gives every `.components-button` inside `.gb-dynamic-tag-modal` `align-self:flex-start` (the last row of the geometry table above). It beats the flag wrapper's `align-items:center`, so the flag sits at the top edge of the field. `align-self:center` on the flag button restores the middle | MEASURED, fix included |
+| aria warning | Opening the flag menu logged the browser's "Blocked aria-hidden on an element because its descendant retained focus" warning, the ancestor being WP's `components-popover__fallback-container`. WP's `Modal` hides the other `body` children from assistive technology, and a popover mounted into that container takes focus inside it. It recurred on later flag clicks but never on every click, and no sequence reproduced it reliably. A plain WP `DropdownMenu` given GB's exact popover props (`focusOnMount:true`) never logged it over many clicks, so the warning is not simply WP's Modal plus that prop. An observer on `aria-hidden` changes showed the popover container is created lazily on the first menu open (after the Modal's hiding pass, with `aria-hidden` unset); the explanation that a container already present at modal open gets hidden was tested by reopening the modal and not supported, since it did not reproduce each time. The cause is unknown. `UnitControl` does not expose its popover props, so a consumer could not change it. No functional effect was seen | MEASURED (intermittent); cause unknown |
+
+Where our own response is enforced is not here: no plugin code consumes any of this yet.
 
 ## Replacement is gated on block NAME — and the gate is filterable
 
