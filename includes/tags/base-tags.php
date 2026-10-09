@@ -1252,11 +1252,11 @@ function bws_base_permalink_callback( $options, $block, $instance ): string {
  * THE FAMILY'S RESOLVE SEAM: `{{try_image}}` attempts run through it too
  * (`resolve_fn`). Reads no `limit` (`takes_first_usable`, ADR 0007, enforced above).
  *
- * THE STATED FALLBACK STAYS IN THE VALUE (unlike text): the cores emit it
- * (bws_image_stated_fallback) on a falsy id, so a fallback image is a NON-EMPTY read and
- * doesn't yield to the next attempt. Arms reaching no core (`meta_row`, refusal) emit it
- * themselves. Lifting it into the shell would MOVE OUTPUT (site with no logo, empty term
- * fan print nothing today).
+ * THE CORES' STATED FALLBACK STAYS IN THE VALUE: the post, term and user cores emit it
+ * (bws_image_stated_fallback) on a miss, so under try_ a fallback image would be a NON-EMPTY
+ * read that never yields to the next attempt — which is why the attempt walk strips
+ * `fallback` before it calls here. Every other empty arm (refusal, `meta_row`, an empty term
+ * fan, a site read) returns '' and bws_base_image_callback() emits the fallback once.
  *
  * No list mode, no link identity (`link_id` constant 0).
  *
@@ -1283,13 +1283,8 @@ function bws_base_image_resolve_value( array $options, $instance ): array {
 
 	$base = bws_base_resolve_source_for_callback( $options, $instance );
 
-	// REFUSED — read nothing; emit the fallback directly (no core may be reached).
-	// THE ONLY PREVIEW TEST IN THIS SEAM: the one arm where label and fallback image can
-	// both apply. '' in preview hands the shell an empty read to label.
+	// REFUSED — read nothing; no core may be reached. The shell emits the fallback.
 	if ( bws_base_read_refused( $res, $base, array( 'meta_row' ) ) ) {
-		$out['value'] = empty( $instance->context['bwsEditorPreview'] )
-			? bws_image_stated_fallback( $options, $instance )
-			: '';
 		return $out;
 	}
 
@@ -1297,7 +1292,7 @@ function bws_base_image_resolve_value( array $options, $instance ): array {
 	// falls through to the post route's fallback emit.
 	$ambient = bws_base_ambient_analog( 'image', $base, $options, $instance );
 	if ( null !== $ambient ) {
-		// The term core already tried the fallback; only the shell's label remains.
+		// The term/user core already tried the fallback.
 		$out['value'] = $ambient['value'];
 		return $out;
 	}
@@ -1309,14 +1304,14 @@ function bws_base_image_resolve_value( array $options, $instance ): array {
 		// RAW seam read: an ACF image sub-field is an ARRAY, which the string seam drops.
 		// The analog (`featured`) refuses on a row.
 		//
-		// FALLBACK EMITTED HERE, not in the core (a row has no id to merge): covers both
-		// an imageless row and a repeater with no rows, like the post route.
+		// The row core emits no fallback (a row has no id to merge), so an imageless row and
+		// a repeater with no rows both arrive empty and the shell emits it.
 		$found = bws_read_bounded_sources(
 			bws_base_sources_of_kind( $base, $options, 'meta_row', true ),
 			static fn( $row_source ) => bws_try_image_row_dispatch( $row_source, $options, $instance ),
 			1
 		);
-		$out['value'] = $found ? (string) $found[0] : bws_image_stated_fallback( $options, $instance );
+		$out['value'] = $found ? (string) $found[0] : '';
 		return $out;
 	}
 
@@ -1350,26 +1345,35 @@ function bws_base_image_resolve_value( array $options, $instance ): array {
  * Callback for the `image` base tag.
  *
  * Shell over bws_base_image_resolve_value(): resolve the value, then on empty output the
- * editor preview label. No link wrap — this family registers no link options.
+ * editor preview label, else the stated fallback. No link wrap — this family registers no
+ * link options.
  *
- * NO STATED FALLBACK HERE, unlike bws_base_text_callback(). The fallback is part of the
- * seam's VALUE on every arm that has one (the seam's PHPDoc says which, and why hoisting it
- * up here would move output), so a value that arrives empty has already been through
- * whatever fallback there was to try.
+ * The fallback fires HERE on any empty value, as in bws_base_text_callback(): the fallback is
+ * the last resort whether or not the source reached an entity. The cores also emit it, so
+ * this fires for the arms that reach none (see the seam's PHPDoc).
  *
  * @since 1.6.0
  * @since 1.21.0 Value resolution extracted to bws_base_image_resolve_value().
  */
 function bws_base_image_callback( $options, $block, $instance ): string {
-	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
+	$options = (array) $options;
 
-	$value = bws_base_image_resolve_value( (array) $options, $instance )['value'];
+	$value = bws_base_image_resolve_value( $options, $instance )['value'];
 	if ( '' !== $value ) {
 		return $value;
 	}
 
-	// bws_build_preview_label returns '' for as:url and as:id — attribute contexts where a bracket string breaks the element.
-	return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'image' ) : '';
+	// UNLIKE TEXT, AN EMPTY LABEL FALLS THROUGH: bws_build_preview_label() returns '' for
+	// as:url and as:id (a bracket string breaks the attribute it lands in), and there the
+	// fallback image is the better editor output than an empty src.
+	if ( ! empty( $instance->context['bwsEditorPreview'] ) && function_exists( 'bws_build_preview_label' ) ) {
+		$label = bws_build_preview_label( $options, 'image' );
+		if ( '' !== $label ) {
+			return $label;
+		}
+	}
+
+	return bws_image_stated_fallback( $options, $instance );
 }
 
 // ===============================================

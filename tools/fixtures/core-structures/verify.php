@@ -800,6 +800,73 @@ if ( $roster_page instanceof WP_Post && function_exists( 'bws_run_step' ) ) {
 }
 
 /* ---------------------------------------------------------------------------
+ * {{image}}'s STATED FALLBACK on an empty read that reaches no core (GH #139, fold matrix
+ * §F11b.3c-f).
+ *
+ * Here and not in the matrix alone because a fallback is a Media Library id assigned at seed
+ * time: F11b.3's standing exception keeps every such row off the visible pages, so no page
+ * snapshot can see this axis move. The id is looked up, never written down.
+ *
+ * THE REFERENCE IS THE POST CORE'S OWN EMIT (a keyed miss on this page), so each shape below is
+ * asserted to land on the SAME picture the arm that always worked produces, not on a URL this
+ * file derives itself.
+ * ------------------------------------------------------------------------ */
+$fb_render = static function ( $tag, $preview = false ) {
+	$fb_instance          = new stdClass();
+	$fb_instance->context = $preview ? array( 'bwsEditorPreview' => true ) : array();
+	return (string) GenerateBlocks_Register_Dynamic_Tag::replace_tags( $tag, array(), $fb_instance );
+};
+$fb_ref = $photo_id ? $fb_render( '{{image key:feature_image_missing|fallback:' . $photo_id . '|as:url}}' ) : '';
+$check( 'F11b.3 reference: a keyed miss on the post route renders the fallback URL', '' !== $fb_ref, 'photo=' . $photo_id . ' ref=' . var_export( $fb_ref, true ) );
+
+if ( '' !== $fb_ref ) {
+	$check(
+		'F11b.3d assumes NO site logo is set',
+		! get_theme_mod( 'custom_logo' ),
+		'custom_logo=' . var_export( get_theme_mod( 'custom_logo' ), true ) . '. A logo makes F11b.3d render it, not the fallback.'
+	);
+	$fb_site = $fb_render( '{{image as:url|src:site|use:featured|fallback:' . $photo_id . '}}' );
+	$check( 'F11b.3d a logo-less src:site renders the stated fallback', $fb_ref === $fb_site, 'out=' . var_export( $fb_site, true ) );
+
+	$fb_badkey = $fb_render( '{{image key:bad key|fallback:' . $photo_id . '|as:url}}' );
+	$check( 'F11b.3e an invalid meta key renders the stated fallback', $fb_ref === $fb_badkey, 'out=' . var_export( $fb_badkey, true ) );
+
+	$fb_option = $fb_render( '{{image as:url|src:site|use:key|key:bws_not_allowlisted_probe|fallback:' . $photo_id . '}}' );
+	$check( 'F11b.3f a site option the allowlist refuses renders the stated fallback', $fb_ref === $fb_option, 'out=' . var_export( $fb_option, true ) );
+
+	// The empty term fan needs an ambient post with NO department terms; this page carries
+	// some. The swap is restored before the next section.
+	if ( $roster_page instanceof WP_Post ) {
+		$check(
+			'F11b.3c assumes matrix-repeaters carries no department terms',
+			! has_term( '', 'department', $roster_page ),
+			'terms=' . wp_json_encode( wp_get_post_terms( $roster_page->ID, 'department', array( 'fields' => 'slugs' ) ) )
+		);
+		$fb_prev_post    = $GLOBALS['post'] ?? null;
+		$GLOBALS['post'] = $roster_page;
+		setup_postdata( $roster_page );
+
+		$fb_term_tag = '{{image srcTermIn:department|key:term_image|fallback:' . $photo_id . '|as:url}}';
+		$fb_term     = $fb_render( $fb_term_tag );
+		$check( 'F11b.3c an empty term fan renders the stated fallback', $fb_ref === $fb_term, 'out=' . var_export( $fb_term, true ) );
+
+		// Editor arm: as:url has no preview label (see bws_base_image_callback()), so the
+		// fallback stands in rather than leaving the src empty.
+		$fb_term_preview = $fb_render( $fb_term_tag, true );
+		$check( 'F11b.3c in the editor, as:url falls through to the fallback (its label is empty)', $fb_ref === $fb_term_preview, 'out=' . var_export( $fb_term_preview, true ) );
+
+		// ...while a text mode keeps its label: the author sees the configuration.
+		$fb_term_label = $fb_render( '{{image srcTermIn:department|key:term_image|fallback:' . $photo_id . '|as:alt}}', true );
+		$check( 'F11b.3c in the editor, as:alt shows the preview label, not the fallback', 0 === strpos( $fb_term_label, '[' ), 'out=' . var_export( $fb_term_label, true ) );
+
+		$GLOBALS['post'] = $fb_prev_post;
+		if ( $fb_prev_post instanceof WP_Post ) {
+			setup_postdata( $fb_prev_post );
+		}
+	}
+}
+
+/* ---------------------------------------------------------------------------
  * P4 — GB's REST user-meta restriction reaches our author image read (#143).
  *
  * Part of the GB trust-model section above, and AT THE FOOT OF THE IN-PROCESS CHECKS FOR ONE

@@ -26,11 +26,11 @@ use BWS\DynamicTags\Admin\SettingsPage;
 /**
  * The tag's STATED fallback image, rendered — {{image}}'s half of the fallback emit.
  *
- * One owner for what both cores already did at three sites: derive the media id and
- * the `as`+size pair off the options, then hand them to bws_handle_media_fallback().
- * The base arm's refusal guard (GH #109) needs the same emit without a core to reach
- * it through, and a fourth copy of the three-line derivation is how `as`/`size` drift
- * starts — see the as+size fold's own history.
+ * One owner for the cores' emit and for the two shells that emit it without a core
+ * (bws_base_image_callback() on any empty value, the try_image shell after its attempts):
+ * derive the media id and the `as`+size pair off the options, then hand them to
+ * bws_handle_media_fallback(). A second copy of that derivation is how `as`/`size` drift
+ * starts.
  *
  * The derivation is deliberately identical for both cores: the fallback image is a
  * property of the TAG, not of which read missed, so `use:featured` and a field key
@@ -140,9 +140,9 @@ function bws_custom_image_core( $post_id, $options, $instance ) {
  *
  * NO FALLBACK IS EMITTED HERE, unlike bws_custom_image_core(). A row is not an entity, so
  * there is no id to merge into $options for the fallback's own render, and the tag's
- * stated fallback is a property of the TAG rather than of which row missed — the base arm
- * emits it ONCE on an empty result (bws_base_image_resolve_value()'s `meta_row` branch),
- * which is what keeps a `rows` chain's fallback behavior identical to the post route's.
+ * stated fallback is a property of the TAG rather than of which row missed — the base shell
+ * emits it ONCE on an empty result (bws_base_image_callback()), which is what keeps a `rows`
+ * chain's fallback behavior identical to the post route's.
  * Under try_ the question does not arise: the attempt walk strips `fallback` from the
  * options it evaluates with and the try_ shell emits it itself.
  *
