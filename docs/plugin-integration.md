@@ -533,7 +533,7 @@ For wp_options arrays, the **root** key is what's allowlisted (`my_plugin_settin
 |----------|---------|
 | `bws_reliable_term_context_detection( $options )` | Multi-fallback term ID detection (archive, loop, option) |
 | `bws_get_validated_term( $term_id )` | Validate and retrieve WP_Term object |
-| `bws_get_term_field_image_data( $term_id, $taxonomy, $field_key, $return_type, $size )` | Image from term ACF/meta field |
+| `bws_get_term_field_image_data( $term_id, $field_key, $return_type, $size )` | Image from term ACF/meta field |
 | `bws_get_terms_for_post( $post_id, $options )` | Returns `WP_Term[]` in taxonomy from `$options['tax']` (legacy `taxonomy` accepted as fallback) |
 | `bws_post_term_extraction_options()` | Standard `tax` + `fallback` options for post-context term templates |
 | `bws_post_term_image_options()` | `tax` + `key` options for post-context term image templates |

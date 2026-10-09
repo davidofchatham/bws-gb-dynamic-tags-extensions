@@ -195,7 +195,8 @@ function bws_get_term_field_image_data( $term_id, $field_key, $return_type = 'ur
 		return '';
 	}
 
-	$image_value = bws_read_term_field( $field_key, (int) $term_id, false );
+	// Scalar or array: an ACF image field's return format decides which.
+	$image_value = bws_meta_handler_read_preserving_arrays( (int) $term_id, $field_key, 'get_term_meta' );
 
 	if ( empty( $image_value ) ) {
 		return '';

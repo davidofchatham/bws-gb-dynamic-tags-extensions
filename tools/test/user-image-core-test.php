@@ -25,9 +25,9 @@ function bws_handle_media_fallback( $fallback, $mode, $size, $options, $instance
 	return '' === (string) $fallback ? '' : 'FALLBACK(' . $fallback . ')';
 }
 // Records every read so a branch that must NOT read can be told from one that read and missed.
-function bws_read_resolved_source_value( array $source, string $key, $instance ) {
-	$GLOBALS['reads'][] = array( $source['kind'], $source['id'], $key );
-	return $GLOBALS['stored'][ $source['id'] . ':' . $key ] ?? '';
+function bws_meta_handler_read_preserving_arrays( int $object_id, string $key, string $wp_fn ) {
+	$GLOBALS['reads'][] = array( $wp_fn, $object_id, $key );
+	return $GLOBALS['stored'][ $object_id . ':' . $key ] ?? '';
 }
 // Stands in for the shared processor: '' for a value it cannot make an image of.
 function bws_process_meta_image_value( $meta_value, $mode, $size ) {
@@ -55,7 +55,7 @@ function run_core( $user_id, array $options, array $stored = array() ) {
 
 // A keyed hit reads THIS user's field and renders what the shared processor makes of it.
 eq( 'keyed hit', 'IMG(128,id)', run_core( 7, array( 'key' => 'photo', 'as' => 'id' ), array( '7:photo' => 128 ) ) );
-eq( 'keyed hit reads kind user, the given id, the given key', array( array( 'user', 7, 'photo' ) ), $GLOBALS['reads'] );
+eq( 'keyed hit reads user meta, the given id, the given key', array( array( 'get_user_meta', 7, 'photo' ) ), $GLOBALS['reads'] );
 eq( 'legacy field_key alias reads', 'IMG(128,id)', run_core( 7, array( 'field_key' => 'photo', 'as' => 'id' ), array( '7:photo' => 128 ) ) );
 eq( 'a hit beats a stated fallback', 'IMG(128,id)', run_core( 7, array( 'key' => 'photo', 'as' => 'id', 'fallback' => 55 ), array( '7:photo' => 128 ) ) );
 
@@ -73,6 +73,8 @@ eq( 'no key read nothing', array(), $GLOBALS['reads'] );
 eq( 'no key, no fallback', '', run_core( 7, array() ) );
 eq( 'invalid key -> fallback only', 'FALLBACK(55)', run_core( 7, array( 'key' => 'bad key!', 'fallback' => 55 ) ) );
 eq( 'invalid key read nothing', array(), $GLOBALS['reads'] );
+eq( 'no user -> fallback only', 'FALLBACK(55)', run_core( 0, array( 'key' => 'photo', 'fallback' => 55 ), array( '0:photo' => 128 ) ) );
+eq( 'no user read nothing', array(), $GLOBALS['reads'] );
 
 // The legacy `id` option is the fallback attachment when `fallback` is absent (the shared stated-fallback rule).
 eq( 'id is the fallback attachment', 'FALLBACK(9)', run_core( 7, array( 'key' => 'photo', 'id' => 9 ) ) );

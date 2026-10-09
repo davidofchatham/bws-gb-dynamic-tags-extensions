@@ -25,6 +25,9 @@
  *   §R2  the raw seam beside it — where the two ANSWER DIFFERENTLY, and where they do not
  *   §R3  bws_read_field_preserving_arrays() — each pass, and the family of miss it covers
  *   §R4  the post/0 guard, on both halves
+ *   §R5  bws_meta_handler_read_preserving_arrays() — the id-based twin of §R3 — and the
+ *        three readers on it: the term image getter, the `refs` step's term arm, and the
+ *        seam's user arm crossing GB's handler
  *
  * Run:  php tools/test/read-resolved-source-test.php   (exit 0 = pass, 1 = fail)
  *
@@ -39,17 +42,31 @@ define( 'ABSPATH', __DIR__ );
 // `gallery` is the ACF Image Array format — the value no string-typed seam can carry.
 // `logo` is the URL format, and it is FILTER-POPULATED, which is the half of the
 // quirk a single array-preserving read would drop.
+// `partner` is a single ACF Post Object field returning Post ID: a filter-populated
+// scalar the `refs` step must carry. `secret` stands in for a GB-disallowed key.
 const STUB_META = array(
 	'gallery' => array( 'ID' => 44, 'url' => 'https://example.test/logo.png' ),
 	'logo'    => 'https://example.test/logo.png',
 	'name'    => 'Ada Lovelace',
 	'zero'    => '0',
+	'partner' => '1777',
+	'secret'  => 'never read',
 );
-const STUB_FILTER_POPULATED = array( 'logo' );
+const STUB_FILTER_POPULATED = array( 'logo', 'partner' );
+
+$GLOBALS['meta_handler_calls'] = array();
+
+if ( ! class_exists( 'GenerateBlocks_Dynamic_Tag_Security' ) ) {
+	class GenerateBlocks_Dynamic_Tag_Security {
+		const DISALLOWED_KEYS = array( 'secret' );
+	}
+}
 
 if ( ! class_exists( 'GenerateBlocks_Meta_Handler' ) ) {
 	class GenerateBlocks_Meta_Handler {
 		public static function get_meta( $id, $key, $single_only = true, $callable = null, $fallback = '' ) {
+			// Recorded so a row can say WHICH store a read crossed GB's handler for.
+			$GLOBALS['meta_handler_calls'][] = array( $callable, $key, $single_only );
 			$raw = STUB_META[ $key ] ?? '';
 
 			if ( is_array( $raw ) || is_object( $raw ) ) {
@@ -113,7 +130,17 @@ if ( ! function_exists( 'bws_wp_is_term_archive' ) ) {
 	}
 }
 
+// Stands in for the shared image processor: what it was handed, so a row can tell a
+// read that reached it from one that dropped the value first.
+if ( ! function_exists( 'bws_process_meta_image_value' ) ) {
+	function bws_process_meta_image_value( $meta_value, $return_type = 'url', $size = 'full' ) {
+		return 'IMG(' . json_encode( $meta_value ) . ')';
+	}
+}
+
 require __DIR__ . '/../../includes/helpers/field-helpers.php';
+require __DIR__ . '/../../includes/helpers/taxonomy-helpers.php';
+require __DIR__ . '/../../includes/helpers/traversal-pipeline.php';
 
 $failures = 0;
 $count    = 0;
@@ -222,6 +249,40 @@ assert_same( 'R4.1 the raw seam refuses post 0', '', raw_read( array( 'kind' => 
 assert_same( 'R4.2 the string seam refuses it too', '', str_read( array( 'kind' => 'post', 'id' => 0 ), 'name' ) );
 assert_same( 'R4.3 a post source with no id at all is the same answer', '', raw_read( array( 'kind' => 'post' ), 'name' ) );
 assert_same( 'R4.4 and the user arm guards its own id the same way', '', raw_read( array( 'kind' => 'user', 'id' => 0 ), 'name' ) );
+
+echo "\n=== R5 - the id-based array-preserving read, and the three readers on it (#143) ===\n";
+
+// The post twin's rule, for an entity read by id: either pass alone drops one family.
+assert_same(
+	'R5.1 a term array comes back',
+	array( 'ID' => 44, 'url' => 'https://example.test/logo.png' ),
+	bws_meta_handler_read_preserving_arrays( 7, 'gallery', 'get_term_meta' )
+);
+assert_same( 'R5.2 a filter-populated term scalar comes back', 'https://example.test/logo.png', bws_meta_handler_read_preserving_arrays( 7, 'logo', 'get_term_meta' ) );
+assert_same( 'R5.3 the array-preserving term read ALONE drops it (the #143 quirk, as a row)', '', bws_read_term_field( 'logo', 7, false ) );
+assert_same( 'R5.4 a miss stays a miss', '', bws_meta_handler_read_preserving_arrays( 7, 'absent', 'get_term_meta' ) );
+
+$GLOBALS['meta_handler_calls'] = array();
+assert_same( 'R5.5 a disallowed key is refused', null, bws_meta_handler_read_preserving_arrays( 7, 'secret', 'get_term_meta' ) );
+assert_same( 'R5.6 and never reaches the store', array(), $GLOBALS['meta_handler_calls'] );
+
+// The readers. The term image getter hands the processor what the field holds, scalar or array.
+assert_same( 'R5.7 term image getter: URL-return field reaches the processor', 'IMG("https:\/\/example.test\/logo.png")', bws_get_term_field_image_data( 7, 'logo' ) );
+assert_same( 'R5.8 term image getter: Array-return field still does', 'IMG(' . json_encode( STUB_META['gallery'] ) . ')', bws_get_term_field_image_data( 7, 'gallery' ) );
+
+// The `refs` step's term arm: a single Post Object field returning Post ID is a scalar.
+$ref = array( 'type' => 'refs', 'field' => 'partner' );
+assert_same( 'R5.9 refs step on a term: a Post ID scalar comes back', '1777', bws_pipeline_default_reader( $ref, TERM_SRC ) );
+assert_same(
+	'R5.10 refs step on a term: an array still does',
+	STUB_META['gallery'],
+	bws_pipeline_default_reader( array( 'type' => 'refs', 'field' => 'gallery' ), TERM_SRC )
+);
+
+// The seam's user arm crosses GB's handler (and so GB's REST user-meta gate), asking single-only.
+$GLOBALS['meta_handler_calls'] = array();
+assert_same( 'R5.11 user arm still reads the value', 'Ada Lovelace', raw_read( USER_SRC, 'name' ) );
+assert_same( 'R5.12 through Meta_Handler, single-only, against user meta', array( array( 'get_user_meta', 'name', true ) ), $GLOBALS['meta_handler_calls'] );
 
 echo "\n";
 echo $failures

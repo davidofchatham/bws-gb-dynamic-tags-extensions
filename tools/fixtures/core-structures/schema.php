@@ -847,8 +847,7 @@ function bws_fixture_core_structures_register_acf() {
 	// THE THREE RETURN FORMATS, one field each, because the format is a property of the
 	// FIELD, not of the stored value: ACF writes the attachment ID to user meta whichever
 	// format it returns, so a plain `get_user_meta()` hands back the same ID for all three.
-	// The trio is here to pin exactly that, so a read that went through `get_field()`
-	// formatting instead of the stored value would change at least one row.
+	// The trio pins that every format renders, whichever shape the read hands back.
 	// `author_photo_plain` is the non-ACF shape (a bare attachment ID in user meta with no
 	// field definition) and is seeded by seed.php, not declared here.
 	acf_add_local_field_group(
@@ -920,20 +919,52 @@ function bws_fixture_core_structures_register_acf() {
 					// above answers a chain STARTING from a post (`refs,...;terms,
 					// department`); this is the one field in the blueprint that makes
 					// the REVERSE hop (term → post) expressible off a term that is
-					// itself a chain ROOT rather than a step's landing spot.
-					//
-					// TYPE IS `relationship`, NOT `post_object` — load-bearing, not a
-					// style choice. See docs/gb-constraints.md
-					// §GenerateBlocks_Meta_Handler::get_value() drops a SCALAR once
-					// single_only is false, which owns the measurement and the rule;
-					// `related_staff` above already follows it for the post-hop
-					// direction.
+					// itself a chain ROOT rather than a step's landing spot. Its
+					// scalar-storage twin is `dept_liaison` below.
 					'key'           => 'field_bwsfx_dept_lead',
 					'name'          => 'dept_lead',
 					'label'         => 'Department Lead',
 					'type'          => 'relationship',
 					'post_type'     => array( 'staff' ),
 					'max'           => 1,
+					'return_format' => 'id',
+				),
+				array(
+					// v30 (#143) — the SCALAR-storage term → post reference: a single
+					// `post_object` returning Post ID stores a bare id, which an
+					// array-preserving term read alone drops (docs/gb-constraints.md
+					// §GenerateBlocks_Meta_Handler::get_value() drops a SCALAR once
+					// single_only is false). fold-test-matrix.md §F20 reads it.
+					'key'           => 'field_bwsfx_dept_liaison',
+					'name'          => 'dept_liaison',
+					'label'         => 'Department Liaison',
+					'type'          => 'post_object',
+					'post_type'     => array( 'staff' ),
+					'multiple'      => 0,
+					'return_format' => 'id',
+				),
+				// v30 (#143) — the term image read, one field per ACF return format.
+				// The format is a property of the FIELD; all three hold the same
+				// attachment, so the rows reading them can differ only by the read.
+				array(
+					'key'           => 'field_bwsfx_dept_logo_array',
+					'name'          => 'dept_logo_array',
+					'label'         => 'Department Logo (array)',
+					'type'          => 'image',
+					'return_format' => 'array',
+				),
+				array(
+					'key'           => 'field_bwsfx_dept_logo_url',
+					'name'          => 'dept_logo_url',
+					'label'         => 'Department Logo (URL)',
+					'type'          => 'image',
+					'return_format' => 'url',
+				),
+				array(
+					'key'           => 'field_bwsfx_dept_logo_id',
+					'name'          => 'dept_logo_id',
+					'label'         => 'Department Logo (ID)',
+					'type'          => 'image',
 					'return_format' => 'id',
 				),
 			),

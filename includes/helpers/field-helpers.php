@@ -826,18 +826,9 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
 /**
  * Read a post-context field without losing an ARRAY value — two passes.
  *
- * bws_read_field()'s $single_only = false is not usable on its own. GB's
- * Meta_Handler answers the fallback ('') for a plain scalar when an upstream
- * filter (ACF's generateblocks_get_meta_pre_value) populated the value, so a
- * URL/ID-format ACF image field would read empty. Ask single-only first, and
- * fall through to the array-preserving pass only when that yields nothing.
- *
- * THE ORDER IS NOT LOAD-BEARING, and that was measured rather than assumed:
- * the passes answer '' for opposite inputs (pass 1 coerces an array away, pass 2
- * blanks a filter-populated scalar) and no value is both, so either order
- * recovers the same value — swapping them fails nothing in
- * tools/test/read-resolved-source-test.php §R3. It reads single-only first
- * because that is the common case and answers it in one read.
+ * The post twin of bws_meta_handler_read_preserving_arrays(), whose PHPDoc owns
+ * the two-pass rule and why its order is not load-bearing. This one reads through
+ * bws_read_field() instead, for that function's post-context inference.
  *
  * TWO CALLERS, AND THE SECOND ONE IS WHY THIS IS A FUNCTION RATHER THAN A LINE
  * INSIDE THE SEAM. The L2 seam's post arm (bws_read_resolved_source_value()) reads
@@ -900,7 +891,7 @@ function bws_read_term_field( string $key, int $term_id, bool $single_only = tru
  * post → post meta with an EXPLICIT id (triggers the explicit-wins rule in
  * bws_read_field, bypassing ITS own loop/term inference so the factory's resolved
  * source is authoritative — no double resolution). meta_row → the row's own key.
- * user → plain user meta.
+ * user → user meta through GB's Meta_Handler.
  *
  * RETURNS WHAT THE STORE HOLDS, arrays included. bws_read_resolved_source() is
  * the string coercion over this, and every reader that wants one value takes
@@ -933,16 +924,16 @@ function bws_read_resolved_source_value( array $source, string $key, $instance )
 			return is_array( $row ) ? ( $row[ $key ] ?? '' ) : '';
 
 		case 'user':
-			// Plain user-meta read, NOT the analog reader (bws_base_user_analog_read
-			// lives in base-shared, loaded AFTER this file — and it reads analogs, not
-			// meta; different concern). Reached today by bws_user_custom_image_core()
-			// alone (the ambient author's keyed image read); the post→author step
-			// (FW-48) will add the rest.
+			// User-meta read, NOT the analog reader (bws_base_user_analog_read lives in
+			// base-shared, loaded AFTER this file — and it reads analogs, not meta;
+			// different concern). Through GB's Meta_Handler, never raw get_user_meta():
+			// that is where GB's REST user-meta restriction lives. No caller passes a
+			// user-kind source today; the post→author step (FW-48) is the first that will.
 			$user_id = (int) ( $source['id'] ?? 0 );
 			if ( $user_id <= 0 || bws_field_key_disallowed( $key ) ) {
 				return '';
 			}
-			return get_user_meta( $user_id, $key, true );
+			return bws_meta_handler_read( $user_id, $key, true, 'get_user_meta' );
 
 		case 'post':
 			// Explicit id → explicit-wins → bypasses bws_read_field's own loop/term
@@ -971,7 +962,7 @@ function bws_read_resolved_source_value( array $source, string $key, $instance )
  * one at the raw seam — which is the whole reason the two are separate.
  *
  * @since 1.14.0
- * @since 1.16.0 user kind (first reached in 1.21.0 by the author image read).
+ * @since 1.16.0 user kind.
  * @since 1.21.0 The kind dispatch lives in bws_read_resolved_source_value().
  * @param array  $source   One resolved source ({kind,id}|{kind:site}|{kind:meta_row,row}).
  * @param string $key      Field key.
@@ -1549,7 +1540,7 @@ function bws_value_is_populated( $value ): bool {
  * @param int    $object_id   Post or term ID.
  * @param string $key         Meta key.
  * @param bool   $single_only When false, return raw (preserves ACF arrays).
- * @param string $wp_fn       Fallback WP function: get_post_meta or get_term_meta.
+ * @param string $wp_fn       Fallback WP function: get_post_meta, get_term_meta or get_user_meta.
  * @return mixed
  */
 if ( ! function_exists( 'bws_meta_handler_read' ) ) {
@@ -1562,6 +1553,45 @@ function bws_meta_handler_read( int $object_id, string $key, bool $single_only, 
 	if ( $single_only && ( is_array( $value ) || is_object( $value ) ) ) {
 		return '';
 	}
+	return $value;
+}
+}
+
+/**
+ * Read an entity's field by id without losing a SCALAR or an ARRAY — two passes.
+ *
+ * Neither $single_only setting of bws_meta_handler_read() is usable on its own. Asked
+ * array-preserving, GB's Meta_Handler answers '' for a scalar (docs/gb-constraints.md
+ * §GenerateBlocks_Meta_Handler::get_value() drops a SCALAR once single_only is false), so a
+ * URL/ID-return ACF image field or a single Post-ID Post Object field reads empty; asked
+ * single-only, it coerces an array away instead. Ask single-only first, and fall through
+ * to the array-preserving pass only when that yields nothing.
+ *
+ * THE ORDER IS NOT LOAD-BEARING, and that was measured rather than assumed: the passes
+ * answer '' for opposite inputs and no value is both, so either order recovers the same
+ * value — swapping them fails nothing in tools/test/read-resolved-source-test.php §R3/§R5.
+ * It reads single-only first because that is the common case and answers it in one read.
+ *
+ * A post read takes bws_read_field_preserving_arrays() instead.
+ *
+ * @since 1.21.0
+ * @param int    $object_id Term or user ID.
+ * @param string $key       Meta/ACF field key.
+ * @param string $wp_fn     Fallback WP function: get_term_meta or get_user_meta.
+ * @return mixed Field value with arrays preserved, '' on miss, or null if blocked by security guard.
+ */
+if ( ! function_exists( 'bws_meta_handler_read_preserving_arrays' ) ) {
+function bws_meta_handler_read_preserving_arrays( int $object_id, string $key, string $wp_fn ) {
+	if ( bws_field_key_disallowed( $key ) ) {
+		return null;
+	}
+
+	$value = bws_meta_handler_read( $object_id, $key, true, $wp_fn );
+
+	if ( '' === $value || null === $value ) {
+		$value = bws_meta_handler_read( $object_id, $key, false, $wp_fn );
+	}
+
 	return $value;
 }
 }

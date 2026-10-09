@@ -800,6 +800,55 @@ if ( $roster_page instanceof WP_Post && function_exists( 'bws_run_step' ) ) {
 }
 
 /* ---------------------------------------------------------------------------
+ * P4 — GB's REST user-meta restriction reaches our author image read (#143).
+ *
+ * Part of the GB trust-model section above, and AT THE FOOT OF THE IN-PROCESS CHECKS FOR ONE
+ * REASON: GB's restriction keys on the REST_REQUEST constant, and a constant cannot be
+ * undefined, so every check after this one would run as a REST request. The snapshot section
+ * below only curls, which a constant in this process cannot reach.
+ *
+ * The rule (GenerateBlocks_Meta_Handler::should_restrict_user_meta_access()): in a REST request,
+ * a user without manage_options or list_users reads ANOTHER user's meta only for a key on GB's
+ * safe list. Our read inherits that only while it goes through GB's Meta_Handler, so this pins
+ * the route: the core called directly, the stored id and the three viewers fixed.
+ * ------------------------------------------------------------------------ */
+$p4_author = get_user_by( 'login', 'fixture-author' );
+$p4_other  = get_user_by( 'login', 'fixture-other-author' );
+$p4_admins = get_users( array( 'role' => 'administrator', 'number' => 1, 'fields' => 'ID' ) );
+$p4_admin  = (int) ( $p4_admins[0] ?? 0 );
+$p4_ready  = $p4_author instanceof WP_User && $p4_other instanceof WP_User && $p4_admin > 0
+	&& function_exists( 'bws_user_custom_image_core' )
+	&& method_exists( 'GenerateBlocks_Meta_Handler', 'should_restrict_user_meta_access' );
+$check( 'P4 preconditions: fixture-author, fixture-other-author, an administrator, and GB\'s REST user-meta gate', $p4_ready );
+
+if ( $p4_ready ) {
+	$p4_safe = method_exists( 'GenerateBlocks_Dynamic_Tag_Security', 'get_safe_user_meta_keys' )
+		? (array) GenerateBlocks_Dynamic_Tag_Security::get_safe_user_meta_keys()
+		: array();
+	// Non-vacuity: a key on GB's safe list is readable by anyone, and the untrusted arm would
+	// pass for a reason that has nothing to do with the route.
+	$check( 'P4 author_photo_id is NOT on GB\'s safe user-meta list', ! in_array( 'author_photo_id', $p4_safe, true ) );
+
+	if ( ! defined( 'REST_REQUEST' ) ) {
+		define( 'REST_REQUEST', true );
+	}
+	$p4_expected = (string) get_user_meta( $p4_author->ID, 'author_photo_id', true );
+	$p4_read     = static function ( $viewer ) use ( $p4_author ) {
+		wp_set_current_user( $viewer );
+		return (string) bws_user_custom_image_core( $p4_author->ID, array( 'key' => 'author_photo_id', 'as' => 'id' ), null );
+	};
+	$p4_prev   = get_current_user_id();
+	$p4_as_adm = $p4_read( $p4_admin );
+	$p4_as_own = $p4_read( (int) $p4_author->ID );
+	$p4_as_oth = $p4_read( (int) $p4_other->ID );
+	wp_set_current_user( $p4_prev );
+
+	$check( 'P4 control: an administrator reads the author\'s image id in a REST request', '' !== $p4_expected && $p4_expected === $p4_as_adm, 'expected=' . $p4_expected . ' out=' . var_export( $p4_as_adm, true ) );
+	$check( 'P4 control: the author reads their OWN image id in a REST request', $p4_expected === $p4_as_own, 'out=' . var_export( $p4_as_own, true ) );
+	$check( 'P4 gate: another Author-role user reads NOTHING in a REST request', '' === $p4_as_oth, 'out=' . var_export( $p4_as_oth, true ) );
+}
+
+/* ---------------------------------------------------------------------------
  * PAGE SNAPSHOTS + the dependency-version record.
  *
  * RUNS ON EVERY VERIFICATION, not only when something looks suspicious. A baseline
