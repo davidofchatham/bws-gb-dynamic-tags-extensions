@@ -301,7 +301,7 @@ Blocked by: —  •  Interacts with: FW-102 (a separate defect, same recipient 
 
 #### FW-124 — user-kind field reads bypass `GenerateBlocks_Meta_Handler`
 
-Post and term field reads route through `bws_meta_handler_read()`, and so inherit whatever GB's handler enforces and whatever `generateblocks_get_meta_pre_value` supplies. The user kind never joined them: five sites call `get_user_meta()` (or `get_field( …, 'user_N' )`) directly. GB treats user meta as its most restricted class — a safe-key allowlist gated on `list_users`, plus own-record access — and none of that is in the path, nor is GB Pro's ACF filter at the two sites that make no `get_field()` attempt of their own.
+Post and term field reads route through `bws_meta_handler_read()`, and so inherit whatever GB's handler enforces and whatever `generateblocks_get_meta_pre_value` supplies. The user kind never fully joined them: four sites still call `get_user_meta()` (or `get_field( …, 'user_N' )`) directly. The seam's `user` case and the author image core route through the handler since 1.21.0. GB treats user meta as its most restricted class — a safe-key allowlist gated on `list_users`, plus own-record access — and none of that is in the path, nor is GB Pro's ACF filter at the two sites that make no `get_field()` attempt of their own.
 
 Detail home: `.scratch/plans/user-kind-meta-handler.md`
 

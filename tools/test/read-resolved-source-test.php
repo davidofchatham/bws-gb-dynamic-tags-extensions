@@ -26,7 +26,7 @@
  *   §R3  bws_read_field_preserving_arrays() — each pass, and the family of miss it covers
  *   §R4  the post/0 guard, on both halves
  *   §R5  bws_meta_handler_read_preserving_arrays() — the id-based twin of §R3 — and the
- *        three readers on it: the term image getter, the `ref` step's term arm, and the
+ *        three readers on it: the term image getter, the `refs` step's term arm, and the
  *        seam's user arm crossing GB's handler
  *
  * Run:  php tools/test/read-resolved-source-test.php   (exit 0 = pass, 1 = fail)
@@ -43,7 +43,7 @@ define( 'ABSPATH', __DIR__ );
 // `logo` is the URL format, and it is FILTER-POPULATED, which is the half of the
 // quirk a single array-preserving read would drop.
 // `partner` is a single ACF Post Object field returning Post ID: a filter-populated
-// scalar the `ref` step must carry. `secret` stands in for a GB-disallowed key.
+// scalar the `refs` step must carry. `secret` stands in for a GB-disallowed key.
 const STUB_META = array(
 	'gallery' => array( 'ID' => 44, 'url' => 'https://example.test/logo.png' ),
 	'logo'    => 'https://example.test/logo.png',
@@ -270,11 +270,11 @@ assert_same( 'R5.6 and never reaches the store', array(), $GLOBALS['meta_handler
 assert_same( 'R5.7 term image getter: URL-return field reaches the processor', 'IMG("https:\/\/example.test\/logo.png")', bws_get_term_field_image_data( 7, 'logo' ) );
 assert_same( 'R5.8 term image getter: Array-return field still does', 'IMG(' . json_encode( STUB_META['gallery'] ) . ')', bws_get_term_field_image_data( 7, 'gallery' ) );
 
-// The `ref` step's term arm: a single Post Object field returning Post ID is a scalar.
+// The `refs` step's term arm: a single Post Object field returning Post ID is a scalar.
 $ref = array( 'type' => 'refs', 'field' => 'partner' );
-assert_same( 'R5.9 ref step on a term: a Post ID scalar comes back', '1777', bws_pipeline_default_reader( $ref, TERM_SRC ) );
+assert_same( 'R5.9 refs step on a term: a Post ID scalar comes back', '1777', bws_pipeline_default_reader( $ref, TERM_SRC ) );
 assert_same(
-	'R5.10 ref step on a term: an array still does',
+	'R5.10 refs step on a term: an array still does',
 	STUB_META['gallery'],
 	bws_pipeline_default_reader( array( 'type' => 'refs', 'field' => 'gallery' ), TERM_SRC )
 );

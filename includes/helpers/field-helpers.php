@@ -891,7 +891,7 @@ function bws_read_term_field( string $key, int $term_id, bool $single_only = tru
  * post → post meta with an EXPLICIT id (triggers the explicit-wins rule in
  * bws_read_field, bypassing ITS own loop/term inference so the factory's resolved
  * source is authoritative — no double resolution). meta_row → the row's own key.
- * user → plain user meta.
+ * user → user meta through GB's Meta_Handler.
  *
  * RETURNS WHAT THE STORE HOLDS, arrays included. bws_read_resolved_source() is
  * the string coercion over this, and every reader that wants one value takes
@@ -927,9 +927,8 @@ function bws_read_resolved_source_value( array $source, string $key, $instance )
 			// User-meta read, NOT the analog reader (bws_base_user_analog_read lives in
 			// base-shared, loaded AFTER this file — and it reads analogs, not meta;
 			// different concern). Through GB's Meta_Handler, never raw get_user_meta():
-			// that is where GB's REST user-meta restriction lives. Currently unreachable
-			// at runtime — no traversal step yields a user-kind source into the seam
-			// until the post→author step (FW-48) lands.
+			// that is where GB's REST user-meta restriction lives. No caller passes a
+			// user-kind source today; the post→author step (FW-48) is the first that will.
 			$user_id = (int) ( $source['id'] ?? 0 );
 			if ( $user_id <= 0 || bws_field_key_disallowed( $key ) ) {
 				return '';
@@ -963,7 +962,7 @@ function bws_read_resolved_source_value( array $source, string $key, $instance )
  * one at the raw seam — which is the whole reason the two are separate.
  *
  * @since 1.14.0
- * @since 1.16.0 user kind (unreachable until the post→author step).
+ * @since 1.16.0 user kind.
  * @since 1.21.0 The kind dispatch lives in bws_read_resolved_source_value().
  * @param array  $source   One resolved source ({kind,id}|{kind:site}|{kind:meta_row,row}).
  * @param string $key      Field key.
@@ -1573,8 +1572,6 @@ function bws_meta_handler_read( int $object_id, string $key, bool $single_only, 
  * value — swapping them fails nothing in tools/test/read-resolved-source-test.php §R3/§R5.
  * It reads single-only first because that is the common case and answers it in one read.
  *
- * Callers: the term image getter (bws_get_term_field_image_data), the `ref` step's term
- * arm (bws_pipeline_default_reader), and the author image core (bws_user_custom_image_core).
  * A post read takes bws_read_field_preserving_arrays() instead.
  *
  * @since 1.21.0
