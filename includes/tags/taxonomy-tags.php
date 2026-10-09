@@ -142,8 +142,8 @@ function bws_term_custom_text_core( $term_id, $options, $instance ) {
 /**
  * Term custom image core.
  *
- * Reads field key from $options['key'] or $options['field_key'].
- * Uses ACF taxonomy_termid format (e.g. 'category_5') for term fields.
+ * Reads field key from $options['key'] or $options['field_key'], through
+ * bws_get_term_field_image_data().
  *
  * @since 1.2.0
  * @param int|false $term_id  Resolved term ID.

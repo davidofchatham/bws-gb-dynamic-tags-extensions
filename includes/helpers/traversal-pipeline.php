@@ -1071,11 +1071,10 @@ function bws_pipeline_default_reader( array $step, array $source ) {
 				}
 				return get_post_meta( $post_ref_id, $field, true );
 			case 'term':
-				// Canonical term read (SPEC §V5): single_only=false preserves the
-				// relationship array — byte-identical to the retired
-				// TermRelatedPost::resolve_id (bws_read_term_field($rel,$id,false)).
-				return function_exists( 'bws_read_term_field' )
-					? bws_read_term_field( $field, (int) ( $source['id'] ?? 0 ), false )
+				// Scalar or array: a Relationship field holds a list, a single
+				// Post Object field returning Post ID a scalar (#143).
+				return function_exists( 'bws_meta_handler_read_preserving_arrays' )
+					? bws_meta_handler_read_preserving_arrays( (int) ( $source['id'] ?? 0 ), $field, 'get_term_meta' )
 					: ( function_exists( 'get_field' )
 						? get_field( $field, 'term_' . (int) ( $source['id'] ?? 0 ) )
 						: get_term_meta( (int) ( $source['id'] ?? 0 ), $field, true ) );
