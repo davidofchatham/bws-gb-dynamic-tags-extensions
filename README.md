@@ -20,7 +20,7 @@ Not only can you start from post, loop, term, and author contexts without changi
 
 Each step that can return several results carries its own optional limit, meaning at most that many *from each* incoming result. For example, limiting a taxonomy step to 1 gives you one term from the current post or each previous step's posts, not one term overall. Pick an ACF Relationship or Post Object field for a source step and you get a short note about its current configuration, including bidirectionality and entry limits, to help you decide whether and how to configure that step's limit. Leave it blank for all results.
 
-#### Repeater-row fields **[UNRELEASED]**
+#### Repeater-row fields
 
 A repeater field is a source too. Point a `text`, `content`, `image`, `email`, `phone` or either `datetime` tag at one and it renders a named sub-field from its rows; `join` fields and `try_` attempts read a repeater the same way. `text`, `email`, `phone` and the `datetime` tags render every row, joined by the usual Result Separator and bounded by the limit; `content` and `image` render the first row, as they do with a list of posts. A row is not a post or a term, so it has no title, address, featured image or published date of its own: name the sub-field you want. A date sub-field is read without its field's return format, so an ambiguous date like `04/03/2030` is taken as month-first. In the source builder, add a *Rows in Repeater Field* step the way you would add a relationship or taxonomy step; the field picker below then opens on that repeater's sub-fields.
 
@@ -38,9 +38,9 @@ Another plugin can add its own starting point to the source options, and that st
 
 GB's field selector is post-type-based, so when you're building GP Elements or WP Patterns, you usually can't see the fields that are actually available for what you're working on. Using our tags, every meta/option field key input shows all registered fields (including ACF fields and sub-fields, options-page fields, term fields, and post meta fields), and can be filtered by context, field group, and field type, or searched by label, name, and type.
 
-When a tag's source is one specific term or post, the list goes the other way and narrows to that taxonomy's or post type's own fields, plus any field whose group isn't tied to one location. Select a different one and it re-narrows on the spot. Sources that don't name a specific entity still show everything, which is the only honest answer while the entity isn't known until the page renders, and you can always type a key in by hand either way. **[UNRELEASED: a relationship step narrows too]** A step through a relationship or post object field narrows the next list to post fields from the post types that field allows, so a field limited to Staff offers Staff fields rather than every post type's. A field that allows any post type, or one we don't know about, keeps every post type.
+When a tag's source is one specific term or post, the list goes the other way and narrows to that taxonomy's or post type's own fields, plus any field whose group isn't tied to one location. Select a different one and it re-narrows on the spot. Sources that don't name a specific entity still show everything, which is the only honest answer while the entity isn't known until the page renders, and you can always type a key in by hand either way. A step through a relationship or post object field narrows the next list to post fields from the post types that field allows, so a field limited to Staff offers Staff fields rather than every post type's. A field that allows any post type, or one we don't know about, keeps every post type.
 
-### Static content from a dynamic tag? **[UNRELEASED]**
+### Static content from a dynamic tag?
 
 Yes! Why?
 
@@ -114,7 +114,7 @@ Properly registered functions will appear in the tag's **Function** dropdown for
 
 A security gate blocks adding PHP built-ins (`system`, `unlink`, `eval`, and the like) or anything that isn't a real function. All functions registered via the filter are shown, along with their security-gate status, on the admin settings page. Manually inserting an unregistered or blocked function will cause the tag to return its fallback text or return empty.
 
-## `term_` tags (removed) **[UNRELEASED]**
+## `term_` tags (removed)
 
 Deprecated in 1.20.0 and removed in 1.21.0. The nine `{{term_*}}` tags no longer register, so one still saved in your content renders as literal text on the page. **Run the Migration Tool**, which converts every one of them: the replacement is a base tag with its source set to a term, which does the same job and gets source paths, per-step limits, the field picker and the configuration preview along with it. What the family was, and what a stored `{{term_*}}` string does now, are in [`docs/deprecated-tags-options.md`](docs/deprecated-tags-options.md).
 
