@@ -148,6 +148,10 @@ $field_keys = array(
 		'event_date' => 'field_bwsfx_dept_event_date',
 		'charter'    => 'field_bwsfx_charter',   // v12 first-usable corpus (§F15).
 		'dept_lead'  => 'field_bwsfx_dept_lead', // v20 pinned-root chain step (§F20).
+		'dept_liaison'    => 'field_bwsfx_dept_liaison',    // v30 scalar term ref (#143).
+		'dept_logo_array' => 'field_bwsfx_dept_logo_array', // v30 term image corpus (#143).
+		'dept_logo_url'   => 'field_bwsfx_dept_logo_url',
+		'dept_logo_id'    => 'field_bwsfx_dept_logo_id',
 	),
 	'user'   => array(
 		'author_photo_array' => 'field_bwsfx_author_photo_array', // v29 author image corpus (#144).
@@ -742,23 +746,30 @@ $log( 'post fields + plain meta applied' );
 // here (rather than moving the whole term_fields loop after posts) keeps every OTHER term
 // field seeded in its original, long-stable position; only the one key that needs a post
 // id gets a second write.
-$term_post_ref_fields = array( 'dept_lead' );
+// The v30 term image fields (#143) ride the same pass: their values are ATTACHMENT slugs,
+// resolved through $attachment_ids rather than $post_ids.
+$term_post_ref_fields   = array( 'dept_lead', 'dept_liaison' );
+$term_attachment_fields = array( 'dept_logo_array', 'dept_logo_url', 'dept_logo_id' );
 foreach ( $manifest['term_fields'] as $slug => $fields ) {
 	if ( ! isset( $term_ids[ $slug ] ) ) {
 		continue;
 	}
 	$tid = $term_ids[ $slug ];
 	foreach ( $fields as $name => $value ) {
-		if ( ! in_array( $name, $term_post_ref_fields, true ) ) {
+		if ( in_array( $name, $term_attachment_fields, true ) ) {
+			$value = $attachment_ids[ $value ] ?? 0;
+		} elseif ( ! in_array( $name, $term_post_ref_fields, true ) ) {
 			continue;
+		} else {
+			// ARRAY-shaped (relationship, §F20) — map each slug through $post_ids, same
+			// resolver the post_fields loop uses for `related_staff` and friends; a
+			// scalar (post_object, v30) resolves the one slug.
+			$value = is_array( $value )
+				? array_values( array_filter( array_map( function ( $ref ) use ( $post_ids ) {
+					return isset( $post_ids[ $ref ] ) ? $post_ids[ $ref ] : 0;
+				}, $value ) ) )
+				: ( isset( $post_ids[ $value ] ) ? $post_ids[ $value ] : 0 );
 		}
-		// ARRAY-shaped (relationship, §F20) — map each slug through $post_ids, same
-		// resolver the post_fields loop uses for `related_staff` and friends.
-		$value = is_array( $value )
-			? array_values( array_filter( array_map( function ( $ref ) use ( $post_ids ) {
-				return isset( $post_ids[ $ref ] ) ? $post_ids[ $ref ] : 0;
-			}, $value ) ) )
-			: ( isset( $post_ids[ $value ] ) ? $post_ids[ $value ] : 0 );
 		if ( $have_acf && isset( $field_keys['term'][ $name ] ) ) {
 			update_field( $field_keys['term'][ $name ], $value, 'term_' . $tid );
 		} else {
@@ -766,7 +777,7 @@ foreach ( $manifest['term_fields'] as $slug => $fields ) {
 		}
 	}
 }
-$log( 'term post-reference fields applied' );
+$log( 'term post-reference + attachment fields applied' );
 
 // ---------------------------------------------------------------------------
 // 6. Plain wp_options (recursive merge — only the manifest's keys change).

@@ -53,6 +53,20 @@ rows here.
 | T4.1 | `{{text key:email}}` | `support@example.test` — term ACF field via the analog arm |
 | T4.2 | `{{text key:email\|linkTo:permalink}}` | value wrapped in the Support term-archive link (term entity type) |
 
+### T4.3–T4.7 — the keyed `{{image}}` read on a term archive (#143)
+
+Fixture (v30): the `sales` department term carries `fixture-photo` in three ACF image fields, one per return format (`dept_logo_array`, `dept_logo_url`, `dept_logo_id`). The term read hands back an array for the first and a scalar for the other two, so these rows tell a read that keeps both shapes from one that drops a scalar. **All five rows are visible** on the context element (outside the archive loop, so the read is the term's), on all seven context pages; they read empty on the six that have no term, and the page snapshots pin them.
+
+| # | Tag (on `/department/sales/`) | Expected |
+|---|---|---|
+| T4.3 | `{{image key:dept_logo_array\|as:id}}` | the `fixture-photo` attachment id (128 on this testbed) |
+| T4.4 | `{{image key:dept_logo_url\|as:id}}` | same id as T4.3 |
+| T4.5 | `{{image key:dept_logo_id\|as:id}}` | same id as T4.3 |
+| T4.6 | `{{image key:dept_logo_id\|as:alt}}` | `Fixture photo alt text` |
+| T4.7 | `{{try_image A:key(dept_logo_missing)\|B:key(dept_logo_url)\|as:id}}` | same id as T4.3: a term key MISS skips to the next attempt, and the slot reads the URL-format field |
+
+Measured 2026-10-09 with `render-tag`'s in-process sweep and the page snapshots. Before the fix (the `includes/` of `main`), T4.3 printed the id, T4.4, T4.5 and T4.7 printed empty, and T4.6 printed the alt pad's single space.
+
 ## T5 — `'0'` preservation
 
 Four of these six rows are **first-party GB tags**, which is why they are here: T5.2, T5.4 and

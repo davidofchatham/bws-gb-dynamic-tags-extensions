@@ -2031,11 +2031,12 @@ function bws_fixture_page_content_matrix_pinned_roots() {
 			"F20.6 the SAME pin composed inside a join with the ambient title (-> Sales / Matrix: Pinned Entity Roots)",
 			"{{join mode:template|A:src(term,{$sales_id});use(title)|B:src(current);use(title)|format:%A / %B}}"
 		),
-		// D3 - a RELATIONSHIP STEP running OFF a pinned term root. `dept_lead` (v20) is
-		// the one term-meta field in the blueprint that resolves a POST reference, so
-		// this is the only page that can express "the term this page is pinned to, then
-		// hop to a post" rather than the reverse (a post hopping INTO a term).
+		// D3 - a RELATIONSHIP STEP running OFF a pinned term root. `dept_lead` (v20) and
+		// `dept_liaison` (v30) are the term-meta fields in the blueprint that resolve a
+		// POST reference, so this is the only page that can express "the term this page is
+		// pinned to, then hop to a post" rather than the reverse (a post hopping INTO a term).
 		bws_fixture_gb_row( "F20.7 a relationship step off the pinned root (-> Tom Associate, the Sales dept_lead)", "{{text src:term,{$sales_id};refs,dept_lead|use:title}}" ),
+		bws_fixture_gb_row( "F20.8 the same step through a single post_object field storing a bare post id (-> Jane Partner, the Sales dept_liaison)", "{{text src:term,{$sales_id};refs,dept_liaison|use:title}}" ),
 	) );
 
 	$sections[] = bws_fixture_gb_section( 'F21 - a PINNED POST resolves the same wherever it is authored (FW-39 ticket 03)', array(
@@ -2548,6 +2549,29 @@ function bws_fixture_element_content_context_header() {
 			bws_fixture_gb_row(
 				'T8.28 try_image, attempt A misses and B hits, WITH a stated fallback -> the fixture photo id on the author archive (the fallback does not end the walk), the fallback id on the other six',
 				"{{try_image A:key(author_photo_missing)|B:key(author_photo_array)|as:id|fallback:{$fallback_att_id}}}"
+			),
+			// T4.3..T4.7 — the term archive's keyed {{image}} read (#143). Text-matrix T4 owns
+			// the expectations; same placement reason as T8.13: outside the archive loop, so the
+			// rows read the TERM (Sales) and not the loop's post.
+			bws_fixture_gb_empty_row(
+				'T4.3 image, ACF array-format term field -> the fixture photo attachment id on the TERM archive, EMPTY on the other six',
+				'{{image key:dept_logo_array|as:id}}'
+			),
+			bws_fixture_gb_empty_row(
+				'T4.4 image, ACF URL-format term field -> SAME id as T4.3 on the term archive',
+				'{{image key:dept_logo_url|as:id}}'
+			),
+			bws_fixture_gb_empty_row(
+				'T4.5 image, ACF ID-format term field -> SAME id as T4.3 on the term archive',
+				'{{image key:dept_logo_id|as:id}}'
+			),
+			bws_fixture_gb_empty_row(
+				'T4.6 image as:alt on the ID-format field -> Fixture photo alt text on the term archive',
+				'{{image key:dept_logo_id|as:alt}}'
+			),
+			bws_fixture_gb_empty_row(
+				'T4.7 try_image, attempt A misses and B hits the URL-format field -> SAME id as T4.3 on the term archive',
+				'{{try_image A:key(dept_logo_missing)|B:key(dept_logo_url)|as:id}}'
 			),
 			bws_fixture_gb_row(
 				'C-DT1 datetime_single WITH a fallback (-> TBA on every context here - none carries a datetime analog)',
