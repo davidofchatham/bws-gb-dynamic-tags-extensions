@@ -366,6 +366,18 @@ Open: Measure every row above on the testbed, including a multi-paragraph term d
 
 Blocked by: —  •  Interacts with: FW-126 (same content pipeline)
 
+#### FW-149 — `{{image}}` and `{{try_image}}` order the fallback and the configuration preview differently in the editor
+
+When an image tag finds nothing in the editor, base `{{image}}` shows its editor tag configuration preview first and the stated fallback only where the preview is empty, while `{{try_image}}` shows the fallback first and the preview only where no fallback is stated. The two disagree for `as:alt` and `as:caption`, the only modes with a preview: a stated fallback shows the preview on the base tag and the fallback image's alt text or caption on the `try_` tag. `as:url` and `as:id` have no preview, so both families show the fallback there.
+
+Detail home: this row
+
+Progress: Read from the code 2026-10-09. Base order since #139 (`ba4f580`): `bws_base_image_callback()` in `base-tags.php`, preview if non-empty, else `bws_image_stated_fallback()`. `try_` order: the shell closure in `TagTemplateRegistry::generate_base_try_tags()`, fallback first for every family, then `bws_build_try_preview_label()`. The split is not image-only: base `{{text}}` in the editor returns its preview and never reaches the fallback, while `{{try_text}}` shows the fallback first, so every `try_` family is fallback-first against a preview-first base.
+
+Open: Which order is right, and whether it is decided per family or once for both containers. Preview-first shows the author the configuration; fallback-first shows what a visitor will get. Measure the editor output for each `as` mode on both families before choosing.
+
+Blocked by: —  •  Interacts with: FW-98 (the fallback emit sites this would reorder), FW-110 (base-tag preview derivation)
+
 ### Feature follow-ups & UX
 
 #### FW-9 — Context-aware base tags — the deferred residue
