@@ -11,6 +11,9 @@ See README.md for overview, docs/tag-reference.md for architecture, and CHANGELO
 
 == Upgrade Notice ==
 
+= 1.21.0 =
+⚠ The {{term_}} tags are removed: any still in your content prints as literal text. Run the Migration Tool before or right after updating. Also: {{content}} with only a field key now reads that field, and a tag printing several values now links each one.
+
 = 1.20.0 =
 ⚠ {{term_}} tags are deprecated and will be removed soon. Two fixes in the meantime: On a post, if no term was selected, they now return nothing instead of sometimes reading an unrelated term with the same ID as the post; with a taxonomy set, they now reach the current post's first matching term.
 

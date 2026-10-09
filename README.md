@@ -12,7 +12,7 @@ Rather than being prefixed and locked to particular contexts, our tags work acro
 
 - Where GeneratePress's Post Content block is the only native way to output full post content, and GenerateBlocks' `{{archive_description}}` spans term, post type, and author descriptions but empty outside an archive and has no 404 branch, our `{{content}}` tag returns all of that, plus full post content and GeneratePress's own "not found" text on a 404, from one portable tag.
 
-*Note:* On a blog homepage, search results, date and post-type archives, or 404 page, tags with no sensible value there (`permalink`, `image`, `datetime_`) output nothing (not wrong, just empty). On author archives, only `text`, `title`, `content` and their `try_` variants, plus `join`, output anything.
+*Note:* On a blog homepage, search results, date and post-type archives, or 404 page, tags with no sensible value there (`permalink`, `image`, `datetime_`) output nothing (not wrong, just empty). On author archives, only `text`, `title`, `content`, `image` (with a field key) and their `try_` variants, plus `join`, output anything.
 
 #### Access fields via relationships
 
@@ -20,7 +20,9 @@ Not only can you start from post, loop, term, and author contexts without changi
 
 Each step that can return several results carries its own optional limit, meaning at most that many *from each* incoming result. For example, limiting a taxonomy step to 1 gives you one term from the current post or each previous step's posts, not one term overall. Pick an ACF Relationship or Post Object field for a source step and you get a short note about its current configuration, including bidirectionality and entry limits, to help you decide whether and how to configure that step's limit. Leave it blank for all results.
 
-**[UNRELEASED]** A repeater field is a source too. Point a `text`, `content`, `image`, `email`, `phone` or either `datetime` tag at one and it renders a named sub-field from its rows, and `join` fields and `try_` attempts read a repeater the same way. `text`, `email`, `phone` and the two `datetime` tags render every row, joined and bounded by the same Result Separator and limit those tags use everywhere else; `content` and `image` render the first row, which is what they do with a list of posts too. An `image` sub-field works whichever return format its field uses, and the Return As and size choices behave exactly as they do on a post. A date sub-field is read without the return format its field is configured with, so a date that could be read either day-first or month-first (`04/03/2030`) is taken as month-first; dates past the 12th of the month, and formats that cannot be misread such as `2030-03-04`, are unaffected. A row is not a post or a term, so it has no title, address, featured image or published date of its own: name the sub-field you want. Pick **Rows in Repeater Field** in the source builder and choose the repeater field, the same way you would add a relationship or taxonomy step. The field picker below then opens already filtered to that repeater's sub-fields, and you can widen it back at any time.
+#### Repeater-row fields **[UNRELEASED]**
+
+A repeater field is a source too. Point a `text`, `content`, `image`, `email`, `phone` or either `datetime` tag at one and it renders a named sub-field from its rows; `join` fields and `try_` attempts read a repeater the same way. `text`, `email`, `phone` and the `datetime` tags render every row, joined by the usual Result Separator and bounded by the limit; `content` and `image` render the first row, as they do with a list of posts. A row is not a post or a term, so it has no title, address, featured image or published date of its own: name the sub-field you want. A date sub-field is read without its field's return format, so an ambiguous date like `04/03/2030` is taken as month-first. In the source builder, add a *Rows in Repeater Field* step the way you would add a relationship or taxonomy step; the field picker below then opens on that repeater's sub-fields.
 
 #### Select one specific term or post as a tag's source
 
@@ -36,16 +38,16 @@ Another plugin can add its own starting point to the source options, and that st
 
 GB's field selector is post-type-based, so when you're building GP Elements or WP Patterns, you usually can't see the fields that are actually available for what you're working on. Using our tags, every meta/option field key input shows all registered fields (including ACF fields and sub-fields, options-page fields, term fields, and post meta fields), and can be filtered by context, field group, and field type, or searched by label, name, and type.
 
-When a tag's source is one specific term or post, the list goes the other way and narrows to that taxonomy's or post type's own fields, plus any field whose group isn't tied to one location. Select a different one and it re-narrows on the spot. Sources that don't name a specific entity still show everything, which is the only honest answer while the entity isn't known until the page renders, and you can always type a key in by hand either way. **[UNRELEASED: a relationship step narrows too]** A step through a relationship or post object field narrows the next list to the post types that field is set to allow, so stepping through a field limited to Staff offers Staff fields rather than every post type's. A field that allows any post type, or one we don't know about, keeps every post type, since there is nothing there to go on. Either way the list holds post fields only, because a relationship step always lands on a post, so widening the location filter back never turns up a term or site field the tag could not have read.
+When a tag's source is one specific term or post, the list goes the other way and narrows to that taxonomy's or post type's own fields, plus any field whose group isn't tied to one location. Select a different one and it re-narrows on the spot. Sources that don't name a specific entity still show everything, which is the only honest answer while the entity isn't known until the page renders, and you can always type a key in by hand either way. **[UNRELEASED: a relationship step narrows too]** A step through a relationship or post object field narrows the next list to post fields from the post types that field allows, so a field limited to Staff offers Staff fields rather than every post type's. A field that allows any post type, or one we don't know about, keeps every post type.
 
 ### Static content from a dynamic tag? **[UNRELEASED]**
 
 Yes! Why?
 
-- Easily format email addresses and phone numbers into `mailto:` and `tel:` links. You could even save a sitewide address or phone number as a WP Pattern if you don't want to use a site option field.
+- Type in an email address or phone number and get a validated `mailto:` or normalized `tel:` link, with no field to read from. You could even save a sitewide address or phone number as a WP Pattern if you don't want to use a site option field.
 - Add a fixed string along with field values in a `{{join}}` tag.
 
-Available in `text`/`try_text`, `email`/`try_email`, `phone`/`try_phone`, and `join` via the Fixed option (Fixed Text, Fixed Email or Fixed Phone Number). It shows once for each source the tag reaches, so a list of posts repeats it and a limit of 1 gives a single result, and a tag whose source finds nothing shows its fallback as usual.
+Available in `text`/`try_text`, `email`/`try_email`, `phone`/`try_phone`, and `join` via the Fixed option (Fixed Text, Fixed Email or Fixed Phone Number). It shows once for each source the tag reaches, so a list of posts repeats it and a limit of 1 gives a single result, and it still needs a source to render against: if that source finds nothing, the tag shows its fallback as usual, and a `join` slot or `try_` attempt drops out.
 
 ### Special handling
 
@@ -67,11 +69,11 @@ If you use GB's `{{featured_image key:alt|…}}` for alt text, an image that exi
 |---|---|---|
 | `text` | Return simple meta/option text fields or post title/term name (useful in `try_` tags). | |
 | `image` | Return an image from a meta field or the post featured image or site logo field, with return options like GB's (alt text, etc.) and a Media Library fallback image selector. | Since terms have no native image fields, a field name must be supplied to retrieve images from a term source. |
-| `content` | Return post content/term description via a processing pipeline that handles block-rendered content safely, including consolidating block CSS for embedded post content into the page footer. | Since there's no site-wide body/content field, an option field name must be supplied to use this tag with the "site" source. |
+| `content` | Return post content/term description via a processing pipeline that handles block-rendered content safely, including consolidating block CSS for embedded post content into the page footer. | Since there's no site-wide body/content field, an option field name must be supplied to use this tag with the *Site* source. |
 | `datetime_single` | Format combined datetime fields or separate date and time fields you want to show as a single date and time. By default, also hides midnight times and the current year. Multi-result sources (taxonomy terms or a reference/relationship field) can render a delimited date list, joined by the same Result Separator as `text` and bounded by each source step's own limit. | |
 | `datetime_range` | Like `datetime_single`, but to format a range from separate start and end date/datetime/time fields. In a range list, the result separator joins whole ranges while the range separator stays between each start and end. | |
-| `email` | Return an email address from meta/option field as a `mailto` link (by default) or as plain text. Validates stored emails (by format) and returns empty if invalid. | |
-| `phone` | Return a phone number from meta/option field as a `tel` link (by default) or as plain text. Normalizes stored numbers and allows global country code configuration. | |
+| `email` | Return an email address as a `mailto` link (by default) or as plain text. Validates emails (by format) and returns empty if invalid. | |
+| `phone` | Return a phone number as a `tel` link (by default) or as plain text. Normalizes numbers and allows global country code configuration. | |
 | `title` | Return post title/term name or site name. | |
 | `permalink` | Return post/term permalink or site URL. | |
 
