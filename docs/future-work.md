@@ -351,6 +351,22 @@ Progress: Not started, and deliberately not scheduled: the entries are kept inde
 
 Blocked by: —  •  Interacts with: FW-128 (a tags-in-use report would make the retirement gate checkable rather than hand-run per site), FW-38 (`lifecycle` replaces the `prefix_removed` stand-in these entries ride), FW-129 (closed; the removal this row finishes)
 
+#### FW-151 — Functions nothing in the plugin calls
+
+A scan of shipped code (comments stripped, `function_exists()` guards not counted) finds `bws_` functions with no caller anywhere in `includes/`, `assets/js/` or the bootstrap. Some are documented helpers for other plugins and are not dead; the rest are leftovers of refactors that removed their last caller, and some of those are still exercised by a harness, which makes them look alive.
+
+Detail home: this row
+
+Progress: Scanned 2026-10-09 on `fw-129-stub-delete`, after FW-129's own orphans were deleted (that scan was run to a fixed point, so nothing below is FW-129's). Three groups:
+
+- **Documented for other plugins** in `docs/plugin-integration.md` §5/§7, so not dead without a decision: `bws_can_process_post_content`, `bws_has_sufficient_memory`, `bws_get_meta_image_options`, `bws_get_terms_for_post`, `bws_post_term_extraction_options`, `bws_post_term_image_options`, `bws_deprecated_tag_notice`.
+- **FW-136 leftovers** (the per-arm `try_` dispatch it replaced with the base resolve seam): `bws_try_image_post_dispatch`, `bws_try_email_row_dispatch`, `bws_try_phone_row_dispatch`, and through them `bws_try_fixed_dispatch()`, whose no-source path now has no caller at all. `tools/test/try-fixed-dispatch-test.php` still tests the row dispatchers, building their names by string interpolation, so a name grep misses it.
+- **Undocumented, cause not traced:** `bws_start_processing_post`, `bws_end_processing_post`, `bws_output_queued_inline_css`, `bws_extract_and_queue_inline_styles`, `bws_process_post_content_fallback` (content-helpers.php); `bws_get_meta_and_return_type_options` (image-helpers.php); `bws_get_term_image_and_return_type_options` (taxonomy-helpers.php); `bws_fold_grammar_validate` (slot-fold.php, one harness caller); `bws_base_user_ids_from_source` (base-shared.php); `bws_term_date_single_core`, `bws_term_date_range_core` (datetime-tags.php); `bws_build_deprecation_preview_label` (deprecated-tags.php).
+
+Open: Per function, delete it (with any harness that only tests it) or record why it stays. A scan only sees PHP and JS callers in this repo: a hook name built at runtime, or a caller in another plugin, would not show, so each deletion checks for those first. The documented helpers need a decision on whether §5 still offers them.
+
+Blocked by: —  •  Interacts with: FW-136 (closed; left the second group), FW-129 (closed; its own orphans were deleted, not listed here)
+
 ### Feature follow-ups & UX
 
 #### FW-9 — Context-aware base tags — the deferred residue
