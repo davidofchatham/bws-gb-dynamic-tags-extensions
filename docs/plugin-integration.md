@@ -648,7 +648,7 @@ add_action( 'init', function () {
     bws_register_modifier_root_migrations(
         'example',                            // your retired modifier prefix
         'example',                            // the registered source key to root at
-        array( 'since' => '3.4.0', 'prefix_removed' => true )
+        array( 'since' => '3.4.0' )
     );
 }, 21 );
 ```
@@ -657,7 +657,7 @@ That registers one migration entry per **registered modifier template** — the 
 
 **Your prefix is supplied, never derived.** Nothing in this plugin knows your family exists; you name it. The root key is usually your source key, but it does not have to be.
 
-**Pass `prefix_removed => true`.** Since 1.21.0 no modifier family is registered, so your entries belong under **Removed Tags** on the settings page. Without the flag they are listed under **Deprecated Tags**, as if the tags still rendered. The built-in `term_` entries pass it.
+**Your entries are listed under Removed Tags** on the settings page, since no modifier family is registered. If you still register your prefixed tags yourself (with [manual GB registration](#option-b-manual-gb-registration)), pass `prefix_removed => false` and they are listed under **Deprecated Tags** instead.
 
 ### What a converted tag looks like
 
@@ -694,7 +694,7 @@ After conversion, the retired flat controls (`ref`, `srcTermIn`, the legacy `sou
 | `$prefix` | string | — | Your modifier prefix, with or without the trailing underscore. |
 | `$root` | string | — | Registered source key migrated tags are rooted at. |
 | `since` | string | `''` | Version you deprecated the prefix in. Shown in the settings list. |
-| `prefix_removed` | bool | `false` | Files the entries under **Removed Tags** instead of **Deprecated Tags**. Pass `true`: no modifier family is registered since 1.21.0. |
+| `prefix_removed` | bool | `true` | Files the entries under **Removed Tags**. Pass `false` only while you still register the prefixed tags yourself; they are then listed under **Deprecated Tags**. |
 
 Returns the modifier tag names entries were generated for, in template order.
 

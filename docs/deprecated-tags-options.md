@@ -130,6 +130,8 @@ Nine GB tags — `term_text`, `term_content`, `term_title`, `term_permalink`, `t
 
 ### What the tags carried
 
+**`src:site` was rejected on these tags**, by `CONTEXT.md` I4's source-level gate: the site datum was the identical read the unrooted base tag gives (`{{email src:site}}`), and site, being entity-blind, filled no term-distinct slot. `site` was filtered out of their Source dropdown, and a hand-typed `src:site` rendered empty. That is why the converter turns a stored `{{term_text src:site|…}}` into `{{text src:site|…}}` with `ref` and `srcTermIn` dropped: neither sidecar ever ran under it.
+
 Each tag appended `'(term-based)'` to its template's base title. `src` unset = a user-selected term through GB's native taxonomy/term picker (never serialized); `src:'ref'` = a term→related-post traversal. `as` and `size` were custom options on `term_image`, the same pattern base `image` uses (`'media'` type was never used on any image tag), and the `as` serialization exception applied there too — the default `as:url` was always written into the tag string.
 
 **`term_image use:featured` gating:** `use:featured` was valid on `term_image` only with `src:ref` set. Term entities have no featured image, so the gate hid the option until a post-context traversal was selected.

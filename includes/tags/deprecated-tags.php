@@ -1869,9 +1869,9 @@ function bws_modifier_root_transform( string $prefix, string $root ): callable {
  *
  * NEVER DISPATCHED, and it is not dead code. MigrationRegistry::is_entry_live() reads
  * callback-presence as the interim proxy (until FW-38's `lifecycle` field) for "the owning
- * plugin still registers these tag names", so the entries land in the settings page's
- * **Deprecated** box, not **Removed**, while the family renders. The owner retires it by
- * passing `prefix_removed => true`.
+ * plugin still registers these tag names", so an entry registered with
+ * `prefix_removed => false` lands in the settings page's **Deprecated** box. Only an owner
+ * still registering its prefixed tags by hand needs that; the default files under Removed.
  *
  * @since 1.17.0
  * @return string Always ''.
@@ -1916,8 +1916,8 @@ function bws_modifier_migration_live_marker(): string {
  *
  * REACH: the converter scans the POSTS table only (non-revision, non-trash), which does
  * include reusable blocks, template parts and theme-element post types. Tags stored in the
- * OPTIONS table — block widgets — are out of its reach and keep rendering; the old tags stay
- * registered, so "run the converter" is never a deadline.
+ * OPTIONS table — block widgets — are out of its reach, and since no modifier family is
+ * registered they render their own braces with no repair from the admin screen.
  *
  * @since 1.17.0
  * @param string $prefix Modifier prefix, with or without its trailing underscore (e.g. 'view').
@@ -1926,8 +1926,9 @@ function bws_modifier_migration_live_marker(): string {
  *     Optional. Per-family entry fields.
  *
  *     @type string   $since          Version the prefix was deprecated in. Shown in admin.
- *     @type bool     $prefix_removed True once YOU stop registering the family's tags —
- *                                    moves the entries to the Removed box. Default false.
+ *     @type bool     $prefix_removed Files the entries in the Removed box. Default true:
+ *                                    no modifier family is registered. Pass false only
+ *                                    while you still register the prefixed tags yourself.
  * }
  * @return string[] The modifier tag names entries were generated for, in template order.
  */
@@ -1984,7 +1985,7 @@ function bws_register_modifier_root_migrations( string $prefix, string $root, ar
 			'modifier_root'      => $root,
 			'since'              => (string) ( $args['since'] ?? '' ),
 			'callback'           => 'bws_modifier_migration_live_marker',
-			'prefix_removed'     => ! empty( $args['prefix_removed'] ),
+			'prefix_removed'     => (bool) ( $args['prefix_removed'] ?? true ),
 		) );
 
 		$generated[] = $old_tag;
