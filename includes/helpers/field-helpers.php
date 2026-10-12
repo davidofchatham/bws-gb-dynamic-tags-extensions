@@ -1140,8 +1140,7 @@ function bws_resolve_field_sources( array $options, $instance ): array {
 /**
  * The fixed read's author text as a one-item list, or array() when it is empty.
  *
- * The source-free half of bws_resolve_fixed_values(), for the per-item dispatchers that
- * already hold their source (the row dispatchers of email and phone).
+ * The source-free half of bws_resolve_fixed_values().
  *
  * @since 1.21.0
  * @param array $options Tag options (`fixed`).
@@ -1151,29 +1150,6 @@ if ( ! function_exists( 'bws_fixed_raw_values' ) ) {
 function bws_fixed_raw_values( array $options ): array {
 	$text = trim( sanitize_text_field( $options['fixed'] ?? '' ) );
 	return '' === $text ? array() : array( $text );
-}
-}
-
-/**
- * The fixed read's turn in a per-item try_ dispatcher (email / phone), or null when the
- * slot's read is not the fixed read and the dispatcher carries on with its field read.
- *
- * ONE PRELUDE for the per-item dispatchers (the email and phone row dispatchers). The
- * caller says whether IT has a source; the answer is the author's value once, or an empty
- * list, which the family finisher then turns into an empty attempt.
- *
- * @since 1.21.0
- * @param string $tag        'email' or 'phone' — the family whose read rule applies.
- * @param bool   $has_source Whether the dispatcher's own source resolved.
- * @param array  $options    Slot options.
- * @return string[]|null Raw candidate list for the finisher, or null when not a fixed read.
- */
-if ( ! function_exists( 'bws_try_fixed_dispatch' ) ) {
-function bws_try_fixed_dispatch( string $tag, bool $has_source, array $options ): ?array {
-	if ( 'fixed' !== bws_use_effective( $tag, $options ) ) {
-		return null;
-	}
-	return $has_source ? bws_fixed_raw_values( $options ) : array();
 }
 }
 

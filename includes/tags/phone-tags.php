@@ -586,40 +586,6 @@ function bws_phone_finish_values( array $raw, array $options ): array {
 }
 
 /**
- * Try-tag repeater-ROW-slot dispatch for the `phone` template (FW-74).
- *
- * Read the sub-field off the row, then run it through the SAME finisher
- * (normalize-as-validity, cc, tel wrap) the base read uses, so a row number and a post
- * number compose identically. No SITE branch — a `rows` step never resolves to
- * the site store — and no `use` fork, because {{phone}} has no analog.
- *
- * NO base arm is its twin: base {{phone}} reads through bws_resolve_field_values(), which
- * dispatches nothing on kind and hands every resolved source to the L2 seam, whose
- * `meta_row` case has been live since 1.17.0. See bws_try_email_row_dispatch() for the
- * same note at length — only the try_ machinery, which dispatches per ARM, needed one.
- *
- * Takes the resolved SOURCE, not an id (a row has none).
- *
- * @since 1.21.0
- * @param array  $source   Resolved source of kind `meta_row`.
- * @param array  $options  Slot options (key, noLink).
- * @param object $instance GB tag instance.
- * @return string[] Finished per-item strings for this row.
- */
-function bws_try_phone_row_dispatch( $source, $options, $instance ) {
-	$fixed = bws_try_fixed_dispatch( 'phone', true, (array) $options );
-	if ( null !== $fixed ) {
-		return bws_phone_finish_values( $fixed, (array) $options );
-	}
-	$key = sanitize_text_field( $options['key'] ?? '' );
-	if ( '' === $key || ( function_exists( 'bws_is_valid_meta_key' ) && ! bws_is_valid_meta_key( $key ) ) ) {
-		return array();
-	}
-	$raw = bws_read_resolved_source( (array) $source, $key, $instance );
-	return bws_phone_finish_values( '' === $raw ? array() : array( $raw ), (array) $options );
-}
-
-/**
  * Register the `phone` modifier TEMPLATE descriptor (not the standalone {{phone}}
  * GB tag). Called from bws_register_base_tags() before try_ generation, so
  * try_phone falls out. [SPEC §32 T9/T11]

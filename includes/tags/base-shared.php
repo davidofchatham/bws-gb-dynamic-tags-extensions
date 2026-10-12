@@ -1271,21 +1271,6 @@ function bws_base_term_ids_from_source( array $base, array $options, bool $ignor
 }
 
 /**
- * The USER ids a base tag's chain resolves to — the user arm's read.
- *
- * Today only a ROOT-ONLY chain (ambient author archive) yields a user. Runs the chain
- * rather than reading $base['id'] so a future user-producing step needs no change.
- *
- * @since 1.17.0
- * @param array $base    Base resolved source.
- * @param array $options Tag options.
- * @return int[] User ids in document order (may be empty).
- */
-function bws_base_user_ids_from_source( array $base, array $options ): array {
-	return bws_base_source_ids_of_kind( $base, $options, 'user' );
-}
-
-/**
  * The FIRST usable post's read, off a base tag's whole chain (ADR 0007, [I19]).
  *
  * The collapsing callbacks' POST route: the unbounded fan arrives gated

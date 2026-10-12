@@ -314,41 +314,6 @@ function bws_email_finish_values( array $raw, array $options ): array {
 }
 
 /**
- * Try-tag repeater-ROW-slot dispatch for the `email` template (FW-74).
- *
- * Read the sub-field off the row, then run it through the SAME finisher (validate,
- * subject, obfuscate, mailto wrap) the base read uses, so a row address and a post
- * address compose identically. No SITE branch — a `rows` step never
- * resolves to the site store — and no `use` fork, because {{email}} has no analog.
- *
- * NO base arm is its twin, and that is not an omission: base {{email}} reads through
- * bws_resolve_field_values(), which dispatches nothing on kind and hands every resolved
- * source to the L2 seam — whose `meta_row` case has been live since 1.17.0. The base tag
- * therefore read rows before this function existed; only the try_ machinery, which
- * dispatches per ARM, needed the arm's implementation.
- *
- * Takes the resolved SOURCE, not an id (a row has none).
- *
- * @since 1.21.0
- * @param array  $source   Resolved source of kind `meta_row`.
- * @param array  $options  Slot options (key, noLink, subject).
- * @param object $instance GB tag instance.
- * @return string[] Finished per-item strings for this row.
- */
-function bws_try_email_row_dispatch( $source, $options, $instance ) {
-	$fixed = bws_try_fixed_dispatch( 'email', true, (array) $options );
-	if ( null !== $fixed ) {
-		return bws_email_finish_values( $fixed, (array) $options );
-	}
-	$key = sanitize_text_field( $options['key'] ?? '' );
-	if ( '' === $key || ( function_exists( 'bws_is_valid_meta_key' ) && ! bws_is_valid_meta_key( $key ) ) ) {
-		return array();
-	}
-	$raw = bws_read_resolved_source( (array) $source, $key, $instance );
-	return bws_email_finish_values( '' === $raw ? array() : array( $raw ), (array) $options );
-}
-
-/**
  * Register the `email` modifier TEMPLATE descriptor (not the standalone {{email}}
  * GB tag — that is bws_register_email_tag). Called from bws_register_base_tags()
  * before generate_base_try_tags() so try_email falls out. [SPEC §32 T8/T11]
