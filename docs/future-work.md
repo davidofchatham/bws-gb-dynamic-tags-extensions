@@ -139,19 +139,17 @@ Progress: This plugin's own output boundary (1.19.0) strips the consumed options
 
 Blocked by: —  •  Interacts with: FW-98
 
-#### FW-104 — The deprecation-mode radio is dead UI, and wiring it up would disable externally-registered families
+#### FW-104 — The deprecation-mode radio is dead UI, kept for future deprecation windows
 
-The settings page's Keep / Suppress / Disable radio stores a value nothing reads; finishing it is a content-blanking trap because the stored mode applies per GROUP, and since 1.17.0 an external plugin can enroll a live family into that group's pool.
+The settings page's Keep / Suppress / Disable radio stores a value nothing reads. Kept on purpose (decided 2026-10-12) for reuse in the next deprecation window, alongside FW-153.
 
-Detail home: GH #110
+Detail home: `.scratch/plans/deprecation-mode-radio.md` (moved from GH #110, closed 2026-10-12)
 
-Progress: Fresh installs seed both groups to `disable` (the read-path fallback is `keep`), so finishing the radio would take externally-registered families dark on upgrade with no conversion run and no warning. Four directions were identified at filing, none chosen. The instance that made this concrete — the integrating plugin's nine modifier tags, enrolled since 1.17.0 — went on 2026-09-08; the trap was a property of the registration API (FW-129), not of that one integrator.
+Progress: Not wired. The external-family trap that made finishing it dangerous is unreachable since FW-129.
 
-**The trap is UNREACHABLE as of 1.21.0.** FW-129 withdrew `register_modifier()`, since deleted, so no external plugin can enroll a live family into either pool any more, and the seeded `disable` has nothing external left to take dark. That removes the blast radius, not the item: the radio still stores a value nothing reads, and `term_`'s seed entry went with the family, leaving `try_` as the only member of either pool. The reduced question is whether to wire the radio for `try_` alone or delete the dead accessors, and it is no longer gated on protecting someone else's tags. Re-widens if a future release re-opens a minting route, which nothing plans.
+Open: Whether the radio as built fits the next deprecation window or needs reshaping first.
 
-Open: Which of the four directions (exempt externally-registered entries, go per-family/per-entry, treat a stored `disable` as applying only to entries present when it was saved, or delete the dead accessors); whichever lands, `docs/plugin-integration.md` §9 must state what registering an entry enrolls tags in.
-
-Blocked by: decision:which of the four directions  •  Interacts with: FW-38 (`registered_by` — the registrar identity a gated version needs), FW-33 (closed)
+Blocked by: — (reviewed when a deprecation window opens)  •  Interacts with: FW-153 (the same deprecation-window affordance class), FW-81 (the likely first window), FW-38 (`registered_by` / `lifecycle`), FW-33 (closed)
 
 #### FW-106 — The resolved chain is re-derived, not passed
 
