@@ -126,30 +126,6 @@ function bws_can_process_post_content( $post_id ) {
 }
 
 /**
- * Push a post onto the content processing stack.
- *
- * @since 1.1.0
- * @param int $post_id Post ID.
- */
-if ( ! function_exists( 'bws_start_processing_post' ) ) {
-function bws_start_processing_post( $post_id ) {
-	\BWS\DynamicTags\Content\ContentProcessor::start( 'post:' . (int) $post_id );
-}
-}
-
-/**
- * Pop a post from the content processing stack.
- *
- * @since 1.1.0
- * @param int $post_id Post ID.
- */
-if ( ! function_exists( 'bws_end_processing_post' ) ) {
-function bws_end_processing_post( $post_id ) {
-	\BWS\DynamicTags\Content\ContentProcessor::end( 'post:' . (int) $post_id );
-}
-}
-
-/**
  * Check if sufficient memory is available for full content processing.
  *
  * Threshold filterable via `bws_content_memory_threshold` (default 0.80).
@@ -288,55 +264,6 @@ function bws_content_debug_end( $cache_key, $start_data ) {
 }
 
 // ===============================================
-// POST CONTENT: INLINE CSS QUEUE (thin wrappers over ContentProcessor)
-// ===============================================
-
-// bws_queue_inline_css( $css ) -- REMOVED (#133).
-//
-// The 1.2.0 wrapper over ContentProcessor::queue_inline_css() had been UNREACHABLE
-// since 1.17.0: bws_queue_inline_css( string $id, string $css ) took the same name
-// higher up this file, and the function_exists() guard here meant this body never
-// defined. Nothing called it -- a 1-arg call would have been an ArgumentCountError
-// against the 2-arg definition that wins -- so nothing changes by deleting it.
-//
-// Deleted rather than renamed: the sink it wrapped is not orphaned. The two live
-// queues are separate BY DESIGN and the id-keyed helper's docblock says so --
-// ContentProcessor::queue_inline_css() takes harvested per-post CSS and concatenates
-// without dedupe, bws_queue_inline_css( $id, $css ) takes static plugin-authored CSS
-// keyed for print-once. Both print at wp_footer:5, into different <style> elements.
-// The content sink has never had an external caller and is reached in-class.
-//
-// bws_output_queued_inline_css() and bws_extract_and_queue_inline_styles() below are
-// the other two 1.2.0 wrappers and are ALSO uncalled -- but they define fine and are
-// a different case from this one, which was broken. Tracked as FW-126, not swept here.
-
-/**
- * Output CSS queued by ContentProcessor::queue_inline_css() as a single <style> element.
- *
- * Hooked to wp_footer at priority 5 (registered on first queue call).
- *
- * @since 1.2.0
- */
-if ( ! function_exists( 'bws_output_queued_inline_css' ) ) {
-function bws_output_queued_inline_css() {
-	\BWS\DynamicTags\Content\ContentProcessor::output_queued_inline_css();
-}
-}
-
-/**
- * Extract inline <style> elements from content and queue them for wp_footer.
- *
- * @since 1.2.0
- * @param string $content HTML content that may contain inline <style> elements.
- * @return string Content with <style> elements removed.
- */
-if ( ! function_exists( 'bws_extract_and_queue_inline_styles' ) ) {
-function bws_extract_and_queue_inline_styles( $content ) {
-	return \BWS\DynamicTags\Content\ContentProcessor::extract_and_queue_inline_styles( (string) $content );
-}
-}
-
-// ===============================================
 // POST CONTENT: PROCESSING PIPELINE (thin wrappers over ContentProcessor)
 // ===============================================
 
@@ -358,21 +285,6 @@ function bws_extract_and_queue_inline_styles( $content ) {
 if ( ! function_exists( 'bws_render_block_content' ) ) {
 function bws_render_block_content( $raw, $cache_key, $args = array() ) {
 	return \BWS\DynamicTags\Content\ContentProcessor::render( (string) $raw, (string) $cache_key, $args );
-}
-}
-
-/**
- * Fallback content pipeline for when memory is insufficient.
- *
- * @since 1.1.0
- * @param int   $post_id Post ID.
- * @param array $args    Reserved for future use.
- * @return string Processed content.
- */
-if ( ! function_exists( 'bws_process_post_content_fallback' ) ) {
-function bws_process_post_content_fallback( $post_id, $args = array() ) {
-	$raw = get_post_field( 'post_content', (int) $post_id );
-	return \BWS\DynamicTags\Content\ContentProcessor::render_fallback( (string) $raw, $args );
 }
 }
 
