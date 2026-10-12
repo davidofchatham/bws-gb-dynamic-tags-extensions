@@ -310,6 +310,8 @@ function bws_fold_bracket_pair( int $level ): array {
  * POSITION, so two classes may overlap across positions (opt and step both once
  * accepted `,;`) but must be disjoint WITHIN one. step and part share a position.
  *
+ * Test-only by design: slot-fold-test.php calls it, and no runtime caller is expected.
+ *
  * @return string[] Violation strings; empty array = safe.
  */
 function bws_fold_grammar_validate(): array {

@@ -455,8 +455,8 @@ function bws_phone_render_one( string $raw, string $cc, bool $link, bool $stripC
 function bws_base_phone_resolve_value( array $options, $instance ): array {
 	$sep = $options['sep'] ?? ', ';
 
-	// L3 compose — normalize+render each raw value via the shared finisher (SAME
-	// per-item compose the try_ dispatchers use, VP4 / V10).
+	// L3 compose — normalize+render each raw value via the shared finisher
+	// (VP4 / V10).
 	$parts = bws_phone_finish_values( bws_contact_read_raw( bws_use_effective( 'phone', $options ), $options, $instance ), $options );
 
 	return array(
@@ -558,7 +558,8 @@ function bws_phone_strip_leading_cc(): bool {
 /**
  * Compose a list of raw candidate numbers into finished tel/plain strings.
  *
- * The L3 assembly step shared by the base callback and the try_ dispatchers:
+ * The L3 assembly step shared by the resolve seam (which try_ attempts also read
+ * through) and the base callback's fallback:
  * normalize+render each raw number via bws_phone_render_one (the SAME per-item
  * compose the base {{phone}} callback uses — cc, strip-leading-cc, tel wrap,
  * model-C separators). Normalization doubles as the VP4 validity gate (a number
@@ -583,40 +584,6 @@ function bws_phone_finish_values( array $raw, array $options ): array {
 		}
 	}
 	return $out;
-}
-
-/**
- * Try-tag repeater-ROW-slot dispatch for the `phone` template (FW-74).
- *
- * Read the sub-field off the row, then run it through the SAME finisher
- * (normalize-as-validity, cc, tel wrap) the base read uses, so a row number and a post
- * number compose identically. No SITE branch — a `rows` step never resolves to
- * the site store — and no `use` fork, because {{phone}} has no analog.
- *
- * NO base arm is its twin: base {{phone}} reads through bws_resolve_field_values(), which
- * dispatches nothing on kind and hands every resolved source to the L2 seam, whose
- * `meta_row` case has been live since 1.17.0. See bws_try_email_row_dispatch() for the
- * same note at length — only the try_ machinery, which dispatches per ARM, needed one.
- *
- * Takes the resolved SOURCE, not an id (a row has none).
- *
- * @since 1.21.0
- * @param array  $source   Resolved source of kind `meta_row`.
- * @param array  $options  Slot options (key, noLink).
- * @param object $instance GB tag instance.
- * @return string[] Finished per-item strings for this row.
- */
-function bws_try_phone_row_dispatch( $source, $options, $instance ) {
-	$fixed = bws_try_fixed_dispatch( 'phone', true, (array) $options );
-	if ( null !== $fixed ) {
-		return bws_phone_finish_values( $fixed, (array) $options );
-	}
-	$key = sanitize_text_field( $options['key'] ?? '' );
-	if ( '' === $key || ( function_exists( 'bws_is_valid_meta_key' ) && ! bws_is_valid_meta_key( $key ) ) ) {
-		return array();
-	}
-	$raw = bws_read_resolved_source( (array) $source, $key, $instance );
-	return bws_phone_finish_values( '' === $raw ? array() : array( $raw ), (array) $options );
 }
 
 /**

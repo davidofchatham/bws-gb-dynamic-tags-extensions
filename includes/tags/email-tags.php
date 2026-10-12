@@ -195,7 +195,7 @@ function bws_base_email_resolve_value( array $options, $instance ): array {
 	$sep = $options['sep'] ?? ', ';
 
 	// L3 compose — validate + render each raw value via the shared finisher
-	// (SAME per-item compose the try_ dispatchers use, VE4 / V10).
+	// (VE4 / V10).
 	$parts = bws_email_finish_values( bws_contact_read_raw( bws_use_effective( 'email', $options ), $options, $instance ), $options );
 
 	return array(
@@ -286,7 +286,8 @@ function bws_email_obfuscation_enabled(): bool {
 /**
  * Compose a list of raw candidate addresses into finished mailto/plain strings.
  *
- * The L3 assembly step shared by the base callback and the try_ dispatchers:
+ * The L3 assembly step shared by the resolve seam (which try_ attempts also read
+ * through) and the base callback's fallback:
  * validate each raw value (VE4 is_email), then bws_email_render_one per valid
  * address (the SAME per-item compose the base {{email}} callback uses — subject,
  * obfuscation, mailto wrap). Returns finished per-item strings; the caller joins
@@ -311,41 +312,6 @@ function bws_email_finish_values( array $raw, array $options ): array {
 		}
 	}
 	return $out;
-}
-
-/**
- * Try-tag repeater-ROW-slot dispatch for the `email` template (FW-74).
- *
- * Read the sub-field off the row, then run it through the SAME finisher (validate,
- * subject, obfuscate, mailto wrap) the base read uses, so a row address and a post
- * address compose identically. No SITE branch — a `rows` step never
- * resolves to the site store — and no `use` fork, because {{email}} has no analog.
- *
- * NO base arm is its twin, and that is not an omission: base {{email}} reads through
- * bws_resolve_field_values(), which dispatches nothing on kind and hands every resolved
- * source to the L2 seam — whose `meta_row` case has been live since 1.17.0. The base tag
- * therefore read rows before this function existed; only the try_ machinery, which
- * dispatches per ARM, needed the arm's implementation.
- *
- * Takes the resolved SOURCE, not an id (a row has none).
- *
- * @since 1.21.0
- * @param array  $source   Resolved source of kind `meta_row`.
- * @param array  $options  Slot options (key, noLink, subject).
- * @param object $instance GB tag instance.
- * @return string[] Finished per-item strings for this row.
- */
-function bws_try_email_row_dispatch( $source, $options, $instance ) {
-	$fixed = bws_try_fixed_dispatch( 'email', true, (array) $options );
-	if ( null !== $fixed ) {
-		return bws_email_finish_values( $fixed, (array) $options );
-	}
-	$key = sanitize_text_field( $options['key'] ?? '' );
-	if ( '' === $key || ( function_exists( 'bws_is_valid_meta_key' ) && ! bws_is_valid_meta_key( $key ) ) ) {
-		return array();
-	}
-	$raw = bws_read_resolved_source( (array) $source, $key, $instance );
-	return bws_email_finish_values( '' === $raw ? array() : array( $raw ), (array) $options );
 }
 
 /**

@@ -14,30 +14,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Get image return type options for tag registration.
- *
- * @since 1.0.0
- * @return array
- */
-if ( ! function_exists( 'bws_get_image_return_type_options' ) ) {
-function bws_get_image_return_type_options() {
-	return array(
-		'as' => array(
-			'type'    => 'select',
-			'label'   => __( 'Return Type', 'generateblocks' ),
-			'default' => 'url',
-			'options' => array(
-				array( 'value' => 'url', 'label' => __( 'Image URL', 'generateblocks' ) ),
-				array( 'value' => 'alt', 'label' => __( 'Alt Text', 'generateblocks' ) ),
-				array( 'value' => 'id', 'label' => __( 'Attachment ID', 'generateblocks' ) ),
-				array( 'value' => 'caption', 'label' => __( 'Caption', 'generateblocks' ) ),
-			),
-		),
-	);
-}
-}
-
-/**
  * Registered image sizes as {value,label} option rows for the as+size composite.
  *
  * The `bws-as-size` control (assets/js/as-size-control.js) folds size INTO the
@@ -128,50 +104,6 @@ function bws_parse_as_option( $options ) {
 	return array(
 		'mode' => $mode,
 		'size' => $size,
-	);
-}
-}
-
-/**
- * Get meta image field options for tag registration.
- *
- * @since 1.0.0
- * @return array
- */
-if ( ! function_exists( 'bws_get_meta_image_options' ) ) {
-function bws_get_meta_image_options() {
-	return array(
-		'meta_key' => array(
-			'type'        => 'text',
-			'label'       => __( 'Meta Key', 'generateblocks' ),
-			'help'        => __( 'Enter the meta key for the image field (ACF or standard meta).', 'generateblocks' ),
-			'placeholder' => __( 'company_logo', 'generateblocks' ),
-		),
-	);
-}
-}
-
-/**
- * Get custom image field options for the custom_image template (key + return type).
- *
- * Uses 'key' as the option key for template-generated tags.
- * The bws_custom_image_core() callback accepts 'key', 'field_key', and 'meta_key' for backward compat.
- *
- * @since 1.2.0
- * @return array
- */
-if ( ! function_exists( 'bws_get_meta_and_return_type_options' ) ) {
-function bws_get_meta_and_return_type_options() {
-	return array_merge(
-		array(
-			'key' => array(
-				'type'        => 'text',
-				'label'       => __( 'Meta Key', 'generateblocks' ),
-				'help'        => __( 'Enter the meta key for the image field (ACF or standard meta).', 'generateblocks' ),
-				'placeholder' => __( 'company_logo', 'generateblocks' ),
-			),
-		),
-		bws_get_image_return_type_options()
 	);
 }
 }

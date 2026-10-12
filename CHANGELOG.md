@@ -11,6 +11,13 @@ All notable changes to this project are documented in this file. The format is b
 ### Removed
 
 - **For plugin developers: `TagTemplateRegistry::register_modifier()` is gone.** It has registered nothing since 1.21.0, so a leftover call is now a fatal error instead of a notice. `register_modifier_template()` is no longer a supported integration route either: it stays only as the internal way this plugin builds its own `{{try_*}}` tags. To give your source the built-in tags, offer it as a chain root (see `docs/plugin-integration.md` §1a). Stored `{{term_*}}` tags and other converted prefixes are unaffected, and the Migration Tool still converts them.
+- **For plugin developers: seven helper functions that nothing in this plugin calls any more are gone.** Each was listed for integrating plugins; no stored tag depends on them. Where your plugin still calls one, switch to:
+  - `bws_can_process_post_content( $post_id )`: `\BWS\DynamicTags\Content\ContentProcessor::can_process( 'post:' . $post_id )`.
+  - `bws_has_sufficient_memory()`: `\BWS\DynamicTags\Content\ContentProcessor::has_sufficient_memory()`.
+  - `bws_get_meta_image_options()`: `bws_get_image_field_options()`. The old function offered a `meta_key` option that no image tag reads.
+  - `bws_get_image_return_type_options()`: define the `as` option in your own registration.
+  - `bws_get_terms_for_post( $post_id, $options )`: WordPress's `get_the_terms()`.
+  - `bws_post_term_extraction_options()` and `bws_post_term_image_options()`: define the options in your own registration. This reverses 1.16.0, which kept `bws_post_term_extraction_options()` for integrating plugins.
 
 ## [1.21.1] — 2026-10-12
 

@@ -1577,21 +1577,6 @@ function bws_try_content_row_dispatch( $source, $options, $instance ) {
 }
 
 /**
- * Try-tag post-slot dispatch for `image` template.
- *
- * Reads $options['use'] to route between featured-image and custom-field modes.
- *
- * @since 1.6.0
- */
-function bws_try_image_post_dispatch( $post_id, $options, $instance ) {
-	$use = bws_use_effective( 'image', $options );
-	if ( 'featured' === $use ) {
-		return bws_featured_image_core( $post_id, $options, $instance );
-	}
-	return bws_custom_image_core( $post_id, $options, $instance );
-}
-
-/**
  * Try-tag repeater-ROW-slot dispatch for `image` template.
  *
  * `featured` REFUSES (a row has no featured image; reading one would print the

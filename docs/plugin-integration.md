@@ -394,8 +394,6 @@ These functions are available once `bws-gb-dynamic-tags-extensions` is active. A
 | `bws_handle_dashicon_value( $value, $return_type )` | Handle WordPress Dashicon values |
 | `bws_get_attachment_id_from_url( $url )` | Reverse-lookup attachment ID from URL |
 | `bws_handle_media_fallback( $options, $instance, $return_type, $size )` | Media selector fallback logic |
-| `bws_get_image_return_type_options()` | Standard return type option (url/id/alt/caption) |
-| `bws_get_meta_image_options()` | Field key + return type options for image tags |
 
 ### Field helpers (`includes/helpers/field-helpers.php`)
 
@@ -458,9 +456,7 @@ Procedural API. Most are thin wrappers over `\BWS\DynamicTags\Content\ContentPro
 | `bws_render_block_content( $raw, $cache_key, $args )` | **(new, v1.8.0)** Generic render entry. Use when content isn't a `post_content` fetch (e.g. wp_options-stored markup). Stack keys on `$cache_key` (convention: `'post:'.$id` or `'option:'.$key`). |
 | `bws_process_post_content( $post_id, $args )` | Post-content render. Fetches raw and delegates to `bws_render_block_content( $raw, 'post:'.$post_id, $args )`. Returns empty string on failure. |
 | `bws_safe_content_output( $content, $options, $instance )` | Strips destructive GB options (`trunc`, `case`, `link`, `wpautop`) before calling `output()`. Always use this for rendered HTML. |
-| `bws_can_process_post_content( $post_id )` | Returns `true` if post can be processed (not in stack, depth below the limit). |
 | `bws_is_query_loop_setup_phase( $instance )` | Returns `true` when GB is setting up a query loop and `postId` is not yet in context. Skip content rendering in this case. |
-| `bws_has_sufficient_memory()` | Returns `true` when memory usage is below `bws_content_memory_threshold` (default 0.80) of the PHP limit. |
 | `bws_sanitize_rich_content( $content )` | Safe HTML sanitization for displayed content. |
 
 #### Filters
@@ -516,9 +512,6 @@ For wp_options arrays, the **root** key is what's allowlisted (`my_plugin_settin
 | `bws_reliable_term_context_detection( $options )` | Multi-fallback term ID detection (archive, loop, option) |
 | `bws_get_validated_term( $term_id )` | Validate and retrieve WP_Term object |
 | `bws_get_term_field_image_data( $term_id, $field_key, $return_type, $size )` | Image from term ACF/meta field |
-| `bws_get_terms_for_post( $post_id, $options )` | Returns `WP_Term[]` in taxonomy from `$options['tax']` (legacy `taxonomy` accepted as fallback) |
-| `bws_post_term_extraction_options()` | Standard `tax` + `fallback` options for post-context term templates |
-| `bws_post_term_image_options()` | `tax` + `key` options for post-context term image templates |
 
 ---
 
@@ -564,13 +557,10 @@ add_action( 'bws_dynamic_tags_register_sources', function () {
 
 ### Write the callback
 
-Your callback must emit a deprecation notice and delegate to the new implementation:
+Your callback delegates to the new implementation:
 
 ```php
 function oldname_deprecated_post_meta_callback( $options, $block, $instance ) {
-    // Emits _doing_it_wrong() when WP_DEBUG is enabled.
-    bws_deprecated_tag_notice( 'oldname_post_meta', 'text', '2.0.0' );
-
     $source = \BWS\DynamicTags\SourceRegistry::get_source( 'oldname' );
     $id     = $source ? $source->resolve_id( $options, $instance ) : false;
 
@@ -582,8 +572,6 @@ function oldname_deprecated_post_meta_callback( $options, $block, $instance ) {
 
 - The old tag is recorded in `MigrationRegistry` so the Migration Tool can find and rewrite it. As of 1.14.0 deprecated tags no longer register with GenerateBlocks, so existing content using an old tag string stops rendering until you run the Migration Tool (or the author updates the tag) — the migration path is how that content stays working, not live rendering of the old name.
 - The old tag appears in the Removed Tags section of the admin settings page (informational; no per-tag toggle).
-- `bws_deprecated_tag_notice()` fires a `_doing_it_wrong()` notice when `WP_DEBUG` is
-  enabled, prompting developers to update their templates.
 - When a `new_tag` and migration fields (`option_renames`, `fixed_options`, etc.) are configured, the **Convert** button on the settings page rewrites matching tag strings in post content.
 
 ### `DeprecatedTagRegistry::register()` parameter reference
@@ -597,7 +585,7 @@ function oldname_deprecated_post_meta_callback( $options, $block, $instance ) {
 | `supports` | array | — | GB supports array. Defaults to `[]`. |
 | `options` | array | — | GB options array. Omit if no options. |
 | `callback` | callable\|string | Yes | PHP callable, historically invoked to render the old tag. As of 1.14.0 it is **not** called for rendering (deprecated tags no longer register with GB); still required for a well-formed entry and future lifecycle use. |
-| `since` | string | — | Version string passed to `bws_deprecated_tag_notice()`. |
+| `since` | string | — | Version the tag was deprecated in, shown beside it on the settings page. |
 | `description` | string | — | Overrides the auto-generated GB tag description. Auto-default: `'Deprecated — use "new_tag" instead.'` |
 | `source_inject` | string | — | `src` option value injected on conversion (e.g. `'ref'` for a related-post traversal source). Empty string omits the `src` option. |
 | `option_renames` | array | — | Map of old option key → new option key applied before serialization. E.g. `['field_key' => 'key']`. |

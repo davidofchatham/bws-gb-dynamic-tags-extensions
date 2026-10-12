@@ -7,8 +7,8 @@
  * find and migrate old content.
  *
  * bws_deprecated_tag_notice() and bws_build_deprecation_preview_label() are
- * KEPT BY DESIGN with no callers — retained for a future deprecated-tag family
- * that needs live rendering again. Do not remove them as dead code.
+ * KEPT BY DESIGN with no callers — candidate starting points for FW-153 (an
+ * editor warning on tags in a deprecation window). Do not remove them as dead code.
  *
  * @package BWS_Dynamic_Tags
  * @since 1.0.0
