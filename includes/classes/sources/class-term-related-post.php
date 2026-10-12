@@ -75,8 +75,8 @@ class TermRelatedPost extends AbstractSource {
 	 * Inert since 1.17.0 — the term→post relationship hop is the `ref` step's job (#56).
 	 *
 	 * Superseded twice over: 1.14.0 replaced the per-combination traversal classes with a
-	 * generic `ref` step off the modifier's BASE source (make_modifier_callback resolves
-	 * TaxonomyTerm, then hops), and `traversal_source_key` has been accepted-but-ignored
+	 * generic `ref` step off the modifier's BASE source (the modifier callback resolved
+	 * TaxonomyTerm, then hopped), and `traversal_source_key` has been accepted-but-ignored
 	 * since. What remained here was the stale `rel` spelling — no other reader in the
 	 * plugin honours it, so keeping it meant one question with two answers (#56).
 	 *

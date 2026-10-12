@@ -7,9 +7,8 @@
  * read. modifier-base-migration-test.php owns the transform and the generated entries as
  * strings; this owns "the page renders after the run".
  *
- * NO PRE-CONVERSION SIDE, since the fixture stood down from `register_modifier()` ahead of
- * FW-129 withdrawing it — the seeded
- * `fixture_*` wire is unregistered and renders its own braces, so there is no "before" to
+ * NO PRE-CONVERSION SIDE, since `register_modifier()` is deleted — the seeded `fixture_*`
+ * wire is unregistered and renders its own braces, so there is no "before" to
  * compare against and byte-identity is not a property this can measure. That is the accepted
  * cost recorded on the registrar in schema.php. What is left is the shape that matters after
  * a prefix is retired: the converter still finds the wire, still rewrites it, and what it

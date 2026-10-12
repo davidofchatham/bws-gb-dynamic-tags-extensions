@@ -48,7 +48,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * CAPTIONS BELONG TO CONTROLS, NOT TO GROUPS (v1.17.0). The wrapper renders no caption at
  * all; a control that draws its own captions inside the wrapper's box is what puts one
  * there. So the source group reads "SOURCE" / "SOURCE PATH" on the tags whose source is a
- * chain control, and shows the same box bare on `term_*`, `try_*`, `{{table}}` and
+ * chain control, and shows the same box bare on `try_*`, `{{table}}` and
  * `{{call}}`, whose source is a plain select. That asymmetry is accepted for v1 and
  * tracked on FW-64: making it uniform means the wrapper renders the caption, and the
  * chain control's is DYNAMIC (it changes with chain length), so the wrapper would have to
@@ -76,14 +76,14 @@ function bws_option_visual_groups(): array {
 		// now caught on both families (#65, verified by mutation 2026-08-07):
 		//   - a CHAIN-authoring tag → §5 of control-order-test.php ("registers no tag-level
 		//     `limit`"), which sweeps by the control a tag authors its source with.
-		//   - a FLAT-select family (term_*, {{table}}, {{call}}) → §1, but only since it began
+		//   - a FLAT-select family (try_*, {{table}}, {{call}}) → §1, but only since it began
 		//     reading the FULL option sequence. While it walked the stamped options alone, an
 		//     ungrouped control spliced BETWEEN two grouped ones was dropped before the check
 		//     and the survivors still read as contiguous, so the split it makes in the panel
 		//     (option-group.js joins ADJACENT siblings) was invisible: the probe passed 122/122.
-		//     Position is the whole property — spliced after `srcTermIn` on a term_ tag it
-		//     breaks nothing, because term_ registers no `sep` and the source run ENDS there;
-		//     between `src` and `ref` it splits the box, and now fails.
+		//     Position is the whole property — spliced after `srcTermIn`, where the source
+		//     run ENDS, it breaks nothing; between `src` and `ref` it splits the box, and now
+		//     fails.
 		'src'             => array( 'group' => 'source', 'lead' => true ),
 		'ref'             => array( 'group' => 'source', 'lead' => false ),
 		'srcTermIn'       => array( 'group' => 'source', 'lead' => false ),
@@ -179,7 +179,7 @@ function bws_option_visual_groups(): array {
  *
  * DERIVED from the chain option's own `flatAxes` — the same list the control deletes by,
  * so a change to what the chain absorbs cannot leave a stray control behind. Gated on the
- * control TYPE, so `term_*`, `try_*`, `{{table}}` and `{{call}}` (plain `select` sources)
+ * control TYPE, so `try_*`, `{{table}}` and `{{call}}` (plain `select` sources)
  * are untouched.
  *
  * Removing the OPTION does not remove the VALUE: GB seeds `extraTagParams` from the parsed

@@ -538,18 +538,16 @@ assert_eq( 'V5.10 the entry names the BASE tag as its target',
 assert_eq( 'V5.11 the owner\'s `since` reaches the entry (the admin list shows it)',
 	'1.17.0', $fixture_entry['since'] ?? '' );
 
-// LIVENESS. Migrating does not retire the family — `register_modifier()` goes on minting
-// its GB tags — so the entries belong in the settings page's Deprecated box. is_entry_live()
-// still reads callback-presence as its interim proxy (FW-38 replaces it), so a generated
-// entry carries the marker; filing a live family under "no longer registers with
-// GenerateBlocks" would be false while it renders.
-assert_eq( 'V5.12 a migrated-but-not-retired family is DEPRECATED, not removed',
-	true, MigrationRegistry::is_entry_live( $fixture_entry ) );
+// LIVENESS. No modifier family is registered, so by default the entries are filed under
+// Removed. An owner still registering its prefixed tags by hand passes `prefix_removed =>
+// false`; is_entry_live() reads callback-presence as its interim proxy (FW-38 replaces it),
+// so the generated entry's marker is what lands that case in Deprecated.
+assert_eq( 'V5.12 by default a generated family is filed under Removed',
+	false, MigrationRegistry::is_entry_live( $fixture_entry ) );
 
-// Retirement is the owner's decision on the owner's schedule, and the flag is what says so.
-bws_register_modifier_root_migrations( 'retired', 'fixture', array( 'prefix_removed' => true ) );
-assert_eq( 'V5.13 prefix_removed files the family under Removed instead',
-	false, MigrationRegistry::is_entry_live( $entry_for( 'retired_text' ) ) );
+bws_register_modifier_root_migrations( 'retired', 'fixture', array( 'prefix_removed' => false ) );
+assert_eq( 'V5.13 prefix_removed => false files the family under Deprecated instead',
+	true, MigrationRegistry::is_entry_live( $entry_for( 'retired_text' ) ) );
 
 // END TO END for a generated family, through BOTH converter steps — the same pin §V4.9
 // makes for the hand-registered one. The `rel` shape strands only BETWEEN the two steps,

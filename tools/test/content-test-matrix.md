@@ -76,37 +76,6 @@ so the callback's arms are covered in one place rather than scattered across fam
 > exception path), an ambient read would start returning jane's values and CT6 is the row that
 > says so. Keep it beside the hop rows, not on another page.
 
-## §CT7 — modifier family (`term_`/`view_`/`fixture_`) `use` dispatch ([#88](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/88))
-
-Different code path from the rest of this file — `register_modifier()`/`make_modifier_callback()`
-(class-tag-template-registry.php), not `bws_base_content_callback()`. Belongs here rather than a
-third file because it is the same TAG family this matrix already covers, and the defect it pins
-is entity-independent (it reproduced identically on `term_`/`view_`/`fixture_`; `term_` is the only one
-still minted in this repo, the fixture having stood down from its own family ahead of FW-129).
-
-Through 1.19.1, `register_modifier()` wired `term_content`'s `post_fn`/`term_fn` straight to
-`bws_post_content_core`/`bws_term_description_core`, which read `$options['type']`, never `use` —
-so `use:key` and `use:excerpt` silently rendered the DEFAULT content/description branch instead
-of the field or excerpt, and did so wrongly rather than emptily (`text`'s twin of this bug,
-[#88](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/88)'s original
-report, at least rendered empty). Fixed by pointing `term_fn`/`post_fn` at the same
-`try_content_term_dispatch`/`try_content_post_dispatch` functions the `try_` family already used
-correctly.
-
-`term_content`'s own description/excerpt happen to be empty on this fixture's Support term either
-way (no term description authored, no reachable post carries a manual excerpt from a modifier's
-own traversal) — that makes `use:content`/`use:excerpt` non-diagnostic for `term_content` here
-(same value before and after the fix), so only the `use:key` row is listed: it is the one branch
-this corpus can show actually changing. `CT3` above already covers `use:excerpt` dispatching
-correctly on the BASE `{{content}}` tag against a target with real content (Jane Partner) — this
-section's job is only the MODIFIER wiring, not re-proving the excerpt core itself.
-
-| # | Tag | Expected |
-|---|---|---|
-| CT7.1 | `{{term_content use:key\|key:email}}` on `/department/support/` | `support@example.test` — the term's own field. **Before the fix: empty** (the modifier's `use` was never read, so the read fell to the term-description branch, which is empty for this term). Render-tag-only: a term-archive ambient context, same exception as T4 in `text-test-matrix.md` |
-
-CT7.2 read the same defect on `{{fixture_content}}`, the class route, and is **retired**: the fixture stood down from `register_modifier()` ahead of FW-129, so that prefix mints nothing and there is no dispatch there to measure. `term_` is the only family still minted, which is why this section is down to one row — and it goes when FW-129 takes the constructor.
-
 ## §CT8 — a field token implies the read (FW-142)
 
 An absent `use` beside a field token reads through that token's mode, so `key` alone is the keyed read; an explicit `use` still wins over a stale `key` beside it. Only `content` moves: its stripped default is the analog, so before FW-142 CT8.1 rendered jane's whole content. Visible on `/matrix-content/` (CT8 section).

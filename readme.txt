@@ -11,6 +11,9 @@ See README.md for overview, docs/tag-reference.md for architecture, and CHANGELO
 
 == Upgrade Notice ==
 
+= Unreleased =
+⚠ For developers: custom code that still calls TagTemplateRegistry::register_modifier() now causes a fatal error. It has registered nothing since 1.21.0; offer your source as a chain root instead. Sites with no custom integration code are unaffected.
+
 = 1.21.0 =
 ⚠ The {{term_}} tags are removed: any still in your content prints as literal text. Run the Migration Tool before or right after updating. Also: {{content}} with only a field key now reads that field, and a tag printing several values now links each one.
 

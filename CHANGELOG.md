@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- **For plugin developers: `bws_register_modifier_root_migrations()` now files its entries under Removed Tags by default.** No modifier family can be registered any more, so `prefix_removed` defaults to `true`. Pass `false` only if your plugin still registers its prefixed tags by hand.
+
+### Removed
+
+- **For plugin developers: `TagTemplateRegistry::register_modifier()` is gone.** It has registered nothing since 1.21.0, so a leftover call is now a fatal error instead of a notice. `register_modifier_template()` is no longer a supported integration route either: it stays only as the internal way this plugin builds its own `{{try_*}}` tags. To give your source the built-in tags, offer it as a chain root (see `docs/plugin-integration.md` §1a). Stored `{{term_*}}` tags and other converted prefixes are unaffected, and the Migration Tool still converts them.
+
 ## [1.21.1] — 2026-10-12
 
 ### Fixed

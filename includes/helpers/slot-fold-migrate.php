@@ -116,7 +116,7 @@ function bws_fold_migration_multislot_tags(): array {
 		}
 	}
 
-	// A duplicate template key (register_modifier_template is public API) would otherwise
+	// A duplicate template key (register_modifier_template() still accepts outside calls) would otherwise
 	// register two identical entries; generate_base_try_tags() dedupes its tags the same way.
 	return array_values( array_unique( $tags ) );
 }
@@ -486,7 +486,7 @@ function bws_migrate_base_src_chain( string $tag_string ): string {
  *
  * Deliberately not derived from "every registered tag": the migration target is the
  * AUTHORING surface, so this list must track `bws_build_src_chain_option()`'s callers
- * and nothing else. A `term_*` modifier or a `try_` slot keeps the flat select and
+ * and nothing else. A `try_` slot keeps the flat select and
  * would be migrated to wire its own control cannot edit.
  *
  * @since 1.17.0

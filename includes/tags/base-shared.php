@@ -57,12 +57,10 @@ function bws_base_source_option(): array {
  * THE ONE APPENDER. Both authoring surfaces call it — the base tag's root enum
  * (bws_build_src_chain_option) and the folded slot's source enum
  * (bws_build_fold_slot_options) — so a root offered on a base tag is never missing from
- * a try_ attempt or a `{{join}}` field. Slots are included and UNGATED: the gate keeping
- * `site` out of a rooting modifier's list is about ENTITY-BLIND sources, and a registered
- * entity root passes it.
+ * a try_ attempt or a `{{join}}` field. Slots are included and UNGATED.
  *
  * NEVER attached to bws_base_source_option(): derived families build their surfaces from
- * that builder's rows, so roots there would offer a second root inside a modifier
+ * that builder's rows, so roots there would offer a second root inside a derived
  * family's Source dropdown, widen `{{call}}`'s allowlist, and reach `{{table}}`'s flat options.
  *
  * APPENDED, never prepended: `defaultRoot` on both surfaces derives from the first row,
@@ -395,37 +393,10 @@ function bws_build_src_chain_option( array $args = array() ): array {
 }
 
 /**
- * Filter `site` out of a source-option definition.
- *
- * `site` is entity-blind, so on a rooting surface it fails the qualifying gate
- * (CONTEXT.md I4; tag-reference.md §Qualifying test).
- *
- * NO PRODUCTION CALLER — held only by slot-options-build-test.php; deleted with FW-129
- * unless a new rooting surface takes it up.
- *
- * Slot-side twin: bws_build_slot_traversal_options() (opt back in via try_allow_site_slot).
- *
- * @since 1.11.0
- * @param array $source_opt A bws_base_source_option()-shaped array (key 'src').
- * @return array Same shape with the `site` value removed from src options.
- */
-function bws_filter_site_from_src( array $source_opt ): array {
-	if ( isset( $source_opt['src']['options'] ) && is_array( $source_opt['src']['options'] ) ) {
-		$source_opt['src']['options'] = array_values( array_filter(
-			$source_opt['src']['options'],
-			static function ( $opt ) {
-				return 'site' !== ( $opt['value'] ?? '' );
-			}
-		) );
-	}
-	return $source_opt;
-}
-
-/**
  * Keep ONLY the named source values in a src-option definition (allowlist).
  *
- * Use a BLOCKLIST (bws_filter_site_from_src) when a tag should inherit future base
- * sources; use this ALLOWLIST for a CLOSED set that must not — e.g. `{{call}}` takes
+ * Use this ALLOWLIST for a CLOSED set that must not inherit future base
+ * sources — e.g. `{{call}}` takes
  * `current`/`ref` only, since a `$post_id` function can't consume a non-post source.
  * Rows come from bws_base_source_option(), so labels stay canonical.
  *
@@ -1011,9 +982,8 @@ function bws_build_slot_traversal_options( int $n, array $base_src, array $base_
  * (bws_wrapper_ref_steps) through bws_run_traversal, collapsed to the FIRST post id.
  * A non-post base (term ambient, meta_row) yields false, never a term/row id as a post id.
  *
- * REF-ONLY: NEVER assembles a `srcTermIn` step; callers do post→term themselves via
- * bws_get_srcterm_terms(). Using bws_field_values_assemble_steps() here would collapse
- * to false and empty those callers.
+ * REF-ONLY: NEVER assembles a `srcTermIn` step. Using bws_field_values_assemble_steps()
+ * here would end the chain on a term and collapse to false.
  *
  * @since 1.6.0
  * @since 1.14.0 Rewired to the source factory + traversal engine; ref-only steps.
@@ -1033,31 +1003,6 @@ function bws_resolve_post_by_source( array $options, $instance ) {
 	$sources = bws_run_traversal( array( $base ), $steps );
 
 	return bws_first_post_id_from_sources( $sources );
-}
-
-/**
- * Get taxonomy terms for a resolved post via the `srcTerm`/`tax` options.
- *
- * Called by base tag callbacks when `srcTerm` is set. The post is already
- * resolved via bws_resolve_post_by_source(); this function performs the
- * final step from that post to its taxonomy terms.
- *
- * @since 1.6.0
- * @param int    $post_id Resolved post ID.
- * @param string $tax     Taxonomy slug from $options['tax'].
- * @return WP_Term[]
- */
-function bws_get_srcterm_terms( int $post_id, string $tax ): array {
-	if ( ! $post_id || '' === $tax ) {
-		return [];
-	}
-
-	$terms = get_the_terms( $post_id, $tax );
-	if ( is_wp_error( $terms ) || empty( $terms ) ) {
-		return [];
-	}
-
-	return array_values( $terms );
 }
 
 // ===============================================

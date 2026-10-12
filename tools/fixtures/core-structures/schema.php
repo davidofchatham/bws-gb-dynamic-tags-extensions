@@ -1122,11 +1122,11 @@ function bws_fixture_core_structures_chain_roots( $roots ) {
 /**
  * The fixture family's MIGRATION entries — `fixture_text` → `{{text src:fixture|…}}` (#86).
  *
- * ENTRIES ONLY. No `fixture_*` tag family is minted. The constructor still exists and still
- * mints the built-in `term_` family; this fixture stands down from it AHEAD of FW-129's
- * withdrawal, which it can do because the converter matches STORED STRINGS and never needed
- * the old tag registered. That is what makes this the rehearsal worth having — it is the
- * POST-removal world, the one that has to keep working once a prefix owner retires a family.
+ * ENTRIES ONLY. No `fixture_*` tag family is minted, because the converter matches STORED
+ * STRINGS and never needed the old tag registered (the constructor that minted modifier
+ * families, `register_modifier()`, is deleted). That is what makes this the rehearsal worth
+ * having — it is the POST-removal world, the one that has to keep working once a prefix
+ * owner retires a family.
  *
  * The prefix and its root key are the SAME string, exactly as the real external family's
  * were: `{{fixture_text key:role}}` must become `{{text src:fixture|key:role}}`. The

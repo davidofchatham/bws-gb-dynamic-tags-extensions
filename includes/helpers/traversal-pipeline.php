@@ -702,7 +702,7 @@ function bws_resolve_base_source( array $options, $instance, $signals = null ) {
  * id | false, nothing else. Take the first resolved source and return its id ONLY
  * when its kind is 'post'. A non-post base (term ambient on an archive, meta_row
  * for a repeater row, site) yields false — those callers are post-semantic
- * (bws_get_srcterm_terms needs a post, {{call}}/datetime treat the result as a
+ * ({{call}}/datetime treat the result as a
  * post id / link_type:'post'), so a term/row id must NEVER leak out as a "post id".
  *
  * This deliberately keeps wrapper callers collapse-to-first: plural (SPEC §V6)

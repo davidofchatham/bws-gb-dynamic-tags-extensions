@@ -208,8 +208,7 @@ if ( $corpus_page instanceof WP_Post ) {
 }
 
 // THE POST-REMOVAL SHAPE, asserted rather than assumed (FW-129). No `fixture_*` tag is
-// minted any more — the fixture stands down from `register_modifier()` ahead of FW-129
-// withdrawing it — so the seeded FR3 wire is unregistered wire, which is precisely the
+// minted any more — `register_modifier()` is deleted — so the seeded FR3 wire is unregistered wire, which is precisely the
 // state the converter has to keep working in.
 // Asserted as a NEGATIVE because the whole corpus below is about strings the converter
 // matches, and a family that quietly came back would make every one of them vacuous.

@@ -69,7 +69,7 @@ that lost its bound prints two values rather than looking unchanged.
 than the real external source being used here: that one reads request context, so a row through it
 could not state its own expected value.
 
-**§FR1-§FR4 read field keys, not `use:title`, on purpose.** Through 1.19.1 a modifier template's text core read `key` and ignored `use` entirely, so `use:title` rendered empty on `fixture_`, `term_` and `view_` alike (pre-existing, [#88](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/88)) — an equivalence pair built on it would have passed by comparing two empties. Fixed in the same release, and §FR7 was the dedicated row that fix earned; §FR7 is retired now that this fixture mints no family, and `term_`'s twin rows in `text-test-matrix.md` §T10 / `content-test-matrix.md` §CT7 are what still hold the fix.
+**§FR1-§FR4 read field keys, not `use:title`, on purpose.** Through 1.19.1 a modifier template's text core read `key` and ignored `use` entirely, so `use:title` rendered empty on `fixture_`, `term_` and `view_` alike (pre-existing, [#88](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/88)) — an equivalence pair built on it would have passed by comparing two empties. Fixed in the same release, and §FR7 was the dedicated row that fix earned; §FR7 is retired now that this fixture mints no family and the modifier constructor it measured is deleted.
 
 ---
 
@@ -121,7 +121,7 @@ resolve anywhere would satisfy the negative while asserting nothing at all.
 
 The six shapes the transform maps, as stored wire. **Read against a freshly seeded site**: running the converter (§FR6) rewrites these in place, which is the point of them.
 
-**Every row renders LITERALLY.** The fixture stands down from `register_modifier()` ahead of FW-129 withdrawing it, so nothing mints a `fixture_*` tag and GB hands the unknown tag back untouched. (The constructor is still live and still mints `term_`; only this prefix is gone.) That is not a fault in the fixture — it is the state a retired prefix leaves on a published page, and the reason the converter exists. The value each row is *worth* after conversion is its §FR4 partner, which renders live on the same page.
+**Every row renders LITERALLY.** `register_modifier()` is deleted, so nothing mints a `fixture_*` tag and GB hands the unknown tag back untouched. (No modifier prefix is minted any more, `term_` included.) That is not a fault in the fixture — it is the state a retired prefix leaves on a published page, and the reason the converter exists. The value each row is *worth* after conversion is its §FR4 partner, which renders live on the same page.
 
 | Row | Tag | Expected | Property |
 |---|---|---|---|
@@ -187,4 +187,4 @@ wire** — check the seed before filing a failure.
 
 ## §FR7 — RETIRED (was: modifier `use` dispatch, [#88](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/88))
 
-Two rows measured `register_modifier()`'s `use` dispatch on a minted `fixture_*` tag. This fixture no longer mints one, so there is no dispatch left on this prefix to observe and the blocks are gone from `blocks.php`. The constructor itself is still live for `term_` until FW-129 withdraws it. `term_`'s twin rows survive until the `term_` family does — `text-test-matrix.md` §T10 and `content-test-matrix.md` §CT7, both render-tag-only against a term archive.
+Two rows measured `register_modifier()`'s `use` dispatch on a minted `fixture_*` tag. This fixture no longer mints one, so there is no dispatch left on this prefix to observe and the blocks are gone from `blocks.php`. The constructor itself is deleted, and so is the `term_` family, so the twin rows that once stood in `text-test-matrix.md` and `content-test-matrix.md` are gone too.

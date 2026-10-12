@@ -1141,7 +1141,7 @@ function bws_resolve_field_sources( array $options, $instance ): array {
  * The fixed read's author text as a one-item list, or array() when it is empty.
  *
  * The source-free half of bws_resolve_fixed_values(), for the per-item dispatchers that
- * already hold their source (the term_ / post_ modifier readers of email and phone).
+ * already hold their source (the row dispatchers of email and phone).
  *
  * @since 1.21.0
  * @param array $options Tag options (`fixed`).
@@ -1158,10 +1158,9 @@ function bws_fixed_raw_values( array $options ): array {
  * The fixed read's turn in a per-item try_ dispatcher (email / phone), or null when the
  * slot's read is not the fixed read and the dispatcher carries on with its field read.
  *
- * ONE PRELUDE for the six dispatchers (post, term, row, per family). The caller says
- * whether IT has a source (a post or term needs an id, a row always has one, the site is
- * always one); the answer is the author's value once, or an empty list, which the
- * family finisher then turns into an empty attempt.
+ * ONE PRELUDE for the per-item dispatchers (the email and phone row dispatchers). The
+ * caller says whether IT has a source; the answer is the author's value once, or an empty
+ * list, which the family finisher then turns into an empty attempt.
  *
  * @since 1.21.0
  * @param string $tag        'email' or 'phone' — the family whose read rule applies.
@@ -1175,23 +1174,6 @@ function bws_try_fixed_dispatch( string $tag, bool $has_source, array $options )
 		return null;
 	}
 	return $has_source ? bws_fixed_raw_values( $options ) : array();
-}
-}
-
-/**
- * Whether a post-dispatcher's source resolved: a post needs an id, the site always counts.
- *
- * The `has_source` a per-item try_ post dispatcher hands bws_try_fixed_dispatch(); the
- * site is taken by what the chain resolves to (bws_base_src_resolution), never by the
- * serialized token.
- *
- * @since 1.21.0
- * @param int|false $post_id Registry-resolved entity id (0/false for src:site).
- * @param array     $options Slot options (`src`).
- */
-if ( ! function_exists( 'bws_try_post_has_source' ) ) {
-function bws_try_post_has_source( $post_id, array $options ): bool {
-	return $post_id || 'site' === bws_base_src_resolution( $options )['kind'];
 }
 }
 

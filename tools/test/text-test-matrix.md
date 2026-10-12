@@ -195,28 +195,6 @@ T8.1–T8.6 verified 2026-07-21 (build f6f8d1e). T8.6 flipped and T8.7–T8.12 a
 
 Verified 2026-08-29 via `render-tag`. The `try_` half lives in `fold-test-matrix.md` §F19.
 
-## T10 — modifier family (`term_`/`view_`/`fixture_`) `use` dispatch ([#88](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/88))
-
-Different code path from the rest of this file — `register_modifier()`/`make_modifier_callback()`
-(class-tag-template-registry.php), not `bws_base_text_resolve_value()`/`bws_base_text_callback()`.
-Lives here rather than a third file for the same reason `content-test-matrix.md` §CT7 does: same
-tag family this matrix already covers, defect reproduces identically across `term_`/`view_`/
-`fixture_` (`term_` is the only one still minted in this repo — the fixture stood down from its own family ahead of FW-129). `content-test-matrix.md` §CT7 is
-the sibling row set for `{{content}}`'s modifier family — same fix, same commit, same cause.
-
-Through 1.19.1, `register_modifier()` wired `term_text`'s `post_fn`/`term_fn` straight to
-`bws_post_custom_text_core`/`bws_term_custom_text_core`, which read `$options['key']` only and
-never `$options['use']` — so `use:title` rendered empty on every `term_`/`view_`/`fixture_` text
-tag, though the base `{{text}}` tag (which dispatches through the seam this file covers) was
-unaffected. Fixed by pointing `term_fn`/`post_fn` at the same `try_text_term_dispatch`/
-`try_text_post_dispatch` functions the `try_` family already used correctly.
-
-| # | Tag | Expected |
-|---|---|---|
-| T10.1 | `{{term_text use:title}}` on `/department/support/` | `Support` — the term's own title. **Before the fix: empty.** Render-tag-only: a term-archive ambient context, same exception as T4 above |
-
-T10.2 read the same defect on `{{fixture_text}}`, the class route, and is **retired**: the fixture stood down from `register_modifier()` ahead of FW-129, so that prefix mints nothing and there is no dispatch there to measure. `term_` is the only family still minted, which is why this section is down to one row — and it goes when FW-129 takes the constructor.
-
 ## T11 — per-item link destinations (FW-85)
 
 **Read on the page, not through `render-tag`.** T3.2 and T7.3 above already assert the SHAPE per-item wrapping produces — an anchor per value, the separator outside them. What they cannot assert is where each anchor points: on `/matrix-post-meta/` a link to the wrong sibling renders identically to a link to the right one, because nothing there gives each entity in a list a destination of its own. `/matrix-links/` exists for that, and every row below is verified by FOLLOWING the hrefs. The fixture values are the blueprint's (`tools/fixtures/core-structures/manifest.php`, v27) and are not restated here; the page's own row labels state what each should print.

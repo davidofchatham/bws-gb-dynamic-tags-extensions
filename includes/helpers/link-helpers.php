@@ -182,8 +182,6 @@ function bws_wrap_with_link( string $output, string $link_to, string $link_key, 
  *           Emits target="_blank" rel="noopener noreferrer" only when URL resolves.
  *
  * try_ tags: single linkTo/linkKey applies to winning slot's entity (post or term).
- * term_ modifier tags: entity type routed from dispatch path — term for base-source,
- * post for src:ref traversal, term for srcTermIn hop.
  *
  * @since 1.7.0
  * @return array Option definitions keyed by option name.

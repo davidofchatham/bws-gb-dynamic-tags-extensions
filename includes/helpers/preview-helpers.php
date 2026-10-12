@@ -719,7 +719,7 @@ function bws_try_preview_field_part( string $base_template, string $use, string 
  * A taxonomy's singular label for preview text, falling back to its raw slug.
  *
  * ONE owner for a lookup that had grown three copies — the try_ slot's source part, the
- * base tag's term-modifier segment, and (since the chain read) one segment per `terms`
+ * base tag's term segment, and (since the chain read) one segment per `terms`
  * step. All three want the same answer, and the fallback is the load-bearing half: an
  * unregistered taxonomy must still name itself rather than printing an empty segment.
  *
@@ -826,9 +826,8 @@ function bws_preview_root_entity_segment( string $root, string $arg, string $lab
  * @param array $chain   Parsed chain (bws_fold_parse_chain shape).
  * @param array $params  Per-container switches, every one defaulting to the base tag's
  *                       reading: `named_current` (name the ambient entity 'Current'),
- *                       `lead` (a caller segment already precedes these), `roots` (name a
- *                       registered root in author terms), `site` ('Site' for a site root),
- *                       `terms` (term steps name themselves).
+ *                       `roots` (name a registered root in author terms), `site` ('Site'
+ *                       for a site root).
  * AN INERT CHAIN IS REPORTED TOO, and the bound on WHICH inertness is the whole design.
  * Only what is decidable from the wire alone, with NO per-template knowledge:
  *   - an unknown STEP slug, at any position (BWS_FOLD_STEP_TYPES owns that definition)
@@ -868,10 +867,8 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 	$params = array_merge(
 		array(
 			'named_current'    => false,
-			'lead'             => false,
 			'roots'            => true,
 			'site'             => true,
-			'terms'            => true,
 			// INJECTED (D20), never called directly, so the pure preview harness holds
 			// this behaviour rather than restating it as prose. Keyed by root token;
 			// `term` defaults to `get_term` at the call site that owns WordPress (see
@@ -881,10 +878,8 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 		$params
 	);
 	$named_current     = ! empty( $params['named_current'] );
-	$lead              = ! empty( $params['lead'] );
 	$name_roots        = ! empty( $params['roots'] );
 	$name_site         = ! empty( $params['site'] );
-	$name_terms        = ! empty( $params['terms'] );
 	$entity_resolvers  = is_array( $params['entity_resolvers'] ) ? $params['entity_resolvers'] : array();
 
 	$missing  = array();
@@ -980,7 +975,7 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 			} else {
 				$ref_args[] = $arg;
 			}
-		} elseif ( 'terms' === $slug && $name_terms ) {
+		} elseif ( 'terms' === $slug ) {
 			if ( '' === $arg ) {
 				$missing['terms'] = true;
 			} else {
@@ -1103,7 +1098,7 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 	foreach ( $term_args as $term_arg ) {
 		// '→' arrow only when this hop segment follows another. When it opens the label
 		// (current post → term, nothing else said), drop the arrow.
-		$prefix     = ( $lead || ! empty( $segments ) ) ? '→ ' : '';
+		$prefix     = ! empty( $segments ) ? '→ ' : '';
 		$segments[] = $prefix . bws_preview_tax_label( $term_arg ) . ' Term';
 	}
 
@@ -1300,28 +1295,11 @@ function bws_try_preview_datetime_part( string $base_template, array $options ):
  *
  * @since 1.6.0
  * @param array  $options  Parsed tag options.
- * @param string $template Full template name including modifier prefix (e.g. 'term_text', 'text').
+ * @param string $template Tag name (e.g. 'text', 'datetime_single').
  * @return string Bracket preview label, or '' when template is excluded.
  */
 if ( ! function_exists( 'bws_build_preview_label' ) ) {
 function bws_build_preview_label( array $options, string $template ): string {
-	// Detect modifier prefix → base template.
-	// A CLOSED LIST SINCE 1.21.0. The `bws_dynamic_tags_preview_modifier_map` filter that
-	// used to open this map is gone: its only population was prefixes minted by
-	// TagTemplateRegistry::register_modifier(), which now mints nothing, so the filter had
-	// no producer left. `term_` stays as the map's one entry: the family's own removal is
-	// FW-129's, and the term-modifier branches below go with it, not with this filter.
-	$modifier_label = '';
-	$base_template  = $template;
-	$modifier_map   = [ 'term_' => 'Term' ];
-	foreach ( $modifier_map as $prefix => $label ) {
-		if ( str_starts_with( $template, $prefix ) ) {
-			$modifier_label = $label;
-			$base_template  = substr( $template, strlen( $prefix ) );
-			break;
-		}
-	}
-
 	// ── The tag's SOURCE, read as a CHAIN ───────────────────────────────────────────
 	//
 	// ONE read for both wire eras (#83). `src` may hold a bare legacy token (`ref`,
@@ -1333,104 +1311,53 @@ function bws_build_preview_label( array $options, string $template ): string {
 	// disagree with what actually renders. For every legacy flat option set it yields the
 	// same root and the same steps the old token compare found, which is why no shipped
 	// preview text moves — pinned in tools/test/preview-label-test.php.
-	//
-	// A term MODIFIER is deliberately left off the chain's term step: `term_*` reads GB's
-	// native `tax` (the term's OWN taxonomy — descriptive, not a hop) where a base tag
-	// reads `srcTermIn` (a post→term HOP). Two different facts that happen to render as a
-	// similar segment.
 	$chain = function_exists( 'bws_fold_chain_from_options' )
 		? bws_fold_chain_from_options( $options )
 		: array();
-	$root  = function_exists( 'bws_fold_chain_root' ) ? bws_fold_chain_root( $chain ) : '';
-
-	// Term-modifier (`term_*`): read GB's native `tax` (the term's OWN taxonomy —
-	// descriptive, not a hop), and take its term steps OFF the chain, since a modifier's
-	// segment is built from `tax` alone. A base tag has no `tax` at all: its term segments
-	// come from the chain's `terms` steps, which the legacy `srcTermIn` folds into (see
-	// bws_fold_chain_from_options).
-	$is_term_modifier = ( 'Term' === $modifier_label );
-	$tax              = '';
-	if ( $is_term_modifier ) {
-		$tax = $options['tax'] ?? '';
-	}
-	$src_term = '' !== $tax;
 
 	// Build the context part (space-joined segments) up front, because its MISSING report
 	// is what the warning label below is built from — a source that names a relationship
 	// but no field renders nothing, so the preview says so rather than describing it.
 	//
-	// Modifier segments lead and are this builder's own vocabulary:
-	//   Term-modifier with tax: modifier label and taxonomy name merge into one segment
-	//     ('Benefit Tier Term'), no hop arrow — the entity IS directly that term.
-	//   Term-modifier without tax: bare 'Term' (entity is the current term context).
-	// Everything after them names the SOURCE, which all three previews do through one
-	// namer (see bws_preview_source_segments) so a vocabulary change lands in one place.
-	$ctx_segments = [];
-	if ( $is_term_modifier ) {
-		$ctx_segments[] = $src_term ? bws_preview_tax_label( $tax ) . ' Term' : 'Term';
-	} elseif ( $modifier_label ) {
-		$ctx_segments[] = $modifier_label;
-	}
+	// The SOURCE is named through one namer all three previews share (see
+	// bws_preview_source_segments) so a vocabulary change lands in one place.
 	$src_missing  = array();
 	$src_inert    = array();
-	$ctx_segments = array_merge(
-		$ctx_segments,
-		bws_preview_source_segments(
-			$chain,
-			array(
-				// A modifier's own segment precedes, so a term step takes the hop arrow.
-				'lead'             => ! empty( $ctx_segments ),
-				// On a rooting modifier a site root is already short-circuited to the
-				// invalid-combo warning below, so the segment would never be reached.
-				'site'             => ! $modifier_label,
-				// A term modifier builds its taxonomy segment from `tax`, above.
-				'terms'            => ! $is_term_modifier,
-				// The ONE caller with a real WordPress to ask (D20) — every other reader
-				// of bws_preview_source_segments() is a pure test supplying its own fake.
-				// `bws_get_validated_term()` (taxonomy-helpers.php), not bare `get_term`:
-				// the plugin's one "is this term real" rule, already the answer every
-				// other term-existence read in this codebase takes, rather than a second
-				// falsy/WP_Error check owned only by the preview. `post` has no equivalent
-				// "is this post real" helper to route through (D13: no legacy read path to
-				// keep compatible with, unlike term's), so it takes bare `get_post` — D20's
-				// own stated default, and `bws_preview_root_entity_segment()` already
-				// treats a null return as "missing" without a WP_Error check to make.
-				'entity_resolvers' => array(
-					'term' => 'bws_get_validated_term',
-					'post' => 'get_post',
-				),
+	$ctx_segments = bws_preview_source_segments(
+		$chain,
+		array(
+			// The ONE caller with a real WordPress to ask (D20) — every other reader
+			// of bws_preview_source_segments() is a pure test supplying its own fake.
+			// `bws_get_validated_term()` (taxonomy-helpers.php), not bare `get_term`:
+			// the plugin's one "is this term real" rule, already the answer every
+			// other term-existence read in this codebase takes, rather than a second
+			// falsy/WP_Error check owned only by the preview. `post` has no equivalent
+			// "is this post real" helper to route through (D13: no legacy read path to
+			// keep compatible with, unlike term's), so it takes bare `get_post` — D20's
+			// own stated default, and `bws_preview_root_entity_segment()` already
+			// treats a null return as "missing" without a WP_Error check to make.
+			'entity_resolvers' => array(
+				'term' => 'bws_get_validated_term',
+				'post' => 'get_post',
 			),
-			$src_missing,
-			$src_inert
-		)
+		),
+		$src_missing,
+		$src_inert
 	);
 	$context_part = implode( ' ', $ctx_segments );
 
 	$key = $options['key'] ?? '';
-	$use = bws_use_effective( $base_template, $options );
+	$use = bws_use_effective( $template, $options );
 	// Image `as` may carry a folded `,<size>` arg (as+size fold, FW-52) — read the
 	// bare return MODE for the exclusion test. Datetime/other `as` has no size fold.
-	$as       = ( 'image' === $base_template && function_exists( 'bws_parse_as_option' ) )
+	$as       = ( 'image' === $template && function_exists( 'bws_parse_as_option' ) )
 		? bws_parse_as_option( $options )['mode']
 		: ( $options['as'] ?? '' );
 	$fallback = $options['fallback'] ?? '';
 
 	// Image excluded for output-attribute modes (bracket string silently breaks the element).
-	if ( 'image' === $base_template && ! in_array( $as, [ 'alt', 'caption' ], true ) ) {
+	if ( 'image' === $template && ! in_array( $as, [ 'alt', 'caption' ], true ) ) {
 		return '';
-	}
-
-	// Invalid combo: `src:site` on a rooting modifier (term_*, view_*). The src
-	// dropdown filters site out (bws_filter_site_from_src), but a hand-typed
-	// `src:site` slips the UI — the runtime guard then resolves EMPTY (a site read
-	// is entity-blind, so it would only duplicate the unrooted base tag). Warn in
-	// preview so the editor reflects the empty frontend, not a normal label. [#37]
-	if ( '' !== $modifier_label && 'site' === $root ) {
-		$inner = '⚠ Site source not valid on ' . $modifier_label . ' tag — use the base tag';
-		if ( $fallback ) {
-			$inner .= ' (fallback: “' . $fallback . '”)';
-		}
-		return bws_wrap_preview_label_with_link( '[' . $inner . ']', $options );
 	}
 
 	// An INERT chain SHORT-CIRCUITS the label (#105). It renders empty whatever else is
@@ -1440,8 +1367,7 @@ function bws_build_preview_label( array $options, string $template ): string {
 	// `{{text key:x}}` and rendered nothing. ADR 0004 makes that wire reachable by hand,
 	// which is precisely how an author produces it.
 	//
-	// Placed AFTER the site-on-modifier check (that one is more specific and names a
-	// remedy) and BEFORE the missing-list, which it replaces.
+	// Placed BEFORE the missing-list, which it replaces.
 	$inert_warning = bws_preview_inert_warning( $src_inert );
 	if ( '' !== $inert_warning ) {
 		$inner = '⚠ ' . $inert_warning;
@@ -1466,20 +1392,20 @@ function bws_build_preview_label( array $options, string $template ): string {
 	// its own clause (user, 2026-09-29), not a "No … set" list item: it is typed, not picked.
 	// $fixed_noun names what was to be typed, per family.
 	$fixed_missing = false;
-	$fixed_noun    = bws_fixed_noun( $base_template );
+	$fixed_noun    = bws_fixed_noun( $template );
 	if ( '' !== $fixed_noun && 'fixed' === $use ) {
 		$fixed_missing = '' === (string) ( $options['fixed'] ?? '' );
-	} elseif ( 'text' === $base_template && '' === $key && 'title' !== $use ) {
+	} elseif ( 'text' === $template && '' === $key && 'title' !== $use ) {
 		$missing[] = 'meta key';
-	} elseif ( 'content' === $base_template && 'key' === $use && '' === $key ) {
+	} elseif ( 'content' === $template && 'key' === $use && '' === $key ) {
 		$missing[] = 'meta key';
-	} elseif ( 'image' === $base_template && 'featured' !== $use && '' === $key ) {
+	} elseif ( 'image' === $template && 'featured' !== $use && '' === $key ) {
 		$missing[] = 'meta key';
-	} elseif ( 'email' === $base_template && '' === $key ) {
+	} elseif ( 'email' === $template && '' === $key ) {
 		$missing[] = 'field key'; // Email key-required in every source (no analog), unless fixed.
-	} elseif ( 'phone' === $base_template && '' === $key ) {
+	} elseif ( 'phone' === $template && '' === $key ) {
 		$missing[] = 'field key'; // Phone key-required in every source (no analog), unless fixed.
-	} elseif ( 'call' === $base_template && '' === ( $options['fn'] ?? '' ) ) {
+	} elseif ( 'call' === $template && '' === ( $options['fn'] ?? '' ) ) {
 		// {{call}} INERT preview (VC-inert) — never executes the function; describes
 		// config only. A missing fn is the bucket-A drift case (VC-fail) surfaced as
 		// a warning here. The live allowlist-membership warning is client-side (the
@@ -1510,8 +1436,8 @@ function bws_build_preview_label( array $options, string $template ): string {
 	}
 
 	// Datetime templates: live preview using current time.
-	if ( str_starts_with( $base_template, 'datetime_' ) ) {
-		$is_range = 'datetime_range' === $base_template;
+	if ( str_starts_with( $template, 'datetime_' ) ) {
+		$is_range = 'datetime_range' === $template;
 
 		switch ( $as ) {
 			case 'date':
@@ -1567,7 +1493,7 @@ function bws_build_preview_label( array $options, string $template ): string {
 	// or quoted user identifier follows after a colon when both are present.
 	// Marker convention: 'X' = literal user-supplied identifier (straight single quotes).
 	$field_part = '';
-	switch ( $base_template ) {
+	switch ( $template ) {
 		case 'text':
 			// Text has no template label by default. Title mode uses bare 'Title'; the
 			// fixed read shows the author's text itself, in curly quotes (FW-141).
@@ -1597,7 +1523,7 @@ function bws_build_preview_label( array $options, string $template ): string {
 			break;
 		case 'email':
 		case 'phone':
-			$label = 'email' === $base_template ? 'Email' : 'Phone';
+			$label = 'email' === $template ? 'Email' : 'Phone';
 			if ( 'fixed' === $use ) {
 				$field_part = $label . ': “' . esc_html( $options['fixed'] ?? '' ) . '”';
 			} else {

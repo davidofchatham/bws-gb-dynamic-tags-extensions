@@ -48,7 +48,7 @@ A **single-result** output can be a **composite string** (`datetime_range` is bo
 
 ## Sources (v1.6.0+ architecture)
 
-Source resolution is split between **`src` option values** (traversal within a base tag), **modifier prefixes** (context-shifting wrappers), and **source classes** (PHP entity resolvers behind both).
+Source resolution is split between **`src` option values** (traversal within a base tag) and **source classes** (PHP entity resolvers behind it).
 
 ### `src` option values
 
@@ -91,12 +91,10 @@ deliberately not the same rule.
 - **One appender, two surfaces.** `bws_registered_root_rows()` feeds both the base tag's root enum
   and the folded slot's source enum, so a root cannot be offered on `{{text}}` and be silently
   absent from a `{{join}}` field or a `try_` attempt. Rows APPEND after the built-ins, keeping
-  `current` as the row an absent `src` stands for. Slots are ungated: the filter that keeps `site`
-  off a rooting modifier is a judgement about an ENTITY-BLIND source, which a registered entity
-  root is not.
+  `current` as the row an absent `src` stands for. Slots are ungated.
 - **Never on the shared base builder.** `bws_base_source_option()` does not grow these rows — the
   derived families (`try_*`, `{{table}}`, `{{call}}`) build their own surfaces from its
-  rows, so a leak there would offer a root inside its own modifier family's Source dropdown and
+  rows, so a leak there would offer a root inside its own Source dropdown and
   widen `{{call}}`'s deliberate allowlist.
 - **Registered roots offered through the `bws_dynamic_tags_chain_roots` filter route declare no
   parse-time kind.** `BWS_FOLD_PARSE_TIME_ROOT_KINDS` is scoped to sources this repo ships
@@ -233,7 +231,6 @@ Before adding a named `use:` value (or a per-source analog) for a new field targ
 | `datetime_*` site field | **Yes** — format chain (custom → ACF return-format → site default) | — | **keep** |
 | `title` site → site name | No — GB `{{site_title}}` exists | **Yes** — the title/name slot across post/term/site | **keep** |
 | `text` `use:tagline` (site) | **No** — GB `{{site_tagline}}` covers it, nothing to format | **No** — site has no title/content-shaped slot the tagline fills; it's a one-off datum, not a cross-source parallel | **rejected** (fails both tests) |
-| `src:site` on a **single-slot rooted modifier** (`term_*`, or an externally registered one) | **No** — the site datum is the *identical* read the unrooted base tag gives (`{{email src:site}}`); the term/view rooting is discarded | **No** — site is entity-blind, so it fills no term-/view-distinct slot; a rooting modifier exists to surface entity-distinct data | **rejected** — `site` is filtered from the modifier's `src` dropdown. *Likely future home for "specific resource + site fallback" is an ID source (a probable `src:<type>,<ID>`-style construct — **not final**; the author-serialized-entity-id flavor, see CONTEXT.md §Language "Source binding") as a try_ attempt (which keeps its site attempt via `try_allow_site_slot`), NOT a `try_term_` form — `term_` is a transitional N×M surface on a deprecation glide-path (base tags + context-awareness + a specific-entity source subsume it).* |
 | `src:site` / `srcTermIn` on `{{call}}` | **No** — neither yields a post id, and a `$post_id`-contract function cannot consume a wp_options namespace or a term set | **No** — `{{call}}` exists to bind a POST for a post-shaped function; a non-post source fills no post-binding slot | **rejected** — `{{call}}` offers `src:current` + `src:ref` ONLY (both post-yielding). Same I4 gate applied at the **source** level rather than the `use:`-value level. Post-context-only is a stated design non-goal, not a gap to close. See [§Call tag](#call-tag). |
 
 The tagline is the cautionary case because it fails **both** tests: the datum is reachable (GB native, or `key:blogdescription`), there is no traversal/format value-add, *and* it is not a strong analog — site has no conceptual slot it parallels (unlike `title`'s name-slot or `content`'s body-slot). A datum that is "just there" for one source, with no cross-source shape, is not an analog.
@@ -273,15 +270,12 @@ The one place tagline *might* earn its keep is as **feedstock for a multi-slot t
 
 ### Modifier prefixes
 
-Modifiers wrap base tag templates with a context-shifting prefix. Registered via `TagTemplateRegistry::register_modifier()`. See [`docs/plugin-integration.md`](plugin-integration.md) §2 for the registration API.
-
-**This whole route is deprecated (2026-09-08) and slated for removal** — a modifier family duplicates the base tags and has to be taught every capability separately, which the [chain root](#root-enum-membership-1170-83) makes unnecessary. No external plugin registers one any more. **`term_`, the last family, was removed in v1.21.0** — it is history now, and [`deprecated-tags-options.md` §The `term_` modifier family](deprecated-tags-options.md#the-term_-modifier-family-removed-in-v1210) owns what it was. Tracked as [`future-work.md`](future-work.md) FW-129; the integrator-facing notice is [`plugin-integration.md` §2](plugin-integration.md#2-registering-a-context-modifier).
+**No modifier prefix is registered any more.** A modifier family wrapped base tag templates in a context-shifting prefix, duplicated the base tags, and had to be taught every capability separately, which the [chain root](#root-enum-membership-1170-83) makes unnecessary. The `term_` family, the last one, was removed in v1.21.0, and `TagTemplateRegistry::register_modifier()`, the registration route, was deleted in v1.22.0. [`deprecated-tags-options.md` §The `term_` modifier family](deprecated-tags-options.md#the-term_-modifier-family-removed-in-v1210) owns what the family was; an external source is offered as a chain root instead ([`plugin-integration.md` §1a](plugin-integration.md#1a-offering-your-source-as-a-chain-root)).
 
 | Prefix | GB type | Modifier label | Starting context | Registered by |
 |---|---|---|---|---|
 | (no prefix — base) | `'cross-source'` | — | Current entity (post in post loop, term on term archive) | Built-in |
 | `try_` | `'first-available'` | — | Per-slot — see [§Try_ tags](#try_-tags) | Built-in |
-| *(external prefix)* | *(plugin-defined)* | *(plugin-defined)* | External entity | External plugin via `register_modifier()` |
 
 **A modifier family is the pre-chain way of spelling one option value (1.17.0).** Once its source is
 offered as a [chain root](#root-enum-membership-1170-83), `{{view_text key:x}}` and
@@ -294,13 +288,13 @@ the registration call is [`plugin-integration.md` §9](plugin-integration.md#9-m
 
 ### Source classes
 
-PHP entity resolvers used by base tag callbacks and modifier dispatch. Not surfaced directly in tag names.
+PHP entity resolvers used by base tag callbacks. Not surfaced directly in tag names.
 
 | Source class | Context | Use |
 |---|---|---|
 | `CurrentPost` | post | the resolved starting entity in post context (`src:''` / `src:current`) |
 | `TaxonomyTerm` | term | the term the factory resolves on a term archive, and the `term` chain root's target (it was the `term_` family's base until FW-129 removed the family in v1.21.0) |
-| *(external source class)* | post or term | External modifier base, registered via `SourceRegistry::register_source()` |
+| *(external source class)* | post or term | External source, registered via `SourceRegistry::register_source()` |
 
 **A source resolves a STARTING entity; it never traverses.** Since 1.14.0 the relationship hop
 (`src:ref`) and the term hop (`srcTermIn`) are generic traversal STEPS the engine runs off whatever
@@ -542,13 +536,12 @@ callback already discarded.
 
 GB's registrar is last-write-wins on a tag name, with no duplicate check and no notice (the GB
 fact: [`gb-constraints.md` §Duplicate tag names](gb-constraints.md#duplicate-tag-names-last-write-wins-silently)).
-Every tag this plugin registers goes through one function, `bws_gb_register_tag()`, and the three
+Every tag this plugin registers goes through one function, `bws_gb_register_tag()`, and the two
 constructors do not answer a taken name the same way:
 
 | Constructor | A name another plugin registered first |
 |---|---|
 | `bws_register_base_tags()`, plus the standalone base tags (`{{email}}`, `{{phone}}`, `{{table}}`, `{{call}}`) | Registered OVER, and the collision reported |
-| `TagTemplateRegistry::register_modifier()` (no in-repo caller since v1.21.0 removed `term_*`) | Skipped; the first registrar keeps the name, and the skip is reported |
 | `TagTemplateRegistry::generate_base_try_tags()` (the `try_*` half) | Skipped; the first registrar keeps the name, and the skip is reported |
 
 A collision is detected three times, because it can go three ways and the DEVELOPER remedies differ:
@@ -557,7 +550,7 @@ A collision is detected three times, because it can go three ways and the DEVELO
 |---|---|---|
 | Something already held one of our base-tag names when our pass reached it | `bws_gb_register_tag()`, during registration | `kept` — we own the name, the other tag of that name does not render |
 | Something takes one of our names after our pass | `bws_gb_recheck_tag_ownership()`, once on `wp_loaded` | `lost` — every block already using our tag now renders through their callback |
-| Something already held a `try_*` name (or, before v1.21.0, a `term_*` one), so that constructor stood down | `bws_gb_note_tag_yielded()`, at either constructor's dup-check | `yielded` — no tag of ours by that name exists and nothing of ours renders under it |
+| Something already held a `try_*` name (or, before v1.21.0, a `term_*` one), so that constructor stood down | `bws_gb_note_tag_yielded()`, at the constructor's dup-check | `yielded` — no tag of ours by that name exists and nothing of ours renders under it |
 
 **A `yielded` outcome means this doc does not describe that tag on that site.** The tag simply is
 not there, so a page describing it — this one included — is describing something the reader cannot
@@ -1453,7 +1446,7 @@ Image tags are excluded: multiple return formats are already built into image ta
 
 Living reference. Update immediately when any of the following change:
 
-- A new `src` value, modifier prefix, or source class is added/removed
+- A new `src` value or source class is added/removed
 - A new base or modifier template is added/removed
 - A default-enabled status changes
 - A required option is added/removed/renamed
@@ -1464,8 +1457,6 @@ Living reference. Update immediately when any of the following change:
 - The default-strip strategy changes (canonical defaults, opt-outs)
 
 **When adding a new `src` value:** add a row to §Sources `src` option values (Part I) and the §Source group value table (Part II); document the traversal in §Source classes if a new resolver class is needed; update the §Source group secondary-options labels; note the new required sub-option in the affected per-tag section(s) if it brings one.
-
-**When adding a new modifier prefix:** add a row to §Modifier prefixes; update §Base tag GB types if a new GB type string is introduced; document the registration call in [`docs/plugin-integration.md`](plugin-integration.md).
 
 **When adding a new template:** add a row to §Base tag GB types (including the Link wrap, Tag title, and Term modifier title columns); **add a per-tag section** (prose + tag-specific options + control order, linking the §Shared option groups it uses) — note required options + list-mode support there; if `supports_try`, add a row to §Available try_ tags; if it introduces a new shared option, add it to the relevant §Shared option group; **add its editor preview-text rows (field part, warning, example) to [`editor-tag-previews.md`](editor-tag-previews.md)** — preview text is no longer owned here.
 

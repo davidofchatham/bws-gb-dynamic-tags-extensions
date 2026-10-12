@@ -314,53 +314,11 @@ function bws_email_finish_values( array $raw, array $options ): array {
 }
 
 /**
- * Try-tag post-slot dispatch for the `email` template.
- *
- * Returns finished mailto/plain address strings for the slot (CONTEXT.md I6 — the
- * try_ machinery joins; this produces the per-item finished strings). Honors the
- * registry-resolved $post_id (loop-item override, feedback_loop_context_override)
- * for post/term sources; src:site reads the option (no entity, $post_id ignored).
- *
- * @since 1.11.0
- * @param int|false $post_id  Registry-resolved entity id (0/false for src:site).
- * @param array     $options  Slot options (src, key, srcTermIn, noLink, subject).
- * @param object    $instance GB tag instance.
- * @return string[] Finished per-item strings.
- */
-function bws_try_email_post_dispatch( $post_id, $options, $instance ) {
-	// The fixed read (FW-141) reads no field: the author's value, finished like any other.
-	// The site is always a source; a post or term needs an id.
-	$fixed = bws_try_fixed_dispatch( 'email', bws_try_post_has_source( $post_id, (array) $options ), (array) $options );
-	if ( null !== $fixed ) {
-		return bws_email_finish_values( $fixed, (array) $options );
-	}
-	// The SITE branch is taken by what the chain RESOLVES TO — the dispatch axis every
-	// base arm uses (bws_base_src_resolution, computable from the wire alone) — never
-	// by comparing the serialized token to a literal. The compare this replaced
-	// ('site' === $options['src']) missed every chain spelling of the same source
-	// (`site,limit[2]`, any decorated root), fell into the post branch, and read the
-	// AMBIENT entity: a plausible value from the wrong entity, which a selecting try_
-	// slot then treats as a WIN, so the author's fallback chain never ran ([I15], the
-	// FW-71 class). Pinned at the dispatch seam: slot-fold-test.php §P19.
-	if ( 'site' === bws_base_src_resolution( (array) $options )['kind'] ) {
-		return bws_email_finish_values( bws_resolve_field_values( (array) $options, $instance ), (array) $options );
-	}
-
-	$key = sanitize_text_field( $options['key'] ?? '' );
-	if ( '' === $key || ( function_exists( 'bws_is_valid_meta_key' ) && ! bws_is_valid_meta_key( $key ) ) ) {
-		return array();
-	}
-	$raw = bws_read_field( $key, $instance, $post_id );
-	$raw = ( is_scalar( $raw ) && '' !== (string) $raw ) ? array( (string) $raw ) : array();
-	return bws_email_finish_values( $raw, (array) $options );
-}
-
-/**
  * Try-tag repeater-ROW-slot dispatch for the `email` template (FW-74).
  *
- * The row twin of the post dispatch's keyed branch: read the sub-field off the row, then
- * run it through the SAME finisher (validate, subject, obfuscate, mailto wrap), so a row
- * address and a post address compose identically. No SITE branch — a `rows` step never
+ * Read the sub-field off the row, then run it through the SAME finisher (validate,
+ * subject, obfuscate, mailto wrap) the base read uses, so a row address and a post
+ * address compose identically. No SITE branch — a `rows` step never
  * resolves to the site store — and no `use` fork, because {{email}} has no analog.
  *
  * NO base arm is its twin, and that is not an omission: base {{email}} reads through
@@ -388,38 +346,6 @@ function bws_try_email_row_dispatch( $source, $options, $instance ) {
 	}
 	$raw = bws_read_resolved_source( (array) $source, $key, $instance );
 	return bws_email_finish_values( '' === $raw ? array() : array( $raw ), (array) $options );
-}
-
-/**
- * Modifier post-source reader for the `email` template (post_fn).
- *
- * Reads the field off $post_id, composes finished mailto/plain strings, joins by
- * sep — the string contract make_modifier_callback expects (term_email at
- * src:ref). Mirrors bws_try_email_post_dispatch's post branch but returns a
- * joined string instead of the try_ array.
- *
- * @since 1.11.0
- * @return string Joined finished addresses, or '' on empty.
- */
-function bws_email_post_core( $post_id, $options, $instance ): string {
-	$sep   = $options['sep'] ?? ', ';
-	$parts = bws_try_email_post_dispatch( $post_id, $options, $instance );
-	return implode( $sep, $parts );
-}
-
-/**
- * Modifier term-source reader for the `email` template (term_fn).
- *
- * Reads the field off $term_id (the term entity at src:current, or a srcTermIn
- * hop), composes + joins. String contract for make_modifier_callback.
- *
- * @since 1.11.0
- * @return string Joined finished addresses, or '' on empty.
- */
-function bws_email_term_core( $term_id, $options, $instance ): string {
-	$sep   = $options['sep'] ?? ', ';
-	$parts = bws_try_email_term_dispatch( $term_id, $options, $instance );
-	return implode( $sep, $parts );
 }
 
 /**
@@ -460,7 +386,7 @@ function bws_register_email_template(): void {
 				'help'  => __( 'Email address to use if the field is empty or invalid (e.g. a department address). Validated as an email.', 'generateblocks' ),
 			),
 		),
-		// VE3/VP-vis — hide on interactive/void elements (threaded to term_/try_ tags).
+		// VE3/VP-vis — hide on interactive/void elements (threaded to try_ tags).
 		'visibility'          => array(
 			'attributes' => array(
 				array(
@@ -470,8 +396,6 @@ function bws_register_email_template(): void {
 				),
 			),
 		),
-		'term_fn'             => 'bws_email_term_core',
-		'post_fn'             => 'bws_email_post_core',
 		// FW-136 — try_email resolves each attempt through the BASE seam.
 		'resolve_fn'          => 'bws_base_email_resolve_value',
 		'supports_try'        => true,
@@ -487,28 +411,3 @@ function bws_register_email_template(): void {
 	) );
 }
 
-/**
- * Try-tag srcTermIn-slot dispatch for the `email` template.
- *
- * Reads the field off the given term and composes it. The registry term arm calls
- * this once per term and collects the results into the slot's list.
- *
- * @since 1.11.0
- * @param int    $term_id  Term id supplied by the registry srcTermIn arm.
- * @param array  $options  Slot options (key, noLink, subject).
- * @param object $instance GB tag instance.
- * @return string[] Finished per-item strings for this term.
- */
-function bws_try_email_term_dispatch( $term_id, $options, $instance ) {
-	$fixed = bws_try_fixed_dispatch( 'email', (bool) $term_id, (array) $options );
-	if ( null !== $fixed ) {
-		return bws_email_finish_values( $fixed, (array) $options );
-	}
-	$key = sanitize_text_field( $options['key'] ?? '' );
-	if ( '' === $key || ( function_exists( 'bws_is_valid_meta_key' ) && ! bws_is_valid_meta_key( $key ) ) ) {
-		return array();
-	}
-	$raw = bws_read_term_field( $key, (int) $term_id );
-	$raw = ( is_scalar( $raw ) && '' !== (string) $raw ) ? array( (string) $raw ) : array();
-	return bws_email_finish_values( $raw, (array) $options );
-}
