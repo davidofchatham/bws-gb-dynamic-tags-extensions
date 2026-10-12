@@ -116,7 +116,7 @@ function bws_fold_migration_multislot_tags(): array {
 		}
 	}
 
-	// A duplicate template key (register_modifier_template is public API) would otherwise
+	// A duplicate template key (register_modifier_template() still accepts outside calls) would otherwise
 	// register two identical entries; generate_base_try_tags() dedupes its tags the same way.
 	return array_values( array_unique( $tags ) );
 }

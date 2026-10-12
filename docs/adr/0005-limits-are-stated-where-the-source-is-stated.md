@@ -1,6 +1,6 @@
 # Limits are stated where the source is stated
 
-**Status:** accepted (2026-08-06 grill over the built UI, `docs/design-history/per-step-limit.md` §The grill; regrilled 2026-08-07 after #63's premise was withdrawn; one stated COST amended 2026-09-21, see §Considered options).
+**Status:** accepted (2026-08-06 grill over the built UI, `docs/design-history/per-step-limit.md` §The grill; regrilled 2026-08-07 after #63's premise was withdrawn; one stated COST amended 2026-09-21, see §Considered options; the `term_` exception marked superseded 2026-10-12, in place).
 
 **The DECISION is unamended; one cost it priced has since been repaid.** Both options below priced a count-based link gate — a tag that fanned lost its anchor — and FW-85 removed that gate in 1.21.0: a list now links PER ITEM, so fanning multiplies anchors instead of dropping them (`CONTEXT.md` [I12]). The rule this ADR decides, limits stated on the step they bound, is untouched by that. The two sentences are marked where they sit rather than rewritten, because what an option COST when it was weighed is the record; correcting it in place would invent a deliberation that never happened.
 
@@ -135,6 +135,8 @@ than a step. It is the opposite. 0003 carries a 1.17.0 amendment saying where it
     `class-tag-template-registry.php` was not in its scope and never received it. So no tracker
     row currently owns the modifier arm. When one does, `term_` gets step limits with it, by this
     rule and with no exception needed.
+
+    **[Superseded 2026-10-12: the exception no longer exists.** The `term_` family stopped registering in 1.21.0 and `make_modifier_callback()` was deleted in 1.22.0 (FW-129). Stored `{{term_*}}` tags are converted to base-tag chain wire, which takes step limits under this rule. The bullet is kept as written because it is the record of what the rule had to accommodate.**]**
 
 - **The flat source SPELLING is closed to new authoring; the flat source READ is not deprecated.**
   Two different statements that will be read near each other. An author can no longer write flat

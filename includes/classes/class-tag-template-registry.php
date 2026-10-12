@@ -306,9 +306,9 @@ class TagTemplateRegistry {
 			$list_options    = ! empty( $tpl['try_list_options'] );
 			$allow_site_slot = ! empty( $tpl['try_allow_site_slot'] );
 			$tpl_options     = $tpl['options'] ?? [];
-			// The descriptor key reads `leading_options`, but on try_ these no longer lead
-			// (canonical control order, 1.17.0), so the local name states what they are
-			// rather than where they sit.
+			// The descriptor key reads `leading_options`, but on try_ these do not lead
+			// (canonical control order), so the local name states what they are rather
+			// than where they sit.
 			$format_options  = $tpl['leading_options'] ?? [];
 			$is_image        = ! empty( $tpl['is_image'] );
 			$supports_link   = ! empty( $tpl['supports_link_wrap'] ) && ! $is_image;

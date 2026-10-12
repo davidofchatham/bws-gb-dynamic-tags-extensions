@@ -1743,13 +1743,12 @@ function bws_modifier_base_options( array $options, string $root ) {
 			$chain[] = $step( 'refs', '' !== $ref ? $ref : null );
 		}
 		// A TERM-CONTEXT ROOT NEVER TAKES THE LEGACY TERM STEP WITHOUT THE REF HOP. The step
-		// needs a POST input, which this family supplied only through `ref`
-		// (its callback, now deleted, gated srcTermIn on `'term' !== $base_kind`), so
-		// elsewhere the stored tag ignored the taxonomy. Measured on the testbed while
-		// the family was registered: `{{term_text srcTermIn:department|key:phone}}` on a
-		// term archive rendered the term's value, `terms,department` there renders empty.
-		// Dropping the inert key keeps the ambient shape it already rendered. `term_context`,
-		// not `takes_arg`, because that was the deleted dispatch gate's own axis.
+		// needs a POST input, which this family supplied only through `ref` (srcTermIn was
+		// read only when `'term' !== $base_kind`), so elsewhere the stored tag ignored the
+		// taxonomy. Measured on the testbed: `{{term_text srcTermIn:department|key:phone}}`
+		// on a term archive rendered the term's value, `terms,department` there renders
+		// empty. Dropping the inert key keeps the ambient shape it already rendered.
+		// `term_context`, not `takes_arg`, because the stored tag's behavior split on it.
 		if ( '' !== $tax && ! ( $facts['term_context'] && 'ref' !== $src ) ) {
 			$chain[] = $step( 'terms', $tax );
 		}

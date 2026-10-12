@@ -128,8 +128,8 @@ class TaxonomyTerm extends AbstractSource {
 	 * being REQUIRED and not a license to fold one site into the other.
 	 *
 	 * UNREACHABLE IS A MEASURED CLAIM, and here is what it rests on (2026-09-16): a census of
-	 * every `->resolve_id(` call site under includes/ left the factory above and one orphan
-	 * in the since-deleted modifier callback; and on the testbed both
+	 * every `->resolve_id(` call site under includes/ left only the factory above; and on
+	 * the testbed both
 	 * `{{text src:term|use:title}}` and `{{text src:term,999999|use:title}}` render empty on /department/sales/, where reaching
 	 * resolve_id() would have returned the page's own term.
 	 *

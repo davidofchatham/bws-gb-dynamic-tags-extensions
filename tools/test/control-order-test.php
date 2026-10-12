@@ -959,8 +959,8 @@ assert_same( 'a free name records no collision', false, isset( bws_gb_tag_name_c
 // call restored anywhere reachable from `bws_register_base_tags()` fails the first loop.
 //
 // WHAT WENT WITH THE FAMILY, and is not pinned anywhere else: the `key` control's derived
-// `show_if` (built from try_use_no_key_values inside the deleted register_modifier(), #88)
-// had the `term_*` tags as its only live readers. It is not reasserted against `try_`,
+// `show_if` (built from try_use_no_key_values) had the `term_*` tags as its only live
+// readers. It is not reasserted against `try_`,
 // which spends the same descriptor key on its folded-slot config rather than on a flat
 // `key` control.
 $live_tags = \GenerateBlocks_Register_Dynamic_Tag::get_tags();

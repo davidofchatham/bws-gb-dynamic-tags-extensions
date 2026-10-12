@@ -65,16 +65,9 @@ consequences:
   nothing (the engine short-circuits), so it reports `⚠ No taxonomy set` — the same answer its
   flat sibling gives.
 
-**One namer builds these segments for all three previews** (1.17.0, [#102]).
-`bws_preview_source_segments()` takes the chain and returns the ordered segments; the base
-builder, the join slot walk and the try_ slot walk all read it (the slot walks through
-`bws_try_preview_source_part()`, the SLOT door onto it, which took a flat triple until the slot seam
-hands over chain wire — FW-71). A source is one concept, so a vocabulary change lands in one
-place rather than reaching the three previews at three different times.
+**One namer builds these segments for all three previews** (1.17.0, [#102]). `bws_preview_source_segments()` takes the chain and returns the ordered segments; the base builder, the join slot walk and the try_ slot walk all read it (the slot walks through `bws_try_preview_source_part()`, the SLOT door onto it, which took a flat triple until the slot seam hands over chain wire — FW-71). A source is one concept, so a vocabulary change lands in one place rather than reaching the three previews at three different times.
 
-**A container wanting different text takes a PARAMETER, never its own literal** — the
-`$allow_same` precedent on the slot read builder. Three switches, each a real difference above
-rather than a preference:
+**A container wanting different text takes a PARAMETER, never its own literal** — the `$allow_same` precedent on the slot read builder. Three switches, each a real difference above rather than a preference:
 
 | Switch | Off for | Why |
 |---|---|---|
@@ -82,19 +75,11 @@ rather than a preference:
 | `roots` | slots | A slot's source cannot BE a registered root yet (FW-71), so naming one would print a segment for wire no slot can hold |
 | `site` | slots | On a `try_email` site slot the site read IS the whole slot, so the segment is noise |
 
-**The switches gate NAMING, never CHECKING.** The inert-chain detection below runs above all three,
-`roots` included — the slot door turns that one off, so a check placed under it would silently stop
-flagging on every slot.
+**The switches gate NAMING, never CHECKING.** The inert-chain detection below runs above all three, `roots` included — the slot door turns that one off, so a check placed under it would silently stop flagging on every slot.
 
-A **missing** step argument is REPORTED, not rendered: the namer hands back the step's slug and
-each caller words it (`⚠ No ref key set` on a base tag, `B no ref` in a slot).
+A **missing** step argument is REPORTED, not rendered: the namer hands back the step's slug and each caller words it (`⚠ No ref key set` on a base tag, `B no ref` in a slot).
 
-**One slot shape reads differently for the convergence**, deliberately: a slot with `src:site`
-AND a `srcTermIn` previewed `→ <Tax> Term` before 1.17.0 and previews no source segment now.
-Reading through the shared chain means the preview inherits what the render arms do with that
-pair — the site read wins and the term step is dropped — so the old text described a hop that
-has never happened. The pair is hand-edit-only (`srcTermIn` registers `show_if src: not:site`),
-and a preview that disagrees with what renders is worth less than no segment at all.
+**One slot shape reads differently for the convergence**, deliberately: a slot with `src:site` AND a `srcTermIn` previewed `→ <Tax> Term` before 1.17.0 and previews no source segment now. Reading through the shared chain means the preview inherits what the render arms do with that pair — the site read wins and the term step is dropped — so the old text described a hop that has never happened. The pair is hand-edit-only (`srcTermIn` registers `show_if src: not:site`), and a preview that disagrees with what renders is worth less than no segment at all.
 
 ## Field part
 
@@ -149,16 +134,9 @@ Warnings replace the **entire** preview. Collect all missing required items; joi
 
 ### Inert-chain warning (a source that cannot resolve)
 
-Distinct from the missing-input warnings above: the source is not missing an input — it names vocabulary that resolves to **nothing anywhere**, so the tag renders empty
-whatever else is set. Added in 1.17.0
-([#105](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/105)); base tags
-had no signal for this at all before, because an unnamed root emits no segment and
-`{{text src:currnet|key:x}}` previewed exactly like a bare `{{text key:x}}`. [ADR 0004](adr/0004-serialized-tag-string-human-readable.md)
-makes that wire hand-authorable, which is exactly how an author produces it.
+Distinct from the missing-input warnings above: the source is not missing an input — it names vocabulary that resolves to **nothing anywhere**, so the tag renders empty whatever else is set. Added in 1.17.0 ([#105](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/105)); base tags had no signal for this at all before, because an unnamed root emits no segment and `{{text src:currnet|key:x}}` previewed exactly like a bare `{{text key:x}}`. [ADR 0004](adr/0004-serialized-tag-string-human-readable.md) makes that wire hand-authorable, which is exactly how an author produces it.
 
-Checked **before** the missing-input pass, which it replaces: listing the other gaps beside an inert
-source sends the author to the wrong repair first. Fallback still appends. Wording owner:
-`bws_preview_inert_warning()`; detection: `bws_preview_source_segments()`'s `$inert` out-param.
+Checked **before** the missing-input pass, which it replaces: listing the other gaps beside an inert source sends the author to the wrong repair first. Fallback still appends. Wording owner: `bws_preview_inert_warning()`; detection: `bws_preview_source_segments()`'s `$inert` out-param.
 
 | Condition | Base warning | Slot fragment |
 |---|---|---|
