@@ -367,6 +367,18 @@ Open: Per function, delete it (with any harness that only tests it) or record wh
 
 Blocked by: —  •  Interacts with: FW-136 (closed; left the second group), FW-129 (closed; its own orphans were deleted, not listed here)
 
+#### FW-152 — Rename the "modifier template" surface
+
+`TagTemplateRegistry::register_modifier_template()`, `get_modifier_templates()`, the `$modifier_templates` store and the `supports_try` descriptor key are named for the modifier family, which no longer registers. The template list now feeds two consumers: the plugin's own `try_` tags, and the converter's migration entries for stored modifier-family tags. The names should say that.
+
+Detail home: this row
+
+Progress: Not started. The method's PHPDoc states that "modifier" in the name is historical, and the method is `@internal` since FW-129, so a rename moves no supported surface.
+
+Open: The new name. It has to cover both consumers while the migration entries live, and only the `try_` one after FW-150 retires them. Whether `supports_try` is renamed with it or goes once `try_` is the only product. Design-history files cite the old names and are never corrected.
+
+Blocked by: —  •  Interacts with: FW-150 (retiring the entries leaves one consumer, which may change the right name), FW-129 (closed; made the method internal), FW-93/FW-95 (the open vocabulary renames)
+
 ### Feature follow-ups & UX
 
 #### FW-9 — Context-aware base tags — the deferred residue
