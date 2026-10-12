@@ -394,50 +394,6 @@ function bws_date_range_core( $target, $options, $instance ) {
 	return bws_gb_tag_output( $formatted, $options, $instance );
 }
 
-/**
- * Term date single core — validates the term, delegates a term-kind resolved
- * source (FW-3a; the term read is kind-dispatched, no object-id string smuggle).
- *
- * @since 1.2.0
- * @param int|false $term_id  Resolved term ID.
- * @param array     $options  Tag options.
- * @param object    $instance Block instance.
- * @return string
- */
-function bws_term_date_single_core( $term_id, $options, $instance ) {
-	$term = $term_id ? bws_get_validated_term( $term_id ) : null;
-	if ( ! $term ) {
-		return bws_date_single_core( false, $options, $instance );
-	}
-	return bws_date_single_core(
-		array( 'kind' => 'term', 'id' => $term->term_id, 'taxonomy' => $term->taxonomy ),
-		$options,
-		$instance
-	);
-}
-
-/**
- * Term date range core — validates the term, delegates a term-kind resolved
- * source (FW-3a).
- *
- * @since 1.2.0
- * @param int|false $term_id  Resolved term ID.
- * @param array     $options  Tag options.
- * @param object    $instance Block instance.
- * @return string
- */
-function bws_term_date_range_core( $term_id, $options, $instance ) {
-	$term = $term_id ? bws_get_validated_term( $term_id ) : null;
-	if ( ! $term ) {
-		return bws_date_range_core( false, $options, $instance );
-	}
-	return bws_date_range_core(
-		array( 'kind' => 'term', 'id' => $term->term_id, 'taxonomy' => $term->taxonomy ),
-		$options,
-		$instance
-	);
-}
-
 // ===============================================
 // CORE FUNCTIONS — DATETIME TEMPLATES
 // ===============================================

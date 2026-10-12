@@ -152,31 +152,6 @@ function bws_get_meta_image_options() {
 }
 
 /**
- * Get custom image field options for the custom_image template (key + return type).
- *
- * Uses 'key' as the option key for template-generated tags.
- * The bws_custom_image_core() callback accepts 'key', 'field_key', and 'meta_key' for backward compat.
- *
- * @since 1.2.0
- * @return array
- */
-if ( ! function_exists( 'bws_get_meta_and_return_type_options' ) ) {
-function bws_get_meta_and_return_type_options() {
-	return array_merge(
-		array(
-			'key' => array(
-				'type'        => 'text',
-				'label'       => __( 'Meta Key', 'generateblocks' ),
-				'help'        => __( 'Enter the meta key for the image field (ACF or standard meta).', 'generateblocks' ),
-				'placeholder' => __( 'company_logo', 'generateblocks' ),
-			),
-		),
-		bws_get_image_return_type_options()
-	);
-}
-}
-
-/**
  * Get attachment data by type.
  *
  * @since 1.0.0

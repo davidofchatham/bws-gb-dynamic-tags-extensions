@@ -14,50 +14,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Get term image field options for tag registration.
- *
- * @since 1.1.0
- * @return array
- */
-if ( ! function_exists( 'bws_get_term_image_field_options' ) ) {
-function bws_get_term_image_field_options() {
-	return array(
-		'key' => array(
-			'type'        => 'text',
-			'label'       => __( 'Meta Field Key', 'generateblocks' ),
-			'help'        => __( 'Enter the meta field key for the image field (ACF or standard term meta).', 'generateblocks' ),
-			'placeholder' => __( 'image', 'generateblocks' ),
-		),
-		'fallback_url' => array(
-			'type'        => 'url',
-			'label'       => __( 'Fallback Image URL', 'generateblocks' ),
-			'help'        => __( 'Enter a fallback image URL to use when no custom image is found.', 'generateblocks' ),
-			'placeholder' => __( 'https://example.com/default-image.jpg', 'generateblocks' ),
-		),
-	);
-}
-}
-
-/**
- * Get term custom image options combined with return type for the custom_image template.
- *
- * Merges field_key + fallback_url options with return type. Used as term_options_fn
- * for the custom_image template, providing URL-based fallback (not media library picker,
- * which requires gb_type='media' — incompatible with the 'term' type needed here).
- *
- * @since 1.2.0
- * @return array
- */
-if ( ! function_exists( 'bws_get_term_image_and_return_type_options' ) ) {
-function bws_get_term_image_and_return_type_options() {
-	return array_merge(
-		bws_get_term_image_field_options(),
-		bws_get_image_return_type_options()
-	);
-}
-}
-
-/**
  * THE term-archive criterion: is the page WP is rendering a term archive?
  *
  * AXIS OWNER. A term is claimed only when WP actually QUERIED one — `is_tax()`,
