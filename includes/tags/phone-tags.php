@@ -455,8 +455,8 @@ function bws_phone_render_one( string $raw, string $cc, bool $link, bool $stripC
 function bws_base_phone_resolve_value( array $options, $instance ): array {
 	$sep = $options['sep'] ?? ', ';
 
-	// L3 compose — normalize+render each raw value via the shared finisher (SAME
-	// per-item compose the try_ dispatchers use, VP4 / V10).
+	// L3 compose — normalize+render each raw value via the shared finisher
+	// (VP4 / V10).
 	$parts = bws_phone_finish_values( bws_contact_read_raw( bws_use_effective( 'phone', $options ), $options, $instance ), $options );
 
 	return array(
@@ -558,7 +558,8 @@ function bws_phone_strip_leading_cc(): bool {
 /**
  * Compose a list of raw candidate numbers into finished tel/plain strings.
  *
- * The L3 assembly step shared by the base callback and the try_ dispatchers:
+ * The L3 assembly step shared by the resolve seam (which try_ attempts also read
+ * through) and the base callback's fallback:
  * normalize+render each raw number via bws_phone_render_one (the SAME per-item
  * compose the base {{phone}} callback uses — cc, strip-leading-cc, tel wrap,
  * model-C separators). Normalization doubles as the VP4 validity gate (a number

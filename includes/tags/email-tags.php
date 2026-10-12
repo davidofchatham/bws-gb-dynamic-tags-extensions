@@ -195,7 +195,7 @@ function bws_base_email_resolve_value( array $options, $instance ): array {
 	$sep = $options['sep'] ?? ', ';
 
 	// L3 compose — validate + render each raw value via the shared finisher
-	// (SAME per-item compose the try_ dispatchers use, VE4 / V10).
+	// (VE4 / V10).
 	$parts = bws_email_finish_values( bws_contact_read_raw( bws_use_effective( 'email', $options ), $options, $instance ), $options );
 
 	return array(
@@ -286,7 +286,8 @@ function bws_email_obfuscation_enabled(): bool {
 /**
  * Compose a list of raw candidate addresses into finished mailto/plain strings.
  *
- * The L3 assembly step shared by the base callback and the try_ dispatchers:
+ * The L3 assembly step shared by the resolve seam (which try_ attempts also read
+ * through) and the base callback's fallback:
  * validate each raw value (VE4 is_email), then bws_email_render_one per valid
  * address (the SAME per-item compose the base {{email}} callback uses — subject,
  * obfuscation, mailto wrap). Returns finished per-item strings; the caller joins
