@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.21.1] — 2026-10-12
+
 ### Fixed
 
 - The settings page now lists the removed `{{term_*}}` tags under Removed Tags. Since 1.21.0 they appeared under Deprecated Tags, as if they were still available. The Migration Tool converts them as before.
