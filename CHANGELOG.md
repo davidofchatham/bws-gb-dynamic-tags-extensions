@@ -19,6 +19,10 @@ All notable changes to this project are documented in this file. The format is b
   - `bws_get_terms_for_post( $post_id, $options )`: WordPress's `get_the_terms()`.
   - `bws_post_term_extraction_options()` and `bws_post_term_image_options()`: define the options in your own registration. This reverses 1.16.0, which kept `bws_post_term_extraction_options()` for integrating plugins.
 
+### Fixed
+
+- Typing `:false` after an on/off option in a tag string now turns it off. Before, `showMidnight:false`, `showCurrentYear:false`, `newTab:false` and `noLink:false` all turned the option on, the opposite of what they say. `:0` turns an option off too. Tags built in the editor never wrote these spellings and are unaffected. (#92)
+
 ## [1.21.1] — 2026-10-12
 
 ### Fixed

@@ -34,7 +34,7 @@ function bws_wrap_preview_label_with_link( string $bracket_label, array $options
 	}
 	$link_to  = $options['linkTo'] ?? 'none';
 	$link_key = trim( $options['linkKey'] ?? '' );
-	$new_tab  = ! empty( $options['newTab'] );
+	$new_tab  = bws_flag_is_on( $options, 'newTab' );
 
 	if ( 'none' === $link_to || '' === $link_to ) {
 		return $bracket_label;

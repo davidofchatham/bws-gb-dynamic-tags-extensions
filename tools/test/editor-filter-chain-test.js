@@ -348,6 +348,32 @@ check(
 	'literal entry inside an array condition'
 );
 
+// A presence flag spelled OFF by hand reads as empty, as it renders (#92): `noLink:false`
+// links, so the email Subject it hides must show. Flag keys only — a text option
+// holding '0' is a value, and stays non-empty.
+console.log( '\npresence-flag OFF spellings read as empty\n' );
+const FLAG_OPTIONS = {
+	noLink:  PLAIN,
+	subject: { type: 'text', show_if: { noLink: 'empty' } },
+	sep:     { type: 'text', show_if: { key: 'not_empty' } },
+	key:     PLAIN
+};
+function shows( key, state ) {
+	return null !== applyFilters( { key: key, type: 'text' }, FLAG_OPTIONS, { state: state, setState: function () {} } );
+}
+[
+	[ 'noLink absent → Subject shows', 'subject', {}, true ],
+	[ 'noLink bare (true) → Subject hides', 'subject', { noLink: true }, false ],
+	[ "noLink:'1' → Subject hides", 'subject', { noLink: '1' }, false ],
+	[ "noLink:'false' → Subject shows", 'subject', { noLink: 'false' }, true ],
+	[ "noLink:'FALSE' → Subject shows", 'subject', { noLink: 'FALSE' }, true ],
+	[ "noLink:'0' → Subject shows", 'subject', { noLink: '0' }, true ],
+	[ "text key:'0' is NOT a flag → stays non-empty", 'sep', { key: '0' }, true ],
+	[ "text key:'false' is NOT a flag → stays non-empty", 'sep', { key: 'false' }, true ]
+].forEach( function ( row ) {
+	check( row[ 0 ], shows( row[ 1 ], row[ 2 ] ) === row[ 3 ], 'state = ' + JSON.stringify( row[ 2 ] ) );
+} );
+
 // ── The base-tag source chain: reading legacy keys, and what a conversion writes ──
 //
 // TWIN ASSERTIONS. chainFromOptions() is the JS half of bws_fold_chain_from_options(),

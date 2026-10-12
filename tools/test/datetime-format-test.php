@@ -60,7 +60,20 @@ if ( ! function_exists( 'get_option' ) ) {
 if ( ! function_exists( 'sanitize_text_field' ) ) {
 	function sanitize_text_field( $s ) { return is_string( $s ) ? trim( $s ) : $s; }
 }
+if ( ! function_exists( 'wp_validate_boolean' ) ) {
+	// Core's body, verbatim (wp-includes/functions.php).
+	function wp_validate_boolean( $value ) {
+		if ( is_bool( $value ) ) {
+			return $value;
+		}
+		if ( is_string( $value ) && 'false' === strtolower( $value ) ) {
+			return false;
+		}
+		return (bool) $value;
+	}
+}
 
+require __DIR__ . '/../../includes/helpers/slot-fold.php'; // bws_flag_is_on().
 require __DIR__ . '/../../includes/helpers/datetime-helpers.php';
 require __DIR__ . '/../../includes/tags/datetime-tags.php';
 
@@ -209,6 +222,16 @@ assert_same(
 		'format'          => 'g:i',
 		'showCurrentYear' => '1',
 	) ), array( 'format_type', 'custom_format', 'omit_current_year', 'hide_midnight' ) )
+);
+
+// #92: a hand-written `:false` / `:0` reads as OFF, the same as absent.
+assert_same(
+	'N7 showCurrentYear:false / showMidnight:false read as absent (flags off)',
+	array( 'omit_current_year' => true, 'hide_midnight' => true ),
+	pick( norm_single( array(
+		'showCurrentYear' => 'false',
+		'showMidnight'    => 'false',
+	) ), array( 'omit_current_year', 'hide_midnight' ) )
 );
 
 // ===========================================================================

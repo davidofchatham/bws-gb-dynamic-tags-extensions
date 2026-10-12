@@ -99,6 +99,7 @@ GB's `parse_options()` only reads keys literally present in the tag string. Opti
 **Boolean serialization:**
 - `true` serializes as a bare key only (e.g. `showCurrentYear`, NOT `showCurrentYear:true`).
 - `false` = option dropped entirely — never appears in the tag string.
+- On the read side, only a colon-less pair becomes boolean `true`; a `key:value` pair is always handed over as a STRING (`class-register-dynamic-tag.php` `parse_options()`). So a hand-written `key:false` reaches the callback as `'false'`, which PHP's `empty()` treats as set. GB's own `required` is the one option GB itself reads `'false'` from (`required:false`, [§Built-in tag parameters](#built-in-tag-parameters)). Our response: the Boolean presence-flag convention in [`tag-reference.md` §Default serialization strategy](tag-reference.md#default-serialization-strategy).
 
 See [`tag-reference.md` §Default serialization strategy](tag-reference.md#default-serialization-strategy) for how this plugin works with the constraint (canonical-token first values, registration-boundary strip, intentional `as` opt-out).
 

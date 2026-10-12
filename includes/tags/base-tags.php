@@ -651,7 +651,7 @@ function bws_base_text_callback( $options, $block, $instance ): string {
 				$value,
 				$options['linkTo'] ?? 'none',
 				$options['linkKey'] ?? '',
-				! empty( $options['newTab'] ),
+				bws_flag_is_on( $options, 'newTab' ),
 				$resolved['link_id'],
 				$resolved['link_type']
 			);
@@ -1099,7 +1099,7 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 				$value,
 				$options['linkTo'] ?? 'none',
 				$options['linkKey'] ?? '',
-				! empty( $options['newTab'] ),
+				bws_flag_is_on( $options, 'newTab' ),
 				$resolved['link_id'],
 				$resolved['link_type']
 			);
