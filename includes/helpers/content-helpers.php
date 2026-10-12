@@ -105,39 +105,8 @@ function bws_queue_inline_css( string $id, string $css ): void {
 // plugin that defines its own is unaffected.
 
 // ===============================================
-// POST CONTENT: SAFETY LAYER (thin wrappers over ContentProcessor)
+// POST CONTENT: SAFETY LAYER
 // ===============================================
-//
-// Procedural API preserved for back-compat. All state lives in
-// \BWS\DynamicTags\Content\ContentProcessor. The `int $post_id` legacy
-// signature is normalized to the `'post:' . $id` cache_key on entry.
-
-/**
- * Check if a post can be processed (recursion + depth protection).
- *
- * @since 1.1.0
- * @param int $post_id Post ID to check.
- * @return bool True if safe to process.
- */
-if ( ! function_exists( 'bws_can_process_post_content' ) ) {
-function bws_can_process_post_content( $post_id ) {
-	return \BWS\DynamicTags\Content\ContentProcessor::can_process( 'post:' . (int) $post_id );
-}
-}
-
-/**
- * Check if sufficient memory is available for full content processing.
- *
- * Threshold filterable via `bws_content_memory_threshold` (default 0.80).
- *
- * @since 1.1.0
- * @return bool True if memory usage is below the threshold.
- */
-if ( ! function_exists( 'bws_has_sufficient_memory' ) ) {
-function bws_has_sufficient_memory() {
-	return \BWS\DynamicTags\Content\ContentProcessor::has_sufficient_memory();
-}
-}
 
 /**
  * Detect if we're in a GB query loop setup phase (not a real iteration).

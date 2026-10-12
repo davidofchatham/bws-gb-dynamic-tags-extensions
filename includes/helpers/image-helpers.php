@@ -133,25 +133,6 @@ function bws_parse_as_option( $options ) {
 }
 
 /**
- * Get meta image field options for tag registration.
- *
- * @since 1.0.0
- * @return array
- */
-if ( ! function_exists( 'bws_get_meta_image_options' ) ) {
-function bws_get_meta_image_options() {
-	return array(
-		'meta_key' => array(
-			'type'        => 'text',
-			'label'       => __( 'Meta Key', 'generateblocks' ),
-			'help'        => __( 'Enter the meta key for the image field (ACF or standard meta).', 'generateblocks' ),
-			'placeholder' => __( 'company_logo', 'generateblocks' ),
-		),
-	);
-}
-}
-
-/**
  * Get attachment data by type.
  *
  * @since 1.0.0

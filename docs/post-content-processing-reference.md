@@ -275,8 +275,6 @@ Procedural API in `includes/helpers/content-helpers.php` (guarded with `function
 | `bws_render_block_content( $raw, $cache_key, $args = [] )` | `string` | **(new, v1.8.0)** Generic render entry. Use when content isn't a `post_content` fetch (e.g. wp_options under future `src:site`). Stack keys on `$cache_key`. |
 | `bws_process_post_content( $post_id, $args = [] )` | `string` | Primary entry for post-content. Fetches raw and calls `ContentProcessor::render( $raw, 'post:'.$post_id, $args )` inside `bws_with_post_context()`. Auto-fallback on low memory. |
 | `bws_with_post_context( $post_id, $fn )` | `mixed` | **(new, v1.17.0)** Runs `$fn` with the global `$post` swapped to `$post_id`, restored in a `finally`. Skipped when the target is already ambient. See [§Post-context swap](#post-context-swap-1170). |
-| `bws_can_process_post_content( $post_id )` | `bool` | Recursion + depth check on `'post:'.$post_id`. |
-| `bws_has_sufficient_memory()` | `bool` | Below `bws_content_memory_threshold` (default 0.80) of `memory_limit`. |
 | `bws_is_query_loop_setup_phase( $instance )` | `bool` | Detect parent-page-context calls during GB query loop setup. |
 | `bws_safe_content_output( $content, $options, $instance )` | `string` | Final output stage; strips destructive GB options before `output()`. |
 | `bws_queue_inline_css( $id, $css )` | `void` | **(v1.17.0)** Queue STATIC, plugin-authored CSS keyed by a stable id; each id prints at most once, in its own `<style id="…">` at `wp_footer:5`. A DIFFERENT sink from the content queue, where `ContentProcessor` collects every `<style>` harvested from processed post content and prints it, concatenated without dedupe, into one `<style id="bws-dynamic-content-inline-css">` at `wp_footer:5`. The content queue has no procedural wrapper; the class drives it itself. |
@@ -371,7 +369,7 @@ WP_Block {
 ### Pitfalls that still bite
 
 - **`$instance` is an object.** Property access (`->`) not array access (`[]`).
-- **Don't call `do_blocks()` outside the stack guard.** Always gate with `bws_can_process_post_content()` or call via `bws_process_post_content()` which gates internally.
+- **Don't call `do_blocks()` outside the stack guard.** Call via `bws_process_post_content()` (or `bws_render_block_content()`), which gates internally.
 - **Don't skip the query-loop-setup check.** Callers that resolve `$post_id` from `$instance->context['postId']` get wrong content during setup phases without it.
 - **Don't pipe content through GB's `output()` directly.** Use `bws_safe_content_output()` — `trunc`/`case`/`wpautop`/`link` corrupt rich HTML.
 - **Cross-post `do_blocks` inlines `<style>`.** `wp_kses_post` strips the tags but leaves CSS visible. The pipeline's `ContentProcessor::extract_and_queue_inline_styles()` step handles this, so render through `bws_process_post_content()` / `bws_render_block_content()` rather than calling `do_blocks()` yourself.
