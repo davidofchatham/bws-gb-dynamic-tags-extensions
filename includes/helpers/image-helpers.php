@@ -14,30 +14,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Get image return type options for tag registration.
- *
- * @since 1.0.0
- * @return array
- */
-if ( ! function_exists( 'bws_get_image_return_type_options' ) ) {
-function bws_get_image_return_type_options() {
-	return array(
-		'as' => array(
-			'type'    => 'select',
-			'label'   => __( 'Return Type', 'generateblocks' ),
-			'default' => 'url',
-			'options' => array(
-				array( 'value' => 'url', 'label' => __( 'Image URL', 'generateblocks' ) ),
-				array( 'value' => 'alt', 'label' => __( 'Alt Text', 'generateblocks' ) ),
-				array( 'value' => 'id', 'label' => __( 'Attachment ID', 'generateblocks' ) ),
-				array( 'value' => 'caption', 'label' => __( 'Caption', 'generateblocks' ) ),
-			),
-		),
-	);
-}
-}
-
-/**
  * Registered image sizes as {value,label} option rows for the as+size composite.
  *
  * The `bws-as-size` control (assets/js/as-size-control.js) folds size INTO the

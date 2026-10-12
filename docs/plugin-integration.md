@@ -394,7 +394,6 @@ These functions are available once `bws-gb-dynamic-tags-extensions` is active. A
 | `bws_handle_dashicon_value( $value, $return_type )` | Handle WordPress Dashicon values |
 | `bws_get_attachment_id_from_url( $url )` | Reverse-lookup attachment ID from URL |
 | `bws_handle_media_fallback( $options, $instance, $return_type, $size )` | Media selector fallback logic |
-| `bws_get_image_return_type_options()` | Standard return type option (url/id/alt/caption) |
 
 ### Field helpers (`includes/helpers/field-helpers.php`)
 
