@@ -1378,7 +1378,7 @@ function bws_collect_value_list( array $items, callable $render, array $options 
 				$entry['value'],
 				$link_to,
 				(string) ( $options['linkKey'] ?? '' ),
-				! empty( $options['newTab'] ),
+				bws_flag_is_on( $options, 'newTab' ),
 				(int) $entry['link']['id'],
 				(string) $entry['link']['kind']
 			)

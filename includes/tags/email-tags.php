@@ -300,7 +300,7 @@ function bws_email_obfuscation_enabled(): bool {
  * @return string[] Finished per-item strings (already wrapped/escaped).
  */
 function bws_email_finish_values( array $raw, array $options ): array {
-	$link      = empty( $options['noLink'] );            // VE1 — absent = wrap.
+	$link      = ! bws_flag_is_on( $options, 'noLink' ); // VE1 — absent = wrap.
 	$subject   = (string) ( $options['subject'] ?? '' ); // VE2 — already unescaped.
 	$obfuscate = bws_email_obfuscation_enabled();
 

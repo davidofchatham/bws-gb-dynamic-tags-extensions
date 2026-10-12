@@ -684,11 +684,11 @@ function bws_normalize_datetime_options( array $options, bool $range = false ): 
 
 	// showCurrentYear (true = show) → omit_current_year (true = omit) — inverted.
 	// Absent showCurrentYear → omit_current_year true (default: omit year).
-	$mapped['omit_current_year'] = empty( $options['showCurrentYear'] );
+	$mapped['omit_current_year'] = ! bws_flag_is_on( $options, 'showCurrentYear' );
 
 	// showMidnight (true = show midnight) → hide_midnight — inverted.
 	// Absent showMidnight → hide_midnight true (the default).
-	$mapped['hide_midnight'] = empty( $options['showMidnight'] );
+	$mapped['hide_midnight'] = ! bws_flag_is_on( $options, 'showMidnight' );
 
 	if ( ! $range ) {
 		// key → date_time_field, timeKey → time_field.
@@ -956,7 +956,7 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 				$value,
 				$options['linkTo'] ?? 'none',
 				$options['linkKey'] ?? '',
-				! empty( $options['newTab'] ),
+				bws_flag_is_on( $options, 'newTab' ),
 				$resolved['link_id'],
 				$resolved['link_type']
 			);
@@ -1159,7 +1159,7 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 				$value,
 				$options['linkTo'] ?? 'none',
 				$options['linkKey'] ?? '',
-				! empty( $options['newTab'] ),
+				bws_flag_is_on( $options, 'newTab' ),
 				$resolved['link_id'],
 				$resolved['link_type']
 			);

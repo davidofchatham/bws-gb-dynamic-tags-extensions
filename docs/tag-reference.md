@@ -468,7 +468,7 @@ The `use` rows restate what `BWS_USE_STRIPPED_DEFAULTS` ([`registration-helpers.
 
 **Required for try_ slot 2+:** the slot-2+ "Same as Previous" semantic must be distinguishable from "explicit default". By stripping the slot-1 default to `''` and reserving an explicit `current` token, slot 2+ can use `''` for carry-over and `current` for "override back to current".
 
-**Boolean presence-flag convention:** Boolean options designed so unset = false / default behavior, present (as bare key) = true / non-default. Fits GB's boolean serialization (true → bare key, false → dropped) and the no-serialize-defaults rule simultaneously. Examples: `showCurrentYear`, `showMidnight`. `srcTermIn` was a third until its control was retired in v1.21.0 (the checkbox half of a combined control).
+**Boolean presence-flag convention:** Boolean options designed so unset = false / default behavior, present (as bare key) = true / non-default. Fits GB's boolean serialization (true → bare key, false → dropped) and the no-serialize-defaults rule simultaneously. Examples: `showCurrentYear`, `showMidnight`. `srcTermIn` was a third until its control was retired in v1.21.0 (the checkbox half of a combined control). A hand-written `key:false` or `key:0` reads as off, the same as leaving the key out; any other value reads as on. Every read goes through `bws_flag_is_on()` (`includes/helpers/slot-fold.php`), whose PHPDoc owns the rule, and the editor's show_if `empty` / `not_empty` checks agree with it.
 
 ### `as` serialization opt-out + `as`+`size` fold (`image`, `try_image`)
 

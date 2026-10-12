@@ -483,7 +483,7 @@ class TagTemplateRegistry {
 							$value,
 							$opts['linkTo'] ?? 'none',
 							$opts['linkKey'] ?? '',
-							! empty( $opts['newTab'] ),
+							bws_flag_is_on( $opts, 'newTab' ),
 							$won['link_id'],
 							$won['link_type']
 						);

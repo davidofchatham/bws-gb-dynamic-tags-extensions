@@ -2040,5 +2040,36 @@ foreach ( $iter as $file ) {
 }
 check( 'P19.5 no wire-string source compare survives in includes/', array() === $hits, implode( ', ', $hits ) );
 
+// P20 — bws_flag_is_on(): a presence flag is OFF when absent or spelled '', '0' or 'false'
+// (any case), ON for anything else. GB hands a bare key over as boolean true and a
+// `key:value` pair as a string, so `showMidnight:false` arrives as 'false' (#92).
+echo "\nP20 presence flags\n";
+if ( ! function_exists( 'wp_validate_boolean' ) ) {
+	// Core's body, verbatim (wp-includes/functions.php).
+	function wp_validate_boolean( $value ) {
+		if ( is_bool( $value ) ) {
+			return $value;
+		}
+		if ( is_string( $value ) && 'false' === strtolower( $value ) ) {
+			return false;
+		}
+		return (bool) $value;
+	}
+}
+foreach ( array(
+	'absent' => array( array(), false ),
+	"''"     => array( array( 'f' => '' ), false ),
+	"'0'"    => array( array( 'f' => '0' ), false ),
+	"'false'" => array( array( 'f' => 'false' ), false ),
+	"'FALSE'" => array( array( 'f' => 'FALSE' ), false ),
+	'true'   => array( array( 'f' => true ), true ),
+	"'1'"    => array( array( 'f' => '1' ), true ),
+	"'banana'" => array( array( 'f' => 'banana' ), true ),
+	"'no'"   => array( array( 'f' => 'no' ), true ),
+	"'off'"  => array( array( 'f' => 'off' ), true ),
+) as $label => list( $opts, $want ) ) {
+	check( "P20 $label → " . ( $want ? 'on' : 'off' ), $want === bws_flag_is_on( $opts, 'f' ) );
+}
+
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );

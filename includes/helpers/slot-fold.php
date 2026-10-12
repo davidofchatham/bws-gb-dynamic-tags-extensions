@@ -90,6 +90,27 @@ const BWS_FOLD_TYPES = array( 'title', 'content', 'email', 'phone', 'permalink',
 const BWS_FOLD_FLAGS = array( 'newTab', 'showCurrentYear', 'showMidnight', 'noLink' );
 
 /**
+ * Whether a presence flag is on. THE one read of a presence flag's value (#92).
+ *
+ * OFF: absent, '', '0', or 'false' in any case. ON: anything else. The rule is
+ * wp_validate_boolean()'s. GB hands a bare key over as boolean true but parses a
+ * `key:value` pair into a string, so a hand-written `showMidnight:false` arrives as
+ * 'false', which a bare `! empty()` reads as on.
+ *
+ * `editor-conditional-options.js` mirrors this rule for the `empty` / `not_empty`
+ * show_if checks on the keys in BWS_FOLD_FLAGS.
+ *
+ * @since Unreleased
+ *
+ * @param array  $options Tag or slot options.
+ * @param string $key     Flag key.
+ * @return bool
+ */
+function bws_flag_is_on( array $options, string $key ): bool {
+	return wp_validate_boolean( $options[ $key ] ?? false );
+}
+
+/**
  * Option names whose values are ARBITRARY AUTHOR TEXT. Their content is escaped on
  * emit / unescaped on parse for the GB layer, and grammar chars inside them are
  * inert — a `/` in `Date/time TBA` is not a step.

@@ -572,7 +572,7 @@ function bws_phone_strip_leading_cc(): bool {
  * @return string[] Finished per-item strings (already wrapped/escaped).
  */
 function bws_phone_finish_values( array $raw, array $options ): array {
-	$link    = empty( $options['noLink'] ); // VP1 — absent = wrap.
+	$link    = ! bws_flag_is_on( $options, 'noLink' ); // VP1 — absent = wrap.
 	$cc      = bws_phone_default_cc();       // resolved ONCE.
 	$stripCc = bws_phone_strip_leading_cc(); // resolved ONCE.
 

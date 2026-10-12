@@ -79,6 +79,23 @@
 	}
 
 	/**
+	 * Whether a presence flag holds one of its OFF spellings ('0', or 'false' in any
+	 * case), so `empty` / `not_empty` agree with the render. Mirrors bws_flag_is_on();
+	 * its PHPDoc owns the rule. Flag keys only: a text option holding '0' stays non-empty.
+	 *
+	 * @param {string} key   Option key.
+	 * @param {*}      value Its current value.
+	 * @return {boolean}
+	 */
+	function isFlagOffSpelling( key, value ) {
+		var api   = window.bwsSlotFold;
+		var flags = ( api && api.grammar && api.grammar.flags ) || [];
+		return -1 !== flags.indexOf( key )
+			&& 'string' === typeof value
+			&& ( '0' === value || 'false' === value.toLowerCase() );
+	}
+
+	/**
 	 * Evaluate a single condition against the current state.
 	 *
 	 * @param {string}          condKey   The option key whose value to test.
@@ -88,6 +105,9 @@
 	 */
 	function evaluateCondition( condKey, condValue, state ) {
 		var current = ( state && state[ condKey ] !== undefined ) ? state[ condKey ] : '';
+		if ( isFlagOffSpelling( condKey, current ) ) {
+			current = '';
+		}
 
 		// Array value: ANY entry passes (OR). Entries are full conditions, not just
 		// literals, so one key can carry a literal and a predicate together —
