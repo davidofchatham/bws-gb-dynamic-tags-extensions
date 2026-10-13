@@ -349,6 +349,18 @@ Open: The new name. It has to cover both consumers while the migration entries l
 
 Blocked by: —  •  Interacts with: FW-150 (retiring the entries leaves one consumer, which may change the right name), FW-129 (closed; made the method internal), FW-93/FW-95 (the open vocabulary renames)
 
+#### FW-154 — Run option migrations when a tag modal opens
+
+The editor's mount path rewrites only some stored option shapes when an author opens a tag modal; the rest are rewritten only by the Tag Converter, which cannot reach content outside `post_content` such as block widgets. Every option migration whose keys GB does not capture should also run at mount.
+
+Detail home: this row (decided in `.scratch/plans/datetime-tag-collapse.md` D15)
+
+Progress: Not started. Read, not measured, 2026-10-12: the mount filters found are the slot fold and base-`src` migrations (`slot-fold-migrate.js`) plus the serialization-order normalizer; no mount-side handling was found for `option_renames`, the join-format escape or the datetime transforms. FW-81 carries its own datetime rewrite at mount and does not wait on this row.
+
+Open: Measure what actually runs at mount before designing. `docs/plugin-integration.md:676` states "Option migrations also run when a tag modal opens"; whether that sentence or the code moves is undecided, and this row is where it gets settled. Keys GB captures into private state (`docs/gb-constraints.md` §Reserved Option Keys) stay converter-only.
+
+Blocked by: —  •  Interacts with: FW-81 (the first family to add a mount rewrite), FW-73 (the converter half of the same reach problem)
+
 ### Feature follow-ups & UX
 
 #### FW-9 — Context-aware base tags — the deferred residue
@@ -481,7 +493,7 @@ Detail home: `.scratch/plans/converter-coverage.md` (imported from GH #100, clos
 
 Progress: Settled for #99 as DISCLOSURE, not enumeration — the Migration Tool states its reach boundary in its own section copy rather than sweeping for unreachable wire. Detection already exists in maintainer tooling (`tools/harvest-replay/replay-tags.php` + the env repo's harvest script), which is `.distignore`d. #99's reconcile reports through a persisted settings-page summary line rather than an upgrade-time notice; a notice was deferred to FW-66.
 
-Open: The enumeration half (a sweep of postmeta/options/termmeta reporting what unreachable wire it finds) stays deferred as undesigned. Whether the deferred notice rides FW-66's `announcement` lifecycle is undecided — its remit (a release CHANGED output) does not cleanly cover "there is maintenance work to run".
+Open: The enumeration half (a sweep of postmeta/options/termmeta reporting what unreachable wire it finds) stays deferred as undesigned. A narrower REACH extension, rewriting `widget_block` instances, was assessed feasible 2026-10-12 and is what FW-81's hidden old datetime tags wait on before unregistering is considered; the assessment is in FW-81's detail home. Whether the deferred notice rides FW-66's `announcement` lifecycle is undecided — its remit (a release CHANGED output) does not cleanly cover "there is maintenance work to run".
 
 Blocked by: decision:disclosure vs enumeration  •  Interacts with: FW-66 (notice deferral, reopened), FW-128 (the report half of the same instrument — this row is where the walk REACHES, that one is what a walk can answer; whether the enumeration half lands there instead is open on both rows)
 
@@ -1137,11 +1149,11 @@ Absorbs FW-40/41/65/68 (all retired into it 2026-08-19). Two datetime tags is a 
 
 Detail home: `.scratch/plans/datetime-tag-collapse.md`
 
-Progress: Design converged 2026-08-18, parked — nothing committed, no ticket. No brackets needed inside the value, which is what beat four earlier candidates. Date inheritance for the common start-date-plus-time/end-time-only shape already ships independent of this item. Six options collapse to one, mechanically, with an ordinary migration (`key` on `datetime_range` is dead wire today). FW-35 confirmed independent (a boolean-flag option, not a third position). The third positional slot is closed (would reintroduce silent holes); future optional axes go named after the positional args, timezone being the plausible candidate. The settled encoding (S6) is now modelled in `tools/preview/tag-string-preview.html` (2026-09-01) — a `cb-fw81` toggle joins the collapsed `use:` reading beside today's six-key wire on the two datetime groups, derived mechanically from the existing scenario data (`datetimeCollapseFromParts()`) rather than hand-duplicated. Scoped deliberately narrow: the tag-merge/rename itself (O5) is not modelled (both tags keep their current names), and the `published` verb (O7, still open) is not modelled — only the settled `key`/`now` verbs appear.
+Progress: Design converged 2026-08-18; nothing committed, no ticket. No brackets needed inside the value, which is what beat four earlier candidates. Date inheritance for the common start-date-plus-time/end-time-only shape already ships independent of this item. Six options collapse to one, mechanically, with an ordinary migration (`key` on `datetime_range` is dead wire today). FW-35 confirmed independent (a boolean-flag option, not a third position). The third positional slot is closed (would reintroduce silent holes); future optional axes go named after the positional args, timezone being the plausible candidate. The settled encoding (S6) is now modelled in `tools/preview/tag-string-preview.html` (2026-09-01) — a `cb-fw81` toggle joins the collapsed `use:` reading beside today's six-key wire on the two datetime groups, derived mechanically from the existing scenario data (`datetimeCollapseFromParts()`) rather than hand-duplicated. Scoped deliberately narrow: the tag-merge/rename itself (O5) is not modelled (both tags keep their current names), and the `published` verb (O7, open at the time) is not modelled — only the `key`/`now` verbs appear. A second design pass 2026-10-12 settled the merged name `{{datetime}}`, the read list staying under `use`, `published`/`modified` as always-spelled verbs with an absent read still meaning the fallback (the earlier "absent = published date" premise was false against the code), the old tags staying registered but hidden from the picker via GB's `visibility` arg, one shared read form with FW-27/FW-35, and the folded `use:key,x` read on every single-key tag.
 
-Open: Whether the verb enum (`key`/`modified`/`now`) also needs `published` — a scalar default can be stripped, but a list position with siblings may force a token; if so, whether that token appears only above cardinality 1 or always.
+Open: Precedence and emission between `key:x` and a folded `use:key,…` (leaning `key` wins, and `{{datetime}}` writes `key:x` for a single field); whether `{{text}}` and its family gain datetime reads (`published`/`modified`/`now`, combined date+time) and in what format; whether a merged `datetime` slot type token belongs here or with FW-24. Picker hiding needs a testbed check before the spec relies on it.
 
-Blocked by: —  •  Interacts with: FW-60, FW-13, FW-14 (FU-3 stacking), FW-20, FW-24, FW-64, FW-35, FW-134 (its injected keys land on the key controls this collapses), FW-113 (its site 2 seam-join should land on the merged callback, not before), FW-136 (closed; it extracted a resolve seam from each datetime callback, so this collapses two seams and two shells rather than two callbacks), FW-146 (a shared home for the facts and rules they each state)
+Blocked by: —  •  Interacts with: FW-60, FW-13, FW-14 (FU-3, pulled into this item's scope), FW-20, FW-24 (slot type tokens; datetime reads on text slots are a partial answer), FW-27 (shares the read form), FW-3 (same cores; this lands first), FW-64, FW-35, FW-73 (the widget converter extension the hidden old tags wait on), FW-104 (no deprecation window opens while the old tags render), FW-110 (its datetime preview duplicate is pulled in), FW-116 (its seam-tail fixes carry into the merged seam), FW-134 (its injected keys land on the key controls this collapses), FW-113 (its site 2 seam-join should land on the merged callback, not before), FW-136 (closed; it extracted a resolve seam from each datetime callback, so this collapses two seams and two shells rather than two callbacks), FW-146 (a shared home for the facts and rules they each state), FW-154 (general mount-migration coverage)
 
 #### FW-134 — Pie Calendar event meta is invisible to the field picker
 
