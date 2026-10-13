@@ -1416,10 +1416,7 @@ they are the only retroactive evidence that it ran. Rendered by `PatternCache::f
 a persistent line in the Migration Tool box, and refreshed from both AJAX handlers so an
 un-reloaded page shows the run that just ran.
 
-**Scope, stated to the user.** The Migration Tool section names its boundary (post content and the
-block pattern cache; not custom field values or other plugins' caches). Enumerating those is
-deferred — [#100](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/100),
-tracker row FW-73.
+**Scope, stated to the user.** The Migration Tool section names its boundary (post content and the block pattern cache; not custom field values or other plugins' caches). Rewriting block widgets is tracker row FW-73; reporting a retiring tag name found in custom fields or options is FW-128.
 
 **Integration surface.** `bws_dynamic_tags_content_written` — see
 [`plugin-integration.md` §10](plugin-integration.md#10-reacting-to-a-direct-content-write).
