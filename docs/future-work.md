@@ -495,7 +495,7 @@ Progress: Not started. Assessed feasible 2026-10-12, read not run: extract a pur
 
 Open: Whether the deferred pattern-cache notice rides FW-66's `announcement` lifecycle — its remit (a release CHANGED output) does not cleanly cover "there is maintenance work to run".
 
-Blocked by: a scheduled unregister (build it as a step of one, not before)  •  Interacts with: FW-128 (the retiring-name report; an unregister gates on that report AND this reach), FW-81 (its hidden old datetime tags are the first waiter), FW-154 (the mount half of the same reach problem), FW-66 (notice deferral, reopened)
+Blocked by: a scheduled unregister (build it as a step of one, not before)  •  Interacts with: FW-128 (the retiring-name report; an unregister gates on that report AND this reach), FW-81 (its hidden old datetime tags are the first waiter), FW-154 (the mount half of the same reach problem), FW-155 (shares the string rewriter), FW-66 (notice deferral, reopened)
 
 #### FW-86 — Whether a fanning chain deduplicates its resolved sources
 
@@ -973,7 +973,7 @@ Detail home: memory `deferred_features.md`
 
 Progress: Not started.
 
-Blocked by: —  •  Interacts with: FW-30
+Blocked by: —  •  Interacts with: FW-30, FW-155 (the Dynamic Template Tags `author`/`user` forms land on GB's tags)
 
 #### FW-34 — Configurable default field keys per source × tag-type
 
