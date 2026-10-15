@@ -657,7 +657,7 @@ Blocked by: —  •  Interacts with: FW-142 (closed; its stale-`key` drop remov
 
 Slot-style repeaters render every slot expanded, as the real modal does today. A collapsible card (the header toggles the body, a one-line summary of the values that are set shows while it is closed, several can stay open at once) would shorten a tall slot list. It could be a general affordance of the folded-slot control or specific to `{{table}}`'s Columns cards.
 
-Detail home: `.scratch/table-tag/presentation-reopen.md` (the styling prototype's handoff; the collapsible card was prototyped in `.scratch/table-tag/prototype/styling-group-3.html` round 9 and cut from it in favor of expanded)
+Detail home: `.scratch/plans/table-tag.md` §DECIDED 2026-10-15 (presentation), which carries the feasibility read; the collapsible card was prototyped in `.scratch/table-tag/prototype/styling-group-3.html` round 9 and cut from it in favor of expanded
 
 Progress: Not started. Only a throwaway prototype toggle ever existed, and it is removed.
 
@@ -676,6 +676,126 @@ Progress: Not started. In-editor deprecation warnings existed before 1.14.0, on 
 Open: Whether the warning triggers on the GB `deprecated` type stamp or on FW-38's `lifecycle` field.
 
 Blocked by: —  •  Interacts with: FW-38 (`lifecycle` is a candidate trigger), FW-150 (retires the `term_*` entries the 1.20.0 window left), FW-104 (the deprecation-mode setting governs the same registrations)
+
+#### FW-158 — `{{table}}` vertical alignment
+
+A `verticalAlign` styling key for `{{table}}`, paired with `textAlign`: how cell content sits within a taller row (top, middle, bottom), at the table, header and column levels.
+
+Detail home: `.scratch/plans/table-tag.md` §DECIDED 2026-10-14 (styling encodings); no design yet
+
+Progress: Not started. Raised by the user 2026-10-14, left out of v1 the same day. `textAlign` was named for the CSS property so `verticalAlign` can follow without a collision. The horizontal header-cell cascade it would copy or depart from is decided in that section.
+
+Open: Whether a column's bare value reaches its header cell (the `textAlign` answer is yes, but color and font are no). What the theme default is: GeneratePress's table CSS has not been read for `vertical-align`. Whether it matters before cells can hold inline images or other tall content.
+
+Blocked by: —  •  Interacts with: FW-53 (the `{{table}}` build), FW-148 (both add controls to the Columns cards), FW-167 (images in cells are the tall content that makes it matter)
+
+#### FW-159 — `{{table}}` borders
+
+A `border` styling key for `{{table}}`: which lines are drawn (outer edge, between rows, between columns, under the header) and their width, style and color, in the same `head,args;head,args` grammar as `stripe`.
+
+Detail home: `.scratch/plans/table-tag.md` §DECIDED 2026-10-15 (presentation); no design beyond the grammar
+
+Progress: Not started. Deferred from v1 2026-10-15, with nothing reserved; the user's highest-priority presentation follow-up. The 2026-10-05 grill confirmed the grammar fits (the "which lines" choice becomes the targets) and replaced the old `bordered` preset (plan Settled #29).
+
+Open: The target set and arg types. How borders meet stripes, which paint as `background-image` gradients, and `border-collapse`. Its place in the control order, which is now the wire order (plan #61).
+
+Blocked by: row:FW-53  •  Interacts with: FW-160 (both paint cell edges and fills), FW-161 (padding and borders set density together), FW-162 (a sticky cell needs its border drawn on the cell)
+
+#### FW-160 — `{{table}}` background colors
+
+A `background` styling key for `{{table}}`: a fill color with opacity for the whole table, the header row and single columns. The contrast advisory (text color checked against what sits behind it) returns with it.
+
+Detail home: `.scratch/plans/table-tag.md` §DECIDED 2026-10-14 (styling encodings) for the name, §DECIDED 2026-10-15 (presentation) for the cut
+
+Progress: Not started. Prototyped as "Fill" (styling prototype rounds 4 to 80, with a WCAG contrast advisory and a filled-header-beside-stripe advisory) and cut from v1 2026-10-15; the prototype's Fill code stays dormant. The name `background` was chosen 2026-10-14, with nothing reserved.
+
+Open: Which of the prototype's Fill layouts to use (none was chosen). Whether a column background takes a header segment. Paint order against stripes (the prototype painted the header fill on the header row so stripes compose over it). Whether the contrast advisory also checks text against a stripe.
+
+Blocked by: row:FW-53  •  Interacts with: FW-159, FW-162 (sticky cells need an opaque background)
+
+#### FW-161 — `{{table}}` cell padding
+
+A styling key for the space inside `{{table}}` cells, the valued successor to the deferred `compact` preset.
+
+Detail home: `.scratch/plans/table-tag.md` §DECIDED 2026-10-15 (presentation); no design yet
+
+Progress: Not started. `compact` was deferred in plan Settled #29 for missing prerequisites; the 2026-10-15 grill replaced presets with valued keys, so it returns as a key.
+
+Open: The key name and value shape (one length, or the CSS shorthand), whether the header takes its own value through the `header` segment, and whether columns carry it.
+
+Blocked by: row:FW-53  •  Interacts with: FW-159, FW-163 (`lineHeight` is the other density control)
+
+#### FW-162 — `{{table}}` sticky header row and pinned first column
+
+Keep the header row in view while a long table scrolls vertically, and the first column in view while a wide one scrolls horizontally.
+
+Detail home: none yet (raised in the 2026-10-15 presentation grill)
+
+Progress: Not started. This is the "fixed columns" sense (DataTables FixedColumns, a spreadsheet freeze) that kept `fixedCols` off the layout key (plan Settled #47), so its name must not reuse `fixed`.
+
+Open: Which element scrolls. The caption-gated region wrapper (plan Settled #21) scrolls horizontally, so a pinned column works inside it, but a sticky header sticks to the nearest scrolling ancestor, which may be the page. Sticky cells need an opaque background and their own borders.
+
+Blocked by: row:FW-53  •  Interacts with: FW-159, FW-160, FW-164 (a pinned first column is usually the row headers)
+
+#### FW-163 — `{{table}}` additional typography controls
+
+Typography keys beyond v1's six: wrapping (`whiteSpace`), font family (for example, a different family for the header), and `lineHeight`.
+
+Detail home: `.scratch/plans/table-tag.md` §DECIDED 2026-10-14 (styling encodings) for the key grammar they would join
+
+Progress: Not started. The user named wrapping and font family as the likely next additions (2026-10-15); `lineHeight` sits beside them in GB's Typography panel.
+
+Open: Which comes first. Where font family values come from (the theme's or GB's font list, or free text) and how they are validated before reaching a stylesheet. Each joins the control order, which is the wire order.
+
+Blocked by: row:FW-53  •  Interacts with: FW-161
+
+#### FW-164 — `{{table}}` row headers
+
+Let the first column render as `<th scope="row">` row headers, alongside the first row's column headers. The header cells would then also need `scope="col"`.
+
+Detail home: `.scratch/plans/table-tag.md` §OPEN E and its §pre/post-v1 a11y sub-section
+
+Progress: Not started. The plan deferred `scope="col"` and `scope="row"` as a pair until row headers exist (user, 2026-07-24). The semantics and screen reader behavior are not researched yet.
+
+Open: The research itself (W3C WAI tables tutorial, two-header tables, how screen readers announce row headers), then the wire: a per-column flag or a tag-level setting.
+
+Blocked by: decision:row-header semantics researched  •  Interacts with: FW-162, FW-165 (orientation changes which axis carries headers)
+
+#### FW-165 — `{{table}}` orientation
+
+Let a `{{table}}` take its source per column instead of per row, so each record becomes a column.
+
+Detail home: `.scratch/plans/table-tag.md` §OPEN D and the ORIENTATION note it points to
+
+Progress: Not started. The name `orientation` is reserved and kept out of any bundled key; its values and shape are undecided.
+
+Open: The shape and values (the plan notes that `rows|columns` is ambiguous), and how it meets row headers.
+
+Blocked by: row:FW-53  •  Interacts with: FW-164
+
+#### FW-166 — `{{table}}` content filters
+
+Front-end controls that filter a rendered table's rows: a search box, and select, checkbox or radio filters on a column's values.
+
+Detail home: none yet (raised in the 2026-10-15 presentation grill)
+
+Progress: Not started. It would be the plugin's first front-end JavaScript for a tag.
+
+Open: Progressive enhancement (the table must work with scripts off), announcing the result count to screen readers, which columns can be filtered and how an author says so, and the wire.
+
+Blocked by: row:FW-53  •  Interacts with: FW-27 (`if` filters rows on the server; this filters them in the browser)
+
+#### FW-167 — `{{table}}` images in cells
+
+A column that renders an image directly in its cells, with its own formatting controls (size, fit, alt text, link). The output differs completely from the `{{image}}` tag's.
+
+Detail home: none yet (raised in the 2026-10-15 presentation grill)
+
+Progress: Not started.
+
+Open: How a column declares it (a slot type token, plan #60, leads the slot when present), which controls it needs, and the alt-text source.
+
+Blocked by: row:FW-53  •  Interacts with: FW-158 (tall content), FW-161
 
 ### Testing & infrastructure
 
