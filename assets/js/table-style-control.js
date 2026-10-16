@@ -127,8 +127,12 @@
 		'.bws-ts-div{border-top:1px solid #e0e0e0}' +
 		// Six controls fill DOWN three columns: color / size | weight / style | alignment / transform.
 		'.bws-ts-g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,auto);grid-auto-flow:column;gap:8px 12px;align-items:start}' +
-		'.bws-ts-smx{display:grid;grid-template-columns:auto 5rem minmax(0,1fr) minmax(0,1.15fr);gap:8px 12px;align-items:center}' +
+		'.bws-ts-smx{display:grid;grid-template-columns:auto 5rem minmax(0,1fr) minmax(0,1.15fr);gap:8px 12px;align-items:start}' +
 		'.bws-ts-smx .bws-ts-l,.bws-ts-smx .bws-ts-l3{margin:0}' +
+		// Top-aligned: a combobox's always-present help line makes its cell taller than the select's,
+		// so centering shifted the Pattern select off the Color field. The row label and the help
+		// notes take the 40px control height to sit on the same midline.
+		'.bws-ts-smx-row>.bws-ts-l,.bws-ts-smx-row>.bws-ts-help{display:flex;align-items:center;min-height:40px;line-height:1.4}' +
 		'.bws-ts-smx--lk{grid-template-columns:auto 5rem minmax(0,1fr) minmax(0,1.15fr) auto}' +
 		// The toggle spans both target rows (rows 2-3) with a rule down its middle joining them.
 		'.bws-ts-link{grid-column:5;grid-row:2 / span 2;align-self:stretch;display:flex;align-items:center;justify-content:center;position:relative}' +
@@ -510,6 +514,13 @@
 		);
 	}
 
+	/** GB's own "none" icon (a circle with a slash), as its Typography buttons draw it. */
+	function noneIcon() {
+		return el( 'svg', { xmlns: 'http://www.w3.org/2000/svg', viewBox: '0 0 24 24', width: 24, height: 24, fill: 'currentColor', 'aria-hidden': true, focusable: false },
+			el( 'path', { fillRule: 'evenodd', clipRule: 'evenodd', d: 'M12 18.5A6.5 6.5 0 0 1 6.93 7.931l9.139 9.138A6.473 6.473 0 0 1 12 18.5Zm5.123-2.498a6.5 6.5 0 0 0-9.124-9.124l9.124 9.124ZM4 12a8 8 0 1 1 16 0 8 8 0 0 1-16 0Z' } )
+		);
+	}
+
 	function glyph( text, style ) {
 		return el( 'span', { 'aria-hidden': true, style: Object.assign( { fontSize: '15px', lineHeight: 1, fontWeight: 600 }, style || {} ) }, text );
 	}
@@ -523,15 +534,15 @@
 				right: function () { return lineIcon( [ [ 11, 9 ], [ 4, 16 ], [ 11, 9 ] ] ); }
 			},
 			fontStyle: {
-				normal: function () { return glyph( 'N' ); },
+				normal: function () { return glyph( 'Ab' ); },
 				italic: function () { return glyph( 'I', { fontStyle: 'italic' } ); },
 				oblique: function () { return glyph( 'Ob', { fontStyle: 'oblique' } ); }
 			},
 			textTransform: {
-				none: function () { return glyph( '–' ); },
-				uppercase: function () { return glyph( 'AA' ); },
-				lowercase: function () { return glyph( 'aa' ); },
-				capitalize: function () { return glyph( 'Aa' ); }
+				none: noneIcon,
+				uppercase: function () { return glyph( 'AB' ); },
+				lowercase: function () { return glyph( 'ab' ); },
+				capitalize: function () { return glyph( 'Ab' ); }
 			}
 		};
 		var make = icons[ group ] && icons[ group ][ value ];
@@ -593,9 +604,9 @@
 		],
 		textTransform: [
 			{ value: 'none', label: __( 'None', 'generateblocks' ) },
-			{ value: 'uppercase', label: 'AA', title: __( 'Uppercase', 'generateblocks' ) },
-			{ value: 'lowercase', label: 'aa', title: __( 'Lowercase', 'generateblocks' ) },
-			{ value: 'capitalize', label: 'Aa', title: __( 'Capitalize', 'generateblocks' ) }
+			{ value: 'uppercase', label: 'AB', title: __( 'Uppercase', 'generateblocks' ) },
+			{ value: 'lowercase', label: 'ab', title: __( 'Lowercase', 'generateblocks' ) },
+			{ value: 'capitalize', label: 'Ab', title: __( 'Capitalize', 'generateblocks' ) }
 		]
 	};
 
