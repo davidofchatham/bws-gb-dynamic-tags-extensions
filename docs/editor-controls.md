@@ -86,6 +86,8 @@ The group heading is "Starting from Current Context" on a base tag and in `try_`
 
 **The Specific Post / Specific Term selector is a capped browse list.** Each group (a taxonomy for a term, a post type for a post) lists at most 20 entries in the All view and 100 once a group is chosen, and a caution above the combobox says when entries are cut short; the Post Type / Taxonomy filter and search are how an author reaches the rest. The filter's options arrive inlined as `window.bwsEntityGroups`, so the control renders on mount without a REST call. A missing global falls back to the `groups` the browse response carries, while a present but empty one is trusted. The caps and the request contract live in `includes/rest/entity-lookup.php`, the control in `assets/js/entity-picker-control.js`.
 
+**The picker is `bws-entity-picker`, and it is NOT a `tagSpecificControls` type.** A root's argument is not an option key; it rides inside the chain value's position 0 (`post,<ID>`). So the control registers into `window.bwsRootArgControls`, keyed by name, and the chain step renderer mounts whichever control the selected root's row names in `arg.control` (`CurrentPost` and `TaxonomyTerm` declare `bws-entity-picker`). That makes a root argument render identically on a base tag, a `try_` attempt and a `{{join}}` field, from the one place a chain's root and steps are drawn.
+
 ### Chain step controls
 
 **These rows are POSITIONS INSIDE THE CHAIN VALUE, not option keys.** Every one of them edits part
