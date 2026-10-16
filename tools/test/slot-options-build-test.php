@@ -1067,6 +1067,9 @@ assert_same( 'table: columns run A..J (BWS_TABLE_MAX_COLS)', array( true, true, 
 assert_same( 'table: every column is a `bws-slot-fold`', array( 'bws-slot-fold' ), array_values( array_unique( array_map( static function ( $k ) use ( $table_opts ) { return $table_opts[ $k ]['type']; }, array_filter( $table_keys, static function ( $k ) { return 1 === preg_match( '/^[A-Z]+$/', $k ); } ) ) ) ) );
 assert_same( 'table: no flat column key survives', array(), array_values( preg_grep( '/^\d+-/', $table_keys ) ) );
 assert_same( 'table: no tag-level `key` survives', false, isset( $table_opts['key'] ) );
+assert_same( 'table: the tag source is the chain control, as on a base tag', 'bws-src-chain', $table_opts['src']['type'] ?? null );
+assert_same( 'table: no flat relationship/taxonomy control rides beside the chain', array( false, false ), array( isset( $table_opts['ref'] ), isset( $table_opts['srcTermIn'] ) ) );
+assert_same( 'table: the chain offers the same steps a base tag does', bws_build_src_chain_option()['src']['fold']['offer'], $table_opts['src']['fold']['offer'] );
 assert_same( 'table: `caption` stays tag-level', true, isset( $table_opts['caption'] ) );
 assert_same( 'table: no per-slot flat axes', array(), $table_opts['A']['fold']['flatAxes'] );
 assert_same( 'table: columns offer the fixed read', true, ! empty( $table_opts['A']['fold']['fixedOption'] ) );

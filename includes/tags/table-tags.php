@@ -101,7 +101,9 @@ function bws_get_table_options(): array {
 	$text_field = bws_get_text_field_options();
 
 	$tag_level = array_merge(
-		bws_base_source_option(),
+		// The tag's source is authored as a CHAIN, with the same control and root menu as a
+		// base tag's: the chain's tail is the row set, and any chain is valid wire.
+		bws_build_src_chain_option(),
 		bws_base_traversal_options(),
 		array(
 			// Accessible caption (W3C data-table pattern). Labels the table for

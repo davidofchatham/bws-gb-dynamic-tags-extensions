@@ -186,7 +186,8 @@ check( 'Typography: clearing the last value deletes the key', m.writes[ 0 ], {} 
 m = mount( UI.TypographyControl, { fontWeight: 'normal' } );
 find( m.tree, ( n ) => n.type === 'Select' && n.props.label === 'Font Weight' )[ 1 ].props.onChange( 'bold' );
 check( 'Typography: weight select at Header', m.writes[ 0 ], { fontWeight: 'normal;header,bold' } );
-check( 'Typography: an unset Header weight shows the table value as its default row', find( m.tree, ( n ) => n.type === 'Select' && n.props.label === 'Font Weight' )[ 1 ].props.options[ 0 ].label, 'normal (table)' );
+check( 'Typography: an unset Header weight shows the table value as its default row', find( m.tree, ( n ) => n.type === 'Select' && n.props.label === 'Font Weight' )[ 1 ].props.children[ 0 ].children[ 0 ], 'normal (table)' );
+check( 'Typography: the CSS globals sit under an <optgroup> heading, not among the weights', ( ( g ) => [ g.type, g.props.label, g.children[ 0 ].length ] )( find( m.tree, ( n ) => n.type === 'Select' && n.props.label === 'Font Weight' )[ 0 ].props.children.slice( -1 )[ 0 ] ), [ 'optgroup', 'CSS values', 5 ] );
 m = mount( UI.TypographyControl, {} );
 button( m.tree, 'Italic' ).props.onClick();
 check( 'Typography: a button group writes its value', m.writes[ 0 ], { fontStyle: 'italic' } );

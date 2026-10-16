@@ -88,7 +88,7 @@ deliberately not the same rule.
   absent from a `{{join}}` field or a `try_` attempt. Rows APPEND after the built-ins, keeping
   `current` as the row an absent `src` stands for. Slots are ungated.
 - **Never on the shared base builder.** `bws_base_source_option()` does not grow these rows — the
-  derived families (`try_*`, `{{table}}`, `{{call}}`) build their own surfaces from its
+  derived families (`try_*`, `{{call}}`) build their own surfaces from its
   rows, so a leak there would offer a root inside its own Source dropdown and
   widen `{{call}}`'s deliberate allowlist.
 - **Registered roots offered through the `bws_dynamic_tags_chain_roots` filter route declare no
@@ -150,8 +150,8 @@ once an author converts it or the Tag Converter rewrites it.
   consequence for an integrator is in
   [`plugin-integration.md`](plugin-integration.md#what-a-non-resolving-source-renders).
 - **`rows` is offered on a base tag since 1.21.0, and it RENDERS.** `{{text}}`, `{{content}}`, `{{image}}`, `{{email}}`, `{{phone}}` and both `{{datetime_*}}` families read a `meta_row` chain — one named sub-field per row — and every container that absorbs the text read (`{{join}}` slots, `try_` attempts) came with it. `{{title}}` and `{{permalink}}` REFUSE a `rows` chain and render nothing — their stated fallback where the family has one, the editor preview label where it has that. **Until 1.21.0 they did not render empty, they printed the SURROUNDING PAGE**: the page's own title, address, image field or date, because a `rows` chain resolves no post and the post tail read the ambient entity. Neither will ever gain a row arm — their spellings are all analogs, and a row is not an entity. **The row read takes each family's OWN cardinality**, not a rule of its own: `{{text}}`/`{{email}}`/`{{phone}}`/`{{datetime_*}}` fan across the rows with the tag's `limit` and `sep` applying, while `{{content}}` and `{{image}}` collapse to the first row, because both are `takes_first_usable` (ADR 0007) and register neither key. An ANALOG refuses on a row (`use:title`, `{{content}}`'s `use:content`/`use:excerpt` and `{{image}}`'s `use:featured` all render nothing): a row is not an entity, and the hop those spellings imply is already sayable — `src:rows,team_members;refs,lead_ref|use:title`. **The image read is the one that needed the raw read seam**, because an image sub-field's stored shape follows its own field's return format — an array under ACF's default — and the string seam every other row arm reads through drops arrays; `bws_read_resolved_source_value()` is the half that does not. **The datetime read takes the VALUE half of that seam only**: each core keeps deriving its own custom-fields object id, a separate argument from the value read, and a row reaches no sub-field config — so a date sub-field on a wire row is parsed FORMAT-AGNOSTICALLY, and the field-object read that would close it is FW-3's. What `{{table}}` owns is ASSEMBLY — a row across many columns — not the read. **The step joined every chain-step offer in 1.21.0** — base tags, `{{join}}` fields and `try_` attempts alike, the three lists being asserted equal — once every keyed arm read a row; it was held back only while nothing consumed one, because a step no arm reads authors a chain that renders empty.
-- **The derived families keep the flat select.** `try_*` and `{{table}}` build their own
-  surfaces from the root enum's rows; a slot authors its chain inside its folded value instead
+- **The derived families keep the flat select.** `try_*` builds its own
+  surfaces from the root enum's rows (`{{table}}`'s tag-level source is the chain control, like a base tag's); a slot authors its chain inside its folded value instead
   (see [§Folded slot wire](#folded-slot-wire-multislot-containers)).
 
 ### Source-analog resolution

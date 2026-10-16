@@ -359,18 +359,22 @@
 		textTransform: __( 'Text Transform', 'generateblocks' )
 	};
 
+	/**
+	 * Font Weight's rows as native <option>s, the CSS globals under their own <optgroup>
+	 * heading (a heading is not selectable), the way the Source menu groups its steps.
+	 */
 	function weightOptions( defaultLabel ) {
-		var rows = [
-			{ value: '', label: defaultLabel },
-			{ value: 'normal', label: __( 'Normal', 'generateblocks' ) },
-			{ value: 'bold', label: __( 'Bold', 'generateblocks' ) }
-		];
+		var opt = function ( value, label ) {
+			return el( 'option', { key: value || 'default', value: value }, label );
+		};
+		var rows = [ opt( '', defaultLabel ), opt( 'normal', __( 'Normal', 'generateblocks' ) ), opt( 'bold', __( 'Bold', 'generateblocks' ) ) ];
 		[ 100, 200, 300, 400, 500, 600, 700, 800, 900 ].forEach( function ( n ) {
-			rows.push( { value: String( n ), label: String( n ) } );
+			rows.push( opt( String( n ), String( n ) ) );
 		} );
-		return rows.concat( ( V.globals || [] ).map( function ( g ) {
-			return { value: g, label: g };
-		} ) );
+		rows.push( el( 'optgroup', { key: 'globals', label: __( 'CSS values', 'generateblocks' ) }, ( V.globals || [] ).map( function ( g ) {
+			return opt( g, g );
+		} ) ) );
+		return rows;
 	}
 
 	// ── One text-style target (the Table, the Header, a column's Body…) ─────────
@@ -404,7 +408,7 @@
 					key: key,
 					label: LABELS[ key ],
 					value: value,
-					options: weightOptions( inh || __( 'Default', 'generateblocks' ) ),
+					children: weightOptions( inh || __( 'Default', 'generateblocks' ) ),
 					onChange: onChange,
 					__nextHasNoMarginBottom: true
 				} );

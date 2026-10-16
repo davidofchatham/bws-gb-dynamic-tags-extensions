@@ -310,7 +310,7 @@ function bws_fold_step_offer( array $steps, array $vocab ): array {
  * where source and read share one value).
  *
  * NOT applied to derived families: `bws_base_source_option()` stays a plain select
- * because `try_*` and `{{table}}` build their surfaces from its rows
+ * because `try_*` builds its surface from its rows
  * (bws_pick_src_values, bws_build_slot_traversal_options).
  *
  * @since 1.17.0

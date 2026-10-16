@@ -48,7 +48,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * CAPTIONS BELONG TO CONTROLS, NOT TO GROUPS (v1.17.0). The wrapper renders no caption at
  * all; a control that draws its own captions inside the wrapper's box is what puts one
  * there. So the source group reads "SOURCE" / "SOURCE PATH" on the tags whose source is a
- * chain control, and shows the same box bare on `try_*`, `{{table}}` and
+ * chain control, and shows the same box bare on `try_*` and
  * `{{call}}`, whose source is a plain select. That asymmetry is accepted for v1 and
  * tracked on FW-64: making it uniform means the wrapper renders the caption, and the
  * chain control's is DYNAMIC (it changes with chain length), so the wrapper would have to
@@ -194,7 +194,7 @@ function bws_option_visual_groups(): array {
  *
  * DERIVED from the chain option's own `flatAxes` — the same list the control deletes by,
  * so a change to what the chain absorbs cannot leave a stray control behind. Gated on the
- * control TYPE, so `try_*`, `{{table}}` and `{{call}}` (plain `select` sources)
+ * control TYPE, so `try_*` and `{{call}}` (plain `select` sources)
  * are untouched.
  *
  * Removing the OPTION does not remove the VALUE: GB seeds `extraTagParams` from the parsed
