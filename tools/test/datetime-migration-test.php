@@ -71,6 +71,18 @@ if ( ! function_exists( 'sanitize_key' ) ) {
 if ( ! function_exists( 'apply_filters' ) ) {
 	function apply_filters( $hook, $value ) { return $value; }
 }
+if ( ! function_exists( 'wp_validate_boolean' ) ) {
+	// Core's body, verbatim (wp-includes/functions.php). bws_flag_is_on() reads through it.
+	function wp_validate_boolean( $value ) {
+		if ( is_bool( $value ) ) {
+			return $value;
+		}
+		if ( is_string( $value ) && 'false' === strtolower( $value ) ) {
+			return false;
+		}
+		return (bool) $value;
+	}
+}
 
 require __DIR__ . '/../../includes/helpers/slot-fold.php';
 require __DIR__ . '/../../includes/helpers/serialization-order.php';
