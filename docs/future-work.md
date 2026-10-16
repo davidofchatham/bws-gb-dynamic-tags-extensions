@@ -373,6 +373,18 @@ Open: Move `bws_fold_emit_slot()` in `slot-fold.php` and its JS twin together, w
 
 Blocked by: —  •  Interacts with: FW-167 (images in cells is the first table column likely to carry a type token), FW-53 (the `{{table}}` build), FW-24 (slot type tokens)
 
+#### FW-170 — Load translations for the editor scripts
+
+The plugin's editor scripts mark their strings with `wp.i18n`'s `__()`, but no script is ever handed a translation file, so every one of those strings renders in English whatever the site language. Each enqueued script that carries translatable strings needs `wp_set_script_translations()`.
+
+Detail home: this row
+
+Progress: Not started. Read 2026-10-16: no `wp_set_script_translations()` or `load_plugin_textdomain()` call exists in the plugin; six files under `assets/js/` use `__()`, the media picker since `9a40433`. Not measured on a translated site.
+
+Open: The text domain. Every string, PHP and JS, uses `'generateblocks'` (the plugin header's `Text Domain` too), so PHP strings translate only where GenerateBlocks' own language pack happens to hold an identical string, and a JS translation file keyed to our script paths would never come from GB's pack. Whether the plugin moves to its own domain (a sweep of every `__()` call plus a `.pot`) or deliberately stays on GB's is the decision this row waits on. Then which handles get the call, and where the `.json` files are generated and shipped.
+
+Blocked by: decision:text domain  •  Interacts with: —
+
 ### Feature follow-ups & UX
 
 #### FW-9 — Context-aware base tags — the deferred residue
