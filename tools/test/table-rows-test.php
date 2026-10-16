@@ -62,6 +62,9 @@ if ( ! function_exists( 'bws_try_text_term_dispatch' ) ) {
 if ( ! function_exists( 'bws_site_resolve_value' ) ) {
 	function bws_site_resolve_value( $tag, $o, $i ) { return "site-{$tag}"; }
 }
+if ( ! function_exists( 'get_search_query' ) ) {
+	function get_search_query() { return 'x'; }
+}
 if ( ! function_exists( 'get_the_author_meta' ) ) {
 	function get_the_author_meta( $f, $id ) { return "user-{$f}-{$id}"; }
 }
@@ -166,6 +169,7 @@ check( 'a term row reads its term name', 'term-9', $acell( array( 'kind' => 'ter
 check( 'a user row reads its display name', 'user-display_name-3', $acell( array( 'kind' => 'user', 'id' => 3 ) ) );
 check( 'a site row reads its site analog through the text tag', 'site-text', $acell( array( 'kind' => 'site' ) ) );
 check( 'a meta_row refuses an analog and does not fall through to the ambient entity', '', $acell( array( 'kind' => 'meta_row', 'row' => array( 'name' => 'Alice' ) ) ) );
+check( 'a query_context row reads its canonical heading (no id, so not routed by identity)', 'Search Results for &#8220;x&#8221;', $acell( array( 'kind' => 'query_context', 'sub' => 'search', 'payload' => array() ) ) );
 check( 'an id-less entity row is empty', '', $acell( array( 'kind' => 'term', 'id' => 0 ) ) );
 check( 'a user row has no permalink analog: `use:permalink` is empty', '', $acell( array( 'kind' => 'user', 'id' => 3 ), array( 'use' => 'permalink' ) ) );
 

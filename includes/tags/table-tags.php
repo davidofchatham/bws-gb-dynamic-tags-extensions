@@ -220,7 +220,8 @@ function bws_table_column_start( ?array $opts, string $explicit_id, $instance ) 
  * second reader dispatches from a resolved source (FW-120).
  *
  * A `meta_row` has no analog (a row is not an entity) and an unlisted kind has none yet:
- * both are '' and never fall through to the ambient entity.
+ * both are '' and never fall through to the ambient entity. `query_context` (a 404, search or
+ * archive page as the row) reads its canonical heading.
  *
  * @since Unreleased
  * @param array  $source   One resolved source.
@@ -229,6 +230,10 @@ function bws_table_column_start( ?array $opts, string $explicit_id, $instance ) 
  * @return string Analog value, '' on a miss or a kind with none.
  */
 function bws_table_read_analog( array $source, array $opts, $instance ): string {
+	// Entity-less, so it has no link identity to dispatch on: its reader takes the source.
+	if ( 'query_context' === ( $source['kind'] ?? '' ) ) {
+		return bws_base_query_context_analog_read( 'text', $source, $opts, $instance );
+	}
 	$identity = bws_source_link_identity( $source );
 	if ( null === $identity ) {
 		return '';
