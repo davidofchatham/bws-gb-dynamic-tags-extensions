@@ -273,6 +273,24 @@ check( 'Column Width: Fixed needs no hint, placeholder is Equal share', [ wf.pro
 const wa = expand( UI.ColumnWidthField( { slot: { opts: {} }, tagState: { layout: 'auto' }, write: () => {} } ) );
 check( 'Column Width: Auto says the width is a hint', find( wa, ( n ) => n.type === 'em' ).map( ( n ) => n.children[ 0 ] ), [ 'Column Sizing', 'Fixed' ] );
 
+// ── GB's own icon button group, when its package is on the page ─────────────────────
+global.window.gb = { stylesBuilder: { ButtonIconControl: 'GbButtons' } };
+m = mount( UI.TypographyControl, { textAlign: 'center' } );
+const gbAlign = find( m.tree, ( n ) => n.type === 'GbButtons' && n.props.buttons.some( ( b ) => b.value === 'center' ) )[ 0 ];
+check( 'GB icon group: used when available, with the stored value', gbAlign.props.value, 'center' );
+check( 'GB icon group: each alignment has an icon, labelled for assistive tech', gbAlign.props.buttons.map( ( b ) => [ b.label, !! b.icon ] ), [ [ 'Left', true ], [ 'Center', true ], [ 'Right', true ] ] );
+gbAlign.props.onChange( 'right' );
+check( 'GB icon group: writes through the same commit', m.writes[ 0 ], { textAlign: 'right' } );
+delete global.window.gb;
+
+// ── Color list headings ──────────────────────────────────────────────────────────────
+const colorRows = find( mount( UI.TypographyControl, {} ).tree, ( n ) => n.type === 'Combo' && n.props.label === 'Text Color' )[ 0 ].props.options;
+check( 'Color list: hint first, then headed groups, headings disabled', colorRows.filter( ( r ) => r.disabled ).map( ( r ) => r.label ), [ colorRows[ 0 ].label, 'Site colors', 'Color names', 'CSS values' ] );
+const colorField = expand( UI.ColorField( { label: 'C', value: '', onChange: ( v ) => commits.push( v ) } ) );
+commits = [];
+colorField.props.onChange( '__group:site' );
+check( 'Color list: picking a heading commits nothing', commits, [] );
+
 // ── The filter ───────────────────────────────────────────────────────────────────────
 const filter = filters[ filters.length - 1 ];
 const opts = { layout: { type: 'bws-table-sizing' }, width: { type: 'bws-table-style-member' }, color: { type: 'bws-table-typography' }, stripe: { type: 'bws-table-stripes' }, other: { type: 'text' } };

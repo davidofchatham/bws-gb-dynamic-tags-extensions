@@ -1500,7 +1500,7 @@
 			var UI = conf.styleOption ? window.bwsTableStyleUI : null;
 			var headerField = el( TextControl, {
 				key: 'header',
-				label: conf.headerOption.label,
+				label: UI ? __( 'Column Header', 'generateblocks' ) : conf.headerOption.label,
 				hideLabelFromVision: ! UI,
 				help: conf.headerOption.help,
 				value: slot.header || '',

@@ -161,7 +161,13 @@
 			return ! q || o.value.toLowerCase().indexOf( q ) !== -1;
 		} );
 		var gl = globals && ! q ? plain( V.globals || [] ) : [];
-		return sites.concat( extra, plain( names ), gl );
+		// Heading rows are disabled options: WP's combobox has no heading row of its own.
+		var head = function ( id, label, rows ) {
+			return rows.length ? [ { value: '__group:' + id, label: label, disabled: true } ].concat( rows ) : [];
+		};
+		return head( 'site', __( 'Site colors', 'generateblocks' ), sites )
+			.concat( head( 'names', __( 'Color names', 'generateblocks' ), extra.concat( plain( names ) ) ) )
+			.concat( head( 'globals', __( 'CSS values', 'generateblocks' ), gl ) );
 	}
 
 	/** Number typed: offer it in every unit, the natural default first (the unit flag, as a list). */
@@ -230,7 +236,7 @@
 		}
 
 		function commit( next ) {
-			if ( next === '__hint' ) {
+			if ( next === '__hint' || ( typeof next === 'string' && next.indexOf( '__group:' ) === 0 ) ) {
 				return;
 			}
 			if ( typeof next === 'string' && next.indexOf( '__invalid:' ) === 0 ) {
@@ -310,7 +316,62 @@
 
 	// ── Button groups (one pressed at a time; pressing it again clears) ─────────
 
+	/** A 24px line icon: each entry is [x, width] for one of three rows. */
+	function lineIcon( rows ) {
+		return el( 'svg', { xmlns: 'http://www.w3.org/2000/svg', viewBox: '0 0 24 24', width: 24, height: 24, 'aria-hidden': true, focusable: false },
+			rows.map( function ( r, i ) {
+				return el( 'rect', { key: i, x: r[ 0 ], y: 5 + i * 6, width: r[ 1 ], height: 1.5 } );
+			} )
+		);
+	}
+
+	function glyph( text, style ) {
+		return el( 'span', { 'aria-hidden': true, style: Object.assign( { fontSize: '15px', lineHeight: 1, fontWeight: 600 }, style || {} ) }, text );
+	}
+
+	/** The icon for one choice, or null (the button then shows its text label). */
+	function choiceIcon( group, value ) {
+		var icons = {
+			textAlign: {
+				left: function () { return lineIcon( [ [ 4, 9 ], [ 4, 16 ], [ 4, 9 ] ] ); },
+				center: function () { return lineIcon( [ [ 7.5, 9 ], [ 4, 16 ], [ 7.5, 9 ] ] ); },
+				right: function () { return lineIcon( [ [ 11, 9 ], [ 4, 16 ], [ 11, 9 ] ] ); }
+			},
+			fontStyle: {
+				normal: function () { return glyph( 'N' ); },
+				italic: function () { return glyph( 'I', { fontStyle: 'italic' } ); },
+				oblique: function () { return glyph( 'Ob', { fontStyle: 'oblique' } ); }
+			},
+			textTransform: {
+				none: function () { return glyph( '–' ); },
+				uppercase: function () { return glyph( 'AA' ); },
+				lowercase: function () { return glyph( 'aa' ); },
+				capitalize: function () { return glyph( 'Aa' ); }
+			}
+		};
+		var make = icons[ group ] && icons[ group ][ value ];
+		return make ? make() : null;
+	}
+
+	/**
+	 * One-of-N button row. Uses GB's own ButtonIconControl (the Typography panel's group) when
+	 * its styles-builder package is on the page, else a plain pressed-state button row.
+	 */
 	function ChoiceButtons( p ) {
+		var GbButtons = window.gb && window.gb.stylesBuilder && window.gb.stylesBuilder.ButtonIconControl;
+		if ( GbButtons ) {
+			return el( 'div', { className: 'components-base-control' }, [
+				el( 'span', { key: 'l', className: 'components-base-control__label', style: { display: 'block' } }, p.label ),
+				el( GbButtons, {
+					key: 'b',
+					value: p.value,
+					buttons: p.choices.map( function ( c ) {
+						return { value: c.value, label: c.title || c.label, icon: choiceIcon( p.group, c.value ) || undefined };
+					} ),
+					onChange: p.onChange
+				} )
+			] );
+		}
 		return el( 'div', { className: 'components-base-control' }, [
 			el( 'span', { key: 'l', className: 'components-base-control__label', style: { display: 'block' } }, p.label ),
 			el( 'div', { key: 'b', role: 'group', 'aria-label': p.label, style: { display: 'flex', gap: '4px', flexWrap: 'wrap' } },
@@ -413,7 +474,7 @@
 					__nextHasNoMarginBottom: true
 				} );
 			}
-			return el( ChoiceButtons, { key: key, label: LABELS[ key ], value: value, choices: CHOICES[ key ], onChange: onChange } );
+			return el( ChoiceButtons, { key: key, group: key, label: LABELS[ key ], value: value, choices: CHOICES[ key ], onChange: onChange } );
 		} );
 		return el( 'div', { className: 'bws-table-style-block' }, [
 			p.heading ? el( 'strong', { key: 'h', style: { display: 'block', fontSize: '12px', margin: '0 0 8px' } }, p.heading ) : null,
@@ -616,7 +677,7 @@
 		function set( patch ) {
 			p.onChange( Object.assign( {}, spec, patch ) );
 		}
-		return el( 'div', { className: 'bws-table-stripe-target' }, [
+		return el( 'div', { className: 'bws-table-stripe-target', style: { marginTop: '16px' } }, [
 			el( 'strong', { key: 'h', style: { display: 'block', fontSize: '12px', margin: '0 0 8px' } }, p.heading ),
 			el( SelectControl, {
 				key: 'parity',
@@ -876,6 +937,7 @@
 				key: 'align',
 				label: __( 'Column Text Alignment', 'generateblocks' ),
 				value: alignBase,
+				group: 'textAlign',
 				choices: CHOICES.textAlign,
 				onChange: function ( v ) {
 					commit( 'base' )( 'textAlign', v );
