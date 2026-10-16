@@ -540,7 +540,8 @@
 
 	/**
 	 * One-of-N button row. Uses GB's own ButtonIconControl (the Typography panel's group) when
-	 * its styles-builder package is on the page, else a plain pressed-state button row.
+	 * its styles-builder package is on the page, else a plain pressed-state button row. `fallback`
+	 * shades the button for the value an unset group inherits (GB's `placeholder` look).
 	 */
 	function ChoiceButtons( p ) {
 		var GbButtons = window.gb && window.gb.stylesBuilder && window.gb.stylesBuilder.ButtonIconControl;
@@ -550,6 +551,7 @@
 				el( GbButtons, {
 					key: 'b',
 					value: p.value,
+					placeholder: p.fallback || '',
 					buttons: p.choices.map( function ( c ) {
 						return { value: c.value, label: c.title || c.label, icon: choiceIcon( p.group, c.value ) || undefined };
 					} ),
@@ -564,6 +566,7 @@
 					var on = p.value === c.value;
 					return el( Button, {
 						key: c.value,
+						style: ! p.value && p.fallback === c.value ? { background: 'rgba(0,0,0,.07)' } : undefined,
 						variant: on ? 'primary' : 'secondary',
 						'aria-pressed': on,
 						title: c.title || c.label,
@@ -824,10 +827,23 @@
 			} ) );
 		} );
 
+		var styleKeys = TEXT_KEYS.filter( function ( k ) {
+			return k !== 'textAlign';
+		} );
+
+		// Alignment sits outside the text style blocks (prototype round 87): Table | Header.
 		return el( 'div', { className: 'bws-ts' }, [
-			el( TextStyleBlock, { key: 'table', heading: __( 'Table Text Styles', 'generateblocks' ), values: tableVals, onChange: commit( 'base' ) } ),
+			el( 'div', { key: 'align', className: 'bws-ts-pair' }, [
+				el( ChoiceButtons, { key: 'tbl', level: 'l', label: __( 'Table Alignment', 'generateblocks' ), value: tableVals.textAlign, group: 'textAlign', choices: CHOICES.textAlign, onChange: function ( v ) {
+					commit( 'base' )( 'textAlign', v );
+				} } ),
+				el( ChoiceButtons, { key: 'hdr', level: 'l', label: __( 'Header Alignment', 'generateblocks' ), value: headerVals.textAlign, fallback: tableVals.textAlign, group: 'textAlign', choices: CHOICES.textAlign, onChange: function ( v ) {
+					commit( 'header' )( 'textAlign', v );
+				} } )
+			] ),
+			el( TextStyleBlock, { key: 'table', heading: __( 'Table Text Styles', 'generateblocks' ), keys: styleKeys, values: tableVals, onChange: commit( 'base' ) } ),
 			el( 'div', { key: 'div', className: 'bws-ts-div' } ),
-			el( TextStyleBlock, { key: 'header', heading: __( 'Header Text Styles', 'generateblocks' ), values: headerVals, inherited: inherited, onChange: commit( 'header' ) } ),
+			el( TextStyleBlock, { key: 'header', heading: __( 'Header Text Styles', 'generateblocks' ), keys: styleKeys, values: headerVals, inherited: inherited, onChange: commit( 'header' ) } ),
 			notices
 		] );
 	}
@@ -1104,7 +1120,7 @@
 		var hasHeader = false;
 		var hasBody = false;
 		TEXT_KEYS.forEach( function ( k ) {
-			if ( col[ k ] && col[ k ].header ) {
+			if ( col[ k ] && col[ k ].header && k !== 'textAlign' ) {
 				hasHeader = true;
 			}
 			if ( col[ k ] && col[ k ].base && k !== 'textAlign' ) {
@@ -1144,7 +1160,7 @@
 			var next = slot;
 			TEXT_KEYS.forEach( function ( k ) {
 				var cur = col[ k ] || { base: null, header: null };
-				var keepHeader = m === 'header' || m === 'both';
+				var keepHeader = m === 'header' || m === 'both' || k === 'textAlign';
 				var keepBody = m === 'body' || m === 'both' || k === 'textAlign';
 				var nb = keepBody ? cur.base : null;
 				var nh = keepHeader ? cur.header : null;
@@ -1174,6 +1190,8 @@
 		} );
 
 		var alignBase = col.textAlign ? col.textAlign.base || '' : '';
+		var alignHeader = col.textAlign ? col.textAlign.header || '' : '';
+		var tagAlign = tag.textAlign || {};
 		var blocks = [];
 		if ( mode === 'body' || mode === 'both' ) {
 			blocks.push( el( TextStyleBlock, {
@@ -1192,23 +1210,39 @@
 			blocks.push( el( TextStyleBlock, {
 				key: 'header',
 				heading: __( 'Header Text Styles', 'generateblocks' ),
-				values: valuesOf( 'header', TEXT_KEYS ),
+				keys: bodyKeys,
+				values: valuesOf( 'header', bodyKeys ),
 				inherited: inheritedHeader,
 				onChange: commit( 'header' )
 			} ) );
 		}
 		var children = [
-			el( ChoiceButtons, {
-				key: 'align',
-				level: 'l',
-				label: __( 'Column Text Alignment', 'generateblocks' ),
-				value: alignBase,
-				group: 'textAlign',
-				choices: CHOICES.textAlign,
-				onChange: function ( v ) {
-					commit( 'base' )( 'textAlign', v );
-				}
-			} ),
+			el( 'div', { key: 'align', className: 'bws-ts-pair' }, [
+				el( ChoiceButtons, {
+					key: 'col',
+					level: 'l',
+					label: __( 'Column Alignment', 'generateblocks' ),
+					value: alignBase,
+					fallback: tagAlign.base || '',
+					group: 'textAlign',
+					choices: CHOICES.textAlign,
+					onChange: function ( v ) {
+						commit( 'base' )( 'textAlign', v );
+					}
+				} ),
+				el( ChoiceButtons, {
+					key: 'hdr',
+					level: 'l',
+					label: __( 'Header Alignment', 'generateblocks' ),
+					value: alignHeader,
+					fallback: alignBase || tagAlign.header || tagAlign.base || '',
+					group: 'textAlign',
+					choices: CHOICES.textAlign,
+					onChange: function ( v ) {
+						commit( 'header' )( 'textAlign', v );
+					}
+				} )
+			] ),
 			el( 'div', { key: 'modes', className: 'bws-ts-field' }, [
 				el( Heading, { key: 'l', text: __( 'Custom Column Text Styles', 'generateblocks' ) } ),
 				el( RadioRow, { key: 'r', label: __( 'Custom Column Text Styles', 'generateblocks' ), name: 'bws-table-colstyle-' + p.slotKey, options: COLUMN_MODES, value: mode, onPick: pickMode } )
