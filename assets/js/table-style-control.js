@@ -102,6 +102,104 @@
 		return el( 'span', { className: 'screen-reader-text' }, text );
 	}
 
+	// ── Layout and headings ───────────────────────────────────────────────────────────
+	//
+	// ONE vocabulary for every heading and gap in these controls, so the three composites and
+	// the column card read as one design (the shapes are the styling prototype's):
+	//   .bws-ts-l   a control or section heading: 11px / 600 / uppercase, the look of WP's own
+	//               control labels. Class-only labels do NOT get that look from WP (it is
+	//               generated CSS-in-JS), so it is drawn here.
+	//   .bws-ts-l3  a field label inside a grid: 12px / 500, sentence case.
+	// Every WP control below hides its OWN label (still announced) and sits under one of
+	// these, because WP's visible labels sit at different heights from one control type to the
+	// next, and the option group adds a 12px top margin to a combobox's.
+	var CSS =
+		'.bws-ts{display:flex;flex-direction:column;gap:12px;min-width:0}' +
+		'.bws-ts-l,.bws-ts-l3{display:block;margin:0 0 8px;padding:0;line-height:1.4;color:#1e1e1e}' +
+		'.bws-ts-l{font-size:11px;font-weight:600;text-transform:uppercase}' +
+		'.bws-ts-l3{font-size:12px;font-weight:500;text-transform:none;margin-bottom:4px}' +
+		'.bws-ts-help{margin:4px 0 0;font-size:12px;line-height:1.4;color:#50575e}' +
+		'.bws-ts-field{min-width:0}' +
+		'.bws-ts-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}' +
+		'.bws-ts-radios{display:flex;flex-wrap:wrap;gap:6px 16px}' +
+		'.bws-ts-radios label{display:inline-flex;align-items:center;gap:6px;font-size:13px;line-height:16px}' +
+		'.bws-ts-radios input{margin:0}' +
+		'.bws-ts-sub{padding-left:12px}' +
+		'.bws-ts-div{border-top:1px solid #e0e0e0}' +
+		// Six controls fill DOWN three columns: color / size | weight / style | alignment / transform.
+		'.bws-ts-g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,auto);grid-auto-flow:column;gap:8px 12px;align-items:start}' +
+		'.bws-ts-smx{display:grid;grid-template-columns:auto 5rem minmax(0,1fr) minmax(0,1.15fr);gap:8px 12px;align-items:center}' +
+		'.bws-ts-smx .bws-ts-l,.bws-ts-smx .bws-ts-l3{margin:0}' +
+		'.bws-ts-smx--lk{grid-template-columns:auto 5rem minmax(0,1fr) minmax(0,1.15fr) auto}' +
+		// The toggle spans both target rows (rows 2-3) with a rule down its middle joining them.
+		'.bws-ts-link{grid-column:5;grid-row:2 / span 2;align-self:stretch;display:flex;align-items:center;justify-content:center;position:relative}' +
+		'.bws-ts-link:before{content:"";position:absolute;top:18px;bottom:18px;left:50%;border-left:1px solid #949494}' +
+		'.bws-ts-link .components-button{position:relative;z-index:1;margin:auto 0;align-self:center;background:#fff;border:1px solid #949494;border-radius:2px;width:35px;height:35px;padding:0;justify-content:center}' +
+		'.bws-ts-link .components-button.is-pressed{background:#1e1e1e;border-color:#1e1e1e;color:#fff}' +
+		'.bws-ts-smx-row{display:contents}' +
+		// Slider and readout share a line; Reset (only while set) takes its own line below, so the
+		// track keeps the width a drag needs (beside the readout it was ~40px, and 5 → 100 was one pixel step).
+		'.bws-ts-opacity{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:0 8px;min-width:0}' +
+		'.bws-ts-opacity .components-button{grid-column:1/-1;justify-self:start;padding:0;height:auto}' +
+		'.bws-ts-readout{flex:none;min-width:2.5em;font-size:13px;font-variant-numeric:tabular-nums}' +
+		'.bws-ts-readout.is-default{color:#50575e}' +
+		// The range thumb carries its own z-index, so it painted over an open color list. The
+		// slider gets a stacking context of its own, and whichever combobox has focus (its list
+		// open) outranks every sibling.
+		'.bws-ts-range{isolation:isolate}' +
+		'.bws-ts .components-combobox-control:focus-within{position:relative;z-index:5}' +
+		// One control height, 40px: WP's select and text field are 40, the combobox is 37 and GB's
+		// icon button groups are 35 out of the box.
+		'.bws-ts .gb-button-icon-control .components-button{height:40px;min-height:40px}' +
+		// (__next40pxDefaultSize does not reach the combobox's container in this WP.)
+		'.bws-ts .components-combobox-control__suggestions-container{min-height:40px;box-sizing:border-box;align-items:center}' +
+		// A list heading is a disabled row, never the first (that is the hint): bold and dark,
+		// as a native <optgroup> draws one in a select.
+		'.bws-ts .components-form-token-field__suggestion[aria-disabled=true]:not(:first-child){font-weight:600;color:#1e1e1e;opacity:1}' +
+		// A third-width field would wrap every suggestion; the list may run wider than the field. Only in the
+		// grids whose combobox sits left of the modal's right edge.
+		'.bws-ts-g3 .components-form-token-field__suggestions-list,.bws-ts-smx .components-form-token-field__suggestions-list{min-width:15rem}';
+
+	if ( typeof document !== 'undefined' && ! document.getElementById( 'bws-table-style-css' ) ) {
+		var styleEl = document.createElement( 'style' );
+		styleEl.id = 'bws-table-style-css';
+		styleEl.textContent = CSS;
+		document.head.appendChild( styleEl );
+	}
+
+	/** A heading (default level `l`) as a plain span. */
+	function Heading( p ) {
+		return el( 'span', { className: 'bws-ts-' + ( p.level || 'l' ) }, p.text );
+	}
+
+	/** Our visible label over a control whose own label is hidden from vision. */
+	function Field( p ) {
+		return el( 'div', { className: 'bws-ts-field' },
+			el( 'span', { className: 'bws-ts-' + ( p.level || 'l3' ), 'aria-hidden': true }, p.label ),
+			p.children
+		);
+	}
+
+	/** One-of-N radios in a row. `options` is [ [ value, label ] … ]; `onPick(value)`. */
+	function RadioRow( p ) {
+		return el( 'div', { className: 'bws-ts-radios', role: 'radiogroup', 'aria-label': p.label },
+			p.options.map( function ( o ) {
+				return el( 'label', { key: o[ 0 ] || 'none' }, [
+					el( 'input', {
+						key: 'i',
+						type: 'radio',
+						name: p.name,
+						checked: p.value === o[ 0 ],
+						onChange: function () {
+							p.onPick( o[ 0 ] );
+						}
+					} ),
+					o[ 1 ]
+				] );
+			} )
+		);
+	}
+
 	// ── State helpers ─────────────────────────────────────────────────────────────
 
 	/** A copy of `state` with `patch` applied; an empty value deletes its key. */
@@ -270,6 +368,7 @@
 				}
 			},
 			allowReset: true,
+			__next40pxDefaultSize: true,
 			__nextHasNoMarginBottom: true
 		} );
 	}
@@ -360,8 +459,8 @@
 	function ChoiceButtons( p ) {
 		var GbButtons = window.gb && window.gb.stylesBuilder && window.gb.stylesBuilder.ButtonIconControl;
 		if ( GbButtons ) {
-			return el( 'div', { className: 'components-base-control' }, [
-				el( 'span', { key: 'l', className: 'components-base-control__label', style: { display: 'block' } }, p.label ),
+			return el( 'div', { className: 'bws-ts-field' }, [
+				el( Heading, { key: 'l', level: p.level || 'l3', text: p.label } ),
 				el( GbButtons, {
 					key: 'b',
 					value: p.value,
@@ -372,8 +471,8 @@
 				} )
 			] );
 		}
-		return el( 'div', { className: 'components-base-control' }, [
-			el( 'span', { key: 'l', className: 'components-base-control__label', style: { display: 'block' } }, p.label ),
+		return el( 'div', { className: 'bws-ts-field' }, [
+			el( Heading, { key: 'l', level: p.level || 'l3', text: p.label } ),
 			el( 'div', { key: 'b', role: 'group', 'aria-label': p.label, style: { display: 'flex', gap: '4px', flexWrap: 'wrap' } },
 				p.choices.map( function ( c ) {
 					var on = p.value === c.value;
@@ -421,8 +520,8 @@
 	};
 
 	/**
-	 * Font Weight's rows as native <option>s, the CSS globals under their own <optgroup>
-	 * heading (a heading is not selectable), the way the Source menu groups its steps.
+	 * Font Weight's rows as native <option>s, in GB's own shape: the weights, a disabled
+	 * separator, then the CSS globals. GB's list has no heading, so neither does this one.
 	 */
 	function weightOptions( defaultLabel ) {
 		var opt = function ( value, label ) {
@@ -432,9 +531,11 @@
 		[ 100, 200, 300, 400, 500, 600, 700, 800, 900 ].forEach( function ( n ) {
 			rows.push( opt( String( n ), String( n ) ) );
 		} );
-		rows.push( el( 'optgroup', { key: 'globals', label: __( 'CSS values', 'generateblocks' ) }, ( V.globals || [] ).map( function ( g ) {
-			return opt( g, g );
-		} ) ) );
+		// GB's own list: a disabled separator, then the CSS globals, no heading.
+		rows.push( el( 'option', { key: 'sep', value: '', disabled: true }, '—' ) );
+		( V.globals || [] ).forEach( function ( g ) {
+			rows.push( opt( g, g ) );
+		} );
 		return rows;
 	}
 
@@ -448,44 +549,40 @@
 	function TextStyleBlock( p ) {
 		var keys = p.keys || TEXT_KEYS;
 		var nodes = keys.map( function ( key ) {
-			var common = {
-				key: key,
-				label: LABELS[ key ],
-				hideLabel: false
-			};
 			var value = p.values[ key ] || '';
 			var inh = ( p.inherited && p.inherited[ key ] ) || '';
 			var onChange = function ( v ) {
 				p.onChange( key, v );
 			};
+			var field;
 			if ( key === 'color' ) {
-				return el( ColorField, Object.assign( {}, common, { value: value, globals: true, placeholder: inh || __( 'Default', 'generateblocks' ), onChange: onChange } ) );
-			}
-			if ( key === 'fontSize' ) {
-				return el( SizeField, Object.assign( {}, common, { value: value, kind: 'size', placeholder: inh || __( 'Default', 'generateblocks' ), onChange: onChange } ) );
-			}
-			if ( key === 'fontWeight' ) {
-				return el( SelectControl, {
-					key: key,
+				field = el( ColorField, { label: LABELS[ key ], hideLabel: true, value: value, globals: true, placeholder: inh || __( 'Default', 'generateblocks' ), onChange: onChange } );
+			} else if ( key === 'fontSize' ) {
+				field = el( SizeField, { label: LABELS[ key ], hideLabel: true, value: value, kind: 'size', placeholder: inh || __( 'Default', 'generateblocks' ), onChange: onChange } );
+			} else if ( key === 'fontWeight' ) {
+				field = el( SelectControl, {
 					label: LABELS[ key ],
+					hideLabelFromVision: true,
 					value: value,
 					children: weightOptions( inh || __( 'Default', 'generateblocks' ) ),
 					onChange: onChange,
 					__nextHasNoMarginBottom: true
 				} );
+			} else {
+				return el( ChoiceButtons, { key: key, group: key, label: LABELS[ key ], value: value, choices: CHOICES[ key ], onChange: onChange } );
 			}
-			return el( ChoiceButtons, { key: key, group: key, label: LABELS[ key ], value: value, choices: CHOICES[ key ], onChange: onChange } );
+			return el( Field, { key: key, label: LABELS[ key ] }, field );
 		} );
-		return el( 'div', { className: 'bws-table-style-block' }, [
-			p.heading ? el( 'strong', { key: 'h', style: { display: 'block', fontSize: '12px', margin: '0 0 8px' } }, p.heading ) : null,
-			el( 'div', { key: 'g', style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' } }, nodes )
+		return el( 'div', { className: 'bws-ts-field' }, [
+			p.heading ? el( Heading, { key: 'h', text: p.heading } ) : null,
+			el( 'div', { key: 'g', className: 'bws-ts-g3' }, nodes )
 		] );
 	}
 
 	// ── Advisories and repairs ───────────────────────────────────────────────────
 
 	function Advisory( p ) {
-		return el( 'p', { role: 'status', style: { margin: '8px 0 0', fontSize: '12px', color: p.error ? '#cc1818' : '#50575e' } }, rich( p.text ) );
+		return el( 'p', { role: 'status', className: 'bws-ts-help', style: p.error ? { color: '#cc1818' } : undefined }, rich( p.text ) );
 	}
 
 	/** The message for one parse flag. `subject` names the key or target the flag is about. */
@@ -549,41 +646,30 @@
 
 		var radios = [ [ '', __( 'Theme', 'generateblocks' ) ], [ 'auto', __( 'Auto', 'generateblocks' ) ], [ 'fixed', __( 'Fixed', 'generateblocks' ) ] ];
 		var children = [
-			el( 'div', { key: 'sizing', className: 'components-base-control' }, [
-				el( 'span', { key: 'l', className: 'components-base-control__label', style: { display: 'block' } }, p.label ),
-				el( 'div', { key: 'r', role: 'radiogroup', 'aria-label': p.label, style: { display: 'flex', gap: '16px', flexWrap: 'wrap' } },
-					radios.map( function ( r ) {
-						return el( 'label', { key: r[ 0 ] || 'theme', style: { display: 'inline-flex', gap: '6px', alignItems: 'center' } }, [
-							el( 'input', {
-								key: 'i',
-								type: 'radio',
-								name: 'bws-table-layout',
-								checked: layout === r[ 0 ],
-								onChange: function () {
-									write( { layout: r[ 0 ] } );
-								}
-							} ),
-							r[ 1 ]
-						] );
-					} )
-				),
-				el( 'p', { key: 'h', className: 'components-base-control__help' }, COPY.sizingHelp[ layout ] !== undefined ? COPY.sizingHelp[ layout ] : COPY.sizingHelp[ '' ] )
-			] ),
-			el( SizeField, {
-				key: 'width',
-				label: __( 'Table Width', 'generateblocks' ),
-				value: width,
-				kind: 'width',
-				placeholder: layout === 'fixed' ? '100%' : __( 'Theme default', 'generateblocks' ),
-				onChange: function ( v ) {
-					write( { width: v } );
-				}
-			} )
+			el( 'div', { key: 'pair', className: 'bws-ts-pair' }, [
+				el( 'div', { key: 'sizing', className: 'bws-ts-field' }, [
+					el( Heading, { key: 'l', text: p.label } ),
+					el( RadioRow, { key: 'r', label: p.label, name: 'bws-table-layout', options: radios, value: layout, onPick: function ( v ) {
+						write( { layout: v } );
+					} } ),
+					el( 'p', { key: 'h', className: 'bws-ts-help' }, COPY.sizingHelp[ layout ] !== undefined ? COPY.sizingHelp[ layout ] : COPY.sizingHelp[ '' ] )
+				] ),
+				el( Field, { key: 'width', level: 'l', label: __( 'Table Width', 'generateblocks' ) }, el( SizeField, {
+					label: __( 'Table Width', 'generateblocks' ),
+					hideLabel: true,
+					value: width,
+					kind: 'width',
+					placeholder: layout === 'fixed' ? '100%' : __( 'Theme default', 'generateblocks' ),
+					onChange: function ( v ) {
+						write( { width: v } );
+					}
+				} ) )
+			] )
 		];
 		if ( layout === 'fixed' && wide === 'auto' ) {
 			children.push( el( Advisory, { key: 'adv', text: COPY.fixedNeedsWidth } ) );
 		}
-		return el( Fragment, null, children );
+		return el( 'div', { className: 'bws-ts' }, children );
 	}
 
 	// ── Typography (Table / Header) ──────────────────────────────────────────────
@@ -649,18 +735,17 @@
 			} ) );
 		} );
 
-		return el( Fragment, null, [
-			el( 'span', { key: 'cap', className: 'components-base-control__label', style: { display: 'block', marginBottom: '8px' } }, __( 'Typography', 'generateblocks' ) ),
-			el( TextStyleBlock, { key: 'table', heading: __( 'Table', 'generateblocks' ), values: tableVals, onChange: commit( 'base' ) } ),
-			el( 'div', { key: 'sp', style: { height: '12px' } } ),
-			el( TextStyleBlock, { key: 'header', heading: __( 'Header', 'generateblocks' ), values: headerVals, inherited: inherited, onChange: commit( 'header' ) } ),
+		return el( 'div', { className: 'bws-ts' }, [
+			el( TextStyleBlock, { key: 'table', heading: __( 'Table Text Styles', 'generateblocks' ), values: tableVals, onChange: commit( 'base' ) } ),
+			el( 'div', { key: 'div', className: 'bws-ts-div' } ),
+			el( TextStyleBlock, { key: 'header', heading: __( 'Header Text Styles', 'generateblocks' ), values: headerVals, inherited: inherited, onChange: commit( 'header' ) } ),
 			notices
 		] );
 	}
 
 	// ── Stripes ──────────────────────────────────────────────────────────────────
 
-	var STRIPE_MODES = [ [ '', __( 'None', 'generateblocks' ) ], [ 'rows', __( 'Rows', 'generateblocks' ) ], [ 'cols', __( 'Columns', 'generateblocks' ) ], [ 'both', __( 'Both', 'generateblocks' ) ] ];
+	var STRIPE_MODES = [ [ '', __( 'None', 'generateblocks' ) ], [ 'rows', __( 'Rows', 'generateblocks' ) ], [ 'cols', __( 'Columns', 'generateblocks' ) ], [ 'both', __( 'Rows and columns', 'generateblocks' ) ] ];
 
 	function defaults() {
 		var d = window.bwsTableDefaults || {};
@@ -670,55 +755,83 @@
 		};
 	}
 
-	function StripeTarget( p ) {
+	/**
+	 * One target's row in the stripes matrix: the label, then Pattern, Color and Opacity as
+	 * cells of the grid the header row set up. `display: contents` keeps the cells on that
+	 * grid while the group name tells a screen reader which row's "Pattern" this is.
+	 */
+	function StripeRow( p ) {
 		var spec = p.spec;
 		var d = defaults();
 		var hasAlpha = spec.color && T.colorHasAlpha( spec.color );
 		function set( patch ) {
 			p.onChange( Object.assign( {}, spec, patch ) );
 		}
-		return el( 'div', { className: 'bws-table-stripe-target', style: { marginTop: '16px' } }, [
-			el( 'strong', { key: 'h', style: { display: 'block', fontSize: '12px', margin: '0 0 8px' } }, p.heading ),
+		var shown = spec.opacity === null ? d.opacity : spec.opacity;
+		var colorCell = el( ColorField, {
+			key: 'c',
+			label: __( 'Stripe Color', 'generateblocks' ),
+			hideLabel: true,
+			value: spec.color || '',
+			placeholder: d.color,
+			onChange: function ( v ) {
+				set( { color: v || null } );
+			}
+		} );
+		var opacityCell = hasAlpha
+			? el( 'span', { key: 'o', className: 'bws-ts-help', style: { margin: 0 } }, COPY.opacityFromColor )
+			: el( 'div', { key: 'o', className: 'bws-ts-opacity' }, [
+				el( 'div', { key: 'r', className: 'bws-ts-range' }, el( RangeControl, {
+					label: __( 'Stripe Opacity', 'generateblocks' ),
+					hideLabelFromVision: true,
+					value: shown,
+					min: 0,
+					max: 100,
+					step: 1,
+					withInputField: false,
+					onChange: function ( v ) {
+						set( { opacity: v === undefined || v === null ? null : Number( v ) } );
+					},
+					__nextHasNoMarginBottom: true
+				} ) ),
+				el( 'output', { key: 'v', className: 'bws-ts-readout' + ( spec.opacity === null ? ' is-default' : '' ) }, T.cssNumber( shown ) + '%' ),
+				spec.opacity === null ? null : el( Button, {
+					key: 'x',
+					variant: 'tertiary',
+					isSmall: true,
+					onClick: function () {
+						set( { opacity: null } );
+					}
+				}, __( 'Reset', 'generateblocks' ) )
+			] );
+		var look = p.linkedTo
+			// Linked: the first target's color and opacity are written to both, so there is
+			// nothing to edit here; the link button below says how to part them.
+			? [ el( 'span', { key: 'lk', className: 'bws-ts-help', style: { gridColumn: 'span 2', margin: 0 } },
+				__( 'Same as', 'generateblocks' ) + ' ' + p.linkedTo ) ]
+			: [ colorCell, opacityCell ];
+		return el( 'div', { className: 'bws-ts-smx-row', role: 'group', 'aria-label': p.heading }, [
+			el( Heading, { key: 'h', text: p.name } ),
 			el( SelectControl, {
 				key: 'parity',
 				label: __( 'Pattern', 'generateblocks' ),
+				hideLabelFromVision: true,
 				value: spec.parity,
 				options: [
-					{ value: 'even', label: p.target === 'rows' ? __( 'Even (body rows 1, 3, …)', 'generateblocks' ) : __( 'Even (columns 2, 4, …)', 'generateblocks' ) },
-					{ value: 'odd', label: p.target === 'rows' ? __( 'Odd (header, body rows 2, 4, …)', 'generateblocks' ) : __( 'Odd (columns 1, 3, …)', 'generateblocks' ) }
+					{ value: 'even', label: __( 'Even', 'generateblocks' ) },
+					{ value: 'odd', label: __( 'Odd', 'generateblocks' ) }
 				],
 				onChange: function ( v ) {
 					set( { parity: v } );
 				},
 				__nextHasNoMarginBottom: true
-			} ),
-			el( 'div', { key: 'c', style: { marginTop: '12px' } }, el( ColorField, {
-				label: __( 'Stripe Color', 'generateblocks' ),
-				value: spec.color || '',
-				placeholder: d.color,
-				onChange: function ( v ) {
-					set( { color: v || null } );
-				}
-			} ) ),
-			el( 'div', { key: 'o', style: { marginTop: '12px' } }, hasAlpha
-				? el( Advisory, { text: COPY.opacityFromColor } )
-				: el( RangeControl, {
-					label: __( 'Stripe Opacity', 'generateblocks' ),
-					value: spec.opacity === null ? undefined : spec.opacity,
-					min: 0,
-					max: 100,
-					step: 1,
-					allowReset: true,
-					resetFallbackValue: undefined,
-					initialPosition: d.opacity,
-					onChange: function ( v ) {
-						set( { opacity: v === undefined || v === null ? null : Number( v ) } );
-					},
-					help: spec.opacity === null ? __( 'Default', 'generateblocks' ) + ': ' + T.cssNumber( d.opacity ) + '%' : undefined,
-					__nextHasNoMarginBottom: true
-				} ) )
-		] );
+			} )
+		].concat( look ) );
 	}
+
+	// Link / unlink glyphs (Material paths, as the prototype draws them).
+	var LINK_ON = 'M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z';
+	var LINK_OFF = 'M17 7h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1 0 1.43-.98 2.63-2.31 2.98l1.46 1.46C20.88 15.61 22 13.95 22 12c0-2.76-2.24-5-5-5zm-1 4h-2.19l2 2H16zM2 4.27l3.11 3.11C3.29 8.12 2 9.91 2 12c0 2.76 2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1 0-1.59 1.21-2.9 2.76-3.07L8.73 11H8v2h2.73L13 15.27V17h1.73l4.01 4L20 19.74 3.27 3 2 4.27z';
 
 	function StripesControl( p ) {
 		var state = p.context.state || {};
@@ -733,59 +846,95 @@
 			p.context.setState( applyPatch( state, { stripe: T.emitStripe( next ) } ) );
 		}
 
+		// Rows and columns SHARE a color and opacity by default; the link is not on the wire
+		// (each target carries its own), so it is derived: both on, the same look, and the
+		// author has not asked to part them. `apart` is that request, UI-only.
+		var apartState = useState( false );
+		var apart = apartState[ 0 ];
+		var setApart = apartState[ 1 ];
+		var sameLook = !! ( rows && cols ) && ( rows.color || null ) === ( cols.color || null ) && ( rows.opacity === null ? null : rows.opacity ) === ( cols.opacity === null ? null : cols.opacity );
+		var linked = sameLook && ! apart;
+
 		function setMode( m ) {
 			var cur = parsed || { rows: null, cols: null };
-			var fresh = function () {
-				return { parity: 'even', color: null, opacity: null };
+			// A target switched on while the other is on and linked starts with the other's look.
+			var fresh = function ( other ) {
+				return { parity: 'even', color: other && ! apart ? other.color : null, opacity: other && ! apart ? other.opacity : null };
 			};
 			write( {
-				rows: m === 'rows' || m === 'both' ? ( cur.rows || fresh() ) : null,
-				cols: m === 'cols' || m === 'both' ? ( cur.cols || fresh() ) : null
+				rows: m === 'rows' || m === 'both' ? ( cur.rows || fresh( cur.cols ) ) : null,
+				cols: m === 'cols' || m === 'both' ? ( cur.cols || fresh( cur.rows ) ) : null
 			} );
 		}
 
+		/** Rows' color and opacity onto columns: what linking does, and what the fix button does. */
+		function matchColumns() {
+			write( { rows: rows, cols: Object.assign( {}, cols, { color: rows.color, opacity: rows.opacity } ) } );
+		}
+
 		var children = [
-			el( 'div', { key: 'modes', className: 'components-base-control' }, [
-				el( 'span', { key: 'l', className: 'components-base-control__label', style: { display: 'block' } }, p.label ),
-				el( 'div', { key: 'r', role: 'radiogroup', 'aria-label': p.label, style: { display: 'flex', gap: '16px', flexWrap: 'wrap' } },
-					STRIPE_MODES.map( function ( m ) {
-						return el( 'label', { key: m[ 0 ] || 'none', style: { display: 'inline-flex', gap: '6px', alignItems: 'center' } }, [
-							el( 'input', {
-								key: 'i',
-								type: 'radio',
-								name: 'bws-table-stripes',
-								checked: mode === m[ 0 ],
-								onChange: function () {
-									setMode( m[ 0 ] );
-								}
-							} ),
-							m[ 1 ]
-						] );
-					} )
-				)
+			el( 'div', { key: 'modes', className: 'bws-ts-field' }, [
+				el( Heading, { key: 'l', text: p.label } ),
+				el( RadioRow, { key: 'r', label: p.label, name: 'bws-table-stripes', options: STRIPE_MODES, value: mode, onPick: setMode } )
 			] )
 		];
-		if ( rows ) {
-			children.push( el( StripeTarget, {
-				key: 'rows',
-				target: 'rows',
-				heading: __( 'Row stripes', 'generateblocks' ),
-				spec: rows,
-				onChange: function ( s ) {
-					write( { rows: s, cols: cols } );
-				}
-			} ) );
-		}
-		if ( cols ) {
-			children.push( el( StripeTarget, {
-				key: 'cols',
-				target: 'cols',
-				heading: __( 'Column stripes', 'generateblocks' ),
-				spec: cols,
-				onChange: function ( s ) {
-					write( { rows: rows, cols: s } );
-				}
-			} ) );
+		if ( rows || cols ) {
+			var cells = [
+				el( 'span', { key: 'g' } ),
+				el( Heading, { key: 'p', level: 'l3', text: __( 'Pattern', 'generateblocks' ) } ),
+				el( Heading, { key: 'c', level: 'l3', text: __( 'Color', 'generateblocks' ) } ),
+				el( Heading, { key: 'o', level: 'l3', text: __( 'Opacity', 'generateblocks' ) } )
+			];
+			if ( rows ) {
+				cells.push( el( StripeRow, {
+					key: 'rows',
+					name: __( 'Rows', 'generateblocks' ),
+					heading: __( 'Row stripes', 'generateblocks' ),
+					spec: rows,
+					onChange: function ( s ) {
+						// Linked: the look follows to columns in the same write.
+						write( { rows: s, cols: linked ? Object.assign( {}, cols, { color: s.color, opacity: s.opacity } ) : cols } );
+					}
+				} ) );
+			}
+			if ( cols ) {
+				cells.push( el( StripeRow, {
+					key: 'cols',
+					name: __( 'Columns', 'generateblocks' ),
+					heading: __( 'Column stripes', 'generateblocks' ),
+					spec: cols,
+					linkedTo: linked ? __( 'Rows', 'generateblocks' ) : null,
+					onChange: function ( s ) {
+						write( { rows: rows, cols: s } );
+					}
+				} ) );
+			}
+			if ( rows && cols ) {
+				// Fifth column: the link toggle, spanning both target rows.
+				cells.splice( 4, 0, el( 'span', { key: 'g5' } ) );
+				cells.push( el( 'div', { key: 'lk', className: 'bws-ts-link' }, el( Button, {
+					icon: el( 'svg', { xmlns: 'http://www.w3.org/2000/svg', viewBox: '0 0 24 24', width: 20, height: 20, 'aria-hidden': true, focusable: false }, el( 'path', { d: linked ? LINK_ON : LINK_OFF } ) ),
+					isPressed: linked,
+					disabled: ! sameLook,
+					label: linked
+						? __( 'Linked: rows and columns share one color. Click to set them separately.', 'generateblocks' )
+						: __( 'Use one color for rows and columns', 'generateblocks' ),
+					showTooltip: true,
+					onClick: function () {
+						setApart( linked );
+					}
+				} ) ) );
+			}
+			children.push( el( 'div', { key: 'smx', className: 'bws-ts-smx' + ( rows && cols ? ' bws-ts-smx--lk' : '' ) }, cells ) );
+			if ( rows && cols && ! sameLook ) {
+				children.push( el( 'p', { key: 'diff', className: 'bws-ts-help', style: { margin: 0 } }, [
+					__( 'Rows and columns use different colors.', 'generateblocks' ) + ' ',
+					el( Button, { key: 'b', variant: 'link', onClick: function () {
+						setApart( false );
+						matchColumns();
+					} }, __( 'Use the Rows color for both', 'generateblocks' ) )
+				] ) );
+			}
 		}
 		if ( raw !== '' && ( parsed === null || parsed.flags.length ) ) {
 			children.push( el( RepairNotice, {
@@ -799,7 +948,7 @@
 				}
 			} ) );
 		}
-		return el( Fragment, null, children );
+		return el( 'div', { className: 'bws-ts' }, children );
 	}
 
 	// ── The column card ──────────────────────────────────────────────────────────
@@ -811,8 +960,9 @@
 	function ColumnWidthField( p ) {
 		var layout = String( ( p.tagState && p.tagState.layout ) || '' ).toLowerCase();
 		var opts = p.slot.opts || {};
-		return el( SizeField, {
+		return el( Field, { level: 'l', label: __( 'Column Width', 'generateblocks' ) }, el( SizeField, {
 			label: __( 'Column Width', 'generateblocks' ),
+			hideLabel: true,
 			value: opts.width || '',
 			kind: 'width',
 			placeholder: COPY.columnWidthPlaceholder[ layout ] !== undefined ? COPY.columnWidthPlaceholder[ layout ] : COPY.columnWidthPlaceholder[ '' ],
@@ -820,7 +970,7 @@
 			onChange: function ( v ) {
 				p.write( setOpt( p.slot, 'width', v ) );
 			}
-		} );
+		} ) );
 	}
 
 	/** The slot with one token set (or deleted when empty). */
@@ -837,9 +987,9 @@
 
 	var COLUMN_MODES = [
 		[ 'none', __( 'None', 'generateblocks' ) ],
-		[ 'header', __( 'Header', 'generateblocks' ) ],
 		[ 'body', __( 'Body', 'generateblocks' ) ],
-		[ 'both', __( 'Header and body', 'generateblocks' ) ]
+		[ 'header', __( 'Header', 'generateblocks' ) ],
+		[ 'both', __( 'Body and header', 'generateblocks' ) ]
 	];
 
 	/**
@@ -932,9 +1082,33 @@
 		} );
 
 		var alignBase = col.textAlign ? col.textAlign.base || '' : '';
+		var blocks = [];
+		if ( mode === 'body' || mode === 'both' ) {
+			blocks.push( el( TextStyleBlock, {
+				key: 'body',
+				heading: __( 'Body Text Styles', 'generateblocks' ),
+				keys: bodyKeys,
+				values: valuesOf( 'base', bodyKeys ),
+				inherited: inheritedBody,
+				onChange: commit( 'base' )
+			} ) );
+		}
+		if ( mode === 'header' || mode === 'both' ) {
+			if ( blocks.length ) {
+				blocks.push( el( 'div', { key: 'div', className: 'bws-ts-div' } ) );
+			}
+			blocks.push( el( TextStyleBlock, {
+				key: 'header',
+				heading: __( 'Header Text Styles', 'generateblocks' ),
+				values: valuesOf( 'header', TEXT_KEYS ),
+				inherited: inheritedHeader,
+				onChange: commit( 'header' )
+			} ) );
+		}
 		var children = [
 			el( ChoiceButtons, {
 				key: 'align',
+				level: 'l',
 				label: __( 'Column Text Alignment', 'generateblocks' ),
 				value: alignBase,
 				group: 'textAlign',
@@ -943,44 +1117,13 @@
 					commit( 'base' )( 'textAlign', v );
 				}
 			} ),
-			el( 'div', { key: 'modes', className: 'components-base-control', style: { marginTop: '12px' } }, [
-				el( 'span', { key: 'l', className: 'components-base-control__label', style: { display: 'block' } }, __( 'Custom Column Text Styles', 'generateblocks' ) ),
-				el( 'div', { key: 'r', role: 'radiogroup', 'aria-label': __( 'Custom Column Text Styles', 'generateblocks' ), style: { display: 'flex', gap: '16px', flexWrap: 'wrap' } },
-					COLUMN_MODES.map( function ( m ) {
-						return el( 'label', { key: m[ 0 ], style: { display: 'inline-flex', gap: '6px', alignItems: 'center' } }, [
-							el( 'input', {
-								key: 'i',
-								type: 'radio',
-								name: 'bws-table-colstyle-' + p.slotKey,
-								checked: mode === m[ 0 ],
-								onChange: function () {
-									pickMode( m[ 0 ] );
-								}
-							} ),
-							m[ 1 ]
-						] );
-					} )
-				)
+			el( 'div', { key: 'modes', className: 'bws-ts-field' }, [
+				el( Heading, { key: 'l', text: __( 'Custom Column Text Styles', 'generateblocks' ) } ),
+				el( RadioRow, { key: 'r', label: __( 'Custom Column Text Styles', 'generateblocks' ), name: 'bws-table-colstyle-' + p.slotKey, options: COLUMN_MODES, value: mode, onPick: pickMode } )
 			] )
 		];
-		if ( mode === 'header' || mode === 'both' ) {
-			children.push( el( TextStyleBlock, {
-				key: 'header',
-				heading: __( 'Column header', 'generateblocks' ),
-				values: valuesOf( 'header', TEXT_KEYS ),
-				inherited: inheritedHeader,
-				onChange: commit( 'header' )
-			} ) );
-		}
-		if ( mode === 'body' || mode === 'both' ) {
-			children.push( el( TextStyleBlock, {
-				key: 'body',
-				heading: __( 'Column body', 'generateblocks' ),
-				keys: bodyKeys,
-				values: valuesOf( 'base', bodyKeys ),
-				inherited: inheritedBody,
-				onChange: commit( 'base' )
-			} ) );
+		if ( blocks.length ) {
+			children.push( el( 'div', { key: 'blocks', className: 'bws-ts bws-ts-sub' }, blocks ) );
 		}
 		TEXT_KEYS.forEach( function ( k ) {
 			var raw = opts[ k ];
@@ -1055,6 +1198,8 @@
 		TypographyControl: TypographyControl,
 		StripesControl: StripesControl,
 		ColumnWidthField: ColumnWidthField,
+		Field: Field,
+		Heading: Heading,
 		ColumnStyle: ColumnStyle
 	};
 }() );

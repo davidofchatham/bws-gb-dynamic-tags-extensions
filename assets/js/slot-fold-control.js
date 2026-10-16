@@ -1491,46 +1491,6 @@
 		}
 		children.push( el( 'div', { key: 'hdr' }, headerKids ) );
 
-		// ── Header group (table only) ───────────────────────────────────────
-		// The column's heading cell: a plain string that rides the slot as its `header`
-		// token. Offered only where the PHP config ships `headerOption`, so {{join}} and
-		// `try_` slots, which have no heading cell, never see it. Not part of the chain
-		// or the read, so it is written beside them with the rest of the slot preserved.
-		if ( conf.headerOption ) {
-			var UI = conf.styleOption ? window.bwsTableStyleUI : null;
-			var headerField = el( TextControl, {
-				key: 'header',
-				label: UI ? __( 'Column Header', 'generateblocks' ) : conf.headerOption.label,
-				hideLabelFromVision: ! UI,
-				help: conf.headerOption.help,
-				value: slot.header || '',
-				onChange: function ( v ) {
-					var next = Object.assign( {}, slot );
-					next.header = v ? v : null;
-					write( next );
-				},
-				__nextHasNoMarginBottom: true
-			} );
-			// Column Width rides the same row, as a token of the same slot. It is the column's own
-			// token, so it is written here beside the rest of the slot like `header` is.
-			var headerRow = UI
-				? el( 'div', { key: 'hdrrow', style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' } }, [
-					headerField,
-					el( UI.ColumnWidthField, { key: 'width', slot: slot, tagState: state, write: write } )
-				] )
-				: headerField;
-			children.push( el( 'div', { key: 'headergroup', className: CLS.group }, [
-				el( 'span', { key: 'caption', className: CLS.caption }, conf.headerOption.label ),
-				headerRow
-			] ) );
-			if ( UI ) {
-				children.push( el( 'div', { key: 'stylegroup', className: CLS.group }, [
-					el( 'span', { key: 'caption', className: CLS.caption }, __( 'Column text', 'generateblocks' ) ),
-					el( UI.ColumnStyle, { key: 'colstyle', slot: slot, tagState: state, write: write, slotKey: key } )
-				] ) );
-			}
-		}
-
 		// ── Source group ────────────────────────────────────────────────────
 		// ONE box for the whole chain, with steps separated inside it by a lighter
 		// rule. The wire supports an ordered chain, so the control must edit EVERY
@@ -1677,6 +1637,46 @@
 			children.push( el( 'div', { key: 'readgroup', className: CLS.group }, [
 				el( 'span', { key: 'caption', className: CLS.caption }, readCaption )
 			].concat( readNodes ) ) );
+		}
+
+		// ── Header group (table only) ───────────────────────────────────────
+		// Last, after Source and Field: what the column READS comes before how it is dressed.
+		// The column's heading cell is a plain string that rides the slot as its `header`
+		// token. Offered only where the PHP config ships `headerOption`, so {{join}} and
+		// `try_` slots, which have no heading cell, never see it. Not part of the chain
+		// or the read, so it is written beside them with the rest of the slot preserved.
+		// With the table styling UI, the header, width, alignment and text styles are ONE
+		// box with no caption, the shape the tag-level styling box has; without it (a
+		// container that ships a header but no styling) the header stays a captioned box.
+		if ( conf.headerOption ) {
+			var UI = conf.styleOption ? window.bwsTableStyleUI : null;
+			var headerField = el( TextControl, {
+				key: 'header',
+				label: UI ? __( 'Column Header', 'generateblocks' ) : conf.headerOption.label,
+				hideLabelFromVision: true,
+				help: conf.headerOption.help,
+				value: slot.header || '',
+				onChange: function ( v ) {
+					var next = Object.assign( {}, slot );
+					next.header = v ? v : null;
+					write( next );
+				},
+				__nextHasNoMarginBottom: true
+			} );
+			if ( UI ) {
+				children.push( el( 'div', { key: 'headergroup', className: CLS.group + ' bws-ts' }, [
+					el( 'div', { key: 'hdrrow', className: 'bws-ts-pair' }, [
+						el( UI.Field, { key: 'header', level: 'l', label: __( 'Column Header', 'generateblocks' ) }, headerField ),
+						el( UI.ColumnWidthField, { key: 'width', slot: slot, tagState: state, write: write } )
+					] ),
+					el( UI.ColumnStyle, { key: 'colstyle', slot: slot, tagState: state, write: write, slotKey: key } )
+				] ) );
+			} else {
+				children.push( el( 'div', { key: 'headergroup', className: CLS.group }, [
+					el( 'span', { key: 'caption', className: CLS.caption }, conf.headerOption.label ),
+					headerField
+				] ) );
+			}
 		}
 
 		// The slot rule separates one slot from the NEXT, so it renders between slots and
