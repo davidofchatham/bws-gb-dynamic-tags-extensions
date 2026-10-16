@@ -1664,5 +1664,12 @@ hdrWrite.props.onChange( '' );
 check( 'header control: clearing drops the token entirely', wrote && wrote.A, 'key(name)' );
 check( 'header control: absent on a {{join}} slot', keyedNodes( renderPanel( COMBINING, { A: 'key(name)', B: 'key(x)' } ), 'headergroup' ).length, 0 );
 
+// ── The fixed read's text box takes its label and help from the shipped config ──────
+const FIXED_OPT = { label: 'Fixed Text', help: 'Text to show for each result found.', placeholder: '' };
+const FIXED_CONF = rep.foldConfig( { fold: { container: 'join', combining: true, min: 2, max: 10, readRows: [ { value: 'fixed', label: 'Fixed' } ], fixedOption: FIXED_OPT } } );
+check( 'fixed control: foldConfig carries fixedOption through', FIXED_CONF.fixedOption && FIXED_CONF.fixedOption.label, 'Fixed Text' );
+const fixedBox = keyedNodes( renderPanel( FIXED_CONF, { A: 'fixed(Team)', B: 'key(x)' } ), 'readArg' )[ 0 ];
+check( 'fixed control: the rendered text box shows that label', fixedBox && fixedBox.children[ 0 ].props.label, 'Fixed Text' );
+
 console.log( '\n' + ( total - fail ) + '/' + total + ' passed' );
 process.exit( fail ? 1 : 0 );

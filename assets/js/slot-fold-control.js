@@ -145,6 +145,7 @@
 			taxonomies: c.taxonomies || [],
 			refOption: c.refOption || null,
 			keyOption: c.keyOption || null,
+			fixedOption: c.fixedOption || null,
 			rowsOption: c.rowsOption || null,
 			// The column heading control's label and help, shipped on a {{table}} slot only
 			// (bws_build_fold_slot_options); null elsewhere, which is what hides the control.
