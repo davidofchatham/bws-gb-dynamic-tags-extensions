@@ -361,6 +361,18 @@ Open: Measure what actually runs at mount before designing. `docs/plugin-integra
 
 Blocked by: —  •  Interacts with: FW-81 (the first family to add a mount rewrite), FW-73 (the converter half of the same reach problem)
 
+#### FW-168 — The slot emitter writes the label before a type token
+
+A folded slot that carries a type token should serialize it first, ahead of `header(…)` (`A:title;header(Team);key(…)`). The emitter still writes the label first, so the decided order and the written one disagree for any slot that has both.
+
+Detail home: `.scratch/plans/table-tag.md` §DECIDED 2026-10-14 (a type token leads the slot, Settled #60)
+
+Progress: Not started. No control writes a slot with both a type token and a label today: `{{join}}` slots carry types but no label, and v1 table columns carry a label but no type. The parser is order-free, so saved slots written label-first keep reading.
+
+Open: Move `bws_fold_emit_slot()` in `slot-fold.php` and its JS twin together, with the `slot-fold-test.php` expectations and the page-snapshot baseline in the same commit. It must land before any control can produce a typed, labelled slot.
+
+Blocked by: —  •  Interacts with: FW-167 (images in cells is the first table column likely to carry a type token), FW-53 (the `{{table}}` build), FW-24 (slot type tokens)
+
 ### Feature follow-ups & UX
 
 #### FW-9 — Context-aware base tags — the deferred residue
