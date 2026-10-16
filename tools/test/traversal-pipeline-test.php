@@ -110,6 +110,20 @@ if ( ! function_exists( 'sanitize_key' ) ) {
 	// LOWERCASE FIRST, then strip (WP's order) — the reverse deletes every capital.
 	function sanitize_key( $k ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $k ) ); }
 }
+// wp_validate_boolean shim — bws_flag_is_on() (slot-fold.php), which bws_collect_value_list()
+// calls for `newTab`, delegates to it.
+if ( ! function_exists( 'wp_validate_boolean' ) ) {
+	// Core's body, verbatim (wp-includes/functions.php).
+	function wp_validate_boolean( $value ) {
+		if ( is_bool( $value ) ) {
+			return $value;
+		}
+		if ( is_string( $value ) && 'false' === strtolower( $value ) ) {
+			return false;
+		}
+		return (bool) $value;
+	}
+}
 // BOTH step assemblers are now REAL, not copies. Since 1.17.0 (5h) they are thin
 // adapters over the chain compiler and live together in slot-fold-compile.php, which is
 // pure (one sanitize_key, shimmed above) — so the file loads here and the assemble/§V13
