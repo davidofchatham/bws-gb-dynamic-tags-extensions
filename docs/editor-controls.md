@@ -42,20 +42,9 @@ wire](tag-reference.md#folded-slot-wire-multislot-containers) — so the `N-`pre
 lists for slot 2+ are **legacy wire** (registered through v1.16.x, still read by the renderer, never
 written).
 
-**`src` option values — per-slot UI/serialization mechanics** (labels, the slot-2+ `same`/`current`
-distinction, the editor-preview context segment each value produces). For **what each value
-resolves to** (and implementation status), see [§`src` option
-values](tag-reference.md#src-option-values).
+**Every chain-authoring surface picks its source from the first-step menu** — each entry, its label and what it writes, per surface, is [§First-step menu](#first-step-menu-order-and-the-entity-picker) below. What each root resolves to is [§`src` option values](tag-reference.md#src-option-values) and each step [§Source CHAINS](tag-reference.md#source-chains-1170); the editor-preview segment each one produces is [`editor-tag-previews.md`](editor-tag-previews.md).
 
-| Option label | Option value | Base / Slot 1 | Slot 2+ | Context segment in editor preview label | Notes |
-|---|---|---|---|---|---|
-| Same as Previous Source | `same` | Current entity — not serialized | Carry over slot N−1 | N/A | Slot 2+: prepended entry, not in template definition |
-| Current Context | `current` | stripped → unset | `current` | *(omitted)* | Slot 2+ only: explicit override back to current |
-| Posts in Reference/Relational Field | `ref` | `ref` | `ref` | `Ref 'X'` where X = `ref` field value | Triggers `ref` sub-option |
-
-Note: For context-modifier tags, the modifier label is prepended as a context segment. Examples:
-`[Title from Term]` for `{{term_title}}`, `[Content from Term Ref 'rel_post']` for `{{term_content
-src:ref|ref:rel_post}}`. See [`editor-tag-previews.md`](editor-tag-previews.md) for assembly rules.
+**One flat `src` select survives: `{{call}}`.** Its source set is closed to post-yielding values (`bws_call_source_option()`), so it renders a plain select of Current Context (stripped default) and Posts in Reference/Relational Field (`ref`, which shows the `ref` field-key option), not the chain control.
 
 **Control composition.** The composite pattern this doc's preamble names — one key, two widgets — is currently unexercised. `srcTermIn` was its instance: a combined `bws-term-hop` control (CheckboxControl + ComboboxControl) whose taxonomy slug encoded both "term step on" and which taxonomy, replacing the prior `srcTerm` + `tax` pair in v1.6.0. The control was retired in v1.21.0 (FW-67) once every chain source had absorbed the key and the two families that authored it flat were gone; the key itself is still read, and is authored today as a `terms` step inside the source chain. `sep` is alone in the source group on a `try_` tag, so it renders **unboxed** there: the attempts are that tag's source and draw their own boxes.
 
@@ -78,7 +67,22 @@ strikethrough in the catalog rather than a quiet deletion, and hence the table b
 
 ### First-step menu order and the entity picker
 
-**The first step's menu is grouped, not a flat list.** Top to bottom: the lead entries (`same` in a slot 2+, Current Context), the step types under a native "Starting from Current Context" `<optgroup>`, the plugin's own roots (Specific Post, Specific Term), Site, then roots other plugins register under a native "Integrations" `<optgroup>`. `rootMenu()` in `slot-fold-control.js` decides the order and the grouping; `bws_registered_root_rows()` supplies the `integration` flag that sends a row to the last group.
+**The first step's menu is grouped, not a flat list.** Top to bottom: the lead entries, the step types under a native "Starting from <lead>" `<optgroup>`, a container's actions, the remaining roots (Current Context when it is not the lead, Specific Post, Specific Term, any other registered root), Site, then roots other plugins register under a native "Integrations" `<optgroup>`. `rootMenu()` in `slot-fold-control.js` decides the order and the grouping; `bws_registered_root_rows()` supplies the `integration` flag that sends a row to the last group.
+
+| Entry | Group | Writes | Base tag (`bws-src-chain`) | `try_` attempt / `{{join}}` field | `{{table}}` column |
+|---|---|---|---|---|---|
+| Same as Previous Source | lead | `same` | — | slot 2+ | — (copy-on-select instead) |
+| Tag Source | lead | nothing alone (stripped); `inherit;…` when steps follow | — | — | every column |
+| Current Context | lead; in the roots run on a table | nothing at slot 1 (stripped); `current` where it is not the default | ✓ | ✓ | ✓, written `current` |
+| Posts in Reference/Relational Field | Starting from <lead> | `refs,<field>` | ✓ | ✓ | ✓, written `inherit;refs,<field>` |
+| Terms in Taxonomy | Starting from <lead> | `terms,<taxonomy>` | ✓ | ✓ | ✓, written `inherit;terms,<taxonomy>` |
+| Rows in Repeater Field | Starting from <lead> | `rows,<field>` | ✓ | ✓ | ✓, written `inherit;rows,<field>` |
+| Copy Previous Column's Source | action | a copy of the previous column's chain; never `same` | — | — | column 2+, while the previous chain is non-empty |
+| Specific Post / Specific Term | roots | `post,<ID>` / `term,<ID>`, the ID from the entity picker below | ✓ | ✓ | ✓ |
+| Site | roots, last | `site` | ✓ | `{{join}}` ✓; a `try_` attempt only where its template sets `try_allow_site_slot` | ✓ |
+| *(a registered root)* | roots, or Integrations when flagged | its key | ✓ | ✓ | ✓ |
+
+The group heading is "Starting from Current Context" on a base tag and in `try_`/`{{join}}`, and "Starting from Tag Source" in a table column. Which steps a surface offers is its fold config's `offer`. Root labels arrive on the PHP definition (`bws_base_source_option()`, `bws_registered_root_rows()`), step labels from `bws_fold_wire_vocabulary()`, and the table's "Starting from Tag Source" heading on its fold config; the control authors only the fallback heading "Starting from Current Context", "Integrations" and the copy action.
 
 **The Specific Post / Specific Term selector is a capped browse list.** Each group (a taxonomy for a term, a post type for a post) lists at most 20 entries in the All view and 100 once a group is chosen, and a caution above the combobox says when entries are cut short; the Post Type / Taxonomy filter and search are how an author reaches the rest. The filter's options arrive inlined as `window.bwsEntityGroups`, so the control renders on mount without a REST call. A missing global falls back to the `groups` the browse response carries, while a present but empty one is trusted. The caps and the request contract live in `includes/rest/entity-lookup.php`, the control in `assets/js/entity-picker-control.js`.
 
