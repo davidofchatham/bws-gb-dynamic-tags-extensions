@@ -228,6 +228,11 @@ $corpus = array(
 	array( 'table', 'header(Office);src(refs,office);key(address)' ),
 	array( 'table', 'header(Depts);src(terms,department,limit[3]);use(title)' ),
 	array( 'table', 'header(Tier);src(term,34,limit[2]);key(name)' ),
+	// presentation tokens: after the read, in rank order; the header override rides inside the value
+	array( 'table', 'header(Price);key(price);textAlign(right)' ),
+	array( 'table', 'header(Price);key(price);width(8rem);color(#c00);textAlign(right;header,center)' ),
+	array( 'table', 'header(Price);textAlign(header,center)' ),
+	array( 'join', 'key(a);textAlign(right)' ),
 	// datetime slots — `key` is the datetime field option, not the read
 	array( 'join', 'datetime_range;as(date);format(M j);startKey(start_date);endKey(end_date)' ),
 	array( 'join', 'datetime_single;key(event_date);timeKey(event_time)' ),
@@ -255,6 +260,12 @@ foreach ( $corpus as $i => $case ) {
 	$out = bws_fold_emit_slot( $slot );
 	check( "P1.$i identity: $wire", $out === $wire, "got: $out" );
 }
+
+// The presentation tokens canonicalize: a hand-written order is rewritten to rank order, the
+// header first, the read next, then width and the text keys in control order.
+$hand = bws_fold_parse_slot( 'textAlign(right);color(#c00);width(8rem);key(price);header(Price)', 'table' );
+check( 'P1.pres canonical order', 'header(Price);key(price);width(8rem);color(#c00);textAlign(right)', bws_fold_emit_slot( $hand ) );
+check( 'P1.pres the value reaches opts untouched', 'right;header,center', bws_fold_parse_slot( 'textAlign(right;header,center)', 'table' )['opts']['textAlign'] ?? null );
 
 // ── P2 FIXPOINT ─────────────────────────────────────────────────────────────
 

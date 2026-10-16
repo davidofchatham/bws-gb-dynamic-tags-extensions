@@ -87,6 +87,24 @@ assert_order(
 	$sort( array( 'fallback', 'B', 'format', 'A', 'valueSep', 'mode' ) )
 );
 
+// --- {{table}} presentation keys: behind the read keys, width ahead of the text
+// keys, the text keys in control order, stripe last of them, all ahead of link and fallback ---
+assert_order(
+	'presentation keys sort layout, width, text keys in control order, stripe',
+	array( 'src', 'layout', 'width', 'color', 'fontSize', 'fontWeight', 'fontStyle', 'textAlign', 'textTransform', 'stripe', 'A', 'fallback' ),
+	$sort( array( 'fallback', 'A', 'stripe', 'textTransform', 'textAlign', 'fontStyle', 'fontWeight', 'fontSize', 'color', 'width', 'layout', 'src' ) )
+);
+assert_order(
+	'inside a column slot they follow the read keys',
+	array( 'header', 'src', 'key', 'width', 'textAlign' ),
+	$sort( array( 'textAlign', 'width', 'key', 'src', 'header' ) )
+);
+assert_order(
+	'a join-shaped list with no presentation key is unmoved',
+	array( 'mode', 'valueSep', 'format', 'src', 'key', 'A', 'B', 'fallback' ),
+	$sort( array( 'fallback', 'B', 'A', 'key', 'src', 'format', 'valueSep', 'mode' ) )
+);
+
 // --- Single-slot canonicalization within present keys (spike console case) ---
 assert_order(
 	'as,key,src → as,src,key (image within-group canonical)',
@@ -284,6 +302,9 @@ $twin_lists = array(
 	array( '2', 'A', 'format' ),
 	// A table column's header token leads both halves alike.
 	array( 'fallback', 'A', 'header', 'as' ),
+	// The {{table}} presentation keys: tag level and inside a column.
+	array( 'fallback', 'A', 'stripe', 'textTransform', 'textAlign', 'fontStyle', 'fontWeight', 'fontSize', 'color', 'width', 'layout', 'src' ),
+	array( 'textAlign', 'width', 'key', 'src', 'header' ),
 );
 $expected_twin = array_map( $sort, $twin_lists );
 // Hand the corpus over as a FILE, not an argv string: Windows' escapeshellarg strips

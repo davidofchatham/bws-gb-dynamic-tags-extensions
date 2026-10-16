@@ -36,7 +36,9 @@ if ( ! function_exists( 'bws_gb_tag_output' ) ) {
 	function bws_gb_tag_output( $v, $o = array(), $i = null ) { return $v; }
 }
 require __DIR__ . '/../../includes/tags/base-shared.php';
+require __DIR__ . '/../../includes/helpers/serialization-order.php';
 require __DIR__ . '/../../includes/helpers/slot-fold.php';
+require __DIR__ . '/../../includes/helpers/table-helpers.php';
 require __DIR__ . '/../../includes/helpers/traversal-pipeline.php';
 require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
 require __DIR__ . '/../../includes/helpers/registration-helpers.php';
@@ -103,6 +105,11 @@ $after = bws_table_columns( array( 'A' => 'header(X);src(refs,office)', 'B' => '
 check( '...and never feeds the carry: a later `src(same)` carries the row, not the office', '', $after[1]['opts']['src'] );
 check( 'a header with an unfinished step is kept, empty', array( 'X', null ), array_values( array_intersect_key( bws_table_columns( array( 'A' => 'header(X);src(refs)' ) )[0], array( 'header' => 1, 'opts' => 1 ) ) ) );
 check( 'a header-only column starts nowhere', false, bws_table_column_start( null, '', null ) );
+$aligned = bws_table_columns( array( 'A' => 'header(Price);key(p);textAlign(right;header,center)', 'B' => 'header(Note);textAlign(left)', 'C' => 'key(q)', 'D' => 'key(r);textAlign(left;header,[x)' ) );
+check( 'a column carries its parsed textAlign', array( 'right', 'center' ), array( $aligned[0]['text_align']['base'], $aligned[0]['text_align']['header'] ) );
+check( 'a header-only column keeps its textAlign', 'left', $aligned[1]['text_align']['base'] );
+check( 'a column without the token has none', null, $aligned[2]['text_align'] );
+check( 'an unbalanced inner bracket drops the key, not the column', array( 'r', null ), array( $aligned[3]['opts']['key'], $aligned[3]['text_align'] ) );
 check( 'a bare column chain is empty (the row)', '', $cols[0]['opts']['src'] );
 check( 'a path root is kept', 'inherit;rows,shifts', $cols[1]['opts']['src'] );
 check( '`src(same)` carries the previous column\'s chain', 'inherit;rows,shifts', $cols[2]['opts']['src'] );

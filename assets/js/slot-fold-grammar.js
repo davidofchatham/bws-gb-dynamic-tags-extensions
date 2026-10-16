@@ -86,6 +86,7 @@
 		'as', 'size', 'mode', 'valueSep', 'format', 'rangeSep', 'timeSep', 'showCurrentYear', 'showMidnight',
 		'src', 'ref', 'srcTermIn', 'limit', 'sep', 'use', 'key',
 		'timeKey', 'startKey', 'startTimeKey', 'endKey', 'endTimeKey',
+		'layout', 'width', 'color', 'fontSize', 'fontWeight', 'fontStyle', 'textAlign', 'textTransform', 'stripe',
 		'linkTo', 'linkKey', 'newTab', 'subject', 'noLink',
 		'fallback'
 	];

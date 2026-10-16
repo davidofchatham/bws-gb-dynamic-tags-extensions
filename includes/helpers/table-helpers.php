@@ -108,3 +108,120 @@ function bws_table_assemble( array $headers, array $matrix, string $caption = ''
 
 	return $html;
 }
+
+/**
+ * The shared CSS-wide keywords every {{table}} text key accepts beside its own values.
+ * One list for all six keys; a key's own values live with its validator.
+ */
+const BWS_TABLE_CSS_GLOBALS = array( 'inherit', 'initial', 'unset', 'revert', 'revert-layer' );
+
+/** The `textAlign` values: no `justify`. */
+const BWS_TABLE_TEXT_ALIGN_VALUES = array( 'left', 'center', 'right' );
+
+/**
+ * Read a `base;header,x` value: THE reader for a valued key that carries an optional
+ * header-cell override (the six text keys, and `stripe` once it lands).
+ *
+ * Items split on `;` outside brackets. A bare item is the base; an item led by the `header`
+ * head is the override. Order on the wire is free (an override before the base is read the
+ * same), and the result is base-first by construction. A malformed ITEM is dropped and named
+ * in `flags` while its valid siblings stand: a second base, a repeated header (the first
+ * wins), an unknown head, an empty `header,` and a value `$valid` refuses. An unbalanced
+ * bracket drops the WHOLE key (null), because no item boundary can be trusted past it.
+ *
+ * Do not give a key its own splitter: two readers of one hand-edited value would read it two
+ * ways.
+ *
+ * @since Unreleased
+ * @param string   $value Raw value (`right`, `right;header,center`, `header,center`).
+ * @param callable $valid Takes one candidate string, returns its canonical form or null when refused.
+ * @return array{base:?string,header:?string,flags:string[]}|null Null when a bracket is unbalanced.
+ */
+function bws_headed_value_parse( string $value, callable $valid ): ?array {
+	$items = bws_fold_split_depth( $value, array( ';' ) );
+	if ( isset( $items['error'] ) ) {
+		return null;
+	}
+	$out = array( 'base' => null, 'header' => null, 'flags' => array() );
+	foreach ( $items as $item ) {
+		$item = trim( $item );
+		if ( '' === $item ) {
+			continue;
+		}
+		$parts = array_map( 'trim', bws_fold_split_depth( $item, array( ',' ) ) );
+		if ( 1 === count( $parts ) ) {
+			$slot = 'base';
+			$arg  = $parts[0];
+		} elseif ( 'header' === $parts[0] && 2 === count( $parts ) ) {
+			$slot = 'header';
+			$arg  = $parts[1];
+		} elseif ( 'header' === $parts[0] ) {
+			$out['flags'][] = "header item '$item' takes one value";
+			continue;
+		} else {
+			$out['flags'][] = "unknown head '{$parts[0]}'";
+			continue;
+		}
+		$canon = '' === $arg ? null : $valid( $arg );
+		if ( null === $canon ) {
+			$out['flags'][] = "'$item' is not a recognized value";
+		} elseif ( null !== $out[ $slot ] ) {
+			$out['flags'][] = "repeated $slot item '$item'";
+		} else {
+			$out[ $slot ] = $canon;
+		}
+	}
+	return $out;
+}
+
+/**
+ * Canonical form of one `textAlign` candidate, or null when it is neither an alignment nor a CSS global.
+ *
+ * @since Unreleased
+ * @param string $candidate Raw value.
+ * @return string|null
+ */
+function bws_table_text_align_value( string $candidate ): ?string {
+	$candidate = strtolower( $candidate );
+	return in_array( $candidate, BWS_TABLE_TEXT_ALIGN_VALUES, true ) || in_array( $candidate, BWS_TABLE_CSS_GLOBALS, true )
+		? $candidate
+		: null;
+}
+
+/**
+ * Read a `textAlign` value, tag level or column token.
+ *
+ * @since Unreleased
+ * @param string $value Raw value.
+ * @return array{base:?string,header:?string,flags:string[]}|null See bws_headed_value_parse().
+ */
+function bws_table_text_align_parse( string $value ): ?array {
+	return bws_headed_value_parse( $value, 'bws_table_text_align_value' );
+}
+
+/**
+ * The alignment one cell takes, or '' for none (the theme's).
+ *
+ * A body cell takes the column's base, then the table's. A HEADER cell takes the column's
+ * header override, the column's base, the table's header override, then the table's base: a
+ * column's bare `textAlign` covers its header, which color and the font keys do not.
+ * A refused or absent value is simply not in the parse, so the cascade falls
+ * through it to the next level.
+ *
+ * @since Unreleased
+ * @param array|null $table     bws_table_text_align_parse() of the tag-level key.
+ * @param array|null $column    bws_table_text_align_parse() of the column token.
+ * @param bool       $is_header True for a `<th>` in the header row.
+ * @return string
+ */
+function bws_table_text_align_for_cell( ?array $table, ?array $column, bool $is_header ): string {
+	$levels = $is_header
+		? array( $column['header'] ?? null, $column['base'] ?? null, $table['header'] ?? null, $table['base'] ?? null )
+		: array( $column['base'] ?? null, $table['base'] ?? null );
+	foreach ( $levels as $value ) {
+		if ( null !== $value ) {
+			return $value;
+		}
+	}
+	return '';
+}

@@ -153,8 +153,9 @@ function bws_get_table_options(): array {
  *
  * @since Unreleased
  * @param array $options Tag options.
- * @return array[] `{ header, opts }` per column; `opts` is bws_fold_slot_chain_options()'s,
- *                 or null for a header-only column.
+ * @return array[] `{ header, opts, text_align }` per column; `opts` is bws_fold_slot_chain_options()'s,
+ *                 or null for a header-only column; `text_align` is bws_table_text_align_parse() of the
+ *                 column's `textAlign` token (null when it has none or its brackets are unbalanced).
  */
 function bws_table_columns( array $options ): array {
 	$carry   = bws_fold_empty_carry( bws_use_stripped_default( 'text' ), true );
@@ -173,8 +174,9 @@ function bws_table_columns( array $options ): array {
 			continue;
 		}
 		$columns[] = array(
-			'header' => $header,
-			'opts'   => $opts,
+			'header'     => $header,
+			'opts'       => $opts,
+			'text_align' => isset( $slot['opts']['textAlign'] ) ? bws_table_text_align_parse( (string) $slot['opts']['textAlign'] ) : null,
 		);
 	}
 	return $columns;

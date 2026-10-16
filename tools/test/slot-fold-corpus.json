@@ -145,6 +145,18 @@
 		},
 		{
 			"container": "table",
+			"wire": "textAlign(right;header,center);color(#c00);width(8rem);key(price);header(Price)"
+		},
+		{
+			"container": "join",
+			"wire": "key(a);textAlign(right)"
+		},
+		{
+			"container": "table",
+			"wire": "key(a);textAlign(right;header,[center)"
+		},
+		{
+			"container": "table",
 			"wire": "header(Office);src(refs,office);key(address)"
 		},
 		{

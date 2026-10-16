@@ -76,6 +76,16 @@
 		startTimeKey: [ 'source', 10 ],
 		endKey: [ 'source', 11 ],
 		endTimeKey: [ 'source', 12 ],
+		// {{table}} presentation keys (tag level and column tokens); PHP twin has the note.
+		layout: [ 'source', 13 ],
+		width: [ 'source', 14 ],
+		color: [ 'source', 15 ],
+		fontSize: [ 'source', 16 ],
+		fontWeight: [ 'source', 17 ],
+		fontStyle: [ 'source', 18 ],
+		textAlign: [ 'source', 19 ],
+		textTransform: [ 'source', 20 ],
+		stripe: [ 'source', 21 ],
 		// link (after source; entity-link OR email/phone own-anchor set subject → noLink)
 		linkTo: [ 'link', 0 ],
 		linkKey: [ 'link', 1 ],
