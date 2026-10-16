@@ -390,11 +390,9 @@ function bws_table_in_editor_preview(): bool {
  * @return array{color:string,opacity:float}
  */
 function bws_table_stripe_defaults(): array {
-	$saved = array();
-	if ( class_exists( '\BWS\DynamicTags\Admin\SettingsPage' ) ) {
-		$saved = (array) ( \BWS\DynamicTags\Admin\SettingsPage::get_settings()['table'] ?? array() );
-	}
-	return bws_table_stripe_defaults_resolve( (string) ( $saved['stripe_color'] ?? '' ), (string) ( $saved['stripe_opacity'] ?? '' ) );
+	return class_exists( '\BWS\DynamicTags\Admin\SettingsPage' )
+		? \BWS\DynamicTags\Admin\SettingsPage::get_table_stripe_defaults()
+		: bws_table_stripe_defaults_resolve( '', '' );
 }
 
 /**

@@ -154,7 +154,7 @@ const BWS_TABLE_HEADER_HEAD = 'header';
  * bracket returns null for the WHOLE value, because no item boundary can be trusted past it.
  * Reading policy (which head is a base, what a bad part costs) is each caller's; the SPLIT is
  * this function's alone, so one hand-edited value cannot read two ways. Its JS twin is
- * `headArgsItems()` in slot-fold-grammar.js.
+ * `headArgsItems()` in table-style-grammar.js.
  *
  * @since Unreleased
  * @param string $value Raw key value.
@@ -177,7 +177,7 @@ function bws_head_args_items( string $value ): ?array {
 
 /**
  * Read a `base;header,x` value: THE reader for a valued key that carries an optional
- * header-cell override (the six text keys, and `stripe` once it lands).
+ * header-cell override (the six text keys; `stripe` shares the tokenizer, not this reader).
  *
  * Items split on `;` outside brackets. A bare item is the base; an item led by the `header`
  * head is the override. Order on the wire is free (an override before the base is read the
@@ -280,7 +280,7 @@ const BWS_TABLE_TEXT_KEYS = array(
 /**
  * The text keys whose bare column value also reaches the column's header cell. The rest
  * (color and the font keys) are body-only in a column; a header cell reaches them only through
- * the column Header or the table. Plan #61, "The cascade for column styling".
+ * the column Header or the table.
  */
 const BWS_TABLE_TEXT_COLUMN_COVERS_HEADER = array( 'textAlign' );
 
@@ -333,7 +333,7 @@ function bws_table_width_value( string $candidate ): ?string {
 }
 
 /**
- * Canonical form of one color, or null: THE strict allowlist (plan #30) for every color
+ * Canonical form of one color, or null: THE strict allowlist for every color
  * that reaches the scoped stylesheet.
  *
  * Accepts `#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa`, `rgb()`/`rgba()`/`hsl()`/`hsla()` over digits
@@ -612,7 +612,7 @@ function bws_table_column_style_read( array $slot_opts ): array {
 	);
 }
 
-/** The built-in stripe default: the text color at 5% (plan #62). */
+/** The built-in stripe default: the text color at 5%, which stays visible on any theme. */
 const BWS_TABLE_STRIPE_DEFAULT_COLOR = 'currentColor';
 
 /** The built-in stripe opacity, in percent. */
