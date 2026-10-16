@@ -723,8 +723,6 @@ function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same
  *     @type string $noun            Slot noun, lower case ("attempt", "field", "column"). Drives
  *                                   BOTH the Add button and the panel header ("Attempt A");
  *                                   deliberately no separate label parameter.
- *     @type string $field_scope     Field-picker scope ('row' for a repeater container).
- *     @type string $scope_state_key Tag-level option whose value scopes the picker.
  *     @type bool   $takes_first_usable Collapsing capability (ADR 0007): the editor hides
  *                                   the step limit control and the field note's
  *                                   several-results clause. Default false.
@@ -863,16 +861,8 @@ function bws_build_fold_slot_options( array $args ): array {
 	if ( ! empty( $base_fixed ) ) {
 		$fold['fixedOption'] = bws_fold_picker_config( $base_fixed );
 	}
-	// `rows` step picker; overridable ({{table}}), but always shipped or the combo is unlabeled.
-	$fold['rowsOption'] = bws_fold_picker_config(
-		! empty( $args['rows_option'] ) ? (array) $args['rows_option'] : bws_fold_rows_picker_def()
-	);
-	if ( ! empty( $args['field_scope'] ) ) {
-		$fold['fieldScope'] = (string) $args['field_scope'];
-	}
-	if ( ! empty( $args['scope_state_key'] ) ) {
-		$fold['scopeStateKey'] = (string) $args['scope_state_key'];
-	}
+	// `rows` step picker; always shipped or the combo is unlabeled.
+	$fold['rowsOption'] = bws_fold_picker_config( bws_fold_rows_picker_def() );
 	// takes_first_usable (ADR 0007): SET ONLY WHEN TRUE, keeping other fold configs unchanged.
 	if ( ! empty( $args['takes_first_usable'] ) ) {
 		$fold['takesFirstUsable'] = true;

@@ -27,10 +27,20 @@ foreach ( array( 'add_action', 'add_filter', 'do_action', 'apply_filters' ) as $
 	}
 }
 
+// The cell read's two non-assembly dependencies, shimmed to identity: the fixed read
+// sanitizes and hands its text to GB's output pipeline, neither of which a cell test is about.
+if ( ! function_exists( 'sanitize_text_field' ) ) {
+	function sanitize_text_field( $s ) { return trim( (string) $s ); }
+}
+if ( ! function_exists( 'bws_gb_tag_output' ) ) {
+	function bws_gb_tag_output( $v, $o = array(), $i = null ) { return $v; }
+}
 require __DIR__ . '/../../includes/tags/base-shared.php';
 require __DIR__ . '/../../includes/helpers/slot-fold.php';
 require __DIR__ . '/../../includes/helpers/traversal-pipeline.php';
 require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
+require __DIR__ . '/../../includes/helpers/registration-helpers.php';
+require __DIR__ . '/../../includes/helpers/field-helpers.php';
 require __DIR__ . '/../../includes/tags/table-tags.php';
 
 $failures = 0;
@@ -70,6 +80,46 @@ foreach ( $cases as $label => $c ) {
 
 $res = bws_base_src_resolution( array() );
 check( 'unresolved root refuses', true, bws_base_read_refused( $res, array( 'kind' => BWS_SOURCE_KIND_UNRESOLVED ), $serves ) );
+
+echo "columns: folded slots off the row\n";
+$opts = array(
+	'src' => 'rows,team_members',
+	'A'   => 'label(Name);key(name)',
+	'B'   => 'src(inherit;rows,shifts);key(day)',
+	'C'   => 'src(same);key(role)',
+	'D'   => 'fixed(Team)',
+	'E'   => 'label(Note)',
+	'1-key' => 'flat_is_never_read',
+);
+$cols = bws_table_columns( $opts );
+check( 'every configured column is read; read-less E is skipped', 4, count( $cols ) );
+check( 'the `label` token is the header cell', array( 'Name', '', '', '' ), array_column( $cols, 'header' ) );
+check( 'a bare column chain is empty (the row)', '', $cols[0]['opts']['src'] );
+check( 'a path root is kept', 'inherit;rows,shifts', $cols[1]['opts']['src'] );
+check( '`src(same)` carries the previous column\'s chain', 'inherit;rows,shifts', $cols[2]['opts']['src'] );
+check( 'no flat era: `1-key` and the tag-level `src` never become column A', 'name', $cols[0]['opts']['key'] );
+check( '`src(same)` at column A carries the row instead of skipping', '', bws_table_columns( array( 'A' => 'src(same);key(x)' ) )[0]['opts']['src'] ?? 'skipped' );
+
+check( 'an empty root starts at the row', null, bws_table_column_start( $cols[0]['opts'], '', null ) );
+check( 'an `inherit` root starts at the row', null, bws_table_column_start( $cols[1]['opts'], '', null ) );
+check( 'a step-first chain starts at the row', null, bws_table_column_start( array( 'src' => 'rows,shifts' ), '', null ) );
+
+$row = array( 'kind' => 'meta_row', 'row' => array( 'name' => 'Alice', 'role' => 'Lead', 'shifts' => array( array( 'day' => 'Mon' ), array( 'day' => 'Wed' ) ) ) );
+$bare = array( 'kind' => 'meta_row', 'row' => array( 'name' => 'Bob' ) );
+$cell = static function ( array $col, array $row ) {
+	$col['start'] = bws_table_column_start( $col['opts'], '', null );
+	$col['steps'] = bws_field_values_assemble_steps( $col['opts'] );
+	return bws_table_read_cell( $row, $col, null );
+};
+check( 'keyed read off the row', 'Alice', $cell( $cols[0], $row ) );
+check( 'a hop off the row reads every source it lands on', 'Mon, Wed', $cell( $cols[1], $row ) );
+check( 'fixed text renders on a meta_row', 'Team', $cell( $cols[3], $row ) );
+check( 'fixed text after a hop shows once per source', 'Team, Team', $cell( array( 'opts' => array( 'src' => 'inherit;rows,shifts', 'use' => 'fixed', 'fixed' => 'Team', 'key' => '' ) ), $row ) );
+check( '...and is empty where the hop resolves nothing', '', $cell( array( 'opts' => array( 'src' => 'inherit;rows,shifts', 'use' => 'fixed', 'fixed' => 'Team', 'key' => '' ) ), $bare ) );
+check( 'a pending `use(fixed)` renders empty', '', $cell( array( 'opts' => array( 'src' => '', 'use' => 'fixed', 'fixed' => '', 'key' => '' ) ), $row ) );
+$carried = bws_table_columns( array( 'A' => 'fixed(Team)', 'B' => 'use(same)' ) );
+check( 'a hand-written `use(same)` carries a fixed column\'s text over', array( 'fixed', 'Team' ), array( $carried[1]['opts']['use'] ?? null, $carried[1]['opts']['fixed'] ?? null ) );
+check( 'a refused start renders an empty cell', '', bws_table_read_cell( $row, array( 'opts' => $cols[0]['opts'], 'start' => false, 'steps' => array() ), null ) );
 
 echo $failures ? "\n{$failures} FAILED\n" : "\nall passed\n";
 exit( $failures ? 1 : 0 );

@@ -397,7 +397,7 @@ Progress: Not started. FU-1 grew in 1.21.0 rather than moving: `containerRowPath
 
 Open: FU-1 and FU-3 are startable as they stand. FU-2 is NOT — its whole point is that the factory centralizes the props these ~14 option definitions share, and FW-13's v2 is what adds the next prop, so a signature shaped now would be a guess. Take it after v2's prop set exists, not before. Stated here rather than as a row blocker because two thirds of this item are unblocked.
 
-Blocked by: —  •  Interacts with: FW-13 (same detail home; its v2 prop set is what FU-2 waits on, per the Open line), FW-74 (closed 1.21.0 — its Location preset is FU-1's third round-tripping site), FW-81 (the datetime collapse more than halves FU-3's stacking), FW-53 ({{table}} lands FU-1 prior art + FU-3 second instance + FU-2 proposal)
+Blocked by: —  •  Interacts with: FW-13 (same detail home; its v2 prop set is what FU-2 waits on, per the Open line), FW-74 (closed 1.21.0 — its Location preset is FU-1's third round-tripping site), FW-81 (the datetime collapse more than halves FU-3's stacking), FW-53 ({{table}} lands FU-1 prior art + FU-3 second instance; its columns became folded slots, whose control mounts its own picker, so it SUBTRACTS its two `bws-field-combo` flips from FU-2's population rather than adding a proposal)
 
 #### FW-15 — {{phone}} follow-ups
 

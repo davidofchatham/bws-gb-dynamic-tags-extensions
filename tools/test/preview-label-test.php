@@ -63,6 +63,20 @@ if ( ! function_exists( 'get_taxonomy' ) ) {
 if ( ! function_exists( 'sanitize_key' ) ) {
 	function sanitize_key( $key ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $key ) ); }
 }
+// wp_validate_boolean shim — bws_flag_is_on() (slot-fold.php), which the link wrap calls
+// for `newTab`, delegates to it.
+if ( ! function_exists( 'wp_validate_boolean' ) ) {
+	// Core's body, verbatim (wp-includes/functions.php).
+	function wp_validate_boolean( $value ) {
+		if ( is_bool( $value ) ) {
+			return $value;
+		}
+		if ( is_string( $value ) && 'false' === strtolower( $value ) ) {
+			return false;
+		}
+		return (bool) $value;
+	}
+}
 
 // get_term + is_wp_error: bws_build_preview_label() injects the real `get_term` as its
 // entity resolver (D20, FW-39) for a PINNED `term,<ID>` root — this is the one path in

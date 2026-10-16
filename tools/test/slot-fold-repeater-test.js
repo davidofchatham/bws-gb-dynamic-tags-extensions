@@ -1532,5 +1532,98 @@ check(
 	undefined
 );
 
+// ── TABLE COLUMNS: hang off the tag's source ─────────────────────────────────────────
+//
+// A column's chain continues the TAG's: its first-position steps and its pickers read off the
+// container chain's tail. Its wire is stated root-first (`inherit;<step>`), a hand-written
+// `src(same)` expands, and the carry-over is a COPY entry rather than `same`.
+const TCOL = rep.foldConfig( { fold: Object.assign( {}, CHAIN_FOLD, {
+	container: 'table', combining: true, min: 2, max: 10, defaultRoot: 'inherit',
+	stepGroup: 'Starting from Tag Source', flatAxes: [],
+	// `post` DECLARES its argument here, so a pinned parent root can be the predecessor.
+	srcRows: TABLE_ROOTS.map( function ( r ) { return 'post' === r.value ? Object.assign( {}, r, { arg: { kind: 'post', label: 'Post' } } ) : r; } ),
+	srcRowsWithSame: []
+} ) } );
+const emitCol = function ( chain ) { return fold.emitChain( chain, 1 ); };
+const parsedCol = function ( wire ) { return wire ? fold.parseChain( wire ) : []; };
+
+check( 'seed: a new column stores a pending keyed read and an EMPTY chain', fold.emitSlot( rep.seedSlot( TCOL ) ), 'use(key)' );
+check( 'a fixed column with no text typed serializes the pending spelling', fold.emitSlot( { label: null, type: null, chain: [], read: { kind: 'fixed', text: '' }, opts: {}, extra: [] } ), 'use(fixed)' );
+check( 'seed (join, unchanged): `src(same)`', fold.emitSlot( rep.seedSlot( COMBINING ) ), 'src(same)' );
+
+check( 'canonical: a step-first chain gains `inherit;`', emitCol( rep.columnChain( parsedCol( 'refs,x' ), 2, {}, TCOL ) ), 'inherit;refs,x' );
+check( 'canonical: a lone `inherit` strips', emitCol( rep.columnChain( parsedCol( 'inherit' ), 2, {}, TCOL ) ), '' );
+check( 'canonical: `current` root is kept', emitCol( rep.columnChain( parsedCol( 'current;refs,x' ), 2, {}, TCOL ) ), 'current;refs,x' );
+check( 'canonical: `src(same)` at column 1 is the row', emitCol( rep.columnChain( parsedCol( 'same' ), 1, {}, TCOL ) ), '' );
+check(
+	'canonical: `src(same)` expands to the previous column\'s chain, resolving back through `same`',
+	emitCol( rep.columnChain( parsedCol( 'same' ), 3, { A: 'src(current;refs,x);key(a)', B: 'src(same);key(b)' }, TCOL ) ),
+	'current;refs,x'
+);
+check(
+	'canonical: steps after `same` follow the expansion',
+	emitCol( rep.columnChain( parsedCol( 'same;terms,category' ), 2, { A: 'src(refs,x);key(a)' }, TCOL ) ),
+	'inherit;refs,x;terms,category'
+);
+check( 'no flat era: a table column recovers nothing from flat keys', rep.readSlot( 1, { src: 'rows,team', key: 'name' }, TCOL ), null );
+check( 'no flat era: and owns no legacy key to delete', rep.legacyKeys( 1, TCOL ).join(), '' );
+
+function renderColumn( chain, parentChain, copyChain, onChange ) {
+	const prior = global.window.bwsFieldComboControl;
+	global.window.bwsFieldComboControl = FIELD_COMBO_STUB;
+	try {
+		return rep.chainSteps( {
+			conf: TCOL,
+			chain: chain,
+			onChange: onChange || function () {},
+			sameOnEmpty: false,
+			slotNoun: 'column',
+			parentChain: parentChain,
+			copyChain: copyChain,
+			stepContext: function ( stepObj ) { return { state: { key: stepObj.arg || '' }, setState: function () {} }; }
+		} );
+	} finally {
+		if ( prior === undefined ) { delete global.window.bwsFieldComboControl; } else { global.window.bwsFieldComboControl = prior; }
+	}
+}
+const colMenu = function ( nodes ) { return rowsOf( selectsIn( nodes )[ 0 ] ).map( function ( r ) { return r.value; } ); };
+
+const copyFrom = parsedCol( 'inherit;refs,lead' );
+check(
+	'copy entry: right after the steps, ahead of the other roots',
+	colMenu( renderColumn( [], [], copyFrom ) ).join( ',' ),
+	[ 'inherit' ].concat( TCOL.offer, [ '(copy)', 'current', 'post', 'site', 'ext' ] ).join( ',' )
+);
+check( 'copy entry: absent when the previous chain is empty', colMenu( renderColumn( [], [], [] ) ).indexOf( '(copy)' ), -1 );
+check( 'copy entry: absent with no previous column', colMenu( renderColumn( [], [], null ) ).indexOf( '(copy)' ), -1 );
+let copied = null;
+selectsIn( renderColumn( parsedCol( 'current' ), [], copyFrom, function ( c ) { copied = c; } ) )[ 0 ].onChange( '(copy)' );
+check( 'copy entry: selecting it writes a COPY of the previous chain', emitCol( copied ), 'inherit;refs,lead' );
+check( '...a copy, not the same object', copied !== copyFrom && copied[ 1 ] !== copyFrom[ 1 ], true );
+
+check(
+	'first-position steps run off the parent tail (a `rows` tail is a meta_row: no `terms`)',
+	colMenu( renderColumn( [], parsedCol( 'rows,team_members' ), null ) ).indexOf( 'terms' ),
+	-1
+);
+check(
+	'...and every step is offered off a render-time parent',
+	colMenu( renderColumn( [], [], null ) ).indexOf( 'terms' ) !== -1,
+	true
+);
+const colPickers = fieldPickersIn( renderColumn( parsedCol( 'inherit;refs,lead_ref' ), parsedCol( 'rows,team_members' ), null ) );
+check( 'a step after `inherit` reads the parent tail as its predecessor', colPickers[ 0 ] && colPickers[ 0 ].props.context.state.src, 'rows,team_members' );
+const colRootPickers = fieldPickersIn( renderColumn( parsedCol( 'inherit;refs,lead_ref' ), parsedCol( 'post,34' ), null ) );
+check( '...a declaring parent ROOT counts as that predecessor', colRootPickers[ 0 ] && colRootPickers[ 0 ].props.context.state.src, 'post,34' );
+
+const readCtx = function ( chainWire, parentWire ) {
+	const slot = { label: null, type: null, chain: parsedCol( chainWire ), read: { kind: 'key', field: 'name' }, opts: {}, extra: [] };
+	return rep.fieldContext( slot, function () {}, parentWire === null ? void 0 : parsedCol( parentWire ) ).state.src;
+};
+check( 'read picker: a bare column opens on the tag chain\'s tail', readCtx( '', 'rows,team_members' ), 'rows,team_members' );
+check( 'read picker: unnarrowed when the tail is render-time', readCtx( '', '' ), undefined );
+check( 'read picker: a column\'s own hop wins', readCtx( 'inherit;refs,lead_ref', 'rows,team_members' ), 'refs,lead_ref' );
+check( 'read picker (join, unchanged): no parent, no tail', readCtx( '', null ), undefined );
+
 console.log( '\n' + ( total - fail ) + '/' + total + ' passed' );
 process.exit( fail ? 1 : 0 );

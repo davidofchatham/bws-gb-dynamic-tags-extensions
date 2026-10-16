@@ -1325,20 +1325,29 @@ function bws_fold_empty_slot(): array {
  * walks) would otherwise each hold the literal and have to be edited in lockstep.
  *
  * @since 1.17.0
+ * @since Unreleased $has_parent.
  * @param string $default_read The stripped first `use` value of the leaf the container's
  *                             slots read through (bws_use_stripped_default()); '' on a
  *                             container with no read axis. Every container states it —
  *                             the seam writes no read default of its own.
+ * @param bool   $has_parent   The slots hang off a PARENT source (a {{table}} column off its
+ *                             row), where the empty chain IS that parent. The carry then
+ *                             starts already fed, so a `src(same)` with nothing before it
+ *                             carries the parent instead of skipping.
  * @return array Carry accumulator.
  */
-function bws_fold_empty_carry( string $default_read = '' ): array {
-	return array(
+function bws_fold_empty_carry( string $default_read = '', bool $has_parent = false ): array {
+	$carry = array(
 		'chain' => array(),
 		'ref'   => '',
 		'use'   => $default_read,
 		'key'   => '',
 		'fixed' => '',
 	);
+	if ( $has_parent ) {
+		$carry['_fed'] = true;
+	}
+	return $carry;
 }
 
 /**

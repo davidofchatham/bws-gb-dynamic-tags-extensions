@@ -1049,6 +1049,25 @@ assert_same( 'join: defaultRoot is untouched', 'current', $rooted_fold['defaultR
 assert_same( 'join: ships no stepGroup override (the control keeps its own)', false, isset( $rooted_fold['stepGroup'] ) );
 assert_same( 'try_ attempts ship no `inherit` row either', false, in_array( 'inherit', $root_values( bws_build_fold_slot_options( array( 'container' => 'try', 'max' => 2, 'base_read' => $text['use'], 'base_key' => $text['key'], 'noun' => 'attempt' ) )['A']['fold']['srcRows'] ), true ) );
 
+// ── `{{table}}`'s REGISTERED options: columns are folded slots, nothing flat ──────────
+//
+// The real registration, so a flat `{N}-*` key or the retired tag-level `key` coming back
+// fails here by name. `flatAxes` is EMPTY rather than absent: the editor reads an empty list
+// as "no flat era" and neither recovers a column from flat keys nor deletes one on commit —
+// the bare `src` a slot-1 flat read would take is the TAG's source.
+require_once __DIR__ . '/../../includes/tags/table-tags.php';
+$table_opts = bws_get_table_options();
+$table_keys = array_keys( $table_opts );
+assert_same( 'table: columns run A..J (BWS_TABLE_MAX_COLS)', array( true, true, false ), array( isset( $table_opts['A'] ), isset( $table_opts['J'] ), isset( $table_opts['K'] ) ) );
+assert_same( 'table: every column is a `bws-slot-fold`', array( 'bws-slot-fold' ), array_values( array_unique( array_map( static function ( $k ) use ( $table_opts ) { return $table_opts[ $k ]['type']; }, array_filter( $table_keys, static function ( $k ) { return 1 === preg_match( '/^[A-Z]+$/', $k ); } ) ) ) ) );
+assert_same( 'table: no flat column key survives', array(), array_values( preg_grep( '/^\d+-/', $table_keys ) ) );
+assert_same( 'table: no tag-level `key` survives', false, isset( $table_opts['key'] ) );
+assert_same( 'table: `caption` stays tag-level', true, isset( $table_opts['caption'] ) );
+assert_same( 'table: no per-slot flat axes', array(), $table_opts['A']['fold']['flatAxes'] );
+assert_same( 'table: columns offer the fixed read', true, ! empty( $table_opts['A']['fold']['fixedOption'] ) );
+assert_same( 'table: column noun', 'column', $table_opts['A']['fold']['noun'] );
+assert_same( 'table: no picker scope rides the fold any more', array( false, false ), array( isset( $table_opts['A']['fold']['fieldScope'] ), isset( $table_opts['A']['fold']['scopeStateKey'] ) ) );
+
 // ── The SHARED base builder is untouched ─────────────────────────────────────────────
 //
 // Rows attach at the CHAIN-ROOT layer only. `term_*`, `try_*`, `{{table}}` and `{{call}}`

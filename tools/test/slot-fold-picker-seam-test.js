@@ -280,12 +280,24 @@ const FOLD_TEXT = Object.assign( {}, FOLD, {
 	],
 } );
 
+// A `{{table}}` column: combining, rooted at `inherit` (its row), no flat era. Its chain
+// continues the TAG's `src`, so the tag-level state is what its pickers are owed.
+const FOLD_TABLE = Object.assign( {}, FOLD_TEXT, {
+	container: 'table',
+	combining: true,
+	noun: 'column',
+	defaultRoot: 'inherit',
+	flatAxes: [],
+	srcRows: [ { value: 'inherit', label: 'Tag Source' } ].concat( FOLD.srcRows ),
+	srcRowsWithSame: [ { value: 'inherit', label: 'Tag Source' } ].concat( FOLD.srcRows ),
+} );
+
 /** Mount the fold control for one slot, through its own registered filter. */
-function mountSlot( slotValue, foldConf ) {
+function mountSlot( slotValue, foldConf, tagState ) {
 	const element = foldFilter(
 		{ key: SLOT_KEY },
 		{ [ SLOT_KEY ]: { type: 'bws-slot-fold', label: 'Attempt', fold: foldConf || FOLD } },
-		{ state: { [ SLOT_KEY ]: slotValue }, setState: function () {} }
+		{ state: Object.assign( {}, tagState, { [ SLOT_KEY ]: slotValue } ), setState: function () {} }
 	);
 	if ( ! element || 'function' !== typeof element.type ) {
 		console.error( 'the fold filter did not return a mounted control for ' + slotValue );
@@ -528,6 +540,35 @@ async function main() {
 	check(
 		'S3.2 ...and the one picker that DOES mount is still the step argument, not the read',
 		fixedRead[ 0 ].props.context.state.src,
+		undefined
+	);
+
+	/* =====================================================================
+	 * §S4 — a `{{table}}` COLUMN reads off the TAG chain's tail
+	 *
+	 * A column that adds no step of its own hangs off its row, so its read picker is owed
+	 * what the tag-level `src` resolved to — the same narrowing S1.2 shows for a slot's own
+	 * `refs` tail, reached one level up.
+	 * ================================================================== */
+
+	const column = readPickerIn( mountSlot( 'key(main_line)', FOLD_TABLE, { src: 'refs,dept_lead' } ) );
+	check(
+		"S4.1 a bare table column's read picker gets the TAG chain's tail as its `src` token",
+		column.props.context.state.src,
+		'refs,dept_lead'
+	);
+	check(
+		"S4.2 ...and narrows on it exactly as a slot's own `refs` tail does (S1.2)",
+		await listOf( column ),
+		[
+			"Any Ref (Post Object, 'any_ref')",
+			"Dept Lead (Post Object, 'dept_lead')",
+			"Main Line (Text, 'main_line')",
+		]
+	);
+	check(
+		'S4.3 a column under a render-time tag source gets no token (unnarrowed)',
+		readPickerIn( mountSlot( 'key(main_line)', FOLD_TABLE, {} ) ).props.context.state.src,
 		undefined
 	);
 

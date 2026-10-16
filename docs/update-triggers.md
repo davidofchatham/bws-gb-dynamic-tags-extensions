@@ -174,8 +174,6 @@ run `php tools/test/use-stripped-default-test.php`, then `php tools/test/preview
 
 **The `paired-equality` pattern is DERIVED from the map, not hand-written.** The retired shape tested a template against its *own* default; a mode test pairing a tag with some *other* enum value is ordinary code, and a hand-written alternation flagged `preview-helpers.php`'s key-required block on its first run. Building the pattern from `BWS_USE_STRIPPED_DEFAULTS` means only the (tag, its-own-default) pairing matches, and a map edit moves the pattern with it.
 
-**`{{table}}` IS EXCLUDED BY FILE, WITH ITS COUNT PINNED.** Its per-column `{N}-use` is its own enum, and the option is being replaced by a source chain ending in a fanning step — enrolling it would tie a shipped map to a surface on its way out. The exclusion asserts `table-tags.php` still has exactly two such sites, so a third is a decision someone makes rather than a row that quietly joins the census.
-
 **NO ADR, DELIBERATELY.** The registration-time strip is not settled: if the `use`/`key` controls gain the ability to strip unneeded values themselves, that half of the contract moves to them, and a decision record written against today's mechanism would then describe one that no longer exists. The rule lives on the artifact that moves with it. The first step of that shift has happened: the editor's `use` select now deletes a stale `key` (FW-142), which released `CONTEXT.md` I3's key-mode requirement; the registration-time strip itself has not moved.
 
 ## `limit` interpretation change

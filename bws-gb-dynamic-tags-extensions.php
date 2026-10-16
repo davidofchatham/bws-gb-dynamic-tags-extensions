@@ -126,6 +126,7 @@ function bws_dynamic_tags_init() {
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/datetime-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/taxonomy-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/join-helpers.php';
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/table-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/registration-helpers.php';
 	// FW-52 canonical serialization-order model (pure; PHP mirror of the editor-JS
 	// normalizer's ordering algorithm — the harness-tested spec of the ordering contract).

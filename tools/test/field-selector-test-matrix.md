@@ -190,7 +190,7 @@ Verified 2026-09-18 after the kind narrowing landed, in two halves, because they
 
 ## M13 — Location preset from a chain's terminal repeater (FW-74)
 
-A source chain ending on **Rows in Repeater Field** names the exact home of every field the read can reach, so the Location filter opens there instead of on the kind root. It is a STARTING VIEW, not a lock — both selectors stay visible and widen back, which is what separates this from the `{{table}}` column auto-scope (M2/§F8), where the filters are hidden because the scope IS the filter.
+A source chain ending on **Rows in Repeater Field** names the exact home of every field the read can reach, so the Location filter opens there instead of on the kind root. It is a STARTING VIEW, not a lock — both selectors stay visible and widen back. A `{{table}}` column opens through this same preset: a column that adds no step of its own reads off the tag chain's tail, so `src:rows,team_members` opens every column's field picker on that repeater's sub-fields (`slot-fold-picker-seam-test.js` §S4 pins the hand-off).
 
 The recognition is machine-readable at both ends: the chain is parsed through the shipped grammar, and whether the tail's argument names a repeater is asked of the discovery envelope's own container record. So a step type this matrix never mentions presets correctly the day it is added, and a repeater nobody discovered presets nothing rather than opening on an empty list.
 
