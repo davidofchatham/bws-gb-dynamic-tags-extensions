@@ -157,6 +157,21 @@ function bws_option_visual_groups(): array {
 		'linkTo'          => array( 'group' => 'link', 'lead' => false ),
 		'linkKey'         => array( 'group' => 'link', 'lead' => false ),
 		'newTab'          => array( 'group' => 'link', 'lead' => false ),
+		// {{table}}'s presentation: three composite controls (Sizing and Width on `layout`,
+		// Typography on `color`, Stripes on `stripe`) that read as ONE box. The keys they
+		// own register contiguously beside them and render nothing of their own, so the run
+		// the wrapper joins is the three composites. `layout` leads: the box stays drawn
+		// while a composite is mid-reveal. Names are unique to {{table}} among BWS tags (the
+		// map is name-keyed), and GB core's are never touched.
+		'layout'          => array( 'group' => 'style', 'lead' => true ),
+		'width'           => array( 'group' => 'style', 'lead' => false ),
+		'color'           => array( 'group' => 'style', 'lead' => false ),
+		'fontSize'        => array( 'group' => 'style', 'lead' => false ),
+		'fontWeight'      => array( 'group' => 'style', 'lead' => false ),
+		'fontStyle'       => array( 'group' => 'style', 'lead' => false ),
+		'textAlign'       => array( 'group' => 'style', 'lead' => false ),
+		'textTransform'   => array( 'group' => 'style', 'lead' => false ),
+		'stripe'          => array( 'group' => 'style', 'lead' => false ),
 	);
 }
 }

@@ -857,6 +857,9 @@ function bws_build_fold_slot_options( array $args ): array {
 			'label' => __( 'Header', 'generateblocks' ),
 			'help'  => __( 'Text for the heading cell of this column. The heading row appears when any column has one.', 'generateblocks' ),
 		);
+		// A column also takes `width(…)` and the six text tokens, which only a table renders.
+		// The control draws the fields (assets/js/table-style-control.js); this is the flag.
+		$fold['styleOption'] = true;
 	}
 
 	// OMITTED, not empty, when there's no per-slot key: JS `[]` is TRUTHY and renders an

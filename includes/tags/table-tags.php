@@ -130,7 +130,52 @@ function bws_get_table_options(): array {
 		)
 	);
 
-	return bws_prepare_registration_options( array_merge( $tag_level, $columns ) );
+	return bws_prepare_registration_options( array_merge( $tag_level, bws_get_table_style_options(), $columns ) );
+}
+
+/**
+ * The {{table}} presentation options: `layout`, `width`, the six text keys and `stripe`.
+ *
+ * Three composite controls own them (assets/js/table-style-control.js): Sizing and Width on
+ * `layout`, Typography on `color`, Stripes on `stripe`. Each composite commits its keys in one
+ * `setState`, so the other keys register only to be known: their `bws-table-style-member`
+ * type tells the filter to render nothing for them. Registered CONTIGUOUSLY and all in the
+ * `style` visual group (bws_option_visual_groups()), so the composites read as one box.
+ * Without the script every key is a plain GB text control, which is still usable wire.
+ *
+ * The values are validated where they are READ (bws_table_style_read()), never here: this
+ * file only declares the keys.
+ *
+ * @since Unreleased
+ * @return array Option definitions keyed by option name.
+ */
+function bws_get_table_style_options(): array {
+	$member = static function ( string $label ): array {
+		return array(
+			'type'  => 'bws-table-style-member',
+			'label' => $label,
+		);
+	};
+	return array(
+		'layout'        => array(
+			'type'  => 'bws-table-sizing',
+			'label' => __( 'Column Sizing', 'generateblocks' ),
+		),
+		'width'         => $member( __( 'Table Width', 'generateblocks' ) ),
+		'color'         => array(
+			'type'  => 'bws-table-typography',
+			'label' => __( 'Text Color', 'generateblocks' ),
+		),
+		'fontSize'      => $member( __( 'Font Size', 'generateblocks' ) ),
+		'fontWeight'    => $member( __( 'Font Weight', 'generateblocks' ) ),
+		'fontStyle'     => $member( __( 'Font Style', 'generateblocks' ) ),
+		'textAlign'     => $member( __( 'Text Alignment', 'generateblocks' ) ),
+		'textTransform' => $member( __( 'Text Transform', 'generateblocks' ) ),
+		'stripe'        => array(
+			'type'  => 'bws-table-stripes',
+			'label' => __( 'Stripes', 'generateblocks' ),
+		),
+	);
 }
 
 /**
@@ -153,9 +198,9 @@ function bws_get_table_options(): array {
  *
  * @since Unreleased
  * @param array $options Tag options.
- * @return array[] `{ header, opts, text_align }` per column; `opts` is bws_fold_slot_chain_options()'s,
- *                 or null for a header-only column; `text_align` is bws_table_text_align_parse() of the
- *                 column's `textAlign` token (null when it has none or its brackets are unbalanced).
+ * @return array[] `{ header, opts, style }` per column; `opts` is bws_fold_slot_chain_options()'s,
+ *                 or null for a header-only column; `style` is bws_table_column_style_read() of the
+ *                 column's width and text tokens (a token whose brackets are unbalanced is absent).
  */
 function bws_table_columns( array $options ): array {
 	$carry   = bws_fold_empty_carry( bws_use_stripped_default( 'text' ), true );
@@ -174,9 +219,9 @@ function bws_table_columns( array $options ): array {
 			continue;
 		}
 		$columns[] = array(
-			'header'     => $header,
-			'opts'       => $opts,
-			'text_align' => isset( $slot['opts']['textAlign'] ) ? bws_table_text_align_parse( (string) $slot['opts']['textAlign'] ) : null,
+			'header' => $header,
+			'opts'   => $opts,
+			'style'  => bws_table_column_style_read( $slot['opts'] ),
 		);
 	}
 	return $columns;
@@ -329,6 +374,30 @@ function bws_table_serves(): array {
 }
 
 /**
+ * Whether this render is the editor's tag preview (a REST request), where no `wp_footer` runs.
+ *
+ * @since Unreleased
+ * @return bool
+ */
+function bws_table_in_editor_preview(): bool {
+	return defined( 'REST_REQUEST' ) && REST_REQUEST;
+}
+
+/**
+ * The stripe default pair: the saved settings where valid, else the built-in `currentColor` at 5%.
+ *
+ * @since Unreleased
+ * @return array{color:string,opacity:float}
+ */
+function bws_table_stripe_defaults(): array {
+	$saved = array();
+	if ( class_exists( '\BWS\DynamicTags\Admin\SettingsPage' ) ) {
+		$saved = (array) ( \BWS\DynamicTags\Admin\SettingsPage::get_settings()['table'] ?? array() );
+	}
+	return bws_table_stripe_defaults_resolve( (string) ( $saved['stripe_color'] ?? '' ), (string) ( $saved['stripe_opacity'] ?? '' ) );
+}
+
+/**
  * Callback for the {{table}} tag.
  *
  * 1. Resolve the base source (ambient/explicit) the chain starts from.
@@ -397,16 +466,37 @@ function bws_table_callback( $options, $block, $instance ): string {
 		$matrix[] = $cells;
 	}
 
-	$html = bws_table_assemble( $headers, $matrix, $caption, $caption_id );
+	// Presentation. One rule builder serves the front end and the editor; the scope class is
+	// hashed off the built rules, so an unstyled table has none and identical tables share one.
+	$rules = bws_table_rules(
+		bws_table_style_read( $options ),
+		array_column( $columns, 'style' ),
+		bws_table_has_header( $headers ),
+		bws_table_stripe_defaults()
+	);
+	$scope = bws_table_style_class( $rules );
+
+	$html = bws_table_assemble( $headers, $matrix, $caption, $caption_id, $scope );
 	if ( '' === $html ) {
 		return '';
 	}
 
-	// A rendered captioned table carries the scroll-region wrapper — queue its CSS
-	// (idempotent, shared footer-printer). After the empty-html guard so an
-	// all-skipped-rows table (which assembles to '') leaves no orphan CSS.
+	// Everything below runs AFTER the empty-html guard, so a table that renders no rows leaves
+	// no orphan CSS. A rendered captioned table carries the scroll-region wrapper: queue its CSS
+	// (idempotent, shared footer-printer).
 	if ( '' !== $caption_id && function_exists( 'bws_queue_inline_css' ) ) {
 		bws_queue_inline_css( 'bws-table-inline-css', BWS_TABLE_INLINE_CSS );
+	}
+	if ( '' !== $scope ) {
+		$css = bws_table_rules_css( $scope, $rules );
+		if ( bws_table_in_editor_preview() ) {
+			// The editor's replacement is not a page: nothing prints wp_footer, so the rules
+			// travel with the table. A trusted user without `unfiltered_html` gets this
+			// `<style>` stripped by GB's kses and sees an unstyled table; accepted.
+			$html = '<style>' . $css . '</style>' . $html;
+		} elseif ( function_exists( 'bws_queue_inline_css' ) ) {
+			bws_queue_inline_css( $scope, $css );
+		}
 	}
 
 	// text-as-div host: hand the atomic <table> to the GB output boundary so

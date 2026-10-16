@@ -12,6 +12,7 @@
  *     diagnostics: { benchmark_logging: bool, registration_logging: bool },
  *     email:       { obfuscate: bool },
  *     phone:       { country_code: string, strip_leading_cc: bool },
+ *     table:       { stripe_color: string, stripe_opacity: string },
  *   }
  *
  * Deprecated tag mode semantics:
@@ -133,6 +134,7 @@ class SettingsPage {
 			'diagnostics' => array(),
 			'email'       => array(),
 			'phone'       => array(),
+			'table'       => array(),
 		);
 
 		// Modifier toggles. An orphaned `modifiers.term` key on an existing row is simply
@@ -160,6 +162,15 @@ class SettingsPage {
 		// OFF — only strips a leading run matching this country_code.
 		$sanitized['phone']['country_code']     = preg_replace( '/\D/', '', (string) ( $input['phone']['country_code'] ?? '' ) );
 		$sanitized['phone']['strip_leading_cc'] = ! empty( $input['phone']['strip_leading_cc'] );
+
+		// Table. Stripe default color + opacity go through the SAME validators the editor and the
+		// renderer use (bws_table_color_value / bws_table_stripe_opacity_setting), and a value in
+		// no allowed form is stored empty, meaning the built-in `currentColor` at 5%. Never
+		// sanitize_text_field(): it strips `%` followed by two hex digits.
+		$stripe_color   = bws_table_color_value( (string) ( $input['table']['stripe_color'] ?? '' ) );
+		$stripe_opacity = bws_table_stripe_opacity_setting( (string) ( $input['table']['stripe_opacity'] ?? '' ) );
+		$sanitized['table']['stripe_color']   = $stripe_color ?? '';
+		$sanitized['table']['stripe_opacity'] = null === $stripe_opacity ? '' : bws_table_css_number( $stripe_opacity );
 
 		return $sanitized;
 	}
@@ -298,6 +309,20 @@ class SettingsPage {
 	 */
 	public static function is_phone_strip_leading_cc_enabled(): bool {
 		return ! empty( self::get_settings()['phone']['strip_leading_cc'] );
+	}
+
+	/**
+	 * The default stripe color and opacity for `{{table}}` stripes that write neither.
+	 *
+	 * Each half falls back to its built-in (`currentColor`, 5) when unset or invalid, so
+	 * a hand-edited option row can never reach the stylesheet.
+	 *
+	 * @since Unreleased
+	 * @return array{color:string,opacity:float}
+	 */
+	public static function get_table_stripe_defaults(): array {
+		$table = (array) ( self::get_settings()['table'] ?? array() );
+		return bws_table_stripe_defaults_resolve( (string) ( $table['stripe_color'] ?? '' ), (string) ( $table['stripe_opacity'] ?? '' ) );
 	}
 
 	/**
@@ -663,6 +688,40 @@ class SettingsPage {
 									<label for="bws-phone-strip-cc"><?php esc_html_e( 'Strip unseparated leading digit(s) matching the default country code', 'generateblocks' ); ?></label>
 									<p class="description"><?php esc_html_e( 'Numbers where the country code is set off by a separator (e.g. 1-800-555-1212, 1 (800) 555-1212, +1 800 555 1212) are already detected automatically — no setting needed. This option covers only the harder case: a country code run TOGETHER with the national number and no + (e.g. 18005551212 with a default code of 1), where there is no separator to mark it. Requires a country code above; only strips a leading run that exactly matches it.', 'generateblocks' ); ?>
 										<strong><?php esc_html_e( 'Warning:', 'generateblocks' ); ?></strong> <?php esc_html_e( 'with no separator there is no way to tell a real country-code prefix from a national number that simply begins with the same digits, so this can strip a legitimate leading digit (e.g. a national number 1860… with default code 1). Leave off unless your stored numbers consistently carry a redundant, unseparated country-code prefix.', 'generateblocks' ); ?></p>
+								</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+
+				<?php /* ── Table ── */ ?>
+				<?php $bws_stripe = self::get_table_stripe_defaults(); ?>
+				<div class="bws-tag-group">
+					<h2 class="bws-section-header"><?php esc_html_e( 'Table', 'generateblocks' ); ?></h2>
+					<table class="bws-tags-table widefat">
+						<tbody>
+							<tr class="bws-tag-row">
+								<td class="bws-tag-checkbox">
+									<input type="text" id="bws-table-stripe-color" style="width:14em"
+										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[table][stripe_color]"
+										value="<?php echo esc_attr( $bws_stripe['color'] ); ?>"
+										placeholder="<?php echo esc_attr( BWS_TABLE_STRIPE_DEFAULT_COLOR ); ?>" />
+								</td>
+								<td>
+									<label for="bws-table-stripe-color"><?php esc_html_e( 'Default stripe color', 'generateblocks' ); ?></label>
+									<p class="description"><?php esc_html_e( 'The color of a {{table}} stripe that does not set its own. Use a hex value, rgb(), rgba(), hsl(), hsla(), var(), currentColor, or a color name. An unrecognized value falls back to currentColor, the text color, which stays visible on any theme.', 'generateblocks' ); ?></p>
+								</td>
+							</tr>
+							<tr class="bws-tag-row">
+								<td class="bws-tag-checkbox">
+									<input type="number" id="bws-table-stripe-opacity" style="width:6em" min="0" max="100" step="any"
+										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[table][stripe_opacity]"
+										value="<?php echo esc_attr( bws_table_css_number( $bws_stripe['opacity'] ) ); ?>"
+										placeholder="<?php echo esc_attr( bws_table_css_number( BWS_TABLE_STRIPE_DEFAULT_OPACITY ) ); ?>" /> %
+								</td>
+								<td>
+									<label for="bws-table-stripe-opacity"><?php esc_html_e( 'Default stripe opacity', 'generateblocks' ); ?></label>
+									<p class="description"><?php esc_html_e( 'How strong a {{table}} stripe is when it does not set its own, from 0 to 100. A color that carries its own transparency ignores this. A theme can still override the stripe in CSS with --bws-dte-table-stripe.', 'generateblocks' ); ?></p>
 								</td>
 							</tr>
 						</tbody>

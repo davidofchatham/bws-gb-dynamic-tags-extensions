@@ -94,7 +94,12 @@
 			// of a wrapper margin.
 			'.' + CLS.group + ' .components-combobox-control .components-base-control__label,' +
 			'.' + CLS.member + ' .components-combobox-control .components-base-control__label' +
-				'{margin-top:12px;display:inline-block;}';
+				'{margin-top:12px;display:inline-block;}' +
+			// WP's help text is #757575, 4.41:1 on the group tint (under AA for 12px);
+			// #50575e is 7.02:1. Computed from the tint over white, not eyeballed.
+			'.' + CLS.group + ' .components-base-control__help,' +
+			'.' + CLS.member + ' .components-base-control__help' +
+				'{color:#50575e;}';
 
 		names.forEach( function ( name ) {
 			var sel = '.' + CLS.member + '[data-bws-group="' + name + '"]';

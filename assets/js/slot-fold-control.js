@@ -150,6 +150,9 @@
 			// The column heading control's label and help, shipped on a {{table}} slot only
 			// (bws_build_fold_slot_options); null elsewhere, which is what hides the control.
 			headerOption: c.headerOption || null,
+			// True on a {{table}} slot only: the column card also draws Column Width and the
+			// column text styles (assets/js/table-style-control.js owns the fields).
+			styleOption: !! c.styleOption,
 			// The LEGACY per-slot axes, PHP-derived (bws_fold_slot_flat_axes) — this
 			// control never lists them. A hand-kept list deleted a try_ template's
 			// TAG-level `limit` and a try_datetime_single's TAG-level `key` on first
@@ -1494,22 +1497,38 @@
 		// `try_` slots, which have no heading cell, never see it. Not part of the chain
 		// or the read, so it is written beside them with the rest of the slot preserved.
 		if ( conf.headerOption ) {
+			var UI = conf.styleOption ? window.bwsTableStyleUI : null;
+			var headerField = el( TextControl, {
+				key: 'header',
+				label: conf.headerOption.label,
+				hideLabelFromVision: ! UI,
+				help: conf.headerOption.help,
+				value: slot.header || '',
+				onChange: function ( v ) {
+					var next = Object.assign( {}, slot );
+					next.header = v ? v : null;
+					write( next );
+				},
+				__nextHasNoMarginBottom: true
+			} );
+			// Column Width rides the same row, as a token of the same slot. It is the column's own
+			// token, so it is written here beside the rest of the slot like `header` is.
+			var headerRow = UI
+				? el( 'div', { key: 'hdrrow', style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' } }, [
+					headerField,
+					el( UI.ColumnWidthField, { key: 'width', slot: slot, tagState: state, write: write } )
+				] )
+				: headerField;
 			children.push( el( 'div', { key: 'headergroup', className: CLS.group }, [
 				el( 'span', { key: 'caption', className: CLS.caption }, conf.headerOption.label ),
-				el( TextControl, {
-					key: 'header',
-					label: conf.headerOption.label,
-					hideLabelFromVision: true,
-					help: conf.headerOption.help,
-					value: slot.header || '',
-					onChange: function ( v ) {
-						var next = Object.assign( {}, slot );
-						next.header = v ? v : null;
-						write( next );
-					},
-					__nextHasNoMarginBottom: true
-				} )
+				headerRow
 			] ) );
+			if ( UI ) {
+				children.push( el( 'div', { key: 'stylegroup', className: CLS.group }, [
+					el( 'span', { key: 'caption', className: CLS.caption }, __( 'Column text', 'generateblocks' ) ),
+					el( UI.ColumnStyle, { key: 'colstyle', slot: slot, tagState: state, write: write, slotKey: key } )
+				] ) );
+			}
 		}
 
 		// ── Source group ────────────────────────────────────────────────────

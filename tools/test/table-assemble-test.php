@@ -11,7 +11,10 @@
  *   - <caption> + aria-labelledby wiring (present only when a caption is set),
  *   - <thead> emitted only when a header label exists,
  *   - escaping of caption / headers / cells,
- *   - empty-matrix short-circuit.
+ *   - empty-matrix short-circuit,
+ *   - the scope class on a styled table, and the rule builder behind it (bws_table_rules):
+ *     selectors, stripe counting with and without a <thead>, once-per-id hashing, no inline
+ *     `style`, no `display`.
  *
  * Run:  php tools/test/table-assemble-test.php   (exit 0 = pass, 1 = fail)
  *
@@ -76,6 +79,8 @@ if ( ! function_exists( 'esc_attr' ) ) {
 // The REAL assembler — includes/helpers/table-helpers.php is pure for this reason.
 // ---------------------------------------------------------------------------
 define( 'ABSPATH', __DIR__ );
+require __DIR__ . '/../../includes/helpers/serialization-order.php';
+require __DIR__ . '/../../includes/helpers/slot-fold.php';
 require __DIR__ . '/../../includes/helpers/table-helpers.php';
 
 // ---------------------------------------------------------------------------
@@ -150,6 +155,126 @@ $expected = '<div role="region" tabindex="0" aria-labelledby="cap9">'
 	. '<tbody><tr><td>Jane</td><td>Lead</td></tr><tr><td>Bob</td><td>Dev</td></tr></tbody>'
 	. '</table></div>';
 assert_eq( 'T9 exact markup', $expected, $out );
+
+// ---------------------------------------------------------------------------
+// Presentation: scope class + the rule builder (bws_table_rules)
+// ---------------------------------------------------------------------------
+
+/** Build the stylesheet for tag options + per-column slot opts; scope class is named `S` for legibility. */
+function style_css( array $opts, array $cols = array(), bool $has_header = true, ?array $defaults = null ): string {
+	$defaults ??= array( 'color' => 'currentColor', 'opacity' => 5.0 );
+	$rules      = bws_table_rules( bws_table_style_read( $opts ), array_map( 'bws_table_column_style_read', $cols ), $has_header, $defaults );
+	return bws_table_rules_css( 'S', $rules );
+}
+
+$default_bg = 'var(--bws-dte-table-stripe,color-mix(in srgb,currentColor 5%,transparent))';
+$grad       = static function ( string $c ): string {
+	return "background-image:linear-gradient($c,$c)";
+};
+
+echo "\nHas-header is the one answer\n";
+assert_eq( 'T10 a label anywhere', true, bws_table_has_header( array( '', 'x' ) ) );
+assert_eq( 'T10 all blank', false, bws_table_has_header( array( '', '' ) ) );
+
+echo "\nScope class on the <table>\n";
+assert_contains( 'T11 styled table carries its class', '<table class="bws-dte-table-0123456789">', bws_table_assemble( array(), array( array( 'x' ) ), '', '', 'bws-dte-table-0123456789' ) );
+assert_contains( 'T11 unstyled table carries none', '<table><tbody>', bws_table_assemble( array(), array( array( 'x' ) ), '', '', '' ) );
+assert_contains( 'T11 the class rides inside the caption wrapper', '<table class="s1"><caption', bws_table_assemble( array( 'H' ), array( array( 'x' ) ), 'C', 'c1', 's1' ) );
+
+echo "\nLayout and width\n";
+assert_eq( 'T12 layout:fixed alone brings width:100%', '.S{table-layout:fixed;width:100%}', style_css( array( 'layout' => 'fixed' ) ) );
+assert_eq( 'T12 layout:fixed with width:auto renders as written', '.S{table-layout:fixed;width:auto}', style_css( array( 'layout' => 'fixed', 'width' => 'auto' ) ) );
+assert_eq( 'T12 layout:auto is written', '.S{table-layout:auto}', style_css( array( 'layout' => 'auto' ) ) );
+assert_eq( 'T12 no layout key, no table-layout rule', '.S{width:60%}', style_css( array( 'width' => '60%' ) ) );
+assert_eq( 'T12 width:var()', '.S{width:var(--w,10px)}', style_css( array( 'width' => 'var(--w, 10px)' ) ) );
+assert_eq( 'T12 a refused width is nothing', '', style_css( array( 'width' => 'calc(1px + 2px)' ) ) );
+assert_eq( 'T12 an unstyled table has no rules', array(), bws_table_rules( bws_table_style_read( array() ), array(), true, array( 'color' => 'currentColor', 'opacity' => 5.0 ) ) );
+assert_eq( 'T12 no rules, no class', '', bws_table_style_class( array() ) );
+
+echo "\nStripes: the header row is row 1\n";
+assert_eq( 'T13 rows (even): body rows 1, 3, …', ".S tbody tr:nth-child(odd){{$grad($default_bg)}}", style_css( array( 'stripe' => 'rows' ) ) );
+assert_eq( 'T13 rows,odd: the header row and body rows 2, 4, …', ".S thead tr,.S tbody tr:nth-child(even){{$grad($default_bg)}}", style_css( array( 'stripe' => 'rows,odd' ) ) );
+assert_eq( 'T13 cols run through the header cell', ".S :is(th,td):nth-child(even){{$grad($default_bg)}}", style_css( array( 'stripe' => 'cols' ) ) );
+assert_eq( 'T13 cols,odd', ".S :is(th,td):nth-child(odd){{$grad($default_bg)}}", style_css( array( 'stripe' => 'cols,odd' ) ) );
+assert_eq( 'T13 headerless rows counts from the first emitted row (even = 2, 4)', ".S tbody tr:nth-child(even){{$grad($default_bg)}}", style_css( array( 'stripe' => 'rows' ), array(), false ) );
+assert_eq( 'T13 headerless rows,odd (1, 3)', ".S tbody tr:nth-child(odd){{$grad($default_bg)}}", style_css( array( 'stripe' => 'rows,odd' ), array(), false ) );
+assert_eq(
+	'T13 rows and cols both paint, as gradients so they compose where they cross',
+	".S tbody tr:nth-child(odd){{$grad($default_bg)}}.S :is(th,td):nth-child(even){{$grad($default_bg)}}",
+	style_css( array( 'stripe' => 'rows;cols' ) )
+);
+
+echo "\nStripe color forms\n";
+assert_eq( 'T14 color alone takes the default opacity', ".S tbody tr:nth-child(odd){{$grad('color-mix(in srgb,#eee 5%,transparent)')}}", style_css( array( 'stripe' => 'rows,#eee' ) ) );
+assert_eq( 'T14 color and opacity', ".S tbody tr:nth-child(odd){{$grad('color-mix(in srgb,#eee 40%,transparent)')}}", style_css( array( 'stripe' => 'rows,#eee,40%' ) ) );
+assert_eq( 'T14 opacity alone mixes the default color', ".S tbody tr:nth-child(odd){{$grad('color-mix(in srgb,currentColor 40%,transparent)')}}", style_css( array( 'stripe' => 'rows,40%' ) ) );
+assert_eq( 'T14 100% is a solid stripe', ".S tbody tr:nth-child(odd){{$grad('color-mix(in srgb,#eee 100%,transparent)')}}", style_css( array( 'stripe' => 'rows,#eee,100%' ) ) );
+assert_eq( 'T14 a color with its own alpha ignores the opacity', ".S tbody tr:nth-child(odd){{$grad('rgba(0,0,0,.2)')}}", style_css( array( 'stripe' => 'rows,rgba(0,0,0,.2),90%' ) ) );
+assert_eq( 'T14 8-digit hex ignores the opacity', ".S tbody tr:nth-child(odd){{$grad('#11223344')}}", style_css( array( 'stripe' => 'rows,#11223344,90%' ) ) );
+assert_eq( 'T14 var() color', ".S tbody tr:nth-child(odd){{$grad('color-mix(in srgb,var(--c) 5%,transparent)')}}", style_css( array( 'stripe' => 'rows,var(--c)' ) ) );
+assert_eq( 'T14 a fractional opacity', ".S tbody tr:nth-child(odd){{$grad('color-mix(in srgb,#eee 7.5%,transparent)')}}", style_css( array( 'stripe' => 'rows,#eee,7.5%' ) ) );
+assert_eq(
+	'T14 the saved defaults feed the fallback',
+	".S tbody tr:nth-child(odd){{$grad('var(--bws-dte-table-stripe,color-mix(in srgb,#123456 10%,transparent))')}}",
+	style_css( array( 'stripe' => 'rows' ), array(), true, array( 'color' => '#123456', 'opacity' => 10.0 ) )
+);
+assert_eq(
+	'T14 a saved default with its own alpha is not mixed',
+	".S tbody tr:nth-child(odd){{$grad('var(--bws-dte-table-stripe,#12345678)')}}",
+	style_css( array( 'stripe' => 'rows' ), array(), true, array( 'color' => '#12345678', 'opacity' => 10.0 ) )
+);
+$hostile = style_css( array( 'stripe' => 'rows,red}body{display:none}' ) );
+assert_eq( 'T14 a color in no allowed form falls back to the default', ".S tbody tr:nth-child(odd){{$grad($default_bg)}}", $hostile );
+assert_not_contains( 'T14 and does not appear in the block in any form', 'display', $hostile );
+assert_not_contains( 'T14 not even its fragments', 'body{', $hostile );
+
+echo "\nTable-level text\n";
+assert_eq(
+	'T15 base on every cell, the header override on header cells',
+	'.S :is(th,td){color:#333;font-weight:normal}.S thead th{color:#000;font-weight:bold}',
+	style_css( array( 'color' => '#333;header,#000', 'fontWeight' => 'normal;header,bold' ) )
+);
+assert_eq( 'T15 a base-unset value is just the override', '.S thead th{text-transform:uppercase}', style_css( array( 'textTransform' => 'header,uppercase' ) ) );
+assert_eq( 'T15 headerless: the header override has nothing to style', '.S :is(th,td){color:#333}', style_css( array( 'color' => '#333;header,#000' ), array(), false ) );
+assert_eq( 'T15 a refused value is as if absent', '', style_css( array( 'fontWeight' => 'heavy', 'color' => 'red}' ) ) );
+
+echo "\nColumns\n";
+assert_eq( 'T16 column width', '.S :is(th,td):nth-child(2){width:8rem}', style_css( array(), array( array(), array( 'width' => '8rem' ) ) ) );
+assert_eq( 'T16 a bare column textAlign covers the header: one rule for both', '.S :is(th,td):nth-child(1){text-align:right}', style_css( array(), array( array( 'textAlign' => 'right' ) ) ) );
+assert_eq( 'T16 headerless: body only', '.S tbody td:nth-child(1){text-align:right}', style_css( array(), array( array( 'textAlign' => 'right' ) ), false ) );
+assert_eq( 'T16 a bare column color is body-only', '.S tbody td:nth-child(1){color:#c00}', style_css( array(), array( array( 'color' => '#c00' ) ) ) );
+assert_eq( 'T16 a column Header reaches the th alone', '.S thead th:nth-child(1){font-weight:bold}', style_css( array(), array( array( 'fontWeight' => 'header,bold' ) ) ) );
+assert_eq(
+	'T16 column base and Header differ: split rules',
+	'.S tbody td:nth-child(1){text-align:right}.S thead th:nth-child(1){text-align:center}',
+	style_css( array(), array( array( 'textAlign' => 'right;header,center' ) ) )
+);
+assert_eq( 'T16 a column that restates the table adds nothing', '.S :is(th,td){text-align:right}', style_css( array( 'textAlign' => 'right' ), array( array( 'textAlign' => 'right' ) ) ) );
+assert_eq(
+	'T16 width and text share a column selector',
+	'.S :is(th,td):nth-child(1){width:6rem;text-align:left}',
+	style_css( array(), array( array( 'width' => '6rem', 'textAlign' => 'left' ) ) )
+);
+assert_eq( 'T16 a column header override beats the table header', '.S thead th{color:#000}.S thead th:nth-child(2){color:#c00}', style_css( array( 'color' => 'header,#000' ), array( array(), array( 'color' => 'header,#c00' ) ) ) );
+
+echo "\nThe scope class: once per id\n";
+$rules_a = bws_table_rules( bws_table_style_read( array( 'layout' => 'fixed', 'stripe' => 'rows' ) ), array(), true, array( 'color' => 'currentColor', 'opacity' => 5.0 ) );
+$rules_b = bws_table_rules( bws_table_style_read( array( 'layout' => 'fixed', 'stripe' => 'rows' ) ), array(), true, array( 'color' => 'currentColor', 'opacity' => 5.0 ) );
+$rules_c = bws_table_rules( bws_table_style_read( array( 'layout' => 'fixed', 'stripe' => 'cols' ) ), array(), true, array( 'color' => 'currentColor', 'opacity' => 5.0 ) );
+assert_eq( 'T17 identical tables share one id', bws_table_style_class( $rules_a ), bws_table_style_class( $rules_b ) );
+assert_eq( 'T17 differing tables do not', true, bws_table_style_class( $rules_a ) !== bws_table_style_class( $rules_c ) );
+assert_eq( 'T17 shape', 1, preg_match( '/^bws-dte-table-[0-9a-f]{10}$/', bws_table_style_class( $rules_a ) ) );
+assert_eq( 'T17 the id is a function of the built rules, not the saved defaults it did not use', bws_table_style_class( $rules_a ), bws_table_style_class( bws_table_rules( bws_table_style_read( array( 'layout' => 'fixed', 'stripe' => 'rows' ) ), array(), true, array( 'color' => 'currentColor', 'opacity' => 5.0 ) ) ) );
+
+echo "\nNothing inline, nothing structural\n";
+$everything = style_css(
+	array( 'layout' => 'fixed', 'width' => '90%', 'color' => '#111', 'fontSize' => '1rem', 'fontWeight' => 'normal;header,bold', 'fontStyle' => 'italic', 'textAlign' => 'left', 'textTransform' => 'header,uppercase', 'stripe' => 'rows;cols' ),
+	array( array( 'width' => '5rem', 'textAlign' => 'right', 'color' => '#c00' ), array( 'fontWeight' => 'header,900' ) )
+);
+assert_not_contains( 'T18 no inline style attribute', 'style=', $everything );
+assert_not_contains( 'T18 no display rule', 'display', $everything );
+assert_not_contains( 'T18 no markup', '<', $everything );
+assert_not_contains( 'T18 no colgroup', 'col', str_replace( array( 'color', 'cols', 'currentColor', 'color-mix' ), '', $everything ) );
 
 // ---------------------------------------------------------------------------
 echo "\n";

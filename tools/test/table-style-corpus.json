@@ -1,0 +1,25 @@
+{
+	"widths": ["auto", "AUTO", "100%", "8rem", "8REM", " 12px ", "30em", "60ch", "50vw", ".5rem", "1.5em", "0", "8", "8pt", "calc(100% - 2rem)", "fit-content", "max-content", "var(--w)", "var(--w, 10px)", "var( --w )", "var(--w, var(--x))", "var(--w;)", "var(w)", "100% }", "", "-5px", "5 px"],
+	"colors": ["#eee", "#EEEEEE", "#eeee", "#eeeeeeee", "#ee", "#eeeee", "#gggggg", "rgb(0,0,0)", "RGBA(0, 0, 0, .5)", "hsl(120 50% 50%)", "hsla(120,50%,50%,.5)", "rgb(0 0 0 / 50%)", "rgb(0,0,0);x", "rgb(0,0,0)}", "var(--accent)", "var(--accent, #fff)", "var(--a, rgb(0,0,0))", "red", "RebeccaPurple", "transparent", "currentColor", "CURRENTCOLOR", "notacolor", "url(x)", "expression(1)", "</style>", "red}", "red /* x */", "\"red\"", "inherit", "revert-layer", "unset", ""],
+	"fontSizes": ["1.2rem", "12px", "xx-small", "xxx-large", "larger", "Smaller", "medium", "var(--s)", "var(--s, 1rem)", "inherit", "revert-layer", "calc(1rem + 2px)", "12", "big", "", "-1rem", "50 %"],
+	"text": {
+		"color": ["#333", "red", "inherit", "var(--c)", "rgba(0,0,0,.5)", "nope", ""],
+		"fontSize": ["1rem", "larger", "unset", "x", ""],
+		"fontWeight": ["normal", "bold", "BOLD", "100", "900", "600", "650", "1000", "0", "bolder", "inherit", ""],
+		"fontStyle": ["normal", "italic", "oblique", "Italic", "bold", "initial", ""],
+		"textAlign": ["left", "center", "right", "justify", "RIGHT", "revert", ""],
+		"textTransform": ["none", "uppercase", "lowercase", "capitalize", "Capitalize", "full-width", "unset", ""],
+		"border": ["red"]
+	},
+	"opacities": ["5%", "40%", "7.5%", "100%", "100.5%", "0%", "120%", "50", "%", "abc%", " 40% "],
+	"headed": {
+		"textAlign": ["right", "left;header,center", "header,center", "header,center;left", " RIGHT ; header , Center ", "inherit;header,revert-layer", "", "right;", "justify;header,center", "justify", "left;right", "left;header,center;header,right", "left;footer,center", "left;header,", "header,center,extra", "left;header,[x", "left;header,center)", "[left"],
+		"color": ["#333;header,#000", "header,rgba(0,0,0,.5)", "red;header,blue", "var(--a,#fff);header,inherit", "nope;header,#fff", "rgb(0,0,0", "#333;header,#000;header,#111"],
+		"fontWeight": ["normal;header,bold", "header,700", "700;header,800;header,900", "light", "bold;"],
+		"fontSize": ["1rem;header,1.2rem", "larger", "calc(1rem + 2px);header,2rem", "header,xx-large"],
+		"fontStyle": ["italic;header,normal", "header,oblique"],
+		"textTransform": ["header,uppercase", "none;header,capitalize", "SHOUT"]
+	},
+	"stripes": ["rows", "rows;cols", "rows,odd", "cols,odd", "rows,40%,odd,#eee", "rows,#eee,40%", "rows,rgba(0,0,0,.5)", "rows,rgba(0,0,0,.5),40%", "rows,currentColor", "rows,notacolor", "rows,red}body{x:y", "rows,120%", "rows,inherit", "rows;rows,odd", "banana;cols", "rows,odd,even", "rows,#eee,#ddd", "rows,40%,50%", "rows,rgba(0,0,0", "rows,", "rows,,odd", "", "ROWS,ODD", "rows,7.5%", "rows;cols,var(--c),10%", "stripe", "odd"],
+	"items": ["rows,odd;cols", "rows,rgba(0,0,0,.5),40%", "a;b;c", ";;", "rows,rgba(0,0,0", "x,[a,b],y", "left;header,center", ""]
+}

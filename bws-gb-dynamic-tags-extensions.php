@@ -611,6 +611,45 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);
+	// {{table}} presentation (ticket table-tag/07). The GRAMMAR is the tested twin of the PHP
+	// validators in table-helpers.php and takes every list off `window.bwsTableVocab`, so the two
+	// languages cannot carry different lists. The CONTROLS load before the slot-fold control
+	// because its column card renders the same fields (window.bwsTableStyleUI).
+	wp_enqueue_script(
+		'bws-dynamic-tags-table-style-grammar',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/table-style-grammar.js',
+		array( 'bws-dynamic-tags-slot-fold-grammar' ),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
+	if ( function_exists( 'bws_table_style_vocabulary' ) ) {
+		wp_add_inline_script(
+			'bws-dynamic-tags-table-style-grammar',
+			'window.bwsTableVocab = ' . wp_json_encode( bws_table_style_vocabulary() ) . ';',
+			'before'
+		);
+	}
+	wp_enqueue_script(
+		'bws-dynamic-tags-table-style-control',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/table-style-control.js',
+		array( 'wp-hooks', 'wp-element', 'wp-components', 'wp-i18n', 'wp-data', 'bws-dynamic-tags-table-style-grammar', 'bws-dynamic-tags-option-group' ),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
+	// The saved stripe default, for the editor's placeholders (the pattern of window.bwsImageSizes).
+	if ( class_exists( '\BWS\DynamicTags\Admin\SettingsPage' ) ) {
+		$bws_stripe_defaults = \BWS\DynamicTags\Admin\SettingsPage::get_table_stripe_defaults();
+		wp_add_inline_script(
+			'bws-dynamic-tags-table-style-control',
+			'window.bwsTableDefaults = ' . wp_json_encode(
+				array(
+					'stripeColor'   => $bws_stripe_defaults['color'],
+					'stripeOpacity' => $bws_stripe_defaults['opacity'],
+				)
+			) . ';',
+			'before'
+		);
+	}
 	wp_enqueue_script(
 		'bws-dynamic-tags-slot-fold-control',
 		BWS_DYNAMIC_TAGS_URL . 'assets/js/slot-fold-control.js',
@@ -624,6 +663,7 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 			'bws-dynamic-tags-field-combo-control',
 			'bws-dynamic-tags-entity-picker-control',
 			'bws-dynamic-tags-option-group',
+			'bws-dynamic-tags-table-style-control',
 		),
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
