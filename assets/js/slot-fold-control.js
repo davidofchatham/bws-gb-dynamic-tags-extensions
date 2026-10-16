@@ -146,6 +146,9 @@
 			refOption: c.refOption || null,
 			keyOption: c.keyOption || null,
 			rowsOption: c.rowsOption || null,
+			// The column heading control's label and help, shipped on a {{table}} slot only
+			// (bws_build_fold_slot_options); null elsewhere, which is what hides the control.
+			headerOption: c.headerOption || null,
 			// The LEGACY per-slot axes, PHP-derived (bws_fold_slot_flat_axes) — this
 			// control never lists them. A hand-kept list deleted a try_ template's
 			// TAG-level `limit` and a try_datetime_single's TAG-level `key` on first
@@ -443,7 +446,7 @@
 
 	/** An empty slot struct in the grammar's shape. */
 	function emptySlot() {
-		return { label: null, type: null, chain: [], read: null, opts: {}, extra: [] };
+		return { header: null, type: null, chain: [], read: null, opts: {}, extra: [] };
 	}
 
 	function step( slug, arg, limit ) {
@@ -1484,6 +1487,30 @@
 		}
 		children.push( el( 'div', { key: 'hdr' }, headerKids ) );
 
+		// ── Header group (table only) ───────────────────────────────────────
+		// The column's heading cell: a plain string that rides the slot as its `header`
+		// token. Offered only where the PHP config ships `headerOption`, so {{join}} and
+		// `try_` slots, which have no heading cell, never see it. Not part of the chain
+		// or the read, so it is written beside them with the rest of the slot preserved.
+		if ( conf.headerOption ) {
+			children.push( el( 'div', { key: 'headergroup', className: CLS.group }, [
+				el( 'span', { key: 'caption', className: CLS.caption }, conf.headerOption.label ),
+				el( TextControl, {
+					key: 'header',
+					label: conf.headerOption.label,
+					hideLabelFromVision: true,
+					help: conf.headerOption.help,
+					value: slot.header || '',
+					onChange: function ( v ) {
+						var next = Object.assign( {}, slot );
+						next.header = v ? v : null;
+						write( next );
+					},
+					__nextHasNoMarginBottom: true
+				} )
+			] ) );
+		}
+
 		// ── Source group ────────────────────────────────────────────────────
 		// ONE box for the whole chain, with steps separated inside it by a lighter
 		// rule. The wire supports an ordered chain, so the control must edit EVERY
@@ -1724,6 +1751,9 @@
 		stepArg: stepArg,
 		// The chain editor, so the base-tag source control renders the SAME steps.
 		chainSteps: chainSteps,
-		step: step
+		step: step,
+		// The whole slot panel, for the one rule only its rendered tree shows: which
+		// controls a container is offered.
+		SlotFoldControl: SlotFoldControl
 	};
 }() );

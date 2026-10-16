@@ -179,11 +179,11 @@ const CASES = [
 		'A:key(a)' ],
 
 	// A per-slot option that is NOT an axis must survive compaction untouched. The
-	// spike's struct had only chain+read, so a table column's `label` had nothing to
+	// spike's struct had only chain+read, so a table column's `header` had nothing to
 	// be dropped from; under the shipped grammar it does.
-	[ 'compaction preserves non-axis slot options (label, type, link)', COMBINING,
-		{ 'A': 'label(Name);title', 'B': 'label(City);src(refs,office);key(city)', 'C': 'label(Zip);src(same);key(zip);linkTo(permalink)' }, 2,
-		'A:label(Name);title | B:label(Zip);src(refs,office);key(zip);linkTo(permalink)' ],
+	[ 'compaction preserves non-axis slot options (header, type, link)', COMBINING,
+		{ 'A': 'header(Name);title', 'B': 'header(City);src(refs,office);key(city)', 'C': 'header(Zip);src(same);key(zip);linkTo(permalink)' }, 2,
+		'A:header(Name);title | B:header(Zip);src(refs,office);key(zip);linkTo(permalink)' ],
 
 	// The position-1 strip is a SEPARATE guard from materialization, and only these
 	// two cases isolate it: materialization normally REPLACES the successor's `same`
@@ -269,7 +269,7 @@ check( 'the same legacy slot is not counted where the flat wire had `use` (FW-51
 function mountDefault( ordinal, conf ) {
 	const slot = ordinal >= 2
 		? rep.seedSlot( conf )
-		: { label: null, type: null, chain: [], read: null, opts: {}, extra: [] };
+		: { header: null, type: null, chain: [], read: null, opts: {}, extra: [] };
 	return fold.emitSlot( slot ) || '(empty — current, no read)';
 }
 check( 'unconfigured slot 1 mounts empty (current)', mountDefault( 1, SELECTING ), '(empty — current, no read)' );
@@ -1548,7 +1548,7 @@ const emitCol = function ( chain ) { return fold.emitChain( chain, 1 ); };
 const parsedCol = function ( wire ) { return wire ? fold.parseChain( wire ) : []; };
 
 check( 'seed: a new column stores a pending keyed read and an EMPTY chain', fold.emitSlot( rep.seedSlot( TCOL ) ), 'use(key)' );
-check( 'a fixed column with no text typed serializes the pending spelling', fold.emitSlot( { label: null, type: null, chain: [], read: { kind: 'fixed', text: '' }, opts: {}, extra: [] } ), 'use(fixed)' );
+check( 'a fixed column with no text typed serializes the pending spelling', fold.emitSlot( { header: null, type: null, chain: [], read: { kind: 'fixed', text: '' }, opts: {}, extra: [] } ), 'use(fixed)' );
 check( 'seed (join, unchanged): `src(same)`', fold.emitSlot( rep.seedSlot( COMBINING ) ), 'src(same)' );
 
 check( 'canonical: a step-first chain gains `inherit;`', emitCol( rep.columnChain( parsedCol( 'refs,x' ), 2, {}, TCOL ) ), 'inherit;refs,x' );
@@ -1617,13 +1617,52 @@ const colRootPickers = fieldPickersIn( renderColumn( parsedCol( 'inherit;refs,le
 check( '...a declaring parent ROOT counts as that predecessor', colRootPickers[ 0 ] && colRootPickers[ 0 ].props.context.state.src, 'post,34' );
 
 const readCtx = function ( chainWire, parentWire ) {
-	const slot = { label: null, type: null, chain: parsedCol( chainWire ), read: { kind: 'key', field: 'name' }, opts: {}, extra: [] };
+	const slot = { header: null, type: null, chain: parsedCol( chainWire ), read: { kind: 'key', field: 'name' }, opts: {}, extra: [] };
 	return rep.fieldContext( slot, function () {}, parentWire === null ? void 0 : parsedCol( parentWire ) ).state.src;
 };
 check( 'read picker: a bare column opens on the tag chain\'s tail', readCtx( '', 'rows,team_members' ), 'rows,team_members' );
 check( 'read picker: unnarrowed when the tail is render-time', readCtx( '', '' ), undefined );
 check( 'read picker: a column\'s own hop wins', readCtx( 'inherit;refs,lead_ref', 'rows,team_members' ), 'refs,lead_ref' );
 check( 'read picker (join, unchanged): no parent, no tail', readCtx( '', null ), undefined );
+
+// ── The header control: table slots only, writing the slot's `header` token ──────────
+const keyedNodes = function ( node, key, out ) {
+	out = out || [];
+	if ( Array.isArray( node ) ) { node.forEach( function ( n ) { keyedNodes( n, key, out ); } ); return out; }
+	if ( node && 'object' === typeof node ) {
+		if ( node.props && node.props.key === key ) { out.push( node ); }
+		keyedNodes( node.children, key, out );
+		if ( node.props ) { keyedNodes( node.props.children, key, out ); }
+	}
+	return out;
+};
+const HDR_OPT = { label: 'Header', help: 'Text for this column\'s heading cell.' };
+const HDR_CONF = rep.foldConfig( { fold: Object.assign( {}, CHAIN_FOLD, {
+	container: 'table', combining: true, min: 2, max: 10, defaultRoot: 'inherit', flatAxes: [],
+	srcRows: TABLE_ROOTS, srcRowsWithSame: [], headerOption: HDR_OPT
+} ) } );
+const renderPanel = function ( conf, state, setState ) {
+	const prior = global.window.bwsFieldComboControl;
+	global.window.bwsFieldComboControl = FIELD_COMBO_STUB;
+	try {
+		return rep.SlotFoldControl( { optionKey: 'A', label: 'Column A', conf: conf, context: { state: state, setState: setState || function () {} } } );
+	} finally {
+		if ( prior === undefined ) { delete global.window.bwsFieldComboControl; } else { global.window.bwsFieldComboControl = prior; }
+	}
+};
+const hdrState = { A: 'header(Name);key(name)', B: 'key(x)' };
+const hdrGroup = keyedNodes( renderPanel( HDR_CONF, hdrState ), 'headergroup' );
+check( 'header control: a table slot offers it', hdrGroup.length, 1 );
+const hdrInput = keyedNodes( hdrGroup, 'header' )[ 0 ];
+check( 'header control: shows the slot\'s header', hdrInput && hdrInput.props.value, 'Name' );
+check( 'header control: help arrives from the shipped config', hdrInput && hdrInput.props.help, HDR_OPT.help );
+let wrote = null;
+const hdrWrite = keyedNodes( renderPanel( HDR_CONF, hdrState, function ( s ) { wrote = s; } ), 'header' )[ 0 ];
+hdrWrite.props.onChange( 'City' );
+check( 'header control: typing writes the token and keeps the rest of the slot', wrote && wrote.A, 'header(City);key(name)' );
+hdrWrite.props.onChange( '' );
+check( 'header control: clearing drops the token entirely', wrote && wrote.A, 'key(name)' );
+check( 'header control: absent on a {{join}} slot', keyedNodes( renderPanel( COMBINING, { A: 'key(name)', B: 'key(x)' } ), 'headergroup' ).length, 0 );
 
 console.log( '\n' + ( total - fail ) + '/' + total + ' passed' );
 process.exit( fail ? 1 : 0 );

@@ -103,6 +103,10 @@ $out = bws_table_assemble( array( 'Name', 'Role' ), array( array( 'Jane', 'Lead'
 assert_contains( 'T4 thead', '<thead><tr><th>Name</th><th>Role</th></tr></thead>', $out );
 assert_not_contains( 'T4 no scope=col yet', 'scope=', $out );
 
+echo "\nOne header among five columns → thead with one filled th and four blanks\n";
+$out = bws_table_assemble( array( '', 'Role', '', '', '' ), array( array( 'a', 'b', 'c', 'd', 'e' ) ) );
+assert_contains( 'T4b blank th keep the cell count', '<thead><tr><th></th><th>Role</th><th></th><th></th><th></th></tr></thead>', $out );
+
 echo "\nCaption → wrapper (role=region tabindex aria-labelledby) + <caption id>\n";
 $out = bws_table_assemble( array( 'Name' ), array( array( 'Jane' ) ), 'Team members', 'bws-table-caption-1' );
 assert_contains( 'T5 wrapper with all three attrs', '<div role="region" tabindex="0" aria-labelledby="bws-table-caption-1">', $out );

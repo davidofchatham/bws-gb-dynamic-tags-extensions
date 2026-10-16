@@ -75,6 +75,18 @@ assert_order(
 	$sort( array( 'fallback', 'fixed', 'linkTo', 'timeKey', 'key', 'src', 'use' ) )
 );
 
+// --- `header` (a table column's token) leads everything and moves no other key ---
+assert_order(
+	'header leads, and the keys after it keep their canonical order',
+	array( 'header', 'as', 'src', 'key', 'linkTo', 'fallback' ),
+	$sort( array( 'fallback', 'linkTo', 'key', 'src', 'as', 'header' ) )
+);
+assert_order(
+	'a join-shaped key list sorts the same with the header entry present',
+	array( 'mode', 'valueSep', 'format', 'A', 'B', 'fallback' ),
+	$sort( array( 'fallback', 'B', 'format', 'A', 'valueSep', 'mode' ) )
+);
+
 // --- Single-slot canonicalization within present keys (spike console case) ---
 assert_order(
 	'as,key,src → as,src,key (image within-group canonical)',
@@ -270,6 +282,8 @@ $twin_lists = array(
 	array( 'AA', 'Z', 'A', 'B' ),
 	// And both halves must agree that a bare digit is no longer a slot.
 	array( '2', 'A', 'format' ),
+	// A table column's header token leads both halves alike.
+	array( 'fallback', 'A', 'header', 'as' ),
 );
 $expected_twin = array_map( $sort, $twin_lists );
 // Hand the corpus over as a FILE, not an argv string: Windows' escapeshellarg strips

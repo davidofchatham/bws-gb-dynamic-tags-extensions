@@ -1047,6 +1047,8 @@ assert_same(
 );
 assert_same( 'table: `current` stays a pickable root', true, in_array( 'current', $root_values( $table_fold['srcRows'] ), true ) );
 assert_same( 'table: the first-step steps group reads "Starting from Tag Source"', 'Starting from Tag Source', $table_fold['stepGroup'] ?? null );
+assert_same( 'table: ships the header control label', 'Header', $table_fold['headerOption']['label'] ?? null );
+assert_same( 'join: ships no header control (a <th> means nothing in a join slot)', false, isset( $rooted_fold['headerOption'] ) );
 assert_same( 'join: no `inherit` row', false, in_array( 'inherit', $root_values( $rooted_fold['srcRows'] ), true ) );
 assert_same( 'join: defaultRoot is untouched', 'current', $rooted_fold['defaultRoot'] );
 assert_same( 'join: ships no stepGroup override (the control keeps its own)', false, isset( $rooted_fold['stepGroup'] ) );

@@ -1204,7 +1204,7 @@
 
 <div class="gb-text"><table><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
 
-<p class="gb-text">TB2 (no labels -> header-less table, no thead row):</p>
+<p class="gb-text">TB2 (no headers -> header-less table, no thead row):</p>
 
 <div class="gb-text"><table><tbody><tr><td>Alice Adams</td><td>Engineering</td></tr><tr><td>Bob Brown</td><td>Operations</td></tr></tbody></table></div>
 
@@ -1215,6 +1215,14 @@
 <p class="gb-text">TB4 (caption &#8220;Our Team&#8221; -> &lt;caption id> + wrapper aria-labelledby that id, role=region tabindex=0):</p>
 
 <div class="gb-text"><div role="region" tabindex="0" aria-labelledby="bws-table-caption-3"><table><caption id="bws-table-caption-3">Our Team</caption><thead><tr><th>Name</th><th>Role</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td></tr><tr><td>Bob Brown</td><td>Operations</td></tr></tbody></table></div></div>
+
+<p class="gb-text">TB5 (header-only column C -> thead Name/Role/Spacer, Spacer cells EMPTY on both rows, no warning):</p>
+
+<div class="gb-text"><table><thead><tr><th>Name</th><th>Role</th><th>Spacer</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td></td></tr><tr><td>Bob Brown</td><td>Operations</td><td></td></tr></tbody></table></div>
+
+<p class="gb-text">TB6 (one header among three columns -> thead with one filled th (Role) and two blank th, 3 cells per body row):</p>
+
+<div class="gb-text"><table><thead><tr><th></th><th>Role</th><th></th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
 </div>
 
 <div>

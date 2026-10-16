@@ -442,6 +442,8 @@ docblocks):
   `try_datetime_*`'s TAG-level `key` into slot 1. `inferIntent()` is advisory text only and must
   never regrow authority over what renders or what serializes.
 
+**A `{{table}}` slot also carries a Header text box**, the column's heading cell, written as the slot's `header(…)` token. The token is shared grammar and parses and round-trips in every container, but the control is offered only where the PHP fold config ships `headerOption` (a `<th>` means nothing in a `{{join}}` or `try_` slot). It is not part of the chain or the read, so a commit rewrites the whole slot with the header changed and nothing else; clearing it drops the token. The rendered tree is the only coverage that sees this rule (`SlotFoldControl` is exported for `slot-fold-repeater-test.js`).
+
 **An absent chain is DISPLAYED as the root it spells**, not as an empty picker — `defaultRoot` on
 slot 1, `same` on slot ≥2 — because a `SelectControl` whose value matches no row paints its first
 row while believing nothing is selected, making that row unpickable and hiding `+ Add step`. This is

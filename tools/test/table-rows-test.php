@@ -84,16 +84,25 @@ check( 'unresolved root refuses', true, bws_base_read_refused( $res, array( 'kin
 echo "columns: folded slots off the row\n";
 $opts = array(
 	'src' => 'rows,team_members',
-	'A'   => 'label(Name);key(name)',
+	'A'   => 'header(Name);key(name)',
 	'B'   => 'src(inherit;rows,shifts);key(day)',
 	'C'   => 'src(same);key(role)',
 	'D'   => 'fixed(Team)',
-	'E'   => 'label(Note)',
+	'E'   => 'header(Note)',
 	'1-key' => 'flat_is_never_read',
 );
 $cols = bws_table_columns( $opts );
-check( 'every configured column is read; read-less E is skipped', 4, count( $cols ) );
-check( 'the `label` token is the header cell', array( 'Name', '', '', '' ), array_column( $cols, 'header' ) );
+check( 'every configured column is kept; read-less E survives on its header alone', 5, count( $cols ) );
+check( 'the `header` token is the header cell', array( 'Name', '', '', '', 'Note' ), array_column( $cols, 'header' ) );
+check( 'a header-only column has no opts and renders empty', array( null, '' ), array( $cols[4]['opts'], bws_table_read_cell( array( 'kind' => 'meta_row', 'row' => array( 'name' => 'Alice' ) ), array( 'opts' => null, 'start' => false, 'steps' => array() ), null ) ) );
+check( 'a read-less column with no header is still skipped', 0, count( bws_table_columns( array( 'A' => 'src(rows,x)' ) ) ) );
+check( 'a whitespace-only header is no header: the read-less column is skipped', 0, count( bws_table_columns( array( 'A' => 'header(   )' ) ) ) );
+check( 'a header is trimmed', 'Name', bws_table_columns( array( 'A' => 'header( Name );key(n)' ) )[0]['header'] );
+check( 'a header with a chain but no read is kept, empty', array( 'X', null ), array_values( array_intersect_key( bws_table_columns( array( 'A' => 'header(X);src(refs,office)' ) )[0], array( 'header' => 1, 'opts' => 1 ) ) ) );
+$after = bws_table_columns( array( 'A' => 'header(X);src(refs,office)', 'B' => 'src(same);key(f)' ) );
+check( '...and never feeds the carry: a later `src(same)` carries the row, not the office', '', $after[1]['opts']['src'] );
+check( 'a header with an unfinished step is kept, empty', array( 'X', null ), array_values( array_intersect_key( bws_table_columns( array( 'A' => 'header(X);src(refs)' ) )[0], array( 'header' => 1, 'opts' => 1 ) ) ) );
+check( 'a header-only column starts nowhere', false, bws_table_column_start( null, '', null ) );
 check( 'a bare column chain is empty (the row)', '', $cols[0]['opts']['src'] );
 check( 'a path root is kept', 'inherit;rows,shifts', $cols[1]['opts']['src'] );
 check( '`src(same)` carries the previous column\'s chain', 'inherit;rows,shifts', $cols[2]['opts']['src'] );

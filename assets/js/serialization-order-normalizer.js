@@ -47,6 +47,9 @@
 	// bare option name → [group, within-group rank].
 	var KEY_MAP = {
 		// format (leads; global)
+		// A table column's header(…) token: inside a slot's value, emitted first by
+		// construction; here so the map states what the emitter does (PHP twin has the note).
+		header: [ 'format', -1 ],
 		as: [ 'format', 0 ],
 		size: [ 'format', 1 ], // GB-reserved today (never in extraTagParams); harmless.
 		// join tag-level assembly keys (share format group): mode → valueSep →

@@ -105,7 +105,7 @@ function canonSlot( slot ) {
 		return [ name, true === opts[ name ] ? true : String( opts[ name ] ) ];
 	} );
 	return {
-		label: void 0 === slot.label ? null : slot.label,
+		header: void 0 === slot.header ? null : slot.header,
 		type: void 0 === slot.type ? null : slot.type,
 		chain: canonChain( slot.chain || [] ),
 		read: read,

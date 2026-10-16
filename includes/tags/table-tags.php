@@ -138,14 +138,23 @@ function bws_get_table_options(): array {
  *
  * Folded keys only: {{table}} has no flat era, and bws_fold_slot_struct()'s flat
  * recovery would read the TAG-level `src` as column A's. A column the seam skips
- * (no read, an unfinished step) or whose wire does not parse is left out, header and all.
+ * (no read, an unfinished step) is still a column when it carries a header: its `opts` are
+ * null and every cell down it is empty, so a header-only column (a spacer, an annotation) is
+ * valid and the header row keeps the body's cell count. Wire that does not parse is left out.
+ * A blank header (whitespace only) is no header.
+ *
+ * A skipped column never feeds the carry, whatever its chain says, as in {{join}}: a read-less
+ * `A:header(X);src(refs,office)` renders empty cells, and a hand-written `B:src(same)` after it
+ * carries the row, not the office. The editor seeds a new column with a pending keyed read, so
+ * only the read menu's "Select…" row or hand-written wire reaches this.
  *
  * The carry is seeded with the PARENT: an empty column chain is the row, so a
  * hand-written `src(same)` on column A carries that rather than skipping.
  *
  * @since Unreleased
  * @param array $options Tag options.
- * @return array[] `{ header, opts }` per column; `opts` is bws_fold_slot_chain_options()'s.
+ * @return array[] `{ header, opts }` per column; `opts` is bws_fold_slot_chain_options()'s,
+ *                 or null for a header-only column.
  */
 function bws_table_columns( array $options ): array {
 	$carry   = bws_fold_empty_carry( bws_use_stripped_default( 'text' ), true );
@@ -155,13 +164,16 @@ function bws_table_columns( array $options ): array {
 			continue;
 		}
 		$slot = bws_fold_slot_struct( $n, $options, 'table' );
-		$opts = null === $slot ? null : bws_fold_slot_chain_options( $slot, $carry, true );
-		if ( null === $opts ) {
+		if ( null === $slot ) {
+			continue;
+		}
+		$header = trim( (string) ( $slot['header'] ?? '' ) );
+		$opts   = bws_fold_slot_chain_options( $slot, $carry, true );
+		if ( null === $opts && '' === $header ) {
 			continue;
 		}
 		$columns[] = array(
-			// The slot's `label` token is the header cell.
-			'header' => (string) ( $slot['label'] ?? '' ),
+			'header' => $header,
 			'opts'   => $opts,
 		);
 	}
@@ -175,12 +187,15 @@ function bws_table_columns( array $options ): array {
  * Asked once per column, not per row — only an `inherit`/empty root depends on the row.
  *
  * @since Unreleased
- * @param array  $opts        The column's resolved slot options.
+ * @param array|null $opts    The column's resolved slot options; null (a header-only column) starts nowhere.
  * @param string $explicit_id The editor-injected post id ('' on the front end; I11).
  * @param object $instance    GB tag instance.
- * @return array|false|null
+ * @return array|false|null False for a refused root or a header-only column.
  */
-function bws_table_column_start( array $opts, string $explicit_id, $instance ) {
+function bws_table_column_start( ?array $opts, string $explicit_id, $instance ) {
+	if ( null === $opts ) {
+		return false;
+	}
 	$root = bws_fold_src_root_token( $opts );
 	if ( '' === $root || BWS_FOLD_INHERIT_ROOT === $root ) {
 		return null;
@@ -206,12 +221,12 @@ function bws_table_column_start( array $opts, string $explicit_id, $instance ) {
  * @since 1.17.0
  * @since Unreleased A column is a folded slot; keyed and fixed reads.
  * @param array  $row_source One resolved row source.
- * @param array  $col        `{ opts, start, steps }`.
+ * @param array  $col        `{ opts, start, steps }`; null `opts` is a header-only column.
  * @param object $instance   GB instance.
  * @return string Cell value (may be '').
  */
 function bws_table_read_cell( array $row_source, array $col, $instance ): string {
-	if ( false === $col['start'] ) {
+	if ( null === $col['opts'] || false === $col['start'] ) {
 		return '';
 	}
 	$opts    = $col['opts'];
@@ -314,9 +329,9 @@ function bws_table_callback( $options, $block, $instance ): string {
 	$explicit_id = (string) ( $options['id'] ?? '' );
 	$headers     = array();
 	foreach ( $columns as $i => $col ) {
-		$headers[]              = $col['header'];
+		$headers[] = $col['header'];
 		$columns[ $i ]['start'] = bws_table_column_start( $col['opts'], $explicit_id, $instance );
-		$columns[ $i ]['steps'] = bws_field_values_assemble_steps( $col['opts'] );
+		$columns[ $i ]['steps'] = bws_field_values_assemble_steps( $col['opts'] ?? array() );
 	}
 
 	// Accessible caption + a request-unique id for aria-labelledby (W3C responsive

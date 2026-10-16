@@ -84,6 +84,10 @@ function bws_serialization_order_groups(): array {
 function bws_serialization_order_key_map(): array {
 	return array(
 		// --- format group (leads; global, not per-slot) ---
+		// A table column's `header(…)` token. It lives INSIDE a slot's value and
+		// bws_fold_emit_slot() writes it first by construction, so this entry only keeps the
+		// canonical map and its JS twin saying what the emitter does: it leads everything.
+		'header'          => array( 'format', -1 ),
 		'as'              => array( 'format', 0 ),
 		'size'            => array( 'format', 1 ), // GB-reserved today; harmless to rank (never in extraTagParams until the as+size fold).
 		// join tag-level assembly keys (share the format group): mode → valueSep →

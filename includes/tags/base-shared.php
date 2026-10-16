@@ -851,6 +851,12 @@ function bws_build_fold_slot_options( array $args ): array {
 	// own ("Starting from Current Context"): table's lead is its tag source.
 	if ( 'table' === $container ) {
 		$fold['stepGroup'] = __( 'Starting from Tag Source', 'generateblocks' );
+		// The `header` token is shared grammar, but a <th> means nothing in a {{join}} or
+		// try_ slot, so only a table slot is offered the control.
+		$fold['headerOption'] = array(
+			'label' => __( 'Header', 'generateblocks' ),
+			'help'  => __( 'Text for the heading cell of this column. The heading row appears when any column has one.', 'generateblocks' ),
+		);
 	}
 
 	// OMITTED, not empty, when there's no per-slot key: JS `[]` is TRUTHY and renders an

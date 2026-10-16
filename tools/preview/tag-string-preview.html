@@ -359,13 +359,12 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 const PRESETS = {
   src:             ['src','source','via','from'],
   ref:             ['ref','rel'],
-  // `label` is the SHIPPED spelling of this reserved freeform slug (BWS_FOLD_FREEFORM), and the older
-  // table groups keep it. The provisional `header` rename is its own id below, rendered only by the
-  // 'table v1' group, so the two spellings sit side by side until the rename locks.
+  // `label` is the RETIRED spelling of the column-header slug: the shipped token is `header` (id below,
+  // BWS_FOLD_FREEFORM). Nothing renders this id any more; it stays only so old respell candidates resolve.
   label:           ['label','head','col'],
   caption:         ['caption'],
-  // {{table}} v1 naming pass (FW-53 ticket 00) — UNSHIPPED, provisional spellings first. Rendered
-  // only by the 'table v1' group; respell them in the sidebar to judge a candidate on real wire.
+  // {{table}} v1 naming pass (FW-53 ticket 00). `header` is the shipped column-header token (ticket 04);
+  // `align` and the rest are still unshipped. Respell them in the sidebar to judge a candidate on real wire.
   header:          ['header','label','head','th'],
   align:           ['textAlign','align','justify'],   // `textAlign` decided 2026-10-14 (plan Settled #61); the id stays `align`
   // {{table}} v1 presentation, target-list shape (user 2026-10-05, leaning). `layout` is a valued key
@@ -906,10 +905,8 @@ const SCENARIO_GROUPS = [
   // "valid" row kinds — ANY resolved kind is a row (D2a): term, site, single post, or repeater,
   // all alike. Each column is a folded slot exactly like a join/try_ slot (letter-ordinal key,
   // its own chain+read folded into one value) — Option R's per-slot type token applies the same
-  // way. The column HEADER text currently folds in under the shipped freeform token `label`
-  // (BWS_FOLD_FREEFORM); table-tag.md §GRILLED Q3 provisionally proposes renaming that token to
-  // `header` for table specifically, not yet in code — this page keeps `label` as the live
-  // default rather than pre-empting an unlocked rename (see PRESETS.label below).
+  // way. The column HEADER text folds in under the shipped freeform token `header`
+  // (BWS_FOLD_FREEFORM; renamed from `label` in table-tag ticket 04).
   { title:'table — folded, unreleased (REOPENED 2026-08-30)', isContrast:true,
     variants:['foldedCurrent','folded'], foldClass:'table', scenarios:[
     {label:'Staff rows: name→link + office',
@@ -2112,8 +2109,7 @@ function unbalancedBrackets(v, open, close) {
 const SLOT_SCHEMAS = {
   'bracket-kv': { optSep: ';', kvChar: '', wrap: 'bracket-val', readBr: false, stepSep: ';' },
 };
-// `labelName` = the option id the column-header text rides: 'label' (the reserved shipped token)
-// unless the {{table}} v1 group passes 'header'.
+// `labelName` = the option id the column-header text rides; 'header', the shipped token, unless a caller says otherwise.
 function serializeSlot(typeTag, chain, read, link, dtKeys, label, forceSrc, fallback, ifCond, labelName, align, colWidth, colFill) {
   const entries = respellEntries(chain, read, link, dtKeys, typeTag, fallback, ifCond, align, colWidth, colFill);
   // Slot-1 forced src (user 2026-07-29): when the always-serialize-src toggle is on AND this slot
@@ -2170,7 +2166,7 @@ function serializeSlot(typeTag, chain, read, link, dtKeys, label, forceSrc, fall
   // folds in right after it. The earlier label-first order (2026-07-29 draft, 2026-10-05 leaning,
   // `2:label[Date];datetime_single;key[due]`) was set before the type token was in view, and a v1
   // table column carries no type token, so there the label is still first. label is free-form → schema-wrapped.
-  let labelTok = (label!==undefined && label!=='') ? emit({name:labelName||'label', val:label}) : '';
+  let labelTok = (label!==undefined && label!=='') ? emit({name:labelName||'header', val:label}) : '';
   // UNBALANCED-bracket flag: a lone `]`/`)` in a free-form value defeats even a balance-aware
   // sub-parser → mark it in the preview so the hazard is visible (⚠ is preview-only, not wire).
   if (labelTok && unbalancedBrackets(label, SO, SC)) labelTok += '⚠';
@@ -2817,7 +2813,7 @@ function buildFoldedTag(group, sc) {
       // label FOLDS into the slot value as the first token (user 2026-07-29), NOT a sibling.
       let c = resolveSlot(col);
       if (group.tableV1) c = { ...c, chain: tableColumnChain(c.chain) };
-      slotParts.push(`${foldedSlotKey(ci)}${slotValueFor(c, c.tag||'', col.label||'', false, group.tableV1 ? 'header' : 'label')}`);
+      slotParts.push(`${foldedSlotKey(ci)}${slotValueFor(c, c.tag||'', col.label||'', false, 'header')}`);
     });
   } else {
     // Declared tag-level options (join's format/valueSep) first — format group leads the canonical
