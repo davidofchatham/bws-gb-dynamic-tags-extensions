@@ -1,26 +1,17 @@
 <?php
 /**
- * {{table}} — structured-output tag: build an HTML table from a repeater field.
+ * {{table}} — structured-output tag: build an HTML table from a source chain.
  *
  * A composing tag over the traversal fold (traversal-pipeline.php). The tag-level
- * source + traversal resolve a base entity; the `key` option names the repeater
- * field, and a `rows` fold step steps that entity's repeater to a meta_row[] (one
- * row per repeater entry); each configured column reads a sub-field off every row.
- *
- * `key` NAMES THE FIELD (house nomenclature — the primary field target, parallel to
- * every other tag's `key`); the internal fold step it drives stays named `rows`
- * (the datum it produces). The `key`→`rows`-step mapping is TABLE-ONLY, owned here:
- * no other tag turns a bare `key` into a rows step. Output is an atomic <table>
- * string in a
- * text-as-div host (the {{content}} precedent) — NOT a scalar; it must not be
- * inserted into a <p>/<span> (the tag modal description warns of this).
+ * source chain's tail IS the row set: one row per resolved source, whatever its kind
+ * (the chain's own `limit(N)` is the cap); each configured column reads a sub-field
+ * off every row. Output is an atomic <table> string in a text-as-div host (the
+ * {{content}} precedent) — NOT a scalar; it must not be inserted into a <p>/<span>
+ * (the tag modal description warns of this).
  *
  * v1 SCOPE (grill 2026-07-24, handoff §11):
- *   - Full source support (current/ref/site) — the base entity that OWNS the
- *     repeater; the `rows` step reads it via ACF get_field (not have_rows,
- *     whose stateful cursor breaks the pure fold).
- *   - Columns are numbered-prefix (ALL columns `{N}-` from N=1; bare keys reserved
- *     for the tag-level repeater source — option i, join/try_ retrofit deferred).
+ *   - Full source support: the tag-level chain is the row set, any root, any steps.
+ *   - Columns are numbered-prefix (ALL columns `{N}-` from N=1).
  *   - Per column: `use` (key = scalar sub-field read off the row; title = a
  *     relationship sub-field hopped ref→post, limit-1, title read).
  *   - `label` per column = the header cell (frontend header; label-mode question
@@ -408,15 +399,35 @@ const BWS_TABLE_INLINE_CSS = '[role="region"][aria-labelledby][tabindex]{overflo
 	. '[role="region"][aria-labelledby][tabindex]:focus{outline:.1em solid rgba(0,0,0,.35)}';
 
 /**
+ * The wire kinds {{table}} serves as rows: every kind the wire vocabulary can name.
+ *
+ * DERIVED, never hand-listed — a row may be any resolved kind, so a kind that joins the
+ * vocabulary is servable the day it joins. A literal list would start refusing it.
+ *
+ * @since Unreleased
+ * @return string[] Root kinds and step-produced kinds off bws_fold_wire_vocabulary().
+ */
+function bws_table_serves(): array {
+	$vocab = bws_fold_wire_vocabulary();
+	$kinds = array_values( (array) ( $vocab['roots'] ?? array() ) );
+	foreach ( (array) ( $vocab['steps'] ?? array() ) as $step ) {
+		if ( isset( $step['produces'] ) ) {
+			$kinds[] = $step['produces'];
+		}
+	}
+	return array_values( array_unique( $kinds ) );
+}
+
+/**
  * Callback for the {{table}} tag.
  *
- * 1. Resolve the base source (ambient/explicit) that OWNS the repeater.
- * 2. Run the tag-level ref steps then the `rows` step → meta_row[].
+ * 1. Resolve the base source (ambient/explicit) the chain starts from.
+ * 2. Run the whole compiled chain → the rows (one per resolved source, any kind).
  * 3. For each row, read every configured column → a cell matrix.
  * 4. Assemble the <table> string, wrapped in the W3C responsive scroll region
  *    (+ <caption> when set), in the text-as-div host.
  *
- * Empty repeater or no columns → '' (the fold short-circuits; nothing to build).
+ * Refused root, no rows or no columns → '' (nothing to build).
  * The `id` from the editor is threaded into the base source by the factory
  * (composing-tag id threading, CONTEXT.md I11) so the editor preview resolves.
  *
@@ -432,31 +443,21 @@ function bws_table_callback( $options, $block, $instance ): string {
 		return '';
 	}
 
-	// Tag-level `key` NAMES the repeater field (house nomenclature); it drives the
-	// table-only `rows` fold step below. No other tag maps a bare `key` to a rows
-	// step — the mapping is owned here.
-	$rows_field = trim( (string) ( $options['key'] ?? '' ) );
-	if ( '' === $rows_field ) {
-		return '';
-	}
-
 	if ( ! function_exists( 'bws_base_resolve_source_for_callback' ) || ! function_exists( 'bws_run_traversal' ) ) {
 		return '';
 	}
 
-	// L1 — resolve the base entity that owns the repeater. Apply the tag-level ref
-	// steps (src:ref) FIRST so the repeater is read off the ref target, then step the
-	// `rows` step. A post→term step is intentionally NOT applied here in v1 (a
-	// repeater on a term is read directly from the term base); it belongs to a later
-	// pass with the term-source column story, authored as a step inside `src` once
-	// {{table}} takes a chain source (FW-53). The flat carrier that used to spell it
-	// is not registered.
+	// The rows ARE the chain's tail: whatever the whole compiled chain resolves to, one
+	// row each. An empty chain is the current context, a one-row table.
 	$base = bws_base_resolve_source_for_callback( $options, $instance );
+	$res  = bws_base_src_resolution( $options );
 
-	$ref_steps = function_exists( 'bws_wrapper_ref_steps' ) ? bws_wrapper_ref_steps( $options ) : array();
-	$steps     = array_merge( $ref_steps, array( array( 'type' => 'rows', 'field' => $rows_field ) ) );
+	// A root this render cannot use produces no table, not an empty one.
+	if ( bws_base_read_refused( $res, $base, bws_table_serves() ) ) {
+		return '';
+	}
 
-	$row_sources = bws_run_traversal( array( $base ), $steps );
+	$row_sources = bws_run_traversal( array( $base ), bws_field_values_assemble_steps( $options ) );
 	if ( empty( $row_sources ) ) {
 		return '';
 	}
@@ -476,7 +477,7 @@ function bws_table_callback( $options, $block, $instance ): string {
 
 	$matrix = array();
 	foreach ( $row_sources as $row_source ) {
-		if ( ! is_array( $row_source ) || 'meta_row' !== ( $row_source['kind'] ?? '' ) ) {
+		if ( ! is_array( $row_source ) ) {
 			continue;
 		}
 		$cells = array();

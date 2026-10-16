@@ -1242,10 +1242,10 @@ function bws_fixture_page_content_matrix_post_meta() {
 	// (W3C data-table a11y): <caption id> + <div.bws-table-wrap role=region
 	// tabindex=0 aria-labelledby=that-id>.
 	$sections[] = bws_fixture_gb_section( 'Table TB - repeater to table', array(
-		bws_fixture_gb_block_host_row( 'TB1 (3 scalar cols + headers -> 2-row table: Alice/Engineering/Founding partner, Bob/Operations/Support lead)', '{{table key:team_members|1-label:Name|1-key:name|2-label:Role|2-key:role|3-label:Note|3-key:description}}' ),
-		bws_fixture_gb_block_host_row( 'TB2 (no labels -> header-less table, no thead row)', '{{table key:team_members|1-key:name|2-key:role}}' ),
-		bws_fixture_gb_block_host_row( 'TB3 (use:title ref-hop col -> row1 Lead = Jane Partner, row2 blank lead_ref = empty cell)', '{{table key:team_members|1-label:Name|1-key:name|2-label:Lead|2-use:title|2-key:lead_ref}}' ),
-		bws_fixture_gb_block_host_row( 'TB4 (caption "Our Team" -> <caption id> + wrapper aria-labelledby that id, role=region tabindex=0)', '{{table key:team_members|caption:Our Team|1-label:Name|1-key:name|2-label:Role|2-key:role}}' ),
+		bws_fixture_gb_block_host_row( 'TB1 (3 scalar cols + headers -> 2-row table: Alice/Engineering/Founding partner, Bob/Operations/Support lead)', '{{table src:rows,team_members|1-label:Name|1-key:name|2-label:Role|2-key:role|3-label:Note|3-key:description}}' ),
+		bws_fixture_gb_block_host_row( 'TB2 (no labels -> header-less table, no thead row)', '{{table src:rows,team_members|1-key:name|2-key:role}}' ),
+		bws_fixture_gb_block_host_row( 'TB3 (use:title ref-hop col -> row1 Lead = Jane Partner, row2 blank lead_ref = empty cell)', '{{table src:rows,team_members|1-label:Name|1-key:name|2-label:Lead|2-use:title|2-key:lead_ref}}' ),
+		bws_fixture_gb_block_host_row( 'TB4 (caption "Our Team" -> <caption id> + wrapper aria-labelledby that id, role=region tabindex=0)', '{{table src:rows,team_members|caption:Our Team|1-label:Name|1-key:name|2-label:Role|2-key:role}}' ),
 	) );
 
 	// Term context on a SINGULAR page, in base spellings (FW-129, 1.21.0). This group was
@@ -2081,7 +2081,7 @@ function bws_fixture_page_content_matrix_pinned_roots() {
 		// that ASSEMBLES a row into cells - the base/join/try_ arms read one key per row
 		// (F9.5/F10.4) rather than tabulating. The pinned page is matrix-post-meta, which
 		// OWNS the repeater; this page does not.
-		bws_fixture_gb_block_host_row( "F22.6 a `rows` step off a pinned POST root: the team_members repeater read off matrix-post-meta, from this page (-> 2-row table: Alice Adams/Engineering, Bob Brown/Operations)", "{{table src:post,{$meta_id}|key:team_members|1-label:Name|1-key:name|2-label:Role|2-key:role}}" ),
+		bws_fixture_gb_block_host_row( "F22.6 a `rows` step off a pinned POST root: the team_members repeater read off matrix-post-meta, from this page (-> 2-row table: Alice Adams/Engineering, Bob Brown/Operations)", "{{table src:post,{$meta_id};rows,team_members|1-label:Name|1-key:name|2-label:Role|2-key:role}}" ),
 	) );
 
 	return implode( "\n\n", $sections );
