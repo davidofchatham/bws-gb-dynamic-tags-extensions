@@ -24,7 +24,6 @@ All notable changes to this project are documented in this file. The format is b
 ### Fixed
 
 - Typing `:false` after an on/off option in a tag string now turns it off. Before, `showMidnight:false`, `showCurrentYear:false`, `newTab:false` and `noLink:false` all turned the option on, the opposite of what they say. `:0` turns an option off too. Tags built in the editor never wrote these spellings and are unaffected. (#92)
-- The Fallback Image picker's text on `{{image}}` and `{{try_image}}` is now marked for translation, like the rest of the editor's text. Its buttons ("Select Image", "Change", "Remove") and the media library's title and Select button had been left out. The editor's text does not appear translated yet: the plugin does not load translations for its editor scripts.
 
 ## [1.21.1] — 2026-10-12
 
