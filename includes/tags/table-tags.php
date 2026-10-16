@@ -200,11 +200,14 @@ function bws_get_table_style_options(): array {
  *
  * @since Unreleased
  * @param array $options Tag options.
- * @return array[] `{ header, opts, style }` per column; `opts` is bws_fold_slot_chain_options()'s,
+ * @param array $dropped Out: `{ n, skip }` per column dropped for a skip with no header, so the
+ *                       editor skeleton can still warn about it.
+ * @return array[] `{ header, opts, style, n, skip }` per column; `opts` is bws_fold_slot_chain_options()'s,
  *                 or null for a header-only column; `style` is bws_table_column_style_read() of the
- *                 column's width and text tokens (a token whose brackets are unbalanced is absent).
+ *                 column's width and text tokens (a token whose brackets are unbalanced is absent);
+ *                 `n` the slot ordinal and `skip` the seam's skip reason, for the editor skeleton.
  */
-function bws_table_columns( array $options ): array {
+function bws_table_columns( array $options, array &$dropped = array() ): array {
 	$carry   = bws_fold_empty_carry( bws_use_stripped_default( 'text' ), true );
 	$columns = array();
 	for ( $n = 1; $n <= BWS_TABLE_MAX_COLS; $n++ ) {
@@ -216,14 +219,18 @@ function bws_table_columns( array $options ): array {
 			continue;
 		}
 		$header = trim( (string) ( $slot['header'] ?? '' ) );
-		$opts   = bws_fold_slot_chain_options( $slot, $carry, true );
+		$skip   = '';
+		$opts   = bws_fold_slot_chain_options( $slot, $carry, true, $skip );
 		if ( null === $opts && '' === $header ) {
+			$dropped[] = array( 'n' => $n, 'skip' => $skip );
 			continue;
 		}
 		$columns[] = array(
 			'header' => $header,
 			'opts'   => $opts,
 			'style'  => bws_table_column_style_read( $slot['opts'] ),
+			'n'      => $n,
+			'skip'   => $skip,
 		);
 	}
 	return $columns;
@@ -398,53 +405,22 @@ function bws_table_stripe_defaults(): array {
 }
 
 /**
- * Callback for the {{table}} tag.
+ * The <table> HTML for headers + a cell matrix, with its presentation: '' when there is nothing
+ * to build.
  *
- * 1. Resolve the base source (ambient/explicit) the chain starts from.
- * 2. Run the whole compiled chain → the rows (one per resolved source, any kind).
- * 3. For each row, read every configured column → a cell matrix.
- * 4. Assemble the <table> string, wrapped in the W3C responsive scroll region
- *    (+ <caption> when set), in the text-as-div host.
+ * One rule builder serves the front end, the editor's real table and its skeleton; the scope
+ * class is hashed off the built rules, so an unstyled table has none and identical tables share
+ * one.
  *
- * Refused root, no rows or no columns → '' (nothing to build).
- * The `id` from the editor is threaded into the base source by the factory
- * (composing-tag id threading, CONTEXT.md I11) so the editor preview resolves.
- *
- * @since 1.17.0
- * @param array  $options  Tag options.
- * @param object $block    GB block (unused; signature parity).
- * @param object $instance GB tag instance.
+ * @since Unreleased
+ * @param array   $options     Tag options.
+ * @param array[] $columns     bws_table_columns() records (`header`, `style`).
+ * @param array[] $matrix      Row-major cell strings.
+ * @param bool    $allow_empty Build a table with an empty body for no rows (editor only).
  * @return string
  */
-function bws_table_callback( $options, $block, $instance ): string {
-	$options = (array) $options;
-	$columns = bws_table_columns( $options );
-	if ( empty( $columns ) ) {
-		return '';
-	}
-
-	// The rows ARE the chain's tail: whatever the whole compiled chain resolves to, one
-	// row each. An empty chain is the current context, a one-row table.
-	$base = bws_base_resolve_source_for_callback( $options, $instance );
-	$res  = bws_base_src_resolution( $options );
-
-	// A root this render cannot use produces no table, not an empty one.
-	if ( bws_base_read_refused( $res, $base, bws_table_serves() ) ) {
-		return '';
-	}
-
-	$row_sources = bws_run_traversal( array( $base ), bws_field_values_assemble_steps( $options ) );
-	if ( empty( $row_sources ) ) {
-		return '';
-	}
-
-	$explicit_id = (string) ( $options['id'] ?? '' );
-	$headers     = array();
-	foreach ( $columns as $i => $col ) {
-		$headers[] = $col['header'];
-		$columns[ $i ]['start'] = bws_table_column_start( $col['opts'], $explicit_id, $instance );
-		$columns[ $i ]['steps'] = bws_field_values_assemble_steps( $col['opts'] ?? array() );
-	}
+function bws_table_html( array $options, array $columns, array $matrix, bool $allow_empty = false ): string {
+	$headers = array_column( $columns, 'header' );
 
 	// Accessible caption + a request-unique id for aria-labelledby (W3C responsive
 	// data-table pattern). wp_unique_id is a deterministic per-request counter — no
@@ -454,20 +430,6 @@ function bws_table_callback( $options, $block, $instance ): string {
 		? wp_unique_id( 'bws-table-caption-' )
 		: '';
 
-	$matrix = array();
-	foreach ( $row_sources as $row_source ) {
-		if ( ! is_array( $row_source ) ) {
-			continue;
-		}
-		$cells = array();
-		foreach ( $columns as $col ) {
-			$cells[] = bws_table_read_cell( $row_source, $col, $instance );
-		}
-		$matrix[] = $cells;
-	}
-
-	// Presentation. One rule builder serves the front end and the editor; the scope class is
-	// hashed off the built rules, so an unstyled table has none and identical tables share one.
 	$rules = bws_table_rules(
 		bws_table_style_read( $options ),
 		array_column( $columns, 'style' ),
@@ -476,7 +438,7 @@ function bws_table_callback( $options, $block, $instance ): string {
 	);
 	$scope = bws_table_style_class( $rules );
 
-	$html = bws_table_assemble( $headers, $matrix, $caption, $caption_id, $scope );
+	$html = bws_table_assemble( $headers, $matrix, $caption, $caption_id, $scope, $allow_empty );
 	if ( '' === $html ) {
 		return '';
 	}
@@ -498,11 +460,145 @@ function bws_table_callback( $options, $block, $instance ): string {
 			bws_queue_inline_css( $scope, $css );
 		}
 	}
+	return $html;
+}
 
-	// text-as-div host: hand the atomic <table> to the GB output boundary so
-	// link/attr handling stays consistent, but the value is already fully-formed
-	// HTML. The class_exists guard stays: it is what keeps a GB-less install
-	// returning the bare markup rather than fatalling.
+/** Body rows in the editor skeleton. */
+const BWS_TABLE_SKELETON_ROWS = 3;
+
+/**
+ * The editor's placeholder for a table that cannot render here: the real table's shape, each
+ * cell holding its column's configuration, never invented data.
+ *
+ * EDITOR ONLY. On a published page an unusable table renders nothing; a skeleton there would
+ * show visitors made-up content.
+ *
+ * Headers follow the real table's `<thead>` gate and the styling is the real table's rules, so
+ * only the content is a stand-in. Two marks say so, because either alone misleads: the dashed
+ * outline + accessible name (the marker does not say why) and cell text that reads as
+ * configuration (that alone reads as data). The note line says why.
+ *
+ * @since Unreleased
+ * @param array   $options Tag options.
+ * @param array[] $columns bws_table_columns() records; empty when none is configured.
+ * @param array[] $dropped bws_table_columns()' dropped columns, warned about but not shown.
+ * @return string
+ */
+function bws_table_skeleton( array $options, array $columns, array $dropped = array() ): string {
+	if ( empty( $columns ) ) {
+		$label        = 'Placeholder: no table columns set';
+		$tag_warnings = array( 'no columns set' );
+		$columns      = array( array( 'header' => '', 'style' => array(), 'text' => 'No columns' ) );
+	} else {
+		$label          = 'Placeholder: table source not available in the editor';
+		$inert          = array();
+		bws_try_preview_source_part( (string) ( $options['src'] ?? '' ), true, $inert );
+		$source_warning = bws_preview_inert_warning( $inert );
+		$tag_warnings   = array( '' !== $source_warning ? $source_warning : 'source not available in the editor' );
+	}
+
+	$slot_warnings = array();
+	foreach ( $dropped as $col ) {
+		$summary = bws_preview_slot_summary( null, $col['skip'] );
+		if ( null !== $summary ) {
+			$slot_warnings[] = array( 'n' => $col['n'], 'detail' => $summary['warning'] );
+		}
+	}
+	$cells = array();
+	foreach ( $columns as $col ) {
+		$summary = isset( $col['n'] ) ? bws_preview_slot_summary( $col['opts'], $col['skip'] ) : null;
+		if ( null !== $summary && '' !== $summary['warning'] ) {
+			$slot_warnings[] = array( 'n' => $col['n'], 'detail' => $summary['warning'] );
+		}
+		$cells[] = $col['text'] ?? ( $summary['text'] ?? '' );
+	}
+
+	$html = bws_table_html( $options, $columns, array_fill( 0, BWS_TABLE_SKELETON_ROWS, $cells ) );
+	$note = '⚠ Table: ' . bws_slot_warnings_text( $slot_warnings, $tag_warnings );
+	return '<div role="group" aria-label="' . esc_attr( $label ) . '" style="border:1px dashed currentColor;padding:.5em">'
+		. '<p>' . esc_html( $note ) . '</p>'
+		. $html
+		. '</div>';
+}
+
+/**
+ * Callback for the {{table}} tag.
+ *
+ * 1. Resolve the base source (ambient/explicit) the chain starts from.
+ * 2. Run the whole compiled chain → the rows (one per resolved source, any kind).
+ * 3. For each row, read every configured column → a cell matrix.
+ * 4. Assemble the <table> string, wrapped in the W3C responsive scroll region
+ *    (+ <caption> when set), in the text-as-div host.
+ *
+ * Front end: refused root, no rows or no columns → '' (nothing to build).
+ * Editor preview (`bwsEditorPreview`): no rows → the real table with an empty body; refused
+ * root or no columns → bws_table_skeleton().
+ * The `id` from the editor is threaded into the base source by the factory
+ * (composing-tag id threading, CONTEXT.md I11) so the editor preview resolves.
+ *
+ * @since 1.17.0
+ * @since Unreleased The editor preview: the real table, or a skeleton.
+ * @param array  $options  Tag options.
+ * @param object $block    GB block (unused; signature parity).
+ * @param object $instance GB tag instance.
+ * @return string
+ */
+function bws_table_callback( $options, $block, $instance ): string {
+	$options    = (array) $options;
+	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
+	$dropped    = array();
+	$columns    = bws_table_columns( $options, $dropped );
+
+	// A root this render cannot use produces no table, not an empty one.
+	$base    = empty( $columns ) ? array() : bws_base_resolve_source_for_callback( $options, $instance );
+	$refused = empty( $columns ) || bws_base_read_refused( bws_base_src_resolution( $options ), $base, bws_table_serves() );
+	if ( $refused ) {
+		return $is_preview ? bws_table_output( bws_table_skeleton( $options, $columns, $dropped ), $options, $instance ) : '';
+	}
+
+	// The rows ARE the chain's tail: whatever the whole compiled chain resolves to, one
+	// row each. An empty chain is the current context, a one-row table.
+	$row_sources = bws_run_traversal( array( $base ), bws_field_values_assemble_steps( $options ) );
+	if ( empty( $row_sources ) && ! $is_preview ) {
+		return '';
+	}
+
+	$explicit_id = (string) ( $options['id'] ?? '' );
+	foreach ( $columns as $i => $col ) {
+		$columns[ $i ]['start'] = bws_table_column_start( $col['opts'], $explicit_id, $instance );
+		$columns[ $i ]['steps'] = bws_field_values_assemble_steps( $col['opts'] ?? array() );
+	}
+
+	$matrix = array();
+	foreach ( $row_sources as $row_source ) {
+		if ( ! is_array( $row_source ) ) {
+			continue;
+		}
+		$cells = array();
+		foreach ( $columns as $col ) {
+			$cells[] = bws_table_read_cell( $row_source, $col, $instance );
+		}
+		$matrix[] = $cells;
+	}
+
+	$html = bws_table_html( $options, $columns, $matrix, $is_preview );
+	return '' === $html ? '' : bws_table_output( $html, $options, $instance );
+}
+
+/**
+ * Hand finished table HTML to the text-as-div host.
+ *
+ * Through the GB output boundary so link/attr handling stays consistent, but the value is
+ * already fully-formed HTML. The class_exists guard stays: it is what keeps a GB-less install
+ * returning the bare markup rather than fatalling.
+ *
+ * @since Unreleased
+ * @param string $html     Table HTML.
+ * @param array  $options  Tag options.
+ * @param object $instance GB tag instance.
+ * @return string
+ */
+function bws_table_output( string $html, array $options, $instance ): string {
 	return class_exists( 'GenerateBlocks_Dynamic_Tag_Callbacks' )
 		? bws_gb_tag_output( $html, $options, $instance )
 		: $html;

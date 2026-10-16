@@ -1383,5 +1383,21 @@ check(
 	'[⚠ Try: A, B misconfigured]'
 );
 
+// ── bws_preview_slot_summary(): the ONE per-slot step join's bracket and table's skeleton
+// cells share. Driven through the seam with a table column's carry (row as parent), so the
+// second consumer's own seeding is what the pins see.
+function slot_summary( string $wire, bool $bare_fixed = false ): string {
+	$carry = bws_fold_empty_carry( bws_use_stripped_default( 'text' ), true );
+	$skip  = '';
+	$flat  = bws_fold_slot_chain_options( bws_fold_slot_struct( 1, [ 'A' => $wire ], 'table' ), $carry, true, $skip );
+	return json_encode( bws_preview_slot_summary( $flat, $skip, $bare_fixed ), JSON_UNESCAPED_UNICODE );
+}
+check( 'summary: keyed read', slot_summary( 'key(price)' ), '{"text":"\'price\'","warning":""}' );
+check( 'summary: fixed read is quoted', slot_summary( 'fixed(Team)' ), '{"text":"“Team”","warning":""}' );
+check( 'summary: bare fixed read', slot_summary( 'fixed(Team)', true ), '{"text":"Team","warning":""}' );
+check( 'summary: non-current source appended', slot_summary( 'src(refs,office);key(city)' ), '{"text":"\'city\' from Ref \'office\'","warning":""}' );
+check( 'summary: unfinished step warns, no text', slot_summary( 'src(refs);key(city)' ), '{"text":null,"warning":"no ref"}' );
+check( 'summary: inert source reports alone', slot_summary( 'src(bogus,x);key(city)' ), '{"text":"\'city\'","warning":"unknown source \'bogus\'"}' );
+
 echo "\n" . ( $failures ? "FAILED {$failures}/{$count}\n" : "PASSED {$count}/{$count}\n" );
 exit( $failures ? 1 : 0 );

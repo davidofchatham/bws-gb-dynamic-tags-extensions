@@ -2182,6 +2182,17 @@ function bws_fixture_page_content_matrix_table() {
 		bws_fixture_gb_block_host_row( 'TP14 column styling (-> Name 10rem and right-aligned, Role centered and red, Note bold in the header only)', "{{table {$src}|A:header(Name);key(name);width(10rem);textAlign(right)|B:header(Role);key(role);textAlign(center);color(#c00)|C:header(Note);key(description);fontWeight(header,bold)}}" ),
 	) );
 
+	// The editor preview's three states. Only TE1 renders on the front end; TE2-TE5 are
+	// read in the EDITOR, which is what their labels describe. Post 999999 is an id the
+	// fixture never seeds: the unresolvable source.
+	$sections[] = bws_fixture_gb_section( 'Table TE - editor preview: the real table, or a skeleton', array(
+		bws_fixture_gb_block_host_row( 'TE1 rows resolve (-> the real 2-row table, front end and editor alike: Alice Adams/Staff, Bob Brown/Staff)', "{{table {$src}|A:header(Name);key(name)|B:header(Team);fixed(Staff)}}" ),
+		bws_fixture_gb_block_host_row( 'TE2 the chain resolves to zero rows (-> front end nothing; editor the real table, header Name/Team and an empty body, no dashed outline)', "{{table src:post,{$meta_id};rows,no_such_repeater|A:header(Name);key(name)|B:header(Team);fixed(Staff)}}" ),
+		bws_fixture_gb_block_host_row( 'TE3 unresolvable source, styled (-> front end nothing; editor a dashed skeleton, note "Table: source not available in the editor", header Name/Team, 3 rows of \'name\' / "Staff" in blue-grey with row stripes)', "{{table src:post,999999;rows,team_members|color:#475569|stripe:rows|A:header(Name);key(name)|B:header(Team);fixed(Staff)}}" ),
+		bws_fixture_gb_block_host_row( 'TE4 unresolvable source, no headers (-> front end nothing; editor a dashed skeleton with NO header row, 3 rows of \'name\' / \'role\')', "{{table src:post,999999;rows,team_members|A:key(name)|B:key(role)}}" ),
+		bws_fixture_gb_block_host_row( 'TE5 no columns (-> front end nothing; editor a dashed skeleton, note "Table: no columns set", one column reading No columns)', "{{table {$src}}}" ),
+	) );
+
 	return implode( "\n\n", $sections );
 }
 

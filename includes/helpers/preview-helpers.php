@@ -175,6 +175,61 @@ function bws_slot_warnings_text( array $slot_warnings, array $tag_warnings = arr
 }
 
 /**
+ * One folded slot's preview summary, from what the render seam made of it.
+ *
+ * THE one per-slot step for every multislot container that previews its slots off
+ * bws_fold_slot_chain_options(): {{join}}'s bracket and {{table}}'s skeleton cells. The
+ * walk over slots stays each container's (they seed the carry differently); what a slot
+ * READS AS and what is wrong with it is stated here once.
+ *
+ * `text` is the field part, plus ` from <source>` when the slot binds to a non-current
+ * source (slots usually share the current entity, so no noise then).
+ *
+ * `warning` is at most one detail. A skip's reason speaks only when bws_fold_skip_warning()
+ * gives it words; an INERT source reports alone, because the slot reads nothing whatever its
+ * key says; otherwise a keyed read with no key, or a fixed read with no text.
+ *
+ * @since Unreleased
+ * @param array|null $flat       bws_fold_slot_chain_options()'s result; null = the seam skipped.
+ * @param string     $skip       The seam's skip reason.
+ * @param bool       $bare_fixed A fixed read shows its text unquoted (join's template mode,
+ *                               which already wraps the whole format in “…”).
+ * @return array|null `{ text: ?string, warning: string }`; `text` null for a skipped slot.
+ *                    Null for a slot that is silently skipped (unconfigured).
+ */
+if ( ! function_exists( 'bws_preview_slot_summary' ) ) {
+function bws_preview_slot_summary( ?array $flat, string $skip, bool $bare_fixed = false ): ?array {
+	if ( null === $flat ) {
+		$detail = bws_fold_skip_warning( $skip );
+		return '' === $detail ? null : array( 'text' => null, 'warning' => $detail );
+	}
+
+	$use   = $flat['use'];   // Already canonicalized by the seam ([I3]).
+	$key   = $flat['key'];
+	$fixed = $flat['fixed'] ?? '';
+	$text  = $bare_fixed && 'fixed' === $use
+		? esc_html( $fixed )
+		: bws_try_preview_field_part( 'text', $use, $key, '', $fixed );
+
+	$inert  = array();
+	$source = bws_try_preview_source_part( $flat['src'], true, $inert );
+	if ( '' !== $source && 'Current' !== $source ) {
+		$text .= ' from ' . $source;
+	}
+
+	$warning = bws_preview_inert_warning( $inert, true );
+	if ( '' === $warning ) {
+		if ( 'fixed' === $use ) {
+			$warning = '' === (string) $fixed ? 'fixed text not entered' : '';
+		} elseif ( 'title' !== $use && '' === $key ) {
+			$warning = 'no key';
+		}
+	}
+	return array( 'text' => $text, 'warning' => $warning );
+}
+}
+
+/**
  * Build a structured editor preview label for the {{join}} combining tag.
  *
  * join is the standalone COMBINING tag (see join-helpers.php): it absorbs up to
@@ -218,8 +273,7 @@ function bws_build_join_preview_label( array $options ): string {
 
 	// Walk slots 1..max through the render seam. A slot the seam skips (unconfigured,
 	// or a chain the flat read cannot express) contributes nothing here either.
-	$field_parts   = array();
-	$source_parts  = array();
+	$parts         = array();
 	$slot_warnings = array();
 	$tag_warnings  = array();
 	// Same seed as bws_join_callback: the slots read through the text leaf.
@@ -231,48 +285,17 @@ function bws_build_join_preview_label( array $options ): string {
 		}
 		$skip = '';
 		$flat = bws_fold_slot_chain_options( $slot, $carry, true, $skip );
-		if ( null === $flat ) {
-			// Which reasons speak is the WARNING owner's call, not this walk's — an
-			// unconfigured slot is silent, an inexpressible chain and an unfinished
-			// step are not. Testing the reason here would be that rule's second copy.
-			$detail = bws_fold_skip_warning( $skip );
-			if ( '' !== $detail ) {
-				$slot_warnings[] = array( 'n' => $n, 'detail' => $detail );
-			}
-			continue;
-		}
-
-		$eff_use = $flat['use'];   // Already canonicalized by the seam ([I3]).
-		$key     = $flat['key'];
-
-		$inert              = array();
-		$field_parts[ $n ]  = bws_try_preview_field_part( 'text', $eff_use, $key, '', $flat['fixed'] ?? '' );
 		// Template mode already wraps the whole format in “…”, so a fixed slot's own
 		// quotes would nest; its text reads as the literal it is.
-		if ( 'template' === $mode && 'fixed' === $eff_use ) {
-			$field_parts[ $n ] = esc_html( $flat['fixed'] ?? '' );
-		}
-		$source_parts[ $n ] = bws_try_preview_source_part( $flat['src'], true, $inert );
-
-		// An INERT source reports ALONE, exactly as a skipped slot's reason does: the slot
-		// will not read anything whatever its key says, so its field is not what the author
-		// should go and fix.
-		$inert_warning = bws_preview_inert_warning( $inert, true );
-		if ( '' !== $inert_warning ) {
-			$slot_warnings[] = array( 'n' => $n, 'detail' => $inert_warning );
+		$summary = bws_preview_slot_summary( $flat, $skip, 'template' === $mode );
+		if ( null === $summary ) {
 			continue;
 		}
-
-		// Per-slot warning: key-mode with no key. The `src:ref` with no ref key warning
-		// that stood beside it belongs to the seam now (`step:refs`), and always did in
-		// substance: an unfinished relationship step never reaches this point.
-		// The fixed read (FW-141) has no key to name; only its own text can be missing.
-		if ( 'fixed' === $eff_use ) {
-			if ( '' === (string) ( $flat['fixed'] ?? '' ) ) {
-				$slot_warnings[] = array( 'n' => $n, 'detail' => 'fixed text not entered' );
-			}
-		} elseif ( 'title' !== $eff_use && '' === $key ) {
-			$slot_warnings[] = array( 'n' => $n, 'detail' => 'no key' );
+		if ( '' !== $summary['warning'] ) {
+			$slot_warnings[] = array( 'n' => $n, 'detail' => $summary['warning'] );
+		}
+		if ( null !== $summary['text'] ) {
+			$parts[ $n ] = $summary['text'];
 		}
 	}
 
@@ -283,7 +306,7 @@ function bws_build_join_preview_label( array $options ): string {
 	}
 
 	// Nothing configured at all → no preview (GB shows its own placeholder).
-	if ( empty( $field_parts ) && empty( $slot_warnings ) && empty( $tag_warnings ) ) {
+	if ( empty( $parts ) && empty( $slot_warnings ) && empty( $tag_warnings ) ) {
 		return '';
 	}
 
@@ -294,18 +317,6 @@ function bws_build_join_preview_label( array $options ): string {
 			$inner .= ' (fallback: “' . $fallback . '”)';
 		}
 		return bws_wrap_preview_label_with_link( '[' . $inner . ']', $options );
-	}
-
-	// Assemble per-slot display parts, keyed by slot number. Sources appended
-	// per-slot only when a slot actually binds to a non-current source (join
-	// slots frequently share the current entity — no noise then).
-	$parts = array();
-	foreach ( $field_parts as $n => $fp ) {
-		$src_segment = $source_parts[ $n ];
-		if ( '' !== $src_segment && 'Current' !== $src_segment ) {
-			$fp .= ' from ' . $src_segment;
-		}
-		$parts[ $n ] = $fp;
 	}
 
 	if ( 'template' === $mode ) {

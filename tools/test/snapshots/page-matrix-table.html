@@ -120,6 +120,23 @@
 
 <div class="gb-text"><table class="bws-dte-table-80f2c7b33e"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
 </div>
+
+<div>
+<h2 class="wp-block-heading">Table TE &#8211; editor preview: the real table, or a skeleton</h2>
+
+<p class="gb-text">TE1 rows resolve (-> the real 2-row table, front end and editor alike: Alice Adams/Staff, Bob Brown/Staff):</p>
+
+<div class="gb-text"><table><thead><tr><th>Name</th><th>Team</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Staff</td></tr><tr><td>Bob Brown</td><td>Staff</td></tr></tbody></table></div>
+
+<p class="gb-text">TE2 the chain resolves to zero rows (-> front end nothing; editor the real table, header Name/Team and an empty body, no dashed outline):</p>
+
+<p class="gb-text">TE3 unresolvable source, styled (-> front end nothing; editor a dashed skeleton, note &#8220;Table: source not available in the editor&#8221;, header Name/Team, 3 rows of &#8216;name&#8217; / &#8220;Staff&#8221; in blue-grey with row stripes):</p>
+
+<p class="gb-text">TE4 unresolvable source, no headers (-> front end nothing; editor a dashed skeleton with NO header row, 3 rows of &#8216;name&#8217; / &#8216;role&#8217;):</p>
+
+<p class="gb-text">TE5 no columns (-> front end nothing; editor a dashed skeleton, note &#8220;Table: no columns set&#8221;, one column reading No columns):</p>
+
+</div>
 		</div>
 
 			</div>

@@ -89,6 +89,7 @@ require __DIR__ . '/../../includes/helpers/table-helpers.php';
 
 echo "Empty matrix\n";
 assert_eq( 'T1 no rows → empty string', '', bws_table_assemble( array( 'A' ), array(), 'Caption', 'c1' ) );
+assert_eq( 'T1 no rows, allowed empty → header and an empty body', '<table><thead><tr><th>A</th></tr></thead><tbody></tbody></table>', bws_table_assemble( array( 'A' ), array(), '', '', '', true ) );
 
 echo "\nNo-caption table = bare <table>, no wrapper, no classes\n";
 $out = bws_table_assemble( array(), array( array( 'x' ) ) );

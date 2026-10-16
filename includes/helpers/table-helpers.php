@@ -73,11 +73,13 @@ function bws_table_has_header( array $headers ): bool {
  * @param string   $caption    Caption text ('' = no caption).
  * @param string   $caption_id Unique id for the caption element / aria-labelledby.
  * @param string   $scope_class The styled table's scope class ('' = unstyled, no class).
+ * @param bool     $allow_empty Build a table with an empty body for no rows (the editor
+ *                              preview's zero-row state) instead of returning ''.
  * @return string <table> HTML (wrapped in the scroll region when captioned), or
- *                '' if no rows.
+ *                '' if no rows and not $allow_empty.
  */
-function bws_table_assemble( array $headers, array $matrix, string $caption = '', string $caption_id = '', string $scope_class = '' ): string {
-	if ( empty( $matrix ) ) {
+function bws_table_assemble( array $headers, array $matrix, string $caption = '', string $caption_id = '', string $scope_class = '', bool $allow_empty = false ): string {
+	if ( empty( $matrix ) && ! $allow_empty ) {
 		return '';
 	}
 
