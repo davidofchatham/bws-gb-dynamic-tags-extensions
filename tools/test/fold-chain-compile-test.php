@@ -822,6 +822,69 @@ assert_same(
 	bws_field_values_assemble_steps( array( 'src' => 'ref', 'ref' => 'related' ), true )
 );
 
+// ─────────────────────────────────────────────────────────────────────────────
+// §C9 — the `inherit` root
+//
+// `inherit` is the parent's RESOLVED source: a root the compiler hands back to the
+// container, exactly as it does `current`, so the steps after it run off whatever the
+// container supplies. These rows pin that it stays a root to the compiler.
+// ─────────────────────────────────────────────────────────────────────────────
+echo "\n§C9 — the `inherit` root\n";
+
+$inh_chain = static function ( string $wire ): array {
+	return bws_fold_parse_chain( $wire );
+};
+
+assert_same( 'src(inherit) round-trips as well-formed wire', 'inherit', bws_fold_emit_chain( $inh_chain( 'inherit' ), 0 ) );
+assert_same( 'src(inherit;refs,x) round-trips', 'inherit;refs,x', bws_fold_emit_chain( $inh_chain( 'inherit;refs,x' ), 0 ) );
+assert_same( 'a root-only inherit compiles to NO steps (the root is the container\'s)', array(), bws_fold_chain_to_steps( $inh_chain( 'inherit' ) ) );
+assert_same( 'inherit is read as a ROOT, with no argument', 'inherit', bws_fold_chain_root( $inh_chain( 'inherit;refs,x' ) ) );
+assert_same(
+	'the steps after an inherit root compile as the chain\'s own',
+	array( array( 'type' => 'refs', 'field' => 'x' ) ),
+	bws_fold_chain_to_steps( $inh_chain( 'inherit;refs,x' ) )
+);
+
+// bws_fold_chain_resolution(): the PARENT's kind is the container's to supply.
+$kind_of = static function ( string $wire, ?string $parent = null ): string {
+	$r = bws_fold_chain_resolution( bws_fold_parse_chain( $wire ), $parent );
+	return $r['kind'] . '/' . ( $r['fans'] ? 'fans' : 'one' ) . '/' . $r['root'];
+};
+assert_same( 'no parent named: inherit is render_time, like any root the factory resolves', 'render_time/one/inherit', $kind_of( 'inherit' ) );
+assert_same( 'root-only inherit answers the PARENT\'S kind: post', 'post/one/inherit', $kind_of( 'inherit', 'post' ) );
+assert_same( '...meta_row', 'meta_row/one/inherit', $kind_of( 'inherit', 'meta_row' ) );
+assert_same( '...and render_time when the parent itself is unknown until render', 'render_time/one/inherit', $kind_of( 'inherit', 'render_time' ) );
+assert_same( 'an EMPTY chain under a parent is the parent too (the stripped default)', 'meta_row/one/', $kind_of( '', 'meta_row' ) );
+assert_same( 'steps decide the kind whatever the parent is', 'post/fans/inherit', $kind_of( 'inherit;refs,x', 'term' ) );
+assert_same( 'a root that is NOT inherit never takes the parent\'s kind', 'site/one/site', $kind_of( 'site', 'post' ) );
+assert_same( '...nor does `current`', 'render_time/one/current', $kind_of( 'current', 'post' ) );
+
+// The root survives the carry-over trim: a root has no BWS_FOLD_STEP_KINDS entry, so the
+// trim loop stops on it (bws_fold_chain_join never trims a root).
+assert_same(
+	'inherit root survives a carry-over whose tail must give way',
+	$inh_chain( 'inherit;refs,x' ),
+	bws_fold_chain_join( $inh_chain( 'inherit;refs,x;terms,t' ), $inh_chain( 'terms,u' ) )
+);
+assert_same(
+	'a bare inherit root is kept whole when the next slot hops off it',
+	$inh_chain( 'inherit' ),
+	bws_fold_chain_join( $inh_chain( 'inherit' ), $inh_chain( 'refs,x' ) )
+);
+
+// The hop runs off the parent's resolved source, not off the ambient one.
+$parent_row = array( 'kind' => 'post', 'id' => 7 );
+assert_same(
+	'src(inherit;refs,a) runs its hop off the PARENT source',
+	array( $post( 71 ), $post( 72 ), $post( 73 ) ),
+	bws_run_traversal( array( $parent_row ), bws_field_values_assemble_steps( array( 'src' => 'inherit;refs,a' ) ), $reader )
+);
+assert_same(
+	'a lone inherit resolves to the parent source itself',
+	array( $parent_row ),
+	bws_run_traversal( array( $parent_row ), bws_field_values_assemble_steps( array( 'src' => 'inherit' ) ), $reader )
+);
+
 echo "\n";
 if ( $failures ) {
 	echo "FAILED: {$failures}/{$count}\n";

@@ -1212,6 +1212,71 @@ check( 'integration roots sit in the "Integrations" optgroup', groupOf( 'ext' ),
 check( 'Current Context and our own roots are ungrouped, labels untouched', [ 'current', 'post', 'term', 'site' ].map( groupOf ).filter( Boolean ).length + ':' + ORDER_ROWS.find( function ( r ) { return 'post' === r.value; } ).label, '0:Specific Post' );
 check( 'slot ≥2 menu: `same` and Current lead, Site last, no Integrations group without integrations', firstMenu( true ).join( ',' ), [ 'same', 'current' ].concat( ORDER_CONF.offer, [ 'site' ] ).join( ',' ) );
 
+// ── TABLE'S ROOT MENU AND DEFAULT ROOT ────────────────────────────
+//
+// A column hangs off its row, so its lead root is `inherit` ("Tag Source"), the steps that
+// start from it sit under "Starting from Tag Source", and a LONE `inherit` strips to an
+// empty chain at EVERY ordinal (join strips at slot 1 only — a slot >=2's `same` is written
+// on purpose). Everything table does differently is keyed on the container, so join's menu
+// above is the pin that it moved nothing.
+const TABLE_ROOTS = [
+	{ value: 'inherit', label: 'Tag Source' },
+	{ value: 'current', label: 'Current Context' },
+	{ value: 'refs', label: 'Posts in Reference/Relational Field' },
+	{ value: 'site', label: 'Site' },
+	{ value: 'post', label: 'Specific Post' },
+	{ value: 'ext', label: 'External Root', integration: true }
+];
+const TABLE_CONF = rep.foldConfig( { fold: Object.assign( {}, CHAIN_FOLD, {
+	container: 'table',
+	combining: true,
+	min: 1,
+	max: 10,
+	defaultRoot: 'inherit',
+	stepGroup: 'Starting from Tag Source',
+	srcRows: TABLE_ROOTS,
+	srcRowsWithSame: TABLE_ROOTS
+} ) } );
+const tableRows = rowsOf( selectsIn( rep.chainSteps( {
+	conf: TABLE_CONF,
+	chain: [ { slug: 'inherit', arg: null, limit: null } ],
+	onChange: function () {},
+	sameOnEmpty: rep.carriesOver( 3, TABLE_CONF ),
+	slotNoun: 'column',
+	stepContext: function () { return { state: {}, setState: function () {} }; }
+} ) )[ 0 ] );
+const tableGroup = function ( v ) { const r = tableRows.find( function ( x ) { return v === x.value; } ); return r && r.group; };
+check( 'table menu: Tag Source, steps, own roots, Site, integration roots', tableRows.map( function ( r ) { return r.value; } ).join( ',' ), [ 'inherit' ].concat( TABLE_CONF.offer, [ 'current', 'post', 'site', 'ext' ] ).join( ',' ) );
+check( 'table menu: the lead is labeled "Tag Source" and ungrouped', ( tableRows[ 0 ] || {} ).label + ':' + String( tableGroup( 'inherit' ) ), 'Tag Source:undefined' );
+check( 'table menu: steps sit under "Starting from Tag Source"', TABLE_CONF.offer.map( tableGroup ).join( ',' ), TABLE_CONF.offer.map( function () { return 'Starting from Tag Source'; } ).join( ',' ) );
+check( 'join menu keeps "Starting from Current Context" (no stepGroup override shipped)', ORDER_CONF.stepGroup, '' );
+
+check( 'carry-over: join slot 2 carries', rep.carriesOver( 2, COMBINING ), true );
+check( 'carry-over: join slot 1 does not', rep.carriesOver( 1, COMBINING ), false );
+check( 'carry-over: a table column NEVER does (copy-on-select, not `same`)', [ 1, 2, 5 ].map( function ( n ) { return rep.carriesOver( n, TABLE_CONF ); } ).join(), 'false,false,false' );
+
+const inhStep = function ( slug, arg, limit ) { return { slug: slug, arg: arg || null, limit: limit || null, extra: [] }; };
+const stripped = function ( chain, n, conf ) { return fold.emitChain ? fold.emitChain( rep.stripDefaultRoot( chain, n, conf ), 1 ) : JSON.stringify( rep.stripDefaultRoot( chain, n, conf ) ); };
+check( 'strip: a lone `inherit` goes at column 1', stripped( [ inhStep( 'inherit' ) ], 1, TABLE_CONF ), '' );
+check( 'strip: ...and at column 3 (every ordinal)', stripped( [ inhStep( 'inherit' ) ], 3, TABLE_CONF ), '' );
+check( 'strip: `inherit` with a step after it is a PATH root and is kept', stripped( [ inhStep( 'inherit' ), inhStep( 'refs', 'x' ) ], 3, TABLE_CONF ), 'inherit;refs,x' );
+check( 'strip: `current` is not the default, kept (written `src(current)`)', stripped( [ inhStep( 'current' ) ], 2, TABLE_CONF ), 'current' );
+check( 'strip: a limit on the lone root is a statement, kept', stripped( [ inhStep( 'inherit', null, '3' ) ], 2, TABLE_CONF ), 'inherit,limit[3]' );
+check( 'strip (join, unchanged): the default goes at slot 1', stripped( [ inhStep( 'current' ) ], 1, ORDER_CONF ), '' );
+check( 'strip (join, unchanged): a slot >=2 keeps its explicit root', stripped( [ inhStep( 'current' ) ], 2, ORDER_CONF ), 'current' );
+
+// A stored `src(same)` at position 1 compacts to the EMPTY chain — for table that is the row.
+check(
+	'table compaction: `src(same)` that lands at column 1 comes back as the empty chain',
+	show( rep.removeSlotFrom( 1, { 'A': 'key(a)', 'B': 'src(same);key(b)' }, 2, TABLE_CONF ), TABLE_CONF ),
+	'A:key(b)'
+);
+check(
+	'table compaction: a PATH root carried through `same` materializes whole',
+	show( rep.removeSlotFrom( 2, { 'A': 'key(a)', 'B': 'src(inherit;refs,x);key(b)', 'C': 'src(same);key(c)' }, 3, TABLE_CONF ), TABLE_CONF ),
+	'A:key(a) | B:src(inherit;refs,x);key(c)'
+);
+
 // ── STEPS OFF A PINNED ROOT (FW-39 ticket 04, D3) ────────────────────────────
 //
 // A pinned root is a REAL chain root, so the step offer off it is the engine's own

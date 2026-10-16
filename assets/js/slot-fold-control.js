@@ -130,6 +130,9 @@
 			offer: c.offer || [],
 			// Root token → parse-time resolved kind (only `site` has one).
 			roots: c.roots || {},
+			// The heading over the first-step steps, when a container's lead root is not
+			// the ambient entity (table: "Starting from Tag Source"). '' = rootMenu's own.
+			stepGroup: c.stepGroup || '',
 			// The per-step limit control's whole vocabulary — label, placeholder and
 			// BOTH help forms (#95). Container-invariant, because a step's `limit[N]`
 			// belongs to the wire's step grammar, and shipped for the same reason every
@@ -212,9 +215,10 @@
 	 * @param {Array}  roots       The surface's root rows (`integration` flags another plugin's).
 	 * @param {Array}  steps       The step rows offered at position 0.
 	 * @param {string} defaultRoot The root an absent source means.
+	 * @param {string} stepGroup   The steps' optgroup heading ('' = "Starting from Current Context").
 	 * @return {Array} Rows, ordered and de-duplicated.
 	 */
-	function rootMenu( roots, steps, defaultRoot ) {
+	function rootMenu( roots, steps, defaultRoot, stepGroup ) {
 		function isLead( r ) {
 			return 'same' === r.value || ( !! defaultRoot && defaultRoot === r.value );
 		}
@@ -223,7 +227,7 @@
 		}
 		var seen = {};
 		return roots.filter( isLead )
-			.concat( steps.map( inGroup( __( 'Starting from Current Context', 'generateblocks' ) ) ) )
+			.concat( steps.map( inGroup( stepGroup || __( 'Starting from Current Context', 'generateblocks' ) ) ) )
 			.concat( roots.filter( function ( r ) { return ! isLead( r ) && ! r.integration && 'site' !== r.value; } ) )
 			.concat( roots.filter( function ( r ) { return 'site' === r.value; } ) )
 			.concat( roots.filter( function ( r ) { return r.integration; } ).map( inGroup( __( 'Integrations', 'generateblocks' ) ) ) )
@@ -468,6 +472,35 @@
 		slot.chain = [ step( 'same' ) ];
 		slot.read = ( conf.combining || ! conf.perSlotUse ) ? null : { kind: 'same' };
 		return slot;
+	}
+
+	/**
+	 * Whether slot n's empty source means "the previous slot's" (`same`) rather than the
+	 * container's default root. A TABLE column never does: its columns hang off the row, and
+	 * "Copy Previous Column's Source" copies a chain instead of pointing at a sibling.
+	 */
+	function carriesOver( ordinal, conf ) {
+		return ordinal >= 2 && 'table' !== conf.container;
+	}
+
+	/**
+	 * Drop a lone root that only RESTATES what an absent chain already spells.
+	 *
+	 * Reachable now that the default root is displayed: picking another source and
+	 * picking `Current Context` back would otherwise serialize `src(current)` where the slot
+	 * previously held nothing, so merely LOOKING at a slot could change its wire.
+	 *
+	 * Where a slot carries over (carriesOver) only slot 1 strips: a slot >=2's `same` is
+	 * written on purpose — absence there is a RESET rather than a carry-over, so an explicit
+	 * carry-over has to be stated (see writeChainAt). Stripping it would silently convert one
+	 * into the other. A table column has no such state, so it strips at every ordinal.
+	 */
+	function stripDefaultRoot( chain, ordinal, conf ) {
+		if ( carriesOver( ordinal, conf ) || 1 !== chain.length || ! conf.defaultRoot ) {
+			return chain;
+		}
+		var only = chain[ 0 ];
+		return ( only.slug === conf.defaultRoot && ! only.arg && ! only.limit ) ? [] : chain;
 	}
 
 	/**
@@ -860,7 +893,7 @@
 				rows = offerableSteps( idx, held );
 			} else {
 				var roots = props.sameOnEmpty ? conf.srcRowsWithSame : conf.srcRows;
-				rows = rootMenu( roots, offerableSteps( 0, held ), conf.defaultRoot );
+				rows = rootMenu( roots, offerableSteps( 0, held ), conf.defaultRoot, conf.stepGroup );
 			}
 			if ( held && ! rows.some( function ( r ) { return r.value === held; } ) ) {
 				var def = stepDef( conf, held );
@@ -1243,27 +1276,8 @@
 		/** Write the chain, preserving every other axis of the slot. */
 		function writeChain( chain ) {
 			var next = Object.assign( {}, slot );
-			next.chain = stripDefaultRoot( chain );
+			next.chain = stripDefaultRoot( chain, ordinal, conf );
 			write( next );
-		}
-
-		/**
-		 * Drop a lone root that only RESTATES what an absent chain already spells.
-		 *
-		 * Reachable now that the default root is displayed: picking another source and
-		 * picking `Current Context` back would otherwise serialize `src(current)` where the slot
-		 * previously held nothing, so merely LOOKING at a slot could change its wire.
-		 *
-		 * Slot 1 only. A slot ≥2's `same` is written on purpose — absence there is a
-		 * RESET rather than a carry-over, so an explicit carry-over has to be stated (see
-		 * writeChainAt). Stripping it would silently convert one into the other.
-		 */
-		function stripDefaultRoot( chain ) {
-			if ( ordinal >= 2 || 1 !== chain.length || ! conf.defaultRoot ) {
-				return chain;
-			}
-			var only = chain[ 0 ];
-			return ( only.slug === conf.defaultRoot && ! only.arg && ! only.limit ) ? [] : chain;
 		}
 
 		/** Write the read, preserving every other axis of the slot. */
@@ -1371,7 +1385,7 @@
 			conf: conf,
 			chain: chain,
 			onChange: writeChain,
-			sameOnEmpty: ordinal >= 2,
+			sameOnEmpty: carriesOver( ordinal, conf ),
 			slotNoun: slotNoun,
 			stepContext: stepContext
 		} );
@@ -1596,6 +1610,8 @@
 		removeSlotFrom: removeSlotFrom,
 		legacyKeys: legacyKeys,
 		inferIntent: inferIntent,
+		carriesOver: carriesOver,
+		stripDefaultRoot: stripDefaultRoot,
 		foldConfig: foldConfig,
 		stepArg: stepArg,
 		// The chain editor, so the base-tag source control renders the SAME steps.

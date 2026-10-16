@@ -96,9 +96,12 @@ class SourceRegistry {
 	 * Whether a source key can be written as a chain ROOT token.
 	 *
 	 * Two ways a key fails. It can COLLIDE with the chain grammar's own step vocabulary —
-	 * `refs`/`terms`/`rows` parse as fanning steps wherever they appear, and `same` is
-	 * the slot carry-over sentinel — in which case selecting the row authors wire that reads
-	 * back as a step, resolves the ambient entity, and never runs the source. Or it can
+	 * `refs`/`terms`/`rows` parse as fanning steps wherever they appear, `same` is the slot
+	 * carry-over sentinel, `inherit` is the parent-source root (BWS_FOLD_INHERIT_ROOT) and
+	 * `parent` is RESERVED, unregistered, for the real hierarchical relation (parent post /
+	 * parent term) intended later — never claim it for anything else. In those cases
+	 * selecting the row authors wire that reads back as something other than the source and
+	 * never runs it. Or it can
 	 * carry a grammar CHARACTER (`;` `,` `(` `)` `[` `]` `:` `|`), which either splits the
 	 * value or ends the option.
 	 *
@@ -113,7 +116,7 @@ class SourceRegistry {
 		if ( preg_match( '/[;,()\[\]:|\s]/', $key ) ) {
 			return false;
 		}
-		if ( 'same' === $key ) {
+		if ( in_array( $key, array( 'same', 'inherit', 'parent' ), true ) ) {
 			return false;
 		}
 		return ! ( defined( 'BWS_FOLD_STEP_TYPES' ) && isset( BWS_FOLD_STEP_TYPES[ $key ] ) );

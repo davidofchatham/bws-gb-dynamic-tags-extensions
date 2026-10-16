@@ -821,6 +821,10 @@ add_filter( 'bws_dynamic_tags_chain_roots', static function ( $roots ) {
 	// — the one guarantee this route exists to keep.
 	$roots['refs']      = array( 'label' => 'Step Slug', 'resolve' => static function () { return 1; } );
 	$roots['same']      = array( 'label' => 'Carry Over Sentinel', 'resolve' => static function () { return 1; } );
+	// `inherit` is the parent-source root and `parent` is reserved for the hierarchical
+	// relation: neither may be claimed by a source.
+	$roots['inherit']   = array( 'label' => 'Parent Source', 'resolve' => static function () { return 1; } );
+	$roots['parent']    = array( 'label' => 'Reserved', 'resolve' => static function () { return 1; } );
 	$roots['a;b,c']     = array( 'label' => 'Grammar Chars', 'resolve' => static function () { return 1; } );
 	return $roots;
 } );
@@ -862,7 +866,7 @@ assert_same( 'a spec with no resolver registers nothing', null, \BWS\DynamicTags
 // An INEXPRESSIBLE key is refused at registration, not filtered out of the enum later: a
 // registered-but-unofferable source would still be a source, and the point is that it can
 // never be one. Asserted through the registry for that reason.
-foreach ( array( 'refs', 'same', 'a;b,c' ) as $unwritable ) {
+foreach ( array( 'refs', 'same', 'inherit', 'parent', 'a;b,c' ) as $unwritable ) {
 	assert_same(
 		"a key that cannot BE a root token registers nothing: `{$unwritable}`",
 		null,
@@ -1014,6 +1018,36 @@ assert_same(
 // what an absent `src` means, which is `current` on every tag whatever is registered.
 assert_same( 'base defaultRoot is untouched by the appended roots', 'current', $rooted_base['src']['fold']['defaultRoot'] );
 assert_same( 'slot defaultRoot likewise', 'current', $rooted_fold['defaultRoot'] );
+
+// ── `{{table}}`'s root menu: `inherit` leads, per container ───────────
+//
+// A column hangs off its row, so the root an absent chain means is the PARENT's source:
+// `inherit` is PREPENDED for the table container ONLY, which is what makes it the derived
+// `defaultRoot`. Root lists are per-container; `{{join}}` is pinned unchanged below.
+$table_fold = bws_build_fold_slot_options(
+	array(
+		'container'  => 'table',
+		'max'        => 2,
+		'base_read'  => $text['use'],
+		'base_key'   => $text['key'],
+		'allow_site' => true,
+		'noun'       => 'column',
+	)
+)['A']['fold'];
+assert_same( 'table: `inherit` leads the root enum', 'inherit', $table_fold['srcRows'][0]['value'] ?? null );
+assert_same( 'table: `inherit` is labeled "Tag Source"', 'Tag Source', $table_fold['srcRows'][0]['label'] ?? null );
+assert_same( 'table: `inherit` is the DERIVED defaultRoot', 'inherit', $table_fold['defaultRoot'] );
+assert_same(
+	'table: the rest of the enum is the join enum, unmoved, behind it',
+	$root_values( $rooted_fold['srcRows'] ),
+	array_slice( $root_values( $table_fold['srcRows'] ), 1 )
+);
+assert_same( 'table: `current` stays a pickable root', true, in_array( 'current', $root_values( $table_fold['srcRows'] ), true ) );
+assert_same( 'table: the first-step steps group reads "Starting from Tag Source"', 'Starting from Tag Source', $table_fold['stepGroup'] ?? null );
+assert_same( 'join: no `inherit` row', false, in_array( 'inherit', $root_values( $rooted_fold['srcRows'] ), true ) );
+assert_same( 'join: defaultRoot is untouched', 'current', $rooted_fold['defaultRoot'] );
+assert_same( 'join: ships no stepGroup override (the control keeps its own)', false, isset( $rooted_fold['stepGroup'] ) );
+assert_same( 'try_ attempts ship no `inherit` row either', false, in_array( 'inherit', $root_values( bws_build_fold_slot_options( array( 'container' => 'try', 'max' => 2, 'base_read' => $text['use'], 'base_key' => $text['key'], 'noun' => 'attempt' ) )['A']['fold']['srcRows'] ), true ) );
 
 // ── The SHARED base builder is untouched ─────────────────────────────────────────────
 //

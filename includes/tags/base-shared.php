@@ -701,6 +701,7 @@ function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same
  *
  * @since 1.17.0
  * @since 1.21.0 $base_fixed (FW-141 02).
+ * @since Unreleased The `table` container leads its root enum with `inherit` and ships `stepGroup`.
  * @param array $args {
  *     @type string $container       'join' | 'table' | 'try' (required).
  *     @type array  $base_read       Base read definition (e.g. bws_get_text_field_options()['use']).
@@ -782,6 +783,16 @@ function bws_build_fold_slot_options( array $args ): array {
 	$src_rows            = array_merge( $src_rows, $registered_roots );
 	$src_rows_with_same  = array_merge( $src_rows_with_same, $registered_roots );
 
+	// A TABLE column hangs off its row, so the root an absent chain means is the PARENT's
+	// source. `inherit` is PREPENDED because `defaultRoot`
+	// below derives from the lead row and that is what makes it the default; the root lists
+	// are per-container, so `{{join}}` and `try_` are untouched.
+	if ( 'table' === $container ) {
+		$inherit_row        = array( 'value' => BWS_FOLD_INHERIT_ROOT, 'label' => __( 'Tag Source', 'generateblocks' ) );
+		$src_rows           = array_merge( array( $inherit_row ), $src_rows );
+		$src_rows_with_same = array_merge( array( $inherit_row ), $src_rows_with_same );
+	}
+
 	// Read enum through the read twin (rows only). COMBINING adds an unset row: absent
 	// there means UNCONFIGURED (slot skipped). In a selecting container absent IS the
 	// first row's stripped default, so no extra row.
@@ -838,6 +849,11 @@ function bws_build_fold_slot_options( array $args ): array {
 	);
 	// Container-invariant wire vocabulary.
 	$fold = array_merge( $vocab, $fold );
+	// The heading over the steps that START from the lead root, where it is not the control's
+	// own ("Starting from Current Context"): table's lead is its tag source.
+	if ( 'table' === $container ) {
+		$fold['stepGroup'] = __( 'Starting from Tag Source', 'generateblocks' );
+	}
 
 	// OMITTED, not empty, when there's no per-slot key: JS `[]` is TRUTHY and renders an
 	// unlabeled key picker.
