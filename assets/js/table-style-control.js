@@ -45,7 +45,6 @@
 	var SelectControl = C.SelectControl;
 	var TextControl = C.TextControl;
 	var Button = C.Button;
-	var RangeControl = C.RangeControl;
 	var __ = wp.i18n ? wp.i18n.__ : function ( s ) { return s; };
 
 	var T = window.bwsTableStyle;
@@ -147,6 +146,34 @@
 		// slider gets a stacking context of its own, and whichever combobox has focus (its list
 		// open) outranks every sibling.
 		'.bws-ts-range{isolation:isolate}' +
+		// Swatch (GB's own: 25px circle, the color over white, a crossbar when empty or unresolvable).
+		'.bws-ts-colorrow{display:flex;align-items:flex-start;gap:6px;min-width:0}' +
+		'.bws-ts-colorrow>:first-child{flex:1;min-width:0}' +
+		'.bws-ts-sw{flex:0 0 25px;box-sizing:border-box;width:25px;height:25px;margin-top:7px;border:1px solid rgba(0,0,0,.2);border-radius:50%;background:#fff;overflow:hidden}' +
+		'.bws-ts-sw>i{display:block;width:100%;height:100%}' +
+		'.bws-ts-sw.is-empty,.bws-ts-sw[data-na="1"]{background:#fff linear-gradient(-45deg,transparent 48%,rgba(0,0,0,.2) 0,rgba(0,0,0,.2) 52%,transparent 0)}' +
+		'.bws-ts-sw.is-empty>i,.bws-ts-sw[data-na="1"]>i{visibility:hidden}' +
+		// Opacity bar: checkerboard, then a fade to the opaque color; the native range sits on top
+		// with a transparent track, and its round thumb is the swatch (--bws-tc = color at the chosen
+		// opacity). An unresolvable var() drops only the fade (--bws-tb) and crosses the thumb.
+		'.bws-ts-asb{position:relative;min-width:0;height:40px}' +
+		'.bws-ts-asb>i{display:none}' +
+		'.bws-ts-asb::before,.bws-ts-asb::after{content:"";position:absolute;left:0;right:0;top:50%;height:14px;margin-top:-7px;border-radius:7px;pointer-events:none}' +
+		'.bws-ts-asb::before{background:repeating-conic-gradient(#ddd 0 25%,#fff 0 50%) 0 0/8px 8px}' +
+		'.bws-ts-asb::after{background:linear-gradient(90deg,transparent,var(--bws-tb,#949494));box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}' +
+		'.bws-ts-asb[data-na="1"]::after{display:none}' +
+		'.bws-ts-asb input[type=range]{position:relative;z-index:1;-webkit-appearance:none;appearance:none;display:block;width:100%;height:40px;min-height:0;margin:0;padding:0;border:0;background:none;box-shadow:none;cursor:pointer}' +
+		'.bws-ts-asb input[type=range]::-webkit-slider-runnable-track{height:40px;background:none;border:0}' +
+		'.bws-ts-asb input[type=range]::-moz-range-track{height:40px;background:none;border:0}' +
+		'.bws-ts-asb input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;box-sizing:border-box;width:25px;height:25px;margin-top:7px;border-radius:50%;border:1px solid rgba(0,0,0,.2);background:linear-gradient(var(--bws-tc,transparent),var(--bws-tc,transparent)),#fff;box-shadow:0 0 0 2px #fff,0 1px 3px rgba(0,0,0,.35)}' +
+		'.bws-ts-asb input[type=range]::-moz-range-thumb{box-sizing:border-box;width:25px;height:25px;border-radius:50%;border:1px solid rgba(0,0,0,.2);background:linear-gradient(var(--bws-tc,transparent),var(--bws-tc,transparent)),#fff;box-shadow:0 0 0 2px #fff,0 1px 3px rgba(0,0,0,.35)}' +
+		'.bws-ts-asb[data-na="1"] input[type=range]::-webkit-slider-thumb{background:#fff linear-gradient(-45deg,transparent 48%,rgba(0,0,0,.2) 0,rgba(0,0,0,.2) 52%,transparent 0)}' +
+		'.bws-ts-asb[data-na="1"] input[type=range]::-moz-range-thumb{background:#fff linear-gradient(-45deg,transparent 48%,rgba(0,0,0,.2) 0,rgba(0,0,0,.2) 52%,transparent 0)}' +
+		'.bws-ts-asb.is-default input[type=range]::-webkit-slider-thumb{border-style:dashed}' +
+		'.bws-ts-asb.is-default input[type=range]::-moz-range-thumb{border-style:dashed}' +
+		'.bws-ts-asb input[type=range]:focus{outline:none;box-shadow:none}' +
+		'.bws-ts-asb input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 2px #fff,0 0 0 4px #3858e9}' +
+		'.bws-ts-asb input[type=range]:focus-visible::-moz-range-thumb{box-shadow:0 0 0 2px #fff,0 0 0 4px #3858e9}' +
 		'.bws-ts .components-combobox-control:focus-within{position:relative;z-index:5}' +
 		// One control height, 40px: WP's select and text field are 40, the combobox is 37 and GB's
 		// icon button groups are 35 out of the box.
@@ -413,6 +440,65 @@
 		} );
 	}
 
+	// ── Swatch and opacity bar ───────────────────────────────────────────────────
+
+	/**
+	 * Callback ref for a host whose first child `<i>` carries the opaque color as its background:
+	 * flags the host `data-na` when a var() in it does not resolve in this document (the computed
+	 * background stays transparent), so the CSS can cross the swatch out. Runs on every render, as
+	 * a ref that is a new function each time does.
+	 */
+	function probeUnresolved( color ) {
+		return function ( host ) {
+			if ( ! host || ! host.firstChild ) {
+				return;
+			}
+			var bad = false;
+			if ( color && /var\(/.test( color ) && typeof getComputedStyle === 'function' ) {
+				bad = getComputedStyle( host.firstChild ).backgroundColor === 'rgba(0, 0, 0, 0)';
+			}
+			host.setAttribute( 'data-na', bad ? '1' : '' );
+		};
+	}
+
+	/** A color for the swatch, or '' when there is nothing to show (empty, invalid or a CSS global). */
+	function swatchColor( value ) {
+		if ( ! value || /^(inherit|initial|unset|revert|revert-layer)$/i.test( value ) ) {
+			return '';
+		}
+		return T.colorValue( value, false ) === null ? '' : value;
+	}
+
+	/** GB-style round swatch of a color value. */
+	function Swatch( p ) {
+		var color = swatchColor( p.value );
+		return el( 'span', { className: 'bws-ts-sw' + ( color ? '' : ' is-empty' ), ref: probeUnresolved( color ), 'aria-hidden': true },
+			el( 'i', { style: color ? { background: color } : undefined } ) );
+	}
+
+	/**
+	 * The stripe opacity slider: a bar fading from clear to the opaque `base`, with a thumb that
+	 * shows `composed` (the base at the chosen opacity). `isDefault` draws the thumb dashed.
+	 */
+	function OpacityBar( p ) {
+		var style = { '--bws-tc': p.composed, '--bws-tb': p.base };
+		return el( 'div', { className: 'bws-ts-asb' + ( p.isDefault ? ' is-default' : '' ), ref: probeUnresolved( p.base ), style: style }, [
+			el( 'i', { key: 'p', style: { background: p.base } } ),
+			el( 'input', {
+				key: 'r',
+				type: 'range',
+				min: 0,
+				max: 100,
+				step: 1,
+				value: p.value,
+				'aria-label': p.label,
+				onChange: function ( e ) {
+					p.onChange( Number( e.target.value ) );
+				}
+			} )
+		] );
+	}
+
 	// ── Button groups (one pressed at a time; pressing it again clears) ─────────
 
 	/** A 24px line icon: each entry is [x, width] for one of three rows. */
@@ -556,7 +642,10 @@
 			};
 			var field;
 			if ( key === 'color' ) {
-				field = el( ColorField, { label: LABELS[ key ], hideLabel: true, value: value, globals: true, placeholder: inh || __( 'Default', 'generateblocks' ), onChange: onChange } );
+				field = el( 'div', { className: 'bws-ts-colorrow' }, [
+					el( ColorField, { key: 'c', label: LABELS[ key ], hideLabel: true, value: value, globals: true, placeholder: inh || __( 'Default', 'generateblocks' ), onChange: onChange } ),
+					el( Swatch, { key: 's', value: value } )
+				] );
 			} else if ( key === 'fontSize' ) {
 				field = el( SizeField, { label: LABELS[ key ], hideLabel: true, value: value, kind: 'size', placeholder: inh || __( 'Default', 'generateblocks' ), onChange: onChange } );
 			} else if ( key === 'fontWeight' ) {
@@ -755,6 +844,11 @@
 		};
 	}
 
+	/** The stripe color as the renderer composes it (the thumb's preview; PHP: bws_table_stripe_color). */
+	function composeStripe( color, opacity ) {
+		return opacity >= 100 ? color : 'color-mix(in srgb,' + color + ' ' + T.cssNumber( opacity ) + '%,transparent)';
+	}
+
 	/**
 	 * One target's row in the stripes matrix: the label, then Pattern, Color and Opacity as
 	 * cells of the grid the header row set up. `display: contents` keeps the cells on that
@@ -768,6 +862,7 @@
 			p.onChange( Object.assign( {}, spec, patch ) );
 		}
 		var shown = spec.opacity === null ? d.opacity : spec.opacity;
+		var base = spec.color || d.color;
 		var colorCell = el( ColorField, {
 			key: 'c',
 			label: __( 'Stripe Color', 'generateblocks' ),
@@ -781,18 +876,15 @@
 		var opacityCell = hasAlpha
 			? el( 'span', { key: 'o', className: 'bws-ts-help', style: { margin: 0 } }, COPY.opacityFromColor )
 			: el( 'div', { key: 'o', className: 'bws-ts-opacity' }, [
-				el( 'div', { key: 'r', className: 'bws-ts-range' }, el( RangeControl, {
+				el( 'div', { key: 'r', className: 'bws-ts-range' }, el( OpacityBar, {
 					label: __( 'Stripe Opacity', 'generateblocks' ),
-					hideLabelFromVision: true,
 					value: shown,
-					min: 0,
-					max: 100,
-					step: 1,
-					withInputField: false,
+					base: base,
+					composed: composeStripe( base, shown ),
+					isDefault: spec.opacity === null,
 					onChange: function ( v ) {
-						set( { opacity: v === undefined || v === null ? null : Number( v ) } );
-					},
-					__nextHasNoMarginBottom: true
+						set( { opacity: v } );
+					}
 				} ) ),
 				el( 'output', { key: 'v', className: 'bws-ts-readout' + ( spec.opacity === null ? ' is-default' : '' ) }, T.cssNumber( shown ) + '%' ),
 				spec.opacity === null ? null : el( Button, {

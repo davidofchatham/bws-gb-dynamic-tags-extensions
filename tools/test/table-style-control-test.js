@@ -36,7 +36,7 @@ global.wp = {
 		Fragment: 'F',
 		useState: function ( initial ) { return [ initial, function () {} ]; }
 	},
-	components: { ComboboxControl: 'Combo', SelectControl: 'Select', TextControl: 'Text', Button: 'Button', RangeControl: 'Range' },
+	components: { ComboboxControl: 'Combo', SelectControl: 'Select', TextControl: 'Text', Button: 'Button' },
 	data: { select: function () { return { getSettings: function () { return { colors: [ { name: 'Accent', slug: 'accent', color: '#00f' } ] }; } }; } },
 	i18n: { __: function ( s ) { return s; } }
 };
@@ -172,6 +172,7 @@ check( 'Font size field: the hint names keywords', /keyword/.test( expand( UI.Si
 m = mount( UI.TypographyControl, {} );
 const colorCombos = find( m.tree, ( n ) => n.type === 'Combo' && n.props.label === 'Text Color' );
 check( 'Typography: a Text Color field at Table and at Header', colorCombos.length, 2 );
+check( 'Typography: each Text Color field has its swatch beside it', find( m.tree, ( n ) => n.props && /^bws-ts-sw( |$)/.test( n.props.className || '' ) ).map( ( n ) => / is-empty/.test( n.props.className ) ), [ true, true ] );
 colorCombos[ 0 ].props.onChange( '#333' );
 check( 'Typography: Table color writes the bare base', m.writes[ 0 ], { color: '#333' } );
 m = mount( UI.TypographyControl, { color: '#333' } );
@@ -214,7 +215,7 @@ check( 'Stripes: adding Columns keeps the rows spec and starts columns linked to
 // ── Link between rows and columns ──
 m = mount( UI.StripesControl, { stripe: 'rows,#eee,40%;cols,#eee,40%' } );
 const lk = ( t ) => find( t, ( n ) => n.type === 'Button' && n.props.icon );
-check( 'Link: same look on both reads as linked (pressed), and columns show no color or opacity of their own', [ lk( m.tree )[ 0 ].props.isPressed, find( m.tree, ( n ) => n.type === 'Combo' && n.props.label === 'Stripe Color' ).length, find( m.tree, ( n ) => n.type === 'Range' ).length ], [ true, 1, 1 ] );
+check( 'Link: same look on both reads as linked (pressed), and columns show no color or opacity of their own', [ lk( m.tree )[ 0 ].props.isPressed, find( m.tree, ( n ) => n.type === 'Combo' && n.props.label === 'Stripe Color' ).length, find( m.tree, ( n ) => n.type === 'input' && n.props.type === 'range' ).length ], [ true, 1, 1 ] );
 find( m.tree, ( n ) => n.type === 'Combo' && n.props.label === 'Stripe Color' )[ 0 ].props.onChange( '#ddd' );
 check( 'Link: a rows color change is written to both targets', m.writes[ 0 ], { stripe: 'rows,#ddd,40%;cols,#ddd,40%' } );
 m = mount( UI.StripesControl, { stripe: 'rows,#eee,40%;cols,#ddd,40%' } );
@@ -233,11 +234,15 @@ find( m.tree, ( n ) => n.type === 'Select' && n.props.label === 'Pattern' )[ 0 ]
 check( 'Stripes: Pattern odd', m.writes[ 0 ], { stripe: 'rows,odd' } );
 find( m.tree, ( n ) => n.type === 'Combo' && n.props.label === 'Stripe Color' )[ 0 ].props.onChange( 'rgba(0,0,0,.2)' );
 check( 'Stripes: color is written as its own arg', m.writes[ 1 ], { stripe: 'rows,rgba(0,0,0,.2)' } );
-find( m.tree, ( n ) => n.type === 'Range' )[ 0 ].props.onChange( 40 );
+find( m.tree, ( n ) => n.type === 'input' && n.props.type === 'range' )[ 0 ].props.onChange( { target: { value: '40' } } );
 check( 'Stripes: opacity is written as N%', m.writes[ 2 ], { stripe: 'rows,40%' } );
+const bar = ( t ) => find( t, ( n ) => n.props && /bws-ts-asb/.test( n.props.className || '' ) )[ 0 ];
+check( 'Stripes: the opacity bar carries the opaque color and the composed thumb color; dashed only while the opacity is the default', [ bar( m.tree ).props.style, / is-default/.test( bar( m.tree ).props.className ) ], [ { '--bws-tc': 'color-mix(in srgb,currentColor 5%,transparent)', '--bws-tb': 'currentColor' }, true ] );
+m = mount( UI.StripesControl, { stripe: 'rows,#c00,40%' } );
+check( 'Stripes: a set color and opacity reach the bar, not dashed', [ bar( m.tree ).props.style, / is-default/.test( bar( m.tree ).props.className ) ], [ { '--bws-tc': 'color-mix(in srgb,#c00 40%,transparent)', '--bws-tb': '#c00' }, false ] );
 check( 'Stripes: the color placeholder is the default itself', find( m.tree, ( n ) => n.type === 'Combo' && n.props.label === 'Stripe Color' )[ 0 ].props.placeholder, 'currentColor' );
 m = mount( UI.StripesControl, { stripe: 'rows,rgba(0,0,0,.2),40%' } );
-check( 'Stripes: a color with its own alpha replaces the slider with the note', [ find( m.tree, ( n ) => n.type === 'Range' ).length, /Opacity is set by the color/.test( text( m.tree ) ) ], [ 0, true ] );
+check( 'Stripes: a color with its own alpha replaces the slider with the note', [ find( m.tree, ( n ) => n.type === 'input' && n.props.type === 'range' ).length, /Opacity is set by the color/.test( text( m.tree ) ) ], [ 0, true ] );
 m = mount( UI.StripesControl, { stripe: 'rows;cols' } );
 check( 'Stripes: one matrix, a named row group per target', find( m.tree, ( n ) => n.props && n.props.className === 'bws-ts-smx-row' ).map( ( n ) => n.props[ 'aria-label' ] ), [ 'Row stripes', 'Column stripes' ] );
 m = mount( UI.StripesControl, { stripe: 'rows,40%' } );
