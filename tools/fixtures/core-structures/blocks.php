@@ -2132,6 +2132,60 @@ function bws_fixture_page_content_matrix_repeaters() {
 }
 
 /**
+ * Page content: matrix-table (page-matrix-table).
+ *
+ * Split axis is the TABLE FAMILY, not source-state: every row is a `{{table}}` over the
+ * `team_members` repeater that matrix-post-meta OWNS, pinned by id the way F22.6 does, and
+ * what separates the rows is which presentation keys the tag carries (layout, width, the
+ * six text keys, stripes, column tokens).
+ *
+ * WHY A PAGE OF ITS OWN. matrix-post-meta carries ~380 blocks, so opening it in the editor
+ * to drive a table control means waiting on a REST preview request per dynamic-tag block.
+ * This page holds only table tags, so it opens fast and a hard refresh after an editor
+ * change stays cheap. Table rows are also two-dimensional, which makes them unreadable
+ * interleaved among scalar rows.
+ *
+ * WHAT IS NOT HERE YET. The six TB rows on matrix-post-meta stay where they are until the
+ * `{{table}}` fixtures ticket (10) moves them and writes table-test-matrix.md; these rows
+ * are the presentation half only and are labelled TP so the two numbering schemes never
+ * collide. Two data rows keep stripe counting readable by eye: the default (even) target
+ * shades body row 1, `odd` shades the header and body row 2.
+ */
+function bws_fixture_page_content_matrix_table() {
+	$meta_id = function_exists( 'bws_fixture_seeded_post_id' ) ? bws_fixture_seeded_post_id( 'matrix-post-meta', 'page' ) : false;
+	if ( ! $meta_id ) {
+		return bws_fixture_gb_text_block(
+			'MATRIX-TABLE FIXTURE ERROR: the "matrix-post-meta" page was not found. Reseed pages before this page.',
+			'matrix-table-missing-source'
+		);
+	}
+
+	$src  = "src:post,{$meta_id};rows,team_members";
+	$cols = 'A:header(Name);key(name)|B:header(Role);key(role)|C:header(Note);key(description)';
+
+	$sections   = array();
+	$sections[] = bws_fixture_gb_section( 'Table TP - presentation: sizing, typography, stripes, column styling', array(
+		bws_fixture_gb_block_host_row( 'TP0 control: no presentation keys (-> plain table, no scope class, no rules)', "{{table {$src}|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP1 fixed layout alone (-> table-layout:fixed and width:100%, equal columns)', "{{table {$src}|layout:fixed|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP2 fixed layout, 70% table, a 50% Name column (-> Name wide, the other two share the rest)', "{{table {$src}|layout:fixed|width:70%|A:header(Name);key(name);width(50%)|B:header(Role);key(role)|C:header(Note);key(description)}}" ),
+		bws_fixture_gb_block_host_row( 'TP3 Text Color from a site color (-> all text in the Contrast 2 grey; the editor swatch shows the same color)', "{{table {$src}|color:var(--contrast-2)|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP4 Text Color with a Header override (-> body text blue-grey, header text accent blue)', "{{table {$src}|color:#475569;header,var(--accent)|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP5 typography matrix (-> body normal weight and italic, header bold uppercase and centered)', "{{table {$src}|fontWeight:normal;header,bold|fontStyle:italic|textAlign:left;header,center|textTransform:header,uppercase|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP6 Font Size (-> small text, 0.875rem, in header and body)', "{{table {$src}|fontSize:0.875rem|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP7 row stripes, bare (-> body row 1 Alice shaded at the default 5% of the text color, row 2 plain)', "{{table {$src}|stripe:rows|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP8 row stripes, odd, blue 25% (-> the header row and body row 2 Bob shaded blue, Alice plain)', "{{table {$src}|stripe:rows,odd,#1e73be,25%|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP9 column stripes (-> even columns shaded, header cells included: Role)', "{{table {$src}|stripe:cols|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP10 rows AND columns, one look (-> both shaded, the overlap darker; the editor shows Same as Rows)', "{{table {$src}|stripe:rows,#c00,10%;cols,#c00,10%|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP11 rows and columns, different looks (-> rows blue, columns red; the editor offers Use the Rows color for both)', "{{table {$src}|stripe:rows,#1e73be,20%;cols,#c00,10%|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP12 a stripe color with its own alpha (-> rows shaded at that alpha; the editor shows Opacity is set by the color in place of the bar)', "{{table {$src}|stripe:rows,rgba(0,0,0,.12)|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP13 a stripe color from a site variable (-> rows shaded in the Accent blue at 30%)', "{{table {$src}|stripe:rows,var(--accent),30%|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP14 column styling (-> Name 10rem and right-aligned, Role centered and red, Note bold in the header only)', "{{table {$src}|A:header(Name);key(name);width(10rem);textAlign(right)|B:header(Role);key(role);textAlign(center);color(#c00)|C:header(Note);key(description);fontWeight(header,bold)}}" ),
+	) );
+
+	return implode( "\n\n", $sections );
+}
+
+/**
  * Page content: matrix-links (page-matrix-links).
  *
  * Split axis is the LINK DESTINATION, not source-state: every row here is a fanning tag
@@ -2374,6 +2428,7 @@ function bws_fixture_build_page_content( $builder ) {
 		'matrix_pinned_roots'  => 'bws_fixture_page_content_matrix_pinned_roots',
 		'matrix_repeaters'     => 'bws_fixture_page_content_matrix_repeaters',
 		'matrix_links'         => 'bws_fixture_page_content_matrix_links',
+		'matrix_table'         => 'bws_fixture_page_content_matrix_table',
 		'pattern_legacy_wire'  => 'bws_fixture_pattern_content_legacy_wire',
 		'context_header'       => 'bws_fixture_element_content_context_header',
 		'home_lead'            => 'bws_fixture_page_content_home_lead',
