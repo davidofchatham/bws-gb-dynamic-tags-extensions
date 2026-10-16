@@ -52,9 +52,6 @@ values](tag-reference.md#src-option-values).
 | Same as Previous Source | `same` | Current entity — not serialized | Carry over slot N−1 | N/A | Slot 2+: prepended entry, not in template definition |
 | Current Context | `current` | stripped → unset | `current` | *(omitted)* | Slot 2+ only: explicit override back to current |
 | Posts in Reference/Relational Field | `ref` | `ref` | `ref` | `Ref 'X'` where X = `ref` field value | Triggers `ref` sub-option |
-| Parent | `parent` | `parent` | `parent` | — | Future |
-| Ancestor | `ancestor` | `ancestor` | `ancestor` | — | Future |
-| Child(ren) | `child` | `child` | `child` | — | Future |
 
 Note: For context-modifier tags, the modifier label is prepended as a context segment. Examples:
 `[Title from Term]` for `{{term_title}}`, `[Content from Term Ref 'rel_post']` for `{{term_content

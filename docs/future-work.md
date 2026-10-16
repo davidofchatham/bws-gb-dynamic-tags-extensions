@@ -1383,6 +1383,18 @@ Open: Whether to take the route at all, decided after a throwaway testbed protot
 
 Blocked by: the prototype  •  Interacts with: FW-156 (tag strings in core blocks; `core/image` moved here from its candidate set), FW-13 (field discovery could feed the bindings picker)
 
+#### FW-169 — Hierarchical chain steps: `parent`, `ancestor`, `children`, `siblings`
+
+Four chain steps that follow WordPress's own hierarchy of posts and terms off whatever the previous step landed on: the parent, the top-level ancestor, the children, and the entities sharing a parent. A step that resolves to a list is plural, one that resolves to a single entity singular.
+
+Detail home: this row; the step table in [`tag-reference.md` §Source CHAINS](tag-reference.md#source-chains-1170)
+
+Progress: Not started. All four names are reserved as chain-root keys (`SourceRegistry::is_expressible_root_key()`), so no registered source can claim one before it ships. `parent` is Planned; the other three are To be considered.
+
+Open: Whether to build all four or only `parent`. The input kinds each step accepts (`BWS_TRAVERSAL_STEP_INPUT_KINDS`); none can take a `meta_row` or a user. Whether `children` and `siblings` take a post-type or taxonomy narrowing argument, and their default order. Whether `ancestor` needs a clearer name, since a step resolving the whole ancestor list would be `ancestors`. The editor labels.
+
+Blocked by: —  •  Interacts with: FW-53 (`inherit` is the table's parent-SOURCE root, a different relation; the name `parent` was reserved for this one)
+
 ## Closed / Retired
 
 Append-only ledger of closed, shipped, or cut work — both `FW-N` items deleted from the live trackers above AND pre-tracker refactors (the legacy `C#` / GitHub-`#issue` handles from the old `project_open_refactors` memory, folded in here so there is ONE closed record). IDs are **permanent** — a retired `FW-N` is never reused or reassigned. This ledger is the only record of the FW high-water mark once shipped items are deleted; **"next unused id" = (max `FW-N` here ∪ max `FW-N` in the live trackers) + 1**. One line per item: outcome + where it landed. Not a tracker (no blockers/interactions) — just the closed record + a pointer to detail. Kept as a table, not heading blocks, since a closed row carries none of the fields (Blocked by / Interacts with / Open) that shape earns; the linked detail home (mostly `docs/design-history/*.md`, itself the committed rationale-of-record) already carries the full build story, so entries here stay to a sentence or two of durable outcome.

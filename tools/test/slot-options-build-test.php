@@ -821,10 +821,13 @@ add_filter( 'bws_dynamic_tags_chain_roots', static function ( $roots ) {
 	// — the one guarantee this route exists to keep.
 	$roots['refs']      = array( 'label' => 'Step Slug', 'resolve' => static function () { return 1; } );
 	$roots['same']      = array( 'label' => 'Carry Over Sentinel', 'resolve' => static function () { return 1; } );
-	// `inherit` is the parent-source root and `parent` is reserved for the hierarchical
-	// relation: neither may be claimed by a source.
+	// `inherit` is the parent-source root and the four hierarchical step names are reserved:
+	// none may be claimed by a source.
 	$roots['inherit']   = array( 'label' => 'Parent Source', 'resolve' => static function () { return 1; } );
 	$roots['parent']    = array( 'label' => 'Reserved', 'resolve' => static function () { return 1; } );
+	$roots['ancestor']  = array( 'label' => 'Reserved', 'resolve' => static function () { return 1; } );
+	$roots['children']  = array( 'label' => 'Reserved', 'resolve' => static function () { return 1; } );
+	$roots['siblings']  = array( 'label' => 'Reserved', 'resolve' => static function () { return 1; } );
 	$roots['a;b,c']     = array( 'label' => 'Grammar Chars', 'resolve' => static function () { return 1; } );
 	return $roots;
 } );
@@ -866,7 +869,7 @@ assert_same( 'a spec with no resolver registers nothing', null, \BWS\DynamicTags
 // An INEXPRESSIBLE key is refused at registration, not filtered out of the enum later: a
 // registered-but-unofferable source would still be a source, and the point is that it can
 // never be one. Asserted through the registry for that reason.
-foreach ( array( 'refs', 'same', 'inherit', 'parent', 'a;b,c' ) as $unwritable ) {
+foreach ( array( 'refs', 'same', 'inherit', 'parent', 'ancestor', 'children', 'siblings', 'a;b,c' ) as $unwritable ) {
 	assert_same(
 		"a key that cannot BE a root token registers nothing: `{$unwritable}`",
 		null,

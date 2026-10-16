@@ -52,20 +52,15 @@ Source resolution is split between **`src` option values** (traversal within a b
 
 ### `src` option values
 
-Traversal selector on every base tag. Serializes as `src:<value>` in the tag string. This table is the **authoritative definition of what each `src` value resolves to**; the per-slot UI/serialization mechanics (slot-2+ `same`/`current` distinction, editor-preview segment, labels) live in [§Source control](editor-controls.md#source-control--per-slot-ui-and-serialization).
+Traversal selector on every base tag. Serializes as `src:<value>` in the tag string. **This table lists ROOTS only** — where a chain starts. What can follow a root is a step, listed in [§Source CHAINS](#source-chains-1170); the flat-era `src:ref` is not a root either, it is the `refs` step's legacy spelling (described there). This table is the **authoritative definition of what each root resolves to**; the per-slot UI/serialization mechanics (slot-2+ `same`/`current` distinction, editor-preview segment, labels) live in [§Source control](editor-controls.md#source-control--per-slot-ui-and-serialization).
 
-| `src` value | Resolves to | Status |
+| Root | Resolves to | Status |
 |---|---|---|
 | unset (default) | Current entity (post or term per template context) | Implemented |
-| `ref` | Reference/relational field step — requires `ref` sub-option (field key) | Implemented |
 | `site` | Site-wide data (no entity) — an implicit-mode tag resolves the site analog, `key` reads an option. See [§Site Source](#site-source-srcsite). | Implemented (v1.9.0, Stage A) |
 | `term,<ID>` | **Specific term root** (1.20.0, FW-39). Roots the chain at ONE specific term, whatever the page is about. `<ID>` is required — a bare `term` resolves nothing (see below). Steps run off it like any other root (`term,34;refs,rel` is legal; `terms` is refused — no term→term edge). | Implemented |
 | `post,<ID>` | **Specific post root** (1.20.0, FW-39). Roots the chain at ONE specific post, whatever the page is about. `<ID>` is required — a bare `post` resolves nothing (see below); it would be `current` under another name. Authoring-only: unlike `term`, `post` has no legacy modifier family to stay compatible with (no `post_*` tags exist), so there is no converter/migration half. | Implemented |
 | *(a registered source key)* | Whatever that source's `resolve_id()` returns — post or term per its context type. Resolves whether or not the source is OFFERED (below). | Implemented |
-| `parent` | WP parent post/term | Planned |
-| `ancestor` | WP top-level ancestor | To be considered |
-| `child` | WP child posts/terms (list output) | To be considered |
-| `sibling` | WP same-parent posts/terms (list output) | To be considered |
 
 See [§Source control](editor-controls.md#source-control--per-slot-ui-and-serialization) for label/UI details and the per-slot serialization mechanics; the option keys themselves are [§Source group](#source-group).
 
@@ -117,11 +112,17 @@ registered normally, at registry init rather than at enum-build time). See
 A source is a **chain**: a ROOT plus zero or more ordered **fanning** steps. The table above is the
 root vocabulary; a step continues from wherever the previous one landed.
 
-| Step slug | Follows | Resolves to |
-|---|---|---|
-| `refs,<field>` | a relationship / post-object field | `post` |
-| `terms,<taxonomy>` | the entity's terms in that taxonomy | `term` |
-| `rows,<field>` | a repeater field's rows | `meta_row` |
+| Step slug | Follows | Resolves to | Status |
+|---|---|---|---|
+| `refs,<field>` | a relationship / post-object field | `post` | Implemented |
+| `terms,<taxonomy>` | the entity's terms in that taxonomy | `term` | Implemented |
+| `rows,<field>` | a repeater field's rows | `meta_row` | Implemented |
+| `parent` | the WP parent post / parent term | same kind, one | Planned (FW-169) |
+| `ancestor` | the WP top-level ancestor | same kind, one | To be considered (FW-169) |
+| `children` | the WP child posts / child terms | same kind, list | To be considered (FW-169) |
+| `siblings` | the WP posts / terms sharing a parent | same kind, list | To be considered (FW-169) |
+
+A step that resolves to a list is spelled plural, one that resolves to a single entity singular. The four hierarchical names are reserved as root keys now (`SourceRegistry::is_expressible_root_key()`), before any of them is built.
 
 Chain wire lives in the same `src` option, `;`-separated, each step `slug[,arg][,limit(N)]` —
 `src:refs,office;terms,category`. The flat spelling (`src:ref` + `ref:` + `srcTermIn:`) is READ
@@ -192,7 +193,7 @@ Where a source has **no** intrinsic analog for a tag (term image, site content-b
 
 **Strip-default caveat.** The analog is reached by the tag's *stripped-default* `use` value, which is its **first enum value** — and that first value is **key-mode** for `text` and `image` (so their analog is NOT the empty-wire default). An empty `use` therefore resolves to key-mode for text/image (read a `key`), to `content` for `content` (which, under `src:site`, has no analog → empty). The site **logo** is the explicit `use:featured` value, *not* the implicit-mode `{{image src:site}}` (which is key-mode → empty without a key). Key-mode was first kept as the default for a reason that no longer holds: a `key` left behind when `use` moved to an analog could not be told from intended key-mode. The editor now deletes that `key` when `use` leaves key-mode ([`editor-controls.md` §The `use` read wrapper](editor-controls.md#the-use-read-wrapper)). `text` stays key-mode because it is primarily a meta-field read; flipping `image` to lead with `featured` is tracked as FW-143 ([`future-work.md`](future-work.md)).
 
-This principle governs `src:site` below and should guide every future source (`parent`, `ancestor`, external) and any new base tag.
+This principle governs `src:site` below and should guide every future source or step (the hierarchical steps, external sources) and any new base tag.
 
 #### Coverage by ambient context
 

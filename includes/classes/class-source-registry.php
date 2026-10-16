@@ -98,8 +98,9 @@ class SourceRegistry {
 	 * Two ways a key fails. It can COLLIDE with the chain grammar's own step vocabulary —
 	 * `refs`/`terms`/`rows` parse as fanning steps wherever they appear, `same` is the slot
 	 * carry-over sentinel, `inherit` is the parent-source root (BWS_FOLD_INHERIT_ROOT) and
-	 * `parent` is RESERVED, unregistered, for the real hierarchical relation (parent post /
-	 * parent term) intended later — never claim it for anything else. In those cases
+	 * `parent`, `ancestor`, `children` and `siblings` are RESERVED, unregistered, for the
+	 * hierarchical steps intended later (FW-169) — never claim them for anything else, and
+	 * once one ships as a step it is reserved by the step map below. In those cases
 	 * selecting the row authors wire that reads back as something other than the source and
 	 * never runs it. Or it can
 	 * carry a grammar CHARACTER (`;` `,` `(` `)` `[` `]` `:` `|`), which either splits the
@@ -116,7 +117,7 @@ class SourceRegistry {
 		if ( preg_match( '/[;,()\[\]:|\s]/', $key ) ) {
 			return false;
 		}
-		if ( in_array( $key, array( 'same', 'inherit', 'parent' ), true ) ) {
+		if ( in_array( $key, array( 'same', 'inherit', 'parent', 'ancestor', 'children', 'siblings' ), true ) ) {
 			return false;
 		}
 		return ! ( defined( 'BWS_FOLD_STEP_TYPES' ) && isset( BWS_FOLD_STEP_TYPES[ $key ] ) );
