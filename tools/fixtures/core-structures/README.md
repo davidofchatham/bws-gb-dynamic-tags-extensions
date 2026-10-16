@@ -44,6 +44,9 @@ seed + verify clean, or coordinate a pin bump with them:
 | the integrating plugin | its own fixture tree | v4+ |
 | meta-conductor | `tools/fixtures/mc-rules/` | v4+ |
 | bws-generate-layout-conditions | `tools/fixtures/layout-states/` | v4+ |
+| gb-query-filter (`query-filters`) | `tools/fixtures/query-filters/` | no pin |
+
+`query-filters` relies on **the `department` taxonomy only** (registered by this blueprint's mu-plugin): its taxonomy page borrows the taxonomy and never assigns a term, so it needs `department` to exist and to have at least one term with a post. Its seed errors out if either is missing; it does not check `version`.
 
 `layout-states` asserts against **`department:sales` specifically**: it needs a
 populated non-singular archive for a featured-image detection test, and an
