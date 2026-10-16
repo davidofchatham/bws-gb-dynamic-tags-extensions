@@ -821,6 +821,18 @@ Open: How a column declares it (a slot type token, plan #60, leads the slot when
 
 Blocked by: row:FW-53  •  Interacts with: FW-158 (tall content), FW-161
 
+#### FW-171 — Offer the site's font sizes in the `{{table}}` Font Size field
+
+The Font Size field on the table's text styles accepts a typed `var()` but offers none, where Text Color lists the site's palette. Offering the site's font sizes would make a size picked rather than typed.
+
+Detail home: this row
+
+Progress: Not started; the option was weighed 2026-10-16 and deferred, with typed `var()` kept as the route. Read 2026-10-16 in Core Framework 2.0.2 (`wp/App/Gutenberg/Functions.php`): it patches only the color palette into theme.json, so the block editor's font sizes setting holds none of its sizes, which are plain CSS custom properties. The setting remains the one generic registry WordPress has, filled from theme.json or the theme's editor font sizes. Core Framework 1.5.2 was not read.
+
+Open: Whether to read that setting alone (generic, and empty on a Core Framework site), or also scan the editor's loaded stylesheets for `:root` custom properties that look like font sizes (a name containing `text` or `font-size`, a length or `clamp()` value), which would find Core Framework's but is a heuristic that can match a non-size variable. Whichever is chosen must be measured in a real editor on a Core Framework site first. Whether `var(--wp--preset--font-size--<slug>)` resolves on the front end of a classic theme is also unmeasured. Not an integration with Core Framework, by decision.
+
+Blocked by: —  •  Interacts with: FW-163 (the table's typography controls), FW-53 (the `{{table}}` build)
+
 ### Testing & infrastructure
 
 #### FW-96 — Dependency replay over the harvest corpus

@@ -119,14 +119,20 @@
 		'.bws-ts-l3{font-size:12px;font-weight:500;text-transform:none;margin-bottom:4px}' +
 		'.bws-ts-help{margin:4px 0 0;font-size:12px;line-height:1.4;color:#50575e}' +
 		'.bws-ts-field{min-width:0}' +
-		'.bws-ts-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}' +
+		'.bws-ts-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px;align-items:start}' +
 		'.bws-ts-radios{display:flex;flex-wrap:wrap;gap:6px 16px}' +
 		'.bws-ts-radios label{display:inline-flex;align-items:center;gap:6px;font-size:13px;line-height:16px}' +
 		'.bws-ts-radios input{margin:0}' +
 		'.bws-ts-sub{padding-left:12px}' +
 		'.bws-ts-div{border-top:1px solid #e0e0e0}' +
+		// Typography sections breathe like the gap GB leaves above Stripes (~24px); the rule between the
+		// Table and Header blocks is pulled to 8px a side so it reads as inside the group, not a split.
+		'.bws-ts-sect{gap:24px}' +
+		// Sizing is its own option: GB's gap under it left Alignment too close to the Width field and its help.
+		'.bws-ts-sizing{margin-bottom:12px}' +
+		'.bws-ts-sect>.bws-ts-div{margin:-16px 0;border-top-color:#ececec}' +
 		// Six controls fill DOWN three columns: color / size | weight / style | alignment / transform.
-		'.bws-ts-g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,auto);grid-auto-flow:column;gap:8px 12px;align-items:start}' +
+		'.bws-ts-g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,auto);grid-auto-flow:column;gap:8px 16px;align-items:start}' +
 		'.bws-ts-smx{display:grid;grid-template-columns:auto 5rem minmax(0,1fr) minmax(0,1.15fr);gap:8px 12px;align-items:start}' +
 		'.bws-ts-smx .bws-ts-l,.bws-ts-smx .bws-ts-l3{margin:0}' +
 		// Top-aligned: a combobox's always-present help line makes its cell taller than the select's,
@@ -184,9 +190,6 @@
 		'.bws-ts .gb-button-icon-control .components-button{height:40px;min-height:40px}' +
 		// (__next40pxDefaultSize does not reach the combobox's container in this WP.)
 		'.bws-ts .components-combobox-control__suggestions-container{min-height:40px;box-sizing:border-box;align-items:center}' +
-		// A list heading is a disabled row, never the first (that is the hint): bold and dark,
-		// as a native <optgroup> draws one in a select.
-		'.bws-ts .components-form-token-field__suggestion[aria-disabled=true]:not(:first-child){font-weight:600;color:#1e1e1e;opacity:1}' +
 		// A third-width field would wrap every suggestion; the list may run wider than the field. Only in the
 		// grids whose combobox sits left of the modal's right edge.
 		'.bws-ts-g3 .components-form-token-field__suggestions-list,.bws-ts-smx .components-form-token-field__suggestions-list{min-width:15rem}';
@@ -290,17 +293,26 @@
 			return ! q || o.value.toLowerCase().indexOf( q ) !== -1;
 		} );
 		var gl = globals && ! q ? plain( V.globals || [] ) : [];
-		// Heading rows are disabled options: WP's combobox has no heading row of its own.
-		var head = function ( id, label, rows ) {
-			return rows.length ? [ { value: '__group:' + id, label: label, disabled: true } ].concat( rows ) : [];
-		};
-		return head( 'site', __( 'Site colors', 'generateblocks' ), sites )
-			.concat( head( 'names', __( 'Color names', 'generateblocks' ), extra.concat( plain( names ) ) ) )
-			.concat( head( 'globals', __( 'CSS values', 'generateblocks' ), gl ) );
+		var named = extra.concat( plain( names ) );
+		if ( ! q && named.length ) {
+			named.push( { value: '__hint:names', label: __( 'Type to search more color names.', 'generateblocks' ), disabled: true } );
+		}
+		return withSeparators( [ sites, named, gl ] );
+	}
+
+	/** Groups joined by GB's disabled dash row, as its Font Weight list draws one. */
+	function withSeparators( groups ) {
+		var out = [];
+		groups.filter( function ( g ) {
+			return g.length;
+		} ).forEach( function ( g, i ) {
+			out = out.concat( i ? [ { value: '__sep:' + i, label: '—', disabled: true } ] : [], g );
+		} );
+		return out;
 	}
 
 	/** Number typed: offer it in every unit, the natural default first (the unit flag, as a list). */
-	function sizeOptions( typed, kind, defaultUnit ) {
+	function sizeOptions( typed, kind, defaultUnit, extras ) {
 		var q = typed.trim();
 		var opts = [];
 		if ( NUMBER_RE.test( q ) ) {
@@ -313,9 +325,25 @@
 			} );
 		}
 		if ( kind === 'width' ) {
-			opts.push( { value: 'auto', label: 'auto' } );
+			opts = plain( [ 'auto' ].concat( extras || [] ) );
 		} else {
-			opts = plain( V.fontSizeKeywords || [] ).concat( q ? [] : plain( V.globals || [] ) );
+			// The relative keywords (larger, smaller) sit apart from the absolute xx-small…xxx-large scale.
+			var relative = /^(larger|smaller)$/;
+			var words = V.fontSizeKeywords || [];
+			var lowq = q.toLowerCase();
+			return withSeparators( [
+				plain( words.filter( function ( w ) {
+					return ! relative.test( w );
+				} ) ),
+				plain( words.filter( function ( w ) {
+					return relative.test( w );
+				} ) ),
+				q ? [] : plain( V.globals || [] )
+			].map( function ( g ) {
+				return g.filter( function ( o ) {
+					return ! lowq || o.value.indexOf( lowq ) !== -1;
+				} );
+			} ) );
 		}
 		var low = q.toLowerCase();
 		return opts.filter( function ( o ) {
@@ -365,7 +393,7 @@
 		}
 
 		function commit( next ) {
-			if ( next === '__hint' || ( typeof next === 'string' && next.indexOf( '__group:' ) === 0 ) ) {
+			if ( typeof next === 'string' && /^__(hint|sep)/.test( next ) ) {
 				return;
 			}
 			if ( typeof next === 'string' && next.indexOf( '__invalid:' ) === 0 ) {
@@ -414,12 +442,12 @@
 			placeholder: p.placeholder,
 			help: p.help,
 			hint: isWidth
-				? __( 'Type a number, then pick a unit, or choose auto or a var().', 'generateblocks' )
-				: __( 'Type a number, then pick a unit, or choose a keyword or a var().', 'generateblocks' ),
+				? __( 'Type a number, then pick a unit, or choose auto or 100%. A var() can be typed in.', 'generateblocks' )
+				: __( 'Type a number, then pick a unit, or choose a keyword. A var() can be typed in.', 'generateblocks' ),
 			errorKind: isWidth ? 'width' : 'size',
 			validate: isWidth ? T.widthValue : T.fontSizeValue,
 			options: function ( typed ) {
-				return sizeOptions( typed, isWidth ? 'width' : 'size', p.defaultUnit || ( isWidth ? '%' : 'rem' ) );
+				return sizeOptions( typed, isWidth ? 'width' : 'size', p.defaultUnit || ( isWidth ? '%' : 'rem' ), p.presets );
 			},
 			onChange: p.onChange
 		} );
@@ -762,6 +790,7 @@
 					hideLabel: true,
 					value: width,
 					kind: 'width',
+					presets: [ '100%' ],
 					placeholder: layout === 'fixed' ? '100%' : __( 'Theme default', 'generateblocks' ),
 					onChange: function ( v ) {
 						write( { width: v } );
@@ -772,7 +801,7 @@
 		if ( layout === 'fixed' && wide === 'auto' ) {
 			children.push( el( Advisory, { key: 'adv', text: COPY.fixedNeedsWidth } ) );
 		}
-		return el( 'div', { className: 'bws-ts' }, children );
+		return el( 'div', { className: 'bws-ts bws-ts-sizing' }, children );
 	}
 
 	// ── Typography (Table / Header) ──────────────────────────────────────────────
@@ -843,7 +872,7 @@
 		} );
 
 		// Alignment sits outside the text style blocks (prototype round 87): Table | Header.
-		return el( 'div', { className: 'bws-ts' }, [
+		return el( 'div', { className: 'bws-ts bws-ts-sect' }, [
 			el( 'div', { key: 'align', className: 'bws-ts-pair' }, [
 				el( ChoiceButtons, { key: 'tbl', level: 'l', label: __( 'Table Alignment', 'generateblocks' ), value: tableVals.textAlign, group: 'textAlign', choices: CHOICES.textAlign, onChange: function ( v ) {
 					commit( 'base' )( 'textAlign', v );
@@ -1260,7 +1289,7 @@
 			] )
 		];
 		if ( blocks.length ) {
-			children.push( el( 'div', { key: 'blocks', className: 'bws-ts bws-ts-sub' }, blocks ) );
+			children.push( el( 'div', { key: 'blocks', className: 'bws-ts bws-ts-sect bws-ts-sub' }, blocks ) );
 		}
 		TEXT_KEYS.forEach( function ( k ) {
 			var raw = opts[ k ];

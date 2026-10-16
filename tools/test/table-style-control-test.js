@@ -317,13 +317,27 @@ gbAlign.props.onChange( 'right' );
 check( 'GB icon group: writes through the same commit', m.writes[ 0 ], { textAlign: 'right' } );
 delete global.window.gb;
 
-// ── Color list headings ──────────────────────────────────────────────────────────────
+// ── Color list separators ────────────────────────────────────────────────────────────
 const colorRows = find( mount( UI.TypographyControl, {} ).tree, ( n ) => n.type === 'Combo' && n.props.label === 'Text Color' )[ 0 ].props.options;
-check( 'Color list: hint first, then headed groups, headings disabled', colorRows.filter( ( r ) => r.disabled ).map( ( r ) => r.label ), [ colorRows[ 0 ].label, 'Site colors', 'Color names', 'CSS values' ] );
+check( 'Color list: dash rows join the groups, disabled', colorRows.filter( ( r ) => r.label === '—' ).every( ( r ) => r.disabled ) && colorRows.some( ( r ) => r.label === '—' ), true );
+check( 'Color list: no heading rows', colorRows.some( ( r ) => /^(Site colors|Color names|CSS values)$/.test( r.label ) ), false );
+check( 'Color list: names group ends in the search hint', colorRows.some( ( r ) => r.label === 'Type to search more color names.' ), true );
 const colorField = expand( UI.ColorField( { label: 'C', value: '', onChange: ( v ) => commits.push( v ) } ) );
 commits = [];
-colorField.props.onChange( '__group:site' );
-check( 'Color list: picking a heading commits nothing', commits, [] );
+colorField.props.onChange( '__sep:1' );
+colorField.props.onChange( '__hint:names' );
+check( 'Color list: picking a separator or hint commits nothing', commits, [] );
+
+// ── Font Size list ───────────────────────────────────────────────────────────────────
+const sizeRows = find( mount( UI.TypographyControl, {} ).tree, ( n ) => n.type === 'Combo' && n.props.label === 'Font Size' )[ 0 ].props.options;
+const sizeSeq = sizeRows.map( ( r ) => ( r.label === '—' ? '—' : r.value ) );
+const iLarger = sizeSeq.indexOf( 'larger' );
+check( 'Font Size list: larger/smaller sit between dash rows, apart from xx-small…xxx-large', [ sizeSeq[ iLarger - 1 ], sizeSeq[ iLarger + 1 ], sizeSeq[ iLarger + 2 ], sizeSeq.indexOf( 'xxx-large' ) < iLarger ], [ '—', 'smaller', '—', true ] );
+check( 'Font Size list: the CSS globals follow a final dash row', sizeSeq[ sizeSeq.indexOf( 'inherit' ) - 1 ], '—' );
+
+// ── Table Width list ─────────────────────────────────────────────────────────────────
+const tw = find( expand( UI.SizingControl( { label: 'Sizing', context: { state: {}, setState: () => {} } } ) ), ( n ) => n.type === 'Combo' && n.props.label === 'Table Width' )[ 0 ];
+check( 'Table Width list: auto and 100% are offered', tw.props.options.map( ( r ) => r.value ).filter( ( v ) => v[ 0 ] !== '_' ), [ 'auto', '100%' ] );
 
 // ── The filter ───────────────────────────────────────────────────────────────────────
 const filter = filters[ filters.length - 1 ];
