@@ -1175,7 +1175,7 @@ check( 'an ordinary (non-pinning) root mounts no entity-picker control', !! pick
 const pinSlot2 = renderPinChain( [ { slug: 'term', arg: '5', limit: null } ], ENTITY_PICKER_STUB, true );
 check( 'slot ≥2 offers the same pinned-root control (D11 — base and slot ship together)', !! pickerIn( pinSlot2, ENTITY_PICKER_STUB ), true );
 
-// FIRST-STEP MENU ORDER: ambient lead, its steps in a native "From Current Context"
+// FIRST-STEP MENU ORDER: ambient lead, its steps in a native "Starting from Current Context"
 // optgroup, our own roots, `site`, then integration roots in an "Integrations" optgroup —
 // and a slot's `refs` root row folds into the `refs` step row rather than showing twice.
 const ORDER_CONF = rep.foldConfig( { fold: Object.assign( {}, CHAIN_FOLD, {
@@ -1207,7 +1207,7 @@ function firstMenu( sameOnEmpty ) {
 const ORDER_ROWS = firstMenuRows( false );
 const groupOf = function ( v ) { const r = ORDER_ROWS.find( function ( x ) { return v === x.value; } ); return r && r.group; };
 check( 'first-step menu: Current, steps, own roots, Site, integration roots', firstMenu( false ).join( ',' ), [ 'current' ].concat( ORDER_CONF.offer, [ 'post', 'term', 'site', 'ext' ] ).join( ',' ) );
-check( 'steps sit in the "From Current Context" optgroup', ORDER_CONF.offer.map( groupOf ).join( ',' ), ORDER_CONF.offer.map( function () { return 'From Current Context'; } ).join( ',' ) );
+check( 'steps sit in the "Starting from Current Context" optgroup', ORDER_CONF.offer.map( groupOf ).join( ',' ), ORDER_CONF.offer.map( function () { return 'Starting from Current Context'; } ).join( ',' ) );
 check( 'integration roots sit in the "Integrations" optgroup', groupOf( 'ext' ), 'Integrations' );
 check( 'Current Context and our own roots are ungrouped, labels untouched', [ 'current', 'post', 'term', 'site' ].map( groupOf ).filter( Boolean ).length + ':' + ORDER_ROWS.find( function ( r ) { return 'post' === r.value; } ).label, '0:Specific Post' );
 check( 'slot ≥2 menu: `same` and Current lead, Site last, no Integrations group without integrations', firstMenu( true ).join( ',' ), [ 'same', 'current' ].concat( ORDER_CONF.offer, [ 'site' ] ).join( ',' ) );

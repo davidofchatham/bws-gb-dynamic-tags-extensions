@@ -201,7 +201,7 @@
 
 	/**
 	 * The first step's menu ORDER: the ambient lead (`same`, the default root), the steps
-	 * that start from it grouped as "From Current Context", then our own roots, `site`,
+	 * that start from it grouped as "Starting from Current Context", then our own roots, `site`,
 	 * and last any integration roots grouped as "Integrations".
 	 *
 	 * A grouped row carries its group's label as `group`; optionNodes() turns runs of
@@ -223,7 +223,7 @@
 		}
 		var seen = {};
 		return roots.filter( isLead )
-			.concat( steps.map( inGroup( __( 'From Current Context', 'generateblocks' ) ) ) )
+			.concat( steps.map( inGroup( __( 'Starting from Current Context', 'generateblocks' ) ) ) )
 			.concat( roots.filter( function ( r ) { return ! isLead( r ) && ! r.integration && 'site' !== r.value; } ) )
 			.concat( roots.filter( function ( r ) { return 'site' === r.value; } ) )
 			.concat( roots.filter( function ( r ) { return r.integration; } ).map( inGroup( __( 'Integrations', 'generateblocks' ) ) ) )

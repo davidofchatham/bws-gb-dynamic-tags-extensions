@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Changed
 
+- In the editor's source menu, the group of steps that build on the current context is now headed "Starting from Current Context" (was "From Current Context"). The steps and what they write are unchanged.
 - **For plugin developers: `bws_register_modifier_root_migrations()` now files its entries under Removed Tags by default.** No modifier family can be registered any more, so `prefix_removed` defaults to `true`. Pass `false` only if your plugin still registers its prefixed tags by hand.
 
 ### Removed
