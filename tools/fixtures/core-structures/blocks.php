@@ -1237,14 +1237,13 @@ function bws_fixture_page_content_matrix_post_meta() {
 	// on this page (name/description/role, 2 rows: Alice/Bob) → a <table>. Hosted
 	// in a DIV (block-host row), NOT a <p> — {{table}} emits whole-table HTML.
 	// TB1 scalar columns + headers; TB2 header-less; TB3 ref-title column
-	// (lead_ref sub-field, none seeded → the use:title path reads empty, proving
-	// it degrades to a blank cell not a crash). TB4 caption + responsive wrapper
+	// (lead_ref sub-field; row 2 has none seeded → a blank cell, not a crash). TB4 caption + responsive wrapper
 	// (W3C data-table a11y): <caption id> + <div.bws-table-wrap role=region
 	// tabindex=0 aria-labelledby=that-id>.
 	$sections[] = bws_fixture_gb_section( 'Table TB - repeater to table', array(
 		bws_fixture_gb_block_host_row( 'TB1 (3 scalar cols + headers -> 2-row table: Alice/Engineering/Founding partner, Bob/Operations/Support lead)', '{{table src:rows,team_members|A:header(Name);key(name)|B:header(Role);key(role)|C:header(Note);key(description)}}' ),
 		bws_fixture_gb_block_host_row( 'TB2 (no headers -> header-less table, no thead row)', '{{table src:rows,team_members|A:key(name)|B:key(role)}}' ),
-		bws_fixture_gb_block_host_row( 'TB3 (use:title ref-hop col -> Lead column EMPTY on both rows until analog columns land; then row1 Lead = Jane Partner, row2 blank lead_ref = empty cell)', '{{table src:rows,team_members|A:header(Name);key(name)|B:header(Lead);src(inherit;refs,lead_ref);use(title)}}' ),
+		bws_fixture_gb_block_host_row( 'TB3 (use:title ref-hop col -> Lead column: row1 Jane Partner, row2 blank lead_ref = empty cell)', '{{table src:rows,team_members|A:header(Name);key(name)|B:header(Lead);src(inherit;refs,lead_ref);use(title)}}' ),
 		bws_fixture_gb_block_host_row( 'TB4 (caption "Our Team" -> <caption id> + wrapper aria-labelledby that id, role=region tabindex=0)', '{{table src:rows,team_members|caption:Our Team|A:header(Name);key(name)|B:header(Role);key(role)}}' ),
 		bws_fixture_gb_block_host_row( 'TB5 (header-only column C -> thead Name/Role/Spacer, Spacer cells EMPTY on both rows, no warning)', '{{table src:rows,team_members|A:header(Name);key(name)|B:header(Role);key(role)|C:header(Spacer)}}' ),
 		bws_fixture_gb_block_host_row( 'TB6 (one header among three columns -> thead with one filled th (Role) and two blank th, 3 cells per body row)', '{{table src:rows,team_members|A:key(name)|B:header(Role);key(role)|C:key(description)}}' ),

@@ -211,17 +211,53 @@ function bws_table_column_start( ?array $opts, string $explicit_id, $instance ) 
 }
 
 /**
+ * A column's ANALOG read (`use:title`) off one already-resolved source.
+ *
+ * The third kind switch beside bws_read_resolved_source_value() (keyed) and
+ * bws_source_link_identity() (identity): which analog does this kind expose. It calls the
+ * readers the text tag's own arms use, by id, rather than bws_base_ambient_analog(), which
+ * answers only an ambient chain (its PHPDoc owns the rule). Table-only: promote it the day a
+ * second reader dispatches from a resolved source (FW-120).
+ *
+ * A `meta_row` has no analog (a row is not an entity) and an unlisted kind has none yet:
+ * both are '' and never fall through to the ambient entity.
+ *
+ * @since Unreleased
+ * @param array  $source   One resolved source.
+ * @param array  $opts     The column's slot options.
+ * @param object $instance GB instance.
+ * @return string Analog value, '' on a miss or a kind with none.
+ */
+function bws_table_read_analog( array $source, array $opts, $instance ): string {
+	$identity = bws_source_link_identity( $source );
+	if ( null === $identity ) {
+		return '';
+	}
+	switch ( $identity['kind'] ) {
+		case 'post':
+			return (string) bws_try_text_post_dispatch( $identity['id'], $opts, $instance );
+		case 'term':
+			return bws_base_term_analog_read( 'text', $identity['id'], $opts, $instance );
+		case 'user':
+			return bws_base_user_analog_read( 'text', $identity['id'], $opts, $instance );
+		case 'site':
+			return bws_site_resolve_value( 'text', $opts, $instance );
+	}
+	return '';
+}
+
+/**
  * Read one column's cell off one row.
  *
  * Runs the column's steps from its start (the row, unless its root names another
  * source), then reads every source it lands on, joined `, ` as a {{join}} slot does.
  * The FIXED read comes first and reads nothing, so it applies on every row kind,
  * `meta_row` included; bws_fixed_text_read() owns what an unresolved source shows.
- * A keyed read goes through the L2 read seam. Analog reads render empty here until the
- * analog dispatcher lands.
+ * A keyed read goes through the L2 read seam, an analog read through
+ * bws_table_read_analog().
  *
  * @since 1.17.0
- * @since Unreleased A column is a folded slot; keyed and fixed reads.
+ * @since Unreleased A column is a folded slot; keyed, analog and fixed reads.
  * @param array  $row_source One resolved row source.
  * @param array  $col        `{ opts, start, steps }`; null `opts` is a header-only column.
  * @param object $instance   GB instance.
@@ -241,7 +277,7 @@ function bws_table_read_cell( array $row_source, array $col, $instance ): string
 		} elseif ( 'key' === $opts['use'] ) {
 			$value = bws_read_resolved_source( $source, (string) $opts['key'], $instance );
 		} else {
-			$value = '';
+			$value = bws_table_read_analog( $source, $opts, $instance );
 		}
 		if ( '' !== $value ) {
 			$values[] = $value;

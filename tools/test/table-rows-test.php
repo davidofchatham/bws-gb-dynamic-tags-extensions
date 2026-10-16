@@ -35,6 +35,11 @@ if ( ! function_exists( 'sanitize_text_field' ) ) {
 if ( ! function_exists( 'bws_gb_tag_output' ) ) {
 	function bws_gb_tag_output( $v, $o = array(), $i = null ) { return $v; }
 }
+// The source gate names WP symbols (its own PHPDoc: never called by a pure harness). Admit all,
+// so an analog case reaches the dispatcher, whose own id guards are what is under test.
+if ( ! function_exists( 'bws_source_gate' ) ) {
+	function bws_source_gate( array $source ) { return true; }
+}
 require __DIR__ . '/../../includes/tags/base-shared.php';
 require __DIR__ . '/../../includes/helpers/serialization-order.php';
 require __DIR__ . '/../../includes/helpers/slot-fold.php';
@@ -44,6 +49,22 @@ require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
 require __DIR__ . '/../../includes/helpers/registration-helpers.php';
 require __DIR__ . '/../../includes/helpers/field-helpers.php';
 require __DIR__ . '/../../includes/tags/table-tags.php';
+
+// The analog readers the dispatcher routes to, stubbed where they live in files this harness
+// does not load (base-tags.php): each echoes the kind and id it was handed, so a case pins
+// the ROUTING. The user reader is the real one, over a stubbed WP lookup.
+if ( ! function_exists( 'bws_try_text_post_dispatch' ) ) {
+	function bws_try_text_post_dispatch( $id, $o, $i ) { return "post-{$id}"; }
+}
+if ( ! function_exists( 'bws_try_text_term_dispatch' ) ) {
+	function bws_try_text_term_dispatch( $id, $o, $i ) { return "term-{$id}"; }
+}
+if ( ! function_exists( 'bws_site_resolve_value' ) ) {
+	function bws_site_resolve_value( $tag, $o, $i ) { return "site-{$tag}"; }
+}
+if ( ! function_exists( 'get_the_author_meta' ) ) {
+	function get_the_author_meta( $f, $id ) { return "user-{$f}-{$id}"; }
+}
 
 $failures = 0;
 
@@ -136,6 +157,17 @@ check( 'a pending `use(fixed)` renders empty', '', $cell( array( 'opts' => array
 $carried = bws_table_columns( array( 'A' => 'fixed(Team)', 'B' => 'use(same)' ) );
 check( 'a hand-written `use(same)` carries a fixed column\'s text over', array( 'fixed', 'Team' ), array( $carried[1]['opts']['use'] ?? null, $carried[1]['opts']['fixed'] ?? null ) );
 check( 'a refused start renders an empty cell', '', bws_table_read_cell( $row, array( 'opts' => $cols[0]['opts'], 'start' => false, 'steps' => array() ), null ) );
+
+echo "analog columns: dispatch off the resolved source\n";
+$title = array( 'src' => '', 'use' => 'title', 'key' => '' );
+$acell = static fn( array $source, array $opts = array() ) => bws_table_read_cell( $source, array( 'opts' => $opts + $title, 'start' => null, 'steps' => array() ), null );
+check( 'a post row reads its post analog', 'post-7', $acell( array( 'kind' => 'post', 'id' => 7 ) ) );
+check( 'a term row reads its term name', 'term-9', $acell( array( 'kind' => 'term', 'id' => 9 ) ) );
+check( 'a user row reads its display name', 'user-display_name-3', $acell( array( 'kind' => 'user', 'id' => 3 ) ) );
+check( 'a site row reads its site analog through the text tag', 'site-text', $acell( array( 'kind' => 'site' ) ) );
+check( 'a meta_row refuses an analog and does not fall through to the ambient entity', '', $acell( array( 'kind' => 'meta_row', 'row' => array( 'name' => 'Alice' ) ) ) );
+check( 'an id-less entity row is empty', '', $acell( array( 'kind' => 'term', 'id' => 0 ) ) );
+check( 'a user row has no permalink analog: `use:permalink` is empty', '', $acell( array( 'kind' => 'user', 'id' => 3 ), array( 'use' => 'permalink' ) ) );
 
 echo $failures ? "\n{$failures} FAILED\n" : "\nall passed\n";
 exit( $failures ? 1 : 0 );

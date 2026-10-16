@@ -61,6 +61,10 @@ return array(
 	// The date the baseline under `tools/test/snapshots/` was captured. Prose only —
 	// nothing compares it; it is here so a reader can place the record in time.
 	//
+	// 2026-10-16: {{table}} analog columns (`use:title`) render. TB3's Lead column moved from
+	// empty to `Jane Partner` / empty; nothing else moved. Dependency versions and the active
+	// set unchanged.
+	//
 	// 2026-10-15: {{table}} columns became folded slots. The TB/F22.6 rows were re-spelled and
 	// rendered unchanged, except TB3's Lead column: an analog (`use:title`) column renders empty
 	// until the analog dispatcher lands, and the row label says so. Dependency versions and the
