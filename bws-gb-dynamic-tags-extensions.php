@@ -418,7 +418,7 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 	wp_enqueue_script(
 		'bws-dynamic-tags-image-controls',
 		BWS_DYNAMIC_TAGS_URL . 'assets/js/image-tag-controls.js',
-		array( 'wp-hooks', 'wp-element', 'wp-components' ),
+		array( 'wp-hooks', 'wp-element', 'wp-components', 'wp-i18n' ),
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);
