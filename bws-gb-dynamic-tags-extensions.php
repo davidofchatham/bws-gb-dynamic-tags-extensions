@@ -650,6 +650,16 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 			'before'
 		);
 	}
+	// The Live Formatting Preview: a display-only member of the style box.
+	// It draws from the grammar twin's rule builder and reads the stripe defaults the control
+	// script inlines, hence both dependencies.
+	wp_enqueue_script(
+		'bws-dynamic-tags-table-style-preview',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/table-style-preview.js',
+		array( 'wp-hooks', 'wp-element', 'wp-i18n', 'bws-dynamic-tags-slot-fold-grammar', 'bws-dynamic-tags-table-style-grammar', 'bws-dynamic-tags-table-style-control' ),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
 	wp_enqueue_script(
 		'bws-dynamic-tags-slot-fold-control',
 		BWS_DYNAMIC_TAGS_URL . 'assets/js/slot-fold-control.js',

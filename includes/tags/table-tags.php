@@ -159,6 +159,12 @@ function bws_get_table_style_options(): array {
 		);
 	};
 	return array(
+		// Display-only: the Live Formatting Preview (assets/js/table-style-preview.js). It has
+		// no value and is never serialized, and it leads the style box.
+		'stylePreview'  => array(
+			'type'  => 'bws-table-style-preview',
+			'label' => __( 'Live Formatting Preview', 'generateblocks' ),
+		),
 		'layout'        => array(
 			'type'  => 'bws-table-sizing',
 			'label' => __( 'Column Sizing', 'generateblocks' ),

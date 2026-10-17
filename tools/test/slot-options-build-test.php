@@ -1078,15 +1078,15 @@ assert_same( 'table: the column card is offered the styling fields', true, $tabl
 assert_same( 'join: a column width means nothing in a join slot', false, isset( $rooted_fold['styleOption'] ) );
 assert_same(
 	'table: the presentation keys register contiguously, in control order, after `caption` and before the columns',
-	array( 'caption', 'layout', 'width', 'color', 'fontSize', 'fontWeight', 'fontStyle', 'textAlign', 'textTransform', 'stripe', 'A' ),
-	array_slice( $table_keys, array_search( 'caption', $table_keys, true ), 11 )
+	array( 'caption', 'stylePreview', 'layout', 'width', 'color', 'fontSize', 'fontWeight', 'fontStyle', 'textAlign', 'textTransform', 'stripe', 'A' ),
+	array_slice( $table_keys, array_search( 'caption', $table_keys, true ), 12 )
 );
 assert_same(
-	'table: three composites own the style keys, the rest are members that draw nothing',
-	array( 'bws-table-sizing', 'bws-table-style-member', 'bws-table-typography', 'bws-table-style-member', 'bws-table-style-member', 'bws-table-style-member', 'bws-table-style-member', 'bws-table-style-member', 'bws-table-stripes' ),
-	array_map( static function ( $k ) use ( $table_opts ) { return $table_opts[ $k ]['type']; }, array( 'layout', 'width', 'color', 'fontSize', 'fontWeight', 'fontStyle', 'textAlign', 'textTransform', 'stripe' ) )
+	'table: the preview leads, then three composites own the style keys, the rest are members that draw nothing',
+	array( 'bws-table-style-preview', 'bws-table-sizing', 'bws-table-style-member', 'bws-table-typography', 'bws-table-style-member', 'bws-table-style-member', 'bws-table-style-member', 'bws-table-style-member', 'bws-table-style-member', 'bws-table-stripes' ),
+	array_map( static function ( $k ) use ( $table_opts ) { return $table_opts[ $k ]['type']; }, array( 'stylePreview', 'layout', 'width', 'color', 'fontSize', 'fontWeight', 'fontStyle', 'textAlign', 'textTransform', 'stripe' ) )
 );
-assert_same( 'table: every style key is in the `style` visual group', array( 'style' ), array_values( array_unique( array_map( static function ( $k ) use ( $table_opts ) { return $table_opts[ $k ]['_group'] ?? null; }, array( 'layout', 'width', 'color', 'fontSize', 'fontWeight', 'fontStyle', 'textAlign', 'textTransform', 'stripe' ) ) ) ) );
+assert_same( 'table: every style key is in the `style` visual group', array( 'style' ), array_values( array_unique( array_map( static function ( $k ) use ( $table_opts ) { return $table_opts[ $k ]['_group'] ?? null; }, array( 'stylePreview', 'layout', 'width', 'color', 'fontSize', 'fontWeight', 'fontStyle', 'textAlign', 'textTransform', 'stripe' ) ) ) ) );
 assert_same( 'table: no picker scope rides the fold any more', array( false, false ), array( isset( $table_opts['A']['fold']['fieldScope'] ), isset( $table_opts['A']['fold']['scopeStateKey'] ) ) );
 
 // ── The SHARED base builder is untouched ─────────────────────────────────────────────

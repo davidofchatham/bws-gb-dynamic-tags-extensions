@@ -1366,6 +1366,7 @@
 		ColumnWidthField: ColumnWidthField,
 		Field: Field,
 		Heading: Heading,
+		defaults: defaults,
 		ColumnStyle: ColumnStyle
 	};
 }() );

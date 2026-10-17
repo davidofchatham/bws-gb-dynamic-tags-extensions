@@ -103,6 +103,15 @@ foreach ( $corpus['headed'] as $key => $values ) {
 	twin_rows( "headed $key", $values, array_map( static fn( $v ) => counted( bws_table_text_parse( $key, $v ) ), $values ), $js['headed'][ $key ] ?? null );
 }
 twin_rows( 'stripe', $corpus['stripes'], array_map( static fn( $v ) => counted( bws_table_stripe_parse( $v ) ), $corpus['stripes'] ), $js['stripes'] );
+twin_rows(
+	'rules',
+	$corpus['rules'],
+	array_map(
+		static fn( $c ) => bws_table_rules( bws_table_style_read( $c['options'] ), array_map( 'bws_table_column_style_read', $c['columns'] ), $c['hasHeader'], $c['defaults'] ),
+		$corpus['rules']
+	),
+	$js['rules']
+);
 twin_rows( 'items', $corpus['items'], array_map( 'bws_head_args_items', $corpus['items'] ), $js['items'] );
 
 echo "\n$pass passed, $fail failed\n";

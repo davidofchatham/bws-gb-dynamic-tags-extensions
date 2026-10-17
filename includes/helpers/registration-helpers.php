@@ -163,6 +163,9 @@ function bws_option_visual_groups(): array {
 		// the wrapper joins is the three composites. `layout` leads: the box stays drawn
 		// while a composite is mid-reveal. Names are unique to {{table}} among BWS tags (the
 		// map is name-keyed), and GB core's are never touched.
+		// `stylePreview` is the display-only Live Formatting Preview: always rendered, so it
+		// leads the box; `layout` stays a lead so the box is drawn while a composite is mid-reveal.
+		'stylePreview'    => array( 'group' => 'style', 'lead' => true ),
 		'layout'          => array( 'group' => 'style', 'lead' => true ),
 		'width'           => array( 'group' => 'style', 'lead' => false ),
 		'color'           => array( 'group' => 'style', 'lead' => false ),

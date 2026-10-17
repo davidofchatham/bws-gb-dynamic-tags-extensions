@@ -303,8 +303,169 @@
 		return '';
 	}
 
+	// ── The rule builder ──────────────────────────────────────────────────────
+
+	function present( obj, key ) {
+		return obj[ key ] !== undefined && obj[ key ] !== null;
+	}
+
+	/** Twin of bws_table_text_read(): key => parse, only keys that parsed to something. */
+	function textRead( options ) {
+		var text = {};
+		list( 'textKeys' ).forEach( function ( key ) {
+			var parsed = present( options, key ) ? parseText( key, String( options[ key ] ) ) : null;
+			if ( parsed !== null && ( parsed.base !== null || parsed.header !== null ) ) {
+				text[ key ] = parsed;
+			}
+		} );
+		return text;
+	}
+
+	/** Twin of bws_table_style_read(): a table's presentation keys off its options. */
+	function styleRead( options ) {
+		var layout = String( options.layout || '' ).trim().toLowerCase();
+		var stripe = present( options, 'stripe' ) ? parseStripe( String( options.stripe ) ) : null;
+		return {
+			layout: layout === 'auto' || layout === 'fixed' ? layout : null,
+			width: present( options, 'width' ) ? widthValue( String( options.width ) ) : null,
+			text: textRead( options ),
+			stripe: stripe !== null && ( stripe.rows !== null || stripe.cols !== null ) ? stripe : null
+		};
+	}
+
+	/** Twin of bws_table_column_style_read(): a column's width and text tokens. */
+	function columnStyleRead( slotOpts ) {
+		return {
+			width: present( slotOpts, 'width' ) ? widthValue( String( slotOpts.width ) ) : null,
+			text: textRead( slotOpts )
+		};
+	}
+
+	/** Twin of bws_table_stripe_color(): the color expression one stripe paints. */
+	function stripeColor( spec, defaults ) {
+		function compose( color, opacity ) {
+			return colorHasAlpha( color ) ? color : 'color-mix(in srgb,' + color + ' ' + cssNumber( opacity ) + '%,transparent)';
+		}
+		if ( spec.color === null && spec.opacity === null ) {
+			return 'var(--bws-dte-table-stripe,' + compose( defaults.color, defaults.opacity ) + ')';
+		}
+		return compose( spec.color !== null ? spec.color : defaults.color, spec.opacity !== null ? spec.opacity : defaults.opacity );
+	}
+
+	/**
+	 * Twin of bws_table_rules(): the ordered `{ sel, decl }` list the editor preview draws from.
+	 * The PHP builder is the owner (its PHPDoc states the rules); tools/test/table-style-twin-test.php
+	 * diffs this against it over a corpus, so the thumbnail cannot disagree with the page.
+	 */
+	function rules( table, columns, hasHeader, stripeDefaults ) {
+		var out = [];
+		var props = V.textProps || {};
+		function add( sel, decls ) {
+			if ( decls.length ) {
+				out.push( { sel: sel, decl: decls.join( ';' ) } );
+			}
+		}
+		function decl( key, value ) {
+			return props[ key ] + ':' + value;
+		}
+		var keys = list( 'textKeys' );
+
+		var self = [];
+		if ( table.layout !== null ) {
+			self.push( 'table-layout:' + table.layout );
+		}
+		var width = table.width !== null ? table.width : ( table.layout === 'fixed' ? '100%' : null );
+		if ( width !== null ) {
+			self.push( 'width:' + width );
+		}
+		add( [ '' ], self );
+
+		var base = [];
+		var header = [];
+		keys.forEach( function ( key ) {
+			var parsed = table.text[ key ];
+			if ( ! parsed ) {
+				return;
+			}
+			if ( parsed.base !== null ) {
+				base.push( decl( key, parsed.base ) );
+			}
+			if ( hasHeader && parsed.header !== null ) {
+				header.push( decl( key, parsed.header ) );
+			}
+		} );
+		add( [ ' :is(th,td)' ], base );
+		add( [ ' thead th' ], header );
+
+		[ 'rows', 'cols' ].forEach( function ( target ) {
+			var spec = table.stripe ? table.stripe[ target ] : null;
+			if ( ! spec ) {
+				return;
+			}
+			var even = spec.parity === 'even';
+			var color = stripeColor( spec, stripeDefaults );
+			var sel;
+			if ( target === 'cols' ) {
+				sel = [ ' :is(th,td):nth-child(' + ( even ? 'even' : 'odd' ) + ')' ];
+			} else if ( hasHeader ) {
+				sel = even ? [ ' tbody tr:nth-child(odd)' ] : [ ' thead tr', ' tbody tr:nth-child(even)' ];
+			} else {
+				sel = [ ' tbody tr:nth-child(' + ( even ? 'even' : 'odd' ) + ')' ];
+			}
+			add( sel, [ 'background-image:linear-gradient(' + color + ',' + color + ')' ] );
+		} );
+
+		columns.forEach( function ( col, i ) {
+			var n = i + 1;
+			var onBoth = [];
+			var onBody = [];
+			var onHead = [];
+			if ( col.width !== null && col.width !== undefined ) {
+				onBoth.push( 'width:' + col.width );
+			}
+			keys.forEach( function ( key ) {
+				var tbl = table.text[ key ] || null;
+				var cl = col.text[ key ] || null;
+				if ( cl === null ) {
+					return;
+				}
+				var b = textForCell( key, tbl, cl, false );
+				var h = hasHeader ? textForCell( key, tbl, cl, true ) : '';
+				b = b !== textForCell( key, tbl, null, false ) ? b : '';
+				h = h !== textForCell( key, tbl, null, true ) ? h : '';
+				if ( b !== '' && b === h ) {
+					onBoth.push( decl( key, b ) );
+					return;
+				}
+				if ( b !== '' ) {
+					onBody.push( decl( key, b ) );
+				}
+				if ( h !== '' ) {
+					onHead.push( decl( key, h ) );
+				}
+			} );
+			add( [ ' :is(th,td):nth-child(' + n + ')' ], onBoth );
+			add( [ ' tbody td:nth-child(' + n + ')' ], onBody );
+			add( [ ' thead th:nth-child(' + n + ')' ], onHead );
+		} );
+		return out;
+	}
+
+	/** Twin of bws_table_rules_css(): the stylesheet text under a scope class. */
+	function rulesCss( scope, ruleList ) {
+		return ruleList.map( function ( rule ) {
+			return rule.sel.map( function ( suffix ) {
+				return '.' + scope + suffix;
+			} ).join( ',' ) + '{' + rule.decl + '}';
+		} ).join( '' );
+	}
+
 	window.bwsTableStyle = {
 		vocab: V,
+		styleRead: styleRead,
+		columnStyleRead: columnStyleRead,
+		rules: rules,
+		rulesCss: rulesCss,
 		cssVar: cssVar,
 		widthValue: widthValue,
 		colorValue: colorValue,

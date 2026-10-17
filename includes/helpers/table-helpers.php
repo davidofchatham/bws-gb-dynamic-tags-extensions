@@ -853,6 +853,7 @@ function bws_table_style_vocabulary(): array {
 		'textTransforms'    => BWS_TABLE_TEXT_TRANSFORMS,
 		'textAligns'        => BWS_TABLE_TEXT_ALIGN_VALUES,
 		'textKeys'          => array_keys( BWS_TABLE_TEXT_KEYS ),
+		'textProps'         => BWS_TABLE_TEXT_KEYS,
 		'columnCoversHeader' => BWS_TABLE_TEXT_COLUMN_COVERS_HEADER,
 		'stripeDefaultColor'   => BWS_TABLE_STRIPE_DEFAULT_COLOR,
 		'stripeDefaultOpacity' => BWS_TABLE_STRIPE_DEFAULT_OPACITY,

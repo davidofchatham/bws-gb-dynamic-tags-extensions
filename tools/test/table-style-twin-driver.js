@@ -50,7 +50,8 @@ const out = {
 	opacities: corpus.opacities.map( ( v ) => T.opacityValue( v ) ),
 	headed: {},
 	stripes: corpus.stripes.map( ( v ) => counted( T.parseStripe( v ) ) ),
-	items: corpus.items.map( ( v ) => T.headArgsItems( v ) )
+	items: corpus.items.map( ( v ) => T.headArgsItems( v ) ),
+	rules: corpus.rules.map( ( c ) => T.rules( T.styleRead( c.options ), c.columns.map( ( col ) => T.columnStyleRead( col ) ), c.hasHeader, c.defaults ) )
 };
 Object.keys( corpus.text ).forEach( ( k ) => {
 	out.text[ k ] = corpus.text[ k ].map( ( v ) => T.textValue( k, v ) );
