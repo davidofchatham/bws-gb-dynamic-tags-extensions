@@ -376,7 +376,8 @@
 	 * An absent envelope (no discovery on this page) is likewise silence, not a
 	 * fallback: with no definitions in hand there is nothing to say.
 	 *
-	 * A SECOND WALK OVER THE ENVELOPE, deliberately not shared with
+	 * The walk itself is agreedEntryFact(), shared with fieldLabel(). It is a SECOND WALK
+	 * OVER THE ENVELOPE, deliberately not shared with
 	 * field-combo-control.js's `envelopeToRecords()`. That file mounts only once its own
 	 * component list is present (`ComboboxControl`/`Flex`/`FlexItem`/`apiFetch`) and
 	 * BAILS on an older stack, where this control still renders against a plain text
@@ -385,6 +386,18 @@
 	 * row, while a note must notice that two of them DISAGREE.
 	 */
 	function fieldNote( fieldKey ) {
+		return agreedEntryFact( fieldKey, function ( f ) {
+			return ( f.note && f.note.length ) ? f.note : null;
+		} );
+	}
+
+	/**
+	 * The one fact every envelope entry holding `fieldKey` agrees on, or null — the walk
+	 * behind both fieldNote() and fieldLabel(). `factOf( field, group )` returns an entry's
+	 * fact or null; an entry with none DISAGREES with one that has it rather than being
+	 * skipped over, so any disagreement is silence.
+	 */
+	function agreedEntryFact( fieldKey, factOf ) {
 		var env = window.bwsFieldEnvelope;
 		if ( ! fieldKey || ! env || 'object' !== typeof env ) {
 			return null;
@@ -397,20 +410,19 @@
 					if ( ! f || f.name !== fieldKey ) {
 						return;
 					}
-					var note = ( f.note && f.note.length ) ? f.note : null;
-					// '-' is the signature of "this entry has no note", which must
-					// DISAGREE with a note rather than being skipped over.
-					var sig = note ? JSON.stringify( note ) : '-';
+					var fact = factOf( f, group );
+					// '-' is the signature of "this entry has no fact".
+					var sig = ( null === fact ) ? '-' : JSON.stringify( fact );
 					if ( seen.indexOf( sig ) === -1 ) {
 						seen.push( sig );
-						if ( note && ! found ) {
-							found = note;
+						if ( null !== fact && null === found ) {
+							found = fact;
 						}
 					}
 				} );
 			} );
 		} );
-		return ( 1 === seen.length && found ) ? found : null;
+		return ( 1 === seen.length ) ? found : null;
 	}
 
 	/**
@@ -444,6 +456,46 @@
 			}, seg.text ) );
 		} );
 		return kids.length ? el( 'div', { key: 'fieldnote', style: NOTE_PANEL }, kids ) : null;
+	}
+
+	/**
+	 * The ACF label of the field a key names, or null — the field-label advisory's lookup.
+	 *
+	 * The note's AMBIGUITY-IS-SILENCE rule, applied to the label. A `register_meta` entry
+	 * has no ACF definition, so no label to claim: it counts as having none.
+	 */
+	function fieldLabel( fieldKey ) {
+		return agreedEntryFact( fieldKey, function ( f, group ) {
+			return ( 'registered' !== group.source && f.label ) ? String( f.label ) : null;
+		} );
+	}
+
+	/**
+	 * The FIELD-LABEL ADVISORY under a table column's header: names the picked field's
+	 * label and offers it as the header. An advisory with click-to-apply, never a
+	 * placeholder — it writes nothing until clicked, so an unset header stays unset and
+	 * the `<thead>` gate reads the column as headerless. The line stays while the field
+	 * is picked; the link hides while the header already equals the label, so its
+	 * presence signals divergence. Copy is PHP's (`headerOption.labelNote`/`labelApply`).
+	 */
+	function labelAdvisory( conf, slot, write ) {
+		var opt = conf.headerOption || {};
+		var read = slot.read;
+		var label = ( opt.labelNote && read && 'key' === read.kind ) ? fieldLabel( read.field ) : null;
+		if ( ! label ) {
+			return null;
+		}
+		var kids = [ el( 'span', { key: 'text' }, fmt( opt.labelNote, label ) ) ];
+		if ( label !== slot.header && opt.labelApply ) {
+			kids.push( ' ', el( Button, {
+				key: 'labelapply',
+				variant: 'link',
+				onClick: function () {
+					write( Object.assign( {}, slot, { header: label } ) );
+				}
+			}, opt.labelApply ) );
+		}
+		return el( 'div', { key: 'labelnote', style: NOTE_PANEL }, kids );
 	}
 
 	// ── Slot structs ────────────────────────────────────────────────────────
@@ -1663,18 +1715,21 @@
 				},
 				__nextHasNoMarginBottom: true
 			} );
+			var labelNode = labelAdvisory( conf, slot, write );
 			if ( UI ) {
 				children.push( el( 'div', { key: 'headergroup', className: CLS.group + ' bws-ts bws-ts-sect' }, [
 					el( 'div', { key: 'hdrrow', className: 'bws-ts-pair' }, [
 						el( UI.Field, { key: 'header', level: 'l', label: __( 'Column Header', 'generateblocks' ) }, headerField ),
 						el( UI.ColumnWidthField, { key: 'width', slot: slot, tagState: state, write: write } )
 					] ),
+					labelNode,
 					el( UI.ColumnStyle, { key: 'colstyle', slot: slot, tagState: state, write: write, slotKey: key } )
 				] ) );
 			} else {
 				children.push( el( 'div', { key: 'headergroup', className: CLS.group }, [
 					el( 'span', { key: 'caption', className: CLS.caption }, conf.headerOption.label ),
-					headerField
+					headerField,
+					labelNode
 				] ) );
 			}
 		}

@@ -328,6 +328,16 @@ src:refs,related_staff}}` renders the related posts (verified on the testbed, `r
 holding two ids). Relocating this note there would explain a limit on a read that produces nothing;
 what that surface would want, if anything, is an advisory pointing at the source step.
 
+#### Field-label advisory
+
+Beneath a `{{table}}` column's header control, a column whose field read names a known field shows that field's ACF label and offers it as the header: *This field's label is "City".* followed by a **Use as the header** link. Built by `labelAdvisory()` in [`assets/js/slot-fold-control.js`](../assets/js/slot-fold-control.js); the copy arrives on the fold config's `headerOption` (`labelNote`, `labelApply`) from `bws_build_fold_slot_options()`, so every string stays in PHP.
+
+**An advisory with click-to-apply, never a placeholder.** Nothing is written until the link is clicked, and clicking writes the label as an ordinary `header` token, indistinguishable afterwards from a typed one. An unset header stays unset, so the `<thead>` gate still reads the column as headerless. There is no wire for the affordance itself.
+
+**The line stays while the field is picked; the link hides while the header already equals the label** and returns when the author edits away, so the link's presence signals divergence.
+
+**Uncertainty is silence**, the field configuration note's rule: the label shows only where every envelope entry holding the key agrees on it. A `register_meta` entry has no ACF label to claim and counts as disagreeing. No field picked, an unknown key, a non-key read or no envelope on the page all render nothing. The lookup is re-derived from the column's current field on every render, so changing the column's field changes the advisory.
+
 ---
 
 ## Option grouping (visual)

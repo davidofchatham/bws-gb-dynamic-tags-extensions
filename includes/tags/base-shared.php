@@ -854,8 +854,12 @@ function bws_build_fold_slot_options( array $args ): array {
 		// The `header` token is shared grammar, but a <th> means nothing in a {{join}} or
 		// try_ slot, so only a table slot is offered the control.
 		$fold['headerOption'] = array(
-			'label' => __( 'Header', 'generateblocks' ),
-			'help'  => __( 'Text for the heading cell of this column. The heading row appears when any column has one.', 'generateblocks' ),
+			'label'      => __( 'Header', 'generateblocks' ),
+			// The field-label advisory beneath the control (slot-fold-control.js labelAdvisory()).
+			/* translators: %s: the picked field's label. */
+			'labelNote'  => __( 'This field\'s label is "%s".', 'generateblocks' ),
+			'labelApply' => __( 'Use as the header', 'generateblocks' ),
+			'help'       => __( 'Text for the heading cell of this column. The heading row appears when any column has one.', 'generateblocks' ),
 		);
 		// A column also takes `width(…)` and the six text tokens, which only a table renders.
 		// The control draws the fields (assets/js/table-style-control.js); this is the flag.

@@ -1664,6 +1664,49 @@ hdrWrite.props.onChange( '' );
 check( 'header control: clearing drops the token entirely', wrote && wrote.A, 'key(name)' );
 check( 'header control: absent on a {{join}} slot', keyedNodes( renderPanel( COMBINING, { A: 'key(name)', B: 'key(x)' } ), 'headergroup' ).length, 0 );
 
+// ── The field-label advisory: offers the picked field's label as the header ──────────
+// Describes and writes nothing until clicked; silent wherever the label is uncertain.
+const LBL_OPT = Object.assign( {}, HDR_OPT, { labelNote: 'LABEL[%s]', labelApply: 'APPLY' } );
+const LBL_CONF = rep.foldConfig( { fold: Object.assign( {}, HDR_CONF, { container: 'table', headerOption: LBL_OPT, flatAxes: [] } ) } );
+const lblEnv = function ( fields, source ) {
+	return { post: [ { group_title: 'G', kind: 'post', scope: [], source: source || 'acf', fields: fields } ] };
+};
+const lblNode = function ( env, state, setState ) {
+	return withEnvelope( env, function () { return keyedNodes( renderPanel( LBL_CONF, state, setState ), 'labelnote' )[ 0 ] || null; } );
+};
+const lblText = function ( node ) { return node ? node.children[ 0 ][ 0 ].children[ 0 ] : '(none)'; };
+const lblApply = function ( node ) { return node ? keyedNodes( node, 'labelapply' )[ 0 ] || null : null; };
+const CITY = lblEnv( [ { name: 'city', label: 'City', note: null } ] );
+
+let lblWrote = null;
+const cityNote = lblNode( CITY, { A: 'key(city)', B: 'key(x)' }, function ( s ) { lblWrote = s; } );
+check( 'label advisory: names the picked field\'s label, in the shipped copy', lblText( cityNote ), 'LABEL[City]' );
+check( 'label advisory: rendering writes nothing (not a placeholder, the header stays unset)', lblWrote, null );
+check( 'label advisory: offers the apply link while the header differs', lblApply( cityNote ) && lblApply( cityNote ).children[ 0 ], 'APPLY' );
+lblApply( cityNote ).props.onClick();
+check( 'label advisory: apply writes the label as an ordinary header token', lblWrote && lblWrote.A, 'header(City);key(city)' );
+const agreed = lblNode( CITY, { A: 'header(City);key(city)', B: 'key(x)' } );
+check( 'label advisory: the line stays once the header equals the label', lblText( agreed ), 'LABEL[City]' );
+check( '...but the apply link hides', lblApply( agreed ), null );
+check( '...and returns when the author edits away', !! lblApply( lblNode( CITY, { A: 'header(Town);key(city)', B: 'key(x)' } ) ), true );
+check( 'label advisory: re-derived from the column\'s current field',
+	lblText( lblNode( lblEnv( [ { name: 'city', label: 'City', note: null }, { name: 'zip', label: 'Postcode', note: null } ] ), { A: 'key(zip)', B: 'key(x)' } ) ), 'LABEL[Postcode]' );
+check( 'label advisory: silent when same-key entries DISAGREE on the label',
+	lblNode( lblEnv( [ { name: 'city', label: 'City', note: null }, { name: 'city', label: 'Town', note: null } ] ), { A: 'key(city)', B: 'key(x)' } ), null );
+check( 'label advisory: same-key entries that AGREE still show it',
+	lblText( lblNode( lblEnv( [ { name: 'city', label: 'City', note: null }, { name: 'city', label: 'City', note: null } ] ), { A: 'key(city)', B: 'key(x)' } ) ), 'LABEL[City]' );
+check( 'label advisory: silent for a register_meta key (no ACF label to claim)',
+	lblNode( lblEnv( [ { name: 'city', label: 'city', note: null } ], 'registered' ), { A: 'key(city)', B: 'key(x)' } ), null );
+check( 'label advisory: silent when an ACF entry and a register_meta entry share the key',
+	lblNode( { post: [ lblEnv( [ { name: 'city', label: 'City', note: null } ] ).post[ 0 ], lblEnv( [ { name: 'city', label: 'city', note: null } ], 'registered' ).post[ 0 ] ] }, { A: 'key(city)', B: 'key(x)' } ), null );
+let oddWrote = null;
+lblApply( lblNode( lblEnv( [ { name: 'odd', label: 'A, b; (c)', note: null } ] ), { A: 'key(odd)', B: 'key(x)' }, function ( s ) { oddWrote = s; } ) ).props.onClick();
+check( 'label advisory: a label holding wire punctuation round-trips through apply',
+	oddWrote && ( rep.readSlot( 1, oddWrote, HDR_CONF ) || {} ).header, 'A, b; (c)' );
+check( 'label advisory: silent for an unknown key', lblNode( CITY, { A: 'key(nope)', B: 'key(x)' } ), null );
+check( 'label advisory: silent with no field picked', lblNode( CITY, { A: 'header(H)', B: 'key(x)' } ), null );
+check( 'label advisory: silent with no envelope', keyedNodes( renderPanel( LBL_CONF, { A: 'key(city)', B: 'key(x)' } ), 'labelnote' ).length, 0 );
+
 // ── The fixed read's text box takes its label and help from the shipped config ──────
 const FIXED_OPT = { label: 'Fixed Text', help: 'Text to show for each result found.', placeholder: '' };
 const FIXED_CONF = rep.foldConfig( { fold: { container: 'join', combining: true, min: 2, max: 10, readRows: [ { value: 'fixed', label: 'Fixed' } ], fixedOption: FIXED_OPT } } );
