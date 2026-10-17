@@ -490,6 +490,8 @@
 			kids.push( ' ', el( Button, {
 				key: 'labelapply',
 				variant: 'link',
+				// The note's 11px, not the button's own 13px.
+				style: { fontSize: 'inherit' },
 				onClick: function () {
 					write( Object.assign( {}, slot, { header: label } ) );
 				}
