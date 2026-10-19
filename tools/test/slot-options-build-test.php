@@ -1048,8 +1048,8 @@ assert_same(
 assert_same( 'table: `current` stays a pickable root', true, in_array( 'current', $root_values( $table_fold['srcRows'] ), true ) );
 assert_same( 'table: the first-step steps group reads "Starting from Tag Source"', 'Starting from Tag Source', $table_fold['stepGroup'] ?? null );
 assert_same( 'table: ships the header control label', 'Header', $table_fold['headerOption']['label'] ?? null );
-assert_same( 'table: ships the field-label advisory copy, one %s for the label', 1, substr_count( $table_fold['headerOption']['labelNote'] ?? '', '%s' ) );
-assert_same( 'table: ships the advisory apply link copy', 'Use as the header', $table_fold['headerOption']['labelApply'] ?? null );
+assert_same( 'table: ships the field-label action copy, one %s for the label', 1, substr_count( $table_fold['headerOption']['labelApply'] ?? '', '%s' ) );
+assert_same( 'table: ships no separate label line (the picker already names the label)', false, isset( $table_fold['headerOption']['labelNote'] ) );
 assert_same( 'join: ships no header control (a <th> means nothing in a join slot)', false, isset( $rooted_fold['headerOption'] ) );
 assert_same( 'join: no `inherit` row', false, in_array( 'inherit', $root_values( $rooted_fold['srcRows'] ), true ) );
 assert_same( 'join: defaultRoot is untouched', 'current', $rooted_fold['defaultRoot'] );

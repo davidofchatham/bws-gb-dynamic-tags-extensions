@@ -380,7 +380,7 @@
 	 * field-combo-control.js's `envelopeToRecords()`: the picker MERGES same-key entries
 	 * into one offerable row, while a note must notice that two of them DISAGREE. (The
 	 * picker's bail on a missing component guards a degraded editor, not a supported one,
-	 * so it is no reason on its own; the field-label advisory below depends on the picker.)
+	 * so it is no reason on its own; the field-label action below depends on the picker.)
 	 */
 	function fieldNote( fieldKey ) {
 		var env = window.bwsFieldEnvelope;
@@ -445,43 +445,47 @@
 	}
 
 	/**
-	 * The FIELD-LABEL ADVISORY beneath a table column's field picker: names the picked
-	 * field's label and offers it as the header. Placed with the field because it is a
-	 * fact about the field; the link names its destination, so it reads across the gap.
-	 * An advisory with click-to-apply, never a placeholder — it writes nothing until
-	 * clicked, so an unset header stays unset and the `<thead>` gate reads the column as
-	 * headerless. The line stays while the field is picked; the link hides while the
-	 * header already equals the label, so its presence signals divergence. Copy is PHP's
-	 * (`headerOption.labelNote`/`labelApply`).
+	 * The FIELD-LABEL ACTION beneath a table column's field picker: one link offering the
+	 * picked field's label as the column header, shown only while the header differs from
+	 * it. The picker's selected row already names the label, so a line restating it would
+	 * be redundant; what the author lacks is the one-click way to use it. Placed with the
+	 * field because the label is the field's; the copy names the header as its destination.
+	 * Click-to-apply, never a placeholder: it writes nothing until clicked, so an unset
+	 * header stays unset and the `<thead>` gate reads the column as headerless. Copy is
+	 * PHP's (`headerOption.labelApply`).
+	 *
+	 * Clicking unmounts the link (the header now matches), so focus moves to the header
+	 * field it just filled rather than falling back to the document body.
 	 *
 	 * WHICH LABEL is the picker's to say (field-combo-control.js `reachableLabel()`, the
 	 * reach rule's owner), asked of the same synthetic context the picker renders against,
-	 * so the advisory and the picker's selected row settle an ambiguous key by one rule. No
-	 * picker, no advisory: silence, never a second copy of the rule.
+	 * so the action and the picker's selected row settle an ambiguous key by one rule. No
+	 * picker, no action: silence, never a second copy of the rule.
 	 */
-	function labelAdvisory( conf, slot, write, parentChain ) {
+	function labelAction( conf, slot, write, parentChain, headerId ) {
 		var opt = conf.headerOption || {};
 		var read = slot.read;
 		var picker = window.bwsFieldComboControl;
-		var label = ( opt.labelNote && read && 'key' === read.kind && picker && picker.reachableLabel )
+		var label = ( opt.labelApply && read && 'key' === read.kind && picker && picker.reachableLabel )
 			? picker.reachableLabel( window.bwsFieldEnvelope, fieldContext( slot, function () {}, parentChain ).state, 'key', read.field )
 			: null;
-		if ( ! label ) {
+		if ( ! label || label === slot.header ) {
 			return null;
 		}
-		var kids = [ el( 'span', { key: 'text' }, fmt( opt.labelNote, label ) ) ];
-		if ( label !== slot.header && opt.labelApply ) {
-			kids.push( ' ', el( Button, {
-				key: 'labelapply',
-				variant: 'link',
-				// The note's 11px, not the button's own 13px.
-				style: { fontSize: 'inherit' },
-				onClick: function () {
-					write( Object.assign( {}, slot, { header: label } ) );
-				}
-			}, opt.labelApply ) );
-		}
-		return el( 'div', { key: 'labelnote', style: NOTE_PANEL }, kids );
+		return el( Button, {
+			key: 'labelapply',
+			variant: 'link',
+			style: { marginTop: '6px' },
+			onClick: function () {
+				write( Object.assign( {}, slot, { header: label } ) );
+				setTimeout( function () {
+					var input = 'undefined' !== typeof document ? document.getElementById( headerId ) : null;
+					if ( input ) {
+						input.focus();
+					}
+				}, 0 );
+			}
+		}, fmt( opt.labelApply, label ) );
 	}
 
 	// ── Slot structs ────────────────────────────────────────────────────────
@@ -1650,9 +1654,9 @@
 					) ) );
 				}
 
-				var labelNode = labelAdvisory( conf, slot, write, parentChain );
-				if ( labelNode ) {
-					readNodes.push( labelNode );
+				var labelLink = labelAction( conf, slot, write, parentChain, 'bws-colheader-' + key );
+				if ( labelLink ) {
+					readNodes.push( labelLink );
 				}
 			}
 
@@ -1695,6 +1699,8 @@
 			var UI = conf.styleOption ? window.bwsTableStyleUI : null;
 			var headerField = el( TextControl, {
 				key: 'header',
+				// The field-label action returns focus here after filling it (labelAction()).
+				id: 'bws-colheader-' + key,
 				label: UI ? __( 'Column Header', 'generateblocks' ) : conf.headerOption.label,
 				hideLabelFromVision: true,
 				help: conf.headerOption.help,

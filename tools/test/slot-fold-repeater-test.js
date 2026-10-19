@@ -1664,11 +1664,12 @@ hdrWrite.props.onChange( '' );
 check( 'header control: clearing drops the token entirely', wrote && wrote.A, 'key(name)' );
 check( 'header control: absent on a {{join}} slot', keyedNodes( renderPanel( COMBINING, { A: 'key(name)', B: 'key(x)' } ), 'headergroup' ).length, 0 );
 
-// ── The field-label advisory: offers the picked field's label as the header ──────────
-// Describes and writes nothing until clicked. WHICH label is the picker's reach rule
-// (field-combo-control-test.js §F6 owns it); here a stub answers from a map and records
-// the context it was asked with, which is the advisory's whole hand-off.
-const LBL_OPT = Object.assign( {}, HDR_OPT, { labelNote: 'LABEL[%s]', labelApply: 'APPLY' } );
+// ── The field-label action: offers the picked field's label as the column header ─────
+// One link, shown only while the header differs from the label (the picker's row already
+// names it). WHICH label is the picker's reach rule (field-combo-control-test.js §F6 owns
+// it); here a stub answers from a map and records the context it was asked with, which
+// is the action's whole hand-off.
+const LBL_OPT = Object.assign( {}, HDR_OPT, { labelApply: 'USE[%s]' } );
 const LBL_CONF = rep.foldConfig( { fold: Object.assign( {}, HDR_CONF, { container: 'table', headerOption: LBL_OPT, flatAxes: [],
 	readRows: [ { value: 'key', label: 'Field' } ], keyOption: { label: 'Field Key' } } ) } );
 let lblAsked = null;
@@ -1683,39 +1684,37 @@ const lblRender = function ( labels, state, setState ) {
 		delete FIELD_COMBO_STUB.reachableLabel;
 	}
 };
-const lblNode = function ( labels, state, setState ) {
-	return keyedNodes( lblRender( labels, state, setState ), 'labelnote' )[ 0 ] || null;
+const lblLink = function ( labels, state, setState ) {
+	return keyedNodes( lblRender( labels, state, setState ), 'labelapply' )[ 0 ] || null;
 };
-const lblText = function ( node ) { return node ? node.children[ 0 ][ 0 ].children[ 0 ] : '(none)'; };
-const lblApply = function ( node ) { return node ? keyedNodes( node, 'labelapply' )[ 0 ] || null : null; };
 const CITY = { city: 'City' };
 
 let lblWrote = null;
-const cityNote = lblNode( CITY, { A: 'key(city)', B: 'key(x)' }, function ( s ) { lblWrote = s; } );
-check( 'label advisory: names the label the picker rule returns, in the shipped copy', lblText( cityNote ), 'LABEL[City]' );
-check( 'label advisory: rendering writes nothing (not a placeholder, the header stays unset)', lblWrote, null );
-check( 'label advisory: offers the apply link while the header differs', lblApply( cityNote ) && lblApply( cityNote ).children[ 0 ], 'APPLY' );
-lblApply( cityNote ).props.onClick();
-check( 'label advisory: apply writes the label as an ordinary header token', lblWrote && lblWrote.A, 'header(City);key(city)' );
-const agreed = lblNode( CITY, { A: 'header(City);key(city)', B: 'key(x)' } );
-check( 'label advisory: the line stays once the header equals the label', lblText( agreed ), 'LABEL[City]' );
-check( '...but the apply link hides', lblApply( agreed ), null );
-check( '...and returns when the author edits away', !! lblApply( lblNode( CITY, { A: 'header(Town);key(city)', B: 'key(x)' } ) ), true );
-check( 'label advisory: sits with the field picker, not in the header box', ( function () {
+const cityLink = lblLink( CITY, { A: 'key(city)', B: 'key(x)' }, function ( s ) { lblWrote = s; } );
+check( 'label action: an unset header offers the label, in the shipped copy', cityLink && cityLink.children[ 0 ], 'USE[City]' );
+check( 'label action: rendering writes nothing (not a placeholder, the header stays unset)', lblWrote, null );
+cityLink.props.onClick();
+check( 'label action: clicking writes the label as an ordinary header token', lblWrote && lblWrote.A, 'header(City);key(city)' );
+check( 'label action: the header field carries the id the action returns focus to',
+	( keyedNodes( lblRender( CITY, { A: 'key(city)', B: 'key(x)' } ), 'header' ).filter( function ( n ) { return n.props && n.props.id; } )[ 0 ] || { props: {} } ).props.id, 'bws-colheader-A' );
+check( 'label action: absent while the header equals the label', lblLink( CITY, { A: 'header(City);key(city)', B: 'key(x)' } ), null );
+check( '...and back when the author edits away', !! lblLink( CITY, { A: 'header(Town);key(city)', B: 'key(x)' } ), true );
+check( 'label action: no restating line is drawn', keyedNodes( lblRender( CITY, { A: 'key(city)', B: 'key(x)' } ), 'labelnote' ).length, 0 );
+check( 'label action: sits with the field picker, not in the header box', ( function () {
 	const tree = lblRender( CITY, { A: 'key(city)', B: 'key(x)' } );
-	return keyedNodes( keyedNodes( tree, 'readgroup' ), 'labelnote' ).length + '/' + keyedNodes( keyedNodes( tree, 'headergroup' ), 'labelnote' ).length;
+	return keyedNodes( keyedNodes( tree, 'readgroup' ), 'labelapply' ).length + '/' + keyedNodes( keyedNodes( tree, 'headergroup' ), 'labelapply' ).length;
 }() ), '1/0' );
-lblNode( CITY, { src: 'rows,team_members', A: 'key(city)', B: 'key(x)' } );
-check( 'label advisory: asks with the picker own synthetic context (the inherited tail)', JSON.stringify( lblAsked ), JSON.stringify( { src: 'rows,team_members', optionKey: 'key', field: 'city' } ) );
-lblNode( CITY, { src: 'rows,team_members', A: 'src(inherit;refs,lead);key(zip)', B: 'key(x)' } );
+lblLink( CITY, { src: 'rows,team_members', A: 'key(city)', B: 'key(x)' } );
+check( 'label action: asks with the picker own synthetic context (the inherited tail)', JSON.stringify( lblAsked ), JSON.stringify( { src: 'rows,team_members', optionKey: 'key', field: 'city' } ) );
+lblLink( CITY, { src: 'rows,team_members', A: 'src(inherit;refs,lead);key(zip)', B: 'key(x)' } );
 check( '...re-derived off the column own chain and field', JSON.stringify( lblAsked ), JSON.stringify( { src: 'refs,lead', optionKey: 'key', field: 'zip' } ) );
 let oddWrote = null;
-lblApply( lblNode( { odd: 'A, b; (c)' }, { A: 'key(odd)', B: 'key(x)' }, function ( s ) { oddWrote = s; } ) ).props.onClick();
-check( 'label advisory: a label holding wire punctuation round-trips through apply',
+lblLink( { odd: 'A, b; (c)' }, { A: 'key(odd)', B: 'key(x)' }, function ( s ) { oddWrote = s; } ).props.onClick();
+check( 'label action: a label holding wire punctuation round-trips through apply',
 	oddWrote && ( rep.readSlot( 1, oddWrote, HDR_CONF ) || {} ).header, 'A, b; (c)' );
-check( 'label advisory: silent when the rule returns no label', lblNode( CITY, { A: 'key(nope)', B: 'key(x)' } ), null );
-check( 'label advisory: silent with no field picked', lblNode( CITY, { A: 'header(H)', B: 'key(x)' } ), null );
-check( 'label advisory: silent with no picker (never a second copy of the rule)', lblNode( null, { A: 'key(city)', B: 'key(x)' } ), null );
+check( 'label action: absent when the rule returns no label', lblLink( CITY, { A: 'key(nope)', B: 'key(x)' } ), null );
+check( 'label action: absent with no field picked', lblLink( CITY, { A: 'header(H)', B: 'key(x)' } ), null );
+check( 'label action: absent with no picker (never a second copy of the rule)', lblLink( null, { A: 'key(city)', B: 'key(x)' } ), null );
 
 // ── The fixed read's text box takes its label and help from the shipped config ──────
 const FIXED_OPT = { label: 'Fixed Text', help: 'Text to show for each result found.', placeholder: '' };
