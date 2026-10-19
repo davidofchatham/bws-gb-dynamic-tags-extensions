@@ -858,7 +858,7 @@ function bws_build_fold_slot_options( array $args ): array {
 			// The field-label action beneath the field picker (slot-fold-control.js labelAction()).
 			/* translators: %s: the picked field's label. */
 			'labelApply' => __( 'Use "%s" as the column header', 'generateblocks' ),
-			'help'       => __( 'Text for the heading cell of this column. The heading row appears when any column has one.', 'generateblocks' ),
+			'help'       => __( 'Text for the heading cell of this column.', 'generateblocks' ),
 		);
 		// A column also takes `width(…)` and the six text tokens, which only a table renders.
 		// The control draws the fields (assets/js/table-style-control.js); this is the flag.

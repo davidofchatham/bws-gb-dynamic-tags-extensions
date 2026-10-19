@@ -62,8 +62,8 @@
 		},
 		fixedNeedsWidth: __( 'Fixed column sizing has no effect while *Table Width* is *Auto*. Column sizes follow the content instead.', 'generateblocks' ),
 		columnWidthHint: {
-			auto: __( 'This width is a hint only. Columns can grow to fit their content unless *Column Sizing* is *Fixed*.', 'generateblocks' ),
-			'': __( 'Whether this width is exact depends on your theme. Set *Column Sizing* to *Fixed* to make it exact.', 'generateblocks' )
+			auto: __( 'Browsers treat this as a hint only, unless the table\'s *Column Sizing* is *Fixed*.', 'generateblocks' ),
+			'': __( 'Browsers may treat this as a hint only, depending on your theme. Set the table\'s *Column Sizing* to *Fixed* to make it exact.', 'generateblocks' )
 		},
 		columnWidthPlaceholder: {
 			fixed: __( 'Equal share', 'generateblocks' ),
@@ -146,6 +146,7 @@
 		'.bws-ts-link .components-button{position:relative;z-index:1;margin:auto 0;align-self:center;background:#fff;border:1px solid #949494;border-radius:2px;width:35px;height:35px;padding:0;justify-content:center}' +
 		'.bws-ts-link .components-button.is-pressed{background:#1e1e1e;border-color:#1e1e1e;color:#fff}' +
 		'.bws-ts-smx-row{display:contents}' +
+		'.bws-ts-smx-row>.bws-ts-same{grid-column:span 2}' +
 		// Slider and readout share a line; Reset (only while set) takes its own line below, so the
 		// track keeps the width a drag needs (beside the readout it was ~40px, and 5 → 100 was one pixel step).
 		'.bws-ts-opacity{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:0 8px;min-width:0}' +
@@ -192,7 +193,29 @@
 		'.bws-ts .components-combobox-control__suggestions-container{min-height:40px;box-sizing:border-box;align-items:center}' +
 		// A third-width field would wrap every suggestion; the list may run wider than the field. Only in the
 		// grids whose combobox sits left of the modal's right edge.
-		'.bws-ts-g3 .components-form-token-field__suggestions-list,.bws-ts-smx .components-form-token-field__suggestions-list{min-width:15rem}';
+		'.bws-ts-g3 .components-form-token-field__suggestions-list,.bws-ts-smx .components-form-token-field__suggestions-list{min-width:15rem}' +
+		// Under 576px (the modal fills the screen): Sizing / Width and Column Header / Width stack; text
+		// styles go two across (color / size / weight | style / transform); each stripe target is its own
+		// block, name on top, Opacity on a second line, with a label over each control in place of the
+		// matrix's column headings (.bws-ts-mob). The link toggle keeps its rule down the right edge.
+		'.bws-ts-mob{display:none}' +
+		'@media (max-width:575px){' +
+			'.bws-ts-sizing .bws-ts-pair,.bws-ts-hdrrow{grid-template-columns:minmax(0,1fr)}' +
+			'.bws-ts-g3{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(3,auto)}' +
+			'.bws-ts-mob{display:block}' +
+			// Beats the matrix's flush `.bws-ts-smx .bws-ts-l3{margin:0}` so the labels keep their gap.
+			'.bws-ts-smx .bws-ts-mob{margin-bottom:4px}' +
+			'.bws-ts-smx{grid-template-columns:minmax(0,1fr)}' +
+			'.bws-ts-smx--lk{grid-template-columns:minmax(0,1fr) auto}' +
+			'.bws-ts-smx>.bws-ts-l3,.bws-ts-smx>span:empty{display:none}' +
+			'.bws-ts-smx-row{display:grid;grid-column:1;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px 12px;align-items:start}' +
+			'.bws-ts-smx-row>.bws-ts-l,.bws-ts-smx-row>.bws-ts-help{grid-column:1/-1;min-height:0}' +
+			'.bws-ts-smx-row>.bws-ts-field--wide,.bws-ts-smx-row>.bws-ts-mob{grid-column:1/-1}' +
+			'.bws-ts-link{grid-column:2;grid-row:1 / span 2}' +
+			// The color field sits in the right-hand column, so its list opens leftward from the field's right
+			// edge, clear of the link toggle's column and inside the screen.
+			'.bws-ts-smx .components-form-token-field__suggestions-list{left:auto;right:0;max-width:calc(100vw - 2rem)}' +
+		'}';
 
 	if ( typeof document !== 'undefined' && ! document.getElementById( 'bws-table-style-css' ) ) {
 		var styleEl = document.createElement( 'style' );
@@ -208,8 +231,8 @@
 
 	/** Our visible label over a control whose own label is hidden from vision. */
 	function Field( p ) {
-		return el( 'div', { className: 'bws-ts-field' },
-			el( 'span', { className: 'bws-ts-' + ( p.level || 'l3' ), 'aria-hidden': true }, p.label ),
+		return el( 'div', { className: 'bws-ts-field' + ( p.wide ? ' bws-ts-field--wide' : '' ) },
+			el( 'span', { className: 'bws-ts-' + ( p.level || 'l3' ) + ( p.mob ? ' bws-ts-mob' : '' ), 'aria-hidden': true }, p.label ),
 			p.children
 		);
 	}
@@ -919,8 +942,8 @@
 		}
 		var shown = spec.opacity === null ? d.opacity : spec.opacity;
 		var base = spec.color || d.color;
-		var colorCell = el( ColorField, {
-			key: 'c',
+		// Under 576px the matrix's column headings are gone; each control carries its own label (.bws-ts-mob).
+		var colorCell = el( Field, { key: 'c', mob: true, label: __( 'Color', 'generateblocks' ) }, el( ColorField, {
 			label: __( 'Stripe Color', 'generateblocks' ),
 			hideLabel: true,
 			value: spec.color || '',
@@ -928,10 +951,10 @@
 			onChange: function ( v ) {
 				set( { color: v || null } );
 			}
-		} );
+		} ) );
 		var opacityCell = hasAlpha
 			? el( 'span', { key: 'o', className: 'bws-ts-help', style: { margin: 0 } }, COPY.opacityFromColor )
-			: el( 'div', { key: 'o', className: 'bws-ts-opacity' }, [
+			: el( Field, { key: 'o', mob: true, wide: true, label: __( 'Opacity', 'generateblocks' ) }, el( 'div', { className: 'bws-ts-opacity' }, [
 				el( 'div', { key: 'r', className: 'bws-ts-range' }, el( OpacityBar, {
 					label: __( 'Stripe Opacity', 'generateblocks' ),
 					value: shown,
@@ -951,17 +974,18 @@
 						set( { opacity: null } );
 					}
 				}, __( 'Reset', 'generateblocks' ) )
-			] );
+			] ) );
 		var look = p.linkedTo
 			// Linked: the first target's color and opacity are written to both, so there is
 			// nothing to edit here; the link button below says how to part them.
-			? [ el( 'span', { key: 'lk', className: 'bws-ts-help', style: { gridColumn: 'span 2', margin: 0 } },
+			? [ el( 'span', { key: 'lk', className: 'bws-ts-help bws-ts-same', style: { margin: 0 } },
 				__( 'Same as', 'generateblocks' ) + ' ' + p.linkedTo ) ]
-			: [ colorCell, opacityCell ];
+			: hasAlpha
+				? [ colorCell, el( 'span', { key: 'ol', className: 'bws-ts-l3 bws-ts-mob', 'aria-hidden': true }, __( 'Opacity', 'generateblocks' ) ), opacityCell ]
+				: [ colorCell, opacityCell ];
 		return el( 'div', { className: 'bws-ts-smx-row', role: 'group', 'aria-label': p.heading }, [
 			el( Heading, { key: 'h', text: p.name } ),
-			el( SelectControl, {
-				key: 'parity',
+			el( Field, { key: 'parity', mob: true, label: __( 'Pattern', 'generateblocks' ) }, el( SelectControl, {
 				label: __( 'Pattern', 'generateblocks' ),
 				hideLabelFromVision: true,
 				value: spec.parity,
@@ -973,7 +997,7 @@
 					set( { parity: v } );
 				},
 				__nextHasNoMarginBottom: true
-			} )
+			} ) )
 		].concat( look ) );
 	}
 

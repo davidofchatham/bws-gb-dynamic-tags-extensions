@@ -1714,7 +1714,7 @@
 			} );
 			if ( UI ) {
 				children.push( el( 'div', { key: 'headergroup', className: CLS.group + ' bws-ts bws-ts-sect' }, [
-					el( 'div', { key: 'hdrrow', className: 'bws-ts-pair' }, [
+					el( 'div', { key: 'hdrrow', className: 'bws-ts-pair bws-ts-hdrrow' }, [
 						el( UI.Field, { key: 'header', level: 'l', label: __( 'Column Header', 'generateblocks' ) }, headerField ),
 						el( UI.ColumnWidthField, { key: 'width', slot: slot, tagState: state, write: write } )
 					] ),
