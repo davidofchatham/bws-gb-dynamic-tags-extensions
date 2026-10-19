@@ -395,9 +395,11 @@
 	 * The one fact every envelope entry holding `fieldKey` agrees on, or null — the walk
 	 * behind both fieldNote() and fieldLabel(). `factOf( field, group )` returns an entry's
 	 * fact or null; an entry with none DISAGREES with one that has it rather than being
-	 * skipped over, so any disagreement is silence.
+	 * skipped over, so any disagreement is silence. `reachable( field, kind )`, when given,
+	 * drops entries the read cannot reach BEFORE agreement is asked, so they neither
+	 * supply the fact nor disagree with it.
 	 */
-	function agreedEntryFact( fieldKey, factOf ) {
+	function agreedEntryFact( fieldKey, factOf, reachable ) {
 		var env = window.bwsFieldEnvelope;
 		if ( ! fieldKey || ! env || 'object' !== typeof env ) {
 			return null;
@@ -407,7 +409,7 @@
 		Object.keys( env ).forEach( function ( kind ) {
 			( env[ kind ] || [] ).forEach( function ( group ) {
 				( ( group && group.fields ) || [] ).forEach( function ( f ) {
-					if ( ! f || f.name !== fieldKey ) {
+					if ( ! f || f.name !== fieldKey || ( reachable && ! reachable( f, kind ) ) ) {
 						return;
 					}
 					var fact = factOf( f, group );
@@ -463,25 +465,47 @@
 	 *
 	 * The note's AMBIGUITY-IS-SILENCE rule, applied to the label. A `register_meta` entry
 	 * has no ACF definition, so no label to claim: it counts as having none.
+	 *
+	 * ONLY ENTRIES THE COLUMN'S READ CAN REACH are asked, judged off the lineage's tail
+	 * (the column's own chain, or the tag source it inherits). A `rows` tail reaches its
+	 * container's sub-fields; a tail of a known kind reaches that kind's top-level fields
+	 * (a sub-field's bare name is not stored on the entity itself). A tail of unknown kind
+	 * (render-time, `same`) narrows nothing. So one key labelled differently in two
+	 * places still names one field here, and a key found only elsewhere is silence.
 	 */
-	function fieldLabel( fieldKey ) {
+	function fieldLabel( fieldKey, conf, lineage ) {
+		var tail = lineage.length ? lineage[ lineage.length - 1 ] : null;
+		var reachable = null;
+		if ( tail && 'rows' === tail.slug && tail.arg ) {
+			reachable = function ( f ) { return f.repeater_key === tail.arg; };
+		} else if ( tail ) {
+			var def = stepDef( conf, tail.slug );
+			var kind = ( def && def.produces ) || ( 1 === lineage.length ? ( conf.roots || {} )[ tail.slug ] : '' ) || '';
+			if ( kind && 'render_time' !== kind ) {
+				reachable = function ( f, envKind ) { return envKind === kind && ! f.repeater_key; };
+			}
+		}
 		return agreedEntryFact( fieldKey, function ( f, group ) {
 			return ( 'registered' !== group.source && f.label ) ? String( f.label ) : null;
-		} );
+		}, reachable );
 	}
 
 	/**
-	 * The FIELD-LABEL ADVISORY under a table column's header: names the picked field's
-	 * label and offers it as the header. An advisory with click-to-apply, never a
-	 * placeholder — it writes nothing until clicked, so an unset header stays unset and
-	 * the `<thead>` gate reads the column as headerless. The line stays while the field
-	 * is picked; the link hides while the header already equals the label, so its
-	 * presence signals divergence. Copy is PHP's (`headerOption.labelNote`/`labelApply`).
+	 * The FIELD-LABEL ADVISORY beneath a table column's field picker: names the picked
+	 * field's label and offers it as the header. Placed with the field because it is a
+	 * fact about the field; the link names its destination, so it reads across the gap.
+	 * An advisory with click-to-apply, never a placeholder — it writes nothing until
+	 * clicked, so an unset header stays unset and the `<thead>` gate reads the column as
+	 * headerless. The line stays while the field is picked; the link hides while the
+	 * header already equals the label, so its presence signals divergence. Copy is PHP's
+	 * (`headerOption.labelNote`/`labelApply`).
 	 */
-	function labelAdvisory( conf, slot, write ) {
+	function labelAdvisory( conf, slot, write, parentChain ) {
 		var opt = conf.headerOption || {};
 		var read = slot.read;
-		var label = ( opt.labelNote && read && 'key' === read.kind ) ? fieldLabel( read.field ) : null;
+		var label = ( opt.labelNote && read && 'key' === read.kind )
+			? fieldLabel( read.field, conf, lineageOf( slot.chain, parentChain ) )
+			: null;
 		if ( ! label ) {
 			return null;
 		}
@@ -1665,6 +1689,11 @@
 						slotNoun
 					) ) );
 				}
+
+				var labelNode = labelAdvisory( conf, slot, write, parentChain );
+				if ( labelNode ) {
+					readNodes.push( labelNode );
+				}
 			}
 
 			if ( 'fixed' === readVal ) {
@@ -1717,21 +1746,18 @@
 				},
 				__nextHasNoMarginBottom: true
 			} );
-			var labelNode = labelAdvisory( conf, slot, write );
 			if ( UI ) {
 				children.push( el( 'div', { key: 'headergroup', className: CLS.group + ' bws-ts bws-ts-sect' }, [
 					el( 'div', { key: 'hdrrow', className: 'bws-ts-pair' }, [
 						el( UI.Field, { key: 'header', level: 'l', label: __( 'Column Header', 'generateblocks' ) }, headerField ),
 						el( UI.ColumnWidthField, { key: 'width', slot: slot, tagState: state, write: write } )
 					] ),
-					labelNode,
 					el( UI.ColumnStyle, { key: 'colstyle', slot: slot, tagState: state, write: write, slotKey: key } )
 				] ) );
 			} else {
 				children.push( el( 'div', { key: 'headergroup', className: CLS.group }, [
 					el( 'span', { key: 'caption', className: CLS.caption }, conf.headerOption.label ),
-					headerField,
-					labelNode
+					headerField
 				] ) );
 			}
 		}

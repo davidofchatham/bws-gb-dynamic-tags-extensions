@@ -1667,7 +1667,8 @@ check( 'header control: absent on a {{join}} slot', keyedNodes( renderPanel( COM
 // ── The field-label advisory: offers the picked field's label as the header ──────────
 // Describes and writes nothing until clicked; silent wherever the label is uncertain.
 const LBL_OPT = Object.assign( {}, HDR_OPT, { labelNote: 'LABEL[%s]', labelApply: 'APPLY' } );
-const LBL_CONF = rep.foldConfig( { fold: Object.assign( {}, HDR_CONF, { container: 'table', headerOption: LBL_OPT, flatAxes: [] } ) } );
+const LBL_CONF = rep.foldConfig( { fold: Object.assign( {}, HDR_CONF, { container: 'table', headerOption: LBL_OPT, flatAxes: [],
+	readRows: [ { value: 'key', label: 'Field' } ], keyOption: { label: 'Field Key' } } ) } );
 const lblEnv = function ( fields, source ) {
 	return { post: [ { group_title: 'G', kind: 'post', scope: [], source: source || 'acf', fields: fields } ] };
 };
@@ -1703,6 +1704,28 @@ let oddWrote = null;
 lblApply( lblNode( lblEnv( [ { name: 'odd', label: 'A, b; (c)', note: null } ] ), { A: 'key(odd)', B: 'key(x)' }, function ( s ) { oddWrote = s; } ) ).props.onClick();
 check( 'label advisory: a label holding wire punctuation round-trips through apply',
 	oddWrote && ( rep.readSlot( 1, oddWrote, HDR_CONF ) || {} ).header, 'A, b; (c)' );
+check( 'label advisory: sits with the field picker, not in the header box', withEnvelope( CITY, function () {
+	const tree = renderPanel( LBL_CONF, { A: 'key(city)', B: 'key(x)' } );
+	return keyedNodes( keyedNodes( tree, 'readgroup' ), 'labelnote' ).length + '/' + keyedNodes( keyedNodes( tree, 'headergroup' ), 'labelnote' ).length;
+} ), '1/0' );
+
+// Scoped to what the column's chain reaches: one key, two labels, two places.
+const TWO_NAMES = lblEnv( [
+	{ name: 'name', label: 'Feature Name', note: null, repeater_key: '' },
+	{ name: 'name', label: 'Name', note: null, repeater_key: 'team_members' }
+] );
+check( 'label scope: unknown chain end, the two labels disagree, silent',
+	lblNode( TWO_NAMES, { A: 'key(name)', B: 'key(x)' } ), null );
+check( 'label scope: a `rows` tail reads its own repeater\'s sub-field label',
+	lblText( lblNode( TWO_NAMES, { src: 'rows,team_members', A: 'key(name)', B: 'key(x)' } ) ), 'LABEL[Name]' );
+check( 'label scope: a post tail reads the top-level field, not the sub-field',
+	lblText( lblNode( TWO_NAMES, { src: 'refs,lead', A: 'key(name)', B: 'key(x)' } ) ), 'LABEL[Feature Name]' );
+check( 'label scope: the column\'s own hop re-derives off the inherited source',
+	lblText( lblNode( TWO_NAMES, { src: 'rows,team_members', A: 'src(inherit;refs,lead);key(name)', B: 'key(x)' } ) ), 'LABEL[Feature Name]' );
+check( 'label scope: a key found only somewhere the chain does not reach is silent',
+	lblNode( TWO_NAMES, { src: 'terms,category', A: 'key(name)', B: 'key(x)' } ), null );
+check( 'label scope: another repeater\'s sub-field is silent',
+	lblNode( TWO_NAMES, { src: 'rows,other_rows', A: 'key(name)', B: 'key(x)' } ), null );
 check( 'label advisory: silent for an unknown key', lblNode( CITY, { A: 'key(nope)', B: 'key(x)' } ), null );
 check( 'label advisory: silent with no field picked', lblNode( CITY, { A: 'header(H)', B: 'key(x)' } ), null );
 check( 'label advisory: silent with no envelope', keyedNodes( renderPanel( LBL_CONF, { A: 'key(city)', B: 'key(x)' } ), 'labelnote' ).length, 0 );
