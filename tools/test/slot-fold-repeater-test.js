@@ -1665,23 +1665,34 @@ check( 'header control: clearing drops the token entirely', wrote && wrote.A, 'k
 check( 'header control: absent on a {{join}} slot', keyedNodes( renderPanel( COMBINING, { A: 'key(name)', B: 'key(x)' } ), 'headergroup' ).length, 0 );
 
 // ── The field-label advisory: offers the picked field's label as the header ──────────
-// Describes and writes nothing until clicked; silent wherever the label is uncertain.
+// Describes and writes nothing until clicked. WHICH label is the picker's reach rule
+// (field-combo-control-test.js §F6 owns it); here a stub answers from a map and records
+// the context it was asked with, which is the advisory's whole hand-off.
 const LBL_OPT = Object.assign( {}, HDR_OPT, { labelNote: 'LABEL[%s]', labelApply: 'APPLY' } );
 const LBL_CONF = rep.foldConfig( { fold: Object.assign( {}, HDR_CONF, { container: 'table', headerOption: LBL_OPT, flatAxes: [],
 	readRows: [ { value: 'key', label: 'Field' } ], keyOption: { label: 'Field Key' } } ) } );
-const lblEnv = function ( fields, source ) {
-	return { post: [ { group_title: 'G', kind: 'post', scope: [], source: source || 'acf', fields: fields } ] };
+let lblAsked = null;
+const lblRender = function ( labels, state, setState ) {
+	FIELD_COMBO_STUB.reachableLabel = labels ? function ( env, ctxState, optionKey, field ) {
+		lblAsked = { src: ctxState.src, optionKey: optionKey, field: field };
+		return Object.prototype.hasOwnProperty.call( labels, field ) ? labels[ field ] : null;
+	} : void 0;
+	try {
+		return renderPanel( LBL_CONF, state, setState );
+	} finally {
+		delete FIELD_COMBO_STUB.reachableLabel;
+	}
 };
-const lblNode = function ( env, state, setState ) {
-	return withEnvelope( env, function () { return keyedNodes( renderPanel( LBL_CONF, state, setState ), 'labelnote' )[ 0 ] || null; } );
+const lblNode = function ( labels, state, setState ) {
+	return keyedNodes( lblRender( labels, state, setState ), 'labelnote' )[ 0 ] || null;
 };
 const lblText = function ( node ) { return node ? node.children[ 0 ][ 0 ].children[ 0 ] : '(none)'; };
 const lblApply = function ( node ) { return node ? keyedNodes( node, 'labelapply' )[ 0 ] || null : null; };
-const CITY = lblEnv( [ { name: 'city', label: 'City', note: null } ] );
+const CITY = { city: 'City' };
 
 let lblWrote = null;
 const cityNote = lblNode( CITY, { A: 'key(city)', B: 'key(x)' }, function ( s ) { lblWrote = s; } );
-check( 'label advisory: names the picked field\'s label, in the shipped copy', lblText( cityNote ), 'LABEL[City]' );
+check( 'label advisory: names the label the picker rule returns, in the shipped copy', lblText( cityNote ), 'LABEL[City]' );
 check( 'label advisory: rendering writes nothing (not a placeholder, the header stays unset)', lblWrote, null );
 check( 'label advisory: offers the apply link while the header differs', lblApply( cityNote ) && lblApply( cityNote ).children[ 0 ], 'APPLY' );
 lblApply( cityNote ).props.onClick();
@@ -1690,45 +1701,21 @@ const agreed = lblNode( CITY, { A: 'header(City);key(city)', B: 'key(x)' } );
 check( 'label advisory: the line stays once the header equals the label', lblText( agreed ), 'LABEL[City]' );
 check( '...but the apply link hides', lblApply( agreed ), null );
 check( '...and returns when the author edits away', !! lblApply( lblNode( CITY, { A: 'header(Town);key(city)', B: 'key(x)' } ) ), true );
-check( 'label advisory: re-derived from the column\'s current field',
-	lblText( lblNode( lblEnv( [ { name: 'city', label: 'City', note: null }, { name: 'zip', label: 'Postcode', note: null } ] ), { A: 'key(zip)', B: 'key(x)' } ) ), 'LABEL[Postcode]' );
-check( 'label advisory: silent when same-key entries DISAGREE on the label',
-	lblNode( lblEnv( [ { name: 'city', label: 'City', note: null }, { name: 'city', label: 'Town', note: null } ] ), { A: 'key(city)', B: 'key(x)' } ), null );
-check( 'label advisory: same-key entries that AGREE still show it',
-	lblText( lblNode( lblEnv( [ { name: 'city', label: 'City', note: null }, { name: 'city', label: 'City', note: null } ] ), { A: 'key(city)', B: 'key(x)' } ) ), 'LABEL[City]' );
-check( 'label advisory: silent for a register_meta key (no ACF label to claim)',
-	lblNode( lblEnv( [ { name: 'city', label: 'city', note: null } ], 'registered' ), { A: 'key(city)', B: 'key(x)' } ), null );
-check( 'label advisory: silent when an ACF entry and a register_meta entry share the key',
-	lblNode( { post: [ lblEnv( [ { name: 'city', label: 'City', note: null } ] ).post[ 0 ], lblEnv( [ { name: 'city', label: 'city', note: null } ], 'registered' ).post[ 0 ] ] }, { A: 'key(city)', B: 'key(x)' } ), null );
+check( 'label advisory: sits with the field picker, not in the header box', ( function () {
+	const tree = lblRender( CITY, { A: 'key(city)', B: 'key(x)' } );
+	return keyedNodes( keyedNodes( tree, 'readgroup' ), 'labelnote' ).length + '/' + keyedNodes( keyedNodes( tree, 'headergroup' ), 'labelnote' ).length;
+}() ), '1/0' );
+lblNode( CITY, { src: 'rows,team_members', A: 'key(city)', B: 'key(x)' } );
+check( 'label advisory: asks with the picker own synthetic context (the inherited tail)', JSON.stringify( lblAsked ), JSON.stringify( { src: 'rows,team_members', optionKey: 'key', field: 'city' } ) );
+lblNode( CITY, { src: 'rows,team_members', A: 'src(inherit;refs,lead);key(zip)', B: 'key(x)' } );
+check( '...re-derived off the column own chain and field', JSON.stringify( lblAsked ), JSON.stringify( { src: 'refs,lead', optionKey: 'key', field: 'zip' } ) );
 let oddWrote = null;
-lblApply( lblNode( lblEnv( [ { name: 'odd', label: 'A, b; (c)', note: null } ] ), { A: 'key(odd)', B: 'key(x)' }, function ( s ) { oddWrote = s; } ) ).props.onClick();
+lblApply( lblNode( { odd: 'A, b; (c)' }, { A: 'key(odd)', B: 'key(x)' }, function ( s ) { oddWrote = s; } ) ).props.onClick();
 check( 'label advisory: a label holding wire punctuation round-trips through apply',
 	oddWrote && ( rep.readSlot( 1, oddWrote, HDR_CONF ) || {} ).header, 'A, b; (c)' );
-check( 'label advisory: sits with the field picker, not in the header box', withEnvelope( CITY, function () {
-	const tree = renderPanel( LBL_CONF, { A: 'key(city)', B: 'key(x)' } );
-	return keyedNodes( keyedNodes( tree, 'readgroup' ), 'labelnote' ).length + '/' + keyedNodes( keyedNodes( tree, 'headergroup' ), 'labelnote' ).length;
-} ), '1/0' );
-
-// Scoped to what the column's chain reaches: one key, two labels, two places.
-const TWO_NAMES = lblEnv( [
-	{ name: 'name', label: 'Feature Name', note: null, repeater_key: '' },
-	{ name: 'name', label: 'Name', note: null, repeater_key: 'team_members' }
-] );
-check( 'label scope: unknown chain end, the two labels disagree, silent',
-	lblNode( TWO_NAMES, { A: 'key(name)', B: 'key(x)' } ), null );
-check( 'label scope: a `rows` tail reads its own repeater\'s sub-field label',
-	lblText( lblNode( TWO_NAMES, { src: 'rows,team_members', A: 'key(name)', B: 'key(x)' } ) ), 'LABEL[Name]' );
-check( 'label scope: a post tail reads the top-level field, not the sub-field',
-	lblText( lblNode( TWO_NAMES, { src: 'refs,lead', A: 'key(name)', B: 'key(x)' } ) ), 'LABEL[Feature Name]' );
-check( 'label scope: the column\'s own hop re-derives off the inherited source',
-	lblText( lblNode( TWO_NAMES, { src: 'rows,team_members', A: 'src(inherit;refs,lead);key(name)', B: 'key(x)' } ) ), 'LABEL[Feature Name]' );
-check( 'label scope: a key found only somewhere the chain does not reach is silent',
-	lblNode( TWO_NAMES, { src: 'terms,category', A: 'key(name)', B: 'key(x)' } ), null );
-check( 'label scope: another repeater\'s sub-field is silent',
-	lblNode( TWO_NAMES, { src: 'rows,other_rows', A: 'key(name)', B: 'key(x)' } ), null );
-check( 'label advisory: silent for an unknown key', lblNode( CITY, { A: 'key(nope)', B: 'key(x)' } ), null );
+check( 'label advisory: silent when the rule returns no label', lblNode( CITY, { A: 'key(nope)', B: 'key(x)' } ), null );
 check( 'label advisory: silent with no field picked', lblNode( CITY, { A: 'header(H)', B: 'key(x)' } ), null );
-check( 'label advisory: silent with no envelope', keyedNodes( renderPanel( LBL_CONF, { A: 'key(city)', B: 'key(x)' } ), 'labelnote' ).length, 0 );
+check( 'label advisory: silent with no picker (never a second copy of the rule)', lblNode( null, { A: 'key(city)', B: 'key(x)' } ), null );
 
 // ── The fixed read's text box takes its label and help from the shipped config ──────
 const FIXED_OPT = { label: 'Fixed Text', help: 'Text to show for each result found.', placeholder: '' };

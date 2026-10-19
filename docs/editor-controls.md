@@ -307,7 +307,7 @@ note: [
 **Ambiguity is silence.** The wire stores a bare field key, which entries of different
 resolved-source kinds can share, and a note is a claim about one specific field's configuration — so
 the control shows a note only where every discovered entry holding that key agrees. This mirrors the
-field picker's own rule for an ambiguous key (show the bare key, assert nothing). Agreement is on
+field picker's own rule for an ambiguous key (show the bare key, assert nothing, unless the source settles which field it is). Agreement is on
 the note VALUE, so one field surfaced in several homes still shows it; only genuinely different
 definitions sharing a key fall silent, and an entry *without* a note disagrees with one that has it.
 
@@ -336,7 +336,7 @@ Beneath a `{{table}}` column's field picker, a column whose field read names a k
 
 **The line stays while the field is picked; the link hides while the header already equals the label** and returns when the author edits away, so the link's presence signals divergence.
 
-**Uncertainty is silence**, the field configuration note's rule: the label shows only where every envelope entry holding the key, among the fields the column's source can reach, agrees on it. So one key labelled differently in two places names the one the column reads, and a key found only somewhere the source does not reach shows nothing. What counts as reachable is stated at `fieldLabel()`. A `register_meta` entry has no ACF label to claim and counts as disagreeing. No field picked, an unknown key, a non-key read or no envelope on the page all render nothing. The lookup is re-derived from the column's current field and source on every render, so changing either changes the advisory.
+**Uncertainty is silence**, the field configuration note's rule: the label shows only where every envelope entry holding the key, among the fields the column's source can reach, agrees on it. So one key labelled differently in two places names the one the column reads, and a key found only somewhere the source does not reach shows nothing. The label comes from the field picker's `reachableLabel()` (`assets/js/field-combo-control.js`), asked with the context the picker itself renders against; what counts as reachable is stated once, at `reachOf()` beside it, and the picker uses the same rule to settle which row an ambiguous key shows as selected. With no picker loaded the advisory is silent. A `register_meta` entry has no ACF label to claim and counts as disagreeing. No field picked, an unknown key, a non-key read or no envelope on the page all render nothing. The lookup is re-derived from the column's current field and source on every render, so changing either changes the advisory.
 
 ---
 

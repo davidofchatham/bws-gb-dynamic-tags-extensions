@@ -376,30 +376,13 @@
 	 * An absent envelope (no discovery on this page) is likewise silence, not a
 	 * fallback: with no definitions in hand there is nothing to say.
 	 *
-	 * The walk itself is agreedEntryFact(), shared with fieldLabel(). It is a SECOND WALK
-	 * OVER THE ENVELOPE, deliberately not shared with
-	 * field-combo-control.js's `envelopeToRecords()`. That file mounts only once its own
-	 * component list is present (`ComboboxControl`/`Flex`/`FlexItem`/`apiFetch`) and
-	 * BAILS on an older stack, where this control still renders against a plain text
-	 * input — so a shared reader there would take the note down with it. The two also
-	 * ask different questions: the picker MERGES same-key entries into one offerable
-	 * row, while a note must notice that two of them DISAGREE.
+	 * A SECOND WALK OVER THE ENVELOPE, deliberately not shared with
+	 * field-combo-control.js's `envelopeToRecords()`: the picker MERGES same-key entries
+	 * into one offerable row, while a note must notice that two of them DISAGREE. (The
+	 * picker's bail on a missing component guards a degraded editor, not a supported one,
+	 * so it is no reason on its own; the field-label advisory below depends on the picker.)
 	 */
 	function fieldNote( fieldKey ) {
-		return agreedEntryFact( fieldKey, function ( f ) {
-			return ( f.note && f.note.length ) ? f.note : null;
-		} );
-	}
-
-	/**
-	 * The one fact every envelope entry holding `fieldKey` agrees on, or null — the walk
-	 * behind both fieldNote() and fieldLabel(). `factOf( field, group )` returns an entry's
-	 * fact or null; an entry with none DISAGREES with one that has it rather than being
-	 * skipped over, so any disagreement is silence. `reachable( field, kind )`, when given,
-	 * drops entries the read cannot reach BEFORE agreement is asked, so they neither
-	 * supply the fact nor disagree with it.
-	 */
-	function agreedEntryFact( fieldKey, factOf, reachable ) {
 		var env = window.bwsFieldEnvelope;
 		if ( ! fieldKey || ! env || 'object' !== typeof env ) {
 			return null;
@@ -409,22 +392,23 @@
 		Object.keys( env ).forEach( function ( kind ) {
 			( env[ kind ] || [] ).forEach( function ( group ) {
 				( ( group && group.fields ) || [] ).forEach( function ( f ) {
-					if ( ! f || f.name !== fieldKey || ( reachable && ! reachable( f, kind ) ) ) {
+					if ( ! f || f.name !== fieldKey ) {
 						return;
 					}
-					var fact = factOf( f, group );
-					// '-' is the signature of "this entry has no fact".
-					var sig = ( null === fact ) ? '-' : JSON.stringify( fact );
+					var note = ( f.note && f.note.length ) ? f.note : null;
+					// '-' is the signature of "this entry has no note", which must
+					// DISAGREE with a note rather than being skipped over.
+					var sig = note ? JSON.stringify( note ) : '-';
 					if ( seen.indexOf( sig ) === -1 ) {
 						seen.push( sig );
-						if ( null !== fact && null === found ) {
-							found = fact;
+						if ( note && ! found ) {
+							found = note;
 						}
 					}
 				} );
 			} );
 		} );
-		return ( 1 === seen.length ) ? found : null;
+		return ( 1 === seen.length && found ) ? found : null;
 	}
 
 	/**
@@ -461,36 +445,6 @@
 	}
 
 	/**
-	 * The ACF label of the field a key names, or null — the field-label advisory's lookup.
-	 *
-	 * The note's AMBIGUITY-IS-SILENCE rule, applied to the label. A `register_meta` entry
-	 * has no ACF definition, so no label to claim: it counts as having none.
-	 *
-	 * ONLY ENTRIES THE COLUMN'S READ CAN REACH are asked, judged off the lineage's tail
-	 * (the column's own chain, or the tag source it inherits). A `rows` tail reaches its
-	 * container's sub-fields; a tail of a known kind reaches that kind's top-level fields
-	 * (a sub-field's bare name is not stored on the entity itself). A tail of unknown kind
-	 * (render-time, `same`) narrows nothing. So one key labelled differently in two
-	 * places still names one field here, and a key found only elsewhere is silence.
-	 */
-	function fieldLabel( fieldKey, conf, lineage ) {
-		var tail = lineage.length ? lineage[ lineage.length - 1 ] : null;
-		var reachable = null;
-		if ( tail && 'rows' === tail.slug && tail.arg ) {
-			reachable = function ( f ) { return f.repeater_key === tail.arg; };
-		} else if ( tail ) {
-			var def = stepDef( conf, tail.slug );
-			var kind = ( def && def.produces ) || ( 1 === lineage.length ? ( conf.roots || {} )[ tail.slug ] : '' ) || '';
-			if ( kind && 'render_time' !== kind ) {
-				reachable = function ( f, envKind ) { return envKind === kind && ! f.repeater_key; };
-			}
-		}
-		return agreedEntryFact( fieldKey, function ( f, group ) {
-			return ( 'registered' !== group.source && f.label ) ? String( f.label ) : null;
-		}, reachable );
-	}
-
-	/**
 	 * The FIELD-LABEL ADVISORY beneath a table column's field picker: names the picked
 	 * field's label and offers it as the header. Placed with the field because it is a
 	 * fact about the field; the link names its destination, so it reads across the gap.
@@ -499,12 +453,18 @@
 	 * headerless. The line stays while the field is picked; the link hides while the
 	 * header already equals the label, so its presence signals divergence. Copy is PHP's
 	 * (`headerOption.labelNote`/`labelApply`).
+	 *
+	 * WHICH LABEL is the picker's to say (field-combo-control.js `reachableLabel()`, the
+	 * reach rule's owner), asked of the same synthetic context the picker renders against,
+	 * so the advisory and the picker's selected row settle an ambiguous key by one rule. No
+	 * picker, no advisory: silence, never a second copy of the rule.
 	 */
 	function labelAdvisory( conf, slot, write, parentChain ) {
 		var opt = conf.headerOption || {};
 		var read = slot.read;
-		var label = ( opt.labelNote && read && 'key' === read.kind )
-			? fieldLabel( read.field, conf, lineageOf( slot.chain, parentChain ) )
+		var picker = window.bwsFieldComboControl;
+		var label = ( opt.labelNote && read && 'key' === read.kind && picker && picker.reachableLabel )
+			? picker.reachableLabel( window.bwsFieldEnvelope, fieldContext( slot, function () {}, parentChain ).state, 'key', read.field )
 			: null;
 		if ( ! label ) {
 			return null;
