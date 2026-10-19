@@ -572,6 +572,32 @@ async function main() {
 		undefined
 	);
 
+	/* =====================================================================
+	 * §S5 — the field-label action asks the REAL picker, with the column's context
+	 *
+	 * `slot-fold-repeater-test.js` drives labelAction() against a stub; this is the one
+	 * place the column's context reaches the real reachableLabel(). `name` is ambiguous by
+	 * key alone (two labels), and only the tag source's `rows` tail settles it. The
+	 * envelope is swapped for this row only: the action reads it at render.
+	 * ================================================================== */
+
+	const priorEnv = global.window.bwsFieldEnvelope;
+	global.window.bwsFieldEnvelope = { post: [ { group_title: 'Team', fields: [
+		{ name: 'name', label: 'Feature Name', type: 'text', repeater_key: '' },
+		{ name: 'name', label: 'Name', type: 'text', repeater_key: 'team_members' },
+	] } ] };
+	const FOLD_TABLE_HDR = Object.assign( {}, FOLD_TABLE, { headerOption: { label: 'Header', labelApply: 'Use "%s" as the column header' } } );
+	const labelLinkOf = function ( tagState ) {
+		const link = walk( mountSlot( 'key(name)', FOLD_TABLE_HDR, tagState ) ).filter( function ( n ) { return n.props && 'labelapply' === n.props.key; } )[ 0 ];
+		return link ? link.children[ 0 ] : null;
+	};
+	try {
+		check( 'S5.1 a column on the tag source\'s `rows` tail is offered that container\'s label', labelLinkOf( { src: 'rows,team_members' } ), 'Use "Name" as the column header' );
+		check( 'S5.2 ...and nothing where the source does not settle the ambiguous key', labelLinkOf( {} ), null );
+	} finally {
+		global.window.bwsFieldEnvelope = priorEnv;
+	}
+
 	console.log( '' );
 	if ( fail ) {
 		console.log( 'SLOT FOLD PICKER SEAM TEST FAILED (' + fail + ' of ' + total + ')' );

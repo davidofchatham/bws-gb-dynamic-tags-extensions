@@ -439,19 +439,22 @@
 	 *
 	 * @param {Object} state     extraTagParams (or a folded slot's synthetic context).
 	 * @param {string} optionKey The key control's own option key (for the slot prefix).
-	 * @return {Object|null} `{ test( entry, envKind ), owns( record ) }` — the rule asked of
-	 *                       an envelope entry and of a merged record — or null for no narrowing.
+	 * @return {Object|null} `{ sig, test( entry, envKind ), owns( record ) }` — the rule asked
+	 *                       of an envelope entry and of a merged record, and a string naming
+	 *                       which rule it is (a memo dependency) — or null for no narrowing.
 	 */
 	function reachOf( state, optionKey ) {
 		var tail = chainTail( state, optionKey );
 		if ( tail && 'rows' === tail.slug ) {
 			return {
+				sig: 'rows:' + tail.arg,
 				test: function ( f ) { return !! tail.arg && f.repeater_key === tail.arg; },
 				owns: function ( rec ) { return !! tail.arg && -1 !== ( rec.repeaterKeys || [] ).indexOf( tail.arg ); }
 			};
 		}
 		var kind = presetKind( state, optionKey );
 		return kind ? {
+			sig: 'kind:' + kind,
 			test: function ( f, envKind ) { return envKind === kind && ! f.repeater_key; },
 			owns: function ( rec ) { return rec.kind === kind; }
 		} : null;
@@ -1113,6 +1116,14 @@
 		// value] — memoized so typing (which fires setFilterText → re-render on every
 		// keystroke) does not re-filter the whole record set + re-allocate the map
 		// unless one of those inputs actually changed.
+		// The source's settling answer, read once per render as plain values so the memo
+		// below depends on strings rather than on the tag-state object.
+		var reach    = reachOf( state, key );
+		var reachSig = reach ? reach.sig : '';
+		var reached  = useMemo( function () {
+			return value ? reachableLabel( envelope, state, key, value ) : null;
+		}, [ envelope, value, reachSig, key ] );
+
 		var derived = useMemo( function () {
 			var filtered   = applyFilters( records, activeLoc, typeVal );
 			var options    = filtered.map( recordToOption );
@@ -1164,8 +1175,6 @@
 				// can reach agree on one label, the record holding that label is the field
 				// the read resolves to, so naming it asserts nothing the wire does not.
 				if ( matchesKey.length > 1 ) {
-					var reach   = reachOf( state, key );
-					var reached = reachableLabel( envelope, state, key, value );
 					var settled = reached ? matchesKey.filter( function ( rec ) {
 						return rec.label === reached && ( ! reach || reach.owns( rec ) );
 					} ) : [];
@@ -1189,7 +1198,7 @@
 			}
 
 			return { options: options, valueToKey: valueToKey, selectedValue: selectedValue };
-		}, [ records, activeLoc, typeVal, filterText, value, envelope, state, key ] );
+		}, [ records, activeLoc, typeVal, filterText, value, reached, reachSig ] );
 
 		var options       = derived.options;
 		var valueToKey    = derived.valueToKey;

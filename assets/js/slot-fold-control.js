@@ -1350,6 +1350,8 @@
 		var state = ctx.state || {};
 		var setState = ctx.setState;
 		var key = props.optionKey;
+		// The column header input's id: the field-label action returns focus to it (labelAction()).
+		var headerId = 'bws-colheader-' + key;
 		// The option key IS the slot's wire spelling, so its ordinal is a DECODE, not a
 		// parseInt: `AA` is slot 27, which parseInt reads as NaN.
 		var ordinal = fold.slotOrdinal( key );
@@ -1653,7 +1655,7 @@
 					) ) );
 				}
 
-				var labelLink = labelAction( conf, slot, write, parentChain, 'bws-colheader-' + key );
+				var labelLink = labelAction( conf, slot, write, parentChain, headerId );
 				if ( labelLink ) {
 					readNodes.push( labelLink );
 				}
@@ -1698,8 +1700,7 @@
 			var UI = conf.styleOption ? window.bwsTableStyleUI : null;
 			var headerField = el( TextControl, {
 				key: 'header',
-				// The field-label action returns focus here after filling it (labelAction()).
-				id: 'bws-colheader-' + key,
+				id: headerId,
 				label: UI ? __( 'Column Header', 'generateblocks' ) : conf.headerOption.label,
 				hideLabelFromVision: true,
 				help: conf.headerOption.help,
