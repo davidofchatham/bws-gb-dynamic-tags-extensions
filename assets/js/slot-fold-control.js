@@ -365,8 +365,9 @@
 	 * channel the picker's own rows come from, so the note and the row an author picked
 	 * it from can never describe different fields.
 	 *
-	 * AMBIGUITY IS SILENCE, matching how the field picker already treats a key that
-	 * maps to more than one discovered field ("show the bare key, assert nothing").
+	 * AMBIGUITY IS SILENCE, matching how the field picker treats a key that maps to more
+	 * than one discovered field its source does not settle ("show the bare key, assert
+	 * nothing").
 	 * The wire stores a BARE key, which two entries of different kinds can share — a
 	 * post `partners` and a term `partners` — and a note is a claim about one specific
 	 * field's configuration. So a note shows only where every entry holding that key
@@ -376,11 +377,9 @@
 	 * An absent envelope (no discovery on this page) is likewise silence, not a
 	 * fallback: with no definitions in hand there is nothing to say.
 	 *
-	 * A SECOND WALK OVER THE ENVELOPE, deliberately not shared with
-	 * field-combo-control.js's `envelopeToRecords()`: the picker MERGES same-key entries
-	 * into one offerable row, while a note must notice that two of them DISAGREE. (The
-	 * picker's bail on a missing component guards a degraded editor, not a supported one,
-	 * so it is no reason on its own; the field-label action below depends on the picker.)
+	 * Its own walk over the envelope, not field-combo-control.js's `envelopeToRecords()`:
+	 * the picker MERGES same-key entries into one offerable row, while a note must notice
+	 * that two of them DISAGREE.
 	 */
 	function fieldNote( fieldKey ) {
 		var env = window.bwsFieldEnvelope;

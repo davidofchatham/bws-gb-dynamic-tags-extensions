@@ -100,7 +100,7 @@ The `bws-field-combo` field selector (shipped 1.13.0) is **editor-time discovery
 
 Two corollaries bind:
 - **Offered ⟺ resolvable.** The endpoint offers only keys the runtime resolver would accept (one shared `bws_field_key_disallowed()` gate; `_`-protected allowed, `DISALLOWED_KEYS` refused) — a discovery/runtime contract, so an offered key never silent-empties.
-- **Bare key is the only serialized identity.** The control serializes the plain key exactly as the old text input did (pure render swap); a key can map to many fields (same key, different labels), so on reopen an ambiguous key shows RAW and asserts no specific field. Discovery labels are display-only, never part of the wire format.
+- **Bare key is the only serialized identity.** The control serializes the plain key exactly as the old text input did (pure render swap); a key can map to many fields (same key, different labels), so on reopen an ambiguous key shows RAW and asserts no specific field, unless the slot's source settles which one it is (the fields that source can reach agree on one). Discovery labels are display-only, never part of the wire format.
 
 Load-bearing detail lives as PHPDoc on the enforcers: `field-combo-control.js` (kind projection, merge-by-`(kind,key,label)`, ambiguous-key display) + `field-discovery.php` (`scopes_equal` keep-both, per-subtype registered meta, the DISALLOWED gate). Schema: `tag-reference.md` §Custom control types. Rationale + follow-ups: `.scratch/plans/field-selector.md`.
 

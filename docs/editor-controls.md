@@ -304,12 +304,7 @@ note: [
 ]
 ```
 
-**Ambiguity is silence.** The wire stores a bare field key, which entries of different
-resolved-source kinds can share, and a note is a claim about one specific field's configuration — so
-the control shows a note only where every discovered entry holding that key agrees. This mirrors the
-field picker's own rule for an ambiguous key (show the bare key, assert nothing, unless the source settles which field it is). Agreement is on
-the note VALUE, so one field surfaced in several homes still shows it; only genuinely different
-definitions sharing a key fall silent, and an entry *without* a note disagrees with one that has it.
+**Ambiguity is silence.** The wire stores a bare field key, which entries of different resolved-source kinds can share, and a note is a claim about one specific field's configuration — so the control shows a note only where every discovered entry holding that key agrees. This mirrors the field picker's own rule for an ambiguous key (show the bare key, assert nothing, unless the source settles which field it is). Agreement is on the note VALUE, so one field surfaced in several homes still shows it; only genuinely different definitions sharing a key fall silent, and an entry *without* a note disagrees with one that has it.
 
 **Presentation.** Unlabelled, in a neutral grey panel with a left rule: distinct from the muted help
 text above it and from the red validation message, and carrying no second hue. No icons — every note

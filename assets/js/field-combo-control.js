@@ -430,8 +430,8 @@
 
 	/**
 	 * Which envelope entries the sibling source can REACH — THE REACH RULE, owned here and
-	 * read by both the selection tie-break below and the {{table}} field-label advisory
-	 * (slot-fold-control.js labelAdvisory()).
+	 * read by both the selection tie-break below and the {{table}} field-label action
+	 * (slot-fold-control.js labelAction()).
 	 *
 	 * A `rows` tail reaches its container's sub-fields. A tail of a known KIND
 	 * (`presetKind()`) reaches that kind's top-level fields: a sub-field's bare name is not
@@ -459,8 +459,9 @@
 
 	/**
 	 * The label of the field `fieldKey` names among the entries the source can reach, or
-	 * null. Ambiguity is silence: every reachable entry holding the key must agree, and a
-	 * `register_meta` entry has no ACF label to claim, so it counts as having none.
+	 * null. Ambiguity is silence: every reachable entry holding the key must agree, and an
+	 * entry with no label of its own counts as having none: a `register_meta` entry (no ACF
+	 * definition), or an ACF field whose label is empty, which discovery ships as the key.
 	 *
 	 * @param {Object} envelope  The field-discovery envelope.
 	 * @param {Object} state     extraTagParams (or a synthetic context).
@@ -476,7 +477,7 @@
 			( envelope[ envKind ] || [] ).forEach( function ( group ) {
 				( ( group && group.fields ) || [] ).forEach( function ( f ) {
 					if ( ! f || f.name !== fieldKey || ( reach && ! reach.test( f, envKind ) ) ) { return; }
-					var sig = ( 'registered' !== group.source && f.label ) ? String( f.label ) : '';
+					var sig = ( 'registered' !== group.source && f.label && f.label !== f.name ) ? String( f.label ) : '';
 					if ( -1 === seen.indexOf( sig ) ) { seen.push( sig ); }
 				} );
 			} );
@@ -1180,7 +1181,8 @@
 						valueToKey[ known.value ] = known.key;
 					}
 				} else if ( ! options.some( function ( o ) { return o.value === value; } ) ) {
-					// Ambiguous or unknown: show the bare key, assert nothing.
+					// Ambiguous (and not settled by the source above) or unknown: show the
+					// bare key, assert nothing.
 					options = [ { value: value, label: value } ].concat( options );
 					valueToKey[ value ] = value;
 				}
@@ -1324,8 +1326,10 @@
 	// field key inside it (FW-57). Such a parent renders this component directly
 	// against a synthetic context instead. Export only; no behavior change, and
 	// the mount path above is untouched.
-	// The reach rule's label lookup, for the {{table}} field-label advisory.
-	FieldComboControl.reachableLabel = reachableLabel;
 	window.bwsFieldComboControl = FieldComboControl;
+
+	// The reach rule's label lookup, for the {{table}} field-label action
+	// (slot-fold-control.js labelAction()), which asks it rather than copying the rule.
+	FieldComboControl.reachableLabel = reachableLabel;
 
 } )();

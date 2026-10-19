@@ -697,7 +697,7 @@ async function main() {
 		optionKey: 'key', label: 'Field', context: ctx( { key: 'email' } ),
 	} ) );
 	check(
-		'F6.4 a key ambiguous across kinds is settled by a source of one kind: a labelled row, not the bare key',
+		'F6.4 a key ambiguous across kinds is settled by a source of one kind: a labeled row, not the bare key',
 		[ ambiguousEmail.value, settledBySite.value !== 'email', settledBySite.options.some( function ( o ) { return o.value === settledBySite.value && /Email/.test( o.label ); } ) ],
 		[ 'email', true, true ]
 	);
@@ -726,6 +726,8 @@ async function main() {
 		RL( { post: [ { source: 'registered', fields: [ { name: 'c', label: 'c' } ] } ] }, {}, 'key', 'c' ),
 		RL( { post: [ { source: 'acf', fields: [ { name: 'c', label: 'City' } ] }, { source: 'registered', fields: [ { name: 'c', label: 'c' } ] } ] }, {}, 'key', 'c' ),
 	], [ null, null ] );
+	check( 'F6.14 reachableLabel: an ACF field with an empty label (shipped as its key) has no label to claim',
+		RL( { post: [ { source: 'acf', fields: [ { name: 'city_name', label: 'city_name' } ] } ] }, {}, 'key', 'city_name' ), null );
 	check( 'F6.13 reachableLabel: unknown key or no envelope is silent', [ RL( TWO, {}, 'key', 'zz' ), RL( null, {}, 'key', 'name' ) ], [ null, null ] );
 
 	const unknown = await render( FieldComboControl, {
