@@ -713,13 +713,13 @@ Blocked by: —  •  Interacts with: FW-53 (the `{{table}}` build), FW-148 (bot
 
 #### FW-159 — `{{table}}` borders
 
-A `border` styling key for `{{table}}`: which lines are drawn (outer edge, between rows, between columns, under the header) and their width, style and color, in the same `head,args;head,args` grammar as `stripe`.
+A `border` styling key for `{{table}}`: which lines are drawn (outer edge, between rows, between columns, under the header) and their width, style and color, in the same `head,args;head,args` grammar as `stripe`, plus a `borderRadius` key for the table's outer corners.
 
-Detail home: `.scratch/plans/table-tag.md` §DECIDED 2026-10-15 (presentation); no design beyond the grammar
+Detail home: `.scratch/plans/table-tag.md` §DECIDED 2026-10-19 (borders) for the design, §DECIDED 2026-10-15 (presentation) for the original cut; build ticket `.scratch/table-tag/issues/10-borders.md`
 
-Progress: Not started. Deferred from v1 2026-10-15, with nothing reserved; the user's highest-priority presentation follow-up. The 2026-10-05 grill confirmed the grammar fits (the "which lines" choice becomes the targets) and replaced the old `bordered` preset (plan Settled #29).
+Progress: Designed 2026-10-19 (grilling; plan Settled #65). Originally deferred from v1 2026-10-15, the user's highest-priority presentation follow-up; the 2026-10-05 grill confirmed the grammar fits and replaced the old `bordered` preset (plan Settled #29). May now land in `feat/table-tag` before v1 as ticket 10, gated on a browser spike (radius clipping, stripe paint against the border, single non-doubled lines on GeneratePress and a collapse-model block theme); if the spike is not clean it stays a follow-up with the design recorded.
 
-Open: The target set and arg types. How borders meet stripes, which paint as `background-image` gradients, and `border-collapse`. Its place in the control order, which is now the wire order (plan #61).
+Open: The spike's four measurements. Whether the `--bws-dte-table-border` hook carries the default color only or the whole border value. The copy for every new error and advisory, surfaced for review. Decided, no longer open: the target set, the arg types, the separate border model (a present key owns every cell edge, because GeneratePress already draws a border on every cell), and the key's place in the control order (after `stripe`).
 
 Blocked by: row:FW-53  •  Interacts with: FW-160 (both paint cell edges and fills), FW-161 (padding and borders set density together), FW-162 (a sticky cell needs its border drawn on the cell)
 
@@ -1205,7 +1205,7 @@ Detail home: `.scratch/plans/table-tag.md` (the DECISION record — §SETTLED in
 
 Progress: Prototype built and committed, gated behind the `bws_dynamic_tags_register_table_tag` filter (default false) since 2026-08-12, so no install gets it by default; the fixture blueprint enables it from its mu-plugin so matrix rows and fixture blocks keep running while v1 is built. Its blocker cleared 2026-08-20 when GH #55 (closed; base-tag source chains) shipped — v1 can now assume both a chain source and registered roots (FW-69). **SPECCED 2026-09-18** into eleven tickets (00 naming gate through 10 ship), with three things settled that the plan had left open: rows are the chain's TAIL and its per-hop `limit(N)` is the row cap, so table registers no row-count option; the scope anchor DISSOLVES rather than gaining a seam, because a column picker's context is the container chain's tail through the `predecessorContext()` / `kindAt()` pair FW-74 shipped, which retires `bws_build_fold_slot_options()`'s three never-called scope arguments; and a bare column's root was then to serialize as `src(inherit)` rather than be stripped — reversed 2026-10-03 (plan Settled #49): table strips its default root at every slot, an empty column chain being the row. Also discharged: Settled #45's sibling rename, which shipped in `d6b29ec` (v1.19.2/v1.20.0) while the plan still described it as ~140 sites of pending work — so `inherit` is free as a root slug and the plan's §GRILLED 2026-09-04 census paragraph is stale. Merges incrementally to `main` behind the gate; the flip in ticket 10 is the only user-visible moment.
 
-Open: v1 build detail lives entirely in the spec's tickets; the plan keeps the decisions behind them. The naming pass (ticket 00) is the one human-decided gate — six author-facing names plus a preview-tool toggle confirming the bare-column serialization — and nothing below it is startable until it closes. Flip the filter to unconditional when v1 ships (ticket 10).
+Open: v1 build detail lives entirely in the spec's tickets; the plan keeps the decisions behind them. The naming pass (ticket 00) is the one human-decided gate — six author-facing names plus a preview-tool toggle confirming the bare-column serialization — and nothing below it is startable until it closes. Flip the filter to unconditional when v1 ships (ticket 12).
 
 Carries a `CONTEXT.md` §Language obligation from FW-121 (decided 2026-09-04): the entry defining PARENT inheritance against SIBLING carry lands with `src(inherit)`, not with the rename that frees the word — defining a token nobody can author yet would put a forward-looking claim in the file whose whole reading posture is "these bind NOW".
 

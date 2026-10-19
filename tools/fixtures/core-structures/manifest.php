@@ -486,7 +486,7 @@ return array(
 		// TABLE PRESENTATION page (v31): `{{table}}` rows over the `team_members` repeater
 		// matrix-post-meta owns, so the page seeds no data of its own. Its own page because
 		// matrix-post-meta is ~380 blocks and opening it to drive a table control is slow;
-		// the six TB rows stay there until ticket 10. Additive; no existing row names it.
+		// the six TB rows stay there until ticket 11. Additive; no existing row names it.
 		'page-matrix-table' => array(
 			'post_type'       => 'page',
 			'post_name'       => 'matrix-table',
