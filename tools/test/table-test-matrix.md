@@ -86,7 +86,7 @@ Headers, caption, chain cardinality and column edge cases, pinned to the `matrix
 | TK8 | the TK6 tag at `--url=https://testbed.test/author/fixture-author/` | **RENDER-TAG ONLY, stated exception** (an author ARCHIVE is ambient context). ONE row, the ambient `user` kind: Fixture Author / its biography / Ctx | **PASS (measured 2026-10-20)** |
 | TK9 | the TK6 tag at `--url=https://testbed.test/department/sales/` | **RENDER-TAG ONLY, stated exception** (a term ARCHIVE). ONE row, the ambient `term` kind: Sales / empty / Ctx | **PASS (measured 2026-10-20)** |
 
-**`use(permalink)` is not a column read.** A text column's `use` values are `key`, `title` and `fixed` (`bws_get_text_field_options()`), so a hand-written `use(permalink)`, `use(content)`, `use(text)` or `use(excerpt)` renders an EMPTY cell on every kind (measured 2026-10-20 over post, term and site rows). A user row therefore has no `permalink` read to refuse, and there is no row for one.
+**`use(permalink)` is not a column read.** A text column's `use` values are `key`, `title` and `fixed` (`bws_get_text_field_options()`), so a hand-written `use(permalink)`, `use(content)`, `use(text)` or `use(excerpt)` renders an EMPTY cell on every kind (measured 2026-10-20 over post, term, site and repeater rows, and over a user row on `/author/fixture-author/`, where `use(title)` beside it still reads Fixture Author), never the surrounding page. A user row therefore has no `permalink` read to refuse, and there is no row for one.
 
 ## TP: presentation
 
