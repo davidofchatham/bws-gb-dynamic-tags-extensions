@@ -54,9 +54,7 @@ table→call), NOT arrival order. Applies to `*-test-matrix.md` sections AND the
 row groups — forward-going: new rows slot into Catalog position; existing files reorder
 opportunistically when touched.
 
-**A new tag's Catalog placement is a DECISION — ASK for it if not already specified, never default
-to append-at-end.** E.g. `{{table}}` (not yet shipped, no row in §Base tag GB types today) is decided
-to sit after `{{join}}` when it ships, not after the `call` outlier.
+**A new tag's Catalog placement is a DECISION — ASK for it if not already specified, never default to append-at-end.** E.g. `{{table}}` sits after `{{join}}`, not after the `call` outlier.
 
 See `tools/fixtures/core-structures/README.md`. The design record that produced this testbed: [`design-history/fixture-testbed.md`](design-history/fixture-testbed.md).
 

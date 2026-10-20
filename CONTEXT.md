@@ -426,6 +426,12 @@ A resolved source is **`ResolvedSource[]`** — a list, usually length 1. A root
 
 _Avoid_: "target cardinality" (the property is the SOURCE's, and :236 reserves "target" for read target); "plural source" as a claim about a given render (says outcome where only capacity is known); "multi-valued" (a step produces resolved *sources*, not **field values**).
 
+**Inherit vs carry over** (two relations between a slot and another source; one word each, never swapped):
+- **inherit** is the PARENT relation: a slot reads from the source its CONTAINER resolved to. A `{{table}}` column inherits its row; an empty column chain means exactly that, and a chain that steps from the row is written `src(inherit;…)` (the editor's "Tag Source"). Per row, so one column resolves once for every row.
+- **carry over** is the SIBLING relation: a slot takes what the PREVIOUS slot used. `src(same)` / `use(same)` in a `{{join}}` slot or a `try_` attempt. `{{table}}` offers no `same`; its "Copy Previous Column's Source" writes a copy of the previous chain instead.
+
+_Avoid_: "inherit" for the sibling relation (its name before 1.20.0, when FW-121 freed the word); "same" for the parent relation. Schema: [`tag-reference.md` §Table tag](docs/tag-reference.md#table-tag) and [§Folded slot wire](docs/tag-reference.md#folded-slot-wire-multislot-containers).
+
 **Inert chain**:
 A source chain that resolves to **nothing on every tag, for a reason readable off the wire alone**: an unknown step slug (the engine short-circuits, [I14]), an unregistered root token, or a retired source token. Decidable at parse time with no per-template knowledge, which is what makes it sayable in an editor preview — see [`editor-tag-previews.md` §Inert-chain warning](docs/editor-tag-previews.md).
 

@@ -88,6 +88,18 @@ Output is plain text; no link options are currently available.
 
 **Note:** For height and feet units, use the prime marks `′` and `″` rather than straight quotes (`%A′%B″` renders **5′11″**, or **5′** with no inches value). WordPress converts a straight `'`/`"` to a curly quote in normal page content, but not when the block renders through a GP Element or a hooked layout, so straight marks render inconsistently depending on where the block lives. The prime marks look the same everywhere.
 
+## Build a table with `table` tag **[UNRELEASED]**
+
+GenerateBlocks' query loop can build a list but not a table. The `table` tag returns a real HTML table from one tag: one row for each thing its source reaches, and up to 10 columns.
+
+- **Rows** come from the tag's source. With no source set, the table has one row for the current post, term or user. Point it at a repeater field and you get one row per repeater row; at a relationship field, one row per related post; at a taxonomy, one row per term. The source's limit caps the rows.
+- **Columns** each read one field from their row, the same way a `join` slot does: a field by name, a title, or text you type. A column can also start somewhere else, for example a field on a related post, or a site-wide option.
+- **Headers** are set per column. A table with no column headers renders without a header row. Picking a field offers its field label as the header, one click to apply.
+- **Caption** is optional and labels the table for screen readers. A captioned table also scrolls sideways on its own when it is wider than the page, instead of overflowing it.
+- **Styling** covers table layout and width, column widths, text color, font size, weight and style, alignment and letter case (for the whole table, the header row, or one column), row or column stripes, and borders with rounded corners. A live preview in the tag's settings shows the result as you go. The default stripe color and opacity are set on the plugin's settings page.
+
+Styles are written to one small stylesheet per distinct table design, never as inline styles, so they pass WordPress's content filtering and identical tables share one stylesheet.
+
 ## Return first available field with `try_` tags
 
 `try_*` tags (e.g. `try_text`, `try_image`, `try_content`, `try_datetime_single`, `try_email`, `try_phone`) allow using the first available (populated) field from an editor-selected list of up to five sources/fields. Each slot resolves exactly as the standalone tag would (`try_email` outputs a finished `mailto:` link per slot, `try_phone` a `tel:` link), so a contact chain like "personal email → team email → site-wide address" works without multiple blocks and complicated visibility conditions.

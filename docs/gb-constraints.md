@@ -173,7 +173,9 @@ GB renders the tag modal as WP's `Modal` with `size:"medium"` and `className:"gb
 
 **Usable width.** 560px frame minus 2 × 24px of content padding is 512px for a control at the column's edge, less a scrollbar when the content overflows. Inside one of the plugin's option-group boxes (`.bws-optgroup`, `1px` border and `12px` padding, [`option-group.js`](../assets/js/option-group.js)) it is 486px. Under a 600px viewport the frame fills the viewport, so the figure is the viewport width minus the 48px padding.
 
-**Usable height.** The content area is the frame height minus 100px (the 72px top margin plus 4px and 24px of vertical padding). With the frame at `min(70%, 700px)` that is about 440px on a 768px-tall viewport and 600px at the cap, which a viewport of about 1000px or taller reaches. The area scrolls, so a tall tag scrolls inside the frame instead of growing it, and a `position:sticky` control would stick to `.components-modal__content` (not tried).
+**Usable height.** The content area is the frame height minus 100px (the 72px top margin plus 4px and 24px of vertical padding). With the frame at `min(70%, 700px)` that is about 440px on a 768px-tall viewport and 600px at the cap, which a viewport of about 1000px or taller reaches. The area scrolls, so a tall tag scrolls inside the frame instead of growing it.
+
+**`position:sticky` works in the modal, against `.components-modal__content`** (measured 2026-10-17, testbed editor, Chrome, a 439×789 viewport). Its `4px` top padding means a member stuck at `top:0` leaves a 4px strip above it through which scrolled content shows, so a sticky member needs `top:-4px`. A programmatic `scrollTop` set in an automated tab did not fire a scroll handler until a real wheel scroll; measure stickiness with real scrolling.
 
 **Selector scope.** The GB rules in the last table row target WP component classes. A control that renders its own raw `<input>` or `<select>` matches none of them, so it gets neither the 35px height nor the zeroed margins.
 
@@ -189,6 +191,13 @@ The look of a modal control's label, checkbox and radio is WP's, not GB's: GB's 
 | RadioControl, viewport 600px and up | a 16px circle, `1px solid #1e1e1e` (darker than the checkbox border), white; checked fills with `--wp-components-color-accent` (falls back to `--wp-admin-theme-color`, then `#3858e9`) with an 8px white dot; `8px` column gap to the label, label `line-height:16px` | `style.css` |
 | Either, under 600px (the bottom-sheet modal) | the box or circle is 24px and the label `line-height` 24px | `style.css` |
 | PanelBody title (`.components-panel__body-toggle`) | `font-weight:600`, `color:#1e1e1e`, `font-size` inherited, no `text-transform` | `style.css` |
+
+**Measured in the testbed editor, 2026-10-16** (Chrome, admin, WP 7.1.2 and GB 2.4.x on the testbed):
+
+| Piece | Fact |
+|---|---|
+| Control heights in the modal | `SelectControl` and `TextControl` 40px, `ComboboxControl` 37px, GB's `ButtonIconControl` groups 35px. Passing `__next40pxDefaultSize` to `ComboboxControl` did not change its container height |
+| `ComboboxControl` options | An option with `disabled:true` renders grayed out and cannot be picked. The list is filtered by the typed text, so a disabled row whose label does not match what was typed (a hint row, a group heading) disappears while the author types |
 
 Two consequences for our own controls. A checkbox label is regular case at the surrounding weight, so a heading drawn as a `CheckboxControl` cannot read as the uppercase BaseControl label unless the plugin styles it. And WP has no style for a quieter sub-caption (a non-uppercase label under a group heading): any such caption, and any group heading meant to outrank the 11px uppercase labels, is plugin-chosen, drawn the way `slot-fold-control.js` and [`option-group.js`](../assets/js/option-group.js) draw theirs. The live accent color is `var(--wp-admin-theme-color)` and follows the user's admin color scheme; `#3858e9` is only the fallback in WP's CSS.
 
@@ -209,7 +218,7 @@ GB 2.4.1 registers three script packages, `generateblocks-components`, `generate
 | Flag placement collision | GB's modal rule gives every `.components-button` inside `.gb-dynamic-tag-modal` `align-self:flex-start` (the last row of the geometry table above). It beats the flag wrapper's `align-items:center`, so the flag sits at the top edge of the field. `align-self:center` on the flag button restores the middle | MEASURED, fix included |
 | aria warning | Opening the flag menu logged the browser's "Blocked aria-hidden on an element because its descendant retained focus" warning, the ancestor being WP's `components-popover__fallback-container`. WP's `Modal` hides the other `body` children from assistive technology, and a popover mounted into that container takes focus inside it. It recurred on later flag clicks but never on every click, and no sequence reproduced it reliably. A plain WP `DropdownMenu` given GB's exact popover props (`focusOnMount:true`) never logged it over many clicks, so the warning is not simply WP's Modal plus that prop. An observer on `aria-hidden` changes showed the popover container is created lazily on the first menu open (after the Modal's hiding pass, with `aria-hidden` unset); the explanation that a container already present at modal open gets hidden was tested by reopening the modal and not supported, since it did not reproduce each time. The cause is unknown. `UnitControl` does not expose its popover props, so a consumer could not change it. No functional effect was seen | MEASURED (intermittent); cause unknown |
 
-Where our own response is enforced is not here: no plugin code consumes any of this yet.
+Where our own response is enforced is not here: `assets/js/table-style-control.js` mounts `stylesBuilder.ButtonIconControl` for its one-of-N button rows, guarded for when the global is absent, and uses no `UnitControl`.
 
 ## Replacement is gated on block NAME — and the gate is filterable
 

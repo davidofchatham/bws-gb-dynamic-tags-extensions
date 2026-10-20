@@ -1398,6 +1398,10 @@ check( 'summary: bare fixed read', slot_summary( 'fixed(Team)', true ), '{"text"
 check( 'summary: non-current source appended', slot_summary( 'src(refs,office);key(city)' ), '{"text":"\'city\' from Ref \'office\'","warning":""}' );
 check( 'summary: unfinished step warns, no text', slot_summary( 'src(refs);key(city)' ), '{"text":null,"warning":"no ref"}' );
 check( 'summary: inert source reports alone', slot_summary( 'src(bogus,x);key(city)' ), '{"text":"\'city\'","warning":"unknown source \'bogus\'"}' );
+// `inherit` is the column's own row, the control's written root for a stepped column: a known
+// root, so it names like the step-first spelling it canonicalizes from, never "unknown source".
+check( 'summary: inherit root reads as the row', slot_summary( 'src(inherit;refs,office);key(city)' ), slot_summary( 'src(refs,office);key(city)' ) );
+check( 'summary: inherit root before rows', slot_summary( 'src(inherit;rows,team);key(name)' ), '{"text":"\'name\' from Rows \'team\'","warning":""}' );
 
 echo "\n" . ( $failures ? "FAILED {$failures}/{$count}\n" : "PASSED {$count}/{$count}\n" );
 exit( $failures ? 1 : 0 );

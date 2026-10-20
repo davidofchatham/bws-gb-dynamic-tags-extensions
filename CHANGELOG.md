@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Highlights
+
+- A new `{{table}}` tag builds a real HTML table from one tag: one row for each repeater row, related post or term its source reaches, with up to 10 columns, headers, a caption and its own styling. *(Added)*
+
+### Added
+
+- **`{{table}}` tag.** Its rows are whatever the tag's source reaches: the current post, term or user (one row), a repeater field's rows, a relationship field's posts or a taxonomy's terms, capped by the source's limit. Each of up to 10 columns reads one field, title or typed text from its row, or starts from a source of its own. A column can carry a header; a table with none renders without a header row, and picking a field offers its field label as the header. An optional caption labels the table for screen readers and lets a wide table scroll sideways on its own. See [`docs/tag-reference.md`](docs/tag-reference.md).
+- **`{{table}}` styling.** Table layout and width, column widths, text color, font size, weight, style, alignment and letter case (for the whole table, the header row or one column), row and column stripes, and borders with rounded outer corners, with a Live Formatting Preview in the tag's settings. Styles are written to one scoped stylesheet per distinct table design, never inline, so they survive WordPress's content filtering.
+- A Table section on the settings page sets the default stripe color and opacity for stripes that do not set their own.
+
 ### Changed
 
 - **For plugin developers: `inherit`, `parent`, `ancestor`, `children` and `siblings` can no longer be used as a chain-root key.** A root declared through `bws_dynamic_tags_chain_roots` under any of these names is skipped, like `same` and the step names already are: `inherit` is the table columns' "Tag Source" root, and the other four are reserved for later steps that follow the WordPress parent/child hierarchy of posts and terms. See [`docs/plugin-integration.md`](docs/plugin-integration.md) §1a.

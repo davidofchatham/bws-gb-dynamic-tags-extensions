@@ -38,10 +38,6 @@ reasons for crossing that border, and the second is the durable one:
 2. **GB's query loop cannot reach this plugin's sources** without query-loop hacking. A source path —
    a root plus `refs`/`terms`/`rows` steps — is not a `WP_Query`, and nothing in GB consumes one.
 
-**Not registered by default while v1 is built:** `bws_register_table_tag()` runs only behind the
-`bws_dynamic_tags_register_table_tag` filter (default `false`), so the border is crossed by an opt-in
-tag rather than by the shipped set.
-
 A **single-result** output can be a **composite string** (`datetime_range` is both: one result, built from start+end fields). These are independent axes — composite-vs-not describes *how the one string is built*; list-mode-vs-not describes *how many strings are joined*. `try_` is transparent to both (see [CONTEXT.md](../CONTEXT.md) I6); query loop is out of dynamic-tag scope entirely.
 
 ---
@@ -641,9 +637,7 @@ A constructor may legitimately place a group differently from another — the `t
 
 **Format-front is a deliberate departure from GB.** GB's own `post_date` serializes format LAST (link before `dateFormat`); we invert to format-FIRST for manual-edit copy-visibility. Everything else (`source → field → link`) mirrors GB's chain. (The `post_date` render≠serialize proof is a pure GB fact — see [`gb-constraints.md`](gb-constraints.md#serialization-order-is-independent-of-control-render-order--gb-itself-proves-it).)
 
-**[UNRELEASED]** `{{table}}`'s presentation keys (`layout`, `width`, the six text keys `color`, `fontSize`, `fontWeight`, `fontStyle`, `textAlign`, `textTransform`, then `stripe`, `border` and `borderRadius`) sort in the `source` group behind the read keys, both at tag level and as column tokens, so a tag reads `src`, then `layout`, `width`, the text keys, `stripe`, `border`, `borderRadius`, then the columns. The text keys follow the control order, which is not final: reordering the controls is a wire change.
-
-**[UNRELEASED]** `{{table}}` presentation wire. Tag-level keys: `layout` (`auto` or `fixed`; absent leaves the theme's layout; `layout:fixed` with no `width` renders `width:100%`), `width`, the six text keys, `stripe`, `border` and `borderRadius`. Column tokens: `width(…)` and the same six text keys. A text key's value is `base;header,x`: the bare segment is the whole table at tag level and the body cells in a column, and `header,x` overrides it for header cells. A column's bare `textAlign` also covers its header cell; its color and font keys do not. Values: `width` is `auto`, a number with `px|em|rem|%|ch|vw`, or `var(--x)` with an optional fallback; colors are the strict allowlist (hex, `rgb()`, `rgba()`, `hsl()`, `hsla()`, `var()`, color names, `currentColor`, plus the CSS globals on text `color` only); `calc()` is never recognized. `stripe:rows,odd,#eee,40%;cols` targets `rows` and `cols`, counts the header row as row 1 (a table with no `<thead>` counts from its first row), takes its args typed by value in any order, and a bare target means `even`. A value that fails its allowlist is dropped and flagged, never emitted. Every rule is written to one scoped stylesheet under `bws-dte-table-<hash>` (hashed from the built rules, so identical tables share one `<style>`); a table with no styling gets no class, and nothing emitted carries an inline `style` or sets `display`. `border:2px,solid,#ccc;rows,dotted` is a head-less base (a width, a style, a color and an optional `N%` opacity, typed by value in any order) with per-line overrides: `outer`, `header`, `rows` and `cols` take a width and a style only, and a line without its own follows the base. A base with a width or a style draws all four lines; a base that is only a color recolors the theme's lines; a bare head under no base sets nothing, so the theme's line stays. A base style of `none` draws no lines, and a line named under it is drawn again. `borderRadius:outer,8px` rounds the table's corners and switches the table to the separate border model; a bare length is reserved for cell corners and is dropped and flagged. Default stripe is `currentColor` at 5%, set on the settings page (Table). Where each rule is decided: the PHPDoc of `bws_table_rules()`, `bws_table_text_for_cell()`, `bws_table_stripe_parse()`, `bws_table_border_parse()`, `bws_table_border_lines()` and `bws_head_args_items()` in `includes/helpers/table-helpers.php`. Editor mechanism: [`editor-controls.md`](editor-controls.md).
+**[UNRELEASED]** `{{table}}`'s presentation keys (`layout`, `width`, the six text keys `color`, `fontSize`, `fontWeight`, `fontStyle`, `textAlign`, `textTransform`, then `stripe`, `border` and `borderRadius`) sort in the `source` group behind the read keys, both at tag level and as column tokens, so a tag reads `src`, then `layout`, `width`, the text keys, `stripe`, `border`, `borderRadius`, then the columns. The text keys follow the control order, which is not final: reordering the controls is a wire change. Their schema: [§Table tag](#table-tag).
 
 (No exceptions as of v1.16.0: image's former GB-native `size:` was folded into custom `as` by the `as`+`size` fold, so every option in the list above is a custom option the normalizer controls.)
 
@@ -750,6 +744,7 @@ In the source-agnostic architecture, each template has one GB tag registration. 
 | `email` | `'Email'` | `'cross-source'` | `mailto:` (own anchor, not `linkTo`) | Default-ON mailto wrap toggled by `noLink`; `visibility`-gated off `a`/`button`/`img`/`picture`. See [§Email tag](#email-tag). |
 | `phone` | `'Phone'` | `'cross-source'` | `tel:` (own anchor, not `linkTo`) | Default-ON tel wrap toggled by `noLink`; href rebuilt from stored value (author separators preserved); 2-tier country code; `visibility`-gated off `a`/`button`/`img`/`picture`. See [§Phone tag](#phone-tag). |
 | `join` | `'Join Fields'` | `'cross-source'` | ❌ | **Structural outlier — not a base tag.** Standalone COMBINING tag: absorbs up to 10 base `text` reads as slots and assembles all non-empty values (separator or template mode). No read of its own; no per-slot link-wrap. See [§join](#join). |
+| `table` **[UNRELEASED]** | `'Table'` | `'cross-source'` | ❌ | **Structural outlier — not a base tag.** Builds a whole `<table>`: one row per resolved source of its chain, one column per folded slot (up to 10). Output is HTML for a text-as-div host, never a `<p>`/`<span>`. See [§Table tag](#table-tag). |
 | `call` | `'Call Custom Function'` | `'post'` | ❌ | **Structural outlier — not a base tag.** Binds the loop-correct post (L1 only), then delegates to an allowlisted site PHP function; output is the function's return string, verbatim + unescaped. Type `'post'` (NOT `'cross-source'`) — no term/site/media/taxonomy features; `src` offers Current + Ref only. Ships with an empty allowlist. See [§Call tag](#call-tag). |
 
 **The `term_` modifier family is REMOVED as of v1.21.0** (FW-129) and registers no tag on any install. Its tags, its option surface, what a `{{term_*}}` string still stored in content does now that nothing registers the name, and the site-dependent question of whose tag a given `term_*` name ever was: [`deprecated-tags-options.md` §The `term_` modifier family](deprecated-tags-options.md#the-term_-modifier-family-removed-in-v1210). The replacement is a base tag with its source set to a term, and the Migration Tool writes it.
@@ -1334,6 +1329,96 @@ Pre-1.17.0 wire (`{{join key:name_first|2-key:name_last}}`) still renders — se
 translation, `'0'`, full-name dense/sparse collapse). Integration: standing matrix
 [`tools/test/join-test-matrix.md`](../tools/test/join-test-matrix.md) against the seeded testbed
 (assembly modes, absorb-visible behavior: site arm, per-slot `limit`, carry-forward, `'0'`).
+
+---
+
+<a id="table-tag"></a>
+## Table tag **[UNRELEASED]**
+
+`{{table}}` builds an HTML table from a source chain: one row per source the chain resolves to, one column per folded slot. **Structural outlier, not a base tag**, like `{{join}}` and `{{call}}`: registered unconditionally by `bws_register_table_tag()` in `includes/tags/table-tags.php` (GB type `'cross-source'`, title `'Table'`, no GB `supports`), with the pure assembly in `includes/helpers/table-helpers.php`. It is the one tag in the plugin that produces the **query loop** output shape ([§Output shape](#output-shape--terminology) says why it crosses that border).
+
+**Host.** The output is a complete `<table>`, so it belongs in a text-as-div host (the `{{content}}` precedent); inside a `<p>` or `<span>` it is invalid markup, which the tag's modal description warns about. The finished HTML still goes through the GB output boundary (`bws_gb_tag_output()`).
+
+**Rows are the chain's tail.** The tag-level `src` is a source chain, authored with the same control and root menu as a base tag's (`bws-src-chain`). Whatever the whole compiled chain resolves to is the row set, one row per resolved source, whatever its kind (`post`, `term`, `user`, `site`, `meta_row`, `query_context`). There is no kind allowlist, no minimum and no skip-if-all-empty: row count is the chain's cardinality.
+
+| Chain ends on | Rows |
+|---|---|
+| nothing (the current context) | one row |
+| `rows,<repeater>` | one per repeater row |
+| `refs,<field>` | one per related post |
+| `terms,<taxonomy>` | one per term |
+| a root naming one entity (`site`, `post,<id>`, a registered root) | one row |
+
+**The row cap is the chain's own per-hop `limit(N)`.** `{{table}}` registers no row-count option. It declares `takes_first_usable` explicitly false at registration, so a first-usable reading can never collapse it to one row ([§Collapsing tags](#collapsing-tags-first-usable-source)).
+
+**A root this render cannot use produces no table, not an empty one.** The callback asks `bws_base_read_refused()` with a serves list DERIVED by `bws_table_serves()` from the wire vocabulary (every root kind and every kind a step produces), never hand-listed, so a kind that joins the vocabulary is a valid row the day it joins. On the front end, a refused root, no rows or no columns render nothing; the editor shows a table or a placeholder instead ([`editor-tag-previews.md` §`{{table}}` preview](editor-tag-previews.md#table-preview)).
+
+**Columns are folded slots** `A`…`J`, at most `BWS_TABLE_MAX_COLS` (10; that constant's docblock says why there is a ceiling at all, and why this one). Registered by `bws_build_fold_slot_options()` (container `table`) over the shared text read leaf; [§Folded slot wire](#folded-slot-wire-multislot-containers) owns the grammar. `{{table}}` shipped folded, so no column has a flat era and no `{N}-*` key is ever read. Per column:
+
+- **Source: an empty chain is the ROW.** The default root is `inherit` (shown as "Tag Source" in the editor) and is stripped at every column, so a column that reads the row writes no `src` at all. A chain that steps from the row writes its root: `src(inherit;refs,lead_ref)`. Any other root is an escape that reads something else on every row: `src(site)`, `src(current)` (`current` is never a column's default, so it is always written). Offered steps: `refs`, `terms`, `rows`. A column root that is refused empties that column, not the table. The carry is seeded with the row, so a hand-written `src(same)` on column A carries the row.
+- **Read: keyed, analog or fixed**, the text leaf's three. A keyed read (`key(x)`) goes through the L2 read seam and works on every row kind. An analog read (`use(title)`) dispatches on the resolved kind through `bws_table_read_analog()`: post, term, user, site, and a `query_context` row's canonical heading. A `meta_row` has no analog (a repeater row is not an entity), so `use(title)` on repeater rows is an empty cell, never the ambient entity's title. A fixed read (`fixed(text)`) reads nothing and so applies on every row kind, `meta_row` included, shown wherever the column's own source resolves (`bws_fixed_text_read()` owns that rule). A column that resolves several sources on one row joins their values with `, `.
+- **Header: `header(text)`**, the column's heading cell. The token is shared grammar (it parses and round-trips in any container) but only `{{table}}` authors it. It is trimmed, and whitespace alone is no header. A `<thead>` is emitted only when at least one column has a header (`bws_table_has_header()`, which the stripe and header-line rules read too, so markup and CSS agree). A column with a header and no usable read is kept with every cell empty (a spacer or annotation column); a column with neither is dropped.
+- **A skipped column never feeds the carry**, whatever its chain says, as in `{{join}}`.
+
+**Caption and scroll region.** `caption` (optional) emits a `<caption>` and wraps the table in `<div role="region" tabindex="0" aria-labelledby="…">`, which it names; one footer rule (`BWS_TABLE_INLINE_CSS`) gives exactly that attribute triple `overflow:auto` and a focus outline, so the CSS only ever applies to a correctly labelled region. No caption means no wrapper, because a focusable region without a name would itself fail WCAG 4.1.2. Header cells carry no `scope` yet; `scope="col"` and `scope="row"` ship together with row headers (FW-164). `bws_table_assemble()`'s PHPDoc owns the markup rules.
+
+**Render order** (`bws_table_callback()`): read the columns; resolve the tag's base source and apply the refusal test; run the whole compiled chain to get the rows; for each column, compute once where its chain starts (the row, or its own root) and its steps; read every cell, row by row; build the presentation rules and assemble the table (`bws_table_html()`); hand the HTML to the GB output boundary.
+
+### Presentation
+
+**Keys.** Tag level: `layout` (`auto` or `fixed`; absent leaves the theme's layout; `layout:fixed` with no `width` renders `width:100%`), `width`, the six text keys `color`, `fontSize`, `fontWeight`, `fontStyle`, `textAlign`, `textTransform`, then `stripe`, `border` and `borderRadius`. Column tokens: `width(…)` and the same six text keys. Their serialization order is [§Option order](#option-order)'s.
+
+**Text keys.** A text key's value is `base;header,x`: the bare segment is the whole table at tag level and the body cells in a column, and `header,x` overrides it for header cells. A column's bare `textAlign` also covers its header cell; its color and font keys do not. A column value is emitted only where it differs from what the table already gives. `textAlign` takes `left`, `center`, `right` (no `justify`).
+
+**Values.** `width` is `auto`, a number with `px|em|rem|%|ch|vw`, or `var(--x)` with an optional fallback; colors are a strict allowlist (hex, `rgb()`, `rgba()`, `hsl()`, `hsla()`, `var()`, color names, `currentColor`, plus the CSS globals on text `color` only); `calc()` is never recognized. A value that fails its allowlist is dropped and flagged (the editor shows it with a repair button), never emitted; an unbalanced bracket drops the whole key.
+
+**Stripes.** `stripe:rows,odd,#eee,40%;cols` targets `rows` and `cols`, takes its args typed by value in any order (a parity, a color, an `N%` opacity), and a bare target means `even`. The header row counts as row 1: `even` shades body rows 1, 3, …, `odd` the header row and body rows 2, 4, …; a table with no `<thead>` counts from its first row. Column stripes run through the header cell. A color that carries its own alpha ignores the opacity; otherwise the stripe is `color-mix(in srgb, C N%, transparent)`. A stripe that writes neither color nor opacity uses the default, wrapped in `var(--bws-dte-table-stripe, …)` so a theme can still override it. The default is `currentColor` at 5%, set under **Settings → Tag Extensions → Table** ("Default stripe color", "Default stripe opacity"), saved through the same validators; an invalid saved value falls back to the built-in pair. Stripes paint as `background-image` gradients, so row and column stripes compound where they cross.
+
+**Borders.** `border:2px,solid,#ccc;rows,dotted` is a head-less base (a width, a style, a color and an optional `N%` opacity, typed by value in any order) with per-line overrides: `outer`, `header`, `rows` and `cols` take a width and a style only, and a line without its own follows the base. A base with a width or a style draws all four lines; a base that is only a color recolors the theme's lines and draws nothing new; a bare head under no base sets nothing, so the theme's line stays. A drawn line with no width or style anywhere is `1px solid`. A base style of `none` draws no lines, and a line named under it is drawn again (`border:none;rows,2px`). A line the key does not name is never touched. `borderRadius:outer,8px` rounds the table's corners; a bare length is reserved for cell corners, not built, and is dropped and flagged.
+
+**Where each rule is decided:** the PHPDoc of `bws_table_rules()`, `bws_table_text_for_cell()`, `bws_table_stripe_parse()`, `bws_table_border_parse()`, `bws_table_border_lines()` and `bws_head_args_items()` in `includes/helpers/table-helpers.php`. Their JS twins are in `assets/js/table-style-grammar.js`. Editor mechanism: [`editor-controls.md`](editor-controls.md#custom-editor-controls-registered).
+
+**One CSS vehicle, the scoped stylesheet**, because of kses. `wp_kses_post` on an inline `style` drops the whole attribute for `table-layout` and for every function-valued color (`rgb()`, `rgba()`, `hsl()`, `hsla()`, `color-mix()`), measured on WP 7.1.2, 2026-10-07. So nothing emitted carries an inline `style` or a `<colgroup>`, and nothing sets `display` on a table part (that strips table semantics from screen readers). Every rule goes into one stylesheet under the class `bws-dte-table-<hash>`, hashed from the built rules, so identical tables share one `<style>` and a table with no styling gets no class. One rule builder serves the front end, the editor's real table and its placeholder. The front end queues it at `wp_footer` (`bws_queue_inline_css()`); the editor preview is a REST request with no footer, so there the `<style>` travels just before the table, and a trusted user without `unfiltered_html` gets it stripped by GB's kses pass and sees an unstyled table (accepted, not worked around).
+
+**Theme behavior these keys answer to:**
+
+- **Layout differs by theme.** Twenty Sixteen sets `table-layout:fixed`, so `layout:auto` is written rather than stripped, and absence means the theme's own.
+- **Fixed layout is inert without a table width**, so `layout:fixed` brings `width:100%`. GeneratePress 3.6.1 already sets `table{width:100%}`; `width` is how an author narrows a full-width theme table.
+- **GeneratePress 3.6.1 draws a border on every cell** in the separate border model (the table draws top and left, every cell right and bottom). So `border` is never additive over the theme and never a reset of it: it sets longhand properties only, so the theme's style and color survive where nothing is set, and a named line owns BOTH edges of its boundary (set on one side, the facing side zeroed), because a neighbor's theme edge left standing still draws the line. In a collapse-model theme the outer line is the perimeter cells' edges, not the table's border, and is zeroed there too.
+- **`border` never changes the table's border model; `borderRadius` does.** A radius does not apply to a collapsed table, so `borderRadius` sets `border-collapse:separate;border-spacing:0` and clears the cell edges a collapse theme would then draw twice (in GeneratePress this changes nothing). The corners are clipped with `clip-path` on the row groups, not `overflow`, which in Chrome clips the caption too.
+
+**Options:**
+
+| Option | Type / control | Label | Notes |
+|---|---|---|---|
+| `src` | `bws-src-chain` | Source | The chain whose tail is the row set. |
+| `caption` | text | Caption | Optional. Emits `<caption>` and the labelled scroll region. |
+| `stylePreview` | `bws-table-style-preview` | Live Formatting Preview | Display-only; no value, never serialized. |
+| `layout` | `bws-table-sizing` | Column Sizing | Composite, writes `layout` + `width`. |
+| `width` | `bws-table-style-member` | Table Width | Written by the Sizing composite. |
+| `color` | `bws-table-typography` | Text Color | Composite, writes the six text keys at Table and Header. |
+| `fontSize`, `fontWeight`, `fontStyle`, `textAlign`, `textTransform` | `bws-table-style-member` | Font Size, Font Weight, Font Style, Text Alignment, Text Transform | Written by the Typography composite. |
+| `stripe` | `bws-table-stripes` | Stripes | Composite. |
+| `border` | `bws-table-borders` | Borders | Composite, writes `border` + `borderRadius`. |
+| `borderRadius` | `bws-table-style-member` | Radius | Written by the Borders composite. |
+| `A`…`J` | `bws-slot-fold` | Column A … | One folded slot per column: source chain, read, `header(…)`, `width(…)`, text tokens. |
+
+Every presentation key sits in the `style` visual group, so the composites draw as one box. Without the editor script each key is a plain GB text control, which is still valid wire.
+
+**Wire-format examples:**
+
+```
+{{table src:rows,team_members|A:header(Name);key(name)|B:header(Role);key(role)}}            → a row per repeater row
+{{table src:post,12;refs,related_staff,limit(5)|A:header(Staff);use(title)}}                  → up to 5 related posts
+{{table src:rows,team_members|A:header(Name);key(name)|B:header(Lead);src(inherit;refs,lead_ref);use(title)}}
+                                                                                              → column B hops off each row
+{{table src:post,12;terms,department|A:header(Dept);use(title)|B:header(Site);src(site);use(title)}}
+                                                                                              → a row per term; B reads the site on every row
+{{table caption:Our Team|layout:fixed|stripe:rows|A:header(Name);key(name);width(40%)}}       → captioned region, fixed layout, striped
+{{table border:1px,#888;header,3px|borderRadius:outer,8px|A:header(Name);key(name)}}          → 1px gray lines, 3px under the header, rounded corners
+```
+
+**Tests.** Pure harnesses: `table-assemble-test.php` (markup, caption-gated wrapper, rule builder, stripe counting, scope hashing), `table-rows-test.php` (row production, columns), `table-text-align-test.php`, `table-style-test.php`, `table-style-twin-test.php` (PHP↔JS agreement). Editor: `table-style-control-test.js`, `table-style-preview-test.js`. Integration and visible rows: [`tools/test/table-test-matrix.md`](../tools/test/table-test-matrix.md) against the testbed's `matrix-table` page.
 
 ---
 

@@ -909,8 +909,10 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 	//
 	// Above every display switch, and before the segments, because a chain that resolves
 	// to nothing is one answer whatever the caller was going to say about it.
-	$internal_roots = array( 'current', 'site', 'ref', 'post', 'term' );
-	$retired_roots  = defined( 'BWS_FOLD_RETIRED_SRC_TOKENS' ) ? BWS_FOLD_RETIRED_SRC_TOKENS : array();
+	// `inherit` (a table column's row) is a reserved root the registry never holds, so it is
+	// known here by name rather than by lookup.
+	$internal_roots = array( 'current', 'site', 'ref', 'post', 'term', defined( 'BWS_FOLD_INHERIT_ROOT' ) ? BWS_FOLD_INHERIT_ROOT : 'inherit' );
+	$retired_roots = defined( 'BWS_FOLD_RETIRED_SRC_TOKENS' ) ? BWS_FOLD_RETIRED_SRC_TOKENS : array();
 	if ( '' !== $root && ! in_array( $root, $internal_roots, true ) ) {
 		if ( in_array( $root, $retired_roots, true ) ) {
 			// REGISTERED (the registry keeps its dead by policy) but inert by decision

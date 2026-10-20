@@ -66,7 +66,7 @@ function bws_register_table_tag(): void {
 		'supports'    => array(),
 		// Help text in the tag selector / modal. text-as-div host: the output is a
 		// full <table> block, so the containing element must be a block container.
-		'description' => __( 'Builds a table from a repeater field. Outputs a full <table>; do not place inside a <p> or <span> — use a Div or other block element.', 'generateblocks' ),
+		'description' => __( 'Builds a table with one row for each item its source reaches: repeater rows, related posts, terms, or just the current post. Outputs a full <table>, so place it in a Div or other block element, not inside a <p> or <span>.', 'generateblocks' ),
 		'options'     => bws_get_table_options(),
 		'return'      => 'bws_table_callback',
 		// EXPLICITLY FALSE, never defaulted. {{table}} registers no modifier-template
