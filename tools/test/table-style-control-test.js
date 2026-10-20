@@ -128,6 +128,12 @@ function radio( tree, name, index ) {
 	return find( tree, ( n ) => n.type === 'input' && n.props.type === 'radio' && n.props.name === name )[ index ];
 }
 
+/** The i-th checkbox of a named checkbox group (None, then the two targets). */
+function box( tree, group, i ) {
+	const g = find( tree, ( n ) => n.props && n.props.role === 'group' && n.props[ 'aria-label' ] === group )[ 0 ];
+	return find( g, ( n ) => n.type === 'Check' )[ i ];
+}
+
 function button( tree, label ) {
 	return find( tree, ( n ) => n.type === 'Button' && n.children.some( ( c ) => c === label ) )[ 0 ];
 }
@@ -207,10 +213,10 @@ check( 'Typography: an unbalanced bracket offers to clear the key', m.writes[ 1 
 
 // ── Stripes ──────────────────────────────────────────────────────────────────────────
 m = mount( UI.StripesControl, {} );
-radio( m.tree, 'bws-table-stripes', 1 ).props.onChange();
+box( m.tree, 'L', 1 ).props.onChange( true );
 check( 'Stripes: Rows writes the bare target (even is the default)', m.writes[ 0 ], { stripe: 'rows' } );
 m = mount( UI.StripesControl, { stripe: 'rows,odd,#eee,40%' } );
-radio( m.tree, 'bws-table-stripes', 3 ).props.onChange();
+box( m.tree, 'L', 2 ).props.onChange( true );
 check( 'Stripes: adding Columns keeps the rows spec and starts columns linked to its look', m.writes[ 0 ], { stripe: 'rows,odd,#eee,40%;cols,#eee,40%' } );
 // ── Link between rows and columns ──
 m = mount( UI.StripesControl, { stripe: 'rows,#eee,40%;cols,#eee,40%' } );
@@ -225,9 +231,9 @@ check( 'Link: the fix writes the rows look onto columns', m.writes[ 0 ], { strip
 m = mount( UI.StripesControl, { stripe: 'rows;cols,odd' } );
 check( 'Link: rows and columns with no look of their own are linked; parity is never linked', [ lk( m.tree )[ 0 ].props.isPressed, find( m.tree, ( n ) => n.type === 'Select' && n.props.label === 'Pattern' ).length ], [ true, 2 ] );
 m = mount( UI.StripesControl, { stripe: 'rows,odd,#eee,40%;cols' } );
-radio( m.tree, 'bws-table-stripes', 1 ).props.onChange();
-check( 'Stripes: narrowing to Rows drops the cols item only', m.writes[ 0 ], { stripe: 'rows,odd,#eee,40%' } );
-radio( m.tree, 'bws-table-stripes', 0 ).props.onChange();
+box( m.tree, 'L', 2 ).props.onChange( false );
+check( 'Stripes: unticking Columns drops the cols item only', m.writes[ 0 ], { stripe: 'rows,odd,#eee,40%' } );
+box( m.tree, 'L', 0 ).props.onChange( true );
 check( 'Stripes: None deletes the key', m.writes[ 1 ], {} );
 m = mount( UI.StripesControl, { stripe: 'rows' } );
 find( m.tree, ( n ) => n.type === 'Select' && n.props.label === 'Pattern' )[ 0 ].props.onChange( 'odd' );
@@ -249,15 +255,30 @@ m = mount( UI.StripesControl, { stripe: 'rows,40%' } );
 button( m.tree, 'Reset' ).props.onClick();
 check( 'Stripes: Reset clears the opacity and keeps the rest', m.writes[ 0 ], { stripe: 'rows' } );
 m = mount( UI.StripesControl, { stripe: 'rows,every' } );
-check( 'Stripes: a bad sequence word is reported and no radio is lost', [ /"every" is not a color, an opacity or a sequence/.test( text( m.tree ) ), radio( m.tree, 'bws-table-stripes', 1 ).props.checked ], [ true, true ] );
+check( 'Stripes: a bad sequence word is reported and no box is lost', [ /"every" is not a color, an opacity or a sequence/.test( text( m.tree ) ), box( m.tree, 'L', 1 ).props.checked ], [ true, true ] );
 button( m.tree, 'Fix' ).props.onClick();
 check( 'Stripes: Fix adopts the effective value', m.writes[ 0 ], { stripe: 'rows' } );
 m = mount( UI.StripesControl, { stripe: 'rows,rgba(0,0,0' } );
-check( 'Stripes: an unbalanced bracket leaves no radio chosen', [ 0, 1, 2, 3 ].map( ( i ) => radio( m.tree, 'bws-table-stripes', i ).props.checked ), [ false, false, false, false ] );
+check( 'Stripes: an unbalanced bracket leaves no box ticked, not even None', [ 0, 1, 2 ].map( ( i ) => box( m.tree, 'L', i ).props.checked ), [ false, false, false ] );
 button( m.tree, 'Clear Stripes' ).props.onClick();
 check( 'Stripes: ...and offers to clear the key', m.writes[ 0 ], {} );
 m = mount( UI.StripesControl, { stripe: 'banana;cols' } );
-check( 'Stripes: an unknown target is reported, the valid one stands', [ /"banana" is not a recognized option/.test( text( m.tree ) ), radio( m.tree, 'bws-table-stripes', 2 ).props.checked ], [ true, true ] );
+check( 'Stripes: an unknown target is reported, the valid one stands', [ /"banana" is not a recognized option/.test( text( m.tree ) ), box( m.tree, 'L', 2 ).props.checked ], [ true, true ] );
+
+m = mount( UI.StripesControl, {} );
+check( 'Stripes: nothing set ticks None only', [ 0, 1, 2 ].map( ( i ) => box( m.tree, 'L', i ).props.checked ), [ true, false, false ] );
+box( m.tree, 'L', 0 ).props.onChange( false );
+check( 'Stripes: unticking None directly writes nothing', m.writes.length, 0 );
+m = mount( UI.StripesControl, { stripe: 'rows;cols' } );
+check( 'Stripes: both targets read as Rows and Columns ticked, None clear', [ 0, 1, 2 ].map( ( i ) => box( m.tree, 'L', i ).props.checked ), [ false, true, true ] );
+box( m.tree, 'L', 1 ).props.onChange( false );
+check( 'Stripes: unticking Rows leaves Columns', m.writes[ 0 ], { stripe: 'cols' } );
+m = mount( UI.StripesControl, { stripe: 'rows' } );
+box( m.tree, 'L', 1 ).props.onChange( false );
+check( 'Stripes: unticking the last box is None (the key is deleted)', m.writes[ 0 ], {} );
+m = mount( UI.StripesControl, { stripe: 'rows,odd,#eee,40%;cols' } );
+box( m.tree, 'L', 0 ).props.onChange( true );
+check( 'Stripes: ticking None clears the others', m.writes[ 0 ], {} );
 
 // ── The column card ──────────────────────────────────────────────────────────────────
 function column( opts, tag ) {
@@ -272,15 +293,19 @@ c = column( { textAlign: 'right' } );
 check( 'Column: with no custom styles only the alignment block shows', find( c.tree, ( n ) => n.type === 'Combo' ).length, 0 );
 c = column( { color: '#c00' } );
 check( 'Column: a stored body style opens the Body matrix', find( c.tree, ( n ) => n.type === 'Combo' && n.props.label === 'Text Color' ).length, 1 );
-check( 'Column: ...and "Body" reads as chosen', radio( c.tree, 'bws-table-colstyle-A', 1 ).props.checked, true );
+check( 'Column: ...and "Body" reads as chosen', box( c.tree, 'Custom Column Text Styles', 1 ).props.checked, true );
 c = column( { fontWeight: 'header,bold', color: '#c00' } );
-check( 'Column: header and body values read as "Body and header"', radio( c.tree, 'bws-table-colstyle-A', 3 ).props.checked, true );
-radio( c.tree, 'bws-table-colstyle-A', 1 ).props.onChange();
-check( 'Column: narrowing to Body clears the header override and keeps the body', c.writes[ 0 ].opts, { color: '#c00' } );
-radio( c.tree, 'bws-table-colstyle-A', 0 ).props.onChange();
+check( 'Column: header and body values read as Body and Header both ticked', [ 1, 2 ].map( ( i ) => box( c.tree, 'Custom Column Text Styles', i ).props.checked ), [ true, true ] );
+box( c.tree, 'Custom Column Text Styles', 2 ).props.onChange( false );
+check( 'Column: unticking Header to Body clears the header override and keeps the body', c.writes[ 0 ].opts, { color: '#c00' } );
+box( c.tree, 'Custom Column Text Styles', 0 ).props.onChange( true );
 check( 'Column: None clears both', c.writes[ 1 ].opts, {} );
+c = column( { fontWeight: 'header,bold' } );
+check( 'Column: a header-only style ticks Header alone', [ 0, 1, 2 ].map( ( i ) => box( c.tree, 'Custom Column Text Styles', i ).props.checked ), [ false, false, true ] );
+c = column( {} );
+check( 'Column: nothing set ticks None only', [ 0, 1, 2 ].map( ( i ) => box( c.tree, 'Custom Column Text Styles', i ).props.checked ), [ true, false, false ] );
 c = column( { textAlign: 'right;header,center', color: '#c00' } );
-radio( c.tree, 'bws-table-colstyle-A', 0 ).props.onChange();
+box( c.tree, 'Custom Column Text Styles', 0 ).props.onChange( true );
 check( 'Column: None keeps both alignments (their own block), clears the rest', c.writes[ 0 ].opts, { textAlign: 'right;header,center' } );
 c = column( { textAlign: 'right' } );
 find( c.tree, ( n ) => n.type === 'Button' && n.props.title === 'Center' )[ 1 ].props.onClick();
@@ -293,7 +318,7 @@ check( 'Column: a set body alignment is not shaded; the header then inherits it'
 m = mount( UI.TypographyControl, { textAlign: 'center' } );
 check( 'Typography: the Header Alignment group shades the table value; the Table group shades nothing', shaded( m.tree ), [ 'Center' ] );
 c = column( { textAlign: 'right;header,center' } );
-check( 'Column: an alignment-only header does not open the Header text styles', radio( c.tree, 'bws-table-colstyle-A', 0 ).props.checked, true );
+check( 'Column: an alignment-only header does not open the Header text styles', box( c.tree, 'Custom Column Text Styles', 0 ).props.checked, true );
 c = column( { fontWeight: 'bold' } );
 find( c.tree, ( n ) => n.type === 'Select' && n.props.label === 'Font Weight' )[ 0 ].props.onChange( '' );
 check( 'Column: clearing the last value drops the token', c.writes[ 0 ].opts, {} );
@@ -320,6 +345,8 @@ delete global.window.gb;
 // ── Color list separators ────────────────────────────────────────────────────────────
 const colorRows = find( mount( UI.TypographyControl, {} ).tree, ( n ) => n.type === 'Combo' && n.props.label === 'Text Color' )[ 0 ].props.options;
 check( 'Color list: dash rows join the groups, disabled', colorRows.filter( ( r ) => r.label === '—' ).every( ( r ) => r.disabled ) && colorRows.some( ( r ) => r.label === '—' ), true );
+check( 'Color list: currentColor is the first option under the hint, then a dash row before the site colors', colorRows.slice( 0, 3 ).map( ( r ) => r.label ), [ 'Pick a color, or type hex, rgb(), hsl(), var(), or a color name.', 'currentColor', '—' ] );
+check( 'Color list: currentColor appears once', colorRows.filter( ( r ) => r.value === 'currentColor' ).length, 1 );
 check( 'Color list: no heading rows', colorRows.some( ( r ) => /^(Site colors|Color names|CSS values)$/.test( r.label ) ), false );
 check( 'Color list: names group ends in the search hint', colorRows.some( ( r ) => r.label === 'Type to search more color names.' ), true );
 const colorField = expand( UI.ColorField( { label: 'C', value: '', onChange: ( v ) => commits.push( v ) } ) );

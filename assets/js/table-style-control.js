@@ -276,6 +276,42 @@
 		);
 	}
 
+	/**
+	 * None / A / B as three checkboxes, exclusive-with-None. `options` is [ none, a, b ] as
+	 * [ value, label ]; `value` is one of those values, 'both', or null (a hand-edit under
+	 * repair: nothing ticked, not even None). `onPick(value)` gets the mode the ticks now mean.
+	 */
+	function CheckRow( p ) {
+		var none = p.options[ 0 ];
+		var a = p.options[ 1 ];
+		var b = p.options[ 2 ];
+		var hasA = p.value === a[ 0 ] || p.value === 'both';
+		var hasB = p.value === b[ 0 ] || p.value === 'both';
+		function toggle( which ) {
+			return function ( on ) {
+				var nextA = which === 'a' ? on : hasA;
+				var nextB = which === 'b' ? on : hasB;
+				p.onPick( nextA && nextB ? 'both' : nextA ? a[ 0 ] : nextB ? b[ 0 ] : none[ 0 ] );
+			};
+		}
+		return el( 'div', { className: 'bws-ts-radios', role: 'group', 'aria-label': p.label }, [
+			el( C.CheckboxControl, {
+				key: 'n',
+				label: none[ 1 ],
+				checked: p.value === none[ 0 ],
+				onChange: function ( on ) {
+					// Unticking None ticks nothing, which is None: no change.
+					if ( on ) {
+						p.onPick( none[ 0 ] );
+					}
+				},
+				__nextHasNoMarginBottom: true
+			} ),
+			el( C.CheckboxControl, { key: 'a', label: a[ 1 ], checked: hasA, onChange: toggle( 'a' ), __nextHasNoMarginBottom: true } ),
+			el( C.CheckboxControl, { key: 'b', label: b[ 1 ], checked: hasB, onChange: toggle( 'b' ), __nextHasNoMarginBottom: true } )
+		] );
+	}
+
 	// ── State helpers ─────────────────────────────────────────────────────────────
 
 	/** A copy of `state` with `patch` applied; an empty value deletes its key. */
@@ -335,11 +371,11 @@
 			return ! q || o.value.toLowerCase().indexOf( q ) !== -1;
 		} );
 		var gl = globals && ! q ? plain( V.globals || [] ) : [];
-		var named = extra.concat( plain( names ) );
+		var named = plain( names );
 		if ( ! q && named.length ) {
 			named.push( { value: '__hint:names', label: __( 'Type to search more color names.', 'generateblocks' ), disabled: true } );
 		}
-		return withSeparators( [ sites, named, gl ] );
+		return withSeparators( [ extra, sites, named, gl ] );
 	}
 
 	/** Groups joined by GB's disabled dash row, as its Font Weight list draws one. */
@@ -944,7 +980,7 @@
 
 	// ── Stripes ──────────────────────────────────────────────────────────────────
 
-	var STRIPE_MODES = [ [ '', __( 'None', 'generateblocks' ) ], [ 'rows', __( 'Rows', 'generateblocks' ) ], [ 'cols', __( 'Columns', 'generateblocks' ) ], [ 'both', __( 'Rows and columns', 'generateblocks' ) ] ];
+	var STRIPE_MODES = [ [ '', __( 'None', 'generateblocks' ) ], [ 'rows', __( 'Rows', 'generateblocks' ) ], [ 'cols', __( 'Columns', 'generateblocks' ) ] ];
 
 	function defaults() {
 		var d = window.bwsTableDefaults || {};
@@ -1042,7 +1078,7 @@
 		var parsed = raw === '' ? { rows: null, cols: null, flags: [] } : T.parseStripe( raw );
 		var rows = parsed && parsed.rows;
 		var cols = parsed && parsed.cols;
-		// null parse = a bracket the reader cannot trust; no radio reads as chosen.
+		// null parse = a bracket the reader cannot trust; no box reads as ticked.
 		var mode = parsed === null ? null : ( rows && cols ? 'both' : rows ? 'rows' : cols ? 'cols' : '' );
 
 		function write( next ) {
@@ -1078,7 +1114,7 @@
 		var children = [
 			el( 'div', { key: 'modes', className: 'bws-ts-field' }, [
 				el( Heading, { key: 'l', text: p.label } ),
-				el( RadioRow, { key: 'r', label: p.label, name: 'bws-table-stripes', options: STRIPE_MODES, value: mode, onPick: setMode } )
+				el( CheckRow, { key: 'r', label: p.label, options: STRIPE_MODES, value: mode, onPick: setMode } )
 			] )
 		];
 		if ( rows || cols ) {
@@ -1518,8 +1554,7 @@
 	var COLUMN_MODES = [
 		[ 'none', __( 'None', 'generateblocks' ) ],
 		[ 'body', __( 'Body', 'generateblocks' ) ],
-		[ 'header', __( 'Header', 'generateblocks' ) ],
-		[ 'both', __( 'Body and header', 'generateblocks' ) ]
+		[ 'header', __( 'Header', 'generateblocks' ) ]
 	];
 
 	/**
@@ -1667,7 +1702,7 @@
 			] ),
 			el( 'div', { key: 'modes', className: 'bws-ts-field' }, [
 				el( Heading, { key: 'l', text: __( 'Custom Column Text Styles', 'generateblocks' ) } ),
-				el( RadioRow, { key: 'r', label: __( 'Custom Column Text Styles', 'generateblocks' ), name: 'bws-table-colstyle-' + p.slotKey, options: COLUMN_MODES, value: mode, onPick: pickMode } )
+				el( CheckRow, { key: 'r', label: __( 'Custom Column Text Styles', 'generateblocks' ), options: COLUMN_MODES, value: mode, onPick: pickMode } )
 			] )
 		];
 		if ( blocks.length ) {
