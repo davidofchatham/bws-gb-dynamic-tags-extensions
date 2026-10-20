@@ -88,11 +88,12 @@ assert_order(
 );
 
 // --- {{table}} presentation keys: behind the read keys, width ahead of the text
-// keys, the text keys in control order, stripe last of them, all ahead of link and fallback ---
+// keys, the text keys in control order, then stripe, border and borderRadius, all ahead of link
+// and fallback ---
 assert_order(
-	'presentation keys sort layout, width, text keys in control order, stripe',
-	array( 'src', 'layout', 'width', 'color', 'fontSize', 'fontWeight', 'fontStyle', 'textAlign', 'textTransform', 'stripe', 'A', 'fallback' ),
-	$sort( array( 'fallback', 'A', 'stripe', 'textTransform', 'textAlign', 'fontStyle', 'fontWeight', 'fontSize', 'color', 'width', 'layout', 'src' ) )
+	'presentation keys sort layout, width, text keys in control order, stripe, border, borderRadius',
+	array( 'src', 'layout', 'width', 'color', 'fontSize', 'fontWeight', 'fontStyle', 'textAlign', 'textTransform', 'stripe', 'border', 'borderRadius', 'A', 'fallback' ),
+	$sort( array( 'fallback', 'A', 'borderRadius', 'border', 'stripe', 'textTransform', 'textAlign', 'fontStyle', 'fontWeight', 'fontSize', 'color', 'width', 'layout', 'src' ) )
 );
 assert_order(
 	'inside a column slot they follow the read keys',
@@ -303,7 +304,7 @@ $twin_lists = array(
 	// A table column's header token leads both halves alike.
 	array( 'fallback', 'A', 'header', 'as' ),
 	// The {{table}} presentation keys: tag level and inside a column.
-	array( 'fallback', 'A', 'stripe', 'textTransform', 'textAlign', 'fontStyle', 'fontWeight', 'fontSize', 'color', 'width', 'layout', 'src' ),
+	array( 'fallback', 'A', 'borderRadius', 'border', 'stripe', 'textTransform', 'textAlign', 'fontStyle', 'fontWeight', 'fontSize', 'color', 'width', 'layout', 'src' ),
 	array( 'textAlign', 'width', 'key', 'src', 'header' ),
 );
 $expected_twin = array_map( $sort, $twin_lists );

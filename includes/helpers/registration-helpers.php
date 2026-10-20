@@ -157,10 +157,10 @@ function bws_option_visual_groups(): array {
 		'linkTo'          => array( 'group' => 'link', 'lead' => false ),
 		'linkKey'         => array( 'group' => 'link', 'lead' => false ),
 		'newTab'          => array( 'group' => 'link', 'lead' => false ),
-		// {{table}}'s presentation: three composite controls (Sizing and Width on `layout`,
-		// Typography on `color`, Stripes on `stripe`) that read as ONE box. The keys they
+		// {{table}}'s presentation: four composite controls (Sizing and Width on `layout`,
+		// Typography on `color`, Stripes on `stripe`, Borders on `border`) that read as ONE box. The keys they
 		// own register contiguously beside them and render nothing of their own, so the run
-		// the wrapper joins is the three composites. `layout` leads: the box stays drawn
+		// the wrapper joins is the four composites. `layout` leads: the box stays drawn
 		// while a composite is mid-reveal. Names are unique to {{table}} among BWS tags (the
 		// map is name-keyed), and GB core's are never touched.
 		// `stylePreview` is the display-only Live Formatting Preview: always rendered, so it
@@ -175,6 +175,8 @@ function bws_option_visual_groups(): array {
 		'textAlign'       => array( 'group' => 'style', 'lead' => false ),
 		'textTransform'   => array( 'group' => 'style', 'lead' => false ),
 		'stripe'          => array( 'group' => 'style', 'lead' => false ),
+		'border'          => array( 'group' => 'style', 'lead' => false ),
+		'borderRadius'    => array( 'group' => 'style', 'lead' => false ),
 	);
 }
 }

@@ -2,16 +2,17 @@
  * `{{table}}` presentation controls: Sizing and Width, Typography and Stripes, plus the
  * column card's styling block.
  *
- * Three COMPOSITE controls, each committing its keys in ONE `setState` (the precedent is
+ * Four COMPOSITE controls, each committing its keys in ONE `setState` (the precedent is
  * `convertUpdate` in src-chain-control.js), so a stored tag never passes through a half-written
  * state:
  *
  *   bws-table-sizing      on `layout`  → `layout` + `width`
  *   bws-table-typography  on `color`   → the six text keys, at Table and Header
  *   bws-table-stripes     on `stripe`  → `stripe`
+ *   bws-table-borders     on `border`  → `border` + `borderRadius`
  *
  * The other keys register as `bws-table-style-member` and render nothing of their own. The
- * option-group wrapper (priority 30) joins the three composites into one box, because the PHP
+ * option-group wrapper (priority 30) joins the four composites into one box, because the PHP
  * visual-group map puts every key in the `style` group (bws_option_visual_groups()).
  *
  * THIS FILE DECIDES NOTHING ABOUT VALUES. Every validator, the `head,args;head,args` reader and
@@ -70,7 +71,8 @@
 			auto: __( 'Fits content', 'generateblocks' ),
 			'': __( 'Theme default', 'generateblocks' )
 		},
-		opacityFromColor: __( 'Opacity is set by the color', 'generateblocks' )
+		opacityFromColor: __( 'Opacity is set by the color', 'generateblocks' ),
+		bareRadius: __( 'on its own is reserved for cell corners, which aren\'t supported yet, so it will not be used. Fix applies it as the Outer Radius.', 'generateblocks' )
 	};
 
 	// "{v}" is not a recognized … messages, one per kind of value.
@@ -79,6 +81,8 @@
 		color: __( 'is not a recognized color. Use hex, rgb, rgba, hsl, hsla, var(), currentColor, or a color name.', 'generateblocks' ),
 		opacity: __( 'is not a recognized opacity. Use a number from 0 to 100.', 'generateblocks' ),
 		size: __( 'is not a recognized size. Use a keyword such as small or larger, var(), or a number with px, em, rem, %, ch, or vw.', 'generateblocks' ),
+		borderWidth: __( 'is not a recognized width. Use var(), or a number with px, em, or rem.', 'generateblocks' ),
+		radius: __( 'is not a recognized radius. Use var(), or a number with px, em, or rem.', 'generateblocks' ),
 		value: __( 'is not a recognized value.', 'generateblocks' )
 	};
 
@@ -103,7 +107,7 @@
 
 	// ── Layout and headings ───────────────────────────────────────────────────────────
 	//
-	// ONE vocabulary for every heading and gap in these controls, so the three composites and
+	// ONE vocabulary for every heading and gap in these controls, so the composites and
 	// the column card read as one design (the shapes are the styling prototype's):
 	//   .bws-ts-l   a control or section heading: 11px / 600 / uppercase, the look of WP's own
 	//               control labels. Class-only labels do NOT get that look from WP (it is
@@ -119,6 +123,8 @@
 		'.bws-ts-l3{font-size:12px;font-weight:500;text-transform:none;margin-bottom:4px}' +
 		'.bws-ts-help{margin:4px 0 0;font-size:12px;line-height:1.4;color:#50575e}' +
 		'.bws-ts-field{min-width:0}' +
+		'.bws-table-repair{padding:8px 12px 12px;background:#fff;border-left:4px solid #dba617;box-shadow:0 0 0 1px #e0e0e0}' +
+		'.bws-table-repair.is-error{border-left-color:#cc1818}' +
 		'.bws-ts-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px;align-items:start}' +
 		'.bws-ts-radios{display:flex;flex-wrap:wrap;gap:6px 16px}' +
 		'.bws-ts-radios label{display:inline-flex;align-items:center;gap:6px;font-size:13px;line-height:16px}' +
@@ -193,7 +199,16 @@
 		'.bws-ts .components-combobox-control__suggestions-container{min-height:40px;box-sizing:border-box;align-items:center}' +
 		// A third-width field would wrap every suggestion; the list may run wider than the field. Only in the
 		// grids whose combobox sits left of the modal's right edge.
-		'.bws-ts-g3 .components-form-token-field__suggestions-list,.bws-ts-smx .components-form-token-field__suggestions-list{min-width:15rem}' +
+		'.bws-ts-g3 .components-form-token-field__suggestions-list,.bws-ts-smx .components-form-token-field__suggestions-list,.bws-ts-borders .components-form-token-field__suggestions-list{min-width:15rem}' +
+		// Borders: the override matrix shares Stripes' 64px label column, so the two line up; Radius is a narrower
+		// third field. The style dropdown's trigger is drawn as a full-width select, as GB's border style is.
+		'.bws-ts-bmx{display:grid;grid-template-columns:64px minmax(0,1fr) minmax(0,1fr);gap:8px 12px;align-items:start}' +
+		'.bws-ts-bmx--r{grid-template-columns:64px minmax(0,1fr) minmax(0,1fr) minmax(0,.62fr)}' +
+		'.bws-ts-bmx .bws-ts-l,.bws-ts-bmx .bws-ts-l3{margin:0}' +
+		'.bws-ts-sdd,.bws-ts-sdd>.components-button{width:100%}' +
+		'.bws-ts-sdd>.components-button{justify-content:flex-start;gap:6px;height:40px;padding:0 8px;border:1px solid #949494;border-radius:2px;background:#fff;color:#1e1e1e}' +
+		'.bws-ts-sdd.is-inherited>.components-button{color:#757575}' +
+		'.bws-ts-sdd svg{fill:currentColor;flex:none}' +
 		// Under 576px (the modal fills the screen): Sizing / Width and Column Header / Width stack; text
 		// styles go two across (color / size / weight | style / transform); each stripe target is its own
 		// block, name on top, Opacity on a second line, with a label over each control in place of the
@@ -207,7 +222,11 @@
 			'.bws-ts-smx .bws-ts-mob{margin-bottom:4px}' +
 			'.bws-ts-smx{grid-template-columns:minmax(0,1fr)}' +
 			'.bws-ts-smx--lk{grid-template-columns:minmax(0,1fr) auto}' +
-			'.bws-ts-smx>.bws-ts-l3,.bws-ts-smx>span:empty{display:none}' +
+			'.bws-ts-smx>.bws-ts-l3,.bws-ts-smx>span:empty,.bws-ts-bmx>.bws-ts-l3,.bws-ts-bmx>span:empty{display:none}' +
+			'.bws-ts-bmx,.bws-ts-bmx--r{grid-template-columns:minmax(0,1fr)}' +
+			'.bws-ts-bmx .bws-ts-mob{margin-bottom:4px}' +
+				// The empty cell that holds a non-Outer row's place under the Radius column.
+				'.bws-ts-bmx .bws-ts-smx-row>span:empty{display:none}' +
 			'.bws-ts-smx-row{display:grid;grid-column:1;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px 12px;align-items:start}' +
 			'.bws-ts-smx-row>.bws-ts-l,.bws-ts-smx-row>.bws-ts-help{grid-column:1/-1;min-height:0}' +
 			'.bws-ts-smx-row>.bws-ts-field--wide,.bws-ts-smx-row>.bws-ts-mob{grid-column:1/-1}' +
@@ -748,10 +767,20 @@
 				return subject + ' ' + __( 'has more than one value of the same kind. Only the first will be used.', 'generateblocks' );
 			case 'unknownHead':
 				return f.text.replace( /^unknown head '(.*)'$/, function ( m, head ) {
-					return '"' + head + '" ' + __( 'is not a recognized option.', 'generateblocks' ) + ' ' + useInstead;
+					return '"' + head + '" ' + __( 'is not a recognized option.', 'generateblocks' ) + ( useInstead ? ' ' + useInstead : '' );
 				} );
 			case 'badStripeValue':
 				return '"' + f.arg + '" ' + __( 'is not a color, an opacity or a sequence (odd or even), so it will not be used.', 'generateblocks' );
+			case 'badBorderValue':
+				return '"' + f.arg + '" ' + __( 'is not a width, a style, a color or an opacity, so it will not be used.', 'generateblocks' );
+			case 'lineTakesNo':
+				return '"' + f.arg + '" ' + __( 'will not be used. A single line takes a width and a style only; color and opacity are set once, for every line.', 'generateblocks' );
+			case 'twoOfKind':
+				return '"' + f.arg + '" ' + __( 'has two values of the same kind, so none of it will be used.', 'generateblocks' );
+			case 'badRadius':
+				return '"' + f.arg + '" ' + ERR.radius;
+			case 'bareRadius':
+				return '"' + f.arg + '" ' + COPY.bareRadius;
 			default:
 				return subject + ': ' + __( 'a value was not recognized and will not be used.', 'generateblocks' );
 		}
@@ -765,12 +794,14 @@
 	 */
 	function RepairNotice( p ) {
 		var messages = p.parsed === null ? [ p.subject + ' ' + UNBALANCED ] : p.parsed.flags.map( function ( f ) {
-			return flagMessage( f, p.subject, p.useInstead || __( 'Use *Header* instead.', 'generateblocks' ) );
+			return flagMessage( f, p.subject, p.useInstead === undefined ? __( 'Use *Header* instead.', 'generateblocks' ) : p.useInstead );
 		} );
 		if ( ! messages.length ) {
 			return null;
 		}
-		return el( 'div', { className: 'bws-table-repair' }, [
+		// Boxed and headed by the setting it is about, so it reads as a notice and not as stray help text.
+		return el( 'div', { className: 'bws-table-repair' + ( p.parsed === null ? ' is-error' : '' ) }, [
+			el( Heading, { key: 'l', text: p.subject + ': ' + __( 'Stored Value Issue', 'generateblocks' ) } ),
 			messages.map( function ( m, i ) {
 				return el( Advisory, { key: i, text: m, error: p.parsed === null } );
 			} ),
@@ -1123,6 +1154,333 @@
 		return el( 'div', { className: 'bws-ts' }, children );
 	}
 
+	// ── Borders ──────────────────────────────────────────────────────────────────
+	//
+	// No Theme / None / Lines choice: nothing set is no `border` key, which is the theme. The base
+	// (Width, Style, Color, Opacity) applies to every line; a ticked line overrides Width and Style
+	// for that line only. A radius belongs to the Outer line, so it ticks Outer (and lifts Outer's
+	// Default style to Solid, since a radius rounds only a drawn line); unticking Outer clears it.
+
+	var BORDER_LINES = [
+		[ 'outer', __( 'Outer', 'generateblocks' ) ],
+		[ HEAD, __( 'Under header', 'generateblocks' ) ],
+		[ 'rows', __( 'Between rows', 'generateblocks' ) ],
+		[ 'cols', __( 'Between columns', 'generateblocks' ) ]
+	];
+
+	var BORDER_STYLES = [
+		[ '', __( 'Default', 'generateblocks' ) ],
+		[ 'none', __( 'None', 'generateblocks' ) ],
+		[ 'solid', __( 'Solid', 'generateblocks' ) ],
+		[ 'dashed', __( 'Dashed', 'generateblocks' ) ],
+		[ 'dotted', __( 'Dotted', 'generateblocks' ) ]
+	];
+
+	// GB's own border-style icons (styles-builder, 16px), Default its faint rounded box.
+	var BORDER_ICONS = {
+		none: 'M9.414 8l3.293-3.293-1.414-1.414L8 6.586 4.707 3.293 3.293 4.707 6.586 8l-3.293 3.293 1.414 1.414L8 9.414l3.293 3.293 1.414-1.414L9.414 8z',
+		solid: 'M1 7h14v2H1z',
+		dashed: 'M0 7h4v2H0zm6 0h4v2H6zm6 0h4v2h-4z',
+		dotted: 'M1 7h2v2H1zm4 0h2v2H5zm4 0h2v2H9zm4 0h2v2h-2z'
+	};
+
+	function borderIcon( style ) {
+		var svg = { xmlns: 'http://www.w3.org/2000/svg', width: 16, height: 16, 'aria-hidden': true, focusable: false };
+		if ( ! BORDER_ICONS[ style ] ) {
+			return el( 'svg', Object.assign( svg, { viewBox: '0 0 256 256', style: { opacity: 0.1 } } ), el( 'rect', { x: 32, y: 32, width: 192, height: 192, rx: 16 } ) );
+		}
+		return el( 'svg', Object.assign( svg, { viewBox: '0 0 16 16' } ), el( 'path', { d: BORDER_ICONS[ style ] } ) );
+	}
+
+	/**
+	 * A line style as GB's border dropdown draws it. `inherited` is the style an unset value
+	 * draws, shown dimmed in place of Default.
+	 */
+	function BorderStyleField( p ) {
+		var shown = p.value || p.inherited || '';
+		var name = ( BORDER_STYLES.filter( function ( s ) {
+			return s[ 0 ] === shown;
+		} )[ 0 ] || BORDER_STYLES[ 0 ] )[ 1 ];
+		var inherits = ! p.value && p.inherited;
+		// "Default (Solid)": a dimmed "Solid" alone reads as a choice made.
+		var text = inherits ? BORDER_STYLES[ 0 ][ 1 ] + ' (' + name + ')' : name;
+		return el( C.DropdownMenu, {
+			className: 'bws-ts-sdd' + ( inherits ? ' is-inherited' : '' ),
+			icon: borderIcon( shown ),
+			text: text,
+			label: p.label + ': ' + text,
+			controls: BORDER_STYLES.map( function ( s ) {
+				return {
+					title: s[ 1 ],
+					icon: borderIcon( s[ 0 ] ),
+					isActive: s[ 0 ] === ( p.value || '' ),
+					role: 'menuitemradio',
+					onClick: function () {
+						p.onChange( s[ 0 ] );
+					}
+				};
+			} )
+		} );
+	}
+
+	/** A border width or radius: the combobox with px, em or rem offered for a typed number. */
+	function BorderLengthField( p ) {
+		return el( ComboField, {
+			label: p.label,
+			hideLabel: true,
+			value: p.value,
+			placeholder: p.placeholder,
+			hint: __( 'Type a number, then pick a unit. A var() can be typed in.', 'generateblocks' ),
+			errorKind: p.kind,
+			validate: T.borderLengthValue,
+			options: function ( typed ) {
+				var q = typed.trim();
+				return NUMBER_RE.test( q ) ? plain( ( V.borderUnits || [] ).map( function ( u ) {
+					return q + u;
+				} ) ) : [];
+			},
+			onChange: p.onChange
+		} );
+	}
+
+	/** A blank width's placeholder: what it draws, worded like the style's "Default (Solid)". */
+	function defaultWidth( w ) {
+		return BORDER_STYLES[ 0 ][ 1 ] + ' (' + w + ')';
+	}
+
+	/** The first bare radius a `borderRadius` value carries, or null. */
+	function bareArg( parsed ) {
+		var f = parsed.flags.filter( function ( x ) {
+			return x.code === 'bareRadius';
+		} )[ 0 ];
+		return f ? f.arg : null;
+	}
+
+	function emptyBorder() {
+		var lines = {};
+		BORDER_LINES.forEach( function ( l ) {
+			lines[ l[ 0 ] ] = null;
+		} );
+		return { base: null, lines: lines, radius: null };
+	}
+
+	/** The editor's view of the two keys: a radius ticks Outer, and lifts its Default style to Solid. */
+	function normalizeBorder( b ) {
+		if ( ! b.radius ) {
+			return b;
+		}
+		var outer = b.lines.outer || { width: null, style: null };
+		if ( ! outer.style && ! ( b.base && b.base.style ) ) {
+			outer = Object.assign( {}, outer, { style: 'solid' } );
+		}
+		return Object.assign( {}, b, { lines: Object.assign( {}, b.lines, { outer: outer } ) } );
+	}
+
+	function BordersControl( p ) {
+		var state = p.context.state || {};
+		var rawB = state.border === undefined ? '' : String( state.border );
+		var rawR = state.borderRadius === undefined ? '' : String( state.borderRadius );
+		var parsedB = rawB === '' ? null : T.parseBorder( rawB );
+		var parsedR = rawR === '' ? null : T.parseBorderRadius( rawR );
+		var view = emptyBorder();
+		if ( parsedB ) {
+			view.base = parsedB.base;
+			view.lines = Object.assign( {}, parsedB.lines );
+		}
+		view.radius = parsedR ? parsedR.outer : null;
+		view = normalizeBorder( view );
+
+		var base = view.base || { width: null, style: null, color: null, opacity: null };
+		var drawn = T.borderLines( view );
+		// What the base alone gives a line: the style the base's own Default stands for.
+		var probe = emptyBorder();
+		probe.base = base;
+		probe.lines.outer = { width: null, style: null };
+		var baseDrawn = T.borderLines( probe ).outer;
+
+		function write( next ) {
+			next = normalizeBorder( next );
+			var patch = { border: T.emitBorder( next ) };
+			// The radius key is rewritten only when the radius itself changed, so a hand-edited value
+			// the reader cannot take (a bare `8px`) survives an edit to the lines.
+			if ( next.radius !== view.radius ) {
+				patch.borderRadius = T.emitBorderRadius( next.radius );
+			}
+			p.context.setState( applyPatch( state, patch ) );
+		}
+		function setBase( patch ) {
+			write( Object.assign( {}, view, { base: Object.assign( {}, base, patch ) } ) );
+		}
+		function setLine( k, line ) {
+			var lines = Object.assign( {}, view.lines );
+			lines[ k ] = line;
+			write( Object.assign( {}, view, { lines: lines, radius: k === 'outer' && ! line ? null : view.radius } ) );
+		}
+
+		var hasAlpha = base.color && T.colorHasAlpha( base.color );
+		var swatchBase = base.color || 'currentColor';
+		var shownOpacity = base.opacity === null ? 100 : base.opacity;
+		// A blank width draws 1px wherever the key reaches a line; "Theme default" only while it reaches none.
+		var widthPlaceholder = base.style ? defaultWidth( '1px' ) : __( 'Theme default', 'generateblocks' );
+
+		var children = [
+			// Heading and fields in one block, as Stripes does, so the heading keeps its own 8px gap.
+			el( 'div', { key: 'base', className: 'bws-ts-field' }, [
+			el( Heading, { key: 'l', text: p.label } ),
+			el( 'div', { key: 'pair', className: 'bws-ts-pair' }, [
+				el( Field, { key: 'w', label: __( 'Width', 'generateblocks' ) }, el( BorderLengthField, {
+					label: __( 'Border Width', 'generateblocks' ),
+					kind: 'borderWidth',
+					value: base.width || '',
+					placeholder: widthPlaceholder,
+					onChange: function ( v ) {
+						setBase( { width: v || null } );
+					}
+				} ) ),
+				el( Field, { key: 's', label: __( 'Style', 'generateblocks' ) }, el( BorderStyleField, {
+					label: __( 'Border Style', 'generateblocks' ),
+					value: base.style || '',
+					inherited: baseDrawn ? baseDrawn.style : '',
+					onChange: function ( v ) {
+						setBase( { style: v || null } );
+					}
+				} ) ),
+				el( Field, { key: 'c', label: __( 'Color', 'generateblocks' ) }, el( 'div', { className: 'bws-ts-colorrow' }, [
+					el( ColorField, {
+						key: 'c',
+						label: __( 'Border Color', 'generateblocks' ),
+						hideLabel: true,
+						value: base.color || '',
+						placeholder: __( 'Theme default', 'generateblocks' ),
+						onChange: function ( v ) {
+							setBase( { color: v || null } );
+						}
+					} ),
+					el( Swatch, { key: 's', value: base.color || '' } )
+				] ) ),
+				hasAlpha
+					? el( 'span', { key: 'o', className: 'bws-ts-help', style: { margin: 0, alignSelf: 'center' } }, COPY.opacityFromColor )
+					: el( Field, { key: 'o', label: __( 'Opacity', 'generateblocks' ) }, el( 'div', { className: 'bws-ts-opacity' }, [
+						el( 'div', { key: 'r', className: 'bws-ts-range' }, el( OpacityBar, {
+							label: __( 'Border Opacity', 'generateblocks' ),
+							value: shownOpacity,
+							base: swatchBase,
+							composed: composeStripe( swatchBase, shownOpacity ),
+							isDefault: base.opacity === null,
+							onChange: function ( v ) {
+								setBase( { opacity: v } );
+							}
+						} ) ),
+						// No default opacity: unset means the color as it is, shown as a dash.
+						el( 'output', { key: 'v', className: 'bws-ts-readout' + ( base.opacity === null ? ' is-default' : '' ) }, base.opacity === null ? '—' : T.cssNumber( base.opacity ) + '%' ),
+						base.opacity === null ? null : el( Button, {
+							key: 'x',
+							variant: 'tertiary',
+							isSmall: true,
+							onClick: function () {
+								setBase( { opacity: null } );
+							}
+						}, __( 'Reset', 'generateblocks' ) )
+					] ) )
+			] ) ] ),
+			el( 'div', { key: 'ov', className: 'bws-ts-field' }, [
+				el( Heading, { key: 'l', text: __( 'Override Specific Borders', 'generateblocks' ) } ),
+				el( 'div', { key: 'c', className: 'bws-ts-radios', role: 'group', 'aria-label': __( 'Override Specific Borders', 'generateblocks' ) },
+					BORDER_LINES.map( function ( l ) {
+						return el( C.CheckboxControl, {
+							key: l[ 0 ],
+							label: l[ 1 ],
+							checked: !! view.lines[ l[ 0 ] ],
+							onChange: function ( on ) {
+								setLine( l[ 0 ], on ? { width: null, style: null } : null );
+							},
+							__nextHasNoMarginBottom: true
+						} );
+					} )
+				)
+			] )
+		];
+
+		var ticked = BORDER_LINES.filter( function ( l ) {
+			return view.lines[ l[ 0 ] ];
+		} );
+		if ( ticked.length ) {
+			var withRadius = !! view.lines.outer;
+			var cells = [
+				el( 'span', { key: 'g' } ),
+				el( Heading, { key: 'w', level: 'l3', text: __( 'Width', 'generateblocks' ) } ),
+				el( Heading, { key: 's', level: 'l3', text: __( 'Style', 'generateblocks' ) } ),
+				withRadius ? el( Heading, { key: 'r', level: 'l3', text: __( 'Radius', 'generateblocks' ) } ) : null
+			];
+			ticked.forEach( function ( l ) {
+				var k = l[ 0 ];
+				var line = view.lines[ k ];
+				var row = [
+					el( Heading, { key: 'h', text: l[ 1 ] } ),
+					el( Field, { key: 'w', mob: true, label: __( 'Width', 'generateblocks' ) }, el( BorderLengthField, {
+						label: l[ 1 ] + ' ' + __( 'Width', 'generateblocks' ),
+						kind: 'borderWidth',
+						value: line.width || '',
+						placeholder: drawn[ k ] ? defaultWidth( drawn[ k ].width ) : __( 'Theme default', 'generateblocks' ),
+						onChange: function ( v ) {
+							setLine( k, Object.assign( {}, line, { width: v || null } ) );
+						}
+					} ) ),
+					el( Field, { key: 's', mob: true, label: __( 'Style', 'generateblocks' ) }, el( BorderStyleField, {
+						label: l[ 1 ] + ' ' + __( 'Style', 'generateblocks' ),
+						value: line.style || '',
+						inherited: drawn[ k ] ? drawn[ k ].style : '',
+						onChange: function ( v ) {
+							setLine( k, Object.assign( {}, line, { style: v || null } ) );
+						}
+					} ) )
+				];
+				if ( withRadius ) {
+					row.push( k === 'outer'
+						? el( Field, { key: 'r', mob: true, label: __( 'Radius', 'generateblocks' ) }, el( BorderLengthField, {
+							label: __( 'Outer Radius', 'generateblocks' ),
+							kind: 'radius',
+							value: view.radius || '',
+							placeholder: '0',
+							onChange: function ( v ) {
+								write( Object.assign( {}, view, { radius: v || null } ) );
+							}
+						} ) )
+						: el( 'span', { key: 'r' } ) );
+				}
+				cells.push( el( 'div', { key: k, className: 'bws-ts-smx-row', role: 'group', 'aria-label': l[ 1 ] }, row ) );
+			} );
+			children.push( el( 'div', { key: 'bmx', className: 'bws-ts-bmx' + ( withRadius ? ' bws-ts-bmx--r' : '' ) }, cells ) );
+		}
+
+		if ( rawB !== '' && ( parsedB === null || parsedB.flags.length ) ) {
+			children.push( el( RepairNotice, {
+				key: 'repair',
+				subject: p.label,
+				useInstead: '',
+				parsed: parsedB,
+				fixed: parsedB === null ? '' : T.emitBorder( parsedB ),
+				onRepair: function ( fixed ) {
+					p.context.setState( applyPatch( state, { border: fixed } ) );
+				}
+			} ) );
+		}
+		if ( rawR !== '' && ( parsedR === null || parsedR.flags.length ) ) {
+			children.push( el( RepairNotice, {
+				key: 'repairR',
+				subject: __( 'Radius', 'generateblocks' ),
+				useInstead: '',
+				parsed: parsedR,
+				// A bare length is the author's radius for the table: Fix moves it to Outer, unless Outer already has one.
+				fixed: parsedR === null ? '' : T.emitBorderRadius( parsedR.outer !== null ? parsedR.outer : bareArg( parsedR ) ),
+				onRepair: function ( fixed ) {
+					p.context.setState( applyPatch( state, { borderRadius: fixed } ) );
+				}
+			} ) );
+		}
+		return el( 'div', { className: 'bws-ts bws-ts-borders' }, children );
+	}
+
 	// ── The column card ──────────────────────────────────────────────────────────
 
 	/**
@@ -1343,7 +1701,8 @@
 	var COMPOSITES = {
 		'bws-table-sizing': SizingControl,
 		'bws-table-typography': TypographyControl,
-		'bws-table-stripes': StripesControl
+		'bws-table-stripes': StripesControl,
+		'bws-table-borders': BordersControl
 	};
 
 	wp.hooks.addFilter(
@@ -1387,6 +1746,7 @@
 		SizingControl: SizingControl,
 		TypographyControl: TypographyControl,
 		StripesControl: StripesControl,
+		BordersControl: BordersControl,
 		ColumnWidthField: ColumnWidthField,
 		Field: Field,
 		Heading: Heading,

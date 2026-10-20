@@ -151,6 +151,11 @@ check( 'column widths: lengths become a share of the table, auto and var() drop,
 model = m( { stripe: 'rows' } );
 check( 'stripes come from the rule builder (header row counted)', model.css.indexOf( ' tbody tr:nth-child(odd)' ) !== -1, true );
 
+model = m( { border: 'rows,2px', borderRadius: 'outer,8px' } );
+check( 'borders come from the rule builder, border widths untouched by the width fit', model.css.indexOf( '.bws-tp-table tbody tr:not(:last-child) td{border-bottom-width:2px;border-bottom-style:solid}' ) !== -1, true );
+check( 'the radius and its clip come through', [ model.css.indexOf( 'border-radius:8px' ) !== -1, model.css.indexOf( '.bws-tp-table tbody{clip-path:inset(0 round 8px)}' ) !== -1 ], [ true, true ] );
+check( 'no border key, no border rule (the theme baseline shows)', m( {} ).css.indexOf( 'border' ), -1 );
+
 model = m( { A: 'header(P),key(x),textAlign(right;header,left)', textAlign: 'center' } );
 check( 'a column alignment overrides the table level, body and header separately', model.css, '.bws-tp-table :is(th,td){text-align:center}.bws-tp-table tbody td:nth-child(1){text-align:right}.bws-tp-table thead th:nth-child(1){text-align:left}' );
 

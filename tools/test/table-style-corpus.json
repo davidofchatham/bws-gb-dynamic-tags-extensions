@@ -9,7 +9,7 @@
 		"fontStyle": ["normal", "italic", "oblique", "Italic", "bold", "initial", ""],
 		"textAlign": ["left", "center", "right", "justify", "RIGHT", "revert", ""],
 		"textTransform": ["none", "uppercase", "lowercase", "capitalize", "Capitalize", "full-width", "unset", ""],
-		"border": ["red"]
+		"banana": ["red"]
 	},
 	"opacities": ["5%", "40%", "7.5%", "100%", "100.5%", "0%", "120%", "50", "%", "abc%", " 40% "],
 	"headed": {
@@ -21,6 +21,9 @@
 		"textTransform": ["header,uppercase", "none;header,capitalize", "SHOUT"]
 	},
 	"stripes": ["rows", "rows;cols", "rows,odd", "cols,odd", "rows,40%,odd,#eee", "rows,#eee,40%", "rows,rgba(0,0,0,.5)", "rows,rgba(0,0,0,.5),40%", "rows,currentColor", "rows,notacolor", "rows,red}body{x:y", "rows,120%", "rows,inherit", "rows;rows,odd", "banana;cols", "rows,odd,even", "rows,#eee,#ddd", "rows,40%,50%", "rows,rgba(0,0,0", "rows,", "rows,,odd", "", "ROWS,ODD", "rows,7.5%", "rows;cols,var(--c),10%", "stripe", "odd"],
+	"borderLengths": ["2px", "2PX", ".5em", "1.5rem", "var(--b)", "var(--b, 1px)", "0", "2", "2%", "2ch", "thin", "calc(1px + 1px)", "", "-1px"],
+	"borders": ["2px", "solid", "none", "#ccc,40%", "40%", "red", "2px,dashed,red,50%", "outer,none", "none;rows", "none;rows,2px", "outer;header;rows;cols", "header,2px;rows", "2px,red;header,2px,solid;rows,dotted", "outer,2px;header,2px,solid;rows,dotted,40%", "outer,2px,red", "outer,40%", "2px,3px;rows", "rows,dotted,dashed", "red,blue", "banana;cols,dotted", "rows;rows,2px", "2px;red", "OUTER,2PX,SOLID", "rows,", "2px,rgba(0,0,0,.5),20%", "rows,rgba(0,0", "", "outer,thin", "header,2px;2px", "red}body{x:y", "var(--b),solid,var(--c)"],
+	"borderRadii": ["outer,8px", "outer,.5em", "outer,var(--r)", "8px", "outer,8%", "outer", "outer,8px,9px", "outer,8px;outer,9px", "cells,8px", "8px;outer,4px", "OUTER,8PX", "outer,rgba(0", ""],
 	"items": ["rows,odd;cols", "rows,rgba(0,0,0,.5),40%", "a;b;c", ";;", "rows,rgba(0,0,0", "x,[a,b],y", "left;header,center", ""],
 	"rules": [
 		{"options":{},"columns":[],"hasHeader":true,"defaults":{"color":"currentColor","opacity":5}},
@@ -42,6 +45,30 @@
 		{"options":{"stripe":"rows,rgba(0,0"},"columns":[],"hasHeader":true,"defaults":{"color":"currentColor","opacity":5}},
 		{"options":{"color":"#111","fontWeight":"bold","textAlign":"right"},"columns":[{"textAlign":"center"},{"color":"#c00;header,#00c"},{"fontWeight":"normal;header,bold"},{"color":"#111"},{"textAlign":"left;header,right","width":"8rem"}],"hasHeader":true,"defaults":{"color":"currentColor","opacity":5}},
 		{"options":{"color":"#111","textAlign":"right;header,left"},"columns":[{"textAlign":"center;header,right"},{"textAlign":"center"}],"hasHeader":false,"defaults":{"color":"currentColor","opacity":5}},
-		{"options":{"fontStyle":"italic","textTransform":"none"},"columns":[{"fontStyle":"normal","textTransform":"uppercase;header,none"}],"hasHeader":true,"defaults":{"color":"currentColor","opacity":5}}
+		{"options":{"fontStyle":"italic","textTransform":"none"},"columns":[{"fontStyle":"normal","textTransform":"uppercase;header,none"}],"hasHeader":true,"defaults":{"color":"currentColor","opacity":5}},
+		{"options":{"border":"2px"},"columns":[{},{}],"hasHeader":true,"defaults":{"color":"currentColor","opacity":5}},
+		{"options":{"border":"#ccc,40%"},"columns":[{},{}],"hasHeader":true,"defaults":{"color":"currentColor","opacity":5}},
+		{"options":{"border":"40%"},"columns":[{},{}],"hasHeader":true,"defaults":{"color":"currentColor","opacity":5}},
+		{"options":{"border":"rgba(0,0,0,.5),40%"},"columns":[{},{}],"hasHeader":true,"defaults":{"color":"currentColor","opacity":5}},
+		{"options":{"border":"outer,none"},"columns":[{},{}],"hasHeader":true,"defaults":{"color":"currentColor","opacity":5}},
+		{"options":{"border":"none;rows,2px"},"columns":[{},{}],"hasHeader":true,"defaults":{"color":"currentColor","opacity":5}},
+		{"options":{"border":"none;rows"},"columns":[{},{}],"hasHeader":true,"defaults":{"color":"currentColor","opacity":5}},
+		{"options":{"border":"rows"},"columns":[{},{}],"hasHeader":true,"defaults":{"color":"currentColor","opacity":5}},
+		{"options":{"border":"#ccc;rows"},"columns":[{},{}],"hasHeader":true,"defaults":{"color":"currentColor","opacity":5}},
+		{"options":{"border":"3px,dashed,red"},"columns":[{},{}],"hasHeader":true,"defaults":{"color":"currentColor","opacity":5}},
+		{"options":{"border":"header,2px"},"columns":[{},{}],"hasHeader":true,"defaults":{"color":"currentColor","opacity":5}},
+		{"options":{"border":"header,2px"},"columns":[{},{}],"hasHeader":false,"defaults":{"color":"currentColor","opacity":5}},
+		{"options":{"border":"outer,2px;header,2px,solid;rows,dotted"},"columns":[{},{}],"hasHeader":true,"defaults":{"color":"currentColor","opacity":5}},
+		{"options":{"border":"outer,2px;header,2px,solid;rows,dotted"},"columns":[{},{}],"hasHeader":false,"defaults":{"color":"currentColor","opacity":5}},
+		{"options":{"border":"outer,2px;header,2px,solid;rows,dotted","borderRadius":"outer,12px"},"columns":[{},{}],"hasHeader":true,"defaults":{"color":"currentColor","opacity":5}},
+		{"options":{"border":"outer,2px;header,2px,solid;rows,dotted","borderRadius":"outer,12px"},"columns":[{},{}],"hasHeader":false,"defaults":{"color":"currentColor","opacity":5}},
+		{"options":{"borderRadius":"outer,12px"},"columns":[{},{}],"hasHeader":true,"defaults":{"color":"currentColor","opacity":5}},
+		{"options":{"border":"#ccc","borderRadius":"outer,var(--r)"},"columns":[{},{}],"hasHeader":true,"defaults":{"color":"currentColor","opacity":5}},
+		{"options":{"border":"outer,none","borderRadius":"outer,1em"},"columns":[{},{}],"hasHeader":true,"defaults":{"color":"currentColor","opacity":5}},
+		{"options":{"borderRadius":"outer,12px"},"columns":[{},{}],"hasHeader":false,"defaults":{"color":"currentColor","opacity":5}},
+		{"options":{"borderRadius":"8px"},"columns":[{},{}],"hasHeader":true,"defaults":{"color":"currentColor","opacity":5}},
+		{"options":{"border":"banana"},"columns":[{},{}],"hasHeader":true,"defaults":{"color":"currentColor","opacity":5}},
+		{"options":{"border":"rows,rgba(0,0"},"columns":[{},{}],"hasHeader":true,"defaults":{"color":"currentColor","opacity":5}},
+		{"options":{"border":"2px,red","stripe":"rows","color":"#333"},"columns":[{},{}],"hasHeader":true,"defaults":{"color":"currentColor","opacity":5}}
 	]
 }

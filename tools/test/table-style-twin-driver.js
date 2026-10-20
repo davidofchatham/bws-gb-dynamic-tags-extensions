@@ -51,6 +51,13 @@ const out = {
 	headed: {},
 	stripes: corpus.stripes.map( ( v ) => counted( T.parseStripe( v ) ) ),
 	items: corpus.items.map( ( v ) => T.headArgsItems( v ) ),
+	borderLengths: corpus.borderLengths.map( ( v ) => T.borderLengthValue( v ) ),
+	borders: corpus.borders.map( ( v ) => counted( T.parseBorder( v ) ) ),
+	borderEmits: corpus.borders.map( ( v ) => {
+		const p = T.parseBorder( v );
+		return p === null ? null : T.emitBorder( p );
+	} ),
+	borderRadii: corpus.borderRadii.map( ( v ) => counted( T.parseBorderRadius( v ) ) ),
 	rules: corpus.rules.map( ( c ) => T.rules( T.styleRead( c.options ), c.columns.map( ( col ) => T.columnStyleRead( col ) ), c.hasHeader, c.defaults ) )
 };
 Object.keys( corpus.text ).forEach( ( k ) => {

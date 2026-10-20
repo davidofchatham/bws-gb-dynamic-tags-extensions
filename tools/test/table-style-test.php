@@ -83,7 +83,7 @@ check( 'textTransform capitalize', 'capitalize', bws_table_text_value( 'textTran
 check( 'textTransform refuses full-width', null, bws_table_text_value( 'textTransform', 'full-width' ) );
 check( 'color takes the globals', 'unset', bws_table_text_value( 'color', 'unset' ) );
 check( 'textAlign still routes', 'right', bws_table_text_value( 'textAlign', 'right' ) );
-check( 'an unknown key has no validator', null, bws_table_text_value( 'border', 'red' ) );
+check( 'an unknown key has no validator', null, bws_table_text_value( 'banana', 'red' ) );
 
 echo "the shared head,args tokenizer\n";
 check( 'items and parts', array( array( 'raw' => 'rows,odd', 'parts' => array( 'rows', 'odd' ) ), array( 'raw' => 'cols', 'parts' => array( 'cols' ) ) ), bws_head_args_items( 'rows,odd;cols' ) );
@@ -115,6 +115,64 @@ check( 'a repeated parity keeps the first', 'odd', stripe( 'rows,odd,even' )['ro
 check( 'unbalanced bracket drops the key', null, stripe( 'rows,rgba(0,0' ) );
 check( 'empty is nothing, not an error', array( 'rows' => null, 'cols' => null, 'flags' => 0 ), stripe( '' ) );
 
+echo "border: reader\n";
+function border( string $v ): ?array {
+	$p = bws_table_border_parse( $v );
+	if ( null !== $p ) {
+		$p['flags'] = count( $p['flags'] );
+	}
+	return $p;
+}
+$no_lines = array( 'outer' => null, 'header' => null, 'rows' => null, 'cols' => null );
+$bare     = array( 'width' => null, 'style' => null );
+check( 'a head-less segment is the base, args typed by value', array( 'base' => array( 'width' => '2px', 'style' => 'dashed', 'color' => 'red', 'opacity' => 50.0 ), 'lines' => $no_lines, 'flags' => 0 ), border( 'red,50%,dashed,2px' ) );
+check( 'a head segment is a line', array( 'base' => null, 'lines' => array_merge( $no_lines, array( 'rows' => array( 'width' => null, 'style' => 'dotted' ) ) ), 'flags' => 0 ), border( 'rows,dotted' ) );
+check( 'none is a style, valid in the base', 'none', border( 'none;rows' )['base']['style'] );
+check( 'a bare head is a line with nothing of its own', $bare, border( 'none;rows' )['lines']['rows'] );
+check( 'heads and styles forgive case', array( 'width' => '2px', 'style' => 'solid' ), border( 'OUTER,2PX,SOLID' )['lines']['outer'] );
+check( 'header is the text keys word', $bare, border( 'header' )['lines']['header'] );
+check( 'a line takes no color: dropped and flagged, the line stands', array( 'base' => null, 'lines' => array_merge( $no_lines, array( 'outer' => array( 'width' => '2px', 'style' => null ) ) ), 'flags' => 1 ), border( 'outer,2px,red' ) );
+check( 'a line takes no opacity', 1, border( 'outer,40%' )['flags'] );
+check( 'two widths in one item drop the item', array( 'base' => null, 'lines' => array_merge( $no_lines, array( 'rows' => $bare ) ), 'flags' => 1 ), border( '2px,3px;rows' ) );
+check( 'two styles in a line drop the line', null, border( 'rows,dotted,dashed' )['lines']['rows'] );
+check( 'two colors in the base drop the base', null, border( 'red,blue' )['base'] );
+check( 'a repeated line keeps the first', $bare, border( 'rows;rows,2px' )['lines']['rows'] );
+check( 'a second base keeps the first', array( 'width' => '2px', 'style' => null, 'color' => null, 'opacity' => null ), border( '2px;red' )['base'] );
+check( 'a bad arg is dropped and flagged, its item stands', array( 'width' => null, 'style' => 'dotted' ), border( 'banana;cols,dotted' )['lines']['cols'] );
+check( 'a width takes px, em or rem only', 1, border( 'outer,2%' )['flags'] );
+check( 'thin is not a width', 1, border( 'outer,thin' )['flags'] );
+check( 'a hostile value is gone', null, border( 'red}body{x:y' )['base']['color'] );
+check( 'an unbalanced bracket drops the key', null, border( 'rows,rgba(0,0' ) );
+check( 'a global is not a border color', 1, border( 'inherit' )['flags'] );
+
+echo "border: what it draws\n";
+$lines = static fn( string $v ) => bws_table_border_lines( bws_table_border_parse( $v ) );
+$l     = static fn( string $w, string $s ) => array( 'off' => 'none' === $s, 'width' => $w, 'style' => $s );
+check( 'a color-only base reaches no line', $no_lines, $lines( '#ccc,40%' ) );
+check( 'a base width reaches all four, style falls back to solid', array_fill_keys( BWS_TABLE_BORDER_HEADS, $l( '2px', 'solid' ) ), $lines( '2px' ) );
+check( 'a base style reaches all four, width falls back to 1px', array_fill_keys( BWS_TABLE_BORDER_HEADS, $l( '1px', 'dotted' ) ), $lines( 'dotted' ) );
+check( 'a line with a style alone: 1px, the rest untouched', array_merge( $no_lines, array( 'rows' => $l( '1px', 'dotted' ) ) ), $lines( 'rows,dotted' ) );
+check( 'a line with a width alone: solid, the rest untouched', array_merge( $no_lines, array( 'rows' => $l( '2px', 'solid' ) ) ), $lines( 'rows,2px' ) );
+check( 'a bare head under no base draws nothing: the theme', $no_lines, $lines( 'rows' ) );
+check( 'a bare head under a color-only base draws nothing', $no_lines, $lines( '#ccc;rows' ) );
+check( 'a bare head under a drawing base takes the base', $l( '2px', 'solid' ), $lines( '2px;rows' )['rows'] );
+check( 'a line inherits the base width and its own style', $l( '3px', 'dotted' ), $lines( '3px,dashed,red;rows,dotted' )['rows'] );
+check( 'base none turns every line off', $l( '1px', 'none' ), $lines( 'none;rows' )['cols'] );
+check( 'a line named under base none is drawn again', $l( '1px', 'solid' ), $lines( 'none;rows' )['rows'] );
+check( 'a line set to none under a drawing base is off', $l( '2px', 'none' ), $lines( '2px;outer,none' )['outer'] );
+check( 'color: none set is the theme one', null, bws_table_border_color( bws_table_border_parse( '2px' )['base'] ) );
+check( 'color: as written without opacity', '#ccc', bws_table_border_color( bws_table_border_parse( '#ccc' )['base'] ) );
+check( 'color: opacity composes', 'color-mix(in srgb,#ccc 40%,transparent)', bws_table_border_color( bws_table_border_parse( '#ccc,40%' )['base'] ) );
+
+echo "borderRadius: reader\n";
+check( 'outer,8px', array( 'outer' => '8px', 'flags' => array() ), bws_table_border_radius_parse( 'outer,8px' ) );
+check( 'var()', 'var(--r)', bws_table_border_radius_parse( 'outer,var(--r)' )['outer'] );
+check( 'a bare length is reserved, dropped and flagged', array( 'outer' => null, 'flags' => array( "bare radius '8px' is reserved for cells" ) ), bws_table_border_radius_parse( '8px' ) );
+check( 'no %', null, bws_table_border_radius_parse( 'outer,8%' )['outer'] );
+check( 'outer with no length is flagged', 1, count( bws_table_border_radius_parse( 'outer' )['flags'] ) );
+check( 'an unknown head is flagged', 1, count( bws_table_border_radius_parse( 'cells,8px' )['flags'] ) );
+check( 'a repeated outer keeps the first', '8px', bws_table_border_radius_parse( 'outer,8px;outer,9px' )['outer'] );
+
 echo "the tag-level read\n";
 $read = bws_table_style_read( array(
 	'layout'     => 'fixed',
@@ -134,6 +192,10 @@ check( 'a refused width is as if absent', null, $read['width'] );
 check( 'nothing set reads as nothing', true, bws_table_style_is_empty( bws_table_style_read( array() ) ) );
 check( 'a refused-only table reads as nothing too', true, bws_table_style_is_empty( $read ) );
 check( 'a set key is not empty', false, bws_table_style_is_empty( bws_table_style_read( array( 'layout' => 'auto' ) ) ) );
+check( 'a border key is not empty', false, bws_table_style_is_empty( bws_table_style_read( array( 'border' => 'rows' ) ) ) );
+check( 'a radius alone is not empty', false, bws_table_style_is_empty( bws_table_style_read( array( 'borderRadius' => 'outer,4px' ) ) ) );
+check( 'a bare radius reads as nothing', true, bws_table_style_is_empty( bws_table_style_read( array( 'borderRadius' => '4px' ) ) ) );
+check( 'an empty border reads as nothing', null, bws_table_style_read( array( 'border' => '' ) )['border'] );
 
 echo "the cascade, generalized\n";
 $tbl = bws_table_text_parse( 'fontWeight', 'normal;header,bold' );

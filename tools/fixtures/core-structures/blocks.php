@@ -2182,6 +2182,20 @@ function bws_fixture_page_content_matrix_table() {
 		bws_fixture_gb_block_host_row( 'TP14 column styling (-> Name 10rem and right-aligned, Role centered and red, Note bold in the header only)', "{{table {$src}|A:header(Name);key(name);width(10rem);textAlign(right)|B:header(Role);key(role);textAlign(center);color(#c00)|C:header(Note);key(description);fontWeight(header,bold)}}" ),
 	) );
 
+	// Borders: the `border` and `borderRadius` keys. TP18, TP19, TP22 and TP23 are read in the EDITOR
+	// (their labels say which message); the front end only shows what the key draws.
+	$sections[] = bws_fixture_gb_section( 'Table TP - borders and corner radius', array(
+		bws_fixture_gb_block_host_row( 'TP15 base width and color (-> all four lines 2px grey: the outer edge, under the header, between rows, between columns)', "{{table {$src}|border:2px,#888|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP16 base plus line overrides (-> 1px grey lines, 3px under the header, dotted between rows)', "{{table {$src}|border:1px,#888;header,3px;rows,dotted|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP17 base style none plus one line (-> no lines at all except a 2px line between rows)', "{{table {$src}|border:none;rows,2px|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP18 a ticked line with nothing set (-> same as TP0, the theme borders untouched; the editor shows Between rows ticked, its Style Default and its Width Theme default)', "{{table {$src}|border:rows|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP19 radius alone (-> corners rounded, with the theme own borders: a rounded border under GeneratePress; the editor shows Outer ticked, its Style Solid and Radius 12px, with no message)', "{{table {$src}|borderRadius:outer,12px|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP20 outer line plus radius (-> a 2px grey rounded border around the table, inner lines left to the theme)', "{{table {$src}|border:outer,2px,#888|borderRadius:outer,12px|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP21 radius on a table with no header (-> rounded corners and the top line is still drawn above the first row)', "{{table {$src}|borderRadius:outer,12px|A:key(name)|B:key(role)|C:key(description)}}" ),
+		bws_fixture_gb_block_host_row( 'TP22 a bare radius (-> no rounding; the editor shows an error that 8px on its own is reserved for cell corners, with a Fix button that applies it as the Outer Radius)', "{{table {$src}|borderRadius:8px|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP23 a mistyped line name (-> row is not a line, so 2px is the base and all four lines draw at 2px; the editor shows an error that row is not a width, a style, a color or an opacity, with a Fix button that drops it)', "{{table {$src}|border:row,2px|{$cols}}}" ),
+	) );
+
 	// The editor preview's three states. Only TE1 renders on the front end; TE2-TE5 are
 	// read in the EDITOR, which is what their labels describe. Post 999999 is an id the
 	// fixture never seeds: the unresolvable source.

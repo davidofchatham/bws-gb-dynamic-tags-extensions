@@ -86,6 +86,8 @@
 		textAlign: [ 'source', 19 ],
 		textTransform: [ 'source', 20 ],
 		stripe: [ 'source', 21 ],
+		border: [ 'source', 22 ],
+		borderRadius: [ 'source', 23 ],
 		// link (after source; entity-link OR email/phone own-anchor set subject → noLink)
 		linkTo: [ 'link', 0 ],
 		linkKey: [ 'link', 1 ],

@@ -122,6 +122,46 @@
 </div>
 
 <div>
+<h2 class="wp-block-heading">Table TP &#8211; borders and corner radius</h2>
+
+<p class="gb-text">TP15 base width and color (-> all four lines 2px grey: the outer edge, under the header, between rows, between columns):</p>
+
+<div class="gb-text"><table class="bws-dte-table-eb2e166f3e"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP16 base plus line overrides (-> 1px grey lines, 3px under the header, dotted between rows):</p>
+
+<div class="gb-text"><table class="bws-dte-table-5dedb4ac7c"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP17 base style none plus one line (-> no lines at all except a 2px line between rows):</p>
+
+<div class="gb-text"><table class="bws-dte-table-08fddac9ec"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP18 a ticked line with nothing set (-> same as TP0, the theme borders untouched; the editor shows Between rows ticked, its Style Default and its Width Theme default):</p>
+
+<div class="gb-text"><table><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP19 radius alone (-> corners rounded, with the theme own borders: a rounded border under GeneratePress; the editor shows Outer ticked, its Style Solid and Radius 12px, with no message):</p>
+
+<div class="gb-text"><table class="bws-dte-table-2674b06ee3"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP20 outer line plus radius (-> a 2px grey rounded border around the table, inner lines left to the theme):</p>
+
+<div class="gb-text"><table class="bws-dte-table-d1dbf08359"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP21 radius on a table with no header (-> rounded corners and the top line is still drawn above the first row):</p>
+
+<div class="gb-text"><table class="bws-dte-table-2674b06ee3"><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP22 a bare radius (-> no rounding; the editor shows an error that 8px on its own is reserved for cell corners, with a Fix button that applies it as the Outer Radius):</p>
+
+<div class="gb-text"><table><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP23 a mistyped line name (-> row is not a line, so 2px is the base and all four lines draw at 2px; the editor shows an error that row is not a width, a style, a color or an opacity, with a Fix button that drops it):</p>
+
+<div class="gb-text"><table class="bws-dte-table-0f6c8460ee"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+</div>
+
+<div>
 <h2 class="wp-block-heading">Table TE &#8211; editor preview: the real table, or a skeleton</h2>
 
 <p class="gb-text">TE1 rows resolve (-> the real 2-row table, front end and editor alike: Alice Adams/Staff, Bob Brown/Staff):</p>
@@ -180,6 +220,12 @@
 <style id="bws-dte-table-81d221a7d3">.bws-dte-table-81d221a7d3 tbody tr:nth-child(odd){background-image:linear-gradient(rgba(0,0,0,.12),rgba(0,0,0,.12))}</style>
 <style id="bws-dte-table-18d01c19e1">.bws-dte-table-18d01c19e1 tbody tr:nth-child(odd){background-image:linear-gradient(color-mix(in srgb,var(--accent) 30%,transparent),color-mix(in srgb,var(--accent) 30%,transparent))}</style>
 <style id="bws-dte-table-80f2c7b33e">.bws-dte-table-80f2c7b33e :is(th,td):nth-child(1){width:10rem;text-align:right}.bws-dte-table-80f2c7b33e :is(th,td):nth-child(2){text-align:center}.bws-dte-table-80f2c7b33e tbody td:nth-child(2){color:#c00}.bws-dte-table-80f2c7b33e thead th:nth-child(3){font-weight:bold}</style>
+<style id="bws-dte-table-eb2e166f3e">.bws-dte-table-eb2e166f3e,.bws-dte-table-eb2e166f3e :is(th,td){border-color:#888}.bws-dte-table-eb2e166f3e{border-width:2px;border-style:solid}.bws-dte-table-eb2e166f3e :is(th,td):first-child{border-left-width:0}.bws-dte-table-eb2e166f3e :is(th,td):last-child{border-right-width:0}.bws-dte-table-eb2e166f3e thead th,.bws-dte-table-eb2e166f3e:not(:has(> thead)) tbody tr:first-child td{border-top-width:0}.bws-dte-table-eb2e166f3e tbody tr:last-child td{border-bottom-width:0}.bws-dte-table-eb2e166f3e :is(th,td):not(:last-child){border-right-width:2px;border-right-style:solid}.bws-dte-table-eb2e166f3e :is(th,td):not(:first-child){border-left-width:0}.bws-dte-table-eb2e166f3e thead th{border-bottom-width:2px;border-bottom-style:solid}.bws-dte-table-eb2e166f3e thead + tbody tr:first-child td{border-top-width:0}.bws-dte-table-eb2e166f3e tbody tr:not(:last-child) td{border-bottom-width:2px;border-bottom-style:solid}.bws-dte-table-eb2e166f3e tbody tr:not(:first-child) td{border-top-width:0}</style>
+<style id="bws-dte-table-5dedb4ac7c">.bws-dte-table-5dedb4ac7c,.bws-dte-table-5dedb4ac7c :is(th,td){border-color:#888}.bws-dte-table-5dedb4ac7c{border-width:1px;border-style:solid}.bws-dte-table-5dedb4ac7c :is(th,td):first-child{border-left-width:0}.bws-dte-table-5dedb4ac7c :is(th,td):last-child{border-right-width:0}.bws-dte-table-5dedb4ac7c thead th,.bws-dte-table-5dedb4ac7c:not(:has(> thead)) tbody tr:first-child td{border-top-width:0}.bws-dte-table-5dedb4ac7c tbody tr:last-child td{border-bottom-width:0}.bws-dte-table-5dedb4ac7c :is(th,td):not(:last-child){border-right-width:1px;border-right-style:solid}.bws-dte-table-5dedb4ac7c :is(th,td):not(:first-child){border-left-width:0}.bws-dte-table-5dedb4ac7c thead th{border-bottom-width:3px;border-bottom-style:solid}.bws-dte-table-5dedb4ac7c thead + tbody tr:first-child td{border-top-width:0}.bws-dte-table-5dedb4ac7c tbody tr:not(:last-child) td{border-bottom-width:1px;border-bottom-style:dotted}.bws-dte-table-5dedb4ac7c tbody tr:not(:first-child) td{border-top-width:0}</style>
+<style id="bws-dte-table-08fddac9ec">.bws-dte-table-08fddac9ec{border-width:0}.bws-dte-table-08fddac9ec :is(th,td):first-child{border-left-width:0}.bws-dte-table-08fddac9ec :is(th,td):last-child{border-right-width:0}.bws-dte-table-08fddac9ec thead th,.bws-dte-table-08fddac9ec:not(:has(> thead)) tbody tr:first-child td{border-top-width:0}.bws-dte-table-08fddac9ec tbody tr:last-child td{border-bottom-width:0}.bws-dte-table-08fddac9ec :is(th,td):not(:last-child){border-right-width:0}.bws-dte-table-08fddac9ec :is(th,td):not(:first-child){border-left-width:0}.bws-dte-table-08fddac9ec thead th{border-bottom-width:0}.bws-dte-table-08fddac9ec thead + tbody tr:first-child td{border-top-width:0}.bws-dte-table-08fddac9ec tbody tr:not(:last-child) td{border-bottom-width:2px;border-bottom-style:solid}.bws-dte-table-08fddac9ec tbody tr:not(:first-child) td{border-top-width:0}</style>
+<style id="bws-dte-table-2674b06ee3">.bws-dte-table-2674b06ee3{border-collapse:separate;border-spacing:0;border-radius:12px}.bws-dte-table-2674b06ee3 :is(th,td):not(:first-child){border-left-width:0}.bws-dte-table-2674b06ee3 thead + tbody td,.bws-dte-table-2674b06ee3:not(:has(> thead)) tbody tr:not(:first-child) td{border-top-width:0}.bws-dte-table-2674b06ee3 tbody{clip-path:inset(0 round 12px)}.bws-dte-table-2674b06ee3 thead{clip-path:inset(0 round 12px 12px 0 0)}.bws-dte-table-2674b06ee3 thead + tbody{clip-path:inset(0 round 0 0 12px 12px)}</style>
+<style id="bws-dte-table-d1dbf08359">.bws-dte-table-d1dbf08359{border-width:2px;border-style:solid}.bws-dte-table-d1dbf08359 :is(th,td):first-child{border-left-width:0}.bws-dte-table-d1dbf08359 :is(th,td):last-child{border-right-width:0}.bws-dte-table-d1dbf08359 thead th,.bws-dte-table-d1dbf08359:not(:has(> thead)) tbody tr:first-child td{border-top-width:0}.bws-dte-table-d1dbf08359 tbody tr:last-child td{border-bottom-width:0}.bws-dte-table-d1dbf08359{border-collapse:separate;border-spacing:0;border-radius:12px}.bws-dte-table-d1dbf08359 :is(th,td):not(:first-child){border-left-width:0}.bws-dte-table-d1dbf08359 thead + tbody td,.bws-dte-table-d1dbf08359:not(:has(> thead)) tbody tr:not(:first-child) td{border-top-width:0}.bws-dte-table-d1dbf08359 tbody{clip-path:inset(0 round max(0px,calc(12px - 2px)))}.bws-dte-table-d1dbf08359 thead{clip-path:inset(0 round max(0px,calc(12px - 2px)) max(0px,calc(12px - 2px)) 0 0)}.bws-dte-table-d1dbf08359 thead + tbody{clip-path:inset(0 round 0 0 max(0px,calc(12px - 2px)) max(0px,calc(12px - 2px)))}</style>
+<style id="bws-dte-table-0f6c8460ee">.bws-dte-table-0f6c8460ee{border-width:2px;border-style:solid}.bws-dte-table-0f6c8460ee :is(th,td):first-child{border-left-width:0}.bws-dte-table-0f6c8460ee :is(th,td):last-child{border-right-width:0}.bws-dte-table-0f6c8460ee thead th,.bws-dte-table-0f6c8460ee:not(:has(> thead)) tbody tr:first-child td{border-top-width:0}.bws-dte-table-0f6c8460ee tbody tr:last-child td{border-bottom-width:0}.bws-dte-table-0f6c8460ee :is(th,td):not(:last-child){border-right-width:2px;border-right-style:solid}.bws-dte-table-0f6c8460ee :is(th,td):not(:first-child){border-left-width:0}.bws-dte-table-0f6c8460ee thead th{border-bottom-width:2px;border-bottom-style:solid}.bws-dte-table-0f6c8460ee thead + tbody tr:first-child td{border-top-width:0}.bws-dte-table-0f6c8460ee tbody tr:not(:last-child) td{border-bottom-width:2px;border-bottom-style:solid}.bws-dte-table-0f6c8460ee tbody tr:not(:first-child) td{border-top-width:0}</style>
 <script type="speculationrules">
 {"prefetch":[{"source":"document","where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":["/wp-*.php","/wp-admin/*","/wp-content/uploads/*","/wp-content/*","/wp-content/plugins/*","/wp-content/themes/generatepress/*","/*\\?(.+)"]}},{"not":{"selector_matches":"a[rel~=\"nofollow\"]"}},{"not":{"selector_matches":".no-prefetch, .no-prefetch a"}}]},"eagerness":"conservative"}]}
 </script>

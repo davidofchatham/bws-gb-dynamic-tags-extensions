@@ -36,7 +36,7 @@ global.wp = {
 		Fragment: 'F',
 		useState: function ( initial ) { return [ initial, function () {} ]; }
 	},
-	components: { ComboboxControl: 'Combo', SelectControl: 'Select', TextControl: 'Text', Button: 'Button' },
+	components: { ComboboxControl: 'Combo', SelectControl: 'Select', TextControl: 'Text', Button: 'Button', CheckboxControl: 'Check', DropdownMenu: 'Dropdown' },
 	data: { select: function () { return { getSettings: function () { return { colors: [ { name: 'Accent', slug: 'accent', color: '#00f' } ] }; } }; } },
 	i18n: { __: function ( s ) { return s; } }
 };
@@ -197,9 +197,9 @@ check( 'Typography: the pressed button is announced', button( m.tree, 'Italic' )
 button( m.tree, 'Italic' ).props.onClick();
 check( 'Typography: pressing it again clears the key', m.writes[ 0 ], {} );
 m = mount( UI.TypographyControl, { color: '#333', fontWeight: 'normal' } );
-check( 'Typography: well-formed wire shows no repair', find( m.tree, ( n ) => n.props && n.props.className === 'bws-table-repair' ).length, 0 );
+check( 'Typography: well-formed wire shows no repair', find( m.tree, ( n ) => n.props && /^bws-table-repair/.test( n.props.className || '' ) ).length, 0 );
 m = mount( UI.TypographyControl, { fontWeight: 'heavy;header,bold', textAlign: 'left;header,center)' } );
-check( 'Typography: a bad value is flagged and keeps the sibling', find( m.tree, ( n ) => n.props && n.props.className === 'bws-table-repair' ).length, 2 );
+check( 'Typography: a bad value is flagged and keeps the sibling', find( m.tree, ( n ) => n.props && /^bws-table-repair/.test( n.props.className || '' ) ).length, 2 );
 button( m.tree, 'Fix' ).props.onClick();
 check( 'Typography: Fix writes what the renderer already reads', m.writes[ 0 ], { fontWeight: 'header,bold', textAlign: 'left;header,center)' } );
 button( m.tree, 'Clear Text Alignment' ).props.onClick();
@@ -339,12 +339,89 @@ check( 'Font Size list: the CSS globals follow a final dash row', sizeSeq[ sizeS
 const tw = find( expand( UI.SizingControl( { label: 'Sizing', context: { state: {}, setState: () => {} } } ) ), ( n ) => n.type === 'Combo' && n.props.label === 'Table Width' )[ 0 ];
 check( 'Table Width list: auto and 100% are offered', tw.props.options.map( ( r ) => r.value ).filter( ( v ) => v[ 0 ] !== '_' ), [ 'auto', '100%' ] );
 
+// ── Borders ──────────────────────────────────────────────────────────────────────────
+const chk = ( tree, label ) => find( tree, ( n ) => n.type === 'Check' && n.props.label === label )[ 0 ];
+const combo = ( tree, label ) => find( tree, ( n ) => n.type === 'Combo' && n.props.label === label )[ 0 ];
+const dd = ( tree, label ) => find( tree, ( n ) => n.type === 'Dropdown' && n.props.label.indexOf( label + ':' ) === 0 )[ 0 ];
+const pick = ( d, title ) => d.props.controls.filter( ( c ) => c.title === title )[ 0 ].onClick();
+m = mount( UI.BordersControl, {} );
+check( 'Borders: nothing set shows four unticked lines and no matrix', [ [ 'Outer', 'Under header', 'Between rows', 'Between columns' ].map( ( l ) => chk( m.tree, l ).props.checked ), find( m.tree, ( n ) => n.props && /bws-ts-bmx/.test( n.props.className || '' ) ).length ], [ [ false, false, false, false ], 0 ] );
+check( 'Borders: the base Width and Color read Theme default', [ combo( m.tree, 'Border Width' ).props.placeholder, combo( m.tree, 'Border Color' ).props.placeholder ], [ 'Theme default', 'Theme default' ] );
+check( 'Borders: no default opacity, the readout is a dash', find( m.tree, ( n ) => n.type === 'output' )[ 0 ].children[ 0 ], '—' );
+combo( m.tree, 'Border Width' ).props.onChange( '2px' );
+check( 'Borders: a base width writes the head-less base', m.writes[ 0 ], { border: '2px' } );
+m = mount( UI.BordersControl, {} );
+chk( m.tree, 'Between rows' ).props.onChange( true );
+check( 'Borders: ticking a line writes its bare head', m.writes[ 0 ], { border: 'rows' } );
+m = mount( UI.BordersControl, { border: '2px,red' } );
+chk( m.tree, 'Between rows' ).props.onChange( true );
+check( 'Borders: a ticked line follows the base, which comes first', m.writes[ 0 ], { border: '2px,red;rows' } );
+m = mount( UI.BordersControl, {} );
+pick( dd( m.tree, 'Border Style' ), 'None' );
+check( 'Borders: base style None writes `none`', m.writes[ 0 ], { border: 'none' } );
+m = mount( UI.BordersControl, { border: 'dotted;rows' } );
+check( 'Borders: a blank line style names what it draws as the default, dimmed', [ dd( m.tree, 'Between rows Style' ).props.text, /is-inherited/.test( dd( m.tree, 'Between rows Style' ).props.className ) ], [ 'Default (Dotted)', true ] );
+check( 'Borders: a blank line width names the fallback as the default', combo( m.tree, 'Between rows Width' ).props.placeholder, 'Default (1px)' );
+pick( dd( m.tree, 'Between rows Style' ), 'Dashed' );
+check( 'Borders: a line override writes its own style only', m.writes[ 0 ], { border: 'dotted;rows,dashed' } );
+m = mount( UI.BordersControl, { border: '3px;rows' } );
+check( 'Borders: a blank line width follows the base width', combo( m.tree, 'Between rows Width' ).props.placeholder, 'Default (3px)' );
+m = mount( UI.BordersControl, { border: 'cols' } );
+check( 'Borders: a ticked line with nothing set anywhere is the theme, not a drawn default', [ dd( m.tree, 'Between columns Style' ).props.text, /is-inherited/.test( dd( m.tree, 'Between columns Style' ).props.className ), combo( m.tree, 'Between columns Width' ).props.placeholder ], [ 'Default', false, 'Theme default' ] );
+m = mount( UI.BordersControl, { border: 'cols,dotted' } );
+check( 'Borders: a line with a style alone draws 1px', combo( m.tree, 'Between columns Width' ).props.placeholder, 'Default (1px)' );
+m = mount( UI.BordersControl, { border: '2px' } );
+check( 'Borders: a base width alone says its style draws solid', dd( m.tree, 'Border Style' ).props.text, 'Default (Solid)' );
+m = mount( UI.BordersControl, {} );
+check( 'Borders: the heading shares a block with the base fields, so its gap is its own', find( m.tree, ( n ) => n.props && n.props.className === 'bws-ts-field' && find( n.children, ( c ) => c.props && c.props.className === 'bws-ts-pair' ).length ).length > 0, true );
+m = mount( UI.BordersControl, { border: 'outer' } );
+check( 'Borders: Radius sits in the Outer row only', [ !! combo( m.tree, 'Outer Radius' ), m.tree && find( m.tree, ( n ) => /bws-ts-bmx--r/.test( ( n.props && n.props.className ) || '' ) ).length ], [ true, 1 ] );
+combo( m.tree, 'Outer Radius' ).props.onChange( '8px' );
+check( 'Borders: a radius on a Default outer line lifts it to Solid', m.writes[ 0 ], { border: 'outer,solid', borderRadius: 'outer,8px' } );
+m = mount( UI.BordersControl, { border: 'outer,solid', borderRadius: 'outer,8px' } );
+chk( m.tree, 'Outer' ).props.onChange( false );
+check( 'Borders: unticking Outer clears the radius with it', m.writes[ 0 ], {} );
+m = mount( UI.BordersControl, { borderRadius: 'outer,12px' } );
+check( 'Borders: a hand-edited radius with no border ticks Outer, shown Solid', [ chk( m.tree, 'Outer' ).props.checked, dd( m.tree, 'Outer Style' ).props.text ], [ true, 'Solid' ] );
+check( 'Borders: ... and the control, which is what an edit writes, is the whole story: no advisory', text( m.tree ).indexOf( 'Fills are rounded' ), -1 );
+combo( m.tree, 'Border Color' ).props.onChange( 'red' );
+check( 'Borders: ... and the next edit writes the outer line', m.writes[ 0 ], { borderRadius: 'outer,12px', border: 'red;outer,solid' } );
+m = mount( UI.BordersControl, { border: '2px', borderRadius: '8px' } );
+combo( m.tree, 'Border Width' ).props.onChange( '3px' );
+check( 'Borders: an edit to the lines leaves a hand-edited bare radius as typed', m.writes[ 0 ], { border: '3px', borderRadius: '8px' } );
+m = mount( UI.BordersControl, { borderRadius: '8px' } );
+check( 'Borders: a bare radius is an error with a Fix and no hand-written suggestion', [ text( m.tree ).indexOf( '"8px" on its own is reserved for cell corners' ) !== -1, text( m.tree ).indexOf( 'outer,8px' ), !! button( m.tree, 'Fix' ) ], [ true, -1, true ] );
+check( 'Borders: a repair notice is headed by the setting and the kind of problem', find( m.tree, ( n ) => n.props && n.props.className === 'bws-ts-l' && n.children.join( '' ) === 'Radius: Stored Value Issue' ).length, 1 );
+button( m.tree, 'Fix' ).props.onClick();
+check( 'Borders: Fix on a bare radius applies it as the Outer Radius', m.writes[ 0 ], { borderRadius: 'outer,8px' } );
+m = mount( UI.BordersControl, { borderRadius: 'outer,12px;8px' } );
+button( m.tree, 'Fix' ).props.onClick();
+check( 'Borders: ... and drops it when Outer already has a radius', m.writes[ 0 ], { borderRadius: 'outer,12px' } );
+m = mount( UI.BordersControl, { border: 'row,2px' } );
+check( 'Borders: a mistyped line name is reported without suggesting a spelling', [ text( m.tree ).indexOf( '"row" is not a width, a style, a color or an opacity' ) !== -1, text( m.tree ).indexOf( 'instead' ) ], [ true, -1 ] );
+button( m.tree, 'Fix' ).props.onClick();
+check( 'Borders: Fix on it drops the unknown word and keeps the 2px base', m.writes[ 0 ], { border: '2px' } );
+m = mount( UI.BordersControl, { border: 'outer,2px,red' } );
+check( 'Borders: a color in a line is explained', text( m.tree ).indexOf( '"red" will not be used' ) !== -1, true );
+button( m.tree, 'Fix' ).props.onClick();
+check( 'Borders: Fix writes what renders', m.writes[ 0 ], { border: 'outer,2px' } );
+m = mount( UI.BordersControl, { border: 'rows,rgba(0,0' } );
+button( m.tree, 'Clear L' ).props.onClick();
+check( 'Borders: an unbalanced value is cleared, not guessed', m.writes[ 0 ], {} );
+m = mount( UI.BordersControl, { border: '2px', other: 'x' } );
+combo( m.tree, 'Border Width' ).props.onChange( '' );
+check( 'Borders: clearing the last field deletes the key and keeps the rest', m.writes[ 0 ], { other: 'x' } );
+m = mount( UI.BordersControl, { border: '#ccc,40%' } );
+check( 'Borders: a set opacity reads out', find( m.tree, ( n ) => n.type === 'output' )[ 0 ].children[ 0 ], '40%' );
+m = mount( UI.BordersControl, { border: 'rgba(0,0,0,.5)' } );
+check( 'Borders: a color with its own alpha replaces the opacity bar', text( m.tree ).indexOf( 'Opacity is set by the color' ) !== -1, true );
+
 // ── The filter ───────────────────────────────────────────────────────────────────────
 const filter = filters[ filters.length - 1 ];
-const opts = { layout: { type: 'bws-table-sizing' }, width: { type: 'bws-table-style-member' }, color: { type: 'bws-table-typography' }, stripe: { type: 'bws-table-stripes' }, other: { type: 'text' } };
+const opts = { layout: { type: 'bws-table-sizing' }, width: { type: 'bws-table-style-member' }, color: { type: 'bws-table-typography' }, stripe: { type: 'bws-table-stripes' }, border: { type: 'bws-table-borders' }, other: { type: 'text' } };
 const ctx = { state: {}, setState: () => {} };
 check( 'Filter: a member renders nothing', filter( { key: 'width' }, opts, ctx ), null );
-check( 'Filter: a composite is keyed by its option', [ 'layout', 'color', 'stripe' ].map( ( k ) => filter( { key: k }, opts, ctx ).props.key ), [ 'layout', 'color', 'stripe' ] );
+check( 'Filter: a composite is keyed by its option', [ 'layout', 'color', 'stripe', 'border' ].map( ( k ) => filter( { key: k }, opts, ctx ).props.key ), [ 'layout', 'color', 'stripe', 'border' ] );
 const keep = { key: 'other' };
 check( 'Filter: any other option passes through', filter( keep, opts, ctx ), keep );
 check( 'Filter: an element a prior filter hid stays hidden', filter( null, opts, ctx ), null );

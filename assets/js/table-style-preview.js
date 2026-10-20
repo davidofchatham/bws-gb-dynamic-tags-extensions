@@ -46,9 +46,11 @@
 	var PX_PER = { px: 1, em: 16, rem: 16, ch: 8, vw: 12 };
 
 	var CSS =
-		// Zero specificity (:where), so a built rule under the scope class wins on any tie.
-		':where(.bws-tp-table){width:100%;margin:0 auto;border-collapse:collapse;table-layout:auto;color:#3a3a3a}' +
-		':where(.bws-tp-table) :where(th,td){text-align:left;height:14px;padding:3px 6px;border:1px solid rgba(0,0,0,.14);overflow:hidden}' +
+		// Zero specificity (:where), so a built rule under the scope class wins on any tie. The theme
+		// borders are GeneratePress 3.6.1's own (main.min.css): a separate-model table that draws its
+		// top and left edges, cells their right and bottom, so a `border` key shows against what it replaces.
+		':where(.bws-tp-table){width:100%;margin:0 auto;border-collapse:separate;border-spacing:0;border:1px solid rgba(0,0,0,.1);border-width:1px 0 0 1px;table-layout:auto;color:#3a3a3a}' +
+		':where(.bws-tp-table) :where(th,td){text-align:left;height:14px;padding:3px 6px;border:1px solid rgba(0,0,0,.1);border-width:0 1px 1px 0;overflow:hidden}' +
 		'.bws-tp-bar{display:inline-block;vertical-align:middle;height:4px;max-width:100%;border-radius:2px;background:currentColor;opacity:.55}' +
 		'.bws-tp-table th .bws-tp-bar{height:5px;opacity:.85}' +
 		'.bws-tp-mini{display:inline-block;max-width:100%;font-size:6px;line-height:1;font-weight:inherit;color:inherit;white-space:nowrap;overflow:hidden;vertical-align:middle}' +

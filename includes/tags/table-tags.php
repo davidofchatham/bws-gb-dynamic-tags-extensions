@@ -136,11 +136,12 @@ function bws_get_table_options(): array {
 }
 
 /**
- * The {{table}} presentation options: `layout`, `width`, the six text keys and `stripe`.
+ * The {{table}} presentation options: `layout`, `width`, the six text keys, `stripe`, `border`
+ * and `borderRadius`.
  *
  * Three composite controls own them (assets/js/table-style-control.js): Sizing and Width on
- * `layout`, Typography on `color`, Stripes on `stripe`. Each composite commits its keys in one
- * `setState`, so the other keys register only to be known: their `bws-table-style-member`
+ * `layout`, Typography on `color`, Stripes on `stripe`, Borders on `border` (with `borderRadius`).
+ * Each composite commits its keys in one `setState`, so the other keys register only to be known: their `bws-table-style-member`
  * type tells the filter to render nothing for them. Registered CONTIGUOUSLY and all in the
  * `style` visual group (bws_option_visual_groups()), so the composites read as one box.
  * Without the script every key is a plain GB text control, which is still usable wire.
@@ -183,6 +184,11 @@ function bws_get_table_style_options(): array {
 			'type'  => 'bws-table-stripes',
 			'label' => __( 'Stripes', 'generateblocks' ),
 		),
+		'border'        => array(
+			'type'  => 'bws-table-borders',
+			'label' => __( 'Borders', 'generateblocks' ),
+		),
+		'borderRadius'  => $member( __( 'Radius', 'generateblocks' ) ),
 	);
 }
 

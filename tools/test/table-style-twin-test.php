@@ -113,6 +113,23 @@ twin_rows(
 	$js['rules']
 );
 twin_rows( 'items', $corpus['items'], array_map( 'bws_head_args_items', $corpus['items'] ), $js['items'] );
+twin_rows( 'border length', $corpus['borderLengths'], array_map( 'bws_table_border_length_value', $corpus['borderLengths'] ), $js['borderLengths'] );
+twin_rows( 'border', $corpus['borders'], array_map( static fn( $v ) => counted( bws_table_border_parse( $v ) ), $corpus['borders'] ), $js['borders'] );
+twin_rows( 'borderRadius', $corpus['borderRadii'], array_map( static fn( $v ) => counted( bws_table_border_radius_parse( $v ) ), $corpus['borderRadii'] ), $js['borderRadii'] );
+
+// The JS emit is the repair button's write. Its round trip is held in PHP's terms: what the
+// emitted wire parses to must be what the original parsed to, flags aside.
+foreach ( $corpus['borders'] as $i => $v ) {
+	$orig = bws_table_border_parse( $v );
+	$emit = $js['borderEmits'][ $i ] ?? null;
+	if ( null === $orig ) {
+		check( 'border emit: ' . json_encode( $v ) . ' (unbalanced) emits nothing', null === $emit, json_encode( $emit ) );
+		continue;
+	}
+	$back = bws_table_border_parse( (string) $emit );
+	$same = static fn( $p ) => array( bws_table_border_lines( $p ), bws_table_border_color( $p['base'] ) );
+	check( 'border emit: ' . json_encode( $v ) . ' -> ' . json_encode( $emit ) . ' draws the same', $same( $orig ) === $same( $back ) && array() === $back['flags'], json_encode( $back ) );
+}
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail ? 1 : 0 );

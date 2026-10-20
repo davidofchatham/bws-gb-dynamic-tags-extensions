@@ -14,7 +14,8 @@
  * those.
  *
  * Splitting goes through ONE function, headArgsItems(), over the fold grammar's splitDepth:
- * every `head,args;head,args` value (the six text keys, `stripe`) is read by it, so a
+ * every `head,args;head,args` value (the six text keys, `stripe`, `border`, `borderRadius`) is
+ * read by it, so a
  * hand-edited value cannot read two ways. Its PHP twin is bws_head_args_items().
  *
  * @package BWS_Dynamic_Tags
@@ -286,6 +287,178 @@
 		return items.join( ';' );
 	}
 
+	// ── Borders ───────────────────────────────────────────────────────────────
+
+	/** A border width or radius: a number with px, em or rem, or `var()`. Twin of bws_table_border_length_value(). */
+	function borderLengthValue( candidate ) {
+		var c = String( candidate ).trim();
+		var units = '(' + list( 'borderUnits' ).join( '|' ) + ')';
+		var m = new RegExp( '^(\\d*\\.?\\d+)' + units + '$', 'i' ).exec( c );
+		return m ? m[ 1 ] + m[ 2 ].toLowerCase() : cssVar( c );
+	}
+
+	/**
+	 * Read a `border` value. Twin of bws_table_border_parse() (its PHPDoc states the policy):
+	 * `{ base: {width,style,color,opacity}|null, lines: {outer,header,rows,cols: {width,style}|null}, flags }`.
+	 */
+	function parseBorder( value ) {
+		var items = headArgsItems( value );
+		if ( items === null ) {
+			return null;
+		}
+		var heads = list( 'borderHeads' );
+		var lines = {};
+		heads.forEach( function ( h ) {
+			lines[ h ] = null;
+		} );
+		var out = { base: null, lines: lines, flags: [] };
+		items.forEach( function ( item ) {
+			var head = item.parts[ 0 ].toLowerCase();
+			var isLine = heads.indexOf( head ) !== -1;
+			if ( isLine ? lines[ head ] !== null : out.base !== null ) {
+				out.flags.push( flag( 'repeatedTarget', ( isLine ? 'repeated line' : 'repeated base' ) + " '" + item.raw + "'" ) );
+				return;
+			}
+			var spec = isLine ? { width: null, style: null } : { width: null, style: null, color: null, opacity: null };
+			var dup = false;
+			var args = isLine ? item.parts.slice( 1 ) : item.parts;
+			for ( var i = 0; i < args.length; i++ ) {
+				var arg = args[ i ];
+				var l = arg.toLowerCase();
+				var slot;
+				var val;
+				var v;
+				if ( inList( 'borderStyles', l ) ) {
+					slot = 'style';
+					val = l;
+				} else if ( ( v = opacityValue( arg ) ) !== null ) {
+					slot = 'opacity';
+					val = v;
+				} else if ( ( v = borderLengthValue( arg ) ) !== null ) {
+					slot = 'width';
+					val = v;
+				} else if ( ( v = colorValue( arg, false ) ) !== null ) {
+					slot = 'color';
+					val = v;
+				} else {
+					out.flags.push( flag( 'badBorderValue', "'" + arg + "' is not a recognized border value", arg ) );
+					continue;
+				}
+				if ( ! Object.prototype.hasOwnProperty.call( spec, slot ) ) {
+					out.flags.push( flag( 'lineTakesNo', "line '" + head + "' takes no " + slot + " ('" + arg + "')", arg ) );
+					continue;
+				}
+				if ( spec[ slot ] !== null ) {
+					dup = true;
+					break;
+				}
+				spec[ slot ] = val;
+			}
+			if ( dup ) {
+				out.flags.push( flag( 'twoOfKind', "two of one kind in '" + item.raw + "'", item.raw ) );
+			} else if ( isLine ) {
+				lines[ head ] = spec;
+			} else {
+				out.base = spec;
+			}
+		} );
+		return out;
+	}
+
+	/** One segment's args in the reader's slot order. */
+	function borderArgs( spec, keys ) {
+		var parts = [];
+		keys.forEach( function ( k ) {
+			if ( spec[ k ] !== null && spec[ k ] !== undefined && spec[ k ] !== '' ) {
+				parts.push( k === 'opacity' ? cssNumber( spec[ k ] ) + '%' : spec[ k ] );
+			}
+		} );
+		return parts;
+	}
+
+	/** Emit a parsed border: the base first, then each line in head order; '' when nothing is set. */
+	function emitBorder( border ) {
+		if ( ! border ) {
+			return '';
+		}
+		var segs = [];
+		var base = border.base ? borderArgs( border.base, [ 'width', 'style', 'color', 'opacity' ] ) : [];
+		if ( base.length ) {
+			segs.push( base.join( ',' ) );
+		}
+		list( 'borderHeads' ).forEach( function ( h ) {
+			var line = border.lines && border.lines[ h ];
+			if ( line ) {
+				segs.push( [ h ].concat( borderArgs( line, [ 'width', 'style' ] ) ).join( ',' ) );
+			}
+		} );
+		return segs.join( ';' );
+	}
+
+	/** What a parsed border draws, per line. Twin of bws_table_border_lines() (its PHPDoc owns the rule). */
+	function borderLines( border ) {
+		var base = border.base || {};
+		var bw = base.width || null;
+		var bs = base.style || null;
+		var draws = bw !== null || bs !== null;
+		var out = {};
+		list( 'borderHeads' ).forEach( function ( h ) {
+			var line = border.lines[ h ] || null;
+			if ( ! draws && ( line === null || ( line.width === null && line.style === null ) ) ) {
+				out[ h ] = null;
+				return;
+			}
+			var style = line && line.style !== null ? line.style : ( bs !== null && ! ( bs === 'none' && line !== null ) ? bs : 'solid' );
+			out[ h ] = {
+				off: style === 'none',
+				width: line && line.width !== null ? line.width : ( bw !== null ? bw : '1px' ),
+				style: style
+			};
+		} );
+		return out;
+	}
+
+	/** The base's line color, or null for the theme's. Twin of bws_table_border_color(). */
+	function borderColor( base ) {
+		if ( ! base || ( base.color === null && base.opacity === null ) ) {
+			return null;
+		}
+		var color = base.color !== null ? base.color : 'currentColor';
+		return base.opacity === null || colorHasAlpha( color )
+			? color
+			: 'color-mix(in srgb,' + color + ' ' + cssNumber( base.opacity ) + '%,transparent)';
+	}
+
+	/** Read a `borderRadius` value. Twin of bws_table_border_radius_parse(). */
+	function parseBorderRadius( value ) {
+		var items = headArgsItems( value );
+		if ( items === null ) {
+			return null;
+		}
+		var out = { outer: null, flags: [] };
+		items.forEach( function ( item ) {
+			var parts = item.parts;
+			var len;
+			if ( parts.length === 1 && borderLengthValue( parts[ 0 ] ) !== null ) {
+				out.flags.push( flag( 'bareRadius', "bare radius '" + parts[ 0 ] + "' is reserved for cells", parts[ 0 ] ) );
+			} else if ( parts[ 0 ].toLowerCase() !== 'outer' ) {
+				out.flags.push( flag( 'unknownHead', "unknown head '" + parts[ 0 ] + "'" ) );
+			} else if ( out.outer !== null ) {
+				out.flags.push( flag( 'repeatedTarget', "repeated line '" + item.raw + "'" ) );
+			} else if ( parts.length !== 2 || ( len = borderLengthValue( parts[ 1 ] ) ) === null ) {
+				out.flags.push( flag( 'badRadius', "'" + item.raw + "' is not a recognized radius", parts.slice( 1 ).join( ',' ) ) );
+			} else {
+				out.outer = len;
+			}
+		} );
+		return out;
+	}
+
+	/** Emit a radius: `outer,8px`, or '' for none. */
+	function emitBorderRadius( outer ) {
+		return outer ? 'outer,' + outer : '';
+	}
+
 	/**
 	 * The cascade, twin of bws_table_text_for_cell(): the value one cell takes for one text
 	 * key, or '' for none.
@@ -325,11 +498,18 @@
 	function styleRead( options ) {
 		var layout = String( options.layout || '' ).trim().toLowerCase();
 		var stripe = present( options, 'stripe' ) ? parseStripe( String( options.stripe ) ) : null;
+		var border = present( options, 'border' ) ? parseBorder( String( options.border ) ) : null;
+		var radius = present( options, 'borderRadius' ) ? parseBorderRadius( String( options.borderRadius ) ) : null;
+		var anyLine = border !== null && Object.keys( border.lines ).some( function ( h ) {
+			return border.lines[ h ] !== null;
+		} );
 		return {
 			layout: layout === 'auto' || layout === 'fixed' ? layout : null,
 			width: present( options, 'width' ) ? widthValue( String( options.width ) ) : null,
 			text: textRead( options ),
-			stripe: stripe !== null && ( stripe.rows !== null || stripe.cols !== null ) ? stripe : null
+			stripe: stripe !== null && ( stripe.rows !== null || stripe.cols !== null ) ? stripe : null,
+			border: border !== null && ( border.base !== null || anyLine ) ? border : null,
+			radius: radius !== null ? radius.outer : null
 		};
 	}
 
@@ -415,6 +595,49 @@
 			add( sel, [ 'background-image:linear-gradient(' + color + ',' + color + ')' ] );
 		} );
 
+		// Borders: the PHP builder's comment states the edge-ownership scheme.
+		var heads = list( 'borderHeads' );
+		var border = table.border || null;
+		var radius = table.radius || null;
+		var lines = border ? borderLines( border ) : {};
+		var bcolor = border ? borderColor( border.base ) : null;
+		function edge( side, ln ) {
+			return ln.off ? [ 'border-' + side + '-width:0' ] : [ 'border-' + side + '-width:' + ln.width, 'border-' + side + '-style:' + ln.style ];
+		}
+		if ( bcolor !== null ) {
+			add( [ '', ' :is(th,td)' ], [ 'border-color:' + bcolor ] );
+		}
+		var line = lines.outer || null;
+		if ( line ) {
+			add( [ '' ], line.off ? [ 'border-width:0' ] : [ 'border-width:' + line.width, 'border-style:' + line.style ] );
+			add( [ ' :is(th,td):first-child' ], [ 'border-left-width:0' ] );
+			add( [ ' :is(th,td):last-child' ], [ 'border-right-width:0' ] );
+			add( [ ' thead th', ':not(:has(> thead)) tbody tr:first-child td' ], [ 'border-top-width:0' ] );
+			add( [ ' tbody tr:last-child td' ], [ 'border-bottom-width:0' ] );
+		}
+		if ( ( line = lines.cols || null ) ) {
+			add( [ ' :is(th,td):not(:last-child)' ], edge( 'right', line ) );
+			add( [ ' :is(th,td):not(:first-child)' ], [ 'border-left-width:0' ] );
+		}
+		if ( ( line = lines[ heads[ 1 ] ] || null ) ) {
+			add( [ ' thead th' ], edge( 'bottom', line ) );
+			add( [ ' thead + tbody tr:first-child td' ], [ 'border-top-width:0' ] );
+		}
+		if ( ( line = lines.rows || null ) ) {
+			add( [ ' tbody tr:not(:last-child) td' ], edge( 'bottom', line ) );
+			add( [ ' tbody tr:not(:first-child) td' ], [ 'border-top-width:0' ] );
+		}
+		if ( radius !== null ) {
+			var outer = lines.outer || null;
+			var clip = outer && ! outer.off ? 'max(0px,calc(' + radius + ' - ' + outer.width + '))' : radius;
+			add( [ '' ], [ 'border-collapse:separate', 'border-spacing:0', 'border-radius:' + radius ] );
+			add( [ ' :is(th,td):not(:first-child)' ], [ 'border-left-width:0' ] );
+			add( [ ' thead + tbody td', ':not(:has(> thead)) tbody tr:not(:first-child) td' ], [ 'border-top-width:0' ] );
+			add( [ ' tbody' ], [ 'clip-path:inset(0 round ' + clip + ')' ] );
+			add( [ ' thead' ], [ 'clip-path:inset(0 round ' + clip + ' ' + clip + ' 0 0)' ] );
+			add( [ ' thead + tbody' ], [ 'clip-path:inset(0 round 0 0 ' + clip + ' ' + clip + ')' ] );
+		}
+
 		columns.forEach( function ( col, i ) {
 			var n = i + 1;
 			var onBoth = [];
@@ -479,6 +702,13 @@
 		emitText: emitText,
 		parseStripe: parseStripe,
 		emitStripe: emitStripe,
+		borderLengthValue: borderLengthValue,
+		parseBorder: parseBorder,
+		emitBorder: emitBorder,
+		borderLines: borderLines,
+		borderColor: borderColor,
+		parseBorderRadius: parseBorderRadius,
+		emitBorderRadius: emitBorderRadius,
 		textForCell: textForCell
 	};
 }() );

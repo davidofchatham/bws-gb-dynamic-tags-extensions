@@ -277,6 +277,40 @@ assert_not_contains( 'T18 no display rule', 'display', $everything );
 assert_not_contains( 'T18 no markup', '<', $everything );
 assert_not_contains( 'T18 no colgroup', 'col', str_replace( array( 'color', 'cols', 'currentColor', 'color-mix' ), '', $everything ) );
 
+echo "\nBorders: the key touches only the lines it names\n";
+$outer0 = '.S :is(th,td):first-child{border-left-width:0}.S :is(th,td):last-child{border-right-width:0}.S thead th,.S:not(:has(> thead)) tbody tr:first-child td{border-top-width:0}.S tbody tr:last-child td{border-bottom-width:0}';
+$cols0  = '.S :is(th,td):not(:first-child){border-left-width:0}';
+assert_eq( 'T19 a color-only base recolors and draws nothing', '.S,.S :is(th,td){border-color:#ccc}', style_css( array( 'border' => '#ccc' ) ) );
+assert_eq( 'T19 opacity with no color rides currentColor', '.S,.S :is(th,td){border-color:color-mix(in srgb,currentColor 40%,transparent)}', style_css( array( 'border' => '40%' ) ) );
+assert_eq( 'T19 a color with its own alpha ignores the opacity', '.S,.S :is(th,td){border-color:rgba(0,0,0,.5)}', style_css( array( 'border' => 'rgba(0,0,0,.5),40%' ) ) );
+assert_eq( 'T19 outer,none: the outer line off, nothing else touched', '.S{border-width:0}' . $outer0, style_css( array( 'border' => 'outer,none' ) ) );
+assert_eq( 'T19 rows alone: one boundary, both edges owned', '.S tbody tr:not(:last-child) td{border-bottom-width:1px;border-bottom-style:solid}.S tbody tr:not(:first-child) td{border-top-width:0}', style_css( array( 'border' => 'rows,solid' ) ) );
+assert_eq( 'T19 a bare head sets nothing, so it draws nothing', '', style_css( array( 'border' => 'rows' ) ) );
+assert_eq( 'T19 cols alone', '.S :is(th,td):not(:last-child){border-right-width:2px;border-right-style:dashed}' . $cols0, style_css( array( 'border' => 'cols,2px,dashed' ) ) );
+assert_eq( 'T19 header alone', '.S thead th{border-bottom-width:2px;border-bottom-style:solid}.S thead + tbody tr:first-child td{border-top-width:0}', style_css( array( 'border' => 'header,2px' ) ) );
+$all = style_css( array( 'border' => '2px' ) );
+assert_contains( 'T19 a base width draws all four: outer', '.S{border-width:2px;border-style:solid}', $all );
+assert_contains( 'T19 a base width draws all four: cols', '.S :is(th,td):not(:last-child){border-right-width:2px;border-right-style:solid}', $all );
+assert_contains( 'T19 a base width draws all four: header', '.S thead th{border-bottom-width:2px;border-bottom-style:solid}', $all );
+assert_contains( 'T19 a base width draws all four: rows', '.S tbody tr:not(:last-child) td{border-bottom-width:2px;border-bottom-style:solid}', $all );
+$some = style_css( array( 'border' => 'none;rows,2px' ) );
+assert_contains( 'T19 base none: every line off', '.S{border-width:0}', $some );
+assert_contains( 'T19 base none: cols off', '.S :is(th,td):not(:last-child){border-right-width:0}', $some );
+assert_contains( 'T19 base none + rows: rows drawn again, solid', '.S tbody tr:not(:last-child) td{border-bottom-width:2px;border-bottom-style:solid}', $some );
+assert_contains( 'T19 a line override keeps the base color', '.S,.S :is(th,td){border-color:red}', style_css( array( 'border' => '3px,dashed,red;rows,dotted' ) ) );
+assert_contains( 'T19 a line override changes only its own fields', '.S tbody tr:not(:last-child) td{border-bottom-width:3px;border-bottom-style:dotted}', style_css( array( 'border' => '3px,dashed,red;rows,dotted' ) ) );
+assert_not_contains( 'T19 border never forces the model', 'border-collapse', style_css( array( 'border' => '2px' ) ) );
+$rad = style_css( array( 'border' => 'outer,2px', 'borderRadius' => 'outer,12px' ) );
+assert_contains( 'T19 radius forces the separate model', '.S{border-collapse:separate;border-spacing:0;border-radius:12px}', $rad );
+assert_contains( 'T19 radius clears the doubled edges under a header, and not the first row without one', '.S thead + tbody td,.S:not(:has(> thead)) tbody tr:not(:first-child) td{border-top-width:0}', $rad );
+assert_contains( 'T19 the clip is the inner radius', '.S tbody{clip-path:inset(0 round max(0px,calc(12px - 2px)))}', $rad );
+assert_not_contains( 'T19 never overflow', 'overflow', $rad );
+assert_contains( 'T19 radius alone clips at R', '.S thead{clip-path:inset(0 round 12px 12px 0 0)}', style_css( array( 'borderRadius' => 'outer,12px' ) ) );
+assert_contains( 'T19 an outer line turned off clips at R', '.S tbody{clip-path:inset(0 round 1em)}', style_css( array( 'border' => 'outer,none', 'borderRadius' => 'outer,1em' ) ) );
+assert_eq( 'T19 a bare radius is reserved: nothing', '', style_css( array( 'borderRadius' => '8px' ) ) );
+assert_eq( 'T19 an unbalanced border is nothing', '', style_css( array( 'border' => 'rows,rgba(0,0' ) ) );
+assert_not_contains( 'T19 a hostile value never reaches the sheet', 'body', style_css( array( 'border' => 'red}body{x:y' ) ) );
+
 // ---------------------------------------------------------------------------
 echo "\n";
 if ( $failures > 0 ) {

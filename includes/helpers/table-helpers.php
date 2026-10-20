@@ -550,6 +550,190 @@ function bws_table_stripe_parse( string $value ): ?array {
 	return $out;
 }
 
+/** The `border` line heads, in control and wire order. `header` is the text keys' word. */
+const BWS_TABLE_BORDER_HEADS = array( 'outer', BWS_TABLE_HEADER_HEAD, 'rows', 'cols' );
+
+/** The border line styles. `none` turns a line off. */
+const BWS_TABLE_BORDER_STYLES = array( 'solid', 'dashed', 'dotted', 'none' );
+
+/** Unit suffixes a border width or radius may carry. */
+const BWS_TABLE_BORDER_UNITS = 'px|em|rem';
+
+/**
+ * Canonical border width or radius, or null: a number with px, em or rem, or `var()`.
+ *
+ * @since Unreleased
+ * @param string $candidate Raw value.
+ * @return string|null
+ */
+function bws_table_border_length_value( string $candidate ): ?string {
+	$candidate = trim( $candidate );
+	if ( preg_match( '/^(\d*\.?\d+)(' . BWS_TABLE_BORDER_UNITS . ')$/i', $candidate, $m ) ) {
+		return $m[1] . strtolower( $m[2] );
+	}
+	return bws_table_css_var( $candidate );
+}
+
+/**
+ * Read a `border` value: `2px,#ccc,40%;outer,none;rows,dotted`.
+ *
+ * A segment led by a line head (BWS_TABLE_BORDER_HEADS) is that line; any other segment is the
+ * BASE, the table-wide set, as the bare item of `color:base;header,x` is. Args are typed by
+ * value, in any order: a width (bws_table_border_length_value()), a style
+ * (BWS_TABLE_BORDER_STYLES), an opacity `N%`, a color (bws_table_color_value(), no CSS globals).
+ * The base takes all four; a line takes width and style only, because color and opacity are
+ * set once for the table, so a color or opacity in a line is dropped and flagged. A bad arg is
+ * dropped and flagged and its item stands; two args of one type in one item drop the ITEM; a
+ * repeated line or a second base keeps the first; an unbalanced bracket drops the whole key
+ * (null). What the parsed value draws is bws_table_border_lines()'s.
+ *
+ * @since Unreleased
+ * @param string $value Raw value.
+ * @return array{base:?array,lines:array<string,?array>,flags:string[]}|null Base
+ *   `{width,style,color,opacity}`, each line `{width,style}`, unset parts null.
+ */
+function bws_table_border_parse( string $value ): ?array {
+	$items = bws_head_args_items( $value );
+	if ( null === $items ) {
+		return null;
+	}
+	$out = array( 'base' => null, 'lines' => array_fill_keys( BWS_TABLE_BORDER_HEADS, null ), 'flags' => array() );
+	foreach ( $items as $item ) {
+		$head    = strtolower( $item['parts'][0] );
+		$is_line = in_array( $head, BWS_TABLE_BORDER_HEADS, true );
+		if ( $is_line ? null !== $out['lines'][ $head ] : null !== $out['base'] ) {
+			$out['flags'][] = ( $is_line ? 'repeated line' : 'repeated base' ) . " '{$item['raw']}'";
+			continue;
+		}
+		$spec = $is_line ? array( 'width' => null, 'style' => null ) : array( 'width' => null, 'style' => null, 'color' => null, 'opacity' => null );
+		$dup  = false;
+		foreach ( $is_line ? array_slice( $item['parts'], 1 ) : $item['parts'] as $arg ) {
+			$lower = strtolower( $arg );
+			if ( in_array( $lower, BWS_TABLE_BORDER_STYLES, true ) ) {
+				$slot = 'style';
+				$val  = $lower;
+			} elseif ( null !== ( $opacity = bws_table_opacity_value( $arg ) ) ) {
+				$slot = 'opacity';
+				$val  = $opacity;
+			} elseif ( null !== ( $width = bws_table_border_length_value( $arg ) ) ) {
+				$slot = 'width';
+				$val  = $width;
+			} elseif ( null !== ( $color = bws_table_color_value( $arg ) ) ) {
+				$slot = 'color';
+				$val  = $color;
+			} else {
+				$out['flags'][] = "'$arg' is not a recognized border value";
+				continue;
+			}
+			if ( ! array_key_exists( $slot, $spec ) ) {
+				$out['flags'][] = "line '$head' takes no $slot ('$arg')";
+				continue;
+			}
+			if ( null !== $spec[ $slot ] ) {
+				$dup = true;
+				break;
+			}
+			$spec[ $slot ] = $val;
+		}
+		if ( $dup ) {
+			$out['flags'][] = "two of one kind in '{$item['raw']}'";
+		} elseif ( $is_line ) {
+			$out['lines'][ $head ] = $spec;
+		} else {
+			$out['base'] = $spec;
+		}
+	}
+	return $out;
+}
+
+/**
+ * What a parsed `border` draws, per line: THE fallback rule.
+ *
+ * A base with a width or a style draws all four lines; a color-only base draws none (it only
+ * recolors the theme's). Without such a base, a line is drawn only when it carries its own width
+ * or style: a bare head names a line but sets nothing, so it is null like a line the key does not
+ * reach, and null is never touched (the theme's). A drawn line takes its own width and style,
+ * else the base's, else `1px solid`, because a style with no width is `medium` (3px) in CSS. A
+ * line named under a base style `none` is drawn again (`border:none;rows`), so it never inherits
+ * that `none`. `off` is a line whose style is `none`.
+ *
+ * @since Unreleased
+ * @param array $border bws_table_border_parse().
+ * @return array<string,?array{off:bool,width:string,style:string}> Keyed by BWS_TABLE_BORDER_HEADS.
+ */
+function bws_table_border_lines( array $border ): array {
+	$bw    = $border['base']['width'] ?? null;
+	$bs    = $border['base']['style'] ?? null;
+	$draws = null !== $bw || null !== $bs;
+	$out   = array();
+	foreach ( BWS_TABLE_BORDER_HEADS as $head ) {
+		$line = $border['lines'][ $head ] ?? null;
+		if ( ! $draws && ( null === $line || ( null === $line['width'] && null === $line['style'] ) ) ) {
+			$out[ $head ] = null;
+			continue;
+		}
+		$style = $line['style'] ?? ( null !== $bs && ! ( 'none' === $bs && null !== $line ) ? $bs : 'solid' );
+		$out[ $head ] = array(
+			'off'   => 'none' === $style,
+			'width' => $line['width'] ?? $bw ?? '1px',
+			'style' => $style,
+		);
+	}
+	return $out;
+}
+
+/**
+ * The color a `border` base paints its lines, or null to keep the theme's. Opacity with no color
+ * rides `currentColor`; nothing else gets a default color.
+ *
+ * @since Unreleased
+ * @param array|null $base The parsed base.
+ * @return string|null
+ */
+function bws_table_border_color( ?array $base ): ?string {
+	if ( null === $base || ( null === $base['color'] && null === $base['opacity'] ) ) {
+		return null;
+	}
+	$color = $base['color'] ?? 'currentColor';
+	return null === $base['opacity'] || bws_table_color_has_alpha( $color )
+		? $color
+		: 'color-mix(in srgb,' . $color . ' ' . bws_table_css_number( $base['opacity'] ) . '%,transparent)';
+}
+
+/**
+ * Read a `borderRadius` value: `outer,8px`, one length (bws_table_border_length_value()).
+ *
+ * `outer` is the only head. A BARE length is reserved for cell corners, which are not built: it
+ * is dropped and flagged with no repair, since the reader cannot tell cells from the table. A
+ * repeated `outer` keeps the first; an unbalanced bracket drops the key (null).
+ *
+ * @since Unreleased
+ * @param string $value Raw value.
+ * @return array{outer:?string,flags:string[]}|null
+ */
+function bws_table_border_radius_parse( string $value ): ?array {
+	$items = bws_head_args_items( $value );
+	if ( null === $items ) {
+		return null;
+	}
+	$out = array( 'outer' => null, 'flags' => array() );
+	foreach ( $items as $item ) {
+		$parts = $item['parts'];
+		if ( 1 === count( $parts ) && null !== bws_table_border_length_value( $parts[0] ) ) {
+			$out['flags'][] = "bare radius '{$parts[0]}' is reserved for cells";
+		} elseif ( 'outer' !== strtolower( $parts[0] ) ) {
+			$out['flags'][] = "unknown head '{$parts[0]}'";
+		} elseif ( null !== $out['outer'] ) {
+			$out['flags'][] = "repeated line '{$item['raw']}'";
+		} elseif ( 2 !== count( $parts ) || null === ( $len = bws_table_border_length_value( $parts[1] ) ) ) {
+			$out['flags'][] = "'{$item['raw']}' is not a recognized radius";
+		} else {
+			$out['outer'] = $len;
+		}
+	}
+	return $out;
+}
+
 /**
  * Read every text key present in an options array (tag level or a slot's opts).
  *
@@ -576,16 +760,20 @@ function bws_table_text_read( array $options ): array {
  *
  * @since Unreleased
  * @param array $options Tag options.
- * @return array{layout:?string,width:?string,text:array<string,array>,stripe:?array}
+ * @return array{layout:?string,width:?string,text:array<string,array>,stripe:?array,border:?array,radius:?string}
  */
 function bws_table_style_read( array $options ): array {
 	$layout = strtolower( trim( (string) ( $options['layout'] ?? '' ) ) );
 	$stripe = isset( $options['stripe'] ) ? bws_table_stripe_parse( (string) $options['stripe'] ) : null;
+	$border = isset( $options['border'] ) ? bws_table_border_parse( (string) $options['border'] ) : null;
+	$radius = isset( $options['borderRadius'] ) ? bws_table_border_radius_parse( (string) $options['borderRadius'] ) : null;
 	return array(
 		'layout' => 'auto' === $layout || 'fixed' === $layout ? $layout : null,
 		'width'  => isset( $options['width'] ) ? bws_table_width_value( (string) $options['width'] ) : null,
 		'text'   => bws_table_text_read( $options ),
 		'stripe' => null !== $stripe && ( null !== $stripe['rows'] || null !== $stripe['cols'] ) ? $stripe : null,
+		'border' => null !== $border && ( null !== $border['base'] || array_filter( $border['lines'] ) ) ? $border : null,
+		'radius' => $radius['outer'] ?? null,
 	);
 }
 
@@ -597,7 +785,7 @@ function bws_table_style_read( array $options ): array {
  * @return bool
  */
 function bws_table_style_is_empty( array $style ): bool {
-	return null === $style['layout'] && null === $style['width'] && empty( $style['text'] ) && null === $style['stripe'];
+	return null === $style['layout'] && null === $style['width'] && empty( $style['text'] ) && null === $style['stripe'] && null === ( $style['border'] ?? null ) && null === ( $style['radius'] ?? null );
 }
 
 /**
@@ -726,6 +914,61 @@ function bws_table_rules( array $table, array $columns, bool $has_header, array 
 			$sel = array( ' tbody tr:nth-child(' . ( $even ? 'even' : 'odd' ) . ')' );
 		}
 		$add( $sel, array( 'background-image:linear-gradient(' . $color . ',' . $color . ')' ) );
+	}
+
+	// Borders. The key touches only the lines bws_table_border_lines() reaches, through LONGHAND
+	// properties so the theme's style and color survive where nothing is set, and a reached line
+	// owns BOTH edges of its boundary: it is set on one side (right or bottom) and the facing side
+	// is zeroed, because a neighbor's edge left standing still draws the line. `outer` is the
+	// table's own border with the perimeter cells' outward edges zeroed (in a collapse theme the
+	// perimeter IS those edges). A line turned off is the same selectors at width 0. A base
+	// color recolors every edge (border-color draws nothing by itself).
+	$border = $table['border'] ?? null;
+	$radius = $table['radius'] ?? null;
+	$lines  = null !== $border ? bws_table_border_lines( $border ) : array_fill_keys( BWS_TABLE_BORDER_HEADS, null );
+	$color  = null !== $border ? bws_table_border_color( $border['base'] ) : null;
+	$edge   = static function ( string $side, array $line ): array {
+		return $line['off'] ? array( "border-$side-width:0" ) : array( "border-$side-width:{$line['width']}", "border-$side-style:{$line['style']}" );
+	};
+	if ( null !== $color ) {
+		$add( array( '', ' :is(th,td)' ), array( 'border-color:' . $color ) );
+	}
+	if ( null !== ( $line = $lines['outer'] ) ) {
+		$add( array( '' ), $line['off'] ? array( 'border-width:0' ) : array( 'border-width:' . $line['width'], 'border-style:' . $line['style'] ) );
+		$add( array( ' :is(th,td):first-child' ), array( 'border-left-width:0' ) );
+		$add( array( ' :is(th,td):last-child' ), array( 'border-right-width:0' ) );
+		$add( array( ' thead th', ':not(:has(> thead)) tbody tr:first-child td' ), array( 'border-top-width:0' ) );
+		$add( array( ' tbody tr:last-child td' ), array( 'border-bottom-width:0' ) );
+	}
+	if ( null !== ( $line = $lines['cols'] ) ) {
+		$add( array( ' :is(th,td):not(:last-child)' ), $edge( 'right', $line ) );
+		$add( array( ' :is(th,td):not(:first-child)' ), array( 'border-left-width:0' ) );
+	}
+	if ( null !== ( $line = $lines[ BWS_TABLE_HEADER_HEAD ] ) ) {
+		// No `<thead>`: nothing matches, so the line draws nothing, silently.
+		$add( array( ' thead th' ), $edge( 'bottom', $line ) );
+		$add( array( ' thead + tbody tr:first-child td' ), array( 'border-top-width:0' ) );
+	}
+	if ( null !== ( $line = $lines['rows'] ) ) {
+		$add( array( ' tbody tr:not(:last-child) td' ), $edge( 'bottom', $line ) );
+		$add( array( ' tbody tr:not(:first-child) td' ), array( 'border-top-width:0' ) );
+	}
+	// A radius is the one thing that forces a model: it does not apply to a collapsed table, and
+	// the separate model doubles a collapse theme's per-cell edges unless the left edge of every
+	// cell but the first and the top edge of every body cell under a header are cleared (without a
+	// header the first row's top IS the perimeter, and stays; in a separate-model
+	// theme such as GeneratePress this changes nothing). The corners are clipped by `clip-path` on
+	// the row groups, never `overflow`, which in Chrome clips the caption too. The clip radius is
+	// the inner one, R less the outer line's width.
+	if ( null !== $radius ) {
+		$outer = $lines['outer'];
+		$clip  = null !== $outer && ! $outer['off'] ? 'max(0px,calc(' . $radius . ' - ' . $outer['width'] . '))' : $radius;
+		$add( array( '' ), array( 'border-collapse:separate', 'border-spacing:0', 'border-radius:' . $radius ) );
+		$add( array( ' :is(th,td):not(:first-child)' ), array( 'border-left-width:0' ) );
+		$add( array( ' thead + tbody td', ':not(:has(> thead)) tbody tr:not(:first-child) td' ), array( 'border-top-width:0' ) );
+		$add( array( ' tbody' ), array( 'clip-path:inset(0 round ' . $clip . ')' ) );
+		$add( array( ' thead' ), array( 'clip-path:inset(0 round ' . $clip . ' ' . $clip . ' 0 0)' ) );
+		$add( array( ' thead + tbody' ), array( 'clip-path:inset(0 round 0 0 ' . $clip . ' ' . $clip . ')' ) );
 	}
 
 	// Columns. A cell value is emitted only where it differs from the table level's.
@@ -857,5 +1100,8 @@ function bws_table_style_vocabulary(): array {
 		'columnCoversHeader' => BWS_TABLE_TEXT_COLUMN_COVERS_HEADER,
 		'stripeDefaultColor'   => BWS_TABLE_STRIPE_DEFAULT_COLOR,
 		'stripeDefaultOpacity' => BWS_TABLE_STRIPE_DEFAULT_OPACITY,
+		'borderHeads'          => BWS_TABLE_BORDER_HEADS,
+		'borderStyles'         => BWS_TABLE_BORDER_STYLES,
+		'borderUnits'          => explode( '|', BWS_TABLE_BORDER_UNITS ),
 	);
 }

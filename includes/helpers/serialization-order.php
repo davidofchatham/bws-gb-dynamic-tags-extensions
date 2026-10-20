@@ -118,8 +118,8 @@ function bws_serialization_order_key_map(): array {
 		'endKey'       => array( 'source', 11 ),
 		'endTimeKey'   => array( 'source', 12 ),
 		// {{table}} presentation keys, at tag level and as column tokens. They trail the read
-		// keys, so a tag reads `src → layout → width → text keys → stripe` and a column
-		// `header, src/key, width, text keys`. The text keys follow the control order, which is
+		// keys, so a tag reads `src → layout → width → text keys → stripe → border → borderRadius`
+		// and a column `header, src/key, width, text keys`. The text keys follow the control order, which is
 		// NOT final: a control reorder is a wire change, so take these from the final order.
 		// `width` ahead of the text keys is the one fixed relation.
 		'layout'        => array( 'source', 13 ),
@@ -131,6 +131,8 @@ function bws_serialization_order_key_map(): array {
 		'textAlign'     => array( 'source', 19 ),
 		'textTransform' => array( 'source', 20 ),
 		'stripe'        => array( 'source', 21 ),
+		'border'        => array( 'source', 22 ),
+		'borderRadius'  => array( 'source', 23 ),
 
 		// --- link group (after source; entity-link OR email/phone own-anchor) ---
 		'linkTo'  => array( 'link', 0 ),
