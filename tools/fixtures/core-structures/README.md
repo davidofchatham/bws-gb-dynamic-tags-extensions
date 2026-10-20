@@ -174,7 +174,7 @@ so the schema survives snapshot restores.
   the converter always rewrites it, plus literal backslashes in both the block-comment JSON
   and a rendered code block so the meta layer's recursive unslash has something to damage.
   Browsable with no `blocks.php` row by construction.
-- Table presentation page (v31): `matrix-table`, `{{table}}` rows (TP) over the `team_members` repeater `matrix-post-meta` owns, so an author can open a table control in the editor without that page's ~380 blocks. The six TB rows stay on `matrix-post-meta` until the table fixtures ticket moves them.
+- Table page (v31): `matrix-table` carries every `{{table}}` row of [`table-test-matrix.md`](../../test/table-test-matrix.md): TB (shape), TK (one row-set per resolved kind, the user kind inside a user query loop) and TP (presentation), over the `team_members` repeater `matrix-post-meta` owns, so an author can open a table control in the editor without that page's ~380 blocks. TB0, the one ambient `rows` control, stays on `matrix-post-meta`.
 - Query-loop corpus (v16): page `matrix-loops` (a term loop and a user loop) + the
   `department-workshop` term, assigned to no post. See §Query-loop corpus.
 - Source-gate corpus (v13/v14): page `matrix-gate` + staff `gate-draft` (draft, owned by

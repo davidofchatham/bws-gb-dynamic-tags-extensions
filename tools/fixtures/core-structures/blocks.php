@@ -1233,20 +1233,11 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F16.6 the decorated site SLOT takes the site arm read - the [I15] wrong-entity leak, closed (-> site phone)', '{{try_phone A:src(site,limit[2]);key(org_phone)}}' ),
 	) );
 
-	// {{table}} structured-output (1.17.0, feat/table-tag). team_members repeater
-	// on this page (name/description/role, 2 rows: Alice/Bob) → a <table>. Hosted
-	// in a DIV (block-host row), NOT a <p> — {{table}} emits whole-table HTML.
-	// TB1 scalar columns + headers; TB2 header-less; TB3 ref-title column
-	// (lead_ref sub-field; row 2 has none seeded → a blank cell, not a crash). TB4 caption + responsive wrapper
-	// (W3C data-table a11y): <caption id> + <div.bws-table-wrap role=region
-	// tabindex=0 aria-labelledby=that-id>.
-	$sections[] = bws_fixture_gb_section( 'Table TB - repeater to table', array(
-		bws_fixture_gb_block_host_row( 'TB1 (3 scalar cols + headers -> 2-row table: Alice/Engineering/Founding partner, Bob/Operations/Support lead)', '{{table src:rows,team_members|A:header(Name);key(name)|B:header(Role);key(role)|C:header(Note);key(description)}}' ),
-		bws_fixture_gb_block_host_row( 'TB2 (no headers -> header-less table, no thead row)', '{{table src:rows,team_members|A:key(name)|B:key(role)}}' ),
-		bws_fixture_gb_block_host_row( 'TB3 (use:title ref-hop col -> Lead column: row1 Jane Partner, row2 blank lead_ref = empty cell)', '{{table src:rows,team_members|A:header(Name);key(name)|B:header(Lead);src(inherit;refs,lead_ref);use(title)}}' ),
-		bws_fixture_gb_block_host_row( 'TB4 (caption "Our Team" -> <caption id> + wrapper aria-labelledby that id, role=region tabindex=0)', '{{table src:rows,team_members|caption:Our Team|A:header(Name);key(name)|B:header(Role);key(role)}}' ),
-		bws_fixture_gb_block_host_row( 'TB5 (header-only column C -> thead Name/Role/Spacer, Spacer cells EMPTY on both rows, no warning)', '{{table src:rows,team_members|A:header(Name);key(name)|B:header(Role);key(role)|C:header(Spacer)}}' ),
-		bws_fixture_gb_block_host_row( 'TB6 (one header among three columns -> thead with one filled th (Role) and two blank th, 3 cells per body row)', '{{table src:rows,team_members|A:key(name)|B:header(Role);key(role)|C:key(description)}}' ),
+	// {{table}}: the ambient control. Every other {{table}} row lives on matrix-table (TB shape,
+	// TK resolved kind, TP presentation) and pins THIS page by id; this one row keeps the
+	// unpinned spelling, a `rows` step off the current post.
+	$sections[] = bws_fixture_gb_section( 'Table TB0 - the ambient root', array(
+		bws_fixture_gb_block_host_row( 'TB0 (no root named, so the rows step runs off THIS page -> 2-row table: Alice Adams/Engineering, Bob Brown/Operations)', '{{table src:rows,team_members|A:header(Name);key(name)|B:header(Role);key(role)}}' ),
 	) );
 
 	// Term context on a SINGULAR page, in base spellings (FW-129, 1.21.0). This group was
@@ -2134,10 +2125,14 @@ function bws_fixture_page_content_matrix_repeaters() {
 /**
  * Page content: matrix-table (page-matrix-table).
  *
- * Split axis is the TABLE FAMILY, not source-state: every row is a `{{table}}` over the
- * `team_members` repeater that matrix-post-meta OWNS, pinned by id the way F22.6 does, and
- * what separates the rows is which presentation keys the tag carries (layout, width, the
- * six text keys, stripes, column tokens).
+ * Split axis is the TABLE FAMILY, not source-state. Three row groups, each with its own id
+ * prefix so the numbering schemes never collide: TB is table SHAPE (headers, caption, the
+ * chain's cardinality, column edge cases), TK is the RESOLVED KIND of the row (one table
+ * per kind, each crossed with a keyed, an analog and a fixed-text column; the kinds are
+ * the ones `bws_read_resolved_source_value()`'s PHPDoc lists), TP is PRESENTATION (layout, width, the six text keys,
+ * stripes, borders, column tokens). Rows read the `team_members` repeater that
+ * matrix-post-meta OWNS, pinned by id the way F22.6 does, except where a row's whole point
+ * is a different kind of row.
  *
  * WHY A PAGE OF ITS OWN. matrix-post-meta carries ~380 blocks, so opening it in the editor
  * to drive a table control means waiting on a REST preview request per dynamic-tag block.
@@ -2145,11 +2140,12 @@ function bws_fixture_page_content_matrix_repeaters() {
  * change stays cheap. Table rows are also two-dimensional, which makes them unreadable
  * interleaved among scalar rows.
  *
- * WHAT IS NOT HERE YET. The six TB rows on matrix-post-meta stay where they are until the
- * `{{table}}` fixtures ticket (10) moves them and writes table-test-matrix.md; these rows
- * are the presentation half only and are labelled TP so the two numbering schemes never
- * collide. Two data rows keep stripe counting readable by eye: the default (even) target
- * shades body row 1, `odd` shades the header and body row 2.
+ * Two data rows keep stripe counting readable by eye: the default (even) target shades
+ * body row 1, `odd` shades the header and body row 2. The one unpinned `rows` row, TB0, is
+ * the ambient control and stays on matrix-post-meta, whose page owns the repeater.
+ *
+ * EDITOR-ONLY rows (TE, and the TP rows whose label says the editor shows a message) are
+ * read in the editor; the front end only shows what the key draws.
  */
 function bws_fixture_page_content_matrix_table() {
 	$meta_id = function_exists( 'bws_fixture_seeded_post_id' ) ? bws_fixture_seeded_post_id( 'matrix-post-meta', 'page' ) : false;
@@ -2160,10 +2156,69 @@ function bws_fixture_page_content_matrix_table() {
 		);
 	}
 
+	// The nested repeater matrix-repeaters owns: TK4b reuses it for a row-set whose parent is a row.
+	$rep_id = function_exists( 'bws_fixture_seeded_post_id' ) ? bws_fixture_seeded_post_id( 'matrix-repeaters', 'page' ) : false;
+	if ( ! $rep_id ) {
+		return bws_fixture_gb_text_block(
+			'MATRIX-TABLE FIXTURE ERROR: the "matrix-repeaters" page was not found. Reseed pages before this page.',
+			'matrix-table-missing-repeaters'
+		);
+	}
+
 	$src  = "src:post,{$meta_id};rows,team_members";
 	$cols = 'A:header(Name);key(name)|B:header(Role);key(role)|C:header(Note);key(description)';
 
-	$sections   = array();
+	$sections = array();
+
+	// TB - shape: headers, caption, chain cardinality, column edge cases. Hosted in a DIV
+	// (block-host row), never a <p>: {{table}} emits whole-table HTML.
+	$sections[] = bws_fixture_gb_section( 'Table TB - shape: headers, caption, rows, columns', array(
+		bws_fixture_gb_block_host_row( 'TB1 (3 scalar cols + headers -> 2-row table: Alice/Engineering/Founding partner, Bob/Operations/Support lead)', "{{table {$src}|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TB2 (no headers -> header-less table, no thead row)', "{{table {$src}|A:key(name)|B:key(role)}}" ),
+		bws_fixture_gb_block_host_row( 'TB3 (use:title ref-hop col -> Lead column: row1 Jane Partner, row2 blank lead_ref = empty cell)', "{{table {$src}|A:header(Name);key(name)|B:header(Lead);src(inherit;refs,lead_ref);use(title)}}" ),
+		bws_fixture_gb_block_host_row( 'TB4 (caption "Our Team" -> caption id + wrapper aria-labelledby that id, role=region tabindex=0)', "{{table {$src}|caption:Our Team|A:header(Name);key(name)|B:header(Role);key(role)}}" ),
+		bws_fixture_gb_block_host_row( 'TB5 (header-only column C -> thead Name/Role/Spacer, Spacer cells EMPTY on both rows, no warning)', "{{table {$src}|A:header(Name);key(name)|B:header(Role);key(role)|C:header(Spacer)}}" ),
+		bws_fixture_gb_block_host_row( 'TB6 (one header among three columns -> thead with one filled th (Role) and two blank th, 3 cells per body row)', "{{table {$src}|A:key(name)|B:header(Role);key(role)|C:key(description)}}" ),
+		bws_fixture_gb_block_host_row( 'TB7 no source named (-> the current context is the one row: Matrix: Table / Row)', '{{table A:header(Page);use(title)|B:header(Fixed);fixed(Row)}}' ),
+		bws_fixture_gb_block_host_row( 'TB8 a chain that resolves to ZERO rows (-> nothing on the front end: this label stands alone, no table and no empty body)', "{{table src:post,{$meta_id};rows,no_such_repeater|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TB9 a refs tail bounded by its limit(1) (-> ONE row: Jane Partner, though the field holds Jane and Tom)', "{{table src:post,{$meta_id};refs,related_staff,limit(1)|A:header(Staff);use(title)}}" ),
+		bws_fixture_gb_block_host_row( 'TB10 the same refs tail with no limit (-> BOTH rows: Jane Partner, Tom Associate; the table registers no row count of its own)', "{{table src:post,{$meta_id};refs,related_staff|A:header(Staff);use(title)}}" ),
+		bws_fixture_gb_block_host_row( 'TB11 a column with a header and a hop but no read (-> Office cells EMPTY on both rows, and the next column src(same) carries the ROW, so Role reads Engineering / Operations, not an office)', "{{table {$src}|A:header(Name);key(name)|B:header(Office);src(inherit;refs,lead_ref)|C:header(Role);src(same);key(role)}}" ),
+		bws_fixture_gb_block_host_row( 'TB12 a whitespace-only header is no header (-> NO thead, two body columns)', "{{table {$src}|A:header( );key(name)|B:key(role)}}" ),
+		bws_fixture_gb_block_host_row( 'TB13 a header with an unfinished step is still a column (-> Name and Lead headers, Lead cells EMPTY on both rows)', "{{table {$src}|A:header(Name);key(name)|B:header(Lead);src(inherit;refs)}}" ),
+		bws_fixture_gb_block_host_row( 'TB14 a copied chain, as Copy Previous Column Source writes it (-> row1 Jane Partner / (555) 200-3000, row2 both empty)', "{{table {$src}|A:header(Lead);src(inherit;refs,lead_ref);use(title)|B:header(Line);src(inherit;refs,lead_ref);key(main_line)}}" ),
+		bws_fixture_gb_block_host_row( 'TB15 the same table with a hand-written src(same) on column B (-> renders exactly like TB14)', "{{table {$src}|A:header(Lead);src(inherit;refs,lead_ref);use(title)|B:header(Line);src(same);key(main_line)}}" ),
+		bws_fixture_gb_block_host_row( 'TB16 a fixed-text column that hops off the row (-> Has lead on row 1 Alice, whose lead_ref resolves, EMPTY on row 2 Bob, whose does not)', "{{table {$src}|A:header(Name);key(name)|B:header(Lead);src(inherit;refs,lead_ref);fixed(Has lead)}}" ),
+		bws_fixture_gb_block_host_row( 'TB17 the same fixed-text column beside layout:fixed (-> the same cells as TB16, in an equal-width fixed table)', "{{table {$src}|layout:fixed|A:header(Name);key(name)|B:header(Lead);src(inherit;refs,lead_ref);fixed(Has lead)}}" ),
+		bws_fixture_gb_block_host_row( 'TB18 a bare column roots at its ROW, and the escapes leave it (-> per staff row: its own title in Staff, BWS Testbed in Site, Matrix: Table in Page)', "{{table src:post,{$meta_id};refs,related_staff|A:header(Staff);use(title)|B:header(Site);src(site);use(title)|C:header(Page);src(current);use(title)}}" ),
+	) );
+
+	// TK - the RESOLVED KIND of the row: one table per kind, each crossed with the three
+	// reads a text column makes (keyed, analog, fixed). A kind with no row here is a gap.
+	// The user row sits in a user query loop: a user is reached ambiently only, as the loop
+	// item (or on an author archive, which has no page content to carry a row).
+	$kind_cols = static function ( $key_header, $key, $fixed ) {
+		return "A:header(Title);use(title)|B:header({$key_header});key({$key})|C:header(Fixed);fixed({$fixed})";
+	};
+	$sections[] = bws_fixture_gb_section( 'Table TK - rows by resolved kind', array(
+		bws_fixture_gb_block_host_row( 'TK1 post rows, refs tail (-> 2 rows: Jane Partner and Tom Associate; Main line their own numbers; Fixed text on both)', "{{table src:post,{$meta_id};refs,related_staff|" . $kind_cols( 'Main line', 'main_line', 'Staff' ) . '}}' ),
+		bws_fixture_gb_block_host_row( 'TK2 term rows, terms tail (-> 2 rows: Sales and Support; Phone their own numbers; Fixed text on both)', "{{table src:post,{$meta_id};terms,department|" . $kind_cols( 'Phone', 'phone', 'Dept' ) . '}}' ),
+		bws_fixture_gb_block_host_row( 'TK3 site row (-> ONE row: the site title, BWS Testbed in Title and Option, Site in Fixed)', '{{table src:site|' . $kind_cols( 'Option', 'blogname', 'Site' ) . '}}' ),
+		bws_fixture_gb_block_host_row( 'TK4 meta_row rows, rows tail (-> 2 rows: Title EMPTY on both, never the page title, since a repeater row has no analog; Name Alice Adams and Bob Brown; Fixed text Team on both, since the fixed read applies to every kind)', "{{table {$src}|" . $kind_cols( 'Name', 'name', 'Team' ) . '}}' ),
+		bws_fixture_gb_block_host_row( 'TK4b meta_row rows, a NESTED repeater off matrix-repeaters (-> 4 rows in document order across both parents: Monday 8am to 4pm, Thursday 10am to 6pm, Tuesday 7am to 3pm, Friday 12pm to 8pm; Title EMPTY on every row)', "{{table src:post,{$rep_id};rows,duty_roster;rows,shifts|A:header(Day);key(shift_day)|B:header(Hours);key(shift_hours)|C:header(Title);use(title)}}" ),
+		bws_fixture_gb_query_loop_blocks(
+			array(
+				'role__in'       => array( 'author' ),
+				'posts_per_page' => 5,
+				'orderby'        => 'display_name',
+				'order'          => 'ASC',
+			),
+			bws_fixture_gb_block_host_row( 'TK5 user row, inside the user loop (-> per author a ONE-row table: the display name in Title; Bio their own biography, EMPTY for an author with none; Fixed text Author)', '{{table ' . $kind_cols( 'Bio', 'description', 'Author' ) . '}}' ),
+			'tk5-user-loop',
+			'WP_User_Query'
+		),
+	) );
+
 	$sections[] = bws_fixture_gb_section( 'Table TP - presentation: sizing, typography, stripes, column styling', array(
 		bws_fixture_gb_block_host_row( 'TP0 control: no presentation keys (-> plain table, no scope class, no rules)', "{{table {$src}|{$cols}}}" ),
 		bws_fixture_gb_block_host_row( 'TP1 fixed layout alone (-> table-layout:fixed and width:100%, equal columns)', "{{table {$src}|layout:fixed|{$cols}}}" ),
@@ -2194,6 +2249,37 @@ function bws_fixture_page_content_matrix_table() {
 		bws_fixture_gb_block_host_row( 'TP21 radius on a table with no header (-> rounded corners and the top line is still drawn above the first row)', "{{table {$src}|borderRadius:outer,12px|A:key(name)|B:key(role)|C:key(description)}}" ),
 		bws_fixture_gb_block_host_row( 'TP22 a bare radius (-> no rounding; the editor shows an error that 8px on its own is reserved for cell corners, with a Fix button that applies it as the Outer Radius)', "{{table {$src}|borderRadius:8px|{$cols}}}" ),
 		bws_fixture_gb_block_host_row( 'TP23 a mistyped line name (-> row is not a line, so 2px is the base and all four lines draw at 2px; the editor shows an error that row is not a width, a style, a color or an opacity, with a Fix button that drops it)', "{{table {$src}|border:row,2px|{$cols}}}" ),
+	) );
+
+	// The text-key cascade, the layout and width forms and the stripe edge cases the first TP
+	// group does not reach. The hand-broken rows each break ONE item of an otherwise valid
+	// key, so the segments around it show what survives.
+	$sections[] = bws_fixture_gb_section( 'Table TP - presentation: the cascade, layout, width and stripe cases', array(
+		bws_fixture_gb_block_host_row( 'TP24 table-level text keys with a Header override on each (-> body centered bold blue-grey; header left, normal weight, red)', "{{table {$src}|textAlign:center;header,left|fontWeight:bold;header,normal|color:#475569;header,#c00|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP25 column keys with no Header segment (-> Name column right-aligned INCLUDING its header; the Role column red and the Note column bold in the body only, their headers untouched)', "{{table {$src}|A:header(Name);key(name);textAlign(right)|B:header(Role);key(role);color(#c00)|C:header(Note);key(description);fontWeight(bold)}}" ),
+		bws_fixture_gb_block_host_row( 'TP26 a Header-only override with no table-level value (-> only the header row bold, the body normal)', "{{table {$src}|fontWeight:header,bold|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP27 the CSS globals on a header, and a size keyword (-> all text larger and red, body centered; the header alignment is inherit, so it takes what the row gives it, and the header color is revert, back to the browser default)', "{{table {$src}|textAlign:center;header,inherit|color:#c00;header,revert|fontSize:larger|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP28 a repeated header segment (-> the second header, right, is dropped; the first stands: body left, header centered)', "{{table {$src}|textAlign:left;header,center;header,right|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP29 an unknown head (-> footer is dropped; the base centered still applies to the whole table)', "{{table {$src}|textAlign:center;footer,right|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP30 a bad value in one segment (-> the header segment nope is dropped; the body stays red and the header follows it)', "{{table {$src}|color:#c00;header,nope|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP31 layout auto (-> table-layout:auto, columns fit their content)', "{{table {$src}|layout:auto|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP32 fixed layout with width auto (-> table-layout:fixed and width:auto, as written, not full width)', "{{table {$src}|layout:fixed|width:auto|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP33 a table width in rem with no layout (-> width:40rem, columns fit their content)', "{{table {$src}|width:40rem|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP34 a table width from a variable with a fallback, fixed layout (-> width:var(--table-w, 40rem), 40rem as the variable is unset)', "{{table {$src}|layout:fixed|width:var(--table-w, 40rem)|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP35 a column width under fixed layout (-> Name 12rem, the other two share the rest)', "{{table {$src}|layout:fixed|A:header(Name);key(name);width(12rem)|B:header(Role);key(role)|C:header(Note);key(description)}}" ),
+		bws_fixture_gb_block_host_row( 'TP36 the same column width under auto layout (-> Name 12rem as a width hint the content can still overrule)', "{{table {$src}|layout:auto|A:header(Name);key(name);width(12rem)|B:header(Role);key(role)|C:header(Note);key(description)}}" ),
+		bws_fixture_gb_block_host_row( 'TP37 a stripe in currentColor with an opacity (-> body row 1 shaded at 10% of the text color)', "{{table {$src}|stripe:rows,currentColor,10%|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP38 a solid stripe, 100% (-> body row 1 filled solid blue)', "{{table {$src}|stripe:rows,#1e73be,100%|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP39 row stripes on a table with no headers (-> counting from the first body row: Alice row 1 plain, Bob row 2 shaded, the reverse of TP7)', "{{table {$src}|stripe:rows|A:key(name)|B:key(role)|C:key(description)}}" ),
+		bws_fixture_gb_block_host_row( 'TP40 two tables with identical styling, first (-> red 10% row stripe; ONE shared style block serves both)', "{{table {$src}|stripe:rows,#c00,10%|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP41 two tables with identical styling, second (-> the same look as TP40 and the same scope class)', "{{table {$src}|stripe:rows,#c00,10%|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP42 a differently styled table beside them (-> blue 10% row stripe under its own scope class)', "{{table {$src}|stripe:rows,#1e73be,10%|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP43 a repeated stripe target (-> the second rows is dropped; the first stands: body row 1 shaded)', "{{table {$src}|stripe:rows;rows,odd|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP44 two stripe colors (-> the second color is dropped; body row 1 shaded in the first, blue, at the default 5%)', "{{table {$src}|stripe:rows,#1e73be,#c00|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP45 a bad stripe sequence, odd then even (-> the extra sequence word is dropped; rows shaded on the odd sequence)', "{{table {$src}|stripe:rows,odd,even|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP46 an unknown stripe target (-> banana is dropped; the column stripe still draws)', "{{table {$src}|stripe:banana;cols|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP47 an unbalanced bracket in a stripe color (-> the whole stripe key is dropped: no stripes)', "{{table {$src}|stripe:rows,rgba(0,0,0|{$cols}}}" ),
+		bws_fixture_gb_block_host_row( 'TP48 both presentation flags together (-> fixed layout at full width AND body row 1 shaded: one scope class carrying both rules)', "{{table {$src}|layout:fixed|stripe:rows|{$cols}}}" ),
 	) );
 
 	// The editor preview's three states. Only TE1 renders on the front end; TE2-TE5 are

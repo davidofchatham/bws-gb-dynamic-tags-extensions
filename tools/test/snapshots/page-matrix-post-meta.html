@@ -1198,31 +1198,11 @@
 </div>
 
 <div>
-<h2 class="wp-block-heading">Table TB &#8211; repeater to table</h2>
+<h2 class="wp-block-heading">Table TB0 &#8211; the ambient root</h2>
 
-<p class="gb-text">TB1 (3 scalar cols + headers -> 2-row table: Alice/Engineering/Founding partner, Bob/Operations/Support lead):</p>
+<p class="gb-text">TB0 (no root named, so the rows step runs off THIS page -> 2-row table: Alice Adams/Engineering, Bob Brown/Operations):</p>
 
-<div class="gb-text"><table><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
-
-<p class="gb-text">TB2 (no headers -> header-less table, no thead row):</p>
-
-<div class="gb-text"><table><tbody><tr><td>Alice Adams</td><td>Engineering</td></tr><tr><td>Bob Brown</td><td>Operations</td></tr></tbody></table></div>
-
-<p class="gb-text">TB3 (use:title ref-hop col -> Lead column: row1 Jane Partner, row2 blank lead_ref = empty cell):</p>
-
-<div class="gb-text"><table><thead><tr><th>Name</th><th>Lead</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Jane Partner</td></tr><tr><td>Bob Brown</td><td></td></tr></tbody></table></div>
-
-<p class="gb-text">TB4 (caption &#8220;Our Team&#8221; -> &lt;caption id> + wrapper aria-labelledby that id, role=region tabindex=0):</p>
-
-<div class="gb-text"><div role="region" tabindex="0" aria-labelledby="bws-table-caption-3"><table><caption id="bws-table-caption-3">Our Team</caption><thead><tr><th>Name</th><th>Role</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td></tr><tr><td>Bob Brown</td><td>Operations</td></tr></tbody></table></div></div>
-
-<p class="gb-text">TB5 (header-only column C -> thead Name/Role/Spacer, Spacer cells EMPTY on both rows, no warning):</p>
-
-<div class="gb-text"><table><thead><tr><th>Name</th><th>Role</th><th>Spacer</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td></td></tr><tr><td>Bob Brown</td><td>Operations</td><td></td></tr></tbody></table></div>
-
-<p class="gb-text">TB6 (one header among three columns -> thead with one filled th (Role) and two blank th, 3 cells per body row):</p>
-
-<div class="gb-text"><table><thead><tr><th></th><th>Role</th><th></th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+<div class="gb-text"><table><thead><tr><th>Name</th><th>Role</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td></tr><tr><td>Bob Brown</td><td>Operations</td></tr></tbody></table></div>
 </div>
 
 <div>
@@ -1239,7 +1219,7 @@
 
 	<div class="widget-area sidebar is-right-sidebar" id="right-sidebar">
 	<div class="inside-right-sidebar">
-		<aside id="block-2" class="widget inner-padding widget_block widget_search"><form role="search" method="get" action="/" class="wp-block-search__button-outside wp-block-search__text-button wp-block-search" ><label class="wp-block-search__label" for="wp-block-search__input-4" >Search</label><div class="wp-block-search__inside-wrapper" ><input class="wp-block-search__input" id="wp-block-search__input-4" placeholder="" value="" type="search" name="s" required /><button aria-label="Search" class="wp-block-search__button wp-element-button" type="submit" >Search</button></div></form></aside><aside id="block-3" class="widget inner-padding widget_block"><div class="wp-block-group"><div class="wp-block-group__inner-container is-layout-flow wp-block-group-is-layout-flow"><h2 class="wp-block-heading">Recent Posts</h2><ul class="wp-block-latest-posts__list wp-block-latest-posts is-layout-flow wp-block-latest-posts-is-layout-flow"><li><a class="wp-block-latest-posts__post-title" href="/home-lead/">Home Lead Post</a></li>
+		<aside id="block-2" class="widget inner-padding widget_block widget_search"><form role="search" method="get" action="/" class="wp-block-search__button-outside wp-block-search__text-button wp-block-search" ><label class="wp-block-search__label" for="wp-block-search__input-1" >Search</label><div class="wp-block-search__inside-wrapper" ><input class="wp-block-search__input" id="wp-block-search__input-1" placeholder="" value="" type="search" name="s" required /><button aria-label="Search" class="wp-block-search__button wp-element-button" type="submit" >Search</button></div></form></aside><aside id="block-3" class="widget inner-padding widget_block"><div class="wp-block-group"><div class="wp-block-group__inner-container is-layout-flow wp-block-group-is-layout-flow"><h2 class="wp-block-heading">Recent Posts</h2><ul class="wp-block-latest-posts__list wp-block-latest-posts is-layout-flow wp-block-latest-posts-is-layout-flow"><li><a class="wp-block-latest-posts__post-title" href="/home-lead/">Home Lead Post</a></li>
 <li><a class="wp-block-latest-posts__post-title" href="/bwsut-target/">BWSUT Target Post</a></li>
 <li><a class="wp-block-latest-posts__post-title" href="/gbqf-delta/">GBQF Delta</a></li>
 <li><a class="wp-block-latest-posts__post-title" href="/gbqf-charlie/">GBQF Charlie</a></li>
@@ -1259,7 +1239,6 @@
 		</footer>
 		</div>
 
-<style id="bws-table-inline-css">[role="region"][aria-labelledby][tabindex]{overflow:auto}[role="region"][aria-labelledby][tabindex]:focus{outline:.1em solid rgba(0,0,0,.35)}</style>
 <script type="speculationrules">
 {"prefetch":[{"source":"document","where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":["/wp-*.php","/wp-admin/*","/wp-content/uploads/*","/wp-content/*","/wp-content/plugins/*","/wp-content/themes/generatepress/*","/*\\?(.+)"]}},{"not":{"selector_matches":"a[rel~=\"nofollow\"]"}},{"not":{"selector_matches":".no-prefetch, .no-prefetch a"}}]},"eagerness":"conservative"}]}
 </script>

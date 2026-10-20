@@ -3,8 +3,8 @@
 <head>
 <!-- head not asserted; see bws_page_snapshot_normalize() rule 8 -->
 <title>Matrix: Table &#8211; BWS Testbed</title>
-<meta name="description" content="Table TP - presentation: sizing, typography, stripes, column styling TP0 control: no presentation keys (-&gt; plain table, no scope class, no rules): Name Role Not">
-<meta property="og:description" content="Table TP - presentation: sizing, typography, stripes, column styling TP0 control: no presentation keys (-&gt; plain table, no scope class, no rules): Name Role Not">
+<meta name="description" content="Table TB - shape: headers, caption, rows, columns TB1 (3 scalar cols + headers -&gt; 2-row table: Alice/Engineering/Founding partner, Bob/Operations/Support lead):">
+<meta property="og:description" content="Table TB - shape: headers, caption, rows, columns TB1 (3 scalar cols + headers -&gt; 2-row table: Alice/Engineering/Founding partner, Bob/Operations/Support lead):">
 </head>
 
 <body class="wp-singular page-template-default page page-id-2677 wp-embed-responsive wp-theme-generatepress theme-generatepress post-image-above-header post-image-aligned-center secondary-nav-above-header secondary-nav-aligned-right sticky-menu-fade mobile-header woocommerce-no-js right-sidebar nav-float-right separate-containers header-aligned-left dropdown-hover" itemtype="https://schema.org/WebPage" itemscope>
@@ -56,6 +56,118 @@
 				<h1 class="entry-title" itemprop="headline">Matrix: Table</h1>			</header>
 
 		<div class="entry-content" itemprop="text">
+
+<div>
+<h2 class="wp-block-heading">Table TB &#8211; shape: headers, caption, rows, columns</h2>
+
+<p class="gb-text">TB1 (3 scalar cols + headers -> 2-row table: Alice/Engineering/Founding partner, Bob/Operations/Support lead):</p>
+
+<div class="gb-text"><table><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TB2 (no headers -> header-less table, no thead row):</p>
+
+<div class="gb-text"><table><tbody><tr><td>Alice Adams</td><td>Engineering</td></tr><tr><td>Bob Brown</td><td>Operations</td></tr></tbody></table></div>
+
+<p class="gb-text">TB3 (use:title ref-hop col -> Lead column: row1 Jane Partner, row2 blank lead_ref = empty cell):</p>
+
+<div class="gb-text"><table><thead><tr><th>Name</th><th>Lead</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Jane Partner</td></tr><tr><td>Bob Brown</td><td></td></tr></tbody></table></div>
+
+<p class="gb-text">TB4 (caption &#8220;Our Team&#8221; -> caption id + wrapper aria-labelledby that id, role=region tabindex=0):</p>
+
+<div class="gb-text"><div role="region" tabindex="0" aria-labelledby="bws-table-caption-3"><table><caption id="bws-table-caption-3">Our Team</caption><thead><tr><th>Name</th><th>Role</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td></tr><tr><td>Bob Brown</td><td>Operations</td></tr></tbody></table></div></div>
+
+<p class="gb-text">TB5 (header-only column C -> thead Name/Role/Spacer, Spacer cells EMPTY on both rows, no warning):</p>
+
+<div class="gb-text"><table><thead><tr><th>Name</th><th>Role</th><th>Spacer</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td></td></tr><tr><td>Bob Brown</td><td>Operations</td><td></td></tr></tbody></table></div>
+
+<p class="gb-text">TB6 (one header among three columns -> thead with one filled th (Role) and two blank th, 3 cells per body row):</p>
+
+<div class="gb-text"><table><thead><tr><th></th><th>Role</th><th></th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TB7 no source named (-> the current context is the one row: Matrix: Table / Row):</p>
+
+<div class="gb-text"><table><thead><tr><th>Page</th><th>Fixed</th></tr></thead><tbody><tr><td>Matrix: Table</td><td>Row</td></tr></tbody></table></div>
+
+<p class="gb-text">TB8 a chain that resolves to ZERO rows (-> nothing on the front end: this label stands alone, no table and no empty body):</p>
+
+<p class="gb-text">TB9 a refs tail bounded by its limit(1) (-> ONE row: Jane Partner, though the field holds Jane and Tom):</p>
+
+<div class="gb-text"><table><thead><tr><th>Staff</th></tr></thead><tbody><tr><td>Jane Partner</td></tr></tbody></table></div>
+
+<p class="gb-text">TB10 the same refs tail with no limit (-> BOTH rows: Jane Partner, Tom Associate; the table registers no row count of its own):</p>
+
+<div class="gb-text"><table><thead><tr><th>Staff</th></tr></thead><tbody><tr><td>Jane Partner</td></tr><tr><td>Tom Associate</td></tr></tbody></table></div>
+
+<p class="gb-text">TB11 a column with a header and a hop but no read (-> Office cells EMPTY on both rows, and the next column src(same) carries the ROW, so Role reads Engineering / Operations, not an office):</p>
+
+<div class="gb-text"><table><thead><tr><th>Name</th><th>Office</th><th>Role</th></tr></thead><tbody><tr><td>Alice Adams</td><td></td><td>Engineering</td></tr><tr><td>Bob Brown</td><td></td><td>Operations</td></tr></tbody></table></div>
+
+<p class="gb-text">TB12 a whitespace-only header is no header (-> NO thead, two body columns):</p>
+
+<div class="gb-text"><table><tbody><tr><td>Alice Adams</td><td>Engineering</td></tr><tr><td>Bob Brown</td><td>Operations</td></tr></tbody></table></div>
+
+<p class="gb-text">TB13 a header with an unfinished step is still a column (-> Name and Lead headers, Lead cells EMPTY on both rows):</p>
+
+<div class="gb-text"><table><thead><tr><th>Name</th><th>Lead</th></tr></thead><tbody><tr><td>Alice Adams</td><td></td></tr><tr><td>Bob Brown</td><td></td></tr></tbody></table></div>
+
+<p class="gb-text">TB14 a copied chain, as Copy Previous Column Source writes it (-> row1 Jane Partner / (555) 200-3000, row2 both empty):</p>
+
+<div class="gb-text"><table><thead><tr><th>Lead</th><th>Line</th></tr></thead><tbody><tr><td>Jane Partner</td><td>(555) 200-3000</td></tr><tr><td></td><td></td></tr></tbody></table></div>
+
+<p class="gb-text">TB15 the same table with a hand-written src(same) on column B (-> renders exactly like TB14):</p>
+
+<div class="gb-text"><table><thead><tr><th>Lead</th><th>Line</th></tr></thead><tbody><tr><td>Jane Partner</td><td>(555) 200-3000</td></tr><tr><td></td><td></td></tr></tbody></table></div>
+
+<p class="gb-text">TB16 a fixed-text column that hops off the row (-> Has lead on row 1 Alice, whose lead_ref resolves, EMPTY on row 2 Bob, whose does not):</p>
+
+<div class="gb-text"><table><thead><tr><th>Name</th><th>Lead</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Has lead</td></tr><tr><td>Bob Brown</td><td></td></tr></tbody></table></div>
+
+<p class="gb-text">TB17 the same fixed-text column beside layout:fixed (-> the same cells as TB16, in an equal-width fixed table):</p>
+
+<div class="gb-text"><table class="bws-dte-table-599014d93e"><thead><tr><th>Name</th><th>Lead</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Has lead</td></tr><tr><td>Bob Brown</td><td></td></tr></tbody></table></div>
+
+<p class="gb-text">TB18 a bare column roots at its ROW, and the escapes leave it (-> per staff row: its own title in Staff, BWS Testbed in Site, Matrix: Table in Page):</p>
+
+<div class="gb-text"><table><thead><tr><th>Staff</th><th>Site</th><th>Page</th></tr></thead><tbody><tr><td>Jane Partner</td><td>BWS Testbed</td><td>Matrix: Table</td></tr><tr><td>Tom Associate</td><td>BWS Testbed</td><td>Matrix: Table</td></tr></tbody></table></div>
+</div>
+
+<div>
+<h2 class="wp-block-heading">Table TK &#8211; rows by resolved kind</h2>
+
+<p class="gb-text">TK1 post rows, refs tail (-> 2 rows: Jane Partner and Tom Associate; Main line their own numbers; Fixed text on both):</p>
+
+<div class="gb-text"><table><thead><tr><th>Title</th><th>Main line</th><th>Fixed</th></tr></thead><tbody><tr><td>Jane Partner</td><td>(555) 200-3000</td><td>Staff</td></tr><tr><td>Tom Associate</td><td>(555) 200-4000</td><td>Staff</td></tr></tbody></table></div>
+
+<p class="gb-text">TK2 term rows, terms tail (-> 2 rows: Sales and Support; Phone their own numbers; Fixed text on both):</p>
+
+<div class="gb-text"><table><thead><tr><th>Title</th><th>Phone</th><th>Fixed</th></tr></thead><tbody><tr><td>Sales</td><td>(987) 333-4444</td><td>Dept</td></tr><tr><td>Support</td><td>(987) 111-2222</td><td>Dept</td></tr></tbody></table></div>
+
+<p class="gb-text">TK3 site row (-> ONE row: the site title, BWS Testbed in Title and Option, Site in Fixed):</p>
+
+<div class="gb-text"><table><thead><tr><th>Title</th><th>Option</th><th>Fixed</th></tr></thead><tbody><tr><td>BWS Testbed</td><td>BWS Testbed</td><td>Site</td></tr></tbody></table></div>
+
+<p class="gb-text">TK4 meta_row rows, rows tail (-> 2 rows: Title EMPTY on both, never the page title, since a repeater row has no analog; Name Alice Adams and Bob Brown; Fixed text Team on both, since the fixed read applies to every kind):</p>
+
+<div class="gb-text"><table><thead><tr><th>Title</th><th>Name</th><th>Fixed</th></tr></thead><tbody><tr><td></td><td>Alice Adams</td><td>Team</td></tr><tr><td></td><td>Bob Brown</td><td>Team</td></tr></tbody></table></div>
+
+<p class="gb-text">TK4b meta_row rows, a NESTED repeater off matrix-repeaters (-> 4 rows in document order across both parents: Monday 8am to 4pm, Thursday 10am to 6pm, Tuesday 7am to 3pm, Friday 12pm to 8pm; Title EMPTY on every row):</p>
+
+<div class="gb-text"><table><thead><tr><th>Day</th><th>Hours</th><th>Title</th></tr></thead><tbody><tr><td>Monday</td><td>8am to 4pm</td><td></td></tr><tr><td>Thursday</td><td>10am to 6pm</td><td></td></tr><tr><td>Tuesday</td><td>7am to 3pm</td><td></td></tr><tr><td>Friday</td><td>12pm to 8pm</td><td></td></tr></tbody></table></div>
+
+<div><ol >
+<li class="gb-loop-item">
+<p class="gb-text">TK5 user row, inside the user loop (-> per author a ONE-row table: the display name in Title; Bio their own biography, EMPTY for an author with none; Fixed text Author):</p>
+
+<div class="gb-text"><table><thead><tr><th>Title</th><th>Bio</th><th>Fixed</th></tr></thead><tbody><tr><td>Fixture Author</td><td>Fixture Author writes the sample posts that back the author-archive context rows. This bio is the user description meta the {{content}} author analog reads.</td><td>Author</td></tr></tbody></table></div>
+</li>
+
+<li class="gb-loop-item">
+<p class="gb-text">TK5 user row, inside the user loop (-> per author a ONE-row table: the display name in Title; Bio their own biography, EMPTY for an author with none; Fixed text Author):</p>
+
+<div class="gb-text"><table><thead><tr><th>Title</th><th>Bio</th><th>Fixed</th></tr></thead><tbody><tr><td>Other Author</td><td></td><td>Author</td></tr></tbody></table></div>
+</li>
+</ol></div>
+</div>
 
 <div>
 <h2 class="wp-block-heading">Table TP &#8211; presentation: sizing, typography, stripes, column styling</h2>
@@ -162,6 +274,110 @@
 </div>
 
 <div>
+<h2 class="wp-block-heading">Table TP &#8211; presentation: the cascade, layout, width and stripe cases</h2>
+
+<p class="gb-text">TP24 table-level text keys with a Header override on each (-> body centered bold blue-grey; header left, normal weight, red):</p>
+
+<div class="gb-text"><table class="bws-dte-table-02c7dd22f2"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP25 column keys with no Header segment (-> Name column right-aligned INCLUDING its header; the Role column red and the Note column bold in the body only, their headers untouched):</p>
+
+<div class="gb-text"><table class="bws-dte-table-964d2c705c"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP26 a Header-only override with no table-level value (-> only the header row bold, the body normal):</p>
+
+<div class="gb-text"><table class="bws-dte-table-e01d34372d"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP27 the CSS globals on a header, and a size keyword (-> all text larger and red, body centered; the header alignment is inherit, so it takes what the row gives it, and the header color is revert, back to the browser default):</p>
+
+<div class="gb-text"><table class="bws-dte-table-73925d9914"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP28 a repeated header segment (-> the second header, right, is dropped; the first stands: body left, header centered):</p>
+
+<div class="gb-text"><table class="bws-dte-table-270a8ed4fc"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP29 an unknown head (-> footer is dropped; the base centered still applies to the whole table):</p>
+
+<div class="gb-text"><table class="bws-dte-table-fac6f8aa8c"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP30 a bad value in one segment (-> the header segment nope is dropped; the body stays red and the header follows it):</p>
+
+<div class="gb-text"><table class="bws-dte-table-fe88df155a"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP31 layout auto (-> table-layout:auto, columns fit their content):</p>
+
+<div class="gb-text"><table class="bws-dte-table-7f8892116e"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP32 fixed layout with width auto (-> table-layout:fixed and width:auto, as written, not full width):</p>
+
+<div class="gb-text"><table class="bws-dte-table-afbce96912"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP33 a table width in rem with no layout (-> width:40rem, columns fit their content):</p>
+
+<div class="gb-text"><table class="bws-dte-table-eaedfb2399"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP34 a table width from a variable with a fallback, fixed layout (-> width:var(&#8211;table-w, 40rem), 40rem as the variable is unset):</p>
+
+<div class="gb-text"><table class="bws-dte-table-264348604f"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP35 a column width under fixed layout (-> Name 12rem, the other two share the rest):</p>
+
+<div class="gb-text"><table class="bws-dte-table-6a63981886"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP36 the same column width under auto layout (-> Name 12rem as a width hint the content can still overrule):</p>
+
+<div class="gb-text"><table class="bws-dte-table-45b463037e"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP37 a stripe in currentColor with an opacity (-> body row 1 shaded at 10% of the text color):</p>
+
+<div class="gb-text"><table class="bws-dte-table-9801521edc"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP38 a solid stripe, 100% (-> body row 1 filled solid blue):</p>
+
+<div class="gb-text"><table class="bws-dte-table-aebe245502"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP39 row stripes on a table with no headers (-> counting from the first body row: Alice row 1 plain, Bob row 2 shaded, the reverse of TP7):</p>
+
+<div class="gb-text"><table class="bws-dte-table-f1bcca09a5"><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP40 two tables with identical styling, first (-> red 10% row stripe; ONE shared style block serves both):</p>
+
+<div class="gb-text"><table class="bws-dte-table-210b0e4c12"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP41 two tables with identical styling, second (-> the same look as TP40 and the same scope class):</p>
+
+<div class="gb-text"><table class="bws-dte-table-210b0e4c12"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP42 a differently styled table beside them (-> blue 10% row stripe under its own scope class):</p>
+
+<div class="gb-text"><table class="bws-dte-table-8a9fcc5fc1"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP43 a repeated stripe target (-> the second rows is dropped; the first stands: body row 1 shaded):</p>
+
+<div class="gb-text"><table class="bws-dte-table-cff31ca489"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP44 two stripe colors (-> the second color is dropped; body row 1 shaded in the first, blue, at the default 5%):</p>
+
+<div class="gb-text"><table class="bws-dte-table-78939124d9"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP45 a bad stripe sequence, odd then even (-> the extra sequence word is dropped; rows shaded on the odd sequence):</p>
+
+<div class="gb-text"><table class="bws-dte-table-73c073cda5"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP46 an unknown stripe target (-> banana is dropped; the column stripe still draws):</p>
+
+<div class="gb-text"><table class="bws-dte-table-90a5a09bb1"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP47 an unbalanced bracket in a stripe color (-> the whole stripe key is dropped: no stripes):</p>
+
+<div class="gb-text"><table><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+
+<p class="gb-text">TP48 both presentation flags together (-> fixed layout at full width AND body row 1 shaded: one scope class carrying both rules):</p>
+
+<div class="gb-text"><table class="bws-dte-table-6afcf88899"><thead><tr><th>Name</th><th>Role</th><th>Note</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td><td>Founding partner</td></tr><tr><td>Bob Brown</td><td>Operations</td><td>Support lead</td></tr></tbody></table></div>
+</div>
+
+<div>
 <h2 class="wp-block-heading">Table TE &#8211; editor preview: the real table, or a skeleton</h2>
 
 <p class="gb-text">TE1 rows resolve (-> the real 2-row table, front end and editor alike: Alice Adams/Staff, Bob Brown/Staff):</p>
@@ -186,7 +402,7 @@
 
 	<div class="widget-area sidebar is-right-sidebar" id="right-sidebar">
 	<div class="inside-right-sidebar">
-		<aside id="block-2" class="widget inner-padding widget_block widget_search"><form role="search" method="get" action="/" class="wp-block-search__button-outside wp-block-search__text-button wp-block-search" ><label class="wp-block-search__label" for="wp-block-search__input-1" >Search</label><div class="wp-block-search__inside-wrapper" ><input class="wp-block-search__input" id="wp-block-search__input-1" placeholder="" value="" type="search" name="s" required /><button aria-label="Search" class="wp-block-search__button wp-element-button" type="submit" >Search</button></div></form></aside><aside id="block-3" class="widget inner-padding widget_block"><div class="wp-block-group"><div class="wp-block-group__inner-container is-layout-flow wp-block-group-is-layout-flow"><h2 class="wp-block-heading">Recent Posts</h2><ul class="wp-block-latest-posts__list wp-block-latest-posts is-layout-flow wp-block-latest-posts-is-layout-flow"><li><a class="wp-block-latest-posts__post-title" href="/home-lead/">Home Lead Post</a></li>
+		<aside id="block-2" class="widget inner-padding widget_block widget_search"><form role="search" method="get" action="/" class="wp-block-search__button-outside wp-block-search__text-button wp-block-search" ><label class="wp-block-search__label" for="wp-block-search__input-4" >Search</label><div class="wp-block-search__inside-wrapper" ><input class="wp-block-search__input" id="wp-block-search__input-4" placeholder="" value="" type="search" name="s" required /><button aria-label="Search" class="wp-block-search__button wp-element-button" type="submit" >Search</button></div></form></aside><aside id="block-3" class="widget inner-padding widget_block"><div class="wp-block-group"><div class="wp-block-group__inner-container is-layout-flow wp-block-group-is-layout-flow"><h2 class="wp-block-heading">Recent Posts</h2><ul class="wp-block-latest-posts__list wp-block-latest-posts is-layout-flow wp-block-latest-posts-is-layout-flow"><li><a class="wp-block-latest-posts__post-title" href="/home-lead/">Home Lead Post</a></li>
 <li><a class="wp-block-latest-posts__post-title" href="/bwsut-target/">BWSUT Target Post</a></li>
 <li><a class="wp-block-latest-posts__post-title" href="/gbqf-delta/">GBQF Delta</a></li>
 <li><a class="wp-block-latest-posts__post-title" href="/gbqf-charlie/">GBQF Charlie</a></li>
@@ -206,6 +422,7 @@
 		</footer>
 		</div>
 
+<style id="bws-table-inline-css">[role="region"][aria-labelledby][tabindex]{overflow:auto}[role="region"][aria-labelledby][tabindex]:focus{outline:.1em solid rgba(0,0,0,.35)}</style>
 <style id="bws-dte-table-599014d93e">.bws-dte-table-599014d93e{table-layout:fixed;width:100%}</style>
 <style id="bws-dte-table-0aca35f298">.bws-dte-table-0aca35f298{table-layout:fixed;width:70%}.bws-dte-table-0aca35f298 :is(th,td):nth-child(1){width:50%}</style>
 <style id="bws-dte-table-ff30e2ecff">.bws-dte-table-ff30e2ecff :is(th,td){color:var(--contrast-2)}</style>
@@ -226,13 +443,34 @@
 <style id="bws-dte-table-2674b06ee3">.bws-dte-table-2674b06ee3{border-collapse:separate;border-spacing:0;border-radius:12px}.bws-dte-table-2674b06ee3 :is(th,td):not(:first-child){border-left-width:0}.bws-dte-table-2674b06ee3 thead + tbody td,.bws-dte-table-2674b06ee3:not(:has(> thead)) tbody tr:not(:first-child) td{border-top-width:0}.bws-dte-table-2674b06ee3 tbody{clip-path:inset(0 round 12px)}.bws-dte-table-2674b06ee3 thead{clip-path:inset(0 round 12px 12px 0 0)}.bws-dte-table-2674b06ee3 thead + tbody{clip-path:inset(0 round 0 0 12px 12px)}</style>
 <style id="bws-dte-table-d1dbf08359">.bws-dte-table-d1dbf08359{border-width:2px;border-style:solid}.bws-dte-table-d1dbf08359 :is(th,td):first-child{border-left-width:0}.bws-dte-table-d1dbf08359 :is(th,td):last-child{border-right-width:0}.bws-dte-table-d1dbf08359 thead th,.bws-dte-table-d1dbf08359:not(:has(> thead)) tbody tr:first-child td{border-top-width:0}.bws-dte-table-d1dbf08359 tbody tr:last-child td{border-bottom-width:0}.bws-dte-table-d1dbf08359{border-collapse:separate;border-spacing:0;border-radius:12px}.bws-dte-table-d1dbf08359 :is(th,td):not(:first-child){border-left-width:0}.bws-dte-table-d1dbf08359 thead + tbody td,.bws-dte-table-d1dbf08359:not(:has(> thead)) tbody tr:not(:first-child) td{border-top-width:0}.bws-dte-table-d1dbf08359 tbody{clip-path:inset(0 round max(0px,calc(12px - 2px)))}.bws-dte-table-d1dbf08359 thead{clip-path:inset(0 round max(0px,calc(12px - 2px)) max(0px,calc(12px - 2px)) 0 0)}.bws-dte-table-d1dbf08359 thead + tbody{clip-path:inset(0 round 0 0 max(0px,calc(12px - 2px)) max(0px,calc(12px - 2px)))}</style>
 <style id="bws-dte-table-0f6c8460ee">.bws-dte-table-0f6c8460ee{border-width:2px;border-style:solid}.bws-dte-table-0f6c8460ee :is(th,td):first-child{border-left-width:0}.bws-dte-table-0f6c8460ee :is(th,td):last-child{border-right-width:0}.bws-dte-table-0f6c8460ee thead th,.bws-dte-table-0f6c8460ee:not(:has(> thead)) tbody tr:first-child td{border-top-width:0}.bws-dte-table-0f6c8460ee tbody tr:last-child td{border-bottom-width:0}.bws-dte-table-0f6c8460ee :is(th,td):not(:last-child){border-right-width:2px;border-right-style:solid}.bws-dte-table-0f6c8460ee :is(th,td):not(:first-child){border-left-width:0}.bws-dte-table-0f6c8460ee thead th{border-bottom-width:2px;border-bottom-style:solid}.bws-dte-table-0f6c8460ee thead + tbody tr:first-child td{border-top-width:0}.bws-dte-table-0f6c8460ee tbody tr:not(:last-child) td{border-bottom-width:2px;border-bottom-style:solid}.bws-dte-table-0f6c8460ee tbody tr:not(:first-child) td{border-top-width:0}</style>
+<style id="bws-dte-table-02c7dd22f2">.bws-dte-table-02c7dd22f2 :is(th,td){color:#475569;font-weight:bold;text-align:center}.bws-dte-table-02c7dd22f2 thead th{color:#c00;font-weight:normal;text-align:left}</style>
+<style id="bws-dte-table-964d2c705c">.bws-dte-table-964d2c705c :is(th,td):nth-child(1){text-align:right}.bws-dte-table-964d2c705c tbody td:nth-child(2){color:#c00}.bws-dte-table-964d2c705c tbody td:nth-child(3){font-weight:bold}</style>
+<style id="bws-dte-table-e01d34372d">.bws-dte-table-e01d34372d thead th{font-weight:bold}</style>
+<style id="bws-dte-table-73925d9914">.bws-dte-table-73925d9914 :is(th,td){color:#c00;font-size:larger;text-align:center}.bws-dte-table-73925d9914 thead th{color:revert;text-align:inherit}</style>
+<style id="bws-dte-table-270a8ed4fc">.bws-dte-table-270a8ed4fc :is(th,td){text-align:left}.bws-dte-table-270a8ed4fc thead th{text-align:center}</style>
+<style id="bws-dte-table-fac6f8aa8c">.bws-dte-table-fac6f8aa8c :is(th,td){text-align:center}</style>
+<style id="bws-dte-table-fe88df155a">.bws-dte-table-fe88df155a :is(th,td){color:#c00}</style>
+<style id="bws-dte-table-7f8892116e">.bws-dte-table-7f8892116e{table-layout:auto}</style>
+<style id="bws-dte-table-afbce96912">.bws-dte-table-afbce96912{table-layout:fixed;width:auto}</style>
+<style id="bws-dte-table-eaedfb2399">.bws-dte-table-eaedfb2399{width:40rem}</style>
+<style id="bws-dte-table-264348604f">.bws-dte-table-264348604f{table-layout:fixed;width:var(--table-w,40rem)}</style>
+<style id="bws-dte-table-6a63981886">.bws-dte-table-6a63981886{table-layout:fixed;width:100%}.bws-dte-table-6a63981886 :is(th,td):nth-child(1){width:12rem}</style>
+<style id="bws-dte-table-45b463037e">.bws-dte-table-45b463037e{table-layout:auto}.bws-dte-table-45b463037e :is(th,td):nth-child(1){width:12rem}</style>
+<style id="bws-dte-table-9801521edc">.bws-dte-table-9801521edc tbody tr:nth-child(odd){background-image:linear-gradient(color-mix(in srgb,currentColor 10%,transparent),color-mix(in srgb,currentColor 10%,transparent))}</style>
+<style id="bws-dte-table-aebe245502">.bws-dte-table-aebe245502 tbody tr:nth-child(odd){background-image:linear-gradient(color-mix(in srgb,#1e73be 100%,transparent),color-mix(in srgb,#1e73be 100%,transparent))}</style>
+<style id="bws-dte-table-f1bcca09a5">.bws-dte-table-f1bcca09a5 tbody tr:nth-child(even){background-image:linear-gradient(var(--bws-dte-table-stripe,color-mix(in srgb,currentColor 5%,transparent)),var(--bws-dte-table-stripe,color-mix(in srgb,currentColor 5%,transparent)))}</style>
+<style id="bws-dte-table-210b0e4c12">.bws-dte-table-210b0e4c12 tbody tr:nth-child(odd){background-image:linear-gradient(color-mix(in srgb,#c00 10%,transparent),color-mix(in srgb,#c00 10%,transparent))}</style>
+<style id="bws-dte-table-8a9fcc5fc1">.bws-dte-table-8a9fcc5fc1 tbody tr:nth-child(odd){background-image:linear-gradient(color-mix(in srgb,#1e73be 10%,transparent),color-mix(in srgb,#1e73be 10%,transparent))}</style>
+<style id="bws-dte-table-78939124d9">.bws-dte-table-78939124d9 tbody tr:nth-child(odd){background-image:linear-gradient(color-mix(in srgb,#1e73be 5%,transparent),color-mix(in srgb,#1e73be 5%,transparent))}</style>
+<style id="bws-dte-table-73c073cda5">.bws-dte-table-73c073cda5 thead tr,.bws-dte-table-73c073cda5 tbody tr:nth-child(even){background-image:linear-gradient(var(--bws-dte-table-stripe,color-mix(in srgb,currentColor 5%,transparent)),var(--bws-dte-table-stripe,color-mix(in srgb,currentColor 5%,transparent)))}</style>
+<style id="bws-dte-table-6afcf88899">.bws-dte-table-6afcf88899{table-layout:fixed;width:100%}.bws-dte-table-6afcf88899 tbody tr:nth-child(odd){background-image:linear-gradient(var(--bws-dte-table-stripe,color-mix(in srgb,currentColor 5%,transparent)),var(--bws-dte-table-stripe,color-mix(in srgb,currentColor 5%,transparent)))}</style>
 <script type="speculationrules">
 {"prefetch":[{"source":"document","where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":["/wp-*.php","/wp-admin/*","/wp-content/uploads/*","/wp-content/*","/wp-content/plugins/*","/wp-content/themes/generatepress/*","/*\\?(.+)"]}},{"not":{"selector_matches":"a[rel~=\"nofollow\"]"}},{"not":{"selector_matches":".no-prefetch, .no-prefetch a"}}]},"eagerness":"conservative"}]}
 </script>
 <script id="generate-a11y">
 !function(){"use strict";if("querySelector"in document&&"addEventListener"in window){var e=document.body;e.addEventListener("pointerdown",(function(){e.classList.add("using-mouse")}),{passive:!0}),e.addEventListener("keydown",(function(){e.classList.remove("using-mouse")}),{passive:!0})}}();
 </script>
-<script type="application/ld+json" id="slim-seo-schema">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"/#website","url":"/","name":"BWS Testbed","inLanguage":"en-US","potentialAction":{"@id":"/#searchaction"},"publisher":{"@id":"/#organization"}},{"@type":"SearchAction","@id":"/#searchaction","target":"/?s={search_term_string}","query-input":"required name=search_term_string"},{"@type":"BreadcrumbList","name":"Breadcrumbs","@id":"/matrix-table/#breadcrumblist","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"/"},{"@type":"ListItem","position":2,"name":"Matrix: Table"}]},{"@type":"WebPage","@id":"/matrix-table/#webpage","url":"/matrix-table/","inLanguage":"en-US","name":"Matrix: Table – BWS Testbed","description":"Table TP - presentation: sizing, typography, stripes, column styling TP0 control: no presentation keys (-> plain table, no scope class, no rules): Name Role Not","datePublished":"TIMESTAMP","dateModified":"TIMESTAMP","isPartOf":{"@id":"/#website"},"breadcrumb":{"@id":"/matrix-table/#breadcrumblist"},"potentialAction":{"@id":"/matrix-table/#readaction"}},{"@type":"ReadAction","@id":"/matrix-table/#readaction","target":"/matrix-table/"},{"@type":"Organization","@id":"/#organization","url":"/","name":"BWS Testbed"}]}</script>	<script>
+<script type="application/ld+json" id="slim-seo-schema">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"/#website","url":"/","name":"BWS Testbed","inLanguage":"en-US","potentialAction":{"@id":"/#searchaction"},"publisher":{"@id":"/#organization"}},{"@type":"SearchAction","@id":"/#searchaction","target":"/?s={search_term_string}","query-input":"required name=search_term_string"},{"@type":"BreadcrumbList","name":"Breadcrumbs","@id":"/matrix-table/#breadcrumblist","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"/"},{"@type":"ListItem","position":2,"name":"Matrix: Table"}]},{"@type":"WebPage","@id":"/matrix-table/#webpage","url":"/matrix-table/","inLanguage":"en-US","name":"Matrix: Table – BWS Testbed","description":"Table TB - shape: headers, caption, rows, columns TB1 (3 scalar cols + headers -> 2-row table: Alice/Engineering/Founding partner, Bob/Operations/Support lead):","datePublished":"TIMESTAMP","dateModified":"TIMESTAMP","isPartOf":{"@id":"/#website"},"breadcrumb":{"@id":"/matrix-table/#breadcrumblist"},"potentialAction":{"@id":"/matrix-table/#readaction"}},{"@type":"ReadAction","@id":"/matrix-table/#readaction","target":"/matrix-table/"},{"@type":"Organization","@id":"/#organization","url":"/","name":"BWS Testbed"}]}</script>	<script>
 		(function () {
 			var c = document.body.className;
 			c = c.replace(/woocommerce-no-js/, 'woocommerce-js');
