@@ -211,11 +211,42 @@
 			skipped.forEach( function ( row ) {
 				var li = document.createElement( 'li' );
 				li.className = 'bws-channel-item bws-channel-skipped';
-				li.innerHTML = '<p class="bws-channel-line">' + esc( row.line ) + '</p>' + previewHtml( row );
+				li.innerHTML = statusDot( 'warn' ) +
+					'<div class="bws-channel-body">' +
+						'<p class="bws-channel-line">' + esc( row.line ) + '</p>' +
+						foundHtml( row ) +
+						previewHtml( row ) +
+					'</div>';
 				skippedList.appendChild( li );
 			} );
 			skippedWrap.style.display = skipped.length ? 'block' : 'none';
 		}
+	}
+
+	/** A status dot, hidden from assistive tech: the row's own sentence says what it is. */
+	function statusDot( tone ) {
+		return '<span class="gp-status-dot gp-status-dot--' + tone + '" aria-hidden="true"></span>';
+	}
+
+	/**
+	 * Where the row's tags were found: the first few posts, linked, then the rest as a count.
+	 * PHP composes every label; this only places them.
+	 */
+	function foundHtml( row ) {
+		var found = row.found || [];
+		if ( ! found.length ) { return ''; }
+
+		var links = found.map( function ( p ) {
+			return p.url
+				? '<a href="' + esc( p.url ) + '" target="_blank" rel="noopener">' + esc( p.title ) + '</a>'
+				: esc( p.title );
+		} ).join( ', ' );
+
+		return '<p class="bws-channel-found">' +
+			esc( row.foundLabel || '' ) + ' ' + links +
+			( row.moreLabel ? ' ' + esc( row.moreLabel ) : '' ) +
+			( row.countLabel ? ' <span class="bws-channel-count">(' + esc( row.countLabel ) + ')</span>' : '' ) +
+			'</p>';
 	}
 
 	/** The stored example, so a count is something an owner can recognize (D37). */
@@ -235,14 +266,17 @@
 			? '<p class="bws-channel-action">' + esc( row.action ) + '</p>'
 			: '';
 
-		li.innerHTML =
-			'<p class="bws-channel-line">' + esc( row.line ) + '</p>' +
-			action +
-			previewHtml( row ) +
-			'<p class="bws-channel-claim"><label>' +
-				'<input type="checkbox" class="bws-claim-cb"' + ( claimed ? ' checked' : '' ) + ' />' +
-				' ' + esc( i18n.claimLabel || 'These tags are mine, convert them' ) +
-			'</label> <span class="bws-claim-status" aria-live="polite"></span></p>';
+		li.innerHTML = statusDot( 'error' ) +
+			'<div class="bws-channel-body">' +
+				'<p class="bws-channel-line">' + esc( row.line ) + '</p>' +
+				action +
+				foundHtml( row ) +
+				previewHtml( row ) +
+				'<p class="bws-channel-claim"><label>' +
+					'<input type="checkbox" class="bws-claim-cb"' + ( claimed ? ' checked' : '' ) + ' />' +
+					' ' + esc( i18n.claimLabel || 'These tags are mine, convert them' ) +
+				'</label> <span class="bws-claim-status" aria-live="polite"></span></p>' +
+			'</div>';
 
 		var cb     = li.querySelector( '.bws-claim-cb' );
 		var status = li.querySelector( '.bws-claim-status' );
@@ -293,28 +327,36 @@
 			var issueHtml = '<ul class="bws-issue-list">';
 			( post.deprecated_tags || [] ).forEach( function ( t ) {
 				if ( t.status && t.status !== 'convert' ) { return; }
-				issueHtml += '<li class="bws-issue-tag">⚠ <code>' + esc( t.tag ) + '</code>';
+				issueHtml += '<li class="bws-issue-tag"><span class="gp-status-dot gp-status-dot--error" aria-hidden="true"></span> <code>' + esc( t.tag ) + '</code>';
 				if ( ! t.has_migration ) { issueHtml += ' <em>(no auto-convert)</em>'; }
 				issueHtml += '</li>';
 			} );
 			( post.option_migrations || [] ).forEach( function ( m ) {
-				issueHtml += '<li class="bws-issue-opt">⚙ ' + esc( m.label ) + '</li>';
+				issueHtml += '<li class="bws-issue-opt"><span class="gp-status-dot gp-status-dot--warn" aria-hidden="true"></span> ' + esc( m.label ) + '</li>';
 			} );
 			issueHtml += '</ul>';
 
 			// No-revision warning.
 			var revWarn = '';
 			if ( ! post.has_revision_support ) {
-				revWarn = '<div class="bws-no-revision">' + esc( i18n.noRevision || '⚠ No undo' ) + '</div>';
+				revWarn = '<div class="bws-no-revision"><span class="gp-status-dot gp-status-dot--warn" aria-hidden="true"></span> ' + esc( i18n.noRevision || 'No undo' ) + '</div>';
 			}
 
+			// A name that says WHICH post, since every row's checkbox and button otherwise
+			// read the same to a screen reader.
+			function postLabel( template, fallback ) {
+				return ( template || fallback ).replace( '%s', function () { return post.post_title; } );
+			}
+			var selectLabel  = postLabel( i18n.selectPost, 'Select %s' );
+			var migrateLabel = postLabel( i18n.migratePost, 'Migrate %s' );
+
 			row.innerHTML =
-				'<td class="bws-cb-col"><input type="checkbox" class="bws-row-cb" value="' + esc( post.post_id ) + '" /></td>' +
+				'<td class="bws-cb-col"><input type="checkbox" class="bws-row-cb" value="' + esc( post.post_id ) + '" aria-label="' + esc( selectLabel ) + '" /></td>' +
 				'<td><a href="' + esc( post.edit_url ) + '" target="_blank" rel="noopener">' + esc( post.post_title ) + '</a>' + revWarn + '</td>' +
 				'<td><code>' + esc( post.post_type ) + '</code></td>' +
 				'<td>' + issueHtml + '</td>' +
 				'<td>' +
-					'<button type="button" class="button bws-migrate-one-btn" data-post-id="' + esc( post.post_id ) + '">' +
+					'<button type="button" class="button bws-migrate-one-btn" data-post-id="' + esc( post.post_id ) + '" aria-label="' + esc( migrateLabel ) + '">' +
 						'Migrate' +
 					'</button>' +
 					'<span class="bws-row-status"></span>' +
@@ -426,8 +468,8 @@
 								var parts = [];
 								if ( result.tag_count > 0 )    { parts.push( result.tag_count + ' ' + ( i18n.tagsMigrated || 'tags migrated' ) ); }
 								if ( result.option_count > 0 ) { parts.push( result.option_count + ' ' + ( i18n.optsMigrated || 'option fixes applied' ) ); }
-								if ( ! result.has_revision )   { parts.push( '⚠ no revision' ); }
-								st.textContent = '✓ ' + ( parts.length ? parts.join( ', ' ) : i18n.done || 'Done' );
+								if ( ! result.has_revision )   { parts.push( 'no revision' ); }
+								st.textContent = ( parts.length ? parts.join( ', ' ) : i18n.done || 'Done' );
 								st.className = 'bws-row-status ok';
 							} else {
 								st.textContent = i18n.noChange || 'No changes needed';
