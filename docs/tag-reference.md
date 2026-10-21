@@ -60,6 +60,8 @@ Traversal selector on every base tag. Serializes as `src:<value>` in the tag str
 
 See [§Source control](editor-controls.md#source-control--per-slot-ui-and-serialization) for label/UI details and the per-slot serialization mechanics; the option keys themselves are [§Source group](#source-group).
 
+README §Build source paths to access related data › Starting points carries a simplified copy of this table (offered roots only, editor labels); a row changed here is changed there in the same edit.
+
 #### Root enum membership (1.17.0, [#83](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/83))
 
 What an author can CHOOSE as a root is a shorter list than what RESOLVES as one, and the two are
@@ -120,6 +122,8 @@ root vocabulary; a step continues from wherever the previous one landed.
 
 A step that resolves to a list is spelled plural, one that resolves to a single entity singular. The four hierarchical names are reserved as root keys now (`SourceRegistry::is_expressible_root_key()`), before any of them is built.
 
+README §Build source paths to access related data › Steps carries a simplified copy of this table (implemented steps only, editor labels, what each step can follow); a row changed here, or a change to `BWS_TRAVERSAL_STEP_INPUT_KINDS`, is changed there in the same edit.
+
 Chain wire lives in the same `src` option, `;`-separated, each step `slug[,arg][,limit(N)]` —
 `src:refs,office;terms,category`. The flat spelling (`src:ref` + `ref:` + `srcTermIn:`) is READ
 FOREVER and maps to the same chain, so nothing stored has to change; a tag is chain-spelled only
@@ -165,7 +169,7 @@ once an author converts it or the Tag Converter rewrites it.
 | `text` | *(keyed — no intrinsic analog; key required in all contexts)* | | | | |
 | `datetime_single` / `datetime_range` | *(field-keyed — no intrinsic analog; key/field required in all contexts)* | | | | |
 
-The **user** column resolves on an author archive only (ambient `WP_User`, #19 author kind, 1.15.0). Scope is `title`/`content` (1.15.0) + `text` (1.16.0: `use:title` → display name, key-mode → the author's user meta field). `{{join}}` slots inherit it through the text read seam; `try_text`/`try_title`/`try_content` slots resolve it too since 1.17.0, on their own dispatcher arm — the other six `try_` families follow their base tag and render empty there. `permalink`/`image`/datetime author analogs are deferred and render empty (not wrong) there. An explicit source (`src:site`/`src:ref`/`srcTermIn`) or a query-loop item overrides the author ambient, exactly as with the term column. `linkTo:permalink` on the author `title` links the author's archive URL.
+The **user** column resolves on an author archive only (ambient `WP_User`, #19 author kind). What each tag returns there is [§Coverage by ambient context](#coverage-by-ambient-context)'s; the `permalink` and featured-image author analogs are deferred. An explicit source (`src:site`/`src:ref`/`srcTermIn`) or a query-loop item overrides the author ambient, exactly as with the term column. `linkTo:permalink` on the author `title` links the author's archive URL.
 
 #### Context coverage — the query-context kinds (1.19.0)
 
@@ -183,7 +187,7 @@ The **query context** column resolves on the five entity-less main-query context
 
 Where core and GB Pro's `{{archive_title}}` disagree (search: Pro returns the bare query; latest-home: Pro returns the literal `Blog`), **we follow core** — `wp_get_document_title()` backs both values. Date and 404 are not divergences; Pro has no branch for either.
 
-**`{{content}}`** resolves the post type description on a PTA (core's `get_the_post_type_description` filter applies, `wpautop` included) and the `generate_404_text` borrow on a GP 404; the other contexts render empty — including the latest-posts home, which before 1.19.0 leaked the first post's entire rendered content there. **`{{text use:title}}`** reads the same heading as `{{title}}` (the absorb seam, so `{{join}}` slots inherit it), and the `try_text`/`try_title`/`try_content` slot arm agrees with the standalone tags; the other six `try_` families render empty. Everything else — key-mode `text`, `permalink`, `image`, datetime — renders **empty, not wrong**: before 1.19.0 every one of these read whatever post WordPress happened to leave in `$post` (the main query's first row). Explicit sources and query-loop items override the ambient context exactly as in the other columns. The search/404/latest-home override options are deferred (`docs/future-work.md`), and on a core-only site the **raw search query** is currently unreachable — the deferred search-format option is its designated home.
+**`{{content}}`** resolves the post type description on a PTA (core's `get_the_post_type_description` filter applies, `wpautop` included) and the `generate_404_text` borrow on a GP 404. **`{{text use:title}}`** reads the same heading as `{{title}}` (the absorb seam, so `{{join}}` slots inherit it). What every tag returns on each of these contexts is [§Coverage by ambient context](#coverage-by-ambient-context)'s. The search/404/latest-home override options are deferred (`docs/future-work.md`), and on a core-only site the **raw search query** is currently unreachable — the deferred search-format option is its designated home.
 
 Where a source has **no** intrinsic analog for a tag (term image, site content-body), the implicit-mode tag resolves empty and a `key`/field is required — the gap is honest, not papered over. (Site has no long-form content datum: its "Tagline" is a short string — WordPress itself frames it "In a few words…" — so it is *not* forced into the `content` slot. It also gets no dedicated `text` value, because it fails *both* sides of the gate — no unique affordance over GB's native `{{site_tagline}}`, and no strong cross-source analog (see the [qualifying test](#qualifying-test-for-new-use-values) below).) A *corollary*: a named `use:` value that would duplicate a datum already reachable elsewhere must not exist (e.g. no `use:home_url` when `permalink src:site` already = home URL). This keeps one canonical path per datum.
 
@@ -195,18 +199,18 @@ This principle governs `src:site` below and should guide every future source or 
 
 What each tag reads where it has no `src`, no query-loop item and no `id`, measured on the testbed 2026-10-09 (`wp bws render-tag --url=…`). A cell names the datum the tag returns there; a dash means the tag renders empty (never `$post`'s value, and a stated `fallback` still fires). This is the consequence of the dispatch above, which stays the owner of how a context is told apart ([`CONTEXT.md` I9](../CONTEXT.md)). An explicit source or a query-loop item overrides every column.
 
-| Tag (read) | Singular | Term archive | Author archive | Date archive | Post type archive | Search | 404 | Latest-posts home |
-|---|---|---|---|---|---|---|---|---|
-| `title`, `text` (`use:title`) | post title | term name | display name | date span (`July 2026`) | archive label (`Staff`) | `Search Results for “…”` | GP 404 title, else GP default (core `Page not found` without GP) | site name |
-| `content` | post content | term description | user bio | — | type description | — | GP 404 text (— without GP) | — |
-| `permalink` | post URL | term URL | — | — | — | — | — | — |
-| `image` (`use:featured`) | featured image | — | — | — | — | — | — | — |
-| `image` (meta field) | post meta | term meta | user meta | — | — | — | — | — |
-| `text` (meta field) | post meta | term meta | user meta | — | — | — | — | — |
-| `email`, `phone` | post meta | term meta | user meta | — | — | — | — | — |
-| `datetime_single`, `datetime_range` | post meta | term meta | — | — | — | — | — | — |
+README §Use the same tags almost anywhere carries a simplified table built from this one (columns by source kind, the five query-context columns merged, no notes), plus a Site column from [§Site Source](#site-source-srcsite) and a Repeater row column from the `rows` note in [§Source CHAINS](#source-chains-1170); a cell changed in any of the three is changed there in the same edit.
 
-- **Every `try_` variant matches its base tag** in every cell, and a `{{join}}` slot follows the `text` rows (`use:title` gives the heading, a `key` gives the meta field).
+| Tag and field read | Singular | Term archive | Author archive | Date archive | Post type archive | Search | 404 | Latest-posts home |
+|---|---|---|---|---|---|---|---|---|
+| `title`, or `text use:title` | post title | term name | display name | date span (`July 2026`) | archive label (`Staff`) | `Search Results for “…”` | GP 404 title, else GP default (core `Page not found` without GP) | site name |
+| `content` | post content | term description | user bio | — | type description | — | GP 404 text (— without GP) | — |
+| `text`, `content`, `image`, `email`, and `phone` with `key:[field key]` | post meta | term meta | user meta | — | — | — | — | — |
+| `image use:featured` | featured image | — | — | — | — | — | — | — |
+| `datetime_single`, `datetime_range` | post meta | term meta | — | — | — | — | — | — |
+| `permalink` | post URL | term URL | — | — | — | — | — | — |
+
+- **Every `try_` variant matches its base tag** in every cell; a `{{join}}` slot follows the `text` rows (`use:title` gives the heading, a `key` gives the meta field), and so does a `{{table}}` column, which renders its row with the cell empty where the read is empty. The `{{table}}` cells are measured on search, 404, author and term archives ([TK6–TK9](../tools/test/table-test-matrix.md)); the date archive, post type archive and latest-posts home cells follow from the same read and were not run.
 - **"Singular"** includes an assigned front page or posts page, which is a page entity and takes the post column. **"Latest-posts home"** is the front page with no page assigned.
 - **A "meta field" read** is whatever the context's own field store holds: post meta, term meta (ACF `term_<id>`), or user meta. The five query-context kinds, which carry no entity (date, post type archive, search, 404, latest-posts home) have no store, so a keyed read is empty there.
 - **The term and author image reads answer for every ACF image return format** (Image Array, Image URL, Image ID), and the author read also for a plain user meta holding an attachment ID. The avatar analog for `use:featured` on an author is the separate, still-open design call on [FW-47](future-work.md).
@@ -538,7 +542,7 @@ constructors do not answer a taken name the same way:
 
 | Constructor | A name another plugin registered first |
 |---|---|
-| `bws_register_base_tags()`, plus the standalone base tags (`{{email}}`, `{{phone}}`, `{{table}}`, `{{call}}`) | Registered OVER, and the collision reported |
+| Every non-`try_` tag: `bws_register_base_tags()` (the base tags and `{{join}}`), plus the tags registered in their own files (`{{email}}`, `{{phone}}`, `{{table}}`, `{{call}}`) | Registered OVER, and the collision reported |
 | `TagTemplateRegistry::generate_base_try_tags()` (the `try_*` half) | Skipped; the first registrar keeps the name, and the skip is reported |
 
 A collision is detected three times, because it can go three ways and the DEVELOPER remedies differ:

@@ -1011,7 +1011,7 @@ Author (a relation to content), user (a WordPress user record), and "user" as sh
 
 Detail home: `.scratch/plans/vocabulary-pass.md` §OPEN 6
 
-Progress: Raised 2026-08-28 while holding FW-47 — its soft gate being met by user query loops means these analogs are about to be described in user-facing copy for the first time, making this cheapest to fix now.
+Progress: Raised 2026-08-28 while holding FW-47 — its soft gate being met by user query loops means these analogs are about to be described in user-facing copy for the first time, making this cheapest to fix now. README disambiguated 2026-10-21 (user decision: README only for now): the reached record is "user" throughout, "author" is kept only for author archives and GB's own author behavior, and the User column states it is never the logged-in visitor. The editor strings already avoid both words; `docs/` and `CONTEXT.md` (e.g. "author kind" for the `user` kind) are not yet done.
 
 Open: Whether the repair is a definition pair in `CONTEXT.md` §Language, a rename, or disambiguation only where the docs currently blur them.
 
@@ -1123,7 +1123,7 @@ Blocked by: —  •  Interacts with: FW-31
 
 A converter between GB core tags and BWS dynamic tags.
 
-Detail home: memory `deferred_features.md`
+Detail home: `.scratch/plans/gb-tag-cross-converter.md` (the GB → BWS tag map, read 2026-10-21; the "Alternative to (GP/GB)" column of the README coverage table summarizes it)
 
 Progress: Not started.
 

@@ -11,8 +11,8 @@ All notable changes to this project are documented in this file. The format is b
 ### Added
 
 - **`{{table}}` tag.** Its rows are whatever the tag's source reaches: the current post, term or user (one row), a repeater field's rows, a relationship field's posts or a taxonomy's terms, capped by the source's limit. Each of up to 10 columns reads one field, title or typed text from its row, or starts from a source of its own. A column can carry a header; a table with none renders without a header row, and picking a field offers its field label as the header. An optional caption labels the table for screen readers and lets a wide table scroll sideways on its own. See [`docs/tag-reference.md`](docs/tag-reference.md).
-- **`{{table}}` styling.** Table layout and width, column widths, text color, font size, weight, style, alignment and letter case (for the whole table, the header row or one column), row and column stripes, and borders with rounded outer corners, with a Live Formatting Preview in the tag's settings. Styles are written to one scoped stylesheet per distinct table design, never inline, so they survive WordPress's content filtering.
-- A Table section on the settings page sets the default stripe color and opacity for stripes that do not set their own.
+  - **Styling.** Table layout and width, column widths, text color, font size, weight, style, alignment and letter case (for the whole table, the header row or one column), row and column stripes, and borders with rounded outer corners, with a Live Formatting Preview in the tag's settings. Styles are written to one scoped stylesheet per distinct table design, never inline, so they survive WordPress's content filtering.
+  - A Table section on the settings page sets the default stripe color and opacity for stripes that do not set their own.
 
 ### Changed
 
