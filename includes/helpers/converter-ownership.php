@@ -73,7 +73,7 @@ const BWS_CONVERTER_OWNERSHIP_REASONS = array(
  * them after a conflict that does not exist. Opting in is available for both and is not
  * this flag; it is the channel's own control.
  *
- * `%1$s` is the tag name, `%2$d` the number of stored strings, `%3$s` the other registrar's
+ * `%1$s` is the tag name, `%3$s` the other registrar's
  * phrase (bws_gb_other_registrar_phrase(), already escaped) where one is known. A line that
  * does not use a placeholder simply omits it.
  *
@@ -89,13 +89,13 @@ function bws_converter_ownership_report_lines(): array {
 		'ours'            => array( 'line' => '', 'action' => '' ),
 		'opted_in'        => array( 'line' => '', 'action' => '' ),
 		'name_not_ours'   => array(
-			/* translators: 1: tag name, 2: number of stored tag strings, 3: the other plugin that registers the name. */
-			'line'   => __( '%1$s is also registered by %3$s on this site, so we cannot tell which plugin the %2$d stored tags were written for. They are left exactly as they are.', 'generateblocks' ),
+			/* translators: 1: tag name, 3: the other plugin that registers the name. */
+			'line'   => __( '%1$s is also registered by %3$s on this site, so we cannot tell which plugin these stored tags were written for. They are left exactly as they are.', 'generateblocks' ),
 			'action' => __( 'Rename or remove the other plugin\'s tag, or claim these tags as yours below.', 'generateblocks' ),
 		),
 		'unknown_options' => array(
-			/* translators: 1: tag name, 2: number of stored tag strings. */
-			'line'   => __( '%1$s carries option names we do not recognize, which is what content written for a different plugin\'s tag of the same name looks like. The %2$d stored tags are left exactly as they are.', 'generateblocks' ),
+			/* translators: %1$s: tag name. */
+			'line'   => __( '%1$s carries option names we do not recognize, which is what content written for a different plugin\'s tag of the same name looks like. These stored tags are left exactly as they are.', 'generateblocks' ),
 			'action' => '',
 		),
 	);

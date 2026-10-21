@@ -27,6 +27,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class TagConverter {
 
+	/** @var int How many posts a non-conversion report row names; the rest are counted. */
+	private const FOUND_IN_LIMIT = 3;
+
 	// ===============================================
 	// SCAN
 	// ===============================================
@@ -244,6 +247,35 @@ class TagConverter {
 	}
 
 	/**
+	 * The wording around a report row's `found` list, so the script only places it.
+	 *
+	 * The stored-tag COUNT lives here and not in the row's sentence: a count inside a
+	 * sentence cannot agree in number with its noun, and this is where one can.
+	 *
+	 * @param array $row A report row carrying `count`, `posts` and `found`.
+	 * @return array The row plus `foundLabel`, `moreLabel` and `countLabel`.
+	 */
+	private static function found_in_wording( array $row ): array {
+		$posts = (int) ( $row['posts'] ?? 0 );
+		$more  = $posts - count( $row['found'] ?? array() );
+
+		$row['foundLabel'] = __( 'Found in:', 'generateblocks' );
+		$row['moreLabel']  = $more > 0 ? sprintf(
+			/* translators: %d: number of further posts not listed. */
+			__( 'and %d more', 'generateblocks' ),
+			$more
+		) : '';
+		// Said only when it adds something: one stored tag per post is what "found in" already says.
+		$row['countLabel'] = (int) $row['count'] > $posts ? sprintf(
+			/* translators: %d: number of stored tag strings. */
+			_n( '%d stored tag', '%d stored tags', (int) $row['count'], 'generateblocks' ),
+			(int) $row['count']
+		) : '';
+
+		return $row;
+	}
+
+	/**
 	 * The two non-conversion channels, site-wide, plus the exemption disclosure.
 	 *
 	 * TWO CHANNELS AND NOT ONE LIST (D46). A DECLINE has an author action and gates a
@@ -255,14 +287,15 @@ class TagConverter {
 	 * SITE-WIDE RATHER THAN PER POST, because both facts are properties of a TAG NAME on
 	 * this site and not of a post. "Which plugin wrote these strings" has one answer however
 	 * many posts hold them, and an opt-in is a claim about the name; repeating either per row
-	 * would ask the same question forty times.
+	 * would ask the same question forty times. Each row still names the first few posts it
+	 * was found in (`found`), because "where" is a different question from "whose".
 	 *
 	 * THE EXEMPTION IS A COUNT AND A LINE, NOT A GATE (D40). It rides the conversion channel
 	 * — those tags convert — and the report states it once beside the preview.
 	 *
 	 * @since 1.20.0
 	 * @param array[] $posts A scan() result.
-	 * @return array{declined:array[], skipped:array[], exemptCount:int, optedIn:string[]}
+	 * @return array{declined:array[], skipped:array[], exemptCount:int, optedIn:string[]} Each row also carries found (title and url, first few posts) and the three label strings from found_in_wording().
 	 */
 	public static function report_channels( array $posts ): array {
 		$channels = array( 'declined' => array(), 'skipped' => array() );
@@ -292,11 +325,21 @@ class TagConverter {
 						// recognize strings they cannot see.
 						'sample' => (string) ( $row['sample'] ?? '' ),
 						'posts'  => 0,
+						'found'  => array(),
 					);
 				}
 
 				$channels[ $status ][ $key ]['count'] += $count;
 				++$channels[ $status ][ $key ]['posts'];
+
+				// WHERE IT LIVES: the first few posts, so an owner can go and look. Site-wide
+				// grouping stays; this only adds the instances the group was built from.
+				if ( count( $channels[ $status ][ $key ]['found'] ) < self::FOUND_IN_LIMIT ) {
+					$channels[ $status ][ $key ]['found'][] = array(
+						'title' => (string) ( $post['post_title'] ?? '' ),
+						'url'   => (string) ( $post['edit_url'] ?? '' ),
+					);
+				}
 			}
 		}
 
@@ -317,7 +360,7 @@ class TagConverter {
 					self::other_registrar_phrase( $row['tag'] )
 				);
 				$row['action'] = $wording['action'];
-				return $row;
+				return self::found_in_wording( $row );
 			},
 			$channels['declined']
 		) );
@@ -325,8 +368,8 @@ class TagConverter {
 		$skipped = array_values( array_map(
 			static function ( array $row ) use ( $skips ): array {
 				$line        = $skips[ $row['reason'] ] ?? '';
-				$row['line'] = '' === $line ? '' : sprintf( $line, $row['tag'], $row['count'] );
-				return $row;
+				$row['line'] = '' === $line ? '' : sprintf( $line, $row['tag'] );
+				return self::found_in_wording( $row );
 			},
 			$channels['skipped']
 		) );
