@@ -166,4 +166,5 @@ Only TE1 renders on the front end; TE2-TE5 are read in the EDITOR. Their expecta
 ## Not covered, and why
 
 - **The unresolved-source front-end row.** An unresolvable root (`src:post,999999;…`) renders nothing on the front end like TB8; the editor skeleton is TE3-TE5.
+- **The skeleton's column-source wording has no automated pin at its call site.** `preview-label-test.php` pins what a column's source part reads as (a step-first `src(rows,team)` previews as its row, not Current), but nothing runs `bws_table_skeleton()`, so the root the table passes is read only in the testbed editor (TE2-TE5).
 - **`when` on a table** (FW-27), **`orientation`, the `scope="col"`/`scope="row"` pair and the responsive-overflow JS** are post-v1 (spec §Not in scope).

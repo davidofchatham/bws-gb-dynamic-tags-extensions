@@ -518,7 +518,7 @@ function bws_table_skeleton( array $options, array $columns, array $dropped = ar
 	}
 	$cells = array();
 	foreach ( $columns as $col ) {
-		$summary = isset( $col['n'] ) ? bws_preview_slot_summary( $col['opts'], $col['skip'] ) : null;
+		$summary = isset( $col['n'] ) ? bws_preview_slot_summary( $col['opts'], $col['skip'], false, BWS_FOLD_INHERIT_ROOT ) : null;
 		if ( null !== $summary && '' !== $summary['warning'] ) {
 			$slot_warnings[] = array( 'n' => $col['n'], 'detail' => $summary['warning'] );
 		}

@@ -194,11 +194,14 @@ function bws_slot_warnings_text( array $slot_warnings, array $tag_warnings = arr
  * @param string     $skip       The seam's skip reason.
  * @param bool       $bare_fixed A fixed read shows its text unquoted (join's template mode,
  *                               which already wraps the whole format in “…”).
+ * @param string     $rootless_root The root a rootless chain is read from; a table column's
+ *                               starts at its row, so it passes `inherit`.
+ * @since Unreleased `$rootless_root`.
  * @return array|null `{ text: ?string, warning: string }`; `text` null for a skipped slot.
  *                    Null for a slot that is silently skipped (unconfigured).
  */
 if ( ! function_exists( 'bws_preview_slot_summary' ) ) {
-function bws_preview_slot_summary( ?array $flat, string $skip, bool $bare_fixed = false ): ?array {
+function bws_preview_slot_summary( ?array $flat, string $skip, bool $bare_fixed = false, string $rootless_root = 'current' ): ?array {
 	if ( null === $flat ) {
 		$detail = bws_fold_skip_warning( $skip );
 		return '' === $detail ? null : array( 'text' => null, 'warning' => $detail );
@@ -212,7 +215,7 @@ function bws_preview_slot_summary( ?array $flat, string $skip, bool $bare_fixed 
 		: bws_try_preview_field_part( 'text', $use, $key, '', $fixed );
 
 	$inert  = array();
-	$source = bws_try_preview_source_part( $flat['src'], true, $inert );
+	$source = bws_try_preview_source_part( $flat['src'], true, $inert, $rootless_root );
 	if ( '' !== $source && 'Current' !== $source ) {
 		$text .= ' from ' . $source;
 	}
@@ -1207,10 +1210,13 @@ function bws_preview_inert_warning( array $inert, bool $slot = false ): string {
  *                         splices a synthetic `current` root for a rootless non-`refs`
  *                         chain, so a leading unknown slug is a root in one reading and a
  *                         step in the other. One parse, one answer.
+ * @param string $rootless_root The root a rootless chain is read from. A table column's bare chain
+ *                         starts at its row, so it passes `inherit`; everything else is `current`.
+ * @since Unreleased `$rootless_root`.
  * @return string Source segment (e.g. "Current", "Ref 'rel_post'", "Ref 'rel_post' → Category Term").
  */
 if ( ! function_exists( 'bws_try_preview_source_part' ) ) {
-function bws_try_preview_source_part( string $src_wire, bool $named_current = false, array &$inert = array() ): string {
+function bws_try_preview_source_part( string $src_wire, bool $named_current = false, array &$inert = array(), string $rootless_root = 'current' ): string {
 	$chain = function_exists( 'bws_fold_chain_from_options' )
 		? bws_fold_chain_from_options( array( 'src' => $src_wire ) )
 		: array();
@@ -1222,7 +1228,7 @@ function bws_try_preview_source_part( string $src_wire, bool $named_current = fa
 		// here: the step struct's shape belongs to slot-fold.php, the PHP owner of the wire,
 		// and one more inline copy of it is how a grammar change comes to miss a site.
 		$chain = array_merge(
-			function_exists( 'bws_fold_chain_from_options' ) ? bws_fold_chain_from_options( array( 'src' => 'current' ) ) : array(),
+			function_exists( 'bws_fold_chain_from_options' ) ? bws_fold_chain_from_options( array( 'src' => $rootless_root ) ) : array(),
 			$chain
 		);
 	}

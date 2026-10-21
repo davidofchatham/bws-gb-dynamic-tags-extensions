@@ -1386,11 +1386,11 @@ check(
 // ── bws_preview_slot_summary(): the ONE per-slot step join's bracket and table's skeleton
 // cells share. Driven through the seam with a table column's carry (row as parent), so the
 // second consumer's own seeding is what the pins see.
-function slot_summary( string $wire, bool $bare_fixed = false ): string {
+function slot_summary( string $wire, bool $bare_fixed = false, string $rootless = BWS_FOLD_INHERIT_ROOT ): string {
 	$carry = bws_fold_empty_carry( bws_use_stripped_default( 'text' ), true );
 	$skip  = '';
 	$flat  = bws_fold_slot_chain_options( bws_fold_slot_struct( 1, [ 'A' => $wire ], 'table' ), $carry, true, $skip );
-	return json_encode( bws_preview_slot_summary( $flat, $skip, $bare_fixed ), JSON_UNESCAPED_UNICODE );
+	return json_encode( bws_preview_slot_summary( $flat, $skip, $bare_fixed, $rootless ), JSON_UNESCAPED_UNICODE );
 }
 check( 'summary: keyed read', slot_summary( 'key(price)' ), '{"text":"\'price\'","warning":""}' );
 check( 'summary: fixed read is quoted', slot_summary( 'fixed(Team)' ), '{"text":"“Team”","warning":""}' );
@@ -1402,6 +1402,12 @@ check( 'summary: inert source reports alone', slot_summary( 'src(bogus,x);key(ci
 // root, so it names like the step-first spelling it canonicalizes from, never "unknown source".
 check( 'summary: inherit root reads as the row', slot_summary( 'src(inherit;refs,office);key(city)' ), slot_summary( 'src(refs,office);key(city)' ) );
 check( 'summary: inherit root before rows', slot_summary( 'src(inherit;rows,team);key(name)' ), '{"text":"\'name\' from Rows \'team\'","warning":""}' );
+// A hand-written step-first column starts at the row too, so it names like its `inherit;` spelling
+// and never "Current". The `refs` pair above cannot pin this: a leading refs hop is never anchored.
+check( 'summary: step-first rows reads as the row', slot_summary( 'src(rows,team);key(name)' ), slot_summary( 'src(inherit;rows,team);key(name)' ) );
+check( 'summary: step-first terms reads as the row', slot_summary( 'src(terms,category);key(name)' ), slot_summary( 'src(inherit;terms,category);key(name)' ) );
+check( 'summary: join default (current) names a rootless step chain Current', slot_summary( 'src(rows,team);key(name)', false, 'current' ), '{"text":"\'name\' from Current Rows \'team\'","warning":""}' );
+check( 'summary: explicit current still names Current', slot_summary( 'src(current;rows,team);key(name)' ), '{"text":"\'name\' from Current Rows \'team\'","warning":""}' );
 
 echo "\n" . ( $failures ? "FAILED {$failures}/{$count}\n" : "PASSED {$count}/{$count}\n" );
 exit( $failures ? 1 : 0 );
