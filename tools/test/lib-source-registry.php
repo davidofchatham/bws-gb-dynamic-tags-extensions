@@ -80,18 +80,22 @@ if ( ! function_exists( 'do_action' ) ) {
 	}
 }
 
-// ── The registry's one WP-facing dependency ──────────────────────────────────────────
+// ── The registry's WP-facing dependencies ────────────────────────────────────────────
 //
-// register_source() logs through it. `$modifiers_enabled` is still driveable because the
+// register_source() logs through `bws_registration_logging_enabled()`, stubbed off (the real
+// one is a filter read). `$modifiers_enabled` is still driveable because the
 // term_ toggle's NON-effect on an offered root is itself pinned (1.20.0, FW-39/D39) —
 // nothing in the registry reads it any more. Declared through eval so this file can stay
 // in the global namespace like every other harness.
 if ( ! class_exists( '\BWS\DynamicTags\Admin\SettingsPage' ) ) {
 	eval( 'namespace BWS\DynamicTags\Admin; class SettingsPage {
 		public static $modifiers_enabled = true;
-		public static function is_registration_logging_enabled() { return false; }
 		public static function is_modifier_enabled( $key ) { return self::$modifiers_enabled; }
 	}' );
+}
+
+if ( ! function_exists( 'bws_registration_logging_enabled' ) ) {
+	function bws_registration_logging_enabled() { return false; }
 }
 
 require_once __DIR__ . '/../../includes/classes/class-source-interface.php';

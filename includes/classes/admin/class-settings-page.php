@@ -9,7 +9,6 @@
  *       mode_with_path:    'keep'|'suppress'|'disable',
  *       mode_without_path: 'keep'|'suppress'|'disable',
  *     },
- *     diagnostics: { benchmark_logging: bool, registration_logging: bool },
  *     email:       { obfuscate: bool },
  *     phone:       { country_code: string, strip_leading_cc: bool },
  *     table:       { stripe_color: string, stripe_opacity: string },
@@ -182,12 +181,11 @@ class SettingsPage {
 
 	public static function sanitize_settings( $input ): array {
 		$sanitized = array(
-			'modifiers'   => array(),
-			'deprecated'  => array(),
-			'diagnostics' => array(),
-			'email'       => array(),
-			'phone'       => array(),
-			'table'       => array(),
+			'modifiers'  => array(),
+			'deprecated' => array(),
+			'email'      => array(),
+			'phone'      => array(),
+			'table'      => array(),
 		);
 
 		// Modifier toggles. An orphaned `modifiers.term` key on an existing row is simply
@@ -200,11 +198,6 @@ class SettingsPage {
 			$val = sanitize_key( $input['deprecated'][ $key ] ?? 'keep' );
 			$sanitized['deprecated'][ $key ] = in_array( $val, $valid_modes, true ) ? $val : 'keep';
 		}
-
-		// Diagnostics.
-		$sanitized['diagnostics']['benchmark_logging']    = ! empty( $input['diagnostics']['benchmark_logging'] );
-		$sanitized['diagnostics']['registration_logging'] = ! empty( $input['diagnostics']['registration_logging'] );
-		$sanitized['diagnostics']['show_all_deprecated']  = ! empty( $input['diagnostics']['show_all_deprecated'] );
 
 		// Email. `obfuscate` defaults ON; the checkbox renders checked, so an
 		// untouched first save submits 1. Unchecking it writes false.
@@ -293,25 +286,6 @@ class SettingsPage {
 	 */
 	public static function is_deprecated_tag_enabled( string $tag_name ): bool {
 		return self::is_deprecated_tag_registered( $tag_name );
-	}
-
-	public static function is_benchmark_logging_enabled(): bool {
-		return (bool) ( self::get_settings()['diagnostics']['benchmark_logging'] ?? false );
-	}
-
-	public static function is_registration_logging_enabled(): bool {
-		return (bool) ( self::get_settings()['diagnostics']['registration_logging'] ?? false );
-	}
-
-	/**
-	 * Whether the scan-allowlist hide filter is bypassed on the Deprecated/Removed
-	 * Tags+Options boxes — shows every registered entry regardless of scan match.
-	 *
-	 * @since 1.14.0
-	 * @invariant V8 — permanent escape hatch; toggle state is never reset by a scan.
-	 */
-	public static function is_show_all_deprecated_enabled(): bool {
-		return (bool) ( self::get_settings()['diagnostics']['show_all_deprecated'] ?? false );
 	}
 
 	/**
@@ -619,7 +593,7 @@ class SettingsPage {
 	 *
 	 * Entry classification (Deprecated vs Removed) is MigrationRegistry::is_entry_live()
 	 * (CONTEXT.md I10). The allowlist hide-filter (positive list) and the "show all" bypass are
-	 * TagConverter::get_allowlist() / is_show_all_deprecated_enabled() (V7/V8, PHPDoc there).
+	 * TagConverter::get_allowlist() / the `bws_dynamic_tags_show_all_deprecated` filter (V7/V8, PHPDoc there).
 	 */
 	/**
 	 * One list of migration entries. Flat by default; collapsed behind its count only when
@@ -723,8 +697,8 @@ class SettingsPage {
 		$mode_with    = $settings['deprecated']['mode_with_path']    ?? 'keep';
 		$mode_without = $settings['deprecated']['mode_without_path'] ?? 'keep';
 
-		// Scan allowlist: hides zero-match entries unless "show all" is on (V7/V8).
-		$show_all  = self::is_show_all_deprecated_enabled();
+		// Scan allowlist: hides zero-match entries unless the show-all filter is on (V7/V8).
+		$show_all  = (bool) apply_filters( 'bws_dynamic_tags_show_all_deprecated', false );
 		$allowlist = TagConverter::get_allowlist();
 		$tag_in_allowlist = fn( array $e ) => in_array( $e['old_tag'] ?? $e['match_tag'] ?? '', $allowlist['tags'], true );
 		$option_in_allowlist = fn( array $e ) => in_array( $e['label'] ?? '', $allowlist['option_labels'], true );
@@ -1072,21 +1046,6 @@ function my_result( $post_id, $arg = '' ) {
 					);
 					?>
 					<h3 class="bws-subhead"><?php esc_html_e( 'Deprecated and removed entries', 'generateblocks' ); ?></h3>
-					<table class="bws-tags-table widefat">
-						<tbody>
-							<tr class="bws-tag-row">
-								<td class="bws-tag-checkbox">
-									<input type="checkbox" id="bws-diag-show-all-deprecated"
-										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[diagnostics][show_all_deprecated]"
-										value="1" <?php checked( $show_all ); ?> />
-								</td>
-								<td>
-									<label for="bws-diag-show-all-deprecated"><?php esc_html_e( 'Show all deprecated/removed tags and options', 'generateblocks' ); ?></label>
-									<p class="description"><?php esc_html_e( 'By default, only deprecated or removed tags and options which were found in site content at the last plugin upgrade or Migration Tool scan are listed. Enable this to list every registered entry regardless of scan results.', 'generateblocks' ); ?></p>
-								</td>
-							</tr>
-						</tbody>
-					</table>
 					<?php foreach ( $bws_inventory as $bws_list ) : ?>
 						<?php if ( '' === $bws_list['rows'] ) { continue; } ?>
 					<div class="bws-dep-group">
@@ -1193,30 +1152,13 @@ function my_result( $post_id, $arg = '' ) {
 					</div>
 				</div>
 
-				<?php /* ── Diagnostics: settings, then read-only reports ── */ ?>
+				<?php /* ── Diagnostics: read-only reports ── */ ?>
 				<div class="bws-tag-group">
 					<?php
-					// ONE HEADING OVER TWO SUBSECTIONS, so the heading names the CATEGORY and each
-					// subhead names its subject. The conflicts half changes nothing and only
-					// reports; the settings half changes behaviour. Labelling only one of them
-					// would leave the other orphaned, which is why "Settings" exists at all --
-					// three checkboxes do not need a name until something else sits beside them.
-					//
-					// THE REPORT COMES FIRST, THE SWITCHES SECOND. A reader arriving at Diagnostics
-					// is answering "did something break", and the answer is a finding, not a
-					// checkbox; the settings here only decide what gets written to a log for a
-					// LATER look. Ordering by what is read rather than by what is editable also
-					// keeps the one subsection that can carry a warning above the fold.
-					//
-					// Tag Name Conflicts was its own H2 until this. It was `Integration Status` with
-					// a subhead before that, narrowed on 2026-08-26 when its second subsection
-					// (dependency-version drift) was cut and deferred as FW-99, on the rule that one
-					// heading over one table names the subject rather than the category. The rule
-					// holds; what changed is that the block is no longer alone. FW-99 lands here as
-					// a third subhead rather than as a section of its own.
-					//
-					// The shape is not invented here: Call Custom Function is one H2 over its own
-					// settings plus a `Registered functions` subhead labelling a read-only table.
+					// The heading names the CATEGORY and each subhead names its subject. Every
+					// subsection here is a read-only report that changes nothing; Tag Name Conflicts
+					// is the only one so far, and FW-99 lands here as a second subhead rather than
+					// as a section of its own.
 					?>
 					<h2 class="bws-section-header"><?php esc_html_e( 'Diagnostics', 'generateblocks' ); ?></h2>
 					<div class="bws-card">
@@ -1406,34 +1348,6 @@ function my_result( $post_id, $arg = '' ) {
 							<?php endforeach; ?>
 						</div>
 					<?php endif; ?>
-
-					<h3 class="bws-subhead"><?php esc_html_e( 'Settings', 'generateblocks' ); ?></h3>
-					<table class="bws-tags-table widefat">
-						<tbody>
-							<tr class="bws-tag-row">
-								<td class="bws-tag-checkbox">
-									<input type="checkbox" id="bws-diag-benchmark-logging"
-										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[diagnostics][benchmark_logging]"
-										value="1" <?php checked( self::is_benchmark_logging_enabled() ); ?> />
-								</td>
-								<td>
-									<label for="bws-diag-benchmark-logging"><?php esc_html_e( 'Enable benchmark logging', 'generateblocks' ); ?></label>
-									<p class="description"><?php esc_html_e( 'Log post content processing time and memory usage to the PHP error log.', 'generateblocks' ); ?></p>
-								</td>
-							</tr>
-							<tr class="bws-tag-row">
-								<td class="bws-tag-checkbox">
-									<input type="checkbox" id="bws-diag-registration-logging"
-										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[diagnostics][registration_logging]"
-										value="1" <?php checked( self::is_registration_logging_enabled() ); ?> />
-								</td>
-								<td>
-									<label for="bws-diag-registration-logging"><?php esc_html_e( 'Enable source registration logging', 'generateblocks' ); ?></label>
-									<p class="description"><?php esc_html_e( 'Log source registration and the bws_dynamic_tags_register_sources action to the PHP error log.', 'generateblocks' ); ?></p>
-								</td>
-							</tr>
-						</tbody>
-					</table>
 
 					</div>
 				</div>

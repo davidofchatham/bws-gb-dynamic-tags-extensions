@@ -31,6 +31,8 @@ All notable changes to this project are documented in this file. The format is b
   - `bws_get_terms_for_post( $post_id, $options )`: WordPress's `get_the_terms()`.
   - `bws_post_term_extraction_options()` and `bws_post_term_image_options()`: define the options in your own registration. This reverses 1.16.0, which kept `bws_post_term_extraction_options()` for integrating plugins.
 
+- **Three developer settings are now filters, and the settings page no longer shows them.** "Enable benchmark logging", "Enable source registration logging" and "Show all deprecated/removed tags and options" are gone from the settings page; the Diagnostics section now holds only Tag Name Conflicts. Each is switched on with a filter instead (`bws_dynamic_tags_benchmark_logging`, `bws_dynamic_tags_registration_logging`, `bws_dynamic_tags_show_all_deprecated`), all off by default; see [`docs/plugin-integration.md`](docs/plugin-integration.md) §11. A site that had one of the boxes ticked stops logging, or goes back to listing only the entries its content uses, until it adds the filter. `SettingsPage::is_benchmark_logging_enabled()`, `is_registration_logging_enabled()` and `is_show_all_deprecated_enabled()` are removed with them.
+
 ### Fixed
 
 - Typing `:false` after an on/off option in a tag string now turns it off. Before, `showMidnight:false`, `showCurrentYear:false`, `newTab:false` and `noLink:false` all turned the option on, the opposite of what they say. `:0` turns an option off too. Tags built in the editor never wrote these spellings and are unaffected. (#92)

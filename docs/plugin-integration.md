@@ -722,3 +722,17 @@ truthfully; it is not "the converter migrated something".
 **It is an announcement, not a facility.** The plugin does not enumerate or drive anyone's cache,
 and its own pattern-cache repair does not depend on this action firing — that reconcile is
 content-agnostic and site-wide (see [`tag-reference.md` §Pattern cache reconcile](tag-reference.md#pattern-cache-reconcile)).
+
+## 11. Diagnostic filters
+
+Three switches that used to be settings are filters, because they are for developers and no site owner needs them. None has an admin control, and each is off unless a filter returns true. `WP_DEBUG` does not turn any of them on.
+
+```php
+add_filter( 'bws_dynamic_tags_benchmark_logging', '__return_true' );
+```
+
+| Filter | Default | Effect when true |
+|---|---|---|
+| `bws_dynamic_tags_benchmark_logging` | `false` | Post content processing writes its time and memory use to the PHP error log, prefixed `[BWS Content]`. Covers post content only, not tag resolution. |
+| `bws_dynamic_tags_registration_logging` | `false` | Source registration and the `bws_dynamic_tags_register_sources` action write to the PHP error log. |
+| `bws_dynamic_tags_show_all_deprecated` | `false` | The settings page lists every registered deprecated or removed tag and option, not only those the last upgrade or Migration Tool scan found in site content. |

@@ -114,6 +114,7 @@ function bws_dynamic_tags_init() {
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/gb-output-boundary.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/gb-registration-boundary.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/gb-trust-boundary.php';
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/diagnostics.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/image-helpers.php';
 	// Traversal pipeline engine + source factory (L1-full) — must load before the
 	// seam (field-helpers) and modifier registry that call bws_resolve_base_source /
@@ -713,18 +714,14 @@ function bws_dynamic_tags_activate() {
 		return;
 	}
 	add_option( 'bws_dynamic_tags_settings', array(
-		'modifiers'   => array(
+		'modifiers'  => array(
 			'try' => true,
 		),
-		'deprecated'  => array(
+		'deprecated' => array(
 			'mode_with_path'    => 'disable',
 			'mode_without_path' => 'disable',
 		),
-		'diagnostics' => array(
-			'benchmark_logging'    => false,
-			'registration_logging' => false,
-		),
-		'email'       => array(
+		'email'      => array(
 			'obfuscate' => true,
 		),
 	) );

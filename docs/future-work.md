@@ -597,7 +597,7 @@ A dependency-version record the Diagnostics section could read to tell a site ow
 
 Detail home: `.scratch/plans/dependency-version-record.md` (new)
 
-Progress: Not shipped — cut 2026-08-26, structurally: the only version record (`tools/fixtures/core-structures/env-versions.php`) lives under `.distignore`d `tools/`, so it cannot render for a released install. `env-versions.php` remains untouched as the fixture baseline `verify.php` reads. The Diagnostics section now has a home for this as a third subhead beside Tag Name Conflicts and Settings.
+Progress: Not shipped — cut 2026-08-26, structurally: the only version record (`tools/fixtures/core-structures/env-versions.php`) lives under `.distignore`d `tools/`, so it cannot render for a released install. `env-versions.php` remains untouched as the fixture baseline `verify.php` reads. The Diagnostics section now has a home for this as a second subhead beside Tag Name Conflicts.
 
 Open: Whether to carry a second version record outside `tools/` (a drift pair) or generate one at build time from `env-versions.php` (adds a build step to a plugin that deliberately has none).
 

@@ -161,17 +161,15 @@ function bws_is_query_loop_setup_phase( $instance ) {
 /**
  * Log a debug message for post content processing.
  *
- * Gated solely by the admin "Enable benchmark logging" setting; WP_DEBUG alone
- * does not enable this output.
+ * Gated solely by bws_benchmark_logging_enabled() (the `bws_dynamic_tags_benchmark_logging`
+ * filter); WP_DEBUG alone does not enable this output.
  *
  * @since 1.1.0
  * @param string $message Message to log.
  */
 if ( ! function_exists( 'bws_content_debug' ) ) {
 function bws_content_debug( $message ) {
-	if ( ! class_exists( 'BWS\DynamicTags\Admin\SettingsPage' )
-		|| ! \BWS\DynamicTags\Admin\SettingsPage::is_benchmark_logging_enabled()
-	) {
+	if ( ! bws_benchmark_logging_enabled() ) {
 		return;
 	}
 
@@ -189,9 +187,7 @@ function bws_content_debug( $message ) {
  */
 if ( ! function_exists( 'bws_content_debug_start' ) ) {
 function bws_content_debug_start( $cache_key ) {
-	if ( ! class_exists( 'BWS\DynamicTags\Admin\SettingsPage' )
-		|| ! \BWS\DynamicTags\Admin\SettingsPage::is_benchmark_logging_enabled()
-	) {
+	if ( ! bws_benchmark_logging_enabled() ) {
 		return array();
 	}
 
