@@ -767,6 +767,11 @@ if ( $trust_ready ) {
 $roster_page = get_page_by_path( 'matrix-repeaters' );
 $check( 'page matrix-repeaters exists', $roster_page instanceof WP_Post );
 
+// v31: the table presentation page carries tags only, no data of its own, so a seed that ran
+// before matrix-post-meta existed leaves the pinned-id error block in its place.
+$table_page = get_page_by_path( 'matrix-table' );
+$check( 'page matrix-table exists with its {{table}} rows (not the missing-source error block)', $table_page instanceof WP_Post && false !== strpos( $table_page->post_content, '{{table ' ) && false === strpos( $table_page->post_content, 'FIXTURE ERROR' ) );
+
 if ( $roster_page instanceof WP_Post && function_exists( 'bws_run_step' ) ) {
 	$outer_rows = bws_run_step(
 		array( 'type' => 'rows', 'field' => 'duty_roster' ),

@@ -54,14 +54,15 @@
 	 * PHP-DERIVED (`flatAxes`, from bws_fold_slot_flat_axes). The fallback is the
 	 * full set, matching an unfiltered container: an absent list is a REGISTRATION bug,
 	 * and folding too much is visible immediately, whereas folding nothing looks like
-	 * "no legacy wire here" and silently strands it.
+	 * "no legacy wire here" and silently strands it. An EMPTY list is not absent: it is
+	 * a container with no flat era at all ({{table}}), whose bare `src` is its own.
 	 *
 	 * @param {Object} conf Fold config.
 	 * @return {Array} Axis names.
 	 */
 	function slotAxes( conf ) {
 		var axes = conf && conf.flatAxes;
-		return ( axes && axes.length ) ? axes : [ 'src', 'ref', 'srcTermIn', 'use', 'key', 'limit' ];
+		return Array.isArray( axes ) ? axes : [ 'src', 'ref', 'srcTermIn', 'use', 'key', 'limit' ];
 	}
 
 	/**

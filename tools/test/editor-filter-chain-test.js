@@ -1108,6 +1108,34 @@ function keyShown( opts, state ) {
 	check( 'condition — ' + row[ 3 ], row[ 2 ] === keyShown( row[ 0 ], row[ 1 ] ) );
 } );
 
+// ── {{table}}'s presentation composites ─────────────────────────────────────────────
+//
+// Three composites own nine option keys. They sit INSIDE the option-group box (priority 30),
+// so the contract is the keyed one: a composite keeps its option key through every wrap, and a
+// member nulls BEFORE the wrapper (a wrapped null would draw an empty box in the run).
+console.log( "{{table}} presentation composites" );
+
+global.window.bwsTableVocab = {};
+load( 'assets/js/table-style-grammar.js' );
+load( 'assets/js/table-style-control.js' );
+
+const STYLE = { _group: 'style' };
+const TABLE_STYLE_OPTIONS = {
+	layout: Object.assign( { type: 'bws-table-sizing', _group_lead: true }, STYLE ),
+	width: Object.assign( { type: 'bws-table-style-member' }, STYLE ),
+	color: Object.assign( { type: 'bws-table-typography' }, STYLE ),
+	fontSize: Object.assign( { type: 'bws-table-style-member' }, STYLE ),
+	stripe: Object.assign( { type: 'bws-table-stripes' }, STYLE )
+};
+Object.keys( TABLE_STYLE_OPTIONS ).forEach( function ( name ) {
+	const wrapped = applyFilters( { key: name, type: 'control' }, TABLE_STYLE_OPTIONS, { state: {}, setState: function () {} } );
+	if ( 'bws-table-style-member' === TABLE_STYLE_OPTIONS[ name ].type ) {
+		check( '`' + name + '` (a member) renders nothing, grouped or not', null === wrapped, JSON.stringify( wrapped ) );
+		return;
+	}
+	check( '`' + name + '` (a composite) still carries its option key inside the group box', name === wrapped.key, 'key = ' + JSON.stringify( wrapped.key ) );
+} );
+
 console.log( '' );
 if ( fail ) {
 	console.log( 'FAILED: ' + fail + '/' + ( pass + fail ) );

@@ -25,6 +25,28 @@ renders it.
 
 ---
 
+## Custom editor controls registered
+
+Registered via the `generateblocks.editor.tagSpecificControls` JS filter. Each entry maps a custom option `type` string (referenced in PHP option definitions) to a React control:
+
+| Control type | Renders | Source file | Used by |
+|---|---|---|---|
+| `bws-media-picker` | `wp.media()` modal; persists attachment ID (re-fetches preview URL via `wp.data` `core` `getMedia(id)`) | `assets/js/image-tag-controls.js` | `image`, `try_image` fallback |
+| `bws-as-size` | Composite: return-mode `SelectControl` + a size `SelectControl` shown only under `url`. Owns the whole `as` token, folding size into its value (`as:url,medium`; nullary modes serialize bare). Size enum + pretty labels localized from PHP (`window.bwsImageSizes` ← `bws_get_image_size_options()`). Last-picked size stashed in React state so `url→alt→url` restores it (wire stays model-pure). Replaces GB's native `as` select AND `image-size` control. | `assets/js/as-size-control.js` | `as` on `image`, `try_image` |
+| `bws-format-input` | TextControl that escapes `:` / `\|` on save and unescapes for display, so format strings containing colons (e.g. `g:i A` time tokens) survive GB's JS `parseTag()` round-trip | `assets/js/format-input-control.js` | `format` on `datetime_single`, `datetime_range`; `fixed` on the text and contact leaves (`bws_get_text_field_options()`, `bws_get_contact_field_options()`), so wherever those leaves are read; `subject` on `email`, `try_email` |
+| `bws-slot-fold` | The slot REPEATER: owns one folded slot value whole (source chain + field read + per-slot options), parsing and emitting it only through the grammar twin `assets/js/slot-fold-grammar.js`. Explicit add/remove slot count; removal compacts, materializing carried axes first so a `same` backreference cannot silently re-point. Renders `bws-field-combo` against a synthetic context for the field pickers (the shipped control is unmodified). Every enum, label and noun arrives on the PHP option definition's `fold` sub-array from `bws_build_fold_slot_options()` — the control hand-authors no vocabulary. Recovers legacy flat keys at mount and rewrites the slot on first commit, on a container that has a flat era (`flatAxes` non-empty). | `assets/js/slot-fold-control.js` | folded slot keys `A`, `B`, … on `{{join}}` and `try_*` (v1.17.0), and `{{table}}`'s columns, which never had a flat era. Three read SHAPES, all read off the derived config rather than the container name: kind enum + picker, picker alone (a key axis with no `use` enum), or no read at all. See [§Folded slot wire](tag-reference.md#folded-slot-wire-multislot-containers) |
+| `bws-src-chain` | The BASE tag's source chain: a root plus ordered fanning steps, each with an optional per-step limit. Renders the SAME step component the folded-slot control uses (`window.bwsSlotFoldRepeater.chainSteps`) — a second renderer is where a hand-authored third spelling of `terms` gets in. Every enum, label, noun and slug map arrives on the PHP option definition's `fold` sub-array from `bws_build_src_chain_option()`. Reads a legacy tag's flat `src`/`ref`/`srcTermIn` as the chain they describe (display only, so a cancelled modal leaves stored wire untouched); the first commit writes chain wire, deletes the flat siblings, and carries the limit the old spelling implied onto the STEPS (`limit(1)` on each fanning step, visible in the step's own Limit field; an author's tag-level `limit` MOVES onto the last fanning step rather than staying behind) — because chain wire defaults to unlimited and a conversion that wrote nothing would fan the tag out under the author's hands. One mapping, `bws_fold_chain_apply_legacy_limit()`, shared with both migration paths so a converted tag and a scanned one are byte-identical. Edits the SOURCE only; the base tag keeps its own `use`/`key`. | `assets/js/src-chain-control.js` | `src` on `text`, `content`, `title`, `permalink`, `image`, `email`, `phone`, `datetime_single`, `datetime_range`. `{{table}}`'s tag-level `src` (its rows are the chain's tail). NOT on `try_*` — it derives its own surface from the root enum, and a slot authors its chain inside its folded value |
+| `bws-fanning-advisory` | Display-only, group-end advisory for the collapsing tags: one line at the end of the source box, shown only when the tag's chain actually fans (the grammar twin of `bws_fold_chain_fanning_steps()`). The copy arrives on the PHP option definition (`help`); the control writes nothing and its option (`srcFanNote`) is never serialized. The filter nulls it on a non-fanning chain so the group wrapper never draws an empty member. Mechanism: [`editor-controls.md` §Group-end fanning advisory](#group-end-fanning-advisory). | `assets/js/src-chain-control.js` | `srcFanNote` on `content`, `permalink`, `image` (the `takes_first_usable` templates — [§Collapsing tags](tag-reference.md#collapsing-tags-first-usable-source)) |
+| `bws-table-sizing`, `bws-table-typography`, `bws-table-stripes`, `bws-table-borders`, `bws-table-style-member` | `{{table}}`'s presentation, as four composites that each commit their keys in ONE `setState`: Sizing and Width (`layout` + `width`), Typography (the six text keys at Table and Header), Stripes (`stripe`), Borders (`border`, with `borderRadius` committed in the same `setState` when the radius changes and left alone otherwise). The other keys register as `bws-table-style-member`, which the filter renders as nothing: a second control for one key is a second place to edit it. All eleven register contiguously in the `style` visual group, so the option-group wrapper joins the four composites into one box. Input mechanics (the combobox, hint row, units, placeholders, checkbox pickers, repair): [§`{{table}}` presentation controls](#table-presentation-controls). Every validator, the `head,args;head,args` reader and the cascade come from `table-style-grammar.js`, the twin of `table-helpers.php` (held by `table-style-twin-test.php`); lists arrive as `window.bwsTableVocab`, the saved stripe default as `window.bwsTableDefaults`. Exposes `window.bwsTableStyleUI`, which the column card in `slot-fold-control.js` renders (Column Width beside the header text, alignment, and Custom Column Text Styles), gated on the fold config's `styleOption`. | `assets/js/table-style-control.js` + `assets/js/table-style-grammar.js` | `layout`, `color`, `stripe` (composites); `width`, `fontSize`, `fontWeight`, `fontStyle`, `textAlign`, `textTransform` (members) on `{{table}}`; column tokens inside the folded slot keys |
+| `bws-table-style-preview` | `{{table}}`'s Live Formatting Preview: a display-only lead member of the `style` box, a thumbnail of the table the tag string describes (sizing, width, alignment, typography, stripes, every column's width and text tokens, a miniature of each header's text). It decides nothing: its rules come from `bwsTableStyle.rules()`, the JS twin of `bws_table_rules()` (held by `table-style-twin-test.php`), and only rescales `width` lengths and drops `font-size` to fit a small box. Its option (`stylePreview`) has no value and is never serialized. Sticky by default: the option-group wrapper itself sticks (`:has()` on the child, because members are flat siblings in the modal column), `top:-4px` cancels the modal content's 4px padding, opaque, z-index 3 under a focused combobox's 5 so an open suggestion list paints over it. Compact (two body rows) while pinned, with the wrapper's `margin-bottom` holding its full flow height. Pinned is measured on scroll, not assumed. The Sticky switch is UI-only, kept in `localStorage` under try/catch (default on), never in the tag string. The thumbnail is `role="img"` with a label; the switch is a native checkbox named "Toggle sticky preview". | `assets/js/table-style-preview.js` | `stylePreview` on `{{table}}` |
+| `bws-field-combo` | Discovery-backed field picker: a searchable `ComboboxControl` over the field envelope inlined as `window.bwsFieldEnvelope` (assembled once per editor load from the REST route `bws-dynamic-tags/v1/fields`, no runtime fetch), plus two `SelectControl` filters above it (**location** — a path tree `Post/Term/Site fields › group › container`, container fields flagged `(repeater)`/`(group)`; **type** — ACF type or "Loop fields"). Flat list, one row per `(kind, key, label)`; a key in several groups collapses and shows under each, distinct labels stay separate. Serializes the **bare key** as a plain string (option `value` is a private merge key; the `valueToKey` map strips it in `onChange`), so it is a pure render swap for the old `text` input. Free-text via a synthetic "Use custom key" option; clear via `allowReset`. Reads optional `dynamicLabel` (label tracks the active location's group/kind) and `labelPrefix` from PHP option config. Composes with the conditional-options filter (`if (!element) return element`). Offered keys are filtered through `GenerateBlocks_Dynamic_Tag_Security::DISALLOWED_KEYS` server-side (offered ⟺ resolvable). | `assets/js/field-combo-control.js` + `includes/rest/field-discovery.php` | `key` (base/content/email/phone), `ref`, `linkKey` (`labelPrefix:'URL'`), datetime `key`/`timeKey`/`startKey`/`startTimeKey`/`endKey`/`endTimeKey`, and their `N-` per-slot try_ equivalents |
+
+Image size selection is the `bws-as-size` composite (above) as of v1.16.0 — GB's native `image-size` support is dropped and size folds into the `as` value (see [§`as` serialization opt-out + `as`+`size` fold](tag-reference.md#as-serialization-opt-out--assize-fold-image-try_image)). (History: a `bws-img-size` ComboboxControl was tried then retired mid-1.6.0 for GB's native support; the fold now retires the GB control in turn.)
+
+One control is composed rather than registered through the filter: `bws-entity-picker`, a chain root's argument picker. See [§First-step menu order and the entity picker](#first-step-menu-order-and-the-entity-picker).
+
+---
+
 ## Source and field control mechanics
 
 What the editor RENDERS for the shared option groups: which component owns a group, how its controls
@@ -42,25 +64,13 @@ wire](tag-reference.md#folded-slot-wire-multislot-containers) — so the `N-`pre
 lists for slot 2+ are **legacy wire** (registered through v1.16.x, still read by the renderer, never
 written).
 
-**`src` option values — per-slot UI/serialization mechanics** (labels, the slot-2+ `same`/`current`
-distinction, the editor-preview context segment each value produces). For **what each value
-resolves to** (and implementation status), see [§`src` option
-values](tag-reference.md#src-option-values).
+**Every chain-authoring surface picks its source from the first-step menu** — each entry, its label and what it writes, per surface, is [§First-step menu](#first-step-menu-order-and-the-entity-picker) below. What each root resolves to is [§`src` option values](tag-reference.md#src-option-values) and each step [§Source CHAINS](tag-reference.md#source-chains-1170); the editor-preview segment each one produces is [`editor-tag-previews.md`](editor-tag-previews.md).
 
-| Option label | Option value | Base / Slot 1 | Slot 2+ | Context segment in editor preview label | Notes |
-|---|---|---|---|---|---|
-| Same as Previous Source | `same` | Current entity — not serialized | Carry over slot N−1 | N/A | Slot 2+: prepended entry, not in template definition |
-| Current Context | `current` | stripped → unset | `current` | *(omitted)* | Slot 2+ only: explicit override back to current |
-| Posts in Reference/Relational Field | `ref` | `ref` | `ref` | `Ref 'X'` where X = `ref` field value | Triggers `ref` sub-option |
-| Parent | `parent` | `parent` | `parent` | — | Future |
-| Ancestor | `ancestor` | `ancestor` | `ancestor` | — | Future |
-| Child(ren) | `child` | `child` | `child` | — | Future |
-
-Note: For context-modifier tags, the modifier label is prepended as a context segment. Examples:
-`[Title from Term]` for `{{term_title}}`, `[Content from Term Ref 'rel_post']` for `{{term_content
-src:ref|ref:rel_post}}`. See [`editor-tag-previews.md`](editor-tag-previews.md) for assembly rules.
+**One flat `src` select survives: `{{call}}`.** Its source set is closed to post-yielding values (`bws_call_source_option()`), so it renders a plain select of Current Context (stripped default) and Posts in Reference/Relational Field (`ref`, which shows the `ref` field-key option), not the chain control.
 
 **Control composition.** The composite pattern this doc's preamble names — one key, two widgets — is currently unexercised. `srcTermIn` was its instance: a combined `bws-term-hop` control (CheckboxControl + ComboboxControl) whose taxonomy slug encoded both "term step on" and which taxonomy, replacing the prior `srcTerm` + `tax` pair in v1.6.0. The control was retired in v1.21.0 (FW-67) once every chain source had absorbed the key and the two families that authored it flat were gone; the key itself is still read, and is authored today as a `terms` step inside the source chain. `sep` is alone in the source group on a `try_` tag, so it renders **unboxed** there: the attempts are that tag's source and draw their own boxes.
+
+**The reverse composite — one control, several keys — is exercised by `{{table}}`'s presentation controls** ([§`{{table}}` presentation controls](#table-presentation-controls)). Where "two controls, one key" folds two widgets into one value, these let one control own several keys and commit them in ONE `setState`, so a stored tag never passes through a half-written state (precedent: `convertUpdate` in `src-chain-control.js`). The keys a composite writes but does not lead register as `bws-table-style-member`, which renders nothing: a second control for one key would be a second place to edit it.
 
 **The tag-level `limit` is a LIVE READ with a RETIRED CONTROL.** No control on any chain-authoring
 tag registers it (v1.17.0,
@@ -81,9 +91,26 @@ strikethrough in the catalog rather than a quiet deletion, and hence the table b
 
 ### First-step menu order and the entity picker
 
-**The first step's menu is grouped, not a flat list.** Top to bottom: the lead entries (`same` in a slot 2+, Current Context), the step types under a native "From Current Context" `<optgroup>`, the plugin's own roots (Specific Post, Specific Term), Site, then roots other plugins register under a native "Integrations" `<optgroup>`. `rootMenu()` in `slot-fold-control.js` decides the order and the grouping; `bws_registered_root_rows()` supplies the `integration` flag that sends a row to the last group.
+**The first step's menu is grouped, not a flat list.** Top to bottom: the lead entries, the step types under a native "Starting from <lead>" `<optgroup>`, a container's actions, the remaining roots (Current Context when it is not the lead, Specific Post, Specific Term, any other registered root), Site, then roots other plugins register under a native "Integrations" `<optgroup>`. `rootMenu()` in `slot-fold-control.js` decides the order and the grouping; `bws_registered_root_rows()` supplies the `integration` flag that sends a row to the last group.
+
+| Entry | Group | Writes | Base tag (`bws-src-chain`) | `try_` attempt / `{{join}}` field | `{{table}}` column |
+|---|---|---|---|---|---|
+| Same as Previous Source | lead | `same` | — | slot 2+ | — (copy-on-select instead) |
+| Tag Source | lead | nothing alone (stripped); `inherit;…` when steps follow | — | — | every column |
+| Current Context | lead; in the roots run on a table | nothing at slot 1 (stripped); `current` where it is not the default | ✓ | ✓ | ✓, written `current` |
+| Posts in Reference/Relational Field | Starting from <lead> | `refs,<field>` | ✓ | ✓ | ✓, written `inherit;refs,<field>` |
+| Terms in Taxonomy | Starting from <lead> | `terms,<taxonomy>` | ✓ | ✓ | ✓, written `inherit;terms,<taxonomy>` |
+| Rows in Repeater Field | Starting from <lead> | `rows,<field>` | ✓ | ✓ | ✓, written `inherit;rows,<field>` |
+| Copy Previous Column's Source | action | a copy of the previous column's chain; never `same` | — | — | column 2+, while the previous chain is non-empty |
+| Specific Post / Specific Term | roots | `post,<ID>` / `term,<ID>`, the ID from the entity picker below | ✓ | ✓ | ✓ |
+| Site | roots, last | `site` | ✓ | `{{join}}` ✓; a `try_` attempt only where its template sets `try_allow_site_slot` | ✓ |
+| *(a registered root)* | roots, or Integrations when flagged | its key | ✓ | ✓ | ✓ |
+
+The group heading is "Starting from Current Context" on a base tag and in `try_`/`{{join}}`, and "Starting from Tag Source" in a table column. Which steps a surface offers is its fold config's `offer`. Root labels arrive on the PHP definition (`bws_base_source_option()`, `bws_registered_root_rows()`), step labels from `bws_fold_wire_vocabulary()`, and the table's "Starting from Tag Source" heading on its fold config; the control authors only the fallback heading "Starting from Current Context", "Integrations" and the copy action.
 
 **The Specific Post / Specific Term selector is a capped browse list.** Each group (a taxonomy for a term, a post type for a post) lists at most 20 entries in the All view and 100 once a group is chosen, and a caution above the combobox says when entries are cut short; the Post Type / Taxonomy filter and search are how an author reaches the rest. The filter's options arrive inlined as `window.bwsEntityGroups`, so the control renders on mount without a REST call. A missing global falls back to the `groups` the browse response carries, while a present but empty one is trusted. The caps and the request contract live in `includes/rest/entity-lookup.php`, the control in `assets/js/entity-picker-control.js`.
+
+**The picker is `bws-entity-picker`, and it is NOT a `tagSpecificControls` type.** A root's argument is not an option key; it rides inside the chain value's position 0 (`post,<ID>`). So the control registers into `window.bwsRootArgControls`, keyed by name, and the chain step renderer mounts whichever control the selected root's row names in `arg.control` (`CurrentPost` and `TaxonomyTerm` declare `bws-entity-picker`). That makes a root argument render identically on a base tag, a `try_` attempt and a `{{join}}` field, from the one place a chain's root and steps are drawn.
 
 ### Chain step controls
 
@@ -279,12 +306,7 @@ note: [
 ]
 ```
 
-**Ambiguity is silence.** The wire stores a bare field key, which entries of different
-resolved-source kinds can share, and a note is a claim about one specific field's configuration — so
-the control shows a note only where every discovered entry holding that key agrees. This mirrors the
-field picker's own rule for an ambiguous key (show the bare key, assert nothing). Agreement is on
-the note VALUE, so one field surfaced in several homes still shows it; only genuinely different
-definitions sharing a key fall silent, and an entry *without* a note disagrees with one that has it.
+**Ambiguity is silence.** The wire stores a bare field key, which entries of different resolved-source kinds can share, and a note is a claim about one specific field's configuration — so the control shows a note only where every discovered entry holding that key agrees. This mirrors the field picker's own rule for an ambiguous key (show the bare key, assert nothing, unless the source settles which field it is). Agreement is on the note VALUE, so one field surfaced in several homes still shows it; only genuinely different definitions sharing a key fall silent, and an entry *without* a note disagrees with one that has it.
 
 **Presentation.** Unlabelled, in a neutral grey panel with a left rule: distinct from the muted help
 text above it and from the red validation message, and carrying no second hue. No icons — every note
@@ -303,7 +325,40 @@ src:refs,related_staff}}` renders the related posts (verified on the testbed, `r
 holding two ids). Relocating this note there would explain a limit on a read that produces nothing;
 what that surface would want, if anything, is an advisory pointing at the source step.
 
+#### Field-label action
+
+Beneath a `{{table}}` column's field picker, a column whose field read names a known field offers that field's ACF label as the header, with one link: **Use "City" as the column header**. Built by `labelAction()` in [`assets/js/slot-fold-control.js`](../assets/js/slot-fold-control.js); the copy arrives on the fold config's `headerOption.labelApply` from `bws_build_fold_slot_options()`, so every string stays in PHP. It sits with the field because the label is the field's; the copy names the header as its destination, so it reads across the gap to the header box.
+
+**Shown only while the header differs from the label.** The picker's selected row already names the label (`City (Text, 'venue_city')`), so no line restates it; the link is the one thing the author lacks. Once the header equals the label the link is gone, and it returns when the author edits away.
+
+**Click-to-apply, never a placeholder.** Nothing is written until the link is clicked, and clicking writes the label as an ordinary `header` token, indistinguishable afterwards from a typed one. An unset header stays unset, so the `<thead>` gate still reads the column as headerless. There is no wire for the affordance itself.
+
+**Uncertainty is silence**, the field configuration note's rule: a label is offered only where every envelope entry holding the key, among the fields the column's source can reach, agrees on it. So one key labelled differently in two places offers the one the column reads, and a key found only somewhere the source does not reach offers nothing. The label comes from the field picker's `reachableLabel()` (`assets/js/field-combo-control.js`), asked with the context the picker itself renders against; what counts as reachable is stated once, at `reachOf()` beside it, and the picker uses the same rule to settle which row an ambiguous key shows as selected. With no picker loaded there is no link. A `register_meta` entry has no ACF label to claim and counts as disagreeing. No field picked, an unknown key, a non-key read or no envelope on the page all render nothing. The lookup is re-derived from the column's current field and source on every render, so changing either changes the link.
+
 ---
+
+<a id="table-presentation-controls"></a>
+## `{{table}}` presentation controls
+
+The four composites (Sizing and Width, Typography, Stripes, Borders) and the Live Formatting Preview are listed in [§Custom editor controls registered](#custom-editor-controls-registered); the keys and values are [`tag-reference.md` §Table tag](tag-reference.md#table-tag). This section is the input mechanics they share, all in `assets/js/table-style-control.js`. That file decides nothing about values: every validator, the `head,args;head,args` reader and the cascade are asked of `table-style-grammar.js`.
+
+**Registration order is control order.** The composites register contiguously in the `style` visual group, so reordering them is a registration-order change, pinned by `control-order-test.php`. The text keys' serialization rank follows the control order too, so reordering the Typography fields is a wire change ([`tag-reference.md` §Option order](tag-reference.md#option-order)).
+
+**Colors, widths and sizes are one combobox (`ComboField`).** WP's `ComboboxControl` refuses text that is not on its list, so a typed value is offered as a synthetic first row (`Use "…"`, the `bws-field-combo` precedent) and picking it commits. A typed value that fails its validator becomes an error row that commits nothing, so an unrecognized value never reaches the wire from the control.
+
+**Every list opens with one hint row, and the same text is the field's description.** The hint is a disabled first option (not pickable), and is repeated as visually hidden text inside the control's `help` (the field's description), because screen readers skip a disabled row. What a screen reader announces is not measured. WP filters the options by the typed text, so the hint row disappears once the author types (measured 2026-10-16); the description stays.
+
+**No unit flag: units are list rows, natural default first.** A typed number is offered in every allowed unit as rows, the field's natural unit first: `%` for Table Width and Column Width, `rem` for Font Size. Keywords and `var()` are typed or picked as whole values. GB's `UnitControl` is not used.
+
+**An unset field shows what it inherits.** The Header fields show the table's value followed by `(table)`, and a column's Body and Header fields show the table's or the table header's (`(table)`, `(table header)`); with nothing to inherit, the placeholder is `Default`. Width placeholders say what the current Column Sizing does: Table Width shows `100%` under Fixed and `Theme default` otherwise, and Column Width shows `Equal share`, `Fits content` or `Theme default` for Fixed, Auto and Theme. A border style left unset shows the style it falls back to, greyed.
+
+**None / A / B pickers are three checkboxes (`CheckRow`).** Stripes (None, Rows, Columns) and Custom Column Text Styles (None, Body, Header). None is ticked exactly when neither other box is; ticking None clears the others, and unticking it directly does nothing. Both boxes ticked is the combined mode. A hand-edited value under repair ticks nothing, not even None. The row is a `role="group"` named by its label. Column Sizing stays a three-way radio (`RadioRow`).
+
+**A hand-edited value the renderer would drop is shown, never silently repaired.** The field shows a message and ONE repair button, which writes what the renderer already reads (the emit of the parse), so repair changes the wire and never the render. A bare `borderRadius` length is reserved for cell corners, and its Fix applies it as the Outer Radius.
+
+**The column card's styling is the same component set.** `window.bwsTableStyleUI` exposes the fields, and `slot-fold-control.js` renders them in a column card (Column Width beside the Header text box, the alignment pair, then Custom Column Text Styles) when the fold config ships `styleOption`. It writes tokens inside the slot's folded value, not tag keys.
+
+**Copy that refers to a control** (a label or value) is set in italics with `*…*`; `rich()` builds `<em>` nodes from the stars and keeps the text an escaped React child.
 
 ## Option grouping (visual)
 
@@ -334,7 +389,7 @@ group's only visible member; every other lone member renders bare. `link` delibe
 **Captions belong to controls, not to groups.** The wrapper renders no caption; a control that draws
 its own inside the wrapper's box is what puts one there. So the source group reads `SOURCE` /
 `SOURCE PATH` on the tags whose source is the chain control, and the same box sits bare on
-`term_*`, `try_*`, `{{table}}` and `{{call}}`, whose source is a plain select. Accepted for v1.17.0
+`term_*`, `try_*` and `{{call}}`, whose source is a plain select. Accepted for v1.17.0
 and tracked on [FW-64](future-work.md): rendering the caption in the wrapper means reading the lead
 control's state, because the chain caption changes with chain length.
 
@@ -418,6 +473,8 @@ docblocks):
   a hand-kept list once deleted a `try_` template's TAG-level `limit` and folded a
   `try_datetime_*`'s TAG-level `key` into slot 1. `inferIntent()` is advisory text only and must
   never regrow authority over what renders or what serializes.
+
+**A `{{table}}` slot also carries a Header text box**, the column's heading cell, written as the slot's `header(…)` token. The token is shared grammar and parses and round-trips in every container, but the control is offered only where the PHP fold config ships `headerOption` (a `<th>` means nothing in a `{{join}}` or `try_` slot). It is not part of the chain or the read, so a commit rewrites the whole slot with the header changed and nothing else; clearing it drops the token. The rendered tree is the only coverage that sees this rule (`SlotFoldControl` is exported for `slot-fold-repeater-test.js`).
 
 **An absent chain is DISPLAYED as the root it spells**, not as an empty picker — `defaultRoot` on
 slot 1, `same` on slot ≥2 — because a `SelectControl` whose value matches no row paints its first

@@ -47,6 +47,9 @@
 	// bare option name → [group, within-group rank].
 	var KEY_MAP = {
 		// format (leads; global)
+		// A table column's header(…) token: inside a slot's value, emitted first by
+		// construction; here so the map states what the emitter does (PHP twin has the note).
+		header: [ 'format', -1 ],
 		as: [ 'format', 0 ],
 		size: [ 'format', 1 ], // GB-reserved today (never in extraTagParams); harmless.
 		// join tag-level assembly keys (share format group): mode → valueSep →
@@ -73,6 +76,18 @@
 		startTimeKey: [ 'source', 10 ],
 		endKey: [ 'source', 11 ],
 		endTimeKey: [ 'source', 12 ],
+		// {{table}} presentation keys (tag level and column tokens); PHP twin has the note.
+		layout: [ 'source', 13 ],
+		width: [ 'source', 14 ],
+		color: [ 'source', 15 ],
+		fontSize: [ 'source', 16 ],
+		fontWeight: [ 'source', 17 ],
+		fontStyle: [ 'source', 18 ],
+		textAlign: [ 'source', 19 ],
+		textTransform: [ 'source', 20 ],
+		stripe: [ 'source', 21 ],
+		border: [ 'source', 22 ],
+		borderRadius: [ 'source', 23 ],
 		// link (after source; entity-link OR email/phone own-anchor set subject → noLink)
 		linkTo: [ 'link', 0 ],
 		linkKey: [ 'link', 1 ],

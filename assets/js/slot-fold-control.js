@@ -130,6 +130,9 @@
 			offer: c.offer || [],
 			// Root token → parse-time resolved kind (only `site` has one).
 			roots: c.roots || {},
+			// The heading over the first-step steps, when a container's lead root is not
+			// the ambient entity (table: "Starting from Tag Source"). '' = rootMenu's own.
+			stepGroup: c.stepGroup || '',
 			// The per-step limit control's whole vocabulary — label, placeholder and
 			// BOTH help forms (#95). Container-invariant, because a step's `limit[N]`
 			// belongs to the wire's step grammar, and shipped for the same reason every
@@ -142,12 +145,21 @@
 			taxonomies: c.taxonomies || [],
 			refOption: c.refOption || null,
 			keyOption: c.keyOption || null,
+			fixedOption: c.fixedOption || null,
 			rowsOption: c.rowsOption || null,
+			// The column heading control's label and help, shipped on a {{table}} slot only
+			// (bws_build_fold_slot_options); null elsewhere, which is what hides the control.
+			headerOption: c.headerOption || null,
+			// True on a {{table}} slot only: the column card also draws Column Width and the
+			// column text styles (assets/js/table-style-control.js owns the fields).
+			styleOption: !! c.styleOption,
 			// The LEGACY per-slot axes, PHP-derived (bws_fold_slot_flat_axes) — this
 			// control never lists them. A hand-kept list deleted a try_ template's
 			// TAG-level `limit` and a try_datetime_single's TAG-level `key` on first
 			// touch, because both are spelled exactly like slot 1's axes.
-			flatAxes: c.flatAxes || [],
+			// An EMPTY list is a statement (no per-slot legacy axes: {{table}} shipped
+			// folded); only an absent one falls back (slot-fold-migrate.js slotAxes()).
+			flatAxes: c.flatAxes,
 			// The template's COLLAPSING capability (ADR 0007), PHP-set only when true
 			// (bws_build_src_chain_option / bws_build_fold_slot_options). It must be
 			// carried through this normalizer explicitly: the return below is a fresh
@@ -156,13 +168,7 @@
 			// per-step limit suppression and the field note's consequence clause — and
 			// both silently reverted to the non-collapsing branch while the config that
 			// feeds them was correct end to end.
-			takesFirstUsable: !! c.takesFirstUsable,
-			// Which tag-level option names the repeater a row-scoped picker narrows to.
-			// The control passes its VALUE down as an explicit `scopeKey` prop rather
-			// than letting the picker reach outward for a bare `key` — under the fold
-			// that name means something else one level in.
-			scopeStateKey: c.scopeStateKey || '',
-			fieldScope: c.fieldScope || ''
+			takesFirstUsable: !! c.takesFirstUsable
 		};
 	}
 
@@ -201,7 +207,7 @@
 
 	/**
 	 * The first step's menu ORDER: the ambient lead (`same`, the default root), the steps
-	 * that start from it grouped as "From Current Context", then our own roots, `site`,
+	 * that start from it grouped as "Starting from Current Context", then our own roots, `site`,
 	 * and last any integration roots grouped as "Integrations".
 	 *
 	 * A grouped row carries its group's label as `group`; optionNodes() turns runs of
@@ -212,9 +218,12 @@
 	 * @param {Array}  roots       The surface's root rows (`integration` flags another plugin's).
 	 * @param {Array}  steps       The step rows offered at position 0.
 	 * @param {string} defaultRoot The root an absent source means.
+	 * @param {string} stepGroup   The steps' optgroup heading ('' = "Starting from Current Context").
+	 * @param {Array}  actions     Rows that are actions rather than roots (a table column's
+	 *                             copy entry), placed right after the steps.
 	 * @return {Array} Rows, ordered and de-duplicated.
 	 */
-	function rootMenu( roots, steps, defaultRoot ) {
+	function rootMenu( roots, steps, defaultRoot, stepGroup, actions ) {
 		function isLead( r ) {
 			return 'same' === r.value || ( !! defaultRoot && defaultRoot === r.value );
 		}
@@ -223,7 +232,8 @@
 		}
 		var seen = {};
 		return roots.filter( isLead )
-			.concat( steps.map( inGroup( __( 'From Current Context', 'generateblocks' ) ) ) )
+			.concat( steps.map( inGroup( stepGroup || __( 'Starting from Current Context', 'generateblocks' ) ) ) )
+			.concat( actions || [] )
 			.concat( roots.filter( function ( r ) { return ! isLead( r ) && ! r.integration && 'site' !== r.value; } ) )
 			.concat( roots.filter( function ( r ) { return 'site' === r.value; } ) )
 			.concat( roots.filter( function ( r ) { return r.integration; } ).map( inGroup( __( 'Integrations', 'generateblocks' ) ) ) )
@@ -355,8 +365,9 @@
 	 * channel the picker's own rows come from, so the note and the row an author picked
 	 * it from can never describe different fields.
 	 *
-	 * AMBIGUITY IS SILENCE, matching how the field picker already treats a key that
-	 * maps to more than one discovered field ("show the bare key, assert nothing").
+	 * AMBIGUITY IS SILENCE, matching how the field picker treats a key that maps to more
+	 * than one discovered field its source does not settle ("show the bare key, assert
+	 * nothing").
 	 * The wire stores a BARE key, which two entries of different kinds can share — a
 	 * post `partners` and a term `partners` — and a note is a claim about one specific
 	 * field's configuration. So a note shows only where every entry holding that key
@@ -366,13 +377,9 @@
 	 * An absent envelope (no discovery on this page) is likewise silence, not a
 	 * fallback: with no definitions in hand there is nothing to say.
 	 *
-	 * A SECOND WALK OVER THE ENVELOPE, deliberately not shared with
-	 * field-combo-control.js's `envelopeToRecords()`. That file mounts only once its own
-	 * component list is present (`ComboboxControl`/`Flex`/`FlexItem`/`apiFetch`) and
-	 * BAILS on an older stack, where this control still renders against a plain text
-	 * input — so a shared reader there would take the note down with it. The two also
-	 * ask different questions: the picker MERGES same-key entries into one offerable
-	 * row, while a note must notice that two of them DISAGREE.
+	 * Its own walk over the envelope, not field-combo-control.js's `envelopeToRecords()`:
+	 * the picker MERGES same-key entries into one offerable row, while a note must notice
+	 * that two of them DISAGREE.
 	 */
 	function fieldNote( fieldKey ) {
 		var env = window.bwsFieldEnvelope;
@@ -436,11 +443,55 @@
 		return kids.length ? el( 'div', { key: 'fieldnote', style: NOTE_PANEL }, kids ) : null;
 	}
 
+	/**
+	 * The FIELD-LABEL ACTION beneath a table column's field picker: one link offering the
+	 * picked field's label as the column header, shown only while the header differs from
+	 * it. The picker's selected row already names the label, so a line restating it would
+	 * be redundant; what the author lacks is the one-click way to use it. Placed with the
+	 * field because the label is the field's; the copy names the header as its destination.
+	 * Click-to-apply, never a placeholder: it writes nothing until clicked, so an unset
+	 * header stays unset and the `<thead>` gate reads the column as headerless. Copy is
+	 * PHP's (`headerOption.labelApply`).
+	 *
+	 * Clicking unmounts the link (the header now matches), so focus moves to the header
+	 * field it just filled rather than falling back to the document body.
+	 *
+	 * WHICH LABEL is the picker's to say (field-combo-control.js `reachableLabel()`, the
+	 * reach rule's owner), asked of the same synthetic context the picker renders against,
+	 * so the action and the picker's selected row settle an ambiguous key by one rule. No
+	 * picker, no action: silence, never a second copy of the rule.
+	 */
+	function labelAction( conf, slot, write, parentChain, headerId ) {
+		var opt = conf.headerOption || {};
+		var read = slot.read;
+		var picker = window.bwsFieldComboControl;
+		var label = ( opt.labelApply && read && 'key' === read.kind && picker && picker.reachableLabel )
+			? picker.reachableLabel( window.bwsFieldEnvelope, fieldContext( slot, function () {}, parentChain ).state, 'key', read.field )
+			: null;
+		if ( ! label || label === slot.header ) {
+			return null;
+		}
+		return el( Button, {
+			key: 'labelapply',
+			variant: 'link',
+			style: { marginTop: '6px' },
+			onClick: function () {
+				write( Object.assign( {}, slot, { header: label } ) );
+				setTimeout( function () {
+					var input = 'undefined' !== typeof document ? document.getElementById( headerId ) : null;
+					if ( input ) {
+						input.focus();
+					}
+				}, 0 );
+			}
+		}, fmt( opt.labelApply, label ) );
+	}
+
 	// ── Slot structs ────────────────────────────────────────────────────────
 
 	/** An empty slot struct in the grammar's shape. */
 	function emptySlot() {
-		return { label: null, type: null, chain: [], read: null, opts: {}, extra: [] };
+		return { header: null, type: null, chain: [], read: null, opts: {}, extra: [] };
 	}
 
 	function step( slug, arg, limit ) {
@@ -465,9 +516,104 @@
 	 */
 	function seedSlot( conf ) {
 		var slot = emptySlot();
+		// A TABLE column starts at its row, so its chain is empty — and an empty slot writes
+		// nothing, which would add no column. The pending keyed read is what it stores.
+		if ( hangsOffParent( conf ) ) {
+			slot.read = { kind: 'key', field: '' };
+			return slot;
+		}
 		slot.chain = [ step( 'same' ) ];
 		slot.read = ( conf.combining || ! conf.perSlotUse ) ? null : { kind: 'same' };
 		return slot;
+	}
+
+	/** The root that means "the parent's resolved source" (BWS_FOLD_INHERIT_ROOT). */
+	var INHERIT = 'inherit';
+
+	/** The copy entry's menu value. An action, never written; no root token can spell it. */
+	var COPY_PREVIOUS = '(copy)';
+
+	/** Whether the container's slots hang off a PARENT source: a {{table}} column off its row. */
+	function hangsOffParent( conf ) {
+		return 'table' === conf.container;
+	}
+
+	/**
+	 * Whether slot n's empty source means "the previous slot's" (`same`) rather than the
+	 * container's default root. A TABLE column never does: its columns hang off the row, and
+	 * "Copy Previous Column's Source" copies a chain instead of pointing at a sibling.
+	 */
+	function carriesOver( ordinal, conf ) {
+		return ordinal >= 2 && ! hangsOffParent( conf );
+	}
+
+	/**
+	 * A chain read the way a table column's is: a chain stated in full, root first.
+	 *
+	 * A hand-written `src(same)` is EXPANDED, resolving back through the previous column
+	 * until a concrete chain (empty at column 1, which is the row). A chain that LEADS with
+	 * a step reads as the row and gains its `inherit` root. A lone default root then strips.
+	 * The control displays this and writes it on the next edit, so hand-written wire
+	 * canonicalizes without anyone opening it on purpose.
+	 *
+	 * @param {Array}  chain Parsed chain.
+	 * @param {number} n     The column's ordinal.
+	 * @param {Object} state Whole option map (the previous column's value is read off it).
+	 * @param {Object} conf  Fold config.
+	 * @return {Array} Canonical chain.
+	 */
+	function columnChain( chain, n, state, conf ) {
+		var out = chain.slice();
+		if ( out.length && 'same' === out[ 0 ].slug ) {
+			var prev = ( n > 1 ) ? readSlot( n - 1, state, conf ) : null;
+			out = ( prev ? columnChain( prev.chain, n - 1, state, conf ) : [] ).concat( out.slice( 1 ) );
+		}
+		if ( out.length && stepDef( conf, out[ 0 ].slug ) ) {
+			out = [ step( INHERIT ) ].concat( out );
+		}
+		return stripDefaultRoot( out, n, conf );
+	}
+
+	/**
+	 * The chain a position's PREDECESSOR is read off: the parent's chain stands in for an
+	 * `inherit` root (and for an empty chain, which means the parent where there is one).
+	 * Without a parent the chain is its own lineage.
+	 */
+	function lineageOf( chain, parentChain ) {
+		if ( ! parentChain ) {
+			return chain;
+		}
+		if ( ! chain.length ) {
+			return parentChain;
+		}
+		return INHERIT === chain[ 0 ].slug ? parentChain.concat( chain.slice( 1 ) ) : chain;
+	}
+
+	/** The tag-level source chain a table column hangs off, parsed off state. */
+	function parentChainOf( state ) {
+		var src = String( state.src || '' ).trim();
+		var parsed = src ? fold.parseChain( src ) : [];
+		return Array.isArray( parsed ) ? parsed : [];
+	}
+
+	/**
+	 * Drop a lone root that only RESTATES what an absent chain already spells.
+	 *
+	 * Reachable now that the default root is displayed: picking another source and
+	 * picking `Current Context` back would otherwise serialize `src(current)` where the slot
+	 * previously held nothing, so merely LOOKING at a slot could change its wire.
+	 *
+	 * Where a slot carries over (carriesOver) only slot 1 strips: a slot >=2's `same` is
+	 * written on purpose — absence there is a RESET rather than a carry-over, so an explicit
+	 * carry-over has to be stated (see writeChainAt). Stripping it would silently convert one
+	 * into the other. A table column has no such state, so it strips at every ordinal.
+	 */
+	function stripDefaultRoot( chain, ordinal, conf ) {
+		if ( carriesOver( ordinal, conf ) || 1 !== chain.length || ! conf.defaultRoot ) {
+			return chain;
+		}
+		var only = chain[ 0 ];
+		return ( only.slug === conf.defaultRoot && ! only.arg && ! only.limit ) ? [] : chain;
 	}
 
 	/**
@@ -645,9 +791,14 @@
 	 * author could see. It stays a one-step wire because that is what the terminal IS
 	 * here — the read applies to what the chain last resolved to, and every step above
 	 * has already been consumed getting there.
+	 *
+	 * A TABLE column's chain continues the tag's (lineageOf), so a column that adds no step
+	 * of its own reads off the container chain's TAIL, and is unnarrowed when that tail is
+	 * render-time.
 	 */
-	function fieldContext( slot, commitField ) {
-		var terminal = slot.chain.length ? slot.chain[ slot.chain.length - 1 ] : null;
+	function fieldContext( slot, commitField, parentChain ) {
+		var lineage = lineageOf( slot.chain, parentChain );
+		var terminal = lineage.length ? lineage[ lineage.length - 1 ] : null;
 		var synth = {};
 		if ( terminal ) {
 			if ( 'site' === terminal.slug ) {
@@ -693,6 +844,10 @@
 	 *                                        means the ambient entity.
 	 * @param {string}   props.slotNoun       The container's registered unit noun.
 	 * @param {Object}   props.stepContext     fn( step, commit ) — field-picker bridge.
+	 * @param {Array}    props.parentChain     The chain an `inherit` root continues (a table
+	 *                                        column's: the tag's source). Absent = no parent.
+	 * @param {Array}    props.copyChain       The previous column's chain, offered as "Copy
+	 *                                        Previous Column's Source" while non-empty.
 	 * @return {Array} Step nodes, ready to place inside the caller's group box.
 	 */
 	function chainSteps( props ) {
@@ -722,6 +877,11 @@
 		}
 
 		var isSameChain = 1 === chain.length && 'same' === chain[ 0 ].slug;
+
+		// A table column continues its PARENT's chain, so what precedes position `idx` here
+		// is position `idx + offset` there. Without a parent the offset is 0.
+		var lineage = lineageOf( chain, props.parentChain );
+		var offset = lineage.length - chain.length;
 
 		/** Rewrite the chain with one index replaced (null step = delete it). */
 		function writeChainAt( idx, newStep ) {
@@ -778,11 +938,12 @@
 		 * @return {Object} The same context, or one carrying the predecessor's `src` token.
 		 */
 		function predecessorContext( ctx, idx ) {
-			var prev = ( idx > 0 ) ? chain[ idx - 1 ] : null;
+			var at = idx + offset;
+			var prev = ( at > 0 ) ? lineage[ at - 1 ] : null;
 			if ( ! prev || ! prev.arg ) {
 				return ctx;
 			}
-			var names = ( 1 === idx && rootArgOf( conf, prev.slug ) ) ||
+			var names = ( 1 === at && rootArgOf( conf, prev.slug ) ) ||
 				'rows' === prev.slug || 'refs' === prev.slug;
 			if ( ! names ) {
 				return ctx;
@@ -803,7 +964,16 @@
 		 * every step is offered — the editor must not guess an ambient kind.
 		 */
 		function kindAt( idx ) {
-			var prev = chain[ idx - 1 ];
+			// A step picked at a table column's FIRST position is written `inherit;<step>`, so
+			// it runs off the parent's tail whatever root the column holds now.
+			if ( 0 === idx && props.parentChain ) {
+				return kindIn( props.parentChain, props.parentChain.length );
+			}
+			return kindIn( lineage, idx + offset );
+		}
+
+		function kindIn( seq, at ) {
+			var prev = seq[ at - 1 ];
 			if ( ! prev ) {
 				return '';
 			}
@@ -811,7 +981,7 @@
 			if ( def && def.produces ) {
 				return def.produces;
 			}
-			return ( idx > 1 ) ? '' : ( ( conf.roots || {} )[ prev.slug ] || '' );
+			return ( at > 1 ) ? '' : ( ( conf.roots || {} )[ prev.slug ] || '' );
 		}
 
 		/**
@@ -860,7 +1030,11 @@
 				rows = offerableSteps( idx, held );
 			} else {
 				var roots = props.sameOnEmpty ? conf.srcRowsWithSame : conf.srcRows;
-				rows = rootMenu( roots, offerableSteps( 0, held ), conf.defaultRoot );
+				// Copy-on-select: offered only while there IS a different chain to copy.
+				var actions = ( props.copyChain && props.copyChain.length )
+					? [ { value: COPY_PREVIOUS, label: __( 'Copy Previous Column\'s Source', 'generateblocks' ) } ]
+					: [];
+				rows = rootMenu( roots, offerableSteps( 0, held ), conf.defaultRoot, conf.stepGroup, actions );
 			}
 			if ( held && ! rows.some( function ( r ) { return r.value === held; } ) ) {
 				var def = stepDef( conf, held );
@@ -920,6 +1094,11 @@
 				onChange: function ( v ) {
 					if ( ! v ) {
 						writeChainAt( i, null );
+						return;
+					}
+					// A COPY, never a reference: reselecting is the reset.
+					if ( COPY_PREVIOUS === v ) {
+						props.onChange( JSON.parse( JSON.stringify( props.copyChain ) ) );
 						return;
 					}
 					// Keep the arg only when the new slug consumes the SAME arg (the
@@ -1171,6 +1350,8 @@
 		var state = ctx.state || {};
 		var setState = ctx.setState;
 		var key = props.optionKey;
+		// The column header input's id: the field-label action returns focus to it (labelAction()).
+		var headerId = 'bws-colheader-' + key;
 		// The option key IS the slot's wire spelling, so its ordinal is a DECODE, not a
 		// parseInt: `AA` is slot 27, which parseInt reads as NaN.
 		var ordinal = fold.slotOrdinal( key );
@@ -1210,7 +1391,17 @@
 		// button seeds, and an untouched slot 2 reads identically however it arrived.
 		// Slot 1 keeps the empty default: with no predecessor, `current` genuinely IS
 		// its unset state.
-		slot = slot || ( ordinal >= 2 ? seedSlot( conf ) : emptySlot() );
+		slot = slot || ( carriesOver( ordinal, conf ) ? seedSlot( conf ) : emptySlot() );
+
+		// A table column hangs off the tag's source chain, and its own chain is shown as
+		// written on the next edit (columnChain).
+		var parentChain = hangsOffParent( conf ) ? parentChainOf( state ) : void 0;
+		var copyChain = null;
+		if ( parentChain ) {
+			slot.chain = columnChain( slot.chain, ordinal, state, conf );
+			var prevSlot = ordinal > 1 ? readSlot( ordinal - 1, state, conf ) : null;
+			copyChain = prevSlot ? columnChain( prevSlot.chain, ordinal - 1, state, conf ) : null;
+		}
 
 		var count = slotCount( state, conf );
 		var isLast = ordinal === count;
@@ -1243,27 +1434,9 @@
 		/** Write the chain, preserving every other axis of the slot. */
 		function writeChain( chain ) {
 			var next = Object.assign( {}, slot );
-			next.chain = stripDefaultRoot( chain );
+			// A table column writes its path root: a step picked first lands as `inherit;<step>`.
+			next.chain = parentChain ? columnChain( chain, ordinal, state, conf ) : stripDefaultRoot( chain, ordinal, conf );
 			write( next );
-		}
-
-		/**
-		 * Drop a lone root that only RESTATES what an absent chain already spells.
-		 *
-		 * Reachable now that the default root is displayed: picking another source and
-		 * picking `Current Context` back would otherwise serialize `src(current)` where the slot
-		 * previously held nothing, so merely LOOKING at a slot could change its wire.
-		 *
-		 * Slot 1 only. A slot ≥2's `same` is written on purpose — absence there is a
-		 * RESET rather than a carry-over, so an explicit carry-over has to be stated (see
-		 * writeChainAt). Stripping it would silently convert one into the other.
-		 */
-		function stripDefaultRoot( chain ) {
-			if ( ordinal >= 2 || 1 !== chain.length || ! conf.defaultRoot ) {
-				return chain;
-			}
-			var only = chain[ 0 ];
-			return ( only.slug === conf.defaultRoot && ! only.arg && ! only.limit ) ? [] : chain;
 		}
 
 		/** Write the read, preserving every other axis of the slot. */
@@ -1327,7 +1500,7 @@
 			] )
 		];
 
-		if ( ordinal >= 2 ) {
+		if ( carriesOver( ordinal, conf ) ) {
 			// A container with NO per-slot read axis has ONE axis to vary, so the two-axis
 			// vocabulary would name a field the slot cannot configure. `readRows`/
 			// `keyOption` absent is the same test the read group makes — every shape is
@@ -1371,9 +1544,11 @@
 			conf: conf,
 			chain: chain,
 			onChange: writeChain,
-			sameOnEmpty: ordinal >= 2,
+			sameOnEmpty: carriesOver( ordinal, conf ),
 			slotNoun: slotNoun,
-			stepContext: stepContext
+			stepContext: stepContext,
+			parentChain: parentChain,
+			copyChain: copyChain
 		} );
 
 		children.push( el( 'div', { key: 'srcgroup', className: CLS.group }, [
@@ -1455,13 +1630,7 @@
 							help: keyCfg.help,
 							placeholder: keyCfg.placeholder,
 							dynamicLabel: keyCfg.dynamicLabel,
-							// Row scope, when the container has one, with the repeater name
-							// passed EXPLICITLY: under the fold a slot's own read is also
-							// spelled `key(...)`, so the picker must not reach outward for
-							// "the bare key" to discover its scope.
-							scope: conf.fieldScope,
-							scopeKey: conf.scopeStateKey ? ( state[ conf.scopeStateKey ] || '' ) : void 0,
-							context: fieldContext( slot, commitField )
+							context: fieldContext( slot, commitField, parentChain )
 						} )
 						: el( TextControl, {
 							label: keyCfg.label,
@@ -1484,6 +1653,11 @@
 						__( 'This %s will be skipped unless a field is set.', 'generateblocks' ),
 						slotNoun
 					) ) );
+				}
+
+				var labelLink = labelAction( conf, slot, write, parentChain, headerId );
+				if ( labelLink ) {
+					readNodes.push( labelLink );
 				}
 			}
 
@@ -1511,6 +1685,47 @@
 			children.push( el( 'div', { key: 'readgroup', className: CLS.group }, [
 				el( 'span', { key: 'caption', className: CLS.caption }, readCaption )
 			].concat( readNodes ) ) );
+		}
+
+		// ── Header group (table only) ───────────────────────────────────────
+		// Last, after Source and Field: what the column READS comes before how it is dressed.
+		// The column's heading cell is a plain string that rides the slot as its `header`
+		// token. Offered only where the PHP config ships `headerOption`, so {{join}} and
+		// `try_` slots, which have no heading cell, never see it. Not part of the chain
+		// or the read, so it is written beside them with the rest of the slot preserved.
+		// With the table styling UI, the header, width, alignment and text styles are ONE
+		// box with no caption, the shape the tag-level styling box has; without it (a
+		// container that ships a header but no styling) the header stays a captioned box.
+		if ( conf.headerOption ) {
+			var UI = conf.styleOption ? window.bwsTableStyleUI : null;
+			var headerField = el( TextControl, {
+				key: 'header',
+				id: headerId,
+				label: UI ? __( 'Column Header', 'generateblocks' ) : conf.headerOption.label,
+				hideLabelFromVision: true,
+				help: conf.headerOption.help,
+				value: slot.header || '',
+				onChange: function ( v ) {
+					var next = Object.assign( {}, slot );
+					next.header = v ? v : null;
+					write( next );
+				},
+				__nextHasNoMarginBottom: true
+			} );
+			if ( UI ) {
+				children.push( el( 'div', { key: 'headergroup', className: CLS.group + ' bws-ts bws-ts-sect' }, [
+					el( 'div', { key: 'hdrrow', className: 'bws-ts-pair bws-ts-hdrrow' }, [
+						el( UI.Field, { key: 'header', level: 'l', label: __( 'Column Header', 'generateblocks' ) }, headerField ),
+						el( UI.ColumnWidthField, { key: 'width', slot: slot, tagState: state, write: write } )
+					] ),
+					el( UI.ColumnStyle, { key: 'colstyle', slot: slot, tagState: state, write: write, slotKey: key } )
+				] ) );
+			} else {
+				children.push( el( 'div', { key: 'headergroup', className: CLS.group }, [
+					el( 'span', { key: 'caption', className: CLS.caption }, conf.headerOption.label ),
+					headerField
+				] ) );
+			}
 		}
 
 		// The slot rule separates one slot from the NEXT, so it renders between slots and
@@ -1596,10 +1811,18 @@
 		removeSlotFrom: removeSlotFrom,
 		legacyKeys: legacyKeys,
 		inferIntent: inferIntent,
+		carriesOver: carriesOver,
+		stripDefaultRoot: stripDefaultRoot,
+		columnChain: columnChain,
+		lineageOf: lineageOf,
+		fieldContext: fieldContext,
 		foldConfig: foldConfig,
 		stepArg: stepArg,
 		// The chain editor, so the base-tag source control renders the SAME steps.
 		chainSteps: chainSteps,
-		step: step
+		step: step,
+		// The whole slot panel, for the one rule only its rendered tree shows: which
+		// controls a container is offered.
+		SlotFoldControl: SlotFoldControl
 	};
 }() );

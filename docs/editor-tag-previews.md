@@ -308,13 +308,7 @@ A slot warns `⚠ <L> no key` when its read needs a field key and has none, whic
 
 ### Slots are named by LETTER, and details collapse when slots disagree
 
-`<L>` above is the slot's **letter** — `A`, `B`, `C`, … — on BOTH multislot brackets. **`slot N`
-retired in 1.17.0** ([#105](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/105)):
-the letter is the wire key the author reads in `A:src(…)` and the header the control configured the
-slot under, so a number was a third spelling of one thing. No container NOUN either (`Field A` /
-`Attempt B` as the control headers say) — the bracket prefix already says `⚠ Join:` / `⚠ Try:`, and a
-noun would be the second time one label names the container. `{{table}}` takes the same letters-only
-form and gets another pass when its columns convert to folded slots.
+`<L>` above is the slot's **letter** — `A`, `B`, `C`, … — on BOTH multislot brackets. **`slot N` retired in 1.17.0** ([#105](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/105)): the letter is the wire key the author reads in `A:src(…)` and the header the control configured the slot under, so a number was a third spelling of one thing. No container NOUN either (`Field A` / `Attempt B` as the control headers say) — the bracket prefix already says `⚠ Join:` / `⚠ Try:`, and a noun would be the second time one label names the container. `{{table}}`'s placeholder note takes the same letters-only form ([§`{{table}}` preview](#table-preview)).
 
 The **collapse rule** — list every slot with a problem, keep the detail only while there is ONE
 problem to describe. Owner: `bws_slot_warnings_text()`.
@@ -408,6 +402,43 @@ The rows above are **legacy flat wire** (`2-key`), which is why their format tok
 | `{{join A:key(name_first)\|B:fixed(Team)}}` | `[Join 'name_first', “Team”]` — fixed beside a keyed field slot |
 | `{{join A:use(fixed)}}` | `[⚠ Join: A fixed text not entered]` — `use(fixed)` with no text yet is the field-pending state, warned same as an empty key |
 | `{{join mode:template\|format:%A (%B)\|A:fixed(Varsity)\|B:key(name_last)}}` | `[Join “Varsity ('name_last')”]` — template mode substitutes a fixed-text slot's text bare, since the format is already wrapped in quotes |
+
+<a id="table-preview"></a>
+## `{{table}}` preview
+
+`{{table}}` has **no bracketed label**: nothing in `bws_build_preview_label()` handles it. The editor shows a real table or a placeholder table, built in PHP by `bws_table_callback()` when the request carries `bwsEditorPreview`. JS cannot make the choice, because GB's replacement route returns one string per tag and nothing in `assets/js` reads it.
+
+| State | Editor shows |
+|---|---|
+| The source chain yields rows | The real table, exactly as the front end renders it, empty cells included |
+| The chain resolves but yields no rows | The real table with an empty body (the header row, when there is one) |
+| The tag's root is refused, or no column is configured | The placeholder (`bws_table_skeleton()`) |
+
+The front end never shows the placeholder: there, the last two states render nothing, and a placeholder would show visitors invented content.
+
+**The placeholder has the real table's shape and styling, never invented data.** A header row only when the real table's `<thead>` gate would emit one, then three body rows (`BWS_TABLE_SKELETON_ROWS`). Every body cell holds its column's configuration summary. It goes through the same rule builder and scope class as the real table, so sizing, stripes, typography and borders show on it. Every configured string is escaped.
+
+**Two marks say it is a placeholder, because either alone misleads.** The table sits in `<div role="group" aria-label="Placeholder: …" style="border:1px dashed currentColor;padding:.5em">`: the dashed outline and the accessible name mark it, but do not say why. The cell text reads as configuration, but alone reads as data. A note line above the table says why: `⚠ Table: <warnings>`.
+
+| Case | Accessible name | Note | Cells |
+|---|---|---|---|
+| No column configured | `Placeholder: no table columns set` | `⚠ Table: no columns set` | one column reading `No columns` |
+| Root refused | `Placeholder: table source not available in the editor` | `⚠ Table: ` + the root's inert-chain warning when the source namer has one (`Unknown source 'bogus'`, `Term: nothing selected`), otherwise `source not available in the editor` | each column's summary |
+
+Column problems join the note through `bws_slot_warnings_text()`, the same collapse rule and letters as `{{join}}` ([§Slots are named by LETTER](#slots-are-named-by-letter-and-details-collapse-when-slots-disagree)): `⚠ Table: A no ref, source not available in the editor`. A column dropped for having neither a usable read nor a header still warns there, though it draws no cell.
+
+**One per-column summarizer, shared with `{{join}}`.** `bws_preview_slot_summary()` (`preview-helpers.php`) turns what the render seam made of one slot into `{ text, warning }`, so the join bracket and the placeholder's cells cannot describe a slot two ways. Each container keeps its own walk over its slots, because they seed the carry differently. Cell text follows the join field list: `'name'` for a keyed read, `Title` for an analog, `“Row”` for a fixed read, plus a source part such as ` from Ref 'office'` when the column binds to a source of its own. A column the seam skipped has an empty cell and its warning in the note. Pinned by `preview-label-test.php` (the summary cases, driven with a table column's carry).
+
+| Column | Placeholder cell |
+|---|---|
+| `A:header(Name);key(name)` | `'name'` |
+| `B:header(Fixed);fixed(Row)` | `“Row”` |
+| `C:header(Page);use(title)` | `Title` |
+| `D:header(Lead);src(inherit;refs);key(city)` | empty; the note gains `D no ref` |
+
+**An author without `unfiltered_html` or `manage_options` sees only GB's fallback, the tag title "Table".** GB blanks such a user's replacement and skips the tag before our callback or the `generateblocks_dynamic_tag_replacement` filter runs (enforced in GB's `GenerateBlocks_Dynamic_Tags`, not here; [`gb-constraints.md`](gb-constraints.md#dynamic-data-is-suppressed-by-post-source-not-by-tag-name-gb-240) owns GB's trust model). A trusted user without `unfiltered_html` gets the real table or the placeholder through GB's kses pass, which keeps the placeholder's role, accessible name, dashed outline, note and scope class (measured 2026-10-16) but strips the `<style>` that carries the table's rules, so that user sees it unstyled.
+
+The placeholder strings are not translated, as no preview label is. A pinned post that does not exist (`src:post,999999`) gets the generic `source not available in the editor` note, not the base tag preview's `(missing)` wording.
 
 ## `{{call}}` preview — intentionally inert (does NOT execute the function)
 

@@ -63,6 +63,20 @@ if ( ! function_exists( 'get_taxonomy' ) ) {
 if ( ! function_exists( 'sanitize_key' ) ) {
 	function sanitize_key( $key ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $key ) ); }
 }
+// wp_validate_boolean shim — bws_flag_is_on() (slot-fold.php), which the link wrap calls
+// for `newTab`, delegates to it.
+if ( ! function_exists( 'wp_validate_boolean' ) ) {
+	// Core's body, verbatim (wp-includes/functions.php).
+	function wp_validate_boolean( $value ) {
+		if ( is_bool( $value ) ) {
+			return $value;
+		}
+		if ( is_string( $value ) && 'false' === strtolower( $value ) ) {
+			return false;
+		}
+		return (bool) $value;
+	}
+}
 
 // get_term + is_wp_error: bws_build_preview_label() injects the real `get_term` as its
 // entity resolver (D20, FW-39) for a PINNED `term,<ID>` root — this is the one path in
@@ -1368,6 +1382,26 @@ check(
 	),
 	'[⚠ Try: A, B misconfigured]'
 );
+
+// ── bws_preview_slot_summary(): the ONE per-slot step join's bracket and table's skeleton
+// cells share. Driven through the seam with a table column's carry (row as parent), so the
+// second consumer's own seeding is what the pins see.
+function slot_summary( string $wire, bool $bare_fixed = false ): string {
+	$carry = bws_fold_empty_carry( bws_use_stripped_default( 'text' ), true );
+	$skip  = '';
+	$flat  = bws_fold_slot_chain_options( bws_fold_slot_struct( 1, [ 'A' => $wire ], 'table' ), $carry, true, $skip );
+	return json_encode( bws_preview_slot_summary( $flat, $skip, $bare_fixed ), JSON_UNESCAPED_UNICODE );
+}
+check( 'summary: keyed read', slot_summary( 'key(price)' ), '{"text":"\'price\'","warning":""}' );
+check( 'summary: fixed read is quoted', slot_summary( 'fixed(Team)' ), '{"text":"“Team”","warning":""}' );
+check( 'summary: bare fixed read', slot_summary( 'fixed(Team)', true ), '{"text":"Team","warning":""}' );
+check( 'summary: non-current source appended', slot_summary( 'src(refs,office);key(city)' ), '{"text":"\'city\' from Ref \'office\'","warning":""}' );
+check( 'summary: unfinished step warns, no text', slot_summary( 'src(refs);key(city)' ), '{"text":null,"warning":"no ref"}' );
+check( 'summary: inert source reports alone', slot_summary( 'src(bogus,x);key(city)' ), '{"text":"\'city\'","warning":"unknown source \'bogus\'"}' );
+// `inherit` is the column's own row, the control's written root for a stepped column: a known
+// root, so it names like the step-first spelling it canonicalizes from, never "unknown source".
+check( 'summary: inherit root reads as the row', slot_summary( 'src(inherit;refs,office);key(city)' ), slot_summary( 'src(refs,office);key(city)' ) );
+check( 'summary: inherit root before rows', slot_summary( 'src(inherit;rows,team);key(name)' ), '{"text":"\'name\' from Rows \'team\'","warning":""}' );
 
 echo "\n" . ( $failures ? "FAILED {$failures}/{$count}\n" : "PASSED {$count}/{$count}\n" );
 exit( $failures ? 1 : 0 );

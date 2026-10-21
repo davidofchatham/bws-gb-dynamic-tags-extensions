@@ -100,7 +100,7 @@ The `bws-field-combo` field selector (shipped 1.13.0) is **editor-time discovery
 
 Two corollaries bind:
 - **Offered ⟺ resolvable.** The endpoint offers only keys the runtime resolver would accept (one shared `bws_field_key_disallowed()` gate; `_`-protected allowed, `DISALLOWED_KEYS` refused) — a discovery/runtime contract, so an offered key never silent-empties.
-- **Bare key is the only serialized identity.** The control serializes the plain key exactly as the old text input did (pure render swap); a key can map to many fields (same key, different labels), so on reopen an ambiguous key shows RAW and asserts no specific field. Discovery labels are display-only, never part of the wire format.
+- **Bare key is the only serialized identity.** The control serializes the plain key exactly as the old text input did (pure render swap); a key can map to many fields (same key, different labels), so on reopen an ambiguous key shows RAW and asserts no specific field, unless the slot's source settles which one it is (the fields that source can reach agree on one). Discovery labels are display-only, never part of the wire format.
 
 Load-bearing detail lives as PHPDoc on the enforcers: `field-combo-control.js` (kind projection, merge-by-`(kind,key,label)`, ambiguous-key display) + `field-discovery.php` (`scopes_equal` keep-both, per-subtype registered meta, the DISALLOWED gate). Schema: `tag-reference.md` §Custom control types. Rationale + follow-ups: `.scratch/plans/field-selector.md`.
 
@@ -425,6 +425,12 @@ A resolved source is **`ResolvedSource[]`** — a list, usually length 1. A root
 (Scoped: the RETIRED source-class path collapsed `refs` to the first via `bws_extract_post_id`. The ENGINE's step has never collapsed, and the flat assemblers retired behind the chain compiler in 1.17.0. What survives of that defect is the tag-level `limit` default of 1, which is now selected by the source SPELLING — flat wire keeps it, chain wire does not; see `bws_limit_default`. **A SLOT's default is selected the same way, by the SLOT's own spelling**, which cost a seam change: the flatten collapses a slot's chain to a flat triple before any container arm resolves a limit, so the spelling is gone by the time the question is asked and the seam has to report the era it erased. Only where the slot's own chain FANS, though — a slot spelling `src(same)`, or an argless `refs`, fans by CARRYING OVER a source another slot already bounded, and a limit does not carry forward.)
 
 _Avoid_: "target cardinality" (the property is the SOURCE's, and :236 reserves "target" for read target); "plural source" as a claim about a given render (says outcome where only capacity is known); "multi-valued" (a step produces resolved *sources*, not **field values**).
+
+**Inherit vs carry over** (two relations between a slot and another source; one word each, never swapped):
+- **inherit** is the PARENT relation: a slot reads from the source its CONTAINER resolved to. A `{{table}}` column inherits its row; an empty column chain means exactly that, and a chain that steps from the row is written `src(inherit;…)` (the editor's "Tag Source"). Per row, so one column resolves once for every row.
+- **carry over** is the SIBLING relation: a slot takes what the PREVIOUS slot used. `src(same)` / `use(same)` in a `{{join}}` slot or a `try_` attempt. `{{table}}` offers no `same`; its "Copy Previous Column's Source" writes a copy of the previous chain instead.
+
+_Avoid_: "inherit" for the sibling relation (its name before 1.20.0, when FW-121 freed the word); "same" for the parent relation. Schema: [`tag-reference.md` §Table tag](docs/tag-reference.md#table-tag) and [§Folded slot wire](docs/tag-reference.md#folded-slot-wire-multislot-containers).
 
 **Inert chain**:
 A source chain that resolves to **nothing on every tag, for a reason readable off the wire alone**: an unknown step slug (the engine short-circuits, [I14]), an unregistered root token, or a retired source token. Decidable at parse time with no per-template knowledge, which is what makes it sayable in an editor preview — see [`editor-tag-previews.md` §Inert-chain warning](docs/editor-tag-previews.md).

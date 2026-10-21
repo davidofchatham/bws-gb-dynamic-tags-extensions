@@ -126,6 +126,7 @@ function bws_dynamic_tags_init() {
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/datetime-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/taxonomy-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/join-helpers.php';
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/table-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/registration-helpers.php';
 	// FW-52 canonical serialization-order model (pure; PHP mirror of the editor-JS
 	// normalizer's ordering algorithm — the harness-tested spec of the ordering contract).
@@ -303,21 +304,8 @@ function bws_dynamic_tags_register_all() {
 	// Register the phone base tag (unconditional; first-class base tag).
 	bws_register_phone_tag();
 
-	// Register the {{table}} structured-output tag — GATED OFF by default (1.17.0).
-	//
-	// The tag is a working PROTOTYPE, not v1: its row-set comes from a src chain, so its
-	// authoring surface waits on the table container taking a chain source (FW-53), and
-	// until then it registers the FLAT traversal options every other family has retired.
-	// Registering it unconditionally would ship a half-built tag to every install by
-	// default, which is the one thing FW-53's row said not to let happen.
-	//
-	// A FILTER rather than deleting the call: the fixture testbed turns it on from its
-	// mu-plugin, so the table matrix rows and fixture blocks keep running while v1 is
-	// built. Deleting the call would leave that work with no coverage until it returned.
-	// Flips to unconditional (or default-true) when v1 ships.
-	if ( apply_filters( 'bws_dynamic_tags_register_table_tag', false ) ) {
-		bws_register_table_tag();
-	}
+	// Register the {{table}} structured-output tag (unconditional).
+	bws_register_table_tag();
 
 	// Register the {{call}} function-passthrough tag (unconditional; ships with
 	// an EMPTY allowlist — produces nothing until the site allowlists a function).
@@ -417,7 +405,7 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 	wp_enqueue_script(
 		'bws-dynamic-tags-image-controls',
 		BWS_DYNAMIC_TAGS_URL . 'assets/js/image-tag-controls.js',
-		array( 'wp-hooks', 'wp-element', 'wp-components' ),
+		array( 'wp-hooks', 'wp-element', 'wp-components', 'wp-i18n' ),
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);
@@ -610,6 +598,55 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);
+	// {{table}} presentation (ticket table-tag/07). The GRAMMAR is the tested twin of the PHP
+	// validators in table-helpers.php and takes every list off `window.bwsTableVocab`, so the two
+	// languages cannot carry different lists. The CONTROLS load before the slot-fold control
+	// because its column card renders the same fields (window.bwsTableStyleUI).
+	wp_enqueue_script(
+		'bws-dynamic-tags-table-style-grammar',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/table-style-grammar.js',
+		array( 'bws-dynamic-tags-slot-fold-grammar' ),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
+	if ( function_exists( 'bws_table_style_vocabulary' ) ) {
+		wp_add_inline_script(
+			'bws-dynamic-tags-table-style-grammar',
+			'window.bwsTableVocab = ' . wp_json_encode( bws_table_style_vocabulary() ) . ';',
+			'before'
+		);
+	}
+	wp_enqueue_script(
+		'bws-dynamic-tags-table-style-control',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/table-style-control.js',
+		array( 'wp-hooks', 'wp-element', 'wp-components', 'wp-i18n', 'wp-data', 'bws-dynamic-tags-table-style-grammar', 'bws-dynamic-tags-option-group' ),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
+	// The saved stripe default, for the editor's placeholders (the pattern of window.bwsImageSizes).
+	if ( class_exists( '\BWS\DynamicTags\Admin\SettingsPage' ) ) {
+		$bws_stripe_defaults = \BWS\DynamicTags\Admin\SettingsPage::get_table_stripe_defaults();
+		wp_add_inline_script(
+			'bws-dynamic-tags-table-style-control',
+			'window.bwsTableDefaults = ' . wp_json_encode(
+				array(
+					'stripeColor'   => $bws_stripe_defaults['color'],
+					'stripeOpacity' => $bws_stripe_defaults['opacity'],
+				)
+			) . ';',
+			'before'
+		);
+	}
+	// The Live Formatting Preview: a display-only member of the style box.
+	// It draws from the grammar twin's rule builder and reads the stripe defaults the control
+	// script inlines, hence both dependencies.
+	wp_enqueue_script(
+		'bws-dynamic-tags-table-style-preview',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/table-style-preview.js',
+		array( 'wp-hooks', 'wp-element', 'wp-i18n', 'bws-dynamic-tags-slot-fold-grammar', 'bws-dynamic-tags-table-style-grammar', 'bws-dynamic-tags-table-style-control' ),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
 	wp_enqueue_script(
 		'bws-dynamic-tags-slot-fold-control',
 		BWS_DYNAMIC_TAGS_URL . 'assets/js/slot-fold-control.js',
@@ -623,6 +660,7 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 			'bws-dynamic-tags-field-combo-control',
 			'bws-dynamic-tags-entity-picker-control',
 			'bws-dynamic-tags-option-group',
+			'bws-dynamic-tags-table-style-control',
 		),
 		BWS_DYNAMIC_TAGS_VERSION,
 		true

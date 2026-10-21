@@ -429,6 +429,66 @@
 	}
 
 	/**
+	 * Which envelope entries the sibling source can REACH — THE REACH RULE, owned here and
+	 * read by both the selection tie-break below and the {{table}} field-label action
+	 * (slot-fold-control.js labelAction()).
+	 *
+	 * A `rows` tail reaches its container's sub-fields. A tail of a known KIND
+	 * (`presetKind()`) reaches that kind's top-level fields: a sub-field's bare name is not
+	 * stored on the entity itself. Anything else (render-time, no source) narrows nothing.
+	 *
+	 * @param {Object} state     extraTagParams (or a folded slot's synthetic context).
+	 * @param {string} optionKey The key control's own option key (for the slot prefix).
+	 * @return {Object|null} `{ sig, test( entry, envKind ), owns( record ) }` — the rule asked
+	 *                       of an envelope entry and of a merged record, and a string naming
+	 *                       which rule it is (a memo dependency) — or null for no narrowing.
+	 */
+	function reachOf( state, optionKey ) {
+		var tail = chainTail( state, optionKey );
+		if ( tail && 'rows' === tail.slug ) {
+			return {
+				sig: 'rows:' + tail.arg,
+				test: function ( f ) { return !! tail.arg && f.repeater_key === tail.arg; },
+				owns: function ( rec ) { return !! tail.arg && -1 !== ( rec.repeaterKeys || [] ).indexOf( tail.arg ); }
+			};
+		}
+		var kind = presetKind( state, optionKey );
+		return kind ? {
+			sig: 'kind:' + kind,
+			test: function ( f, envKind ) { return envKind === kind && ! f.repeater_key; },
+			owns: function ( rec ) { return rec.kind === kind; }
+		} : null;
+	}
+
+	/**
+	 * The label of the field `fieldKey` names among the entries the source can reach, or
+	 * null. Ambiguity is silence: every reachable entry holding the key must agree, and an
+	 * entry with no label of its own counts as having none: a `register_meta` entry (no ACF
+	 * definition), or an ACF field whose label is empty, which discovery ships as the key.
+	 *
+	 * @param {Object} envelope  The field-discovery envelope.
+	 * @param {Object} state     extraTagParams (or a synthetic context).
+	 * @param {string} optionKey The key control's own option key.
+	 * @param {string} fieldKey  The bare field key.
+	 * @return {string|null} The agreed label, or null.
+	 */
+	function reachableLabel( envelope, state, optionKey, fieldKey ) {
+		if ( ! fieldKey || ! envelope || 'object' !== typeof envelope ) { return null; }
+		var reach = reachOf( state, optionKey );
+		var seen  = [];
+		Object.keys( envelope ).forEach( function ( envKind ) {
+			( envelope[ envKind ] || [] ).forEach( function ( group ) {
+				( ( group && group.fields ) || [] ).forEach( function ( f ) {
+					if ( ! f || f.name !== fieldKey || ( reach && ! reach.test( f, envKind ) ) ) { return; }
+					var sig = ( 'registered' !== group.source && f.label && f.label !== f.name ) ? String( f.label ) : '';
+					if ( -1 === seen.indexOf( sig ) ) { seen.push( sig ); }
+				} );
+			} );
+		} );
+		return ( 1 === seen.length && seen[ 0 ] ) ? seen[ 0 ] : null;
+	}
+
+	/**
 	 * Dynamic control label — meta/option storage-backend subtype pair (V4).
 	 * Uses the preset kind (safe-token) when known, else the source-agnostic fallback.
 	 *
@@ -1056,6 +1116,14 @@
 		// value] — memoized so typing (which fires setFilterText → re-render on every
 		// keystroke) does not re-filter the whole record set + re-allocate the map
 		// unless one of those inputs actually changed.
+		// The source's settling answer, read once per render as plain values so the memo
+		// below depends on strings rather than on the tag-state object.
+		var reach    = reachOf( state, key );
+		var reachSig = reach ? reach.sig : '';
+		var reached  = useMemo( function () {
+			return value ? reachableLabel( envelope, state, key, value ) : null;
+		}, [ envelope, value, reachSig, key ] );
+
 		var derived = useMemo( function () {
 			var filtered   = applyFilters( records, activeLoc, typeVal );
 			var options    = filtered.map( recordToOption );
@@ -1103,6 +1171,17 @@
 			var selectedValue = value;
 			if ( value ) {
 				var matchesKey = records.filter( function ( rec ) { return rec.key === value; } );
+				// Ambiguous by key alone, but the SOURCE may settle it: where the fields it
+				// can reach agree on one label, the record holding that label is the field
+				// the read resolves to, so naming it asserts nothing the wire does not.
+				if ( matchesKey.length > 1 ) {
+					var settled = reached ? matchesKey.filter( function ( rec ) {
+						return rec.label === reached && ( ! reach || reach.owns( rec ) );
+					} ) : [];
+					if ( 1 === settled.length ) {
+						matchesKey = settled;
+					}
+				}
 				if ( 1 === matchesKey.length ) {
 					var known = matchesKey[ 0 ];
 					selectedValue = known.value;
@@ -1111,14 +1190,15 @@
 						valueToKey[ known.value ] = known.key;
 					}
 				} else if ( ! options.some( function ( o ) { return o.value === value; } ) ) {
-					// Ambiguous or unknown: show the bare key, assert nothing.
+					// Ambiguous (and not settled by the source above) or unknown: show the
+					// bare key, assert nothing.
 					options = [ { value: value, label: value } ].concat( options );
 					valueToKey[ value ] = value;
 				}
 			}
 
 			return { options: options, valueToKey: valueToKey, selectedValue: selectedValue };
-		}, [ records, activeLoc, typeVal, filterText, value ] );
+		}, [ records, activeLoc, typeVal, filterText, value, reached, reachSig ] );
 
 		var options       = derived.options;
 		var valueToKey    = derived.valueToKey;
@@ -1256,5 +1336,9 @@
 	// against a synthetic context instead. Export only; no behavior change, and
 	// the mount path above is untouched.
 	window.bwsFieldComboControl = FieldComboControl;
+
+	// The reach rule's label lookup, for the {{table}} field-label action
+	// (slot-fold-control.js labelAction()), which asks it rather than copying the rule.
+	FieldComboControl.reachableLabel = reachableLabel;
 
 } )();

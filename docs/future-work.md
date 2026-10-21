@@ -361,6 +361,30 @@ Open: Measure what actually runs at mount before designing. `docs/plugin-integra
 
 Blocked by: —  •  Interacts with: FW-81 (the first family to add a mount rewrite), FW-73 (the converter half of the same reach problem)
 
+#### FW-168 — The slot emitter writes the label before a type token
+
+A folded slot that carries a type token should serialize it first, ahead of `header(…)` (`A:title;header(Team);key(…)`). The emitter still writes the label first, so the decided order and the written one disagree for any slot that has both.
+
+Detail home: `.scratch/plans/slot-type-token-leads.md`
+
+Progress: Not started. No control writes a slot with both a type token and a label today: `{{join}}` slots carry types but no label, and v1 table columns carry a label but no type. The parser is order-free, so saved slots written label-first keep reading.
+
+Open: Move `bws_fold_emit_slot()` in `slot-fold.php` and its JS twin together, with the `slot-fold-test.php` expectations and the page-snapshot baseline in the same commit. It must land before any control can produce a typed, labelled slot.
+
+Blocked by: —  •  Interacts with: FW-167 (images in cells is the first table column likely to carry a type token), FW-120 (`{{join}}` slots carry type tokens today), FW-24 (slot type tokens)
+
+#### FW-170 — Load translations for the editor scripts
+
+The plugin's editor scripts mark their strings with `wp.i18n`'s `__()`, but no script is ever handed a translation file, so every one of those strings renders in English whatever the site language. Each enqueued script that carries translatable strings needs `wp_set_script_translations()`.
+
+Detail home: this row
+
+Progress: Not started. Read 2026-10-16: no `wp_set_script_translations()` or `load_plugin_textdomain()` call exists in the plugin; six files under `assets/js/` use `__()`, the media picker since `9a40433`. Not measured on a translated site.
+
+Open: The text domain. Every string, PHP and JS, uses `'generateblocks'` (the plugin header's `Text Domain` too), so PHP strings translate only where GenerateBlocks' own language pack happens to hold an identical string, and a JS translation file keyed to our script paths would never come from GB's pack. Whether the plugin moves to its own domain (a sweep of every `__()` call plus a `.pot`) or deliberately stays on GB's is the decision this row waits on. Then which handles get the call, and where the `.json` files are generated and shipped.
+
+Blocked by: decision:text domain  •  Interacts with: —
+
 ### Feature follow-ups & UX
 
 #### FW-9 — Context-aware base tags — the deferred residue
@@ -397,7 +421,7 @@ Progress: Not started. FU-1 grew in 1.21.0 rather than moving: `containerRowPath
 
 Open: FU-1 and FU-3 are startable as they stand. FU-2 is NOT — its whole point is that the factory centralizes the props these ~14 option definitions share, and FW-13's v2 is what adds the next prop, so a signature shaped now would be a guess. Take it after v2's prop set exists, not before. Stated here rather than as a row blocker because two thirds of this item are unblocked.
 
-Blocked by: —  •  Interacts with: FW-13 (same detail home; its v2 prop set is what FU-2 waits on, per the Open line), FW-74 (closed 1.21.0 — its Location preset is FU-1's third round-tripping site), FW-81 (the datetime collapse more than halves FU-3's stacking), FW-53 ({{table}} lands FU-1 prior art + FU-3 second instance + FU-2 proposal)
+Blocked by: —  •  Interacts with: FW-13 (same detail home; its v2 prop set is what FU-2 waits on, per the Open line), FW-74 (closed 1.21.0 — its Location preset is FU-1's third round-tripping site), FW-81 (the datetime collapse more than halves FU-3's stacking), FW-53 ({{table}} lands FU-1 prior art + FU-3 second instance; its columns became folded slots, whose control mounts its own picker, so it SUBTRACTS its two `bws-field-combo` flips from FU-2's population rather than adding a proposal)
 
 #### FW-15 — {{phone}} follow-ups
 
@@ -591,19 +615,17 @@ Open: Designated home is the deferred search-format option (FW-9's option surfac
 
 Blocked by: row:FW-9  •  Interacts with: FW-9 (its option surface)
 
-#### FW-120 — A tag-level source for `{{join}}`, with slots inheriting it
+#### FW-120 — `{{join}}` onto `{{table}}`'s source model, plus per-slot typography
 
-`{{join}}` has no tag-level source: every slot states its own, and a slot that states none carries over from the previous resolving SIBLING — the shape carried over from `try_`. `{{table}}` is being built on the opposite model, where a bare column roots at the tag's own resolved source (`src(inherit)`), and this item brings `{{join}}` onto it.
+`{{join}}` has no tag-level source: every slot states its own, and a slot can carry the previous resolving SIBLING's chain (`src(same)`) — the shape carried over from `try_`. `{{table}}` is built on the opposite model, where a bare column roots at the tag's own resolved source (`src(inherit)`). This item brings `{{join}}` onto that model whole and migrates shipped wire so the old parse can be deleted, and adds three per-slot typography keys borrowed from `{{table}}`.
 
 Detail home: `.scratch/plans/join-rebuild.md`
 
-Progress: Not started, and DEFERRED behind `{{table}}` by decision (2026-09-04) — `{{table}}` ships `src(inherit)` and the root-grammar reservation first, and how much of `{{join}}` is rebuilt is decided after that lands. The design was grilled to a close on 2026-09-04 and the decisions are recorded in the detail home rather than re-derived later: outer list mode with `sep` for the outer axis, per-iteration `inherit` binding, `try_` excluded, `defaultRoot` unchanged so absence keeps its meaning, and `current` and `same` must not change meaning.
+Progress: DESIGNED. First grilled 2026-09-04 and deferred behind `{{table}}`; reopened and re-grilled 2026-10-17 to 2026-10-19, which reversed two of the 2026-09-04 decisions: `{{join}}` now adopts table's source model whole (`inherit` as the default root, the default stripped at every slot, copy-on-select replacing `src(same)`), with `current` still meaning the current entity and `try_` excluded. The tag-level key is `src`, told apart from legacy flat slot 1's bare `src` by the presence of any flat slot key. Shipped output is unchanged without a tag source, because `inherit` then reads the current entity, as an empty chain does today. Typography adds `fontWeight`, `fontStyle` and `textTransform` per slot, reusing table's validators, rendered as an inline-styled span around a non-empty value. One spec and one release for both halves, typography tickets first.
 
-Open, added 2026-09-18: **whether `{{join}}` should stop STRIPPING its default root.** A stripped default cannot be told from an unmade choice, and `src(same)` is the consumer that needs to tell them apart — the code says so at the site, `bws_fold_slot_chain_options()` seeding `chain: []` unconditionally because "the empty chain is also how the ambient entity is spelled" (`slot-fold.php:1467`). `{{table}}` is taking the other posture and writing `src(inherit)` explicitly on every column, which it can do only because it is greenfield; `{{join}}`'s slot 1 wire is shipped, so the same move needs a migration writing the default root into every stored slot that omits it. Lands here because this item already owns bringing `{{join}}` onto table's root model, and because `{{table}}` shipping first makes it evidence rather than proposal. Does NOT touch J5 — that decides which root is the DEFAULT, this decides whether a stated one is stripped.
+Open: The migration is a bridge, not a permanent parse. The release ships a read-time parse (join's carry kept unfed, so a stranded `src(same)` keeps skipping) and a converter entry over `post_content` that writes every carried axis into the slot using it. The parse is deleted once the converter's count of legacy `{{join}}` wire reaches zero per site, which waits on FW-73 for block widgets; stores the converter cannot reach rest on FW-128's report or the author. Before building, measure in the testbed what a join in a GB attribute substitution does with a typography span.
 
-Open: When, and how much. The resolved-source dispatch this rides on is the feature's MECHANISM, not a separable improvement — priced 2026-09-04, the two payoffs previously claimed for it standalone (retiring the #104 `limit` write-back and the `id` threading) do not survive: the first carries a wire-ERA fact that travels regardless, the second collapses only once a single tag-level resolution exists to thread into. What is left standalone is reuse of a repeated `src(same)` traversal, which is a cache.
-
-Blocked by: row:FW-53  •  Interacts with: FW-53, FW-106 (the parse half of the same re-derivation; whether its parse-once record also carries the resolved-source BINDING is FW-106's own scope call), FW-71 (closed)
+Blocked by: —  •  Interacts with: FW-53 (closed; `src(inherit)`, the text-key grammar and the analog dispatcher this promotes all ship there), FW-73 (the parse retirement gates on its widget reach), FW-128 (the unreachable stores), FW-106 (the parse half of the same re-derivation; whether its parse-once record also carries the resolved-source BINDING is FW-106's own scope call), FW-71 (closed)
 
 #### FW-128 — A multi-purpose content scanner: one walk, several reports
 
@@ -657,13 +679,13 @@ Blocked by: —  •  Interacts with: FW-142 (closed; its stale-`key` drop remov
 
 Slot-style repeaters render every slot expanded, as the real modal does today. A collapsible card (the header toggles the body, a one-line summary of the values that are set shows while it is closed, several can stay open at once) would shorten a tall slot list. It could be a general affordance of the folded-slot control or specific to `{{table}}`'s Columns cards.
 
-Detail home: `.scratch/table-tag/presentation-reopen.md` (the styling prototype's handoff; the collapsible card was prototyped in `.scratch/table-tag/prototype/styling-group-3.html` round 9 and cut from it in favor of expanded)
+Detail home: the feasibility read is recorded in `docs/design-history/table-tag.md` §DECIDED 2026-10-15 (presentation); the collapsible card was prototyped in `.scratch/plans/table-tag/table-controls-prototype.html` (then `styling-group-3.html`) round 9 and cut from it in favor of expanded
 
 Progress: Not started. Only a throwaway prototype toggle ever existed, and it is removed.
 
 Open: Whether it generalizes (the folded-slot control behind `{{join}}` and `try_` slots gets it too) or stays table-only, and whether the closed-state summary can come from the same struct the editor preview text reads rather than a second summarizer.
 
-Blocked by: —  •  Interacts with: FW-53 (the Columns cards are where it would land first)
+Blocked by: —  •  Interacts with: FW-53 (closed; the `{{table}}` Columns cards are where it would land first)
 
 #### FW-153 — Editor warning for tags in a deprecation window
 
@@ -676,6 +698,126 @@ Progress: Not started. In-editor deprecation warnings existed before 1.14.0, on 
 Open: Whether the warning triggers on the GB `deprecated` type stamp or on FW-38's `lifecycle` field.
 
 Blocked by: —  •  Interacts with: FW-38 (`lifecycle` is a candidate trigger), FW-150 (retires the `term_*` entries the 1.20.0 window left), FW-104 (the deprecation-mode setting governs the same registrations)
+
+#### FW-158 — `{{table}}` vertical alignment
+
+A `verticalAlign` styling key for `{{table}}`, paired with `textAlign`: how cell content sits within a taller row (top, middle, bottom), at the table, header and column levels.
+
+Detail home: `.scratch/plans/table-tag/fw-158-vertical-align.md`; no design yet
+
+Progress: Not started. Raised by the user 2026-10-14, left out of v1 the same day. `textAlign` was named for the CSS property so `verticalAlign` can follow without a collision. The horizontal header-cell cascade it would copy or depart from is decided in that section.
+
+Open: Whether a column's bare value reaches its header cell (the `textAlign` answer is yes, but color and font are no). What the theme default is: GeneratePress's table CSS has not been read for `vertical-align`. Whether it matters before cells can hold inline images or other tall content.
+
+Blocked by: —  •  Interacts with: FW-148 (both add controls to the Columns cards), FW-167 (images in cells are the tall content that makes it matter)
+
+#### FW-160 — `{{table}}` background colors
+
+A `background` styling key for `{{table}}`: a fill color with opacity for the whole table, the header row and single columns. The contrast advisory (text color checked against what sits behind it) returns with it.
+
+Detail home: `.scratch/plans/table-tag/fw-160-background.md`
+
+Progress: Not started. Prototyped as "Fill" (styling prototype rounds 4 to 80, with a WCAG contrast advisory and a filled-header-beside-stripe advisory) and cut from v1 2026-10-15; the prototype's Fill code stays dormant. The name `background` was chosen 2026-10-14, with nothing reserved.
+
+Open: Which of the prototype's Fill layouts to use (none was chosen). Whether a column background takes a header segment. Paint order against stripes (the prototype painted the header fill on the header row so stripes compose over it). Whether the contrast advisory also checks text against a stripe.
+
+Blocked by: —  •  Interacts with: FW-162 (sticky cells need an opaque background), the shipped `border` key (FW-159, closed)
+
+#### FW-161 — `{{table}}` cell padding
+
+A styling key for the space inside `{{table}}` cells, the valued successor to the deferred `compact` preset.
+
+Detail home: `.scratch/plans/table-tag/fw-161-cell-padding.md`; no design yet
+
+Progress: Not started. `compact` was deferred in plan Settled #29 for missing prerequisites; the 2026-10-15 grill replaced presets with valued keys, so it returns as a key.
+
+Open: The key name and value shape (one length, or the CSS shorthand), whether the header takes its own value through the `header` segment, and whether columns carry it.
+
+Blocked by: —  •  Interacts with: the shipped `border` key (FW-159, closed; padding and borders set density together), FW-163 (`lineHeight` is the other density control)
+
+#### FW-162 — `{{table}}` sticky header row and pinned first column
+
+Keep the header row in view while a long table scrolls vertically, and the first column in view while a wide one scrolls horizontally.
+
+Detail home: `.scratch/plans/table-tag/fw-162-sticky-header-pinned-column.md`
+
+Progress: Not started. This is the "fixed columns" sense (DataTables FixedColumns, a spreadsheet freeze) that kept `fixedCols` off the layout key (plan Settled #47), so its name must not reuse `fixed`.
+
+Open: Which element scrolls. The caption-gated region wrapper (plan Settled #21) scrolls horizontally, so a pinned column works inside it, but a sticky header sticks to the nearest scrolling ancestor, which may be the page. Sticky cells need an opaque background and their own borders.
+
+Blocked by: —  •  Interacts with: the shipped `border` key (FW-159, closed; a sticky cell needs its border drawn on the cell), FW-160, FW-164 (a pinned first column is usually the row headers)
+
+#### FW-163 — `{{table}}` additional typography controls
+
+Typography keys beyond v1's six: wrapping (`whiteSpace`), font family (for example, a different family for the header), and `lineHeight`.
+
+Detail home: `.scratch/plans/table-tag/fw-163-typography.md`
+
+Progress: Not started. The user named wrapping and font family as the likely next additions (2026-10-15); `lineHeight` sits beside them in GB's Typography panel.
+
+Open: Which comes first. Where font family values come from (the theme's or GB's font list, or free text) and how they are validated before reaching a stylesheet. Each joins the control order, which is the wire order.
+
+Blocked by: —  •  Interacts with: FW-161, FW-171
+
+#### FW-164 — `{{table}}` row headers
+
+Let the first column render as `<th scope="row">` row headers, alongside the first row's column headers. The header cells would then also need `scope="col"`.
+
+Detail home: `.scratch/plans/table-tag/fw-164-row-headers.md`
+
+Progress: Not started. The plan deferred `scope="col"` and `scope="row"` as a pair until row headers exist (user, 2026-07-24). The semantics and screen reader behavior are not researched yet.
+
+Open: The research itself (W3C WAI tables tutorial, two-header tables, how screen readers announce row headers), then the wire: a per-column flag or a tag-level setting.
+
+Blocked by: decision:row-header semantics researched  •  Interacts with: FW-162, FW-165 (orientation changes which axis carries headers)
+
+#### FW-165 — `{{table}}` orientation
+
+Let a `{{table}}` take its source per column instead of per row, so each record becomes a column.
+
+Detail home: `.scratch/plans/table-tag/fw-165-orientation.md`
+
+Progress: Not started. The name `orientation` is reserved and kept out of any bundled key; its values and shape are undecided.
+
+Open: The shape and values (the plan notes that `rows|columns` is ambiguous), and how it meets row headers.
+
+Blocked by: —  •  Interacts with: FW-164
+
+#### FW-166 — `{{table}}` content filters
+
+Front-end controls that filter a rendered table's rows: a search box, and select, checkbox or radio filters on a column's values.
+
+Detail home: `.scratch/plans/table-tag/fw-166-content-filters.md`
+
+Progress: Not started. It would be the plugin's first front-end JavaScript for a tag.
+
+Open: Progressive enhancement (the table must work with scripts off), announcing the result count to screen readers, which columns can be filtered and how an author says so, and the wire.
+
+Blocked by: —  •  Interacts with: FW-27 (`if` filters rows on the server; this filters them in the browser)
+
+#### FW-167 — `{{table}}` images in cells
+
+A column that renders an image directly in its cells, with its own formatting controls (size, fit, alt text, link). The output differs completely from the `{{image}}` tag's.
+
+Detail home: `.scratch/plans/table-tag/fw-167-images-in-cells.md`
+
+Progress: Not started.
+
+Open: How a column declares it (a slot type token, plan #60, leads the slot when present), which controls it needs, and the alt-text source.
+
+Blocked by: —  •  Interacts with: FW-158 (tall content), FW-161, FW-168 (a typed column needs the type-first emitter)
+
+#### FW-171 — Offer the site's font sizes in the `{{table}}` Font Size field
+
+The Font Size field on the table's text styles accepts a typed `var()` but offers none, where Text Color lists the site's palette. Offering the site's font sizes would make a size picked rather than typed.
+
+Detail home: this row
+
+Progress: Not started; the option was weighed 2026-10-16 and deferred, with typed `var()` kept as the route. Read 2026-10-16 in Core Framework 2.0.2 (`wp/App/Gutenberg/Functions.php`): it patches only the color palette into theme.json, so the block editor's font sizes setting holds none of its sizes, which are plain CSS custom properties. The setting remains the one generic registry WordPress has, filled from theme.json or the theme's editor font sizes. Core Framework 1.5.2 was not read.
+
+Open: Whether to read that setting alone (generic, and empty on a Core Framework site), or also scan the editor's loaded stylesheets for `:root` custom properties that look like font sizes (a name containing `text` or `font-size`, a length or `clamp()` value), which would find Core Framework's but is a heuristic that can match a non-size variable. Whichever is chosen must be measured in a real editor on a Core Framework site first. Whether `var(--wp--preset--font-size--<slug>)` resolves on the front end of a classic theme is also unmeasured. Not an integration with Core Framework, by decision.
+
+Blocked by: —  •  Interacts with: FW-163 (the table's typography controls), FW-120 (`{{join}}` gains per-slot typography in its rebuild, so the same Font Size field)
 
 ### Testing & infrastructure
 
@@ -791,6 +933,18 @@ Open: Whether the fixture needs an oversized group, then the rows in `field-sele
 
 Blocked by: —  •  Interacts with: FW-97 (fixture reorganization; a new fixture page shares its re-capture rule), FW-145 (fixture rows with unmeasured causes)
 
+#### FW-172 — Screen-reader pass over the plugin's editor controls
+
+No editor control this plugin registers has been tested with a screen reader. The accessible names, descriptions and announcements are written to be correct, and some are pinned by harness, but none has been heard.
+
+Detail home: this row
+
+Progress: Not started. Raised 2026-10-20 at the `{{table}}` ship (FW-53), whose controls carry the most announcement work so far: the combobox hint row and its `aria-describedby` twin, the Stripes and Custom Column Text Styles checkbox pickers, the Live Formatting Preview, and the field-label advisory's click-to-apply link. The rendered `{{table}}` output (caption, labelled scroll region) is a front-end concern and is not in this row.
+
+Open: Which screen readers and browsers (NVDA with Chrome and Firefox on Windows is reachable here; VoiceOver needs a Mac). Whether to start with the `{{table}}` controls or sweep every `bws-*` control type in `editor-controls.md`'s registered-controls table. Where the results are recorded so a later change can be checked against them.
+
+Blocked by: —  •  Interacts with: FW-53 (closed; the controls that prompted it), FW-147 (the entity picker's caution and loading state are announcement surfaces too)
+
 ### Docs & vocabulary
 
 Repairs to the documentation corpus itself: prose that has outgrown its reader, pointers that no longer resolve, and vocabulary the docs use inconsistently. Split out of §Testing & infrastructure 2026-08-28 — those items had nothing in common with a fixture site beyond "not a feature and not a bug".
@@ -805,7 +959,7 @@ Progress: Decided 2026-08-17 not to split the file — `CLAUDE.md` §Long-lived 
 
 Open: Order is trim rationale first, then index, then the three boundary moves, then roughly 40 trigger rows. Re-measure current size before scoping.
 
-Blocked by: —  •  Interacts with: FW-53 + `docs/editor-controls.md` (created 2026-08-19, still owes §Option layout & visibility once the `use`+`key` combine ships)
+Blocked by: —  •  Interacts with: FW-53 (closed) + `docs/editor-controls.md` (created 2026-08-19, still owes §Option layout & visibility once the `use`+`key` combine ships)
 
 #### FW-76 — Repoint the dangling in-code SPEC §V<n> citations (both spellings)
 
@@ -857,7 +1011,7 @@ Author (a relation to content), user (a WordPress user record), and "user" as sh
 
 Detail home: `.scratch/plans/vocabulary-pass.md` §OPEN 6
 
-Progress: Raised 2026-08-28 while holding FW-47 — its soft gate being met by user query loops means these analogs are about to be described in user-facing copy for the first time, making this cheapest to fix now.
+Progress: Raised 2026-08-28 while holding FW-47 — its soft gate being met by user query loops means these analogs are about to be described in user-facing copy for the first time, making this cheapest to fix now. README disambiguated 2026-10-21 (user decision: README only for now): the reached record is "user" throughout, "author" is kept only for author archives and GB's own author behavior, and the User column states it is never the logged-in visitor. The editor strings already avoid both words; `docs/` and `CONTEXT.md` (e.g. "author kind" for the `user` kind) are not yet done.
 
 Open: Whether the repair is a definition pair in `CONTEXT.md` §Language, a rename, or disambiguation only where the docs currently blur them.
 
@@ -969,7 +1123,7 @@ Blocked by: —  •  Interacts with: FW-31
 
 A converter between GB core tags and BWS dynamic tags.
 
-Detail home: memory `deferred_features.md`
+Detail home: `.scratch/plans/gb-tag-cross-converter.md` (the GB → BWS tag map, read 2026-10-21; the "Alternative to (GP/GB)" column of the README coverage table summarizes it)
 
 Progress: Not started.
 
@@ -1043,22 +1197,6 @@ Open: Remaining scope is only the factory post→author hop itself, which makes 
 
 Blocked by: —  •  Interacts with: FW-47, FW-39 (closed), FW-9, FW-49 (closed)
 
-#### FW-53 — {{table}} repeater→HTML table tag
-
-A repeater fold (`rows` step) into a `<table>` string. A table's row-set is whatever its source chain returns — not a flat/repeater/relationship "mode" — which hard-depends on the multi-step source-selection encoding (FW-56, shipped).
-
-Detail home: `.scratch/plans/table-tag.md` (the DECISION record — §SETTLED index, 48 rows); build design + tickets `.scratch/table-tag/spec.md`
-
-Progress: Prototype built and committed, gated behind the `bws_dynamic_tags_register_table_tag` filter (default false) since 2026-08-12, so no install gets it by default; the fixture blueprint enables it from its mu-plugin so matrix rows and fixture blocks keep running while v1 is built. Its blocker cleared 2026-08-20 when GH #55 (closed; base-tag source chains) shipped — v1 can now assume both a chain source and registered roots (FW-69). **SPECCED 2026-09-18** into eleven tickets (00 naming gate through 10 ship), with three things settled that the plan had left open: rows are the chain's TAIL and its per-hop `limit(N)` is the row cap, so table registers no row-count option; the scope anchor DISSOLVES rather than gaining a seam, because a column picker's context is the container chain's tail through the `predecessorContext()` / `kindAt()` pair FW-74 shipped, which retires `bws_build_fold_slot_options()`'s three never-called scope arguments; and a bare column SERIALIZES `src(inherit)` rather than stripping it, table being the only container greenfield enough to avoid the stripped-default ambiguity `slot-fold.php:1467` documents. Also discharged: Settled #45's sibling rename, which shipped in `d6b29ec` (v1.19.2/v1.20.0) while the plan still described it as ~140 sites of pending work — so `inherit` is free as a root slug and the plan's §GRILLED 2026-09-04 census paragraph is stale. Merges incrementally to `main` behind the gate; the flip in ticket 10 is the only user-visible moment.
-
-Open: v1 build detail lives entirely in the spec's tickets; the plan keeps the decisions behind them. The naming pass (ticket 00) is the one human-decided gate — six author-facing names plus a preview-tool toggle confirming the bare-column serialization — and nothing below it is startable until it closes. Flip the filter to unconditional when v1 ships (ticket 10).
-
-Carries a `CONTEXT.md` §Language obligation from FW-121 (decided 2026-09-04): the entry defining PARENT inheritance against SIBLING carry lands with `src(inherit)`, not with the rename that frees the word — defining a token nobody can author yet would put a forward-looking claim in the file whose whole reading posture is "these bind NOW".
-
-Does NOT wait on FW-74 (decided 2026-09-03; FW-74 closed 1.21.0 regardless): keyed columns read through the kind-complete read seam, and analog columns through a per-kind analog seam that is table's to build. FW-74 going first is a commit-ordering preference. The "and FW-74's to reuse" half of that sentence was WITHDRAWN 2026-09-04 (Settled #38's reach correction) and is corrected here: FW-74 cannot reuse the dispatcher, because analogs refuse on a repeater row by D4(a). Promotion is #42's rule — it goes cross-container the day a SECOND reader dispatches from a resolved source, which is FW-120.
-
-Blocked by: —  •  Interacts with: FW-13, FW-14 (#12, closed; discovery scoping), FW-20, FW-54, FW-56 (closed), FW-69 (closed), FW-67 (closed 1.21.0 — `{{table}}`'s `srcTermIn` registration went with the carrier, so a chain source here no longer has one to absorb), FW-74, FW-141 (closed; columns gain the `fixed` read once they move to the shared read option)
-
 #### FW-54 — src:query — cross-tag post-query base source
 
 A base source running a `WP_Query` from author filters (post type, tax, meta, orderby, limit) and rooting the tag on the result set — a new fanning base source at L1, parallel to current/ref/site, ignoring ambient context.
@@ -1069,7 +1207,7 @@ Progress: Concept only, not fleshed. Split out of FW-53 because it is a new fann
 
 Open: Three structural costs beyond the query-filter UI — every scalar tag consuming `src:query` needs a collapse rule, editor preview must run a live `WP_Query` (ignoring the ambient id [I11] threads), and field-discovery scope depends on a still-building filter rather than a static restriction.
 
-Blocked by: —  •  Interacts with: FW-53, FW-13
+Blocked by: —  •  Interacts with: FW-53 (closed), FW-13
 
 #### FW-60 — Absorb try_ into base tags via an add-slot control (one-way fold)
 
@@ -1093,7 +1231,7 @@ Progress: Deferred 2026-08-01 (user) — modelled and rendered in the preview to
 
 Open: Whether the authoring surface is worth it at all, and how it interacts with the tag-level `sep` it would not replace.
 
-Blocked by: `code:fan-out structure preservation — bws_run_traversal flattens rather than keeping a tree a per-step sep could join`  •  Interacts with: FW-44 (overlaps), FW-56 (closed), FW-57 (closed), FW-55, FW-20, FW-53
+Blocked by: `code:fan-out structure preservation — bws_run_traversal flattens rather than keeping a tree a per-step sep could join`  •  Interacts with: FW-44 (overlaps), FW-56 (closed), FW-57 (closed), FW-55, FW-20, FW-53 (closed)
 
 #### FW-62 — Move the fold control's remaining authored LABELS onto the option definition
 
@@ -1105,7 +1243,7 @@ Progress: Found by code review 2026-08-04. Not urgent — a drifted label mislea
 
 Open: Do it with the surface that's already going to touch these strings — `bws_build_fold_slot_options()` gains label keys, the control reads them, and `slot-options-build-test.php` gains a case.
 
-Blocked by: —  •  Interacts with: FW-20 (the combine that re-touches this control), FW-45, FW-53
+Blocked by: —  •  Interacts with: FW-20 (the combine that re-touches this control), FW-45, FW-53 (closed)
 
 #### FW-64 — Composite field-group control (the option-group wrapper's successor)
 
@@ -1177,7 +1315,7 @@ Progress: Key, values and nesting grammar decided 2026-07-27 and parked (user): 
 
 Open: The plan's render-seam paragraph names `bws_try_join_items()`, which FW-136 deleted, so where the `<li>` wrap branches has to be re-read against current code: text, title and datetime join inside `bws_collect_value_list()`, while `{{email}}` and `{{phone}}` join in their own renderers. Per-level markers and real nesting stay deferred behind v1.
 
-Blocked by: —  •  Interacts with: FW-85 (closed; the per-item link wrap happens where the `sep` join does), FW-139, FW-53
+Blocked by: —  •  Interacts with: FW-85 (closed; the per-item link wrap happens where the `sep` join does), FW-139, FW-53 (closed)
 
 #### FW-139 — `{{dl}}`, a definition-list tag
 
@@ -1189,7 +1327,7 @@ Progress: Split decided 2026-07-27 (user): `{{dl}}` is its own tag, not absorbed
 
 Open: The plan's §0-Q3 to Q5: how the two values in a row are sourced, whether it reuses `{{table}}`'s assembly, and where it sits in the tag catalog (a decision to ask, not an append).
 
-Blocked by: row:FW-53  •  Interacts with: FW-138, FW-140
+Blocked by: —  •  Interacts with: FW-138, FW-140
 
 #### FW-140 — Tables and definition lists through GB blocks instead of tags
 
@@ -1201,7 +1339,7 @@ Progress: Researched 2026-07-23 against GB 2.3.0 and the GB facts recorded. Noth
 
 Open: The plan's §7 questions, most of them browser tests: whether the `dl` loop map survives the editor (the go/no-go for every query-loop map), whether the table map survives nested foster-parenting with the appender suppressed, whether the sentinel prefix works at all, and whether a `{{` typed into a `core/table` cell survives editor transforms. Allowing tags in `core/table` cells is one filter and independent of all of them; it is one block of FW-156, which covers core blocks generally.
 
-Blocked by: —  •  Interacts with: FW-53 (a working sentinel plus a table loop map would overlap its repeater rows), FW-139, FW-156 (tags in core blocks generally)
+Blocked by: —  •  Interacts with: FW-53 (closed; a working sentinel plus a table loop map would overlap its repeater rows), FW-139, FW-156 (tags in core blocks generally)
 
 #### FW-146 — A shared reference repo for what several of our projects re-implement or re-discover
 
@@ -1251,6 +1389,18 @@ Open: Whether to take the route at all, decided after a throwaway testbed protot
 
 Blocked by: the prototype  •  Interacts with: FW-156 (tag strings in core blocks; `core/image` moved here from its candidate set), FW-13 (field discovery could feed the bindings picker)
 
+#### FW-169 — Hierarchical chain steps: `parent`, `ancestor`, `children`, `siblings`
+
+Four chain steps that follow WordPress's own hierarchy of posts and terms off whatever the previous step landed on: the parent, the top-level ancestor, the children, and the entities sharing a parent. A step that resolves to a list is plural, one that resolves to a single entity singular.
+
+Detail home: this row; the step table in [`tag-reference.md` §Source CHAINS](tag-reference.md#source-chains-1170)
+
+Progress: Not started. All four names are reserved as chain-root keys (`SourceRegistry::is_expressible_root_key()`), so no registered source can claim one before it ships. `parent` is Planned; the other three are To be considered.
+
+Open: Whether to build all four or only `parent`. The input kinds each step accepts (`BWS_TRAVERSAL_STEP_INPUT_KINDS`); none can take a `meta_row` or a user. Whether `children` and `siblings` take a post-type or taxonomy narrowing argument, and their default order. Whether `ancestor` needs a clearer name, since a step resolving the whole ancestor list would be `ancestors`. The editor labels.
+
+Blocked by: —  •  Interacts with: FW-53 (closed; `inherit` is the table's parent-SOURCE root, a different relation; the name `parent` was reserved for this one)
+
 ## Closed / Retired
 
 Append-only ledger of closed, shipped, or cut work — both `FW-N` items deleted from the live trackers above AND pre-tracker refactors (the legacy `C#` / GitHub-`#issue` handles from the old `project_open_refactors` memory, folded in here so there is ONE closed record). IDs are **permanent** — a retired `FW-N` is never reused or reassigned. This ledger is the only record of the FW high-water mark once shipped items are deleted; **"next unused id" = (max `FW-N` here ∪ max `FW-N` in the live trackers) + 1**. One line per item: outcome + where it landed. Not a tracker (no blockers/interactions) — just the closed record + a pointer to detail. Kept as a table, not heading blocks, since a closed row carries none of the fields (Blocked by / Interacts with / Open) that shape earns; the linked detail home (mostly `docs/design-history/*.md`, itself the committed rationale-of-record) already carries the full build story, so entries here stay to a sentence or two of durable outcome.
@@ -1279,6 +1429,7 @@ Append-only ledger of closed, shipped, or cut work — both `FW-N` items deleted
 | FW-50 | Remove the `fallback_text` active read path | Shipped 1.16.0: cores read `fallback` directly; both reverse-mappers deleted; also carried the fix for GH #51 (closed) | CHANGELOG 1.16.0; rename row `docs/deprecated-tags-options.md`; GH #51 (closed) |
 | FW-51 | try_ slot 2+ silently empty without `use` | Closed by construction, 1.17.0 — FW-57's slot fold makes the broken shape unexpressible | CHANGELOG 1.17.0; closure rationale `docs/design-history/src-chain-encoding.md` §The FLAG surface |
 | FW-52 | Serialization-order decoupling (reorder normalizer + registration-unwind) | Shipped 1.16.0: canonical control order + canonical serialize order via a per-tag JS normalizer; as+size composite co-shipped | CHANGELOG 1.16.0; `serialization-order-normalizer.js` PHPDoc; `.scratch/plans/combined-option-controls.md` §Grill outcomes 2 |
+| FW-53 | `{{table}}` tag | Shipped next release (CHANGELOG `[Unreleased]`): a `<table>` built from a source chain, one row per source the chain resolves to (its per-hop `limit(N)` is the row cap), up to 10 columns as folded slots rooted at the row (`src(inherit)`, the stripped default), keyed, analog and fixed-text reads, `header(…)` cells with a `<thead>` gate, a caption-gated accessible scroll region, and the presentation keys (`layout`, `width`, six text keys, `stripe`, `border`, `borderRadius`) on one scoped stylesheet per table. The registration gate filter it was built behind is removed, not kept as an off-switch. Open follow-ups were split into FW-158, FW-160 to FW-167; FW-120 (`{{join}}` onto this source model) is unblocked. FW-121's `CONTEXT.md` §Language entry (PARENT inheritance vs SIBLING carry) landed with it | CHANGELOG `[Unreleased]`; `tag-reference.md`; `tools/test/table-test-matrix.md`; decision record `docs/design-history/table-tag.md` |
 | FW-56 | Multi-step src-selection encoding + authoring model | Shipped 1.17.0: wire + compile (`slot-fold.php`/`slot-fold-compile.php`), then authoring + migration on every base tag (`bws-src-chain` control) | CHANGELOG 1.17.0; `docs/design-history/src-chain-encoding.md` §SETTLED index; ADR 0005 (limit semantics); `docs/tag-reference.md` §List mode |
 | FW-57 | Slot-payload fold — read-step + slot repeater | Shipped 1.17.0: one folded value per slot with the read as a sibling bracket-kv token, the repeater replacing the reveal chain, both migration paths, across `{{join}}` and all nine `try_` tags. Closes FW-51 by construction | CHANGELOG 1.17.0; `docs/design-history/src-chain-encoding.md` §SETTLED index + OPEN table |
 | FW-59 | Bracket free-form values on BASE tags | Closed 2026-09-29 (user), no code shipped. Of the row's two justifications, base-tag bracketing is RETIRED: brackets are inert to GB, so GB's two structural characters (colon and pipe) still need backslash-escaping inside them, which `bws-format-input` already writes, and the bracket bought only uniformity with the slot spelling. The other half, free-form text beside separators OUR sub-parser owns, is absorbed: it already ships in the slot fold (`BWS_FOLD_FREEFORM` + the balance-aware bracket scope), and later inner grammars (FW-61's `sep(…)`, FW-27's compare text, FW-35's `allDay` value) ride that rule. Decided while grilling FW-141, whose base-tag `fixed:` is written unbracketed | `docs/design-history/src-chain-encoding.md` (escape-hazard finding); `docs/gb-constraints.md` §Tag string escape syntax + §Separator-safe |
@@ -1312,6 +1463,7 @@ Append-only ledger of closed, shipped, or cut work — both `FW-N` items deleted
 | FW-141 | Fixed-text read, author-entered text as a tag's output | Shipped 1.21.0 (2026-09-30, [PR #142](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/pull/142)): a `fixed` read whose value is the text the author types, `fixed:Varsity` on a base tag and `fixed(Varsity)` in a slot, joining FW-142's token→mode map as one row so no `use` is written beside it. Reach: `{{text}}`, `{{email}}`, `{{phone}}`, `{{join}}` slots and `try_text` / `try_email` / `try_phone` attempts; email and phone gained a `use` axis, and each `try_email` / `try_phone` attempt its own read, with unmigrated flat slots still rendering under their own era. Emits once per resolved source, empty when nothing resolves, finished as that family's `fallback` is. `{{table}}` stays out until its columns move to the shared read option (FW-53) | CHANGELOG 1.21.0; [PR #142](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/pull/142); `CONTEXT.md` I2; `docs/tag-reference.md` (`fixed` rows); `docs/editor-tag-previews.md`; `docs/design-history/fixed-read.md` |
 | FW-142 | Omit a redundant `use` on base tags when the field token already says the read | Shipped 1.21.0 (2026-09-25, [PR #141](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/pull/141)): a general read rule, absent `use` plus a non-empty field token = that token's mode (one map row today, `key → key`; explicit `use` always wins), owned by one PHP helper every `use`-branching read site and the preview route through. The editor wraps GB's `use` select to show the derived mode, writes `use` only when the tokens would not imply it, deletes a mode's field token when `use` leaves it, and normalizes stored redundant wire on open, with no converter entry since old and new wire render identically. Live change on `{{content}}` only: `{{content key:bio}}` now reads the field. `{{image}}`'s default flip split out to FW-143 | CHANGELOG 1.21.0; `bws_use_effective()` PHPDoc (the axis); `tools/test/use-stripped-default-test.php`, `tools/test/editor-filter-chain-test.js`; `tools/test/content-test-matrix.md` §CT8 on `/matrix-content/`; `docs/design-history/implied-use-read.md` (the build spec, committed whole after merge) |
 | FW-151 | Functions nothing in the plugin calls | Shipped next release (CHANGELOG `[Unreleased]`): 22 uncalled `bws_` functions deleted, no shims, after a caller census of every known site found no external caller. Seven were documented for integrating plugins and are named in the CHANGELOG with replacements; the rest were leftovers of FW-136, 14bd054's deprecated-tag removal and the `ContentProcessor` move. `try-fixed-dispatch-test.php` went with the dispatchers it tested. Kept on purpose: `bws_fold_grammar_validate()` (test-only by design) and the two deprecation-warning helpers, now FW-153's candidate starting points. Closed FW-126 | CHANGELOG `[Unreleased]` §Removed; FW-153 |
+| FW-159 | `{{table}}` borders | Shipped with FW-53 (next release, CHANGELOG `[Unreleased]`), folded into v1 rather than following it: `border` touches only the lines it names and `borderRadius` rounds the table's outer corners (rules: `bws_table_border_lines()` PHPDoc). Measured in Chrome 155 and Firefox 149, then 2026-10-20 in Chromium 156, Firefox 157 and WebKit 27.2 (Playwright) with no difference in any used border width and no fill painted outside a rounded corner; Apple Safari itself unmeasured; the screen-reader pass is FW-172 | `tag-reference.md`; `bws_table_border_parse()` / `bws_table_border_lines()` PHPDoc; `table-test-matrix.md` TP15-TP23; decision record `docs/design-history/table-tag.md` §REOPENED 2026-10-20 |
 | #21 | Editor preview: resolve-then-label | Closed 2026-05-19 (commit 9f4fa96), shipped v1.6.2 | Resolve-then-label on all base/modifier/try/datetime callbacks; CHANGELOG v1.6.2 |
 | #26 | Derive try_ slot option DEFS from base builders | Closed 2026-06-26 | `bws_build_slot_traversal_options`; option-DEFINITION derivation only, never the resolve loop |
 | C1 (#2) | Consolidate field extraction logic | Closed 2026-05-01, shipped v1.6.0 | `bws_read_field()`/`bws_read_term_field()` in `content-helpers.php`; CHANGELOG v1.6.0 |

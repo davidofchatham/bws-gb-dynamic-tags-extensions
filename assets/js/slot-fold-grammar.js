@@ -77,7 +77,7 @@
 
 	var TYPES = [ 'title', 'content', 'email', 'phone', 'permalink', 'image', 'datetime_single', 'datetime_range' ];
 	var FLAGS = [ 'newTab', 'showCurrentYear', 'showMidnight', 'noLink' ];
-	var FREEFORM = [ 'format', 'fallback', 'sep', 'valueSep', 'rangeSep', 'timeSep', 'label', 'fixed' ];
+	var FREEFORM = [ 'format', 'fallback', 'sep', 'valueSep', 'rangeSep', 'timeSep', 'header', 'fixed' ];
 	var FANNING_SLUGS = [ 'refs', 'terms', 'rows' ];
 
 	// Option names the emitter ranks. Membership only — the RANKS come from
@@ -86,6 +86,7 @@
 		'as', 'size', 'mode', 'valueSep', 'format', 'rangeSep', 'timeSep', 'showCurrentYear', 'showMidnight',
 		'src', 'ref', 'srcTermIn', 'limit', 'sep', 'use', 'key',
 		'timeKey', 'startKey', 'startTimeKey', 'endKey', 'endTimeKey',
+		'layout', 'width', 'color', 'fontSize', 'fontWeight', 'fontStyle', 'textAlign', 'textTransform', 'stripe',
 		'linkTo', 'linkKey', 'newTab', 'subject', 'noLink',
 		'fallback'
 	];
@@ -336,7 +337,7 @@
 			return tokens;
 		}
 		var agnostic = ( 'try' !== container );
-		var slot = { label: null, type: null, chain: [], read: null, opts: {}, extra: [] };
+		var slot = { header: null, type: null, chain: [], read: null, opts: {}, extra: [] };
 		var useTok = null;
 		var keyTok = null;
 		var fixedTok = null;
@@ -359,8 +360,8 @@
 				}
 				continue;
 			}
-			if ( 'label' === name ) {
-				slot.label = val;
+			if ( 'header' === name ) {
+				slot.header = val;
 			} else if ( 'src' === name ) {
 				var chain = parseChain( val );
 				if ( chain.error ) {
@@ -408,8 +409,8 @@
 			slot.read = { kind: 'fixed', text: '' };
 		}
 
-		if ( null !== slot.label ) {
-			slot.label = unescapeValue( slot.label );
+		if ( null !== slot.header ) {
+			slot.header = unescapeValue( slot.header );
 		}
 		Object.keys( slot.opts ).forEach( function ( name ) {
 			if ( true !== slot.opts[ name ] && -1 !== FREEFORM.indexOf( name ) ) {
@@ -422,7 +423,7 @@
 	/**
 	 * Emit a slot structure as its canonical wire value.
 	 *
-	 * Order: `label` → type → canonically-ranked tokens → preserved unknowns. Ranks
+	 * Order: `header` → type → canonically-ranked tokens → preserved unknowns. Ranks
 	 * come from window.bwsReorderKeys (the FW-52 normalizer), so the fold adds no
 	 * second JS copy of the group ranks.
 	 *
@@ -474,9 +475,9 @@
 		}
 
 		var tokens = [];
-		if ( null !== slot.label && void 0 !== slot.label && '' !== slot.label ) {
-			tokens.push( emitOne( 'label', slot.label ) );
-			delete values.label;
+		if ( null !== slot.header && void 0 !== slot.header && '' !== slot.header ) {
+			tokens.push( emitOne( 'header', slot.header ) );
+			delete values.header;
 		}
 		if ( null !== slot.type && void 0 !== slot.type && 'text' !== slot.type ) {
 			tokens.push( slot.type );
@@ -660,7 +661,7 @@
 		}
 
 		return {
-			slot: { label: null, type: null, chain: chain, read: slotRead, opts: opts, extra: [] },
+			slot: { header: null, type: null, chain: chain, read: slotRead, opts: opts, extra: [] },
 			legacy: true
 		};
 	}

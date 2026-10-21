@@ -176,15 +176,6 @@ echo "\n§2 — census: no read site recovers the default itself; every helper c
 // the analog while every other site reads it as the keyed read.
 $pattern = '/\[\s*[^\]\[]*use[^\]\[]*\]\s*\?\?\s*\'([^\']*)\'/i';
 
-// `{{table}}`'s per-column `{N}-use` is its OWN enum, registered in table-tags.php, and it
-// is deliberately NOT in the map: the option is being replaced by a source chain ending in
-// a fanning step, so enrolling it now would tie a shipped map to a surface on its way out.
-// Excluded by FILE, with the count pinned — a third site appearing in there is a decision
-// someone should make on purpose, not a row that quietly joins the census. The pinned
-// count is also this census's NON-VACUITY check: a pattern gone stale finds 0 there too.
-$excluded       = array( 'includes/tags/table-tags.php' => 2 );
-$excluded_found = array();
-
 // Every call of the helper with a LITERAL tag; a variable tag (the site dispatcher, the
 // preview) is fed by a caller and is not this census's subject.
 $call_pattern = '/bws_use_effective\(\s*\'([^\']*)\'/';
@@ -209,21 +200,9 @@ foreach ( bws_include_files( $root ) as $rel ) {
 			if ( '' === $hit[1] ) {
 				continue;
 			}
-			if ( isset( $excluded[ $rel ] ) ) {
-				$excluded_found[ $rel ] = ( $excluded_found[ $rel ] ?? 0 ) + 1;
-				continue;
-			}
 			$sites[] = "{$rel}:" . ( $i + 1 ) . " => '{$hit[1]}'";
 		}
 	}
-}
-
-foreach ( $excluded as $rel => $expected ) {
-	assert_same(
-		"excluded by design: {$rel} still has exactly {$expected} own-enum read sites",
-		$expected,
-		$excluded_found[ $rel ] ?? 0
-	);
 }
 
 assert_same( 'no read site recovers a `use` default with its own literal', array(), $sites );

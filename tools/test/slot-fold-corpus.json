@@ -132,32 +132,52 @@
 			"wire": "phone,src[post,9999;refs,related_staff,limit(5)],key[mobile]"
 		},
 		{
-			"container": "table",
-			"wire": "label(Name);title;linkTo(permalink)"
+			"container": "join",
+			"wire": "key(a);label(x)"
+		},
+		{
+			"container": "try",
+			"wire": "key(a);label(x)"
 		},
 		{
 			"container": "table",
-			"wire": "label(Office);src(refs,office);key(address)"
+			"wire": "header(Name);title;linkTo(permalink)"
 		},
 		{
 			"container": "table",
-			"wire": "label(Depts);src(terms,department,limit[3]);use(title)"
+			"wire": "textAlign(right;header,center);color(#c00);width(8rem);key(price);header(Price)"
+		},
+		{
+			"container": "join",
+			"wire": "key(a);textAlign(right)"
 		},
 		{
 			"container": "table",
-			"wire": "label(Price\\: USD);key(price)"
+			"wire": "key(a);textAlign(right;header,[center)"
 		},
 		{
 			"container": "table",
-			"wire": "label(Size (cm));key(size)"
+			"wire": "header(Office);src(refs,office);key(address)"
 		},
 		{
 			"container": "table",
-			"wire": "label(Price; USD);key(price)"
+			"wire": "header(Depts);src(terms,department,limit[3]);use(title)"
 		},
 		{
 			"container": "table",
-			"wire": "label[Note (TBD];key(note)"
+			"wire": "header(Price\\: USD);key(price)"
+		},
+		{
+			"container": "table",
+			"wire": "header(Size (cm));key(size)"
+		},
+		{
+			"container": "table",
+			"wire": "header(Price; USD);key(price)"
+		},
+		{
+			"container": "table",
+			"wire": "header[Note (TBD];key(note)"
 		},
 		{
 			"container": "table",
@@ -169,7 +189,7 @@
 		},
 		{
 			"container": "table",
-			"wire": "src(refs,related_staff,label[A, B],limit[5])"
+			"wire": "src(refs,related_staff,header[A, B],limit[5])"
 		},
 		{
 			"container": "table",
@@ -177,7 +197,7 @@
 		},
 		{
 			"container": "table",
-			"wire": "src(refs,related_staff,label[A; B])"
+			"wire": "src(refs,related_staff,header[A; B])"
 		},
 		{
 			"container": "table",
@@ -197,11 +217,11 @@
 		},
 		{
 			"container": "table",
-			"wire": "label(Note (TBD);key(note)X"
+			"wire": "header(Note (TBD);key(note)X"
 		},
 		{
 			"container": "table",
-			"wire": "label(Note;key(note)"
+			"wire": "header(Note;key(note)"
 		},
 		{
 			"container": "table",

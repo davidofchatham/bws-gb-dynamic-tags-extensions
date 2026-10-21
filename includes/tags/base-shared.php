@@ -310,7 +310,7 @@ function bws_fold_step_offer( array $steps, array $vocab ): array {
  * where source and read share one value).
  *
  * NOT applied to derived families: `bws_base_source_option()` stays a plain select
- * because `try_*` and `{{table}}` build their surfaces from its rows
+ * because `try_*` builds its surface from its rows
  * (bws_pick_src_values, bws_build_slot_traversal_options).
  *
  * @since 1.17.0
@@ -701,6 +701,7 @@ function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same
  *
  * @since 1.17.0
  * @since 1.21.0 $base_fixed (FW-141 02).
+ * @since Unreleased The `table` container leads its root enum with `inherit` and ships `stepGroup`.
  * @param array $args {
  *     @type string $container       'join' | 'table' | 'try' (required).
  *     @type array  $base_read       Base read definition (e.g. bws_get_text_field_options()['use']).
@@ -722,8 +723,6 @@ function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same
  *     @type string $noun            Slot noun, lower case ("attempt", "field", "column"). Drives
  *                                   BOTH the Add button and the panel header ("Attempt A");
  *                                   deliberately no separate label parameter.
- *     @type string $field_scope     Field-picker scope ('row' for a repeater container).
- *     @type string $scope_state_key Tag-level option whose value scopes the picker.
  *     @type bool   $takes_first_usable Collapsing capability (ADR 0007): the editor hides
  *                                   the step limit control and the field note's
  *                                   several-results clause. Default false.
@@ -782,6 +781,16 @@ function bws_build_fold_slot_options( array $args ): array {
 	$src_rows            = array_merge( $src_rows, $registered_roots );
 	$src_rows_with_same  = array_merge( $src_rows_with_same, $registered_roots );
 
+	// A TABLE column hangs off its row, so the root an absent chain means is the PARENT's
+	// source. `inherit` is PREPENDED because `defaultRoot`
+	// below derives from the lead row and that is what makes it the default; the root lists
+	// are per-container, so `{{join}}` and `try_` are untouched.
+	if ( 'table' === $container ) {
+		$inherit_row        = array( 'value' => BWS_FOLD_INHERIT_ROOT, 'label' => __( 'Tag Source', 'generateblocks' ) );
+		$src_rows           = array_merge( array( $inherit_row ), $src_rows );
+		$src_rows_with_same = array_merge( array( $inherit_row ), $src_rows_with_same );
+	}
+
 	// Read enum through the read twin (rows only). COMBINING adds an unset row: absent
 	// there means UNCONFIGURED (slot skipped). In a selecting container absent IS the
 	// first row's stripped default, so no extra row.
@@ -838,6 +847,23 @@ function bws_build_fold_slot_options( array $args ): array {
 	);
 	// Container-invariant wire vocabulary.
 	$fold = array_merge( $vocab, $fold );
+	// The heading over the steps that START from the lead root, where it is not the control's
+	// own ("Starting from Current Context"): table's lead is its tag source.
+	if ( 'table' === $container ) {
+		$fold['stepGroup'] = __( 'Starting from Tag Source', 'generateblocks' );
+		// The `header` token is shared grammar, but a <th> means nothing in a {{join}} or
+		// try_ slot, so only a table slot is offered the control.
+		$fold['headerOption'] = array(
+			'label'      => __( 'Header', 'generateblocks' ),
+			// The field-label action beneath the field picker (slot-fold-control.js labelAction()).
+			/* translators: %s: the picked field's label. */
+			'labelApply' => __( 'Use "%s" as the column header', 'generateblocks' ),
+			'help'       => __( 'Text for the heading cell of this column.', 'generateblocks' ),
+		);
+		// A column also takes `width(…)` and the six text tokens, which only a table renders.
+		// The control draws the fields (assets/js/table-style-control.js); this is the flag.
+		$fold['styleOption'] = true;
+	}
 
 	// OMITTED, not empty, when there's no per-slot key: JS `[]` is TRUTHY and renders an
 	// unlabeled key picker.
@@ -847,16 +873,8 @@ function bws_build_fold_slot_options( array $args ): array {
 	if ( ! empty( $base_fixed ) ) {
 		$fold['fixedOption'] = bws_fold_picker_config( $base_fixed );
 	}
-	// `rows` step picker; overridable ({{table}}), but always shipped or the combo is unlabeled.
-	$fold['rowsOption'] = bws_fold_picker_config(
-		! empty( $args['rows_option'] ) ? (array) $args['rows_option'] : bws_fold_rows_picker_def()
-	);
-	if ( ! empty( $args['field_scope'] ) ) {
-		$fold['fieldScope'] = (string) $args['field_scope'];
-	}
-	if ( ! empty( $args['scope_state_key'] ) ) {
-		$fold['scopeStateKey'] = (string) $args['scope_state_key'];
-	}
+	// `rows` step picker; always shipped or the combo is unlabeled.
+	$fold['rowsOption'] = bws_fold_picker_config( bws_fold_rows_picker_def() );
 	// takes_first_usable (ADR 0007): SET ONLY WHEN TRUE, keeping other fold configs unchanged.
 	if ( ! empty( $args['takes_first_usable'] ) ) {
 		$fold['takesFirstUsable'] = true;

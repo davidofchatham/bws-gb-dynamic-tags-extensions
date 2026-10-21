@@ -179,11 +179,11 @@ const CASES = [
 		'A:key(a)' ],
 
 	// A per-slot option that is NOT an axis must survive compaction untouched. The
-	// spike's struct had only chain+read, so a table column's `label` had nothing to
+	// spike's struct had only chain+read, so a table column's `header` had nothing to
 	// be dropped from; under the shipped grammar it does.
-	[ 'compaction preserves non-axis slot options (label, type, link)', COMBINING,
-		{ 'A': 'label(Name);title', 'B': 'label(City);src(refs,office);key(city)', 'C': 'label(Zip);src(same);key(zip);linkTo(permalink)' }, 2,
-		'A:label(Name);title | B:label(Zip);src(refs,office);key(zip);linkTo(permalink)' ],
+	[ 'compaction preserves non-axis slot options (header, type, link)', COMBINING,
+		{ 'A': 'header(Name);title', 'B': 'header(City);src(refs,office);key(city)', 'C': 'header(Zip);src(same);key(zip);linkTo(permalink)' }, 2,
+		'A:header(Name);title | B:header(Zip);src(refs,office);key(zip);linkTo(permalink)' ],
 
 	// The position-1 strip is a SEPARATE guard from materialization, and only these
 	// two cases isolate it: materialization normally REPLACES the successor's `same`
@@ -269,7 +269,7 @@ check( 'the same legacy slot is not counted where the flat wire had `use` (FW-51
 function mountDefault( ordinal, conf ) {
 	const slot = ordinal >= 2
 		? rep.seedSlot( conf )
-		: { label: null, type: null, chain: [], read: null, opts: {}, extra: [] };
+		: { header: null, type: null, chain: [], read: null, opts: {}, extra: [] };
 	return fold.emitSlot( slot ) || '(empty — current, no read)';
 }
 check( 'unconfigured slot 1 mounts empty (current)', mountDefault( 1, SELECTING ), '(empty — current, no read)' );
@@ -1175,7 +1175,7 @@ check( 'an ordinary (non-pinning) root mounts no entity-picker control', !! pick
 const pinSlot2 = renderPinChain( [ { slug: 'term', arg: '5', limit: null } ], ENTITY_PICKER_STUB, true );
 check( 'slot ≥2 offers the same pinned-root control (D11 — base and slot ship together)', !! pickerIn( pinSlot2, ENTITY_PICKER_STUB ), true );
 
-// FIRST-STEP MENU ORDER: ambient lead, its steps in a native "From Current Context"
+// FIRST-STEP MENU ORDER: ambient lead, its steps in a native "Starting from Current Context"
 // optgroup, our own roots, `site`, then integration roots in an "Integrations" optgroup —
 // and a slot's `refs` root row folds into the `refs` step row rather than showing twice.
 const ORDER_CONF = rep.foldConfig( { fold: Object.assign( {}, CHAIN_FOLD, {
@@ -1207,10 +1207,75 @@ function firstMenu( sameOnEmpty ) {
 const ORDER_ROWS = firstMenuRows( false );
 const groupOf = function ( v ) { const r = ORDER_ROWS.find( function ( x ) { return v === x.value; } ); return r && r.group; };
 check( 'first-step menu: Current, steps, own roots, Site, integration roots', firstMenu( false ).join( ',' ), [ 'current' ].concat( ORDER_CONF.offer, [ 'post', 'term', 'site', 'ext' ] ).join( ',' ) );
-check( 'steps sit in the "From Current Context" optgroup', ORDER_CONF.offer.map( groupOf ).join( ',' ), ORDER_CONF.offer.map( function () { return 'From Current Context'; } ).join( ',' ) );
+check( 'steps sit in the "Starting from Current Context" optgroup', ORDER_CONF.offer.map( groupOf ).join( ',' ), ORDER_CONF.offer.map( function () { return 'Starting from Current Context'; } ).join( ',' ) );
 check( 'integration roots sit in the "Integrations" optgroup', groupOf( 'ext' ), 'Integrations' );
 check( 'Current Context and our own roots are ungrouped, labels untouched', [ 'current', 'post', 'term', 'site' ].map( groupOf ).filter( Boolean ).length + ':' + ORDER_ROWS.find( function ( r ) { return 'post' === r.value; } ).label, '0:Specific Post' );
 check( 'slot ≥2 menu: `same` and Current lead, Site last, no Integrations group without integrations', firstMenu( true ).join( ',' ), [ 'same', 'current' ].concat( ORDER_CONF.offer, [ 'site' ] ).join( ',' ) );
+
+// ── TABLE'S ROOT MENU AND DEFAULT ROOT ────────────────────────────
+//
+// A column hangs off its row, so its lead root is `inherit` ("Tag Source"), the steps that
+// start from it sit under "Starting from Tag Source", and a LONE `inherit` strips to an
+// empty chain at EVERY ordinal (join strips at slot 1 only — a slot >=2's `same` is written
+// on purpose). Everything table does differently is keyed on the container, so join's menu
+// above is the pin that it moved nothing.
+const TABLE_ROOTS = [
+	{ value: 'inherit', label: 'Tag Source' },
+	{ value: 'current', label: 'Current Context' },
+	{ value: 'refs', label: 'Posts in Reference/Relational Field' },
+	{ value: 'site', label: 'Site' },
+	{ value: 'post', label: 'Specific Post' },
+	{ value: 'ext', label: 'External Root', integration: true }
+];
+const TABLE_CONF = rep.foldConfig( { fold: Object.assign( {}, CHAIN_FOLD, {
+	container: 'table',
+	combining: true,
+	min: 1,
+	max: 10,
+	defaultRoot: 'inherit',
+	stepGroup: 'Starting from Tag Source',
+	srcRows: TABLE_ROOTS,
+	srcRowsWithSame: TABLE_ROOTS
+} ) } );
+const tableRows = rowsOf( selectsIn( rep.chainSteps( {
+	conf: TABLE_CONF,
+	chain: [ { slug: 'inherit', arg: null, limit: null } ],
+	onChange: function () {},
+	sameOnEmpty: rep.carriesOver( 3, TABLE_CONF ),
+	slotNoun: 'column',
+	stepContext: function () { return { state: {}, setState: function () {} }; }
+} ) )[ 0 ] );
+const tableGroup = function ( v ) { const r = tableRows.find( function ( x ) { return v === x.value; } ); return r && r.group; };
+check( 'table menu: Tag Source, steps, own roots, Site, integration roots', tableRows.map( function ( r ) { return r.value; } ).join( ',' ), [ 'inherit' ].concat( TABLE_CONF.offer, [ 'current', 'post', 'site', 'ext' ] ).join( ',' ) );
+check( 'table menu: the lead is labeled "Tag Source" and ungrouped', ( tableRows[ 0 ] || {} ).label + ':' + String( tableGroup( 'inherit' ) ), 'Tag Source:undefined' );
+check( 'table menu: steps sit under "Starting from Tag Source"', TABLE_CONF.offer.map( tableGroup ).join( ',' ), TABLE_CONF.offer.map( function () { return 'Starting from Tag Source'; } ).join( ',' ) );
+check( 'join menu keeps "Starting from Current Context" (no stepGroup override shipped)', ORDER_CONF.stepGroup, '' );
+
+check( 'carry-over: join slot 2 carries', rep.carriesOver( 2, COMBINING ), true );
+check( 'carry-over: join slot 1 does not', rep.carriesOver( 1, COMBINING ), false );
+check( 'carry-over: a table column NEVER does (copy-on-select, not `same`)', [ 1, 2, 5 ].map( function ( n ) { return rep.carriesOver( n, TABLE_CONF ); } ).join(), 'false,false,false' );
+
+const inhStep = function ( slug, arg, limit ) { return { slug: slug, arg: arg || null, limit: limit || null, extra: [] }; };
+const stripped = function ( chain, n, conf ) { return fold.emitChain ? fold.emitChain( rep.stripDefaultRoot( chain, n, conf ), 1 ) : JSON.stringify( rep.stripDefaultRoot( chain, n, conf ) ); };
+check( 'strip: a lone `inherit` goes at column 1', stripped( [ inhStep( 'inherit' ) ], 1, TABLE_CONF ), '' );
+check( 'strip: ...and at column 3 (every ordinal)', stripped( [ inhStep( 'inherit' ) ], 3, TABLE_CONF ), '' );
+check( 'strip: `inherit` with a step after it is a PATH root and is kept', stripped( [ inhStep( 'inherit' ), inhStep( 'refs', 'x' ) ], 3, TABLE_CONF ), 'inherit;refs,x' );
+check( 'strip: `current` is not the default, kept (written `src(current)`)', stripped( [ inhStep( 'current' ) ], 2, TABLE_CONF ), 'current' );
+check( 'strip: a limit on the lone root is a statement, kept', stripped( [ inhStep( 'inherit', null, '3' ) ], 2, TABLE_CONF ), 'inherit,limit[3]' );
+check( 'strip (join, unchanged): the default goes at slot 1', stripped( [ inhStep( 'current' ) ], 1, ORDER_CONF ), '' );
+check( 'strip (join, unchanged): a slot >=2 keeps its explicit root', stripped( [ inhStep( 'current' ) ], 2, ORDER_CONF ), 'current' );
+
+// A stored `src(same)` at position 1 compacts to the EMPTY chain — for table that is the row.
+check(
+	'table compaction: `src(same)` that lands at column 1 comes back as the empty chain',
+	show( rep.removeSlotFrom( 1, { 'A': 'key(a)', 'B': 'src(same);key(b)' }, 2, TABLE_CONF ), TABLE_CONF ),
+	'A:key(b)'
+);
+check(
+	'table compaction: a PATH root carried through `same` materializes whole',
+	show( rep.removeSlotFrom( 2, { 'A': 'key(a)', 'B': 'src(inherit;refs,x);key(b)', 'C': 'src(same);key(c)' }, 3, TABLE_CONF ), TABLE_CONF ),
+	'A:key(a) | B:src(inherit;refs,x);key(c)'
+);
 
 // ── STEPS OFF A PINNED ROOT (FW-39 ticket 04, D3) ────────────────────────────
 //
@@ -1466,6 +1531,197 @@ check(
 	unpinnedStepArg[ 0 ].props.context.state.src,
 	undefined
 );
+
+// ── TABLE COLUMNS: hang off the tag's source ─────────────────────────────────────────
+//
+// A column's chain continues the TAG's: its first-position steps and its pickers read off the
+// container chain's tail. Its wire is stated root-first (`inherit;<step>`), a hand-written
+// `src(same)` expands, and the carry-over is a COPY entry rather than `same`.
+const TCOL = rep.foldConfig( { fold: Object.assign( {}, CHAIN_FOLD, {
+	container: 'table', combining: true, min: 2, max: 10, defaultRoot: 'inherit',
+	stepGroup: 'Starting from Tag Source', flatAxes: [],
+	// `post` DECLARES its argument here, so a pinned parent root can be the predecessor.
+	srcRows: TABLE_ROOTS.map( function ( r ) { return 'post' === r.value ? Object.assign( {}, r, { arg: { kind: 'post', label: 'Post' } } ) : r; } ),
+	srcRowsWithSame: []
+} ) } );
+const emitCol = function ( chain ) { return fold.emitChain( chain, 1 ); };
+const parsedCol = function ( wire ) { return wire ? fold.parseChain( wire ) : []; };
+
+check( 'seed: a new column stores a pending keyed read and an EMPTY chain', fold.emitSlot( rep.seedSlot( TCOL ) ), 'use(key)' );
+check( 'a fixed column with no text typed serializes the pending spelling', fold.emitSlot( { header: null, type: null, chain: [], read: { kind: 'fixed', text: '' }, opts: {}, extra: [] } ), 'use(fixed)' );
+check( 'seed (join, unchanged): `src(same)`', fold.emitSlot( rep.seedSlot( COMBINING ) ), 'src(same)' );
+
+check( 'canonical: a step-first chain gains `inherit;`', emitCol( rep.columnChain( parsedCol( 'refs,x' ), 2, {}, TCOL ) ), 'inherit;refs,x' );
+check( 'canonical: a lone `inherit` strips', emitCol( rep.columnChain( parsedCol( 'inherit' ), 2, {}, TCOL ) ), '' );
+check( 'canonical: `current` root is kept', emitCol( rep.columnChain( parsedCol( 'current;refs,x' ), 2, {}, TCOL ) ), 'current;refs,x' );
+check( 'canonical: `src(same)` at column 1 is the row', emitCol( rep.columnChain( parsedCol( 'same' ), 1, {}, TCOL ) ), '' );
+check(
+	'canonical: `src(same)` expands to the previous column\'s chain, resolving back through `same`',
+	emitCol( rep.columnChain( parsedCol( 'same' ), 3, { A: 'src(current;refs,x);key(a)', B: 'src(same);key(b)' }, TCOL ) ),
+	'current;refs,x'
+);
+check(
+	'canonical: steps after `same` follow the expansion',
+	emitCol( rep.columnChain( parsedCol( 'same;terms,category' ), 2, { A: 'src(refs,x);key(a)' }, TCOL ) ),
+	'inherit;refs,x;terms,category'
+);
+check( 'no flat era: a table column recovers nothing from flat keys', rep.readSlot( 1, { src: 'rows,team', key: 'name' }, TCOL ), null );
+check( 'no flat era: and owns no legacy key to delete', rep.legacyKeys( 1, TCOL ).join(), '' );
+
+function renderColumn( chain, parentChain, copyChain, onChange ) {
+	const prior = global.window.bwsFieldComboControl;
+	global.window.bwsFieldComboControl = FIELD_COMBO_STUB;
+	try {
+		return rep.chainSteps( {
+			conf: TCOL,
+			chain: chain,
+			onChange: onChange || function () {},
+			sameOnEmpty: false,
+			slotNoun: 'column',
+			parentChain: parentChain,
+			copyChain: copyChain,
+			stepContext: function ( stepObj ) { return { state: { key: stepObj.arg || '' }, setState: function () {} }; }
+		} );
+	} finally {
+		if ( prior === undefined ) { delete global.window.bwsFieldComboControl; } else { global.window.bwsFieldComboControl = prior; }
+	}
+}
+const colMenu = function ( nodes ) { return rowsOf( selectsIn( nodes )[ 0 ] ).map( function ( r ) { return r.value; } ); };
+
+const copyFrom = parsedCol( 'inherit;refs,lead' );
+check(
+	'copy entry: right after the steps, ahead of the other roots',
+	colMenu( renderColumn( [], [], copyFrom ) ).join( ',' ),
+	[ 'inherit' ].concat( TCOL.offer, [ '(copy)', 'current', 'post', 'site', 'ext' ] ).join( ',' )
+);
+check( 'copy entry: absent when the previous chain is empty', colMenu( renderColumn( [], [], [] ) ).indexOf( '(copy)' ), -1 );
+check( 'copy entry: absent with no previous column', colMenu( renderColumn( [], [], null ) ).indexOf( '(copy)' ), -1 );
+let copied = null;
+selectsIn( renderColumn( parsedCol( 'current' ), [], copyFrom, function ( c ) { copied = c; } ) )[ 0 ].onChange( '(copy)' );
+check( 'copy entry: selecting it writes a COPY of the previous chain', emitCol( copied ), 'inherit;refs,lead' );
+check( '...a copy, not the same object', copied !== copyFrom && copied[ 1 ] !== copyFrom[ 1 ], true );
+
+check(
+	'first-position steps run off the parent tail (a `rows` tail is a meta_row: no `terms`)',
+	colMenu( renderColumn( [], parsedCol( 'rows,team_members' ), null ) ).indexOf( 'terms' ),
+	-1
+);
+check(
+	'...and every step is offered off a render-time parent',
+	colMenu( renderColumn( [], [], null ) ).indexOf( 'terms' ) !== -1,
+	true
+);
+const colPickers = fieldPickersIn( renderColumn( parsedCol( 'inherit;refs,lead_ref' ), parsedCol( 'rows,team_members' ), null ) );
+check( 'a step after `inherit` reads the parent tail as its predecessor', colPickers[ 0 ] && colPickers[ 0 ].props.context.state.src, 'rows,team_members' );
+const colRootPickers = fieldPickersIn( renderColumn( parsedCol( 'inherit;refs,lead_ref' ), parsedCol( 'post,34' ), null ) );
+check( '...a declaring parent ROOT counts as that predecessor', colRootPickers[ 0 ] && colRootPickers[ 0 ].props.context.state.src, 'post,34' );
+
+const readCtx = function ( chainWire, parentWire ) {
+	const slot = { header: null, type: null, chain: parsedCol( chainWire ), read: { kind: 'key', field: 'name' }, opts: {}, extra: [] };
+	return rep.fieldContext( slot, function () {}, parentWire === null ? void 0 : parsedCol( parentWire ) ).state.src;
+};
+check( 'read picker: a bare column opens on the tag chain\'s tail', readCtx( '', 'rows,team_members' ), 'rows,team_members' );
+check( 'read picker: unnarrowed when the tail is render-time', readCtx( '', '' ), undefined );
+check( 'read picker: a column\'s own hop wins', readCtx( 'inherit;refs,lead_ref', 'rows,team_members' ), 'refs,lead_ref' );
+check( 'read picker (join, unchanged): no parent, no tail', readCtx( '', null ), undefined );
+
+// ── The header control: table slots only, writing the slot's `header` token ──────────
+const keyedNodes = function ( node, key, out ) {
+	out = out || [];
+	if ( Array.isArray( node ) ) { node.forEach( function ( n ) { keyedNodes( n, key, out ); } ); return out; }
+	if ( node && 'object' === typeof node ) {
+		if ( node.props && node.props.key === key ) { out.push( node ); }
+		keyedNodes( node.children, key, out );
+		if ( node.props ) { keyedNodes( node.props.children, key, out ); }
+	}
+	return out;
+};
+const HDR_OPT = { label: 'Header', help: 'Text for this column\'s heading cell.' };
+const HDR_CONF = rep.foldConfig( { fold: Object.assign( {}, CHAIN_FOLD, {
+	container: 'table', combining: true, min: 2, max: 10, defaultRoot: 'inherit', flatAxes: [],
+	srcRows: TABLE_ROOTS, srcRowsWithSame: [], headerOption: HDR_OPT
+} ) } );
+const renderPanel = function ( conf, state, setState ) {
+	const prior = global.window.bwsFieldComboControl;
+	global.window.bwsFieldComboControl = FIELD_COMBO_STUB;
+	try {
+		return rep.SlotFoldControl( { optionKey: 'A', label: 'Column A', conf: conf, context: { state: state, setState: setState || function () {} } } );
+	} finally {
+		if ( prior === undefined ) { delete global.window.bwsFieldComboControl; } else { global.window.bwsFieldComboControl = prior; }
+	}
+};
+const hdrState = { A: 'header(Name);key(name)', B: 'key(x)' };
+const hdrGroup = keyedNodes( renderPanel( HDR_CONF, hdrState ), 'headergroup' );
+check( 'header control: a table slot offers it', hdrGroup.length, 1 );
+const hdrInput = keyedNodes( hdrGroup, 'header' )[ 0 ];
+check( 'header control: shows the slot\'s header', hdrInput && hdrInput.props.value, 'Name' );
+check( 'header control: help arrives from the shipped config', hdrInput && hdrInput.props.help, HDR_OPT.help );
+let wrote = null;
+const hdrWrite = keyedNodes( renderPanel( HDR_CONF, hdrState, function ( s ) { wrote = s; } ), 'header' )[ 0 ];
+hdrWrite.props.onChange( 'City' );
+check( 'header control: typing writes the token and keeps the rest of the slot', wrote && wrote.A, 'header(City);key(name)' );
+hdrWrite.props.onChange( '' );
+check( 'header control: clearing drops the token entirely', wrote && wrote.A, 'key(name)' );
+check( 'header control: absent on a {{join}} slot', keyedNodes( renderPanel( COMBINING, { A: 'key(name)', B: 'key(x)' } ), 'headergroup' ).length, 0 );
+
+// ── The field-label action: offers the picked field's label as the column header ─────
+// One link, shown only while the header differs from the label (the picker's row already
+// names it). WHICH label is the picker's reach rule (field-combo-control-test.js §F6 owns
+// it); here a stub answers from a map and records the context it was asked with, which
+// is the action's whole hand-off.
+const LBL_OPT = Object.assign( {}, HDR_OPT, { labelApply: 'USE[%s]' } );
+const LBL_CONF = rep.foldConfig( { fold: Object.assign( {}, HDR_CONF, { container: 'table', headerOption: LBL_OPT, flatAxes: [],
+	readRows: [ { value: 'key', label: 'Field' } ], keyOption: { label: 'Field Key' } } ) } );
+let lblAsked = null;
+const lblRender = function ( labels, state, setState ) {
+	FIELD_COMBO_STUB.reachableLabel = labels ? function ( env, ctxState, optionKey, field ) {
+		lblAsked = { src: ctxState.src, optionKey: optionKey, field: field };
+		return Object.prototype.hasOwnProperty.call( labels, field ) ? labels[ field ] : null;
+	} : void 0;
+	try {
+		return renderPanel( LBL_CONF, state, setState );
+	} finally {
+		delete FIELD_COMBO_STUB.reachableLabel;
+	}
+};
+const lblLink = function ( labels, state, setState ) {
+	return keyedNodes( lblRender( labels, state, setState ), 'labelapply' )[ 0 ] || null;
+};
+const CITY = { city: 'City' };
+
+let lblWrote = null;
+const cityLink = lblLink( CITY, { A: 'key(city)', B: 'key(x)' }, function ( s ) { lblWrote = s; } );
+check( 'label action: an unset header offers the label, in the shipped copy', cityLink && cityLink.children[ 0 ], 'USE[City]' );
+check( 'label action: rendering writes nothing (not a placeholder, the header stays unset)', lblWrote, null );
+cityLink.props.onClick();
+check( 'label action: clicking writes the label as an ordinary header token', lblWrote && lblWrote.A, 'header(City);key(city)' );
+check( 'label action: the header field carries the id the action returns focus to',
+	( keyedNodes( lblRender( CITY, { A: 'key(city)', B: 'key(x)' } ), 'header' ).filter( function ( n ) { return n.props && n.props.id; } )[ 0 ] || { props: {} } ).props.id, 'bws-colheader-A' );
+check( 'label action: absent while the header equals the label', lblLink( CITY, { A: 'header(City);key(city)', B: 'key(x)' } ), null );
+check( '...and back when the author edits away', !! lblLink( CITY, { A: 'header(Town);key(city)', B: 'key(x)' } ), true );
+check( 'label action: no restating line is drawn', keyedNodes( lblRender( CITY, { A: 'key(city)', B: 'key(x)' } ), 'labelnote' ).length, 0 );
+check( 'label action: sits with the field picker, not in the header box', ( function () {
+	const tree = lblRender( CITY, { A: 'key(city)', B: 'key(x)' } );
+	return keyedNodes( keyedNodes( tree, 'readgroup' ), 'labelapply' ).length + '/' + keyedNodes( keyedNodes( tree, 'headergroup' ), 'labelapply' ).length;
+}() ), '1/0' );
+lblLink( CITY, { src: 'rows,team_members', A: 'key(city)', B: 'key(x)' } );
+check( 'label action: asks with the picker own synthetic context (the inherited tail)', JSON.stringify( lblAsked ), JSON.stringify( { src: 'rows,team_members', optionKey: 'key', field: 'city' } ) );
+lblLink( CITY, { src: 'rows,team_members', A: 'src(inherit;refs,lead);key(zip)', B: 'key(x)' } );
+check( '...re-derived off the column own chain and field', JSON.stringify( lblAsked ), JSON.stringify( { src: 'refs,lead', optionKey: 'key', field: 'zip' } ) );
+let oddWrote = null;
+lblLink( { odd: 'A, b; (c)' }, { A: 'key(odd)', B: 'key(x)' }, function ( s ) { oddWrote = s; } ).props.onClick();
+check( 'label action: a label holding wire punctuation round-trips through apply',
+	oddWrote && ( rep.readSlot( 1, oddWrote, HDR_CONF ) || {} ).header, 'A, b; (c)' );
+check( 'label action: absent when the rule returns no label', lblLink( CITY, { A: 'key(nope)', B: 'key(x)' } ), null );
+check( 'label action: absent with no field picked', lblLink( CITY, { A: 'header(H)', B: 'key(x)' } ), null );
+check( 'label action: absent with no picker (never a second copy of the rule)', lblLink( null, { A: 'key(city)', B: 'key(x)' } ), null );
+
+// ── The fixed read's text box takes its label and help from the shipped config ──────
+const FIXED_OPT = { label: 'Fixed Text', help: 'Text to show for each result found.', placeholder: '' };
+const FIXED_CONF = rep.foldConfig( { fold: { container: 'join', combining: true, min: 2, max: 10, readRows: [ { value: 'fixed', label: 'Fixed' } ], fixedOption: FIXED_OPT } } );
+check( 'fixed control: foldConfig carries fixedOption through', FIXED_CONF.fixedOption && FIXED_CONF.fixedOption.label, 'Fixed Text' );
+const fixedBox = keyedNodes( renderPanel( FIXED_CONF, { A: 'fixed(Team)', B: 'key(x)' } ), 'readArg' )[ 0 ];
+check( 'fixed control: the rendered text box shows that label', fixedBox && fixedBox.children[ 0 ].props.label, 'Fixed Text' );
 
 console.log( '\n' + ( total - fail ) + '/' + total + ' passed' );
 process.exit( fail ? 1 : 0 );

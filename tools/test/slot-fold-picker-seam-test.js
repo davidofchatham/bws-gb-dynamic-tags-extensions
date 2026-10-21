@@ -280,12 +280,24 @@ const FOLD_TEXT = Object.assign( {}, FOLD, {
 	],
 } );
 
+// A `{{table}}` column: combining, rooted at `inherit` (its row), no flat era. Its chain
+// continues the TAG's `src`, so the tag-level state is what its pickers are owed.
+const FOLD_TABLE = Object.assign( {}, FOLD_TEXT, {
+	container: 'table',
+	combining: true,
+	noun: 'column',
+	defaultRoot: 'inherit',
+	flatAxes: [],
+	srcRows: [ { value: 'inherit', label: 'Tag Source' } ].concat( FOLD.srcRows ),
+	srcRowsWithSame: [ { value: 'inherit', label: 'Tag Source' } ].concat( FOLD.srcRows ),
+} );
+
 /** Mount the fold control for one slot, through its own registered filter. */
-function mountSlot( slotValue, foldConf ) {
+function mountSlot( slotValue, foldConf, tagState ) {
 	const element = foldFilter(
 		{ key: SLOT_KEY },
 		{ [ SLOT_KEY ]: { type: 'bws-slot-fold', label: 'Attempt', fold: foldConf || FOLD } },
-		{ state: { [ SLOT_KEY ]: slotValue }, setState: function () {} }
+		{ state: Object.assign( {}, tagState, { [ SLOT_KEY ]: slotValue } ), setState: function () {} }
 	);
 	if ( ! element || 'function' !== typeof element.type ) {
 		console.error( 'the fold filter did not return a mounted control for ' + slotValue );
@@ -530,6 +542,61 @@ async function main() {
 		fixedRead[ 0 ].props.context.state.src,
 		undefined
 	);
+
+	/* =====================================================================
+	 * §S4 — a `{{table}}` COLUMN reads off the TAG chain's tail
+	 *
+	 * A column that adds no step of its own hangs off its row, so its read picker is owed
+	 * what the tag-level `src` resolved to — the same narrowing S1.2 shows for a slot's own
+	 * `refs` tail, reached one level up.
+	 * ================================================================== */
+
+	const column = readPickerIn( mountSlot( 'key(main_line)', FOLD_TABLE, { src: 'refs,dept_lead' } ) );
+	check(
+		"S4.1 a bare table column's read picker gets the TAG chain's tail as its `src` token",
+		column.props.context.state.src,
+		'refs,dept_lead'
+	);
+	check(
+		"S4.2 ...and narrows on it exactly as a slot's own `refs` tail does (S1.2)",
+		await listOf( column ),
+		[
+			"Any Ref (Post Object, 'any_ref')",
+			"Dept Lead (Post Object, 'dept_lead')",
+			"Main Line (Text, 'main_line')",
+		]
+	);
+	check(
+		'S4.3 a column under a render-time tag source gets no token (unnarrowed)',
+		readPickerIn( mountSlot( 'key(main_line)', FOLD_TABLE, {} ) ).props.context.state.src,
+		undefined
+	);
+
+	/* =====================================================================
+	 * §S5 — the field-label action asks the REAL picker, with the column's context
+	 *
+	 * `slot-fold-repeater-test.js` drives labelAction() against a stub; this is the one
+	 * place the column's context reaches the real reachableLabel(). `name` is ambiguous by
+	 * key alone (two labels), and only the tag source's `rows` tail settles it. The
+	 * envelope is swapped for this row only: the action reads it at render.
+	 * ================================================================== */
+
+	const priorEnv = global.window.bwsFieldEnvelope;
+	global.window.bwsFieldEnvelope = { post: [ { group_title: 'Team', fields: [
+		{ name: 'name', label: 'Feature Name', type: 'text', repeater_key: '' },
+		{ name: 'name', label: 'Name', type: 'text', repeater_key: 'team_members' },
+	] } ] };
+	const FOLD_TABLE_HDR = Object.assign( {}, FOLD_TABLE, { headerOption: { label: 'Header', labelApply: 'Use "%s" as the column header' } } );
+	const labelLinkOf = function ( tagState ) {
+		const link = walk( mountSlot( 'key(name)', FOLD_TABLE_HDR, tagState ) ).filter( function ( n ) { return n.props && 'labelapply' === n.props.key; } )[ 0 ];
+		return link ? link.children[ 0 ] : null;
+	};
+	try {
+		check( 'S5.1 a column on the tag source\'s `rows` tail is offered that container\'s label', labelLinkOf( { src: 'rows,team_members' } ), 'Use "Name" as the column header' );
+		check( 'S5.2 ...and nothing where the source does not settle the ambiguous key', labelLinkOf( {} ), null );
+	} finally {
+		global.window.bwsFieldEnvelope = priorEnv;
+	}
 
 	console.log( '' );
 	if ( fail ) {

@@ -821,6 +821,13 @@ add_filter( 'bws_dynamic_tags_chain_roots', static function ( $roots ) {
 	// — the one guarantee this route exists to keep.
 	$roots['refs']      = array( 'label' => 'Step Slug', 'resolve' => static function () { return 1; } );
 	$roots['same']      = array( 'label' => 'Carry Over Sentinel', 'resolve' => static function () { return 1; } );
+	// `inherit` is the parent-source root and the four hierarchical step names are reserved:
+	// none may be claimed by a source.
+	$roots['inherit']   = array( 'label' => 'Parent Source', 'resolve' => static function () { return 1; } );
+	$roots['parent']    = array( 'label' => 'Reserved', 'resolve' => static function () { return 1; } );
+	$roots['ancestor']  = array( 'label' => 'Reserved', 'resolve' => static function () { return 1; } );
+	$roots['children']  = array( 'label' => 'Reserved', 'resolve' => static function () { return 1; } );
+	$roots['siblings']  = array( 'label' => 'Reserved', 'resolve' => static function () { return 1; } );
 	$roots['a;b,c']     = array( 'label' => 'Grammar Chars', 'resolve' => static function () { return 1; } );
 	return $roots;
 } );
@@ -862,7 +869,7 @@ assert_same( 'a spec with no resolver registers nothing', null, \BWS\DynamicTags
 // An INEXPRESSIBLE key is refused at registration, not filtered out of the enum later: a
 // registered-but-unofferable source would still be a source, and the point is that it can
 // never be one. Asserted through the registry for that reason.
-foreach ( array( 'refs', 'same', 'a;b,c' ) as $unwritable ) {
+foreach ( array( 'refs', 'same', 'inherit', 'parent', 'ancestor', 'children', 'siblings', 'a;b,c' ) as $unwritable ) {
 	assert_same(
 		"a key that cannot BE a root token registers nothing: `{$unwritable}`",
 		null,
@@ -1014,6 +1021,74 @@ assert_same(
 // what an absent `src` means, which is `current` on every tag whatever is registered.
 assert_same( 'base defaultRoot is untouched by the appended roots', 'current', $rooted_base['src']['fold']['defaultRoot'] );
 assert_same( 'slot defaultRoot likewise', 'current', $rooted_fold['defaultRoot'] );
+
+// ── `{{table}}`'s root menu: `inherit` leads, per container ───────────
+//
+// A column hangs off its row, so the root an absent chain means is the PARENT's source:
+// `inherit` is PREPENDED for the table container ONLY, which is what makes it the derived
+// `defaultRoot`. Root lists are per-container; `{{join}}` is pinned unchanged below.
+$table_fold = bws_build_fold_slot_options(
+	array(
+		'container'  => 'table',
+		'max'        => 2,
+		'base_read'  => $text['use'],
+		'base_key'   => $text['key'],
+		'allow_site' => true,
+		'noun'       => 'column',
+	)
+)['A']['fold'];
+assert_same( 'table: `inherit` leads the root enum', 'inherit', $table_fold['srcRows'][0]['value'] ?? null );
+assert_same( 'table: `inherit` is labeled "Tag Source"', 'Tag Source', $table_fold['srcRows'][0]['label'] ?? null );
+assert_same( 'table: `inherit` is the DERIVED defaultRoot', 'inherit', $table_fold['defaultRoot'] );
+assert_same(
+	'table: the rest of the enum is the join enum, unmoved, behind it',
+	$root_values( $rooted_fold['srcRows'] ),
+	array_slice( $root_values( $table_fold['srcRows'] ), 1 )
+);
+assert_same( 'table: `current` stays a pickable root', true, in_array( 'current', $root_values( $table_fold['srcRows'] ), true ) );
+assert_same( 'table: the first-step steps group reads "Starting from Tag Source"', 'Starting from Tag Source', $table_fold['stepGroup'] ?? null );
+assert_same( 'table: ships the header control label', 'Header', $table_fold['headerOption']['label'] ?? null );
+assert_same( 'table: ships the field-label action copy, one %s for the label', 1, substr_count( $table_fold['headerOption']['labelApply'] ?? '', '%s' ) );
+assert_same( 'join: ships no header control (a <th> means nothing in a join slot)', false, isset( $rooted_fold['headerOption'] ) );
+assert_same( 'join: no `inherit` row', false, in_array( 'inherit', $root_values( $rooted_fold['srcRows'] ), true ) );
+assert_same( 'join: defaultRoot is untouched', 'current', $rooted_fold['defaultRoot'] );
+assert_same( 'join: ships no stepGroup override (the control keeps its own)', false, isset( $rooted_fold['stepGroup'] ) );
+assert_same( 'try_ attempts ship no `inherit` row either', false, in_array( 'inherit', $root_values( bws_build_fold_slot_options( array( 'container' => 'try', 'max' => 2, 'base_read' => $text['use'], 'base_key' => $text['key'], 'noun' => 'attempt' ) )['A']['fold']['srcRows'] ), true ) );
+
+// ── `{{table}}`'s REGISTERED options: columns are folded slots, nothing flat ──────────
+//
+// The real registration, so a flat `{N}-*` key or the retired tag-level `key` coming back
+// fails here by name. `flatAxes` is EMPTY rather than absent: the editor reads an empty list
+// as "no flat era" and neither recovers a column from flat keys nor deletes one on commit —
+// the bare `src` a slot-1 flat read would take is the TAG's source.
+require_once __DIR__ . '/../../includes/tags/table-tags.php';
+$table_opts = bws_get_table_options();
+$table_keys = array_keys( $table_opts );
+assert_same( 'table: columns run A..J (BWS_TABLE_MAX_COLS)', array( true, true, false ), array( isset( $table_opts['A'] ), isset( $table_opts['J'] ), isset( $table_opts['K'] ) ) );
+assert_same( 'table: every column is a `bws-slot-fold`', array( 'bws-slot-fold' ), array_values( array_unique( array_map( static function ( $k ) use ( $table_opts ) { return $table_opts[ $k ]['type']; }, array_filter( $table_keys, static function ( $k ) { return 1 === preg_match( '/^[A-Z]+$/', $k ); } ) ) ) ) );
+assert_same( 'table: no flat column key survives', array(), array_values( preg_grep( '/^\d+-/', $table_keys ) ) );
+assert_same( 'table: no tag-level `key` survives', false, isset( $table_opts['key'] ) );
+assert_same( 'table: the tag source is the chain control, as on a base tag', 'bws-src-chain', $table_opts['src']['type'] ?? null );
+assert_same( 'table: no flat relationship/taxonomy control rides beside the chain', array( false, false ), array( isset( $table_opts['ref'] ), isset( $table_opts['srcTermIn'] ) ) );
+assert_same( 'table: the chain offers the same steps a base tag does', bws_build_src_chain_option()['src']['fold']['offer'], $table_opts['src']['fold']['offer'] );
+assert_same( 'table: `caption` stays tag-level', true, isset( $table_opts['caption'] ) );
+assert_same( 'table: no per-slot flat axes', array(), $table_opts['A']['fold']['flatAxes'] );
+assert_same( 'table: columns offer the fixed read', true, ! empty( $table_opts['A']['fold']['fixedOption'] ) );
+assert_same( 'table: column noun', 'column', $table_opts['A']['fold']['noun'] );
+assert_same( 'table: the column card is offered the styling fields', true, $table_opts['A']['fold']['styleOption'] ?? null );
+assert_same( 'join: a column width means nothing in a join slot', false, isset( $rooted_fold['styleOption'] ) );
+assert_same(
+	'table: the presentation keys register contiguously, in control order, after `caption` and before the columns',
+	array( 'caption', 'stylePreview', 'layout', 'width', 'color', 'fontSize', 'fontWeight', 'fontStyle', 'textAlign', 'textTransform', 'stripe', 'border', 'borderRadius', 'A' ),
+	array_slice( $table_keys, array_search( 'caption', $table_keys, true ), 14 )
+);
+assert_same(
+	'table: the preview leads, then four composites own the style keys, the rest are members that draw nothing',
+	array( 'bws-table-style-preview', 'bws-table-sizing', 'bws-table-style-member', 'bws-table-typography', 'bws-table-style-member', 'bws-table-style-member', 'bws-table-style-member', 'bws-table-style-member', 'bws-table-style-member', 'bws-table-stripes', 'bws-table-borders', 'bws-table-style-member' ),
+	array_map( static function ( $k ) use ( $table_opts ) { return $table_opts[ $k ]['type']; }, array( 'stylePreview', 'layout', 'width', 'color', 'fontSize', 'fontWeight', 'fontStyle', 'textAlign', 'textTransform', 'stripe', 'border', 'borderRadius' ) )
+);
+assert_same( 'table: every style key is in the `style` visual group', array( 'style' ), array_values( array_unique( array_map( static function ( $k ) use ( $table_opts ) { return $table_opts[ $k ]['_group'] ?? null; }, array( 'stylePreview', 'layout', 'width', 'color', 'fontSize', 'fontWeight', 'fontStyle', 'textAlign', 'textTransform', 'stripe', 'border', 'borderRadius' ) ) ) ) );
+assert_same( 'table: no picker scope rides the fold any more', array( false, false ), array( isset( $table_opts['A']['fold']['fieldScope'] ), isset( $table_opts['A']['fold']['scopeStateKey'] ) ) );
 
 // ── The SHARED base builder is untouched ─────────────────────────────────────────────
 //

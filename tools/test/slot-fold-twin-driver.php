@@ -68,7 +68,7 @@ function twin_canon_slot( $slot ) {
 		$opt_pairs[] = array( $name, true === $val ? true : (string) $val );
 	}
 	return array(
-		'label' => $slot['label'] ?? null,
+		'header' => $slot['header'] ?? null,
 		'type'  => $slot['type'] ?? null,
 		'chain' => twin_canon_chain( $slot['chain'] ?? array() ),
 		'read'  => $read,

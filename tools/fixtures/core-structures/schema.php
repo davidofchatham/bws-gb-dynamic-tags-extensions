@@ -1184,14 +1184,6 @@ if ( function_exists( 'add_action' ) && ! defined( 'BWS_FIXTURE_SEEDING' ) ) {
 	// C16 measures the default arm of the same borrow.
 	add_filter( 'generate_404_title', 'bws_fixture_core_structures_404_title' );
 
-	// {{table}} is a PROTOTYPE and registers off by default from 1.17.0, so the plugin
-	// does not ship a half-built tag. The testbed is where it is built and where its
-	// matrix rows and fixture blocks live, so the fixture turns it back on. This is a
-	// filter rather than a constant because it must be set before the plugin registers
-	// at init:20, and an mu-plugin loads well ahead of that. Delete this when the tag
-	// ships v1 and registers unconditionally again (FW-53).
-	add_filter( 'bws_dynamic_tags_register_table_tag', '__return_true' );
-
 	// WooCommerce's RELATED PRODUCTS block, off on the fixture site (v22). It is
 	// nondeterministic by design — the data store orders by RAND() and WooCommerce
 	// shuffles the result again — so the §C-PROD product single reordered its own

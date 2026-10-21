@@ -1,33 +1,16 @@
 <?php
 /**
- * {{table}} — structured-output tag: build an HTML table from a repeater field.
+ * {{table}} — structured-output tag: build an HTML table from a source chain.
  *
  * A composing tag over the traversal fold (traversal-pipeline.php). The tag-level
- * source + traversal resolve a base entity; the `key` option names the repeater
- * field, and a `rows` fold step steps that entity's repeater to a meta_row[] (one
- * row per repeater entry); each configured column reads a sub-field off every row.
+ * source chain's tail IS the row set: one row per resolved source, whatever its kind
+ * (the chain's own `limit(N)` is the cap). Each column is a FOLDED SLOT (`A:`, `B:`, …)
+ * whose chain hangs off the ROW: empty, or rooted at `inherit`, it starts there; any
+ * other root is the escape it names. Output is an atomic <table> string in a
+ * text-as-div host (the {{content}} precedent) — NOT a scalar; it must not be inserted
+ * into a <p>/<span> (the tag modal description warns of this).
  *
- * `key` NAMES THE FIELD (house nomenclature — the primary field target, parallel to
- * every other tag's `key`); the internal fold step it drives stays named `rows`
- * (the datum it produces). The `key`→`rows`-step mapping is TABLE-ONLY, owned here:
- * no other tag turns a bare `key` into a rows step. Output is an atomic <table>
- * string in a
- * text-as-div host (the {{content}} precedent) — NOT a scalar; it must not be
- * inserted into a <p>/<span> (the tag modal description warns of this).
- *
- * v1 SCOPE (grill 2026-07-24, handoff §11):
- *   - Full source support (current/ref/site) — the base entity that OWNS the
- *     repeater; the `rows` step reads it via ACF get_field (not have_rows,
- *     whose stateful cursor breaks the pure fold).
- *   - Columns are numbered-prefix (ALL columns `{N}-` from N=1; bare keys reserved
- *     for the tag-level repeater source — option i, join/try_ retrofit deferred).
- *   - Per column: `use` (key = scalar sub-field read off the row; title = a
- *     relationship sub-field hopped ref→post, limit-1, title read).
- *   - `label` per column = the header cell (frontend header; label-mode question
- *     is quarantined — a bare label string is the whole header story for v1).
- *
- * DEFERRED (do NOT infer from this file): header label-mode config, final option
- * names, slot-maximum const naming, composite controls, {{list}}. See handoff §11.
+ * The pure assembly is in includes/helpers/table-helpers.php.
  *
  * @package BWS_Dynamic_Tags
  * @since 1.17.0
@@ -83,7 +66,7 @@ function bws_register_table_tag(): void {
 		'supports'    => array(),
 		// Help text in the tag selector / modal. text-as-div host: the output is a
 		// full <table> block, so the containing element must be a block container.
-		'description' => __( 'Builds a table from a repeater field. Outputs a full <table>; do not place inside a <p> or <span> — use a Div or other block element.', 'generateblocks' ),
+		'description' => __( 'Builds a table from repeater rows, related posts, terms or the current context. Outputs a full <table>, so place it in a <div> or other block container, not inside a <p> or <span>.', 'generateblocks' ),
 		'options'     => bws_get_table_options(),
 		'return'      => 'bws_table_callback',
 		// EXPLICITLY FALSE, never defaulted. {{table}} registers no modifier-template
@@ -101,293 +84,277 @@ function bws_register_table_tag(): void {
 /**
  * Build the {{table}} option definitions.
  *
- * Tag-level (bare keys): the base source that OWNS the repeater — `src`
- * (current/ref/site), the `ref` traversal key, and `key` (the repeater field
- * key — drives the table-only `rows` fold step). Then N column slots, ALL
- * `{N}-`-prefixed from N=1 (bare reserved for the tag-level source — option i). Per
- * column: `{N}-use`, `{N}-key`/`{N}-ref`, `{N}-label` (header cell text). Each
- * `{N}-key` carries `'scope' => 'row'` so its field picker auto-narrows to the
- * chosen repeater's sub-fields (see field-combo-control.js; #12). The tag-level
- * `key` carries `'typeDefault' => 'repeater'` — the OTHER scope axis: its picker
- * opens showing only repeater fields, but keeps the filter controls visible so the
- * author can widen (a non-ACF meta repeater has no discovered type → falls to All).
+ * Tag-level: the source chain whose tail is the row set, and `caption`. Then the
+ * columns, as folded slots through the same builder `{{join}}` uses, reading through
+ * the shared text leaf (keyed, analog and fixed reads alike).
+ *
+ * `tag_level` names EVERY legacy flat axis: {{table}} shipped folded, so no column was
+ * ever stored as `{N}-key` and friends, and the bare `src` a slot-1 flat read would
+ * consume is the TAG's source. With no per-slot flat axes the editor neither recovers
+ * a column from those keys nor deletes them on commit.
  *
  * @since 1.17.0
+ * @since Unreleased Columns are folded slots; the flat `{N}-*` keys and tag-level `key` are gone.
  * @return array Option definitions keyed by option name.
  */
 function bws_get_table_options(): array {
-	$source_opt     = function_exists( 'bws_base_source_option' ) ? bws_base_source_option() : array();
-	$traversal_opts = function_exists( 'bws_base_traversal_options' ) ? bws_base_traversal_options() : array();
+	$text_field = bws_get_text_field_options();
 
 	$tag_level = array_merge(
-		$source_opt,
-		$traversal_opts,
+		// The tag's source is authored as a CHAIN, with the same control and root menu as a
+		// base tag's: the chain's tail is the row set, and any chain is valid wire.
+		bws_build_src_chain_option(),
+		bws_base_traversal_options(),
 		array(
-			'key' => array(
-				'type'         => 'bws-field-combo',
-				'label'        => __( 'Repeater Field', 'generateblocks' ),
-				'dynamicLabel' => true,
-				'help'         => __( 'ACF repeater (or meta) field key. Each row of the repeater becomes a table row.', 'generateblocks' ),
-				'placeholder'  => 'repeater_field',
-				// Pre-scope the picker's type filter to repeater fields (the OTHER scope
-				// axis vs the {N}-key column controls' 'scope' => 'row'). The two filter
-				// SelectControls stay visible, so the author can widen to All or pick a
-				// plain-meta key (a non-ACF meta repeater has no discovered 'repeater'
-				// type, so the guard falls back to All). See field-combo-control.js
-				// (typeDefault) + FW-53.
-				'typeDefault'  => 'repeater',
-			),
 			// Accessible caption (W3C data-table pattern). Labels the table for
 			// screen readers and, when set, names the responsive scroll region via
 			// aria-labelledby. Optional — omit for no <caption>.
 			'caption' => array(
-				'type'        => 'text',
-				'label'       => __( 'Caption', 'generateblocks' ),
-				'help'        => __( 'Optional table caption. Labels the table for assistive technology.', 'generateblocks' ),
+				'type'  => 'text',
+				'label' => __( 'Caption', 'generateblocks' ),
+				'help'  => __( 'Optional table caption. Labels the table for assistive technology.', 'generateblocks' ),
 			),
 		)
 	);
 
+	$columns = bws_build_fold_slot_options(
+		array(
+			'container'  => 'table',
+			'max'        => BWS_TABLE_MAX_COLS,
+			'base_read'  => $text_field['use'],
+			'base_key'   => $text_field['key'],
+			'base_fixed' => $text_field['fixed'] ?? array(),
+			'allow_site' => true,
+			// A column's source is a base tag's source ([I16]): same offer as {{join}}.
+			'steps'      => array( 'refs', 'terms', 'rows' ),
+			'tag_level'  => BWS_FOLD_FLAT_AXES,
+			'noun'       => __( 'column', 'generateblocks' ),
+		)
+	);
+
+	return bws_prepare_registration_options( array_merge( $tag_level, bws_get_table_style_options(), $columns ) );
+}
+
+/**
+ * The {{table}} presentation options: `layout`, `width`, the six text keys, `stripe`, `border`
+ * and `borderRadius`.
+ *
+ * Three composite controls own them (assets/js/table-style-control.js): Sizing and Width on
+ * `layout`, Typography on `color`, Stripes on `stripe`, Borders on `border` (with `borderRadius`).
+ * Each composite commits its keys in one `setState`, so the other keys register only to be known: their `bws-table-style-member`
+ * type tells the filter to render nothing for them. Registered CONTIGUOUSLY and all in the
+ * `style` visual group (bws_option_visual_groups()), so the composites read as one box.
+ * Without the script every key is a plain GB text control, which is still usable wire.
+ *
+ * The values are validated where they are READ (bws_table_style_read()), never here: this
+ * file only declares the keys.
+ *
+ * @since Unreleased
+ * @return array Option definitions keyed by option name.
+ */
+function bws_get_table_style_options(): array {
+	$member = static function ( string $label ): array {
+		return array(
+			'type'  => 'bws-table-style-member',
+			'label' => $label,
+		);
+	};
+	return array(
+		// Display-only: the Live Formatting Preview (assets/js/table-style-preview.js). It has
+		// no value and is never serialized, and it leads the style box.
+		'stylePreview'  => array(
+			'type'  => 'bws-table-style-preview',
+			'label' => __( 'Live Formatting Preview', 'generateblocks' ),
+		),
+		'layout'        => array(
+			'type'  => 'bws-table-sizing',
+			'label' => __( 'Column Sizing', 'generateblocks' ),
+		),
+		'width'         => $member( __( 'Table Width', 'generateblocks' ) ),
+		'color'         => array(
+			'type'  => 'bws-table-typography',
+			'label' => __( 'Text Color', 'generateblocks' ),
+		),
+		'fontSize'      => $member( __( 'Font Size', 'generateblocks' ) ),
+		'fontWeight'    => $member( __( 'Font Weight', 'generateblocks' ) ),
+		'fontStyle'     => $member( __( 'Font Style', 'generateblocks' ) ),
+		'textAlign'     => $member( __( 'Text Alignment', 'generateblocks' ) ),
+		'textTransform' => $member( __( 'Text Transform', 'generateblocks' ) ),
+		'stripe'        => array(
+			'type'  => 'bws-table-stripes',
+			'label' => __( 'Stripes', 'generateblocks' ),
+		),
+		'border'        => array(
+			'type'  => 'bws-table-borders',
+			'label' => __( 'Borders', 'generateblocks' ),
+		),
+		'borderRadius'  => $member( __( 'Radius', 'generateblocks' ) ),
+	);
+}
+
+/**
+ * The configured columns, in slot order — each one's header and resolved slot options.
+ *
+ * Folded keys only: {{table}} has no flat era, and bws_fold_slot_struct()'s flat
+ * recovery would read the TAG-level `src` as column A's. A column the seam skips
+ * (no read, an unfinished step) is still a column when it carries a header: its `opts` are
+ * null and every cell down it is empty, so a header-only column (a spacer, an annotation) is
+ * valid and the header row keeps the body's cell count. Wire that does not parse is left out.
+ * A blank header (whitespace only) is no header.
+ *
+ * A skipped column never feeds the carry, whatever its chain says, as in {{join}}: a read-less
+ * `A:header(X);src(refs,office)` renders empty cells, and a hand-written `B:src(same)` after it
+ * carries the row, not the office. The editor seeds a new column with a pending keyed read, so
+ * only the read menu's "Select…" row or hand-written wire reaches this.
+ *
+ * The carry is seeded with the PARENT: an empty column chain is the row, so a
+ * hand-written `src(same)` on column A carries that rather than skipping.
+ *
+ * @since Unreleased
+ * @param array $options Tag options.
+ * @param array $dropped Out: `{ n, skip }` per column dropped for a skip with no header, so the
+ *                       editor skeleton can still warn about it.
+ * @return array[] `{ header, opts, style, n, skip }` per column; `opts` is bws_fold_slot_chain_options()'s,
+ *                 or null for a header-only column; `style` is bws_table_column_style_read() of the
+ *                 column's width and text tokens (a token whose brackets are unbalanced is absent);
+ *                 `n` the slot ordinal and `skip` the seam's skip reason, for the editor skeleton.
+ */
+function bws_table_columns( array $options, array &$dropped = array() ): array {
+	$carry   = bws_fold_empty_carry( bws_use_stripped_default( 'text' ), true );
 	$columns = array();
 	for ( $n = 1; $n <= BWS_TABLE_MAX_COLS; $n++ ) {
-		// Column N reveal: columns 1-2 always visible; column N ≥ 3 reveals when the
-		// previous column is "real" (has a key set). Mirrors join's combining reveal.
-		if ( $n <= 2 ) {
-			$col_trigger = array();
-		} else {
-			$prev        = $n - 1;
-			$col_trigger = array(
-				'show_if_any' => array( "{$prev}-key" => 'not_empty' ),
-			);
+		if ( '' === trim( (string) ( $options[ bws_slot_ordinal( $n ) ] ?? '' ) ) ) {
+			continue;
 		}
-
-		$columns[ "{$n}-label" ] = array_merge(
-			array(
-				'type'        => 'text',
-				/* translators: %d: column number */
-				'label'       => sprintf( __( 'Column %d Header', 'generateblocks' ), $n ),
-				'help'        => __( 'Header cell text for this column. Leave empty for no header.', 'generateblocks' ),
-			),
-			$col_trigger
-		);
-
-		$columns[ "{$n}-use" ] = array_merge(
-			array(
-				'type'           => 'select',
-				/* translators: %d: column number */
-				'label'          => sprintf( __( 'Column %d Field', 'generateblocks' ), $n ),
-				'options'        => array(
-					array( 'value' => 'key',   'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
-					array( 'value' => 'title', 'label' => __( 'Related Post Title', 'generateblocks' ) ),
-				),
-				'_strip_default' => true,
-			),
-			$col_trigger
-		);
-
-		// key — the sub-field read off each repeater row. For use:key it is the
-		// scalar column value; for use:title it is the relationship sub-field hopped
-		// ref→post (limit-1) then title-read.
-		$columns[ "{$n}-key" ] = array_merge(
-			array(
-				'type'         => 'bws-field-combo',
-				'dynamicLabel' => true,
-				/* translators: %d: column number */
-				'label'        => sprintf( __( 'Column %d Field Key', 'generateblocks' ), $n ),
-				'help'         => __( 'Sub-field key within each repeater row.', 'generateblocks' ),
-				'placeholder'  => 'sub_field',
-				// Auto-scope the picker to the tag-level `key` repeater's sub-fields
-				// (#12): the field-combo control reads the sibling `key`, filters
-				// results to that repeater's row-context sub-fields, and HIDES the two
-				// location/type filter selectors. Free-text of any key still allowed.
-				'scope'        => 'row',
-			),
-			$col_trigger
+		$slot = bws_fold_slot_struct( $n, $options, 'table' );
+		if ( null === $slot ) {
+			continue;
+		}
+		$header = trim( (string) ( $slot['header'] ?? '' ) );
+		$skip   = '';
+		$opts   = bws_fold_slot_chain_options( $slot, $carry, true, $skip );
+		if ( null === $opts && '' === $header ) {
+			$dropped[] = array( 'n' => $n, 'skip' => $skip );
+			continue;
+		}
+		$columns[] = array(
+			'header' => $header,
+			'opts'   => $opts,
+			'style'  => bws_table_column_style_read( $slot['opts'] ),
+			'n'      => $n,
+			'skip'   => $skip,
 		);
 	}
-
-	return function_exists( 'bws_prepare_registration_options' )
-		? bws_prepare_registration_options( array_merge( $tag_level, $columns ) )
-		: array_merge( $tag_level, $columns );
+	return $columns;
 }
 
 /**
- * Extract the ordered column configs from a flat {{table}} option map.
+ * Where a column's chain starts: the row (null), a source its own root names, or
+ * false when that root is refused.
  *
- * Pure transform (no WP/GB symbols) — reads `{N}-use`/`{N}-key`/`{N}-label` for
- * N in 1..$max. A column is "present" iff it has a non-empty key (use:key/title
- * both need a field). Stops at the first absent column (columns are contiguous
- * from 1). Returns a list of { use, key, label }.
+ * Asked once per column, not per row — only an `inherit`/empty root depends on the row.
  *
- * @since 1.17.0
- * @param array $options Flat tag options.
- * @param int   $max     Max columns to scan (BWS_TABLE_MAX_COLS).
- * @return array[] Ordered column configs; empty if no column has a key.
+ * @since Unreleased
+ * @param array|null $opts    The column's resolved slot options; null (a header-only column) starts nowhere.
+ * @param string $explicit_id The editor-injected post id ('' on the front end; I11).
+ * @param object $instance    GB tag instance.
+ * @return array|false|null False for a refused root or a header-only column.
  */
-function bws_table_collect_columns( array $options, int $max ): array {
-	$cols = array();
-	for ( $n = 1; $n <= $max; $n++ ) {
-		$key = trim( (string) ( $options[ "{$n}-key" ] ?? '' ) );
-		if ( '' === $key ) {
-			break; // Columns are contiguous — first gap ends the set.
-		}
-		$cols[] = array(
-			'use'   => $options[ "{$n}-use" ] ?? 'key',
-			'key'   => $key,
-			'label' => (string) ( $options[ "{$n}-label" ] ?? '' ),
-		);
+function bws_table_column_start( ?array $opts, string $explicit_id, $instance ) {
+	if ( null === $opts ) {
+		return false;
 	}
-	return $cols;
+	$root = bws_fold_src_root_token( $opts );
+	if ( '' === $root || BWS_FOLD_INHERIT_ROOT === $root ) {
+		return null;
+	}
+	$res = bws_base_src_resolution( $opts );
+	if ( '' !== $explicit_id && 'site' !== $res['kind'] ) {
+		$opts['id'] = $explicit_id;
+	}
+	$base = bws_base_resolve_source_for_callback( $opts, $instance );
+	return bws_base_read_refused( $res, $base, bws_table_serves() ) ? false : $base;
 }
 
 /**
- * Read one column's cell value off a single meta_row resolved source.
+ * A column's ANALOG read (`use:title`) off one already-resolved source.
  *
- * use:key  → scalar sub-field read (bws_pipeline_default_reader meta_row arm).
- * use:title → the sub-field holds a relationship id; step it ref→post (limit-1)
- *             and read the post title. Missing sub-field / no target → ''.
+ * The third kind switch beside bws_read_resolved_source_value() (keyed) and
+ * bws_source_link_identity() (identity): which analog does this kind expose. It calls the
+ * readers the text tag's own arms use, by id, rather than bws_base_ambient_analog(), which
+ * answers only an ambient chain (its PHPDoc owns the rule). Table-only: promote it the day a
+ * second reader dispatches from a resolved source (FW-120).
  *
- * SOURCE-GATE AUDIT (1.18.0). The `use:key` arm reads a value straight off the
- * row and never constructs an entity source, so the gate (bws_source_gate,
- * traversal-pipeline.php) is both out of reach and NOT NEEDED here: a meta_row
- * carries a row, not an id, and there is nothing whose existence or readability
- * could be tested. The `use:title` arm is the opposite case and needs no special
- * care for the same reason it needs no coercer of its own — it runs the REAL
- * fold below, so the ids it steps onto pass the gate like any other post source,
- * and a row naming a draft reads empty for a visitor.
+ * A `meta_row` has no analog (a row is not an entity) and an unlisted kind has none yet:
+ * both are '' and never fall through to the ambient entity. `query_context` (a 404, search or
+ * archive page as the row) reads its canonical heading.
+ *
+ * @since Unreleased
+ * @param array  $source   One resolved source.
+ * @param array  $opts     The column's slot options.
+ * @param object $instance GB instance.
+ * @return string Analog value, '' on a miss or a kind with none.
+ */
+function bws_table_read_analog( array $source, array $opts, $instance ): string {
+	// Entity-less, so it has no link identity to dispatch on: its reader takes the source.
+	if ( 'query_context' === ( $source['kind'] ?? '' ) ) {
+		return bws_base_query_context_analog_read( 'text', $source, $opts, $instance );
+	}
+	$identity = bws_source_link_identity( $source );
+	if ( null === $identity ) {
+		return '';
+	}
+	switch ( $identity['kind'] ) {
+		case 'post':
+			return (string) bws_try_text_post_dispatch( $identity['id'], $opts, $instance );
+		case 'term':
+			return bws_base_term_analog_read( 'text', $identity['id'], $opts, $instance );
+		case 'user':
+			return bws_base_user_analog_read( 'text', $identity['id'], $opts, $instance );
+		case 'site':
+			return bws_site_resolve_value( 'text', $opts, $instance );
+	}
+	return '';
+}
+
+/**
+ * Read one column's cell off one row.
+ *
+ * Runs the column's steps from its start (the row, unless its root names another
+ * source), then reads every source it lands on, joined `, ` as a {{join}} slot does.
+ * The FIXED read comes first and reads nothing, so it applies on every row kind,
+ * `meta_row` included; bws_fixed_text_read() owns what an unresolved source shows.
+ * A keyed read goes through the L2 read seam, an analog read through
+ * bws_table_read_analog().
  *
  * @since 1.17.0
- * @param array  $row_source { kind:'meta_row', row }.
- * @param array  $col        { use, key, label }.
- * @param object $instance   GB instance. Reserved seam — unused by the v1 scalar +
- *                           ref→title reads, kept for the non-scalar cell reader
- *                           (nested repeater / image / rich value, plan #10) that
- *                           will need the instance for a nested render/context.
+ * @since Unreleased A column is a folded slot; keyed, analog and fixed reads.
+ * @param array  $row_source One resolved row source.
+ * @param array  $col        `{ opts, start, steps }`; null `opts` is a header-only column.
+ * @param object $instance   GB instance.
  * @return string Cell value (may be '').
  */
 function bws_table_read_cell( array $row_source, array $col, $instance ): string {
-	$use = $col['use'] ?? 'key';
-	$key = $col['key'] ?? '';
-
-	if ( 'title' === $use ) {
-		// Column-as-mini-traversal: ref-step the sub-field off the row → post[], take
-		// the first, read its title (limit-1, no override — v1 precedent). Runs the
-		// REAL fold so the meta_row ref reader arm + coercer do the work.
-		if ( ! function_exists( 'bws_run_traversal' ) ) {
-			return '';
-		}
-		$posts = bws_run_traversal(
-			array( $row_source ),
-			array( array( 'type' => 'refs', 'field' => $key ) )
-		);
-		$first = reset( $posts );
-		if ( ! is_array( $first ) || 'post' !== ( $first['kind'] ?? '' ) ) {
-			return '';
-		}
-		$pid = (int) ( $first['id'] ?? 0 );
-		return $pid > 0 ? (string) get_the_title( $pid ) : '';
-	}
-
-	// use:key — scalar sub-field read off the row.
-	$raw = function_exists( 'bws_pipeline_default_reader' )
-		? bws_pipeline_default_reader( array( 'type' => 'refs', 'field' => $key ), $row_source )
-		: ( $row_source['row'][ $key ] ?? '' );
-	return ( is_scalar( $raw ) && '' !== $raw ) ? (string) $raw : '';
-}
-
-/**
- * Assemble the <table> HTML from headers + a matrix of cell strings.
- *
- * Pure presentation (L3, tag-side — the fold stays dumb). Follows the
- * Roselli/W3C responsive-data-table pattern (adrianroselli.com/2020/11/
- * under-engineered-responsive-tables.html; design-system.w3.org/styles/tables.html):
- *
- *   - When a caption is set, the table is wrapped in a focusable scroll region —
- *     `<div role="region" tabindex="0" aria-labelledby="$caption_id">` — and
- *     `<caption id="$caption_id">` names it. The `tabindex="0"` lets a keyboard
- *     user focus and scroll an overflowing table (WCAG 2.1.1); `role="region"` +
- *     `aria-labelledby` give that focusable element its required name+role (WCAG
- *     4.1.2). The frontend CSS (bws_table_print_inline_css) matches this exact
- *     attribute triple to apply `overflow:auto` (WCAG 1.4.10 Reflow) + a focus
- *     outline — NO class hook needed (the attribute selector self-enforces the
- *     a11y markup, per Roselli).
- *   - Without a caption there is NO wrapper — a focusable region with no accessible
- *     name would itself fail WCAG 4.1.2, so a caption-less table is a bare
- *     `<table>` (no scroll containment, but no violation). Authors who want the
- *     scroll region set a caption.
- *   - A <thead> is emitted only when at least one column carries a header label;
- *     every row becomes a <tr> of <td>. Header <th> carry NO scope="col" yet — the
- *     scope-col/scope-row pair is deferred together (col scope only disambiguates
- *     axes once row headers also exist).
- *
- * No presentation class on the <table> either — the tag ships bare structural
- * markup (§9); styling is the theme's, the only plugin CSS is the 6-line
- * attribute-scoped scroll rule.
- *
- * Cells, headers, and caption are escaped (esc_html); the caption id is
- * esc_attr'd. Caller supplies a request-unique $caption_id (wp_unique_id) so the
- * assembler stays framework-free for the pure harness.
- *
- * @since 1.17.0
- * @param string[] $headers    Column header labels (may contain '' entries).
- * @param array[]  $matrix     Row-major cell strings ($matrix[row][col]).
- * @param string   $caption    Caption text ('' = no caption).
- * @param string   $caption_id Unique id for the caption element / aria-labelledby.
- * @return string <table> HTML (wrapped in the scroll region when captioned), or
- *                '' if no rows.
- */
-function bws_table_assemble( array $headers, array $matrix, string $caption = '', string $caption_id = '' ): string {
-	if ( empty( $matrix ) ) {
+	if ( null === $col['opts'] || false === $col['start'] ) {
 		return '';
 	}
+	$opts    = $col['opts'];
+	$sources = bws_run_traversal( array( $col['start'] ?? $row_source ), $col['steps'] );
 
-	$has_caption = '' !== $caption && '' !== $caption_id;
-
-	$has_header = false;
-	foreach ( $headers as $h ) {
-		if ( '' !== (string) $h ) {
-			$has_header = true;
-			break;
+	$values = array();
+	foreach ( $sources as $source ) {
+		if ( 'fixed' === $opts['use'] ) {
+			$value = bws_fixed_text_read( $opts, $instance );
+		} elseif ( 'key' === $opts['use'] ) {
+			$value = bws_read_resolved_source( $source, (string) $opts['key'], $instance );
+		} else {
+			$value = bws_table_read_analog( $source, $opts, $instance );
+		}
+		if ( '' !== $value ) {
+			$values[] = $value;
 		}
 	}
-
-	$html = '';
-
-	// Focusable scroll region — ONLY with a caption (its accessible name). No
-	// caption → no wrapper (an unnamed focusable region fails WCAG 4.1.2).
-	if ( $has_caption ) {
-		$html .= '<div role="region" tabindex="0" aria-labelledby="' . esc_attr( $caption_id ) . '">';
-	}
-
-	$html .= '<table>';
-
-	if ( $has_caption ) {
-		$html .= '<caption id="' . esc_attr( $caption_id ) . '">' . esc_html( $caption ) . '</caption>';
-	}
-
-	if ( $has_header ) {
-		$html .= '<thead><tr>';
-		foreach ( $headers as $h ) {
-			$html .= '<th>' . esc_html( (string) $h ) . '</th>';
-		}
-		$html .= '</tr></thead>';
-	}
-
-	$html .= '<tbody>';
-	foreach ( $matrix as $cells ) {
-		$html .= '<tr>';
-		foreach ( $cells as $cell ) {
-			$html .= '<td>' . esc_html( (string) $cell ) . '</td>';
-		}
-		$html .= '</tr>';
-	}
-	$html .= '</tbody></table>';
-
-	if ( $has_caption ) {
-		$html .= '</div>';
-	}
-
-	return $html;
+	return implode( ', ', $values );
 }
 
 /**
@@ -408,63 +375,64 @@ const BWS_TABLE_INLINE_CSS = '[role="region"][aria-labelledby][tabindex]{overflo
 	. '[role="region"][aria-labelledby][tabindex]:focus{outline:.1em solid rgba(0,0,0,.35)}';
 
 /**
- * Callback for the {{table}} tag.
+ * The wire kinds {{table}} serves as rows: every kind the wire vocabulary can name.
  *
- * 1. Resolve the base source (ambient/explicit) that OWNS the repeater.
- * 2. Run the tag-level ref steps then the `rows` step → meta_row[].
- * 3. For each row, read every configured column → a cell matrix.
- * 4. Assemble the <table> string, wrapped in the W3C responsive scroll region
- *    (+ <caption> when set), in the text-as-div host.
+ * DERIVED, never hand-listed — a row may be any resolved kind, so a kind that joins the
+ * vocabulary is servable the day it joins. A literal list would start refusing it.
  *
- * Empty repeater or no columns → '' (the fold short-circuits; nothing to build).
- * The `id` from the editor is threaded into the base source by the factory
- * (composing-tag id threading, CONTEXT.md I11) so the editor preview resolves.
+ * @since Unreleased
+ * @return string[] Root kinds and step-produced kinds off bws_fold_wire_vocabulary().
+ */
+function bws_table_serves(): array {
+	$vocab = bws_fold_wire_vocabulary();
+	$kinds = array_values( (array) ( $vocab['roots'] ?? array() ) );
+	foreach ( (array) ( $vocab['steps'] ?? array() ) as $step ) {
+		if ( isset( $step['produces'] ) ) {
+			$kinds[] = $step['produces'];
+		}
+	}
+	return array_values( array_unique( $kinds ) );
+}
+
+/**
+ * Whether this render is the editor's tag preview (a REST request), where no `wp_footer` runs.
  *
- * @since 1.17.0
- * @param array  $options  Tag options.
- * @param object $block    GB block (unused; signature parity).
- * @param object $instance GB tag instance.
+ * @since Unreleased
+ * @return bool
+ */
+function bws_table_in_editor_preview(): bool {
+	return defined( 'REST_REQUEST' ) && REST_REQUEST;
+}
+
+/**
+ * The stripe default pair: the saved settings where valid, else the built-in `currentColor` at 5%.
+ *
+ * @since Unreleased
+ * @return array{color:string,opacity:float}
+ */
+function bws_table_stripe_defaults(): array {
+	return class_exists( '\BWS\DynamicTags\Admin\SettingsPage' )
+		? \BWS\DynamicTags\Admin\SettingsPage::get_table_stripe_defaults()
+		: bws_table_stripe_defaults_resolve( '', '' );
+}
+
+/**
+ * The <table> HTML for headers + a cell matrix, with its presentation: '' when there is nothing
+ * to build.
+ *
+ * One rule builder serves the front end, the editor's real table and its skeleton; the scope
+ * class is hashed off the built rules, so an unstyled table has none and identical tables share
+ * one.
+ *
+ * @since Unreleased
+ * @param array   $options     Tag options.
+ * @param array[] $columns     bws_table_columns() records (`header`, `style`).
+ * @param array[] $matrix      Row-major cell strings.
+ * @param bool    $allow_empty Build a table with an empty body for no rows (editor only).
  * @return string
  */
-function bws_table_callback( $options, $block, $instance ): string {
-	$columns = bws_table_collect_columns( $options, BWS_TABLE_MAX_COLS );
-	if ( empty( $columns ) ) {
-		return '';
-	}
-
-	// Tag-level `key` NAMES the repeater field (house nomenclature); it drives the
-	// table-only `rows` fold step below. No other tag maps a bare `key` to a rows
-	// step — the mapping is owned here.
-	$rows_field = trim( (string) ( $options['key'] ?? '' ) );
-	if ( '' === $rows_field ) {
-		return '';
-	}
-
-	if ( ! function_exists( 'bws_base_resolve_source_for_callback' ) || ! function_exists( 'bws_run_traversal' ) ) {
-		return '';
-	}
-
-	// L1 — resolve the base entity that owns the repeater. Apply the tag-level ref
-	// steps (src:ref) FIRST so the repeater is read off the ref target, then step the
-	// `rows` step. A post→term step is intentionally NOT applied here in v1 (a
-	// repeater on a term is read directly from the term base); it belongs to a later
-	// pass with the term-source column story, authored as a step inside `src` once
-	// {{table}} takes a chain source (FW-53). The flat carrier that used to spell it
-	// is not registered.
-	$base = bws_base_resolve_source_for_callback( $options, $instance );
-
-	$ref_steps = function_exists( 'bws_wrapper_ref_steps' ) ? bws_wrapper_ref_steps( $options ) : array();
-	$steps     = array_merge( $ref_steps, array( array( 'type' => 'rows', 'field' => $rows_field ) ) );
-
-	$row_sources = bws_run_traversal( array( $base ), $steps );
-	if ( empty( $row_sources ) ) {
-		return '';
-	}
-
-	$headers = array();
-	foreach ( $columns as $col ) {
-		$headers[] = $col['label'];
-	}
+function bws_table_html( array $options, array $columns, array $matrix, bool $allow_empty = false ): string {
+	$headers = array_column( $columns, 'header' );
 
 	// Accessible caption + a request-unique id for aria-labelledby (W3C responsive
 	// data-table pattern). wp_unique_id is a deterministic per-request counter — no
@@ -474,9 +442,148 @@ function bws_table_callback( $options, $block, $instance ): string {
 		? wp_unique_id( 'bws-table-caption-' )
 		: '';
 
+	$rules = bws_table_rules(
+		bws_table_style_read( $options ),
+		array_column( $columns, 'style' ),
+		bws_table_has_header( $headers ),
+		bws_table_stripe_defaults()
+	);
+	$scope = bws_table_style_class( $rules );
+
+	$html = bws_table_assemble( $headers, $matrix, $caption, $caption_id, $scope, $allow_empty );
+	if ( '' === $html ) {
+		return '';
+	}
+
+	// Everything below runs AFTER the empty-html guard, so a table that renders no rows leaves
+	// no orphan CSS. A rendered captioned table carries the scroll-region wrapper: queue its CSS
+	// (idempotent, shared footer-printer).
+	if ( '' !== $caption_id && function_exists( 'bws_queue_inline_css' ) ) {
+		bws_queue_inline_css( 'bws-table-inline-css', BWS_TABLE_INLINE_CSS );
+	}
+	if ( '' !== $scope ) {
+		$css = bws_table_rules_css( $scope, $rules );
+		if ( bws_table_in_editor_preview() ) {
+			// The editor's replacement is not a page: nothing prints wp_footer, so the rules
+			// travel with the table. A trusted user without `unfiltered_html` gets this
+			// `<style>` stripped by GB's kses and sees an unstyled table; accepted.
+			$html = '<style>' . $css . '</style>' . $html;
+		} elseif ( function_exists( 'bws_queue_inline_css' ) ) {
+			bws_queue_inline_css( $scope, $css );
+		}
+	}
+	return $html;
+}
+
+/** Body rows in the editor skeleton. */
+const BWS_TABLE_SKELETON_ROWS = 3;
+
+/**
+ * The editor's placeholder for a table that cannot render here: the real table's shape, each
+ * cell holding its column's configuration, never invented data.
+ *
+ * EDITOR ONLY. On a published page an unusable table renders nothing; a skeleton there would
+ * show visitors made-up content.
+ *
+ * Headers follow the real table's `<thead>` gate and the styling is the real table's rules, so
+ * only the content is a stand-in. Two marks say so, because either alone misleads: the dashed
+ * outline + accessible name (the marker does not say why) and cell text that reads as
+ * configuration (that alone reads as data). The note line says why.
+ *
+ * @since Unreleased
+ * @param array   $options Tag options.
+ * @param array[] $columns bws_table_columns() records; empty when none is configured.
+ * @param array[] $dropped bws_table_columns()' dropped columns, warned about but not shown.
+ * @return string
+ */
+function bws_table_skeleton( array $options, array $columns, array $dropped = array() ): string {
+	if ( empty( $columns ) ) {
+		$label        = 'Placeholder: no table columns set';
+		$tag_warnings = array( 'no columns set' );
+		$columns      = array( array( 'header' => '', 'style' => array(), 'text' => 'No columns' ) );
+	} else {
+		$label          = 'Placeholder: table source not available in the editor';
+		$inert          = array();
+		bws_try_preview_source_part( (string) ( $options['src'] ?? '' ), true, $inert );
+		$source_warning = bws_preview_inert_warning( $inert );
+		$tag_warnings   = array( '' !== $source_warning ? $source_warning : 'source not available in the editor' );
+	}
+
+	$slot_warnings = array();
+	foreach ( $dropped as $col ) {
+		$summary = bws_preview_slot_summary( null, $col['skip'] );
+		if ( null !== $summary ) {
+			$slot_warnings[] = array( 'n' => $col['n'], 'detail' => $summary['warning'] );
+		}
+	}
+	$cells = array();
+	foreach ( $columns as $col ) {
+		$summary = isset( $col['n'] ) ? bws_preview_slot_summary( $col['opts'], $col['skip'] ) : null;
+		if ( null !== $summary && '' !== $summary['warning'] ) {
+			$slot_warnings[] = array( 'n' => $col['n'], 'detail' => $summary['warning'] );
+		}
+		$cells[] = $col['text'] ?? ( $summary['text'] ?? '' );
+	}
+
+	$html = bws_table_html( $options, $columns, array_fill( 0, BWS_TABLE_SKELETON_ROWS, $cells ) );
+	$note = '⚠ Table: ' . bws_slot_warnings_text( $slot_warnings, $tag_warnings );
+	return '<div role="group" aria-label="' . esc_attr( $label ) . '" style="border:1px dashed currentColor;padding:.5em">'
+		. '<p>' . esc_html( $note ) . '</p>'
+		. $html
+		. '</div>';
+}
+
+/**
+ * Callback for the {{table}} tag.
+ *
+ * 1. Resolve the base source (ambient/explicit) the chain starts from.
+ * 2. Run the whole compiled chain → the rows (one per resolved source, any kind).
+ * 3. For each row, read every configured column → a cell matrix.
+ * 4. Assemble the <table> string, wrapped in the W3C responsive scroll region
+ *    (+ <caption> when set), in the text-as-div host.
+ *
+ * Front end: refused root, no rows or no columns → '' (nothing to build).
+ * Editor preview (`bwsEditorPreview`): no rows → the real table with an empty body; refused
+ * root or no columns → bws_table_skeleton().
+ * The `id` from the editor is threaded into the base source by the factory
+ * (composing-tag id threading, CONTEXT.md I11) so the editor preview resolves.
+ *
+ * @since 1.17.0
+ * @since Unreleased The editor preview: the real table, or a skeleton.
+ * @param array  $options  Tag options.
+ * @param object $block    GB block (unused; signature parity).
+ * @param object $instance GB tag instance.
+ * @return string
+ */
+function bws_table_callback( $options, $block, $instance ): string {
+	$options    = (array) $options;
+	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
+	$dropped    = array();
+	$columns    = bws_table_columns( $options, $dropped );
+
+	// A root this render cannot use produces no table, not an empty one.
+	$base    = empty( $columns ) ? array() : bws_base_resolve_source_for_callback( $options, $instance );
+	$refused = empty( $columns ) || bws_base_read_refused( bws_base_src_resolution( $options ), $base, bws_table_serves() );
+	if ( $refused ) {
+		return $is_preview ? bws_table_output( bws_table_skeleton( $options, $columns, $dropped ), $options, $instance ) : '';
+	}
+
+	// The rows ARE the chain's tail: whatever the whole compiled chain resolves to, one
+	// row each. An empty chain is the current context, a one-row table.
+	$row_sources = bws_run_traversal( array( $base ), bws_field_values_assemble_steps( $options ) );
+	if ( empty( $row_sources ) && ! $is_preview ) {
+		return '';
+	}
+
+	$explicit_id = (string) ( $options['id'] ?? '' );
+	foreach ( $columns as $i => $col ) {
+		$columns[ $i ]['start'] = bws_table_column_start( $col['opts'], $explicit_id, $instance );
+		$columns[ $i ]['steps'] = bws_field_values_assemble_steps( $col['opts'] ?? array() );
+	}
+
 	$matrix = array();
 	foreach ( $row_sources as $row_source ) {
-		if ( ! is_array( $row_source ) || 'meta_row' !== ( $row_source['kind'] ?? '' ) ) {
+		if ( ! is_array( $row_source ) ) {
 			continue;
 		}
 		$cells = array();
@@ -486,22 +593,24 @@ function bws_table_callback( $options, $block, $instance ): string {
 		$matrix[] = $cells;
 	}
 
-	$html = bws_table_assemble( $headers, $matrix, $caption, $caption_id );
-	if ( '' === $html ) {
-		return '';
-	}
+	$html = bws_table_html( $options, $columns, $matrix, $is_preview );
+	return '' === $html ? '' : bws_table_output( $html, $options, $instance );
+}
 
-	// A rendered captioned table carries the scroll-region wrapper — queue its CSS
-	// (idempotent, shared footer-printer). After the empty-html guard so an
-	// all-skipped-rows table (which assembles to '') leaves no orphan CSS.
-	if ( '' !== $caption_id && function_exists( 'bws_queue_inline_css' ) ) {
-		bws_queue_inline_css( 'bws-table-inline-css', BWS_TABLE_INLINE_CSS );
-	}
-
-	// text-as-div host: hand the atomic <table> to the GB output boundary so
-	// link/attr handling stays consistent, but the value is already fully-formed
-	// HTML. The class_exists guard stays: it is what keeps a GB-less install
-	// returning the bare markup rather than fatalling.
+/**
+ * Hand finished table HTML to the text-as-div host.
+ *
+ * Through the GB output boundary so link/attr handling stays consistent, but the value is
+ * already fully-formed HTML. The class_exists guard stays: it is what keeps a GB-less install
+ * returning the bare markup rather than fatalling.
+ *
+ * @since Unreleased
+ * @param string $html     Table HTML.
+ * @param array  $options  Tag options.
+ * @param object $instance GB tag instance.
+ * @return string
+ */
+function bws_table_output( string $html, array $options, $instance ): string {
 	return class_exists( 'GenerateBlocks_Dynamic_Tag_Callbacks' )
 		? bws_gb_tag_output( $html, $options, $instance )
 		: $html;

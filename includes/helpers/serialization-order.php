@@ -84,6 +84,10 @@ function bws_serialization_order_groups(): array {
 function bws_serialization_order_key_map(): array {
 	return array(
 		// --- format group (leads; global, not per-slot) ---
+		// A table column's `header(…)` token. It lives INSIDE a slot's value and
+		// bws_fold_emit_slot() writes it first by construction, so this entry only keeps the
+		// canonical map and its JS twin saying what the emitter does: it leads everything.
+		'header'          => array( 'format', -1 ),
 		'as'              => array( 'format', 0 ),
 		'size'            => array( 'format', 1 ), // GB-reserved today; harmless to rank (never in extraTagParams until the as+size fold).
 		// join tag-level assembly keys (share the format group): mode → valueSep →
@@ -113,6 +117,22 @@ function bws_serialization_order_key_map(): array {
 		'startTimeKey' => array( 'source', 10 ),
 		'endKey'       => array( 'source', 11 ),
 		'endTimeKey'   => array( 'source', 12 ),
+		// {{table}} presentation keys, at tag level and as column tokens. They trail the read
+		// keys, so a tag reads `src → layout → width → text keys → stripe → border → borderRadius`
+		// and a column `header, src/key, width, text keys`. The text keys follow the control order, which is
+		// NOT final: a control reorder is a wire change, so take these from the final order.
+		// `width` ahead of the text keys is the one fixed relation.
+		'layout'        => array( 'source', 13 ),
+		'width'         => array( 'source', 14 ),
+		'color'         => array( 'source', 15 ),
+		'fontSize'      => array( 'source', 16 ),
+		'fontWeight'    => array( 'source', 17 ),
+		'fontStyle'     => array( 'source', 18 ),
+		'textAlign'     => array( 'source', 19 ),
+		'textTransform' => array( 'source', 20 ),
+		'stripe'        => array( 'source', 21 ),
+		'border'        => array( 'source', 22 ),
+		'borderRadius'  => array( 'source', 23 ),
 
 		// --- link group (after source; entity-link OR email/phone own-anchor) ---
 		'linkTo'  => array( 'link', 0 ),

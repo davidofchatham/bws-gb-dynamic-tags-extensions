@@ -219,6 +219,7 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 .perm-current .perm-tagname { color: var(--text); font-weight: 500; }
 .perm-none .perm-str { color: var(--muted); font-style: italic; user-select: none; }
 .perm-note { font-size: 12px; color: #55555a; padding-left: 60px; }
+.perm-meta { font-size: 11px; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
 /* Names in labels, descriptions and captions are monospace; the preview strings (.perm-str) are not. */
 .perm-lbl code, .perm-lbl-desc code, .perm-note code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -320,8 +321,13 @@ button:hover { border-color: var(--accent); color: var(--accent); }
       <option value="w2">W2 (open) — key,x[,test], negation not(…)</option>
       <option value="w2br">W2 (open) — as W2, reads bracketed: key(x), use(content)</option>
       <option value="w2nv">W2 — ADOPTED: reads bracketed, key(x),noValue; not(…) on relations + lists only</option>
+      <option value="m">Merged — one key, head-led conditions, mode slug leads: any;term,34;key,x,noValue</option>
     </select>
-  </div>
+    <div class="sb-h">Styling encodings (table v1)</div>
+    <label class="toggle-row">
+      <input type="checkbox" id="cb-stylebg" checked>
+      <span class="toggle-desc">include <code>background</code> (may be deferred past v1); off drops it from every line</span>
+    </label>  </div>
 
   <!-- Permutations (the only view — the Configure tab was removed 2026-09-01, FW-79: it built
        only the pre-fold flat wire, never grew the fold/chain grammar, and had gone unused across
@@ -353,15 +359,14 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 const PRESETS = {
   src:             ['src','source','via','from'],
   ref:             ['ref','rel'],
-  // `label` is the SHIPPED spelling of this reserved freeform slug (BWS_FOLD_FREEFORM), and the older
-  // table groups keep it. The provisional `header` rename is its own id below, rendered only by the
-  // 'table v1' group, so the two spellings sit side by side until the rename locks.
+  // `label` is the RETIRED spelling of the column-header slug: the shipped token is `header` (id below,
+  // BWS_FOLD_FREEFORM). Nothing renders this id any more; it stays only so old respell candidates resolve.
   label:           ['label','head','col'],
   caption:         ['caption'],
-  // {{table}} v1 naming pass (FW-53 ticket 00) — UNSHIPPED, provisional spellings first. Rendered
-  // only by the 'table v1' group; respell them in the sidebar to judge a candidate on real wire.
+  // {{table}} v1 naming pass (FW-53 ticket 00). `header` is the shipped column-header token (ticket 04);
+  // `align` and the rest are still unshipped. Respell them in the sidebar to judge a candidate on real wire.
   header:          ['header','label','head','th'],
-  align:           ['align','textAlign','justify'],
+  align:           ['textAlign','align','justify'],   // `textAlign` decided 2026-10-14 (plan Settled #61); the id stays `align`
   // {{table}} v1 presentation, target-list shape (user 2026-10-05, leaning). `layout` is a valued key
   // (value id `layoutFixed` in VALUE_PRESETS; `fixed` there clashes with the fixed-text read, so the
   // value can be respelled to judge it). `width` and `fill` are ONE id each: the column token and the
@@ -369,8 +374,18 @@ const PRESETS = {
   layout:          ['layout'],
   width:           ['width'],
   stripe:          ['stripe'],
-  fill:            ['fill'],
+  fill:            ['background','fill'],   // `background` is the likelier word (user 2026-10-13); the id stays `fill`
   border:          ['border'],
+  // {{table}} v1 text styling, UNSHIPPED — rendered only by the 'styling encodings' group. `color` is
+  // the text colour's key; `size` is GB-reserved as a top-level key, hence fontSize. The header
+  // CONTEXT word is its own id, headerContext, so it respells without touching the `header(…)`
+  // label token: it is the Merged `header,x` head.
+  headerContext:   ['header','th','head'],
+  color:           ['color','textColor'],
+  fontWeight:      ['fontWeight','weight'],
+  fontSize:        ['fontSize'],
+  fontStyle:       ['fontStyle'],
+  textTransform:   ['textTransform','transform'],
   // SHIPPED default first. `srcTerm` (the old boolean, paired with `tax`) is SUPERSEDED and kept
   // only as a look-back alternative — see docs/deprecated-tags-options.md.
   srcTermIn:       ['srcTermIn','inTerm','fromTerm','asTerm','useTerm','andTerm','viaTerm','srcTerm'],
@@ -428,6 +443,15 @@ const VALUE_PRESETS = {
   // {{table}} bare-column root (FW-53 ticket 00/02) — UNSHIPPED. `parent` is deliberately NOT a
   // candidate: it is reserved for the real hierarchical relation (table-tag.md Settled #46).
   inherit:  ['inherit','row','here'],
+  // FW-27 `when` list operators — UNSHIPPED. Rename ids for the words that join conditions or tests;
+  // they apply in W1 (`any(…)` / `all(…)`), W2 (`any[…]` / `all[…]`, and `not(…)` = `not`) and
+  // Merged (`any;a;b`, `none;a`, `notAll;a;b`) alike. W1/W2 spell "none of" as `not(any[…])`, so
+  // `none` and `notAll` only show in Merged.
+  any:      ['any','either','or','oneOf'],
+  all:      ['all','both','and','every'],
+  none:     ['none','neither','nor','noneOf'],
+  notAll:   ['notAll','notBoth','nand'],
+  not:      ['not','no','except'],
 };
 
 // Separator candidates — ALL gb-constraints-safe per gb-constraints.md §Separator-safe
@@ -881,10 +905,8 @@ const SCENARIO_GROUPS = [
   // "valid" row kinds — ANY resolved kind is a row (D2a): term, site, single post, or repeater,
   // all alike. Each column is a folded slot exactly like a join/try_ slot (letter-ordinal key,
   // its own chain+read folded into one value) — Option R's per-slot type token applies the same
-  // way. The column HEADER text currently folds in under the shipped freeform token `label`
-  // (BWS_FOLD_FREEFORM); table-tag.md §GRILLED Q3 provisionally proposes renaming that token to
-  // `header` for table specifically, not yet in code — this page keeps `label` as the live
-  // default rather than pre-empting an unlocked rename (see PRESETS.label below).
+  // way. The column HEADER text folds in under the shipped freeform token `header`
+  // (BWS_FOLD_FREEFORM; renamed from `label` in table-tag ticket 04).
   { title:'table — folded, unreleased (REOPENED 2026-08-30)', isContrast:true,
     variants:['foldedCurrent','folded'], foldClass:'table', scenarios:[
     {label:'Staff rows: name→link + office',
@@ -1245,6 +1267,213 @@ const SCENARIO_GROUPS = [
       slots:[{label:'Team',tag:'text',read:{kind:'key',field:'team_name'}},
              {label:'Level',tag:'text',read:{kind:'fixed',text:'Varsity'},if:{test:'true',subject:{kind:'key',field:'is_varsity'}}}]},
   ].map(sc => ({previewOnly:true, ...sc}))},
+
+  // TABLE v1 STYLING ENCODINGS (user 2026-10-13) — the same settings spelled four ways, line by line,
+  // so a spelling is judged on real wire across many uses, in particular the words that mean two
+  // things (`text`, `size`, `header`, `rows`, `normal`, `inherit`, `fixed`). Rendered by the
+  // `styleEnc` branch of renderPerms(); the encoders are STYLE_ENCS / styleTokens() below. The model
+  // is neutral: a property is [base, header] ('' = unset); a table's base is the whole table, a
+  // column's base is its body cells. Fill/colour values are the arg string as typed (`#333,50%`).
+  { title: 'table v1 — styling encodings (FW-53 / FW-27 syntax review, unbuilt)', styleEnc:true, foldClass:'table', tableV1:true,
+    intro: 'The decided wire (plan Settled #61): one key per property, the header override a second `;` segment of its value. Keys serialize in control order, which follows the GB Typography sidebar (colour, size, weight, style, textAlign, transform, then background, stripe). The figure beside each line is the deepest bracket nesting in the whole tag, and its length. Respell `headerContext` in the sidebar to move the header word without touching the `header(…)` label token.',
+    scenarios:[
+    {label:'Alignment and weight, table and header',
+      rowChain:[{slug:'rows',arg:'products'}], caption:'Products',
+      tag:{align:['center','left'], weight:['normal','bold']},
+      slots:[{label:'Product',tag:'text',read:{kind:'key',field:'name'}},
+             {label:'SKU',tag:'text',read:{kind:'key',field:'sku'},width:'8rem'},
+             {label:'Price',tag:'text',read:{kind:'key',field:'price'},st:{align:['right','center']}}]},
+    {label:'Header only, nothing on the table',
+      rowChain:[{slug:'rows',arg:'products'}],
+      tag:{weight:['','bold'], transform:['','uppercase'], fill:['','#333,50%'], color:['','#fff']},
+      slots:[{label:'Product',tag:'text',read:{kind:'key',field:'name'}},
+             {label:'Price',tag:'text',read:{kind:'key',field:'price'}}],
+      note:'Merged leads with the `header` head when the base is unset (`fontWeight:header,bold`)'},
+    {label:'`normal` as a weight and as a style in one tag',
+      rowChain:[{slug:'rows',arg:'products'}],
+      tag:{weight:['normal','bold'], style:['normal','italic']},
+      slots:[{label:'Price',tag:'text',read:{kind:'key',field:'price'},st:{weight:['bold','normal'], style:['normal','normal']}}],
+      note:'`normal` is both a weight and a style; each has its own key, so nothing is bracketed'},
+    {label:'Every text setting, table and header',
+      rowChain:[{slug:'rows',arg:'products'}],
+      tag:{color:['#333','#fff'], weight:['normal','bold'], size:['16px','14px'], style:['normal','italic'], transform:['none','uppercase']},
+      slots:[{label:'Product',tag:'text',read:{kind:'key',field:'name'}}]},
+    {label:'One column carrying everything, body and header',
+      rowChain:[{slug:'rows',arg:'products'}],
+      slots:[{label:'Price',tag:'text',read:{kind:'key',field:'price'},width:'10rem',
+              st:{align:['right','center'], fill:['#fff8e1','#333'], color:['#222','#fff'], weight:['normal','bold'], size:['14px','12px'], style:['','italic'], transform:['','uppercase']}}],
+      note:'The worst case for the slot: every setting on both the body and the header cells of one column'},
+    {label:'Colour functions with commas, and a `var()` size with a fallback',
+      rowChain:[{slug:'rows',arg:'products'}],
+      tag:{fill:['rgba(250,250,250,.5)','var(--accent, #333),50%'], size:['var(--fs, 16px)','']},
+      slots:[{label:'Price',tag:'text',read:{kind:'key',field:'price'},st:{fill:['hsl(48,100%,94%)','']}}],
+      note:'Commas and spaces inside a value\'s own brackets; masked from the nesting check the way the older stripe rows are'},
+    {label:'A header-only column beside the `header` label token',
+      rowChain:[{slug:'rows',arg:'products'}],
+      slots:[{label:'Price',tag:'text',read:{kind:'key',field:'price'},st:{align:['','center'], fill:['','#333'], color:['','#fff']}}],
+      note:'`header(Price)` is the column\'s label token, and `header` is also the header context word inside the same slot; the context word has its own rename id, `headerContext`'},
+    {label:'`rows` stripes beside the `rows` chain step',
+      rowChain:[{slug:'rows',arg:'products'}],
+      stripe:{rows:{parity:'odd',color:'#eee'}, cols:{}},
+      tag:{fill:['#fafafa','#333']},
+      slots:[{label:'Price',tag:'text',read:{kind:'key',field:'price'}}],
+      note:'`src:rows,products` and `stripe:rows…` in one tag; the stripe target and the chain step are the same word'},
+    {label:'Text colour beside `text` columns and a `fixed` read, in a fixed layout',
+      rowChain:[{slug:'rows',arg:'teams'}], layout:'fixed', width:'100%',
+      slots:[{label:'Team',tag:'title',read:{kind:'analog',slug:'title'},st:{color:['#333','']}},
+             {label:'Level',tag:'text',read:{kind:'fixed',text:'Varsity'},st:{color:['#666','#fff']}},
+             {label:'Notes',tag:'text',read:{kind:'key',field:'note'},st:{color:['#666','']}}],
+      note:'`color` is a top-level key in both; `fixed(…)` is the read and `layout:fixed` the sizing, in the same tag'},
+    {label:'`size` beside an image column\'s size',
+      rowChain:[{slug:'rows',arg:'staff_members'}],
+      slots:[{label:'Photo',tag:'image',read:{kind:'analog',slug:'featured'},dtKeys:{as:'url,thumbnail',key:'photo'},st:{align:['center','']}},
+             {label:'Name',tag:'title',read:{kind:'analog',slug:'title'},st:{size:['18px',''], weight:['bold','']}}],
+      note:'The image `as:url,thumbnail` carries a size; Merged writes `fontSize(18px)` for text'},
+    {label:'A column `when` gating a styled cell',
+      rowChain:[{slug:'refs',arg:'related_staff'}],
+      slots:[{label:'Name',tag:'title',read:{kind:'analog',slug:'title'}},
+             {label:'Phone',tag:'phone',read:{kind:'key',field:'mobile'},if:{test:'true',subject:{kind:'key',field:'phone_public'}},st:{align:['right','center'], weight:['bold','']}}],
+      note:'`when(…)` already costs a bracket level in the slot; the styling tokens ride beside it. Respell the `when encoding` in the sidebar to stack them'},
+    {label:'`inherit` as a chain root and as a weight',
+      rowChain:[{slug:'refs',arg:'related_staff'}],
+      tag:{weight:['inherit','bold']},
+      slots:[{label:'Office',tag:'text',chain:[{slug:'inherit'},{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'},st:{weight:['inherit','']}}],
+      note:'CSS `inherit` is a legal weight; `inherit` is also the column chain\'s root slug'},
+    {label:'Numeric weights and percentages together',
+      rowChain:[{slug:'rows',arg:'products'}],
+      tag:{weight:['600','700'], size:['120%','14px'], fill:['#eee,50%','#333,50%']},
+      slots:[{label:'Price',tag:'text',read:{kind:'key',field:'price'}}],
+      note:'`600`, `120%` and `50%` are three kinds of number; typed-by-value args in one list cannot tell weight from opacity from size by shape'},
+    {label:'A datetime column whose format carries commas',
+      rowChain:[{slug:'refs',arg:'related_events'}],
+      slots:[{label:'Event',tag:'title',read:{kind:'analog',slug:'title'}},
+             {label:'Date',tag:'datetime_single',read:{kind:'key',field:'event_date'},dtKeys:{as:'date',key:'event_date',format:'l, F j, Y'},
+              st:{align:['right','center'], weight:['','bold'], size:['14px','']}}],
+      note:'`format(l, F j, Y)` is free text with commas and spaces beside the styling tokens'},
+    {label:'Whole tag: layout, width, stripes, backgrounds, text, six columns',
+      rowChain:[{slug:'refs',arg:'related_staff'}], caption:'Staff', layout:'fixed', width:'100%',
+      stripe:{rows:{parity:'odd',color:'#eee'}, cols:{}},
+      tag:{align:['left','center'], fill:['#fafafa','#333'], color:['#333','#fff'], weight:['normal','bold'], size:['16px','14px'], style:['normal',''], transform:['none','uppercase']},
+      slots:[{label:'Photo',tag:'image',read:{kind:'analog',slug:'featured'},dtKeys:{as:'url,thumbnail',key:'photo'},width:'5rem',st:{align:['center','']}},
+             {label:'Name',tag:'title',read:{kind:'analog',slug:'title'},link:{to:'permalink'},st:{weight:['bold','']}},
+             {label:'Role',tag:'text',read:{kind:'key',field:'role'},fallback:'Staff'},
+             {label:'Start',tag:'datetime_single',read:{kind:'key',field:'start_date'},dtKeys:{as:'date',key:'start_date',format:'M Y'},st:{align:['right','right']}},
+             {label:'Office phone',tag:'phone',chain:[{slug:'refs',arg:'office'}],read:{kind:'key',field:'phone'},st:{fill:['#fff8e1','']}},
+             {label:'Notes',tag:'text',read:{kind:'key',field:'note'},st:{size:['14px',''], style:['italic','']}}],
+      note:'Wire bulk with every concern at once; read the depth figure and the length'},
+  ]},
+
+  // FW-27 `when` ENCODINGS side by side (user 2026-10-14): W1 and W2 as already modelled, plus the two
+  // newer ones derived from the styling spellings (Merged). Rendered by the `whenEnc` branch of
+  // renderPerms(); the encoders are whenMergedStr(). A cond is the usual shape, or
+  // {conds:'all'|'any'|'none'|'notAll', items:[cond…]} for a list of conditions (groups nest).
+  ...(() => {
+    const K = f => ({kind:'key', field:f}), U = s => ({kind:'analog', slug:s}), T = (slug, arg) => ({kind:'step', slug, arg});
+    const has = f => ({test:'hasValue', subject:K(f)}), no = f => ({test:'noValue', subject:K(f)}), yes = f => ({test:'true', subject:K(f)});
+    const row = (label, cond, extra) => ({label, rest:[['use','title'], ['_if', cond]], ...extra});
+    return [{ title:'when — encodings side by side (FW-27, unbuilt)', whenEnc:true, tmpl:'text',
+      intro:'W1 and W2 are the encodings already modelled. Merged writes one `when` key as head-led conditions (`key,x` / `term,34`), tests after commas, `;` between conditions, a mode slug leading a list, and a bracketed group. The list words (`any`, `all`, `none`, `notAll`, and the `not` of W2) are rename ids in the sidebar and apply in all three. A dash means W1 never modelled the row.',
+      scenarios:[
+        row('Has a value', has('sale_price')),
+        row('No value', no('sale_price')),
+        row('Boolean true', yes('is_varsity')),
+        row('Text `is`', {test:'is', arg:'Yes', subject:K('featured')}),
+        row('`is` operand with `;` and (…)', {test:'is', arg:'Red (dark); matte', subject:K('finish')},
+          {note:'The operand is the only bracketed leaf in Merged'}),
+        row('Upcoming incl. today', {any:['before','during'], subject:K('event_date')},
+          {note:'Several tests on one read are an implicit any-of in Merged'}),
+        row('Upcoming or no date yet', {any:['before','noValue'], subject:K('event_date')}),
+        row('Has a real value (presence AND a test)', {all:['hasValue', {test:'isNot', arg:'TBD'}], subject:K('status')},
+          {note:'No all-of test list in Merged: it becomes two conditions in an `all` list'}),
+        row('Neither of two values', {all:[{test:'isNot', arg:'Archived'}, {test:'isNot', arg:'Draft'}], subject:K('status')}),
+        row('Built-in field', {test:'hasValue', subject:U('excerpt')}),
+        row('Filed under term 34', {test:'hasValue', subject:T('term','34')}),
+        row('NOT filed under term 34', {test:'noValue', subject:T('term','34')},
+          {note:'Merged: `none;term,34`; W2: `not(term,34)`'}),
+        row('Either of two terms', {props:'any', items:[T('term','34'), T('term','35')]}),
+        row('Neither of two terms', {props:'any', neg:true, items:[T('term','34'), T('term','35')]}),
+        row('Range, two reads (LATER)', {test:'during', subject:[K('start_date'), K('end_date')]},
+          {note:'Two reads need `use(…)` around them in every encoding; the only bracket a subject takes'}),
+        row('Date plus time read (FW-81)', {test:'before', subject:{kind:'key', field:'event_date', time:'start_time'}},
+          {note:'Merged writes it flat, `key,event_date,start_time,before`: the test words are reserved, so a field named `before` as the second field would misparse'}),
+        row('A taxonomy test and a date test in one list', {conds:'all', items:[T('terms','event-type'), {any:['before','during'], subject:K('event_date')}]}),
+        row('Either a term or an empty field', {conds:'any', items:[T('term','34'), no('promo')]}),
+        row('A and (B or C)', {conds:'all', items:[has('price'), {conds:'any', items:[T('term','34'), has('badge')]}]},
+          {note:'A group is the one bracket in Merged'}),
+        row('(A and B) or C', {conds:'any', items:[{conds:'all', items:[has('price'), yes('in_stock')]}, T('term','34')]},
+          {note:'The GB Pro / extension group shape (J11)'}),
+        row('Two groups, either passing', {conds:'any', items:[{conds:'all', items:[has('price'), yes('in_stock')]}, {conds:'all', items:[T('term','34'), no('hidden')]}]}),
+        row('None of a term and a flag', {conds:'none', items:[T('term','34'), yes('is_hidden')]}),
+        row('Not all of two', {conds:'notAll', items:[has('price'), yes('in_stock')]},
+          {note:'Merged: `notAll;…`; W2 needs `not(all[…])`'}),
+        row('Operand with brackets inside a group', {conds:'any', items:[{test:'is', arg:'Red (dark); matte', subject:K('finish')}, T('term','34')]}),
+        row('Provider phone if THIS post uses a 3rd party (`src`)', {src:[{slug:'current'}], test:'is', arg:'3rd-party', subject:K('support_source')},
+          {chain:[{slug:'refs', arg:'support_provider'}], rest:[['key','support_phone'], ['_if', {src:[{slug:'current'}], test:'is', arg:'3rd-party', subject:K('support_source')}]],
+           note:'`src` inside `when` is held out of v1 (R3); the leading `src(…);` is the one depth-0 `;`'}),
+        {label:'Table column `when`: empty the cell, keep the row', fold:'table',
+          rowChain:[{slug:'refs', arg:'related_staff'}],
+          slots:[{label:'Name', tag:'title', read:{kind:'analog', slug:'title'}},
+                 {label:'Phone', tag:'phone', read:{kind:'key', field:'mobile'}, if:yes('phone_public')}]},
+        {label:'Table column with a group', fold:'table',
+          rowChain:[{slug:'refs', arg:'related_staff'}],
+          slots:[{label:'Name', tag:'title', read:{kind:'analog', slug:'title'}},
+                 {label:'Phone', tag:'phone', read:{kind:'key', field:'mobile'}, if:{conds:'all', items:[yes('phone_public'), {conds:'any', items:[T('term','34'), has('badge')]}]}}],
+          note:'A group inside a slot token is where the bracket levels stack'},
+        {label:'Row filter and a gated column', fold:'table',
+          rowChain:[{slug:'refs', arg:'related_events'}], rowIf:{conds:'any', items:[{any:['before','during'], subject:K('event_date')}, no('event_date')]},
+          slots:[{label:'Event', tag:'title', read:{kind:'analog', slug:'title'}},
+                 {label:'Venue', tag:'text', read:{kind:'key', field:'venue'}, if:has('venue')}],
+          note:'The same `when` word drops a row at tag level and empties a cell in a column'},
+        {label:'Join slot with a mixed list', fold:'join',
+          slots:[{tag:'text', read:{kind:'key', field:'team_name'}},
+                 {tag:'text', read:{kind:'fixed', text:'Varsity'}, if:{conds:'all', items:[yes('is_varsity'), T('terms','division')]}}]},
+      ]}];
+  })(),
+
+  // FW-27 `when` NEGATIVES (user 2026-10-14): every negative beside its positive twin, by level. Same
+  // renderer and encoders as the group above. The last block pairs a `none` / `notAll` list with the
+  // all/any list of negated items that means the same (De Morgan), since that pairing is the thing to hold.
+  ...(() => {
+    const K = f => ({kind:'key', field:f}), T = (slug, arg) => ({kind:'step', slug, arg});
+    const has = f => ({test:'hasValue', subject:K(f)}), no = f => ({test:'noValue', subject:K(f)});
+    const row = (label, cond, extra) => ({label, rest:[['use','title'], ['_if', cond]], ...extra});
+    return [{ title:'when — negatives beside their positives (FW-27, unbuilt)', whenEnc:true, tmpl:'text',
+      intro:'Three levels of negative. ON A READ, a test word: `noValue`, `false`, `isNot(x)`; each flips one positive and PASSES on an empty field. ON A RELATION, there is no negative test, so absence is a `none` list of one (W1: `hasNot`, W2: `not(…)`). ON A LIST, `none` (no item passes) and `notAll` (not every item passes). The last block puts each list negative beside the list of negated items that means the same. Rename the list words in the sidebar (`none`, `notAll`, `not`).',
+      scenarios:[
+        // 1. tests on a read
+        row('Read: has a value', has('sale_price')),
+        row('Read: has NO value', no('sale_price'), {note:'`noValue` is the one negative a read gets for presence'}),
+        row('Read: true', {test:'true', subject:K('is_varsity')}),
+        row('Read: false', {test:'false', subject:K('is_varsity')}, {note:'Unset counts as false (G13), so `false` passes on an empty field'}),
+        row('Read: is Archived', {test:'is', arg:'Archived', subject:K('status')}),
+        row('Read: is NOT Archived', {test:'isNot', arg:'Archived', subject:K('status')},
+          {note:'Passes on an empty field (the complement rule, Q7): posts with no status show'}),
+        row('Read: has a value AND is not Archived', {all:['hasValue', {test:'isNot', arg:'Archived'}], subject:K('status')},
+          {note:'To exclude empties, presence is its own condition'}),
+        // 2. relations
+        row('Relation: filed under term 34', {test:'hasValue', subject:T('term','34')}),
+        row('Relation: NOT filed under term 34', {test:'noValue', subject:T('term','34')}, {note:'No negative test on a relation: a `none` list of one'}),
+        row('Relation: has a category', {test:'hasValue', subject:T('terms','category')}),
+        row('Relation: has NO category', {test:'noValue', subject:T('terms','category')}),
+        row('Relation: has related posts', {test:'hasValue', subject:T('refs','related_staff')}),
+        row('Relation: has NO related posts', {test:'noValue', subject:T('refs','related_staff')}),
+        // 3. lists of relations
+        row('List: either of two terms', {props:'any', items:[T('term','34'), T('term','35')]}),
+        row('List: NEITHER of two terms', {props:'any', neg:true, items:[T('term','34'), T('term','35')]}, {note:'`none`: no item passes'}),
+        row('List: both terms', {props:'all', items:[T('term','34'), T('term','35')]}),
+        row('List: NOT both terms', {props:'all', neg:true, items:[T('term','34'), T('term','35')]}, {note:'`notAll`: true unless every item passes. No real fixture needs it yet'}),
+        // 4. the same meaning, two spellings
+        row('Same: NEITHER field has a value', {conds:'none', items:[has('price'), has('badge')]}, {note:'`none` of two presences...'}),
+        row('Same: BOTH fields are empty', {conds:'all', items:[no('price'), no('badge')]}, {note:'...is `all` of two `noValue`s'}),
+        row('Same: NOT both fields set', {conds:'notAll', items:[has('price'), has('badge')]}, {note:'`notAll` of two presences...'}),
+        row('Same: AT LEAST ONE field is empty', {conds:'any', items:[no('price'), no('badge')]}, {note:'...is `any` of two `noValue`s'}),
+        row('Same: NOT upcoming, including no date', {conds:'none', items:[{any:['before','during'], subject:K('event_date')}]},
+          {note:'`none` of the upcoming test...'}),
+        row('Same: during, after, or no date', {any:['during','after','noValue'], subject:K('event_date')},
+          {note:'...is the other three outcomes on one read, `noValue` listed'}),
+        row('Mixed: no term and no value', {conds:'none', items:[T('term','34'), has('badge')]}, {note:'`none` mixes a relation and a read in one list'}),
+      ]}];
+  })(),
 ];
 
 // ── State ────────────────────────────────────────────────────────────────────
@@ -1319,7 +1548,7 @@ const S = {
                         // the decision — mirrors chainPair.)
   linkCombined: false,  // fold linkKey into linkTo value → linkTo:key,<field> (else separate keys)
   fw81DtCollapse: false, // FW-81 (parked): show the collapsed use: reading beside today's six-key wire.
-  whenMode: 'w1',       // FW-27 `when` encoding: 'w1' decided wire | 'w2' / 'w2br' / 'w2nv' the OPEN W2 proposal (serializeIf).
+  styleBackground: true, // styling-encodings group: include the background property (it may be deferred past v1).  whenMode: 'w1',       // FW-27 `when` encoding: 'w1' decided wire | 'w2' / 'w2br' / 'w2nv' the OPEN W2 proposal (serializeIf).
   dummies: {key1:'custom_field',key2:'other_field',imgKey:'image_field',dateKey:'event_date',timeKey:'event_time',startKey:'start_date',endKey:'end_date',ref:'rel_post',tax:'category',urlKey:'url_field',fallback:'N/A',rangeSep:' – ',format:'F j, Y'},
 };
 
@@ -1387,11 +1616,9 @@ function loadNamesFromStorage() {
 // PURE + standalone: no DOM, no S mutation. Kept exportable so a console runner (`node check.js`,
 // exit non-zero) can reuse it verbatim at build, and so the PHP port can mirror it 1:1.
 const BR_OPEN = { '(': ')', '[': ']' };
-function checkTag(str, freeform) {
-  const issues = [];
-  const stack = [];
-  // Mask free-form spans to same-length filler so offsets stay stable and their literal
-  // brackets cannot reach the structural walk.
+// Mask free-form spans to same-length filler so offsets stay stable and their literal
+// brackets cannot reach a structural walk (checkTag, maxBracketDepth).
+function maskFreeform(str, freeform) {
   let scan = String(str);
   for (const raw of (freeform || [])) {
     const v0 = String(raw);
@@ -1404,6 +1631,22 @@ function checkTag(str, freeform) {
       while (at !== -1) { scan = scan.slice(0, at) + ' '.repeat(v.length) + scan.slice(at + v.length); at = scan.indexOf(v, at + v.length); }
     }
   }
+  return scan;
+}
+// Deepest nesting of ( ) [ ] in a tag string, free-form spans masked. The styling-encodings group
+// prints it beside each line, since "how many bracket levels does a slot reach" is what it compares.
+function maxBracketDepth(str, freeform) {
+  let d = 0, m = 0;
+  for (const ch of maskFreeform(str, freeform)) {
+    if (BR_OPEN[ch]) m = Math.max(m, ++d);
+    else if (ch === ')' || ch === ']') d = Math.max(0, d - 1);
+  }
+  return m;
+}
+function checkTag(str, freeform) {
+  const issues = [];
+  const stack = [];
+  const scan = maskFreeform(str, freeform);
   for (const ch of scan) {
     if (BR_OPEN[ch]) {
       if (stack.length && stack[stack.length - 1] === ch) {
@@ -1585,9 +1828,12 @@ const RESPELL_KEY_MAP = {
   if:[1,12],   // FW-27 `when`, unshipped — same source-group tail as DEFAULT_ORDER
   linkTo:[2,0], linkKey:[2,1], newTab:[2,2], fallback:[3,0],
   // {{table}} v1 styling tail, unshipped: its own group AFTER fallback (user 2026-10-05, leaning — see
-  // presentation-reopen.md item 22), so use/key stay with src. One bare name orders both the tag and
+  // the 2026-10-05 column-order leaning, now plan table-tag §DECIDED 2026-10-14/15), so use/key stay with src. One bare name orders both the tag and
   // column level; `border` is deferred, listed for the order only, nothing reserved. Ticket 05 owns the ranks.
-  layout:[4,0], width:[4,1], align:[4,2], border:[4,3], fill:[4,4], stripe:[4,5],
+  // Order (plan Settled #61, 2026-10-14): control order within the group, following GB's Typography
+  // sidebar, then background, stripe, border. Provisional until the control order is final.
+  layout:[4,0], width:[4,1], color:[4,2], fontSize:[4,3], fontWeight:[4,4], fontStyle:[4,5],
+  align:[4,6], textTransform:[4,7], fill:[4,8], stripe:[4,9], border:[4,10],
 };
 // Collect ALL slot options as canonical entries. The src-CHAIN is a pre-serialized bracket string
 // occupying the source group's `src` slot (rank [1,0]). REDUNDANCIES base tags never emit are
@@ -1650,7 +1896,7 @@ function respellEntries(chain, read, link, dtKeys, typeTag, fallback, ifCond, al
   if (colWidth) push('width', colWidth, false);   // {{table}} column width, unshipped; same id as the tag-level key
   if (colFill) push('fill', colFill, false);   // {{table}} column fill, unshipped
   if (fallback!==undefined && fallback!=='') push('fallback', fallback, false);   // free-form → escaped in emit
-  if (ifCond) E.push({name:'if', val:serializeIf(ifCond, 1), rank:RESPELL_KEY_MAP.if});   // FW-27, unshipped
+  if (ifCond) serializeIfEntries(ifCond, 1).forEach(([id, val]) => E.push({name:id, val, rank:RESPELL_KEY_MAP[id]}));   // FW-27, unshipped
   return E;
 }
 // FREE-FORM option values: arbitrary user text (PHP date format `g:i A`, table label `Price: $5`,
@@ -1680,10 +1926,75 @@ function escFreeform(v) { return String(v).replace(/([:|])/g, '\\$1'); }
 // names or {test, arg}; a subject is {kind:'key'|'analog'|'step'} or an array (FW-81's two reads).
 // A PROPERTY LIST is {props:'any'|'all', items:[step subjects], neg?}. `src` (optional) is a chain
 // [{slug,arg}] anchored at the current context (W2 round 1), led with `;` in every mode.
+function whenWrap(name, v, d) { const b = bracketAt(d) || (d % 2 ? '()' : '[]'); return name + b[0] + v + b[1]; }
+function whenSrcPrefix(c, depth) {
+  return c.src ? whenWrap(kn('src'), c.src.map(h => serializeStep({...h, arg:resolveVal(h.arg||'')}, depth + 1)).join(S.chainSep.hop), depth + 1) + ';' : '';
+}
 function serializeIf(c, depth) {
-  const wrap = (name, v, d) => { const b = bracketAt(d) || (d % 2 ? '()' : '[]'); return name + b[0] + v + b[1]; };
-  const src = c.src ? wrap(kn('src'), c.src.map(h => serializeStep({...h, arg:resolveVal(h.arg||'')}, depth + 1)).join(S.chainSep.hop), depth + 1) + ';' : '';
+  const wrap = whenWrap;
+  const src = whenSrcPrefix(c, depth);
+  // A list of CONDITIONS (reads and relations mixed, groups) is only modelled by W2 and the two newer
+  // encodings; W1's scenario model never spelled one.
+  if (c.conds) return S.whenMode === 'w1' ? '— not modelled in W1' : src + w2Cond(w2FromNorm(whenNorm(c)), depth, wrap);
   return src + (S.whenMode === 'w1' ? whenW1(c, depth, wrap) : w2Cond(w2Tree(c), depth, wrap));
+}
+// The `when` entries a cond writes: [[option id, value], …]. One entry in every encoding.
+function serializeIfEntries(c, depth) {
+  if (S.whenMode === 'm') return [['if', whenSrcPrefix(c, depth) + whenMergedStr(whenNorm(c), depth)]];
+  return [['if', serializeIf(c, depth)]];
+}
+// ── FW-27 `when`, the Merged encoding derived from the table-styling spelling (user 2026-10-14) ───
+// Reads one NORMALIZED tree: a condition {k:'c', subject, tests} (tests are an implicit any-of
+// list; none = "has a value") or a list {k:'l', mode:'all'|'any'|'none'|'notAll', items}.
+//   'm'  MERGED: one `when` key. Conditions are head-led (`key,x` / `use,content` / `term,34` /
+//        `terms,tax` / `refs,rel`), tests follow after commas, `;` between conditions, and a list
+//        leads with its mode (`any;term,34;key,x,noValue`). A group is the one bracket: (all;a;b).
+// The four list words are rename ids (VALUE_PRESETS any / all / none / notAll, plus `not` for W2's
+// negation), applied in W1, W2 and Merged alike. A by-mode encoding (separate when / whenAny / unless
+// keys) was tried and dropped as uninteresting, 2026-10-14.
+function whenNorm(c) {
+  const cond = (subject, tests) => ({k:'c', subject, tests});
+  const testItem = t => typeof t === 'string' ? t : (t.arg != null ? {test:t.test, arg:t.arg} : t.test);
+  if (c.kind) return cond(c, []);   // a bare subject inside a list: has a value / has the relation
+  if (c.conds) return {k:'l', mode:c.conds, items:c.items.map(whenNorm)};
+  if (c.props) return {k:'l', mode: c.neg ? (c.props === 'any' ? 'none' : 'notAll') : c.props, items:c.items.map(s => cond(s, []))};
+  const subject = c.subject;
+  if (c.all) return {k:'l', mode:'all', items:c.all.map(t => cond(subject, t === 'hasValue' ? [] : [testItem(t)]))};
+  if (c.any) return cond(subject, c.any.map(testItem));
+  if (c.test === 'hasValue') return cond(subject, []);
+  if ([].concat(subject)[0].kind === 'step' && c.test === 'noValue') return {k:'l', mode:'none', items:[cond(subject, [])]};
+  return cond(subject, [testItem(c)]);
+}
+function whenCollapse(n) {
+  if (n.k !== 'l') return n;
+  const items = n.items.map(whenCollapse);
+  return items.length === 1 && (n.mode === 'all' || n.mode === 'any') ? items[0] : {...n, items};
+}
+function whenCondStr(n, depth) {
+  const subj = [].concat(n.subject), r = subj[0];
+  const keyRead = s => [kn('key'), resolveVal(s.field), ...(s.time ? [resolveVal(s.time)] : [])].join(',');
+  const head = subj.length > 1 ? whenWrap(kn('use'), subj.map(s => s.kind === 'key' ? keyRead(s) : vn(s.slug)).join(';'), depth + 1)
+    : r.kind === 'step' ? `${vn(r.slug)},${resolveVal(r.arg)}`
+    : r.kind === 'key' ? keyRead(r)
+    : `${kn('use')},${vn(r.slug)}`;
+  const tests = n.tests.map(t => typeof t === 'string' ? t : whenWrap(t.test, escFreeform(resolveVal(t.arg)), depth + 1));
+  return [head, ...tests].join(',');
+}
+function whenMergedStr(n, depth) {
+  n = whenCollapse(n);
+  if (n.k === 'c') return whenCondStr(n, depth);
+  const parts = n.items.map(it => it.k === 'l' ? whenWrap('', whenMergedStr(it, depth + 1), depth + 1) : whenCondStr(it, depth));
+  return [vn(n.mode), ...parts].join(';');
+}
+// W2 spells a list of conditions as the property list it already had: `any(term,34;key[x],noValue)`.
+function w2FromNorm(n) {
+  n = whenCollapse(n);
+  if (n.k === 'c') {
+    const t = n.tests.length === 0 ? undefined : n.tests.length === 1 ? n.tests[0] : {list:'any', items:n.tests};
+    return {prop:n.subject, ...(t !== undefined ? {test:t} : {})};
+  }
+  const neg = n.mode === 'none' || n.mode === 'notAll';
+  return {list: neg ? (n.mode === 'none' ? 'any' : 'all') : n.mode, neg, items:n.items.map(w2FromNorm)};
 }
 const stepProp = s => vn(s.slug) + ',' + resolveVal(s.arg);
 // W1 (decided through 2026-09-28): SLOT-SHAPED read — `key(x)` meta, `use(content)` built-in,
@@ -1692,13 +2003,13 @@ const stepProp = s => vn(s.slug) + ',' + resolveVal(s.arg);
 // `any(…)` / `all(…)` (C1), operands one bracket level down. A step subject is a relation test,
 // `has(term,34)` / `hasNot(…)` (P1), no read; a property list is `has(any[term,34;term,35])`.
 function whenW1(c, depth, wrap) {
-  if (c.props) return wrap(c.neg ? 'hasNot' : 'has', wrap(c.props, c.items.map(stepProp).join(';'), depth + 2), depth + 1);
+  if (c.props) return wrap(c.neg ? 'hasNot' : 'has', wrap(vn(c.props), c.items.map(stepProp).join(';'), depth + 2), depth + 1);
   const subj = [].concat(c.subject);
   if (subj[0].kind === 'step') return wrap(c.test === 'noValue' ? 'hasNot' : 'has', stepProp(subj[0]), depth + 1);
   const one = (t, d) => typeof t === 'string' ? t
     : t.arg != null ? wrap(t.test, escFreeform(resolveVal(t.arg)), d) : t.test;
   const list = c.any ? 'any' : c.all ? 'all' : null;
-  const test = list ? wrap(list, c[list].map(t => one(t, depth + 2)).join(','), depth + 1) : one(c, depth + 1);
+  const test = list ? wrap(vn(list), c[list].map(t => one(t, depth + 2)).join(','), depth + 1) : one(c, depth + 1);
   const keyRead = s => [kn('key'), resolveVal(s.field), ...(s.time ? [resolveVal(s.time)] : [])].join(',');
   const read = subj.length === 1 && subj[0].kind === 'key' && !subj[0].time && !S.readViaUse
     ? wrap(kn('key'), resolveVal(subj[0].field), depth + 1)
@@ -1744,14 +2055,14 @@ function w2Prop(s, d, wrap) {
 }
 function w2Test(t, d, wrap) {
   if (typeof t === 'string') return t;
-  if (t.list) return wrap(t.list, t.items.map(x => w2Test(x, d + 1, wrap)).join(','), d + 1);
+  if (t.list) return wrap(vn(t.list), t.items.map(x => w2Test(x, d + 1, wrap)).join(','), d + 1);
   return t.arg != null ? wrap(t.test, escFreeform(resolveVal(t.arg)), d + 1) : t.test;
 }
 function w2Cond(n, d, wrap) {
-  const word = n.neg ? 'not' : '';
+  const word = n.neg ? vn('not') : '';
   const inner = word ? d + 1 : d;
   const body = n.list
-    ? wrap(n.list, n.items.map(x => w2Cond(x, inner + 1, wrap)).join(';'), inner + 1)
+    ? wrap(vn(n.list), n.items.map(x => w2Cond(x, inner + 1, wrap)).join(';'), inner + 1)
     : w2Prop(n.prop, inner, wrap) + (n.test ? ',' + w2Test(n.test, inner, wrap) : '');
   return word ? wrap(word, body, d + 1) : body;
 }
@@ -1765,7 +2076,7 @@ function fixedReadPairs(r) {
 // TEST's arg is author text; a step subject's arg (`term,34`) is not.
 function condArgs(c) {
   if (!c || typeof c !== 'object') return [];
-  const items = c.any || c.all;
+  const items = c.any || c.all || (c.conds && c.items);
   return items ? items.flatMap(condArgs) : c.test && typeof c.arg === 'string' ? [c.arg] : [];
 }
 // Does a free-form value carry an UNBALANCED slot-bracket that even a balance-aware sub-parser can't
@@ -1798,8 +2109,7 @@ function unbalancedBrackets(v, open, close) {
 const SLOT_SCHEMAS = {
   'bracket-kv': { optSep: ';', kvChar: '', wrap: 'bracket-val', readBr: false, stepSep: ';' },
 };
-// `labelName` = the option id the column-header text rides: 'label' (the reserved shipped token)
-// unless the {{table}} v1 group passes 'header'.
+// `labelName` = the option id the column-header text rides; 'header', the shipped token, unless a caller says otherwise.
 function serializeSlot(typeTag, chain, read, link, dtKeys, label, forceSrc, fallback, ifCond, labelName, align, colWidth, colFill) {
   const entries = respellEntries(chain, read, link, dtKeys, typeTag, fallback, ifCond, align, colWidth, colFill);
   // Slot-1 forced src (user 2026-07-29): when the always-serialize-src toggle is on AND this slot
@@ -1852,13 +2162,15 @@ function serializeSlot(typeTag, chain, read, link, dtKeys, label, forceSrc, fall
   };
 
   const toks = entries.map(emit).filter(Boolean);
-  // TABLE label folds into the slot value as the FIRST token, ahead of the type (user draft
-  // 2026-07-29: `2:label[Date];datetime_single;key[due]`). label is free-form → schema-wrapped.
-  let labelTok = (label!==undefined && label!=='') ? emit({name:labelName||'label', val:label}) : '';
+  // A type token leads the slot whenever it is present (user decision 2026-10-14); the TABLE label
+  // folds in right after it. The earlier label-first order (2026-07-29 draft, 2026-10-05 leaning,
+  // `2:label[Date];datetime_single;key[due]`) was set before the type token was in view, and a v1
+  // table column carries no type token, so there the label is still first. label is free-form → schema-wrapped.
+  let labelTok = (label!==undefined && label!=='') ? emit({name:labelName||'header', val:label}) : '';
   // UNBALANCED-bracket flag: a lone `]`/`)` in a free-form value defeats even a balance-aware
   // sub-parser → mark it in the preview so the hazard is visible (⚠ is preview-only, not wire).
   if (labelTok && unbalancedBrackets(label, SO, SC)) labelTok += '⚠';
-  return [labelTok, lead, ...toks].filter(Boolean).join(optSep);
+  return [lead, labelTok, ...toks].filter(Boolean).join(optSep);
 }
 
 // ── Permutation tag builder ──────────────────────────────────────────────────
@@ -1913,7 +2225,7 @@ function renderSlotParts(parts, p, t2p) {
       else { if(field) out.push(`${p}${kn('key')}:${field}`); }
       continue;
     }
-    if (id==='_if')    { out.push(`${p}${kn('if')}:${serializeIf(val, 0)}`); continue; }
+    if (id==='_if')    { serializeIfEntries(val, 0).forEach(([k, v]) => out.push(`${p}${kn(k)}:${v}`)); continue; }
     if (id==='_fixed') { fixedReadPairs(val).forEach(([k,v])=>out.push(`${p}${k}:${v}`)); continue; }
     if (id==='_asSize') {
       // val = {mode,size?}. Fold via foldAsSize so the value separator drives the comma.
@@ -2364,11 +2676,12 @@ function buildFoldedSlot(i, slot, containerClass) {
   const val = slotValueFor(s, typeTag, undefined, forceSrc);
   return [`${foldedSlotKey(i)}${val}`];
 }
-// {{table}} v1 presentation (unshipped), target-list shape (round 3, 2026-10-05; the only shape
-// left, the Fork A / Fork B alternatives were cut). Each skin is its own key whose value is a
-// `,`-list of targets with optional args: stripe:rows(even,#eee),cols · fill:table(…),header(…) ·
-// border:… ; `layout` and `width` are plain valued keys. Scenario keys stripe/fill/border =
-// {target: {parity, color}}; layout ('fixed'), width ('auto' | a length).
+// {{table}} v1 presentation (unshipped). Each skin is its own key; `layout` and `width` are plain
+// valued keys. Scenario keys stripe/fill/border = {target: {parity, color}}; layout ('fixed'),
+// width ('auto' | a length). Wire (plan Settled #61, 2026-10-14): `stripe` is `head,args` items joined
+// by `;` (stripe:rows,odd,#eee;cols) and `fill` is the Merged `base;header,x` of the property
+// (background, deferred); `border` is deferred and shown in the stripe's `head,args` shape only.
+// Order: the control order within the group, so fill, stripe, border after layout and width.
 // The valued layout token as [key id, value]; the caller spells the key through kn(). The value
 // renames via vn('layoutFixed'), apart from the fixed-text option's vn('fixed').
 function tableLayoutTok(sc) {
@@ -2378,20 +2691,103 @@ function tablePresentationParts(sc) { return tableTargetParts(sc); }
 // A target's args are typed by value (parity keyword vs color), so their order is free; emitted as
 // the scenario lists them. A target with no args is bare: `cols`.
 function tableTargetParts(sc) {
-  const b = bracketAt(1) || '()';
-  const list = (key, targets) => `${kn(key)}:` + Object.entries(targets).map(([t, a]) => {
-    const args = [a.parity, a.color].filter(Boolean);
-    return args.length ? `${t}${b[0]}${args.join(',')}${b[1]}` : t;
-  }).join(',');
-  const stripe = sc.stripe;
+  const items = targets => Object.entries(targets)
+    .map(([t, a]) => [t, ...[a.parity, a.color].filter(Boolean)].join(',')).join(';');
   const out = [];
   if (sc.layout) { const [n, v] = tableLayoutTok(sc); out.push(`${kn(n)}:${v}`); }
   if (sc.width) out.push(`${kn('width')}:${sc.width}`);
-  if (sc.border) out.push(list('border', sc.border));
-  if (sc.fill) out.push(list('fill', sc.fill));
-  if (stripe) out.push(list('stripe', stripe));
+  if (sc.fill) {   // base = the whole table, then the header override, as every Merged property
+    const t = sc.fill.table && sc.fill.table.color, h = sc.fill.header && sc.fill.header.color;
+    out.push(`${kn('fill')}:` + [t, h && `${kn('headerContext')},${h}`].filter(Boolean).join(';'));
+  }
+  if (sc.stripe) out.push(`${kn('stripe')}:${items(sc.stripe)}`);
+  if (sc.border) out.push(`${kn('border')}:${items(sc.border)}`);
   return out;
 }
+// ── {{table}} v1 STYLING ENCODINGS (user 2026-10-13; the 'styling encodings' group) ─────────────────
+// The decided wire (plan Settled #61, 2026-10-14): plain Merged. A property is [base, header] with ''
+// = unset: at tag level the base is the whole table, in a column it is the body cells (`align` is the
+// exception: a column's base covers its header cell too). One key per property, the header as a second
+// segment of the value: fontWeight:normal;header,bold. Values are the arg strings as typed. Targets,
+// Pairs and M+head were cut 2026-10-14, so this group shows one line per scenario. All key names go
+// through kn().
+const STYLE_ENCS = [
+  { id:'M', label:'Merged', cls:'perm-chain' },
+];
+// The keys serialize in the order of their CONTROLS within the group (user 2026-10-14, leaning; the
+// groups themselves may still be reordered), and the controls follow GB's Typography sidebar: color,
+// size, weight, style, textAlign, transform, then the Backgrounds panel. The stripe key follows the
+// last one and `border` is deferred (no rank).
+const STYLE_ORDER = ['color','size','weight','style','align','transform','fill'];
+const STYLE_KEY = { align:'align', fill:'fill', color:'color', weight:'fontWeight', size:'fontSize', style:'fontStyle', transform:'textTransform' };
+
+function styleTokens(st, level) {
+  const get = p => { const v = (st && st[p]) || []; return [v[0] || '', v[1] || '']; };
+  const tag = level === 'tag';
+  const H = kn('headerContext');   // the header CONTEXT word; the `header(…)` label token is the separate id `header`
+  const out = [];
+  const bg = S.styleBackground !== false;   // sidebar: background may be deferred past v1
+  const push = (key, val) => { if (val) out.push(tag ? `${key}:${val}` : `${key}(${val})`); };
+  for (const p of STYLE_ORDER.filter(p => bg || p !== 'fill')) {
+    const [b, h] = get(p);
+    push(kn(STYLE_KEY[p]), [b, h && `${H},${h}`].filter(Boolean).join(';'));
+  }
+  return out;
+}
+// Stripes keep their targets (rows and cols are different things, not a header split): `;`-separated
+// `target,arg,arg` items, the same head,args shape as a header override.
+function styleStripe(stripe) {
+  if (!stripe) return null;
+  const items = Object.entries(stripe).map(([t, a]) => [t, ...[a.parity, a.color].filter(Boolean)]);
+  return items.length ? `${kn('stripe')}:${items.map(i => i.join(',')).join(';')}` : null;
+}
+function buildStyleEncTag(enc, group, sc) {
+  const tagParts = [];
+  const rc = serializeChain(resolveChainArgs(sc.rowChain));
+  if (rc) tagParts.push(`${kn('src')}:${rc}`);
+  if ((sc.caption || '') !== '') tagParts.push(`${kn('caption')}:${sc.caption}`);
+  if (sc.layout) { const [n, v] = tableLayoutTok(sc); tagParts.push(`${kn(n)}:${v}`); }
+  if (sc.width) tagParts.push(`${kn('width')}:${sc.width}`);
+  tagParts.push(...styleTokens(sc.tag, 'tag'));
+  const sp = styleStripe(sc.stripe);
+  if (sp) tagParts.push(sp);
+  const slotParts = (sc.slots || []).map((col, ci) => {
+    let c = resolveSlot(col);
+    c = { ...c, chain: tableColumnChain(c.chain) };
+    const base = slotValueFor(c, c.tag || '', col.label || '', false, 'header');
+    const val = [base, ...styleTokens(c.st, 'col')].filter(Boolean).join(S.slotOptSep);
+    return `${foldedSlotKey(ci)}${val}`;
+  });
+  return `{{table ${[...tagParts, ...slotParts].join('|')}}}`;
+}
+
+// ── FW-27 `when` ENCODINGS group (user 2026-10-14): the same cond spelled by each encoding at once.
+// A scenario is a base-tag row (`rest` + optional `chain`) or, with `fold`, a folded table/join with
+// `slots` (a slot's `if` and a table's `rowIf` ride the same serializer). S.whenMode is set for the
+// build and restored.
+const WHEN_ENCS = [
+  { mode:'w1',   label:'W1',      cls:'' },            // decided through 2026-09-28
+  { mode:'w2nv', label:'W2',      cls:'perm-chain' },  // adopted 2026-09-30
+  { mode:'m',    label:'Merged',  cls:'perm-chain' },
+];
+function buildWhenEncTag(group, sc, mode) {
+  const prev = S.whenMode;
+  S.whenMode = mode;
+  try {
+    if (sc.fold) return buildFoldedTag({ ...group, foldClass: sc.fold, tableV1: sc.fold === 'table' }, sc);
+    const order = groupOrder(group);
+    const sortParts = arr => [...arr].sort((a, b) => {
+      const ai = order.indexOf(partOrderKey(a[0])), bi = order.indexOf(partOrderKey(b[0]));
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+    const parts = [];
+    const chainVal = serializeChain((sc.chain || []).map(s => ({ ...s, arg: String(resolveVal(s.arg)) })));
+    if (chainVal) parts.push(`${kn('src')}:${chainVal}`);
+    parts.push(...renderSlotParts(sortParts(sc.rest || []), '', false));
+    return `{{${tmplName(group.tmpl)}${parts.length ? ' ' + parts.join('|') : ''}}}`;
+  } finally { S.whenMode = prev; }
+}
+
 // Build a whole folded-container tag (try_ / join / table). scenario.slots = [slot,…].
 // try_: name = try_<baseTag>. join: name = join. table: name = table (row chain in src:, cols {N}:).
 function buildFoldedTag(group, sc) {
@@ -2409,7 +2805,7 @@ function buildFoldedTag(group, sc) {
     // table: row chain rides the tag-global src:; each column is a folded {N}: value.
     const rc = serializeChain(resolveChainArgs(sc.rowChain));
     if (rc) tagParts.push(`${kn('src')}:${rc}`);
-    if (sc.rowIf) tagParts.push(`${kn('if')}:${serializeIf(sc.rowIf, 0)}`);   // FW-27, unshipped: filters rows
+    if (sc.rowIf) serializeIfEntries(sc.rowIf, 0).forEach(([k, v]) => tagParts.push(`${kn(k)}:${v}`));   // FW-27, unshipped: filters rows
     if ((sc.caption||'')!=='') tagParts.push(`${kn('caption')}:${sc.caption}`);
     if (group.tableV1) tagParts.push(...tablePresentationParts(sc));
     slots.forEach((col,ci)=>{
@@ -2417,7 +2813,7 @@ function buildFoldedTag(group, sc) {
       // label FOLDS into the slot value as the first token (user 2026-07-29), NOT a sibling.
       let c = resolveSlot(col);
       if (group.tableV1) c = { ...c, chain: tableColumnChain(c.chain) };
-      slotParts.push(`${foldedSlotKey(ci)}${slotValueFor(c, c.tag||'', col.label||'', false, group.tableV1 ? 'header' : 'label')}`);
+      slotParts.push(`${foldedSlotKey(ci)}${slotValueFor(c, c.tag||'', col.label||'', false, 'header')}`);
     });
   } else {
     // Declared tag-level options (join's format/valueSep) first — format group leads the canonical
@@ -2539,8 +2935,12 @@ function scenarioFreeform(sc) {
   take(sc.caption);
   // table target colors: a CSS color function (`rgba(0,0,0,.04)`) keeps its own brackets inside the target's args.
   ['stripe', 'fill', 'border'].forEach(k => Object.values(sc[k] || {}).forEach(a => take(a && a.color)));
+  // styling-encodings group: every [base, header] value is a CSS value that may carry its own brackets (rgba(), var(--x, 1px)).
+  const takeSt = o => Object.values(o || {}).forEach(pair => (pair || []).forEach(take));
+  takeSt(sc.tag);
   (sc.slots || []).forEach(s => {
     if (!s || typeof s !== 'object') return;
+    takeSt(s.st);
     take(s.label);
     if (s.dtKeys) Object.values(s.dtKeys).forEach(take);
     take(s.fallback);
@@ -2587,6 +2987,7 @@ function renderPerms() {
     const div=document.createElement('div'); div.className='perm-group';
     const title=document.createElement('div'); title.className='perm-group-title'; title.textContent=group.title;
     div.appendChild(title);
+    if (group.intro) { const n=document.createElement('div'); n.className='perm-note'; n.style.paddingLeft='0'; appendMarkup(n, group.intro); div.appendChild(n); }
     const tags=document.createElement('div'); tags.className='perm-tags';
     group.scenarios.forEach(sc=>{
       const row=document.createElement('div'); row.className='perm-row';
@@ -2596,7 +2997,37 @@ function renderPerms() {
       const lbl=document.createElement('span'); lbl.className='perm-lbl'; lbl.title=sc.label.replace(/`/g,''); appendMarkup(lbl, head);
       if (tail.length) { const d=document.createElement('span'); d.className='perm-lbl-desc'; appendMarkup(d, tail.join(' — ').replace(/^[a-z]/, c=>c.toUpperCase())); lbl.appendChild(d); }
       row.appendChild(lbl);
-      if (group.isContrast) {
+      if (group.styleEnc) {
+        // One line per candidate spelling of the same settings (STYLE_ENCS); every line is checked,
+        // the baseline included, and carries its deepest bracket nesting and length.
+        const stack=document.createElement('div'); stack.className='perm-stack';
+        const ff=scenarioFreeform(sc);
+        STYLE_ENCS.forEach(enc=>{
+          const str=buildStyleEncTag(enc, group, sc);
+          const line=document.createElement('div'); line.className='perm-line'+(enc.cls?' '+enc.cls:'');
+          const t=document.createElement('span'); t.className='perm-tagname'; t.textContent=enc.label;
+          const s=document.createElement('div'); s.className='perm-str'; s.textContent=str;
+          const m=document.createElement('span'); m.className='perm-meta'; m.textContent=`depth ${maxBracketDepth(str, ff)} · ${str.length} ch`;
+          line.appendChild(t); line.appendChild(s); line.appendChild(m); stack.appendChild(line);
+          totalIssues += flagIssues(stack, str, ff);
+        });
+        if (sc.note) { const n=document.createElement('div'); n.className='perm-note'; n.textContent='↳ '; appendMarkup(n, sc.note); stack.appendChild(n); }
+        row.appendChild(stack);
+      } else if (group.whenEnc) {
+        const stack=document.createElement('div'); stack.className='perm-stack';
+        const ff=scenarioFreeform(sc);
+        WHEN_ENCS.forEach(enc=>{
+          const str=buildWhenEncTag(group, sc, enc.mode);
+          const line=document.createElement('div'); line.className='perm-line'+(enc.cls?' '+enc.cls:'');
+          const t=document.createElement('span'); t.className='perm-tagname'; t.textContent=enc.label;
+          const s=document.createElement('div'); s.className='perm-str'; s.textContent=str;
+          const m=document.createElement('span'); m.className='perm-meta'; m.textContent=`depth ${maxBracketDepth(str, ff)} · ${str.length} ch`;
+          line.appendChild(t); line.appendChild(s); line.appendChild(m); stack.appendChild(line);
+          totalIssues += flagIssues(stack, str, ff);
+        });
+        if (sc.note) { const n=document.createElement('div'); n.className='perm-note'; n.textContent='↳ '; appendMarkup(n, sc.note); stack.appendChild(n); }
+        row.appendChild(stack);
+      } else if (group.isContrast) {
         // N stacked strings, one per variant: existing spellings muted, proposals accented.
         const variants=buildContrastVariants(group,sc);
         const stack=document.createElement('div'); stack.className='perm-stack';
@@ -2675,6 +3106,9 @@ document.getElementById('cb-linkcombined').addEventListener('change',e=>{
 });
 document.getElementById('cb-fw81').addEventListener('change',e=>{
   S.fw81DtCollapse=e.target.checked; renderPerms();
+});
+document.getElementById('cb-stylebg').addEventListener('change',e=>{
+  S.styleBackground=e.target.checked; renderPerms();
 });
 document.getElementById('sel-when').addEventListener('change',e=>{
   S.whenMode=e.target.value; renderPerms();

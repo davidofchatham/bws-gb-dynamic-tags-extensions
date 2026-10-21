@@ -135,6 +135,23 @@ const BWS_FOLD_PARSE_TIME_ROOT_KINDS = array(
 );
 
 /**
+ * The root slug that means "the PARENT's resolved source".
+ *
+ * Non-positional and resolution-level, true whether or not the parent fans — a different
+ * relation from `same`, which is the previous SIBLING's whole chain. It is a root like any
+ * other to the compiler (no BWS_FOLD_STEP_TYPES entry, so it is dropped from the steps and
+ * handed back to the container), which is why nothing else here special-cases it. What the
+ * parent IS belongs to the container: a `{{table}}` column's parent is its row.
+ *
+ * `parent` is RESERVED, not registered, for the real hierarchical relation (parent post /
+ * parent term) intended later. Do not claim that slug for anything else; see
+ * SourceRegistry::is_expressible_root_key() for where both are held back from sources.
+ *
+ * @since Unreleased
+ */
+const BWS_FOLD_INHERIT_ROOT = 'inherit';
+
+/**
  * Trim a CARRIED chain back to the point where another chain can run off it.
  *
  * The `same` merge's whole content (bws_fold_slot_chain_options). `src(same)` copies the
@@ -255,11 +272,19 @@ function bws_fold_chain_join( array $carried, array $own ): array {
  * rather than compiled, so the compiled list cannot answer what the chain's root is. Read
  * the parsed chain, which still holds it.
  *
+ * `$parent_kind` is for a container whose chains hang off a PARENT source (a `{{table}}`
+ * column off its row). The wire cannot say what the parent is, so the container does: a
+ * chain with no steps that is rooted at `inherit`, or at nothing (the stripped default
+ * there), answers that kind. Steps decide the kind as ever, and every other root keeps its
+ * own. Null (the default) is a container with no parent.
+ *
  * @since 1.17.0
- * @param array $chain Parsed chain (bws_fold_parse_chain shape).
+ * @since Unreleased $parent_kind.
+ * @param array       $chain       Parsed chain (bws_fold_parse_chain shape).
+ * @param string|null $parent_kind The parent's resolved kind, when the container has one.
  * @return array{root:string, kind:string, fans:bool}
  */
-function bws_fold_chain_resolution( array $chain ): array {
+function bws_fold_chain_resolution( array $chain, ?string $parent_kind = null ): array {
 	$root  = bws_fold_chain_root( $chain );
 	$last  = '';
 	$fans  = false;
@@ -278,9 +303,10 @@ function bws_fold_chain_resolution( array $chain ): array {
 	}
 
 	if ( ! $fans ) {
+		$inherits = null !== $parent_kind && ( '' === $root || BWS_FOLD_INHERIT_ROOT === $root );
 		return array(
 			'root' => $root,
-			'kind' => BWS_FOLD_PARSE_TIME_ROOT_KINDS[ $root ] ?? 'render_time',
+			'kind' => $inherits ? $parent_kind : ( BWS_FOLD_PARSE_TIME_ROOT_KINDS[ $root ] ?? 'render_time' ),
 			'fans' => false,
 		);
 	}

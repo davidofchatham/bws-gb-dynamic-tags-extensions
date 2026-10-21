@@ -71,6 +71,7 @@ field/group names in the rows are that blueprint's fixture names (`schema.php` /
 | M3.4a | A list containing underscore-prefixed keys (`_gb_conditions`, `_acf_changed`, etc.) | Those keys are DEMOTED to the bottom of the list (still alphabetical among themselves), below all normal-keyed fields. Not hidden — still selectable/resolvable. A `_`-key that HAS a real label still demotes but keeps its `Label ('_key')` display |
 | M3.5 | Pick a row for an **unambiguous** key (one record), save + reopen | Serializes the BARE key; reopen shows the friendly `Label ('key')` row selected (injected even if a filter would hide it, V12) |
 | M3.6 | Pick a row for an **ambiguous** key (M3.1's `name`, two different-label records), save + reopen | Combobox shows the **raw key** `name` selected, NOT a guessed label; never auto-asserts which field (V12/B4), so the author re-picks to disambiguate |
+| M3.6b | A `{{table}}` column on a `rows,<repeater>` source whose key is ambiguous by key alone (TE4's `name`: "Feature Name" top-level, "Name" in Team Members), reopen | Combobox shows the friendly `Name ('name')` row: the source settles which field it is (`reachOf()` in `field-combo-control.js`). The field-label action below it offers the same label (`Use "Name" as the column header`) while the column header differs |
 | M3.7 | Ambiguous saved key with one of its rows currently **visible** in the active filter | Still shows the raw key, does NOT auto-highlight the visible row (V12) |
 
 ## M4 — dynamic label (V4 + location tracking)
@@ -190,7 +191,7 @@ Verified 2026-09-18 after the kind narrowing landed, in two halves, because they
 
 ## M13 — Location preset from a chain's terminal repeater (FW-74)
 
-A source chain ending on **Rows in Repeater Field** names the exact home of every field the read can reach, so the Location filter opens there instead of on the kind root. It is a STARTING VIEW, not a lock — both selectors stay visible and widen back, which is what separates this from the `{{table}}` column auto-scope (M2/§F8), where the filters are hidden because the scope IS the filter.
+A source chain ending on **Rows in Repeater Field** names the exact home of every field the read can reach, so the Location filter opens there instead of on the kind root. It is a STARTING VIEW, not a lock — both selectors stay visible and widen back. A `{{table}}` column opens through this same preset: a column that adds no step of its own reads off the tag chain's tail, so `src:rows,team_members` opens every column's field picker on that repeater's sub-fields (`slot-fold-picker-seam-test.js` §S4 pins the hand-off).
 
 The recognition is machine-readable at both ends: the chain is parsed through the shipped grammar, and whether the tail's argument names a repeater is asked of the discovery envelope's own container record. So a step type this matrix never mentions presets correctly the day it is added, and a repeater nobody discovered presets nothing rather than opening on an empty list.
 

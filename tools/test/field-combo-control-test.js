@@ -689,6 +689,47 @@ async function main() {
 		[ 'name', 'name' ]
 	);
 
+	// The SOURCE can settle what the key alone cannot (the reach rule, reachOf()).
+	const settledBySite = combo( await render( FieldComboControl, {
+		optionKey: 'key', label: 'Field', context: ctx( { key: 'email', src: 'site' } ),
+	} ) );
+	const ambiguousEmail = combo( await render( FieldComboControl, {
+		optionKey: 'key', label: 'Field', context: ctx( { key: 'email' } ),
+	} ) );
+	check(
+		'F6.4 a key ambiguous across kinds is settled by a source of one kind: a labeled row, not the bare key',
+		[ ambiguousEmail.value, settledBySite.value !== 'email', settledBySite.options.some( function ( o ) { return o.value === settledBySite.value && /Email/.test( o.label ); } ) ],
+		[ 'email', true, true ]
+	);
+	check(
+		'F6.5 a source that reaches none of the candidates leaves the key bare',
+		combo( await render( FieldComboControl, {
+			optionKey: 'key', label: 'Field', context: ctx( { key: 'name', src: 'rows,staff_list' } ),
+		} ) ).value,
+		'name'
+	);
+
+	// The reach rule's label lookup, as the {{table}} field-label advisory reads it.
+	const RL = FieldComboControl.reachableLabel;
+	const TWO = { post: [
+		{ group_title: 'A', source: 'acf', fields: [ { name: 'name', label: 'Feature Name', repeater_key: '' } ] },
+		{ group_title: 'B', source: 'acf', fields: [ { name: 'name', label: 'Name', repeater_key: 'team_members' } ] },
+	] };
+	check( 'F6.6 reachableLabel: no source, two labels disagree, silent', RL( TWO, {}, 'key', 'name' ), null );
+	check( 'F6.7 reachableLabel: a `rows` tail reads its own container\'s sub-field', RL( TWO, { src: 'rows,team_members' }, 'key', 'name' ), 'Name' );
+	check( 'F6.8 reachableLabel: a post tail reads the top-level field, not the sub-field', RL( TWO, { src: 'refs,dept_lead' }, 'key', 'name' ), 'Feature Name' );
+	check( 'F6.9 reachableLabel: another container\'s sub-field is silent', RL( TWO, { src: 'rows,other' }, 'key', 'name' ), null );
+	check( 'F6.10 reachableLabel: a kind the key is not found under is silent', RL( TWO, { src: 'terms,category' }, 'key', 'name' ), null );
+	check( 'F6.11 reachableLabel: same-key entries that agree show the label',
+		RL( { post: [ { source: 'acf', fields: [ { name: 'c', label: 'City' }, { name: 'c', label: 'City' } ] } ] }, {}, 'key', 'c' ), 'City' );
+	check( 'F6.12 reachableLabel: a register_meta entry has no label to claim, alone or beside an ACF one', [
+		RL( { post: [ { source: 'registered', fields: [ { name: 'c', label: 'c' } ] } ] }, {}, 'key', 'c' ),
+		RL( { post: [ { source: 'acf', fields: [ { name: 'c', label: 'City' } ] }, { source: 'registered', fields: [ { name: 'c', label: 'c' } ] } ] }, {}, 'key', 'c' ),
+	], [ null, null ] );
+	check( 'F6.14 reachableLabel: an ACF field with an empty label (shipped as its key) has no label to claim',
+		RL( { post: [ { source: 'acf', fields: [ { name: 'city_name', label: 'city_name' } ] } ] }, {}, 'key', 'city_name' ), null );
+	check( 'F6.13 reachableLabel: unknown key or no envelope is silent', [ RL( TWO, {}, 'key', 'zz' ), RL( null, {}, 'key', 'name' ) ], [ null, null ] );
+
 	const unknown = await render( FieldComboControl, {
 		optionKey: 'key',
 		label: 'Field',

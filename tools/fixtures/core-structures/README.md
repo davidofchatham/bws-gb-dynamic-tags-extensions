@@ -44,6 +44,9 @@ seed + verify clean, or coordinate a pin bump with them:
 | the integrating plugin | its own fixture tree | v4+ |
 | meta-conductor | `tools/fixtures/mc-rules/` | v4+ |
 | bws-generate-layout-conditions | `tools/fixtures/layout-states/` | v4+ |
+| gb-query-filter (`query-filters`) | `tools/fixtures/query-filters/` | no pin |
+
+`query-filters` relies on **the `department` taxonomy only** (registered by this blueprint's mu-plugin): its taxonomy page borrows the taxonomy and never assigns a term, so it needs `department` to exist and to have at least one term with a post. Its seed errors out if either is missing; it does not check `version`.
 
 `layout-states` asserts against **`department:sales` specifically**: it needs a
 populated non-singular archive for a featured-image detection test, and an
@@ -171,6 +174,7 @@ so the schema survives snapshot restores.
   the converter always rewrites it, plus literal backslashes in both the block-comment JSON
   and a rendered code block so the meta layer's recursive unslash has something to damage.
   Browsable with no `blocks.php` row by construction.
+- Table page (v31): `matrix-table` carries every `{{table}}` row of [`table-test-matrix.md`](../../test/table-test-matrix.md): TB (shape), TK (one row-set per resolved kind, the user kind inside a user query loop) and TP (presentation), over the `team_members` repeater `matrix-post-meta` owns, so an author can open a table control in the editor without that page's ~380 blocks. TB0, the one ambient `rows` control, stays on `matrix-post-meta`.
 - Query-loop corpus (v16): page `matrix-loops` (a term loop and a user loop) + the
   `department-workshop` term, assigned to no post. See §Query-loop corpus.
 - Source-gate corpus (v13/v14): page `matrix-gate` + staff `gate-draft` (draft, owned by

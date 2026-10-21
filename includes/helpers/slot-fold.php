@@ -35,7 +35,7 @@
  *   accept class, read ADR 0006 — the rule is that the char must already be
  *   allocated, and `bws_fold_grammar_validate()` cannot check that for you.
  * - **Reserved/grammar chars are INERT inside values.** `+ / ; , ( )` in an
- *   author's `format`/`fallback`/`label` text are content, never grammar — shipped
+ *   author's `format`/`fallback`/`header` text are content, never grammar — shipped
  *   defaults already contain them (`Date/time TBA`, `F j, Y g:i A`).
  * - **Read axis is single-valued, resolved by NAME precedence, never by order.**
  *   `use` wins when present and not `key`; otherwise `key` supplies the read. The
@@ -115,7 +115,7 @@ function bws_flag_is_on( array $options, string $key ): bool {
  * emit / unescaped on parse for the GB layer, and grammar chars inside them are
  * inert — a `/` in `Date/time TBA` is not a step.
  */
-const BWS_FOLD_FREEFORM = array( 'format', 'fallback', 'sep', 'valueSep', 'rangeSep', 'timeSep', 'label', 'fixed' );
+const BWS_FOLD_FREEFORM = array( 'format', 'fallback', 'sep', 'valueSep', 'rangeSep', 'timeSep', 'header', 'fixed' );
 
 /** Chain step slugs that FAN OUT (one → many). Used by the legacy limit mapping. */
 const BWS_FOLD_FANNING_SLUGS = array( 'refs', 'terms', 'rows' );
@@ -401,7 +401,7 @@ function bws_fold_unescape( string $value ): string {
  *
  * Per-token delimiter rule: the first accepted OPEN char fixes the active
  * structural pair until it closes; the other pair is inert text inside it (so an
- * author can pick the pair their content avoids — `label[Note (TBD]` is legal).
+ * author can pick the pair their content avoids — `header[Note (TBD]` is legal).
  *
  * Used at all three positions (slot tokens, chain steps, intra-step). It is
  * bracket-aware at the STEP position too, never a naive `preg_split`: `limit[5]`
@@ -642,7 +642,7 @@ function bws_fold_emit_chain( array $steps, int $enclosing_level = 1 ): string {
  *
  * @param string $value     Slot value (escaped or unescaped — normalized here).
  * @param string $container 'try' (format-fixed) | 'join' | 'table' (agnostic).
- * @return array{label:?string,type:?string,chain:array,read:?array,opts:array,extra:array}|array{error:string}
+ * @return array{header:?string,type:?string,chain:array,read:?array,opts:array,extra:array}|array{error:string}
  */
 function bws_fold_parse_slot( string $value, string $container = 'join' ) {
 	$tokens = bws_fold_tokenize( $value );
@@ -652,7 +652,7 @@ function bws_fold_parse_slot( string $value, string $container = 'join' ) {
 
 	$agnostic = bws_fold_is_combining( $container );
 	$slot     = array(
-		'label' => null,
+		'header' => null,
 		'type'  => null,
 		'chain' => array(),
 		'read'  => null,
@@ -683,8 +683,8 @@ function bws_fold_parse_slot( string $value, string $container = 'join' ) {
 		}
 
 		switch ( $name ) {
-			case 'label':
-				$slot['label'] = $val;
+			case 'header':
+				$slot['header'] = $val;
 				break;
 			case 'src':
 				$chain = bws_fold_parse_chain( $val );
@@ -749,8 +749,8 @@ function bws_fold_parse_slot( string $value, string $container = 'join' ) {
 		$slot['read'] = array( 'kind' => 'fixed', 'text' => '' );
 	}
 
-	if ( null !== $slot['label'] ) {
-		$slot['label'] = bws_fold_unescape( $slot['label'] );
+	if ( null !== $slot['header'] ) {
+		$slot['header'] = bws_fold_unescape( $slot['header'] );
 	}
 	foreach ( $slot['opts'] as $name => $val ) {
 		if ( true !== $val && in_array( $name, BWS_FOLD_FREEFORM, true ) ) {
@@ -763,7 +763,7 @@ function bws_fold_parse_slot( string $value, string $container = 'join' ) {
 /**
  * Emit a slot structure as its canonical wire value.
  *
- * Order: `label` → type → canonically-ranked tokens → preserved unknowns. The rank
+ * Order: `header` → type → canonically-ranked tokens → preserved unknowns. The rank
  * comes from bws_serialization_order_sort() (the canonical KEY_MAP), so the fold
  * adds no copy of the group ranks. Redundancy drops: the `default`
  * analog (absent IS default), and an analog naming the slot's own type.
@@ -822,9 +822,9 @@ function bws_fold_emit_slot( array $slot, int $level = 1 ): string {
 	};
 
 	$tokens = array();
-	if ( null !== ( $slot['label'] ?? null ) && '' !== $slot['label'] ) {
-		$tokens[] = $emit_one( 'label', $slot['label'] );
-		unset( $values['label'] );
+	if ( null !== ( $slot['header'] ?? null ) && '' !== $slot['header'] ) {
+		$tokens[] = $emit_one( 'header', $slot['header'] );
+		unset( $values['header'] );
 	}
 	if ( null !== ( $slot['type'] ?? null ) && 'text' !== $slot['type'] ) {
 		$tokens[] = $slot['type'];
@@ -1060,7 +1060,7 @@ function bws_fold_from_flat( int $n, array $options, bool $combining = false, bo
 
 	return array(
 		'slot'   => array(
-			'label' => null,
+			'header' => null,
 			'type'  => null,
 			'chain' => $chain,
 			'read'  => $read,
@@ -1306,7 +1306,7 @@ function bws_fold_slot_struct( int $n, array $options, string $container = 'join
  */
 function bws_fold_empty_slot(): array {
 	return array(
-		'label' => null,
+		'header' => null,
 		'type'  => null,
 		'chain' => array(),
 		'read'  => null,
@@ -1325,20 +1325,29 @@ function bws_fold_empty_slot(): array {
  * walks) would otherwise each hold the literal and have to be edited in lockstep.
  *
  * @since 1.17.0
+ * @since Unreleased $has_parent.
  * @param string $default_read The stripped first `use` value of the leaf the container's
  *                             slots read through (bws_use_stripped_default()); '' on a
  *                             container with no read axis. Every container states it —
  *                             the seam writes no read default of its own.
+ * @param bool   $has_parent   The slots hang off a PARENT source (a {{table}} column off its
+ *                             row), where the empty chain IS that parent. The carry then
+ *                             starts already fed, so a `src(same)` with nothing before it
+ *                             carries the parent instead of skipping.
  * @return array Carry accumulator.
  */
-function bws_fold_empty_carry( string $default_read = '' ): array {
-	return array(
+function bws_fold_empty_carry( string $default_read = '', bool $has_parent = false ): array {
+	$carry = array(
 		'chain' => array(),
 		'ref'   => '',
 		'use'   => $default_read,
 		'key'   => '',
 		'fixed' => '',
 	);
+	if ( $has_parent ) {
+		$carry['_fed'] = true;
+	}
+	return $carry;
 }
 
 /**

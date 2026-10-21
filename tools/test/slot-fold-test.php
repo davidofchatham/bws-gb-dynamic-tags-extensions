@@ -219,11 +219,20 @@ $corpus = array(
 	array( 'join', 'title;linkTo(permalink)' ),
 	array( 'join', 'title;linkTo(key);linkKey(profile_url);newTab' ),
 	array( 'join', 'email;key(contact_email);linkTo(key);linkKey(profile_url)' ),
-	// table columns — label first, then type
-	array( 'table', 'label(Name);title;linkTo(permalink)' ),
-	array( 'table', 'label(Office);src(refs,office);key(address)' ),
-	array( 'table', 'label(Depts);src(terms,department,limit[3]);use(title)' ),
-	array( 'table', 'label(Tier);src(term,34,limit[2]);key(name)' ),
+	// `label` is no grammar token any more (it was `header`'s name before table shipped): in a
+	// join or try_ slot it is an unknown token and round-trips byte-identically.
+	array( 'join', 'key(a);label(x)' ),
+	array( 'try', 'key(a);label(x)' ),
+	// table columns — header first, then type
+	array( 'table', 'header(Name);title;linkTo(permalink)' ),
+	array( 'table', 'header(Office);src(refs,office);key(address)' ),
+	array( 'table', 'header(Depts);src(terms,department,limit[3]);use(title)' ),
+	array( 'table', 'header(Tier);src(term,34,limit[2]);key(name)' ),
+	// presentation tokens: after the read, in rank order; the header override rides inside the value
+	array( 'table', 'header(Price);key(price);textAlign(right)' ),
+	array( 'table', 'header(Price);key(price);width(8rem);color(#c00);textAlign(right;header,center)' ),
+	array( 'table', 'header(Price);textAlign(header,center)' ),
+	array( 'join', 'key(a);textAlign(right)' ),
 	// datetime slots — `key` is the datetime field option, not the read
 	array( 'join', 'datetime_range;as(date);format(M j);startKey(start_date);endKey(end_date)' ),
 	array( 'join', 'datetime_single;key(event_date);timeKey(event_time)' ),
@@ -252,11 +261,17 @@ foreach ( $corpus as $i => $case ) {
 	check( "P1.$i identity: $wire", $out === $wire, "got: $out" );
 }
 
+// The presentation tokens canonicalize: a hand-written order is rewritten to rank order, the
+// header first, the read next, then width and the text keys in control order.
+$hand = bws_fold_parse_slot( 'textAlign(right);color(#c00);width(8rem);key(price);header(Price)', 'table' );
+check( 'P1.pres canonical order', 'header(Price);key(price);width(8rem);color(#c00);textAlign(right)', bws_fold_emit_slot( $hand ) );
+check( 'P1.pres the value reaches opts untouched', 'right;header,center', bws_fold_parse_slot( 'textAlign(right;header,center)', 'table' )['opts']['textAlign'] ?? null );
+
 // ── P2 FIXPOINT ─────────────────────────────────────────────────────────────
 
 $structs = array(
 	array( 'join', array(
-		'label' => null,
+		'header' => null,
 		'type'  => 'phone',
 		'chain' => array( array( 'slug' => 'refs', 'arg' => 'office', 'limit' => null, 'extra' => array() ) ),
 		'read'  => array( 'kind' => 'key', 'field' => 'mobile' ),
@@ -264,7 +279,7 @@ $structs = array(
 		'extra' => array(),
 	) ),
 	array( 'table', array(
-		'label' => 'When',
+		'header' => 'When',
 		'type'  => 'datetime_range',
 		'chain' => array(),
 		'read'  => null,
@@ -272,7 +287,7 @@ $structs = array(
 		'extra' => array(),
 	) ),
 	array( 'try', array(
-		'label' => null,
+		'header' => null,
 		'type'  => null,
 		'chain' => array(
 			array( 'slug' => 'post', 'arg' => '9999', 'limit' => null, 'extra' => array() ),
@@ -284,7 +299,7 @@ $structs = array(
 	) ),
 	// Unlimited pinned on the terminal step (the {{table}} row-set shape).
 	array( 'table', array(
-		'label' => null,
+		'header' => null,
 		'type'  => null,
 		'chain' => array( array( 'slug' => 'rows', 'arg' => 'staff_members', 'limit' => '0', 'extra' => array() ) ),
 		'read'  => array( 'kind' => 'key', 'field' => 'name' ),
@@ -345,7 +360,7 @@ foreach ( $hand as $i => $case ) {
 // ── P4 ESCAPE — the whole GB round trip ─────────────────────────────────────
 
 $slot1 = array(
-	'label' => 'Price: USD',
+	'header' => 'Price: USD',
 	'type'  => 'text',
 	'chain' => array(),
 	'read'  => array( 'kind' => 'key', 'field' => 'price' ),
@@ -353,7 +368,7 @@ $slot1 = array(
 	'extra' => array(),
 );
 $slot2 = array(
-	'label' => null,
+	'header' => null,
 	'type'  => 'datetime_single',
 	'chain' => array(),
 	'read'  => null,
@@ -375,7 +390,7 @@ check( 'P4.3 GB splits both slots', isset( $gb['1'], $gb['2'] ), var_export( $gb
 if ( isset( $gb['1'], $gb['2'] ) ) {
 	$p1 = bws_fold_parse_slot( $gb['1'], 'table' );
 	$p2 = bws_fold_parse_slot( $gb['2'], 'join' );
-	check( 'P4.4 label survives the GB layer', ! isset( $p1['error'] ) && 'Price: USD' === $p1['label'], var_export( $p1, true ) );
+	check( 'P4.4 header survives the GB layer', ! isset( $p1['error'] ) && 'Price: USD' === $p1['header'], var_export( $p1, true ) );
 	check( 'P4.5 format survives the GB layer', ! isset( $p2['error'] ) && 'g:i A' === $p2['opts']['format'], var_export( $p2, true ) );
 	if ( ! isset( $p1['error'], $p2['error'] ) ) {
 		$re = '1:' . bws_fold_emit_slot( $p1 ) . '|2:' . bws_fold_emit_slot( $p2 );
@@ -384,11 +399,11 @@ if ( isset( $gb['1'], $gb['2'] ) ) {
 }
 // The JS side receives the still-ESCAPED value — the parser must cope identically.
 $p1js = bws_fold_parse_slot( $v1, 'table' );
-check( 'P4.7 parse of an escaped-in value', ! isset( $p1js['error'] ) && 'Price: USD' === $p1js['label'], var_export( $p1js, true ) );
+check( 'P4.7 parse of an escaped-in value', ! isset( $p1js['error'] ) && 'Price: USD' === $p1js['header'], var_export( $p1js, true ) );
 
 // Reserved + grammar chars inside author TEXT are content, never grammar.
 $content = array(
-	'label' => null,
+	'header' => null,
 	'type'  => 'datetime_single',
 	'chain' => array(),
 	'read'  => null,
@@ -403,7 +418,7 @@ check( 'P4.9 comma inside a format is content', ! isset( $pc['error'] ) && 'F j,
 // ── P5 BALANCE ──────────────────────────────────────────────────────────────
 
 $balanced = array(
-	'label' => 'Size (cm)',
+	'header' => 'Size (cm)',
 	'type'  => 'text',
 	'chain' => array(),
 	'read'  => array( 'kind' => 'key', 'field' => 'size' ),
@@ -412,10 +427,10 @@ $balanced = array(
 );
 $vb = bws_fold_emit_slot( $balanced );
 $pb = bws_fold_parse_slot( $vb, 'table' );
-check( 'P5.0 balanced inner brackets survive', ! isset( $pb['error'] ) && 'Size (cm)' === $pb['label'], "wire: $vb → " . var_export( $pb, true ) );
+check( 'P5.0 balanced inner brackets survive', ! isset( $pb['error'] ) && 'Size (cm)' === $pb['header'], "wire: $vb → " . var_export( $pb, true ) );
 
 $sep_inside = array(
-	'label' => 'Price; USD',
+	'header' => 'Price; USD',
 	'type'  => 'text',
 	'chain' => array(),
 	'read'  => array( 'kind' => 'key', 'field' => 'price' ),
@@ -424,13 +439,13 @@ $sep_inside = array(
 );
 $vs = bws_fold_emit_slot( $sep_inside );
 $ps = bws_fold_parse_slot( $vs, 'table' );
-check( 'P5.1 opt separator inside a bracket does not split', ! isset( $ps['error'] ) && 'Price; USD' === $ps['label'], "wire: $vs" );
+check( 'P5.1 opt separator inside a bracket does not split', ! isset( $ps['error'] ) && 'Price; USD' === $ps['header'], "wire: $vs" );
 
 // ── P6 ERRORS ───────────────────────────────────────────────────────────────
 
 $bad = array(
-	'label(Note (TBD);key(note)X',            // trailing junk after the close
-	'label(Note;key(note)',                    // unbalanced open
+	'header(Note (TBD);key(note)X',            // trailing junk after the close
+	'header(Note;key(note)',                    // unbalanced open
 	'key(note))',                              // stray close
 	'src(refs,office)+use(same)',               // close-then-reopen in ONE token
 	// Close-then-reopen where BOTH halves are individually balanced: only the
@@ -445,13 +460,13 @@ foreach ( $bad as $i => $in ) {
 	$r = bws_fold_parse_slot( $in, 'table' );
 	check( "P6.$i flagged: $in", isset( $r['error'] ), var_export( $r, true ) );
 }
-$r = bws_fold_tokenize( 'label(Note (TBD)' );
+$r = bws_fold_tokenize( 'header(Note (TBD)' );
 check( 'P6.7 unbalanced free-form flagged at tokenize', isset( $r['error'] ), var_export( $r, true ) );
 
 // ── P7 BACKSLASH ────────────────────────────────────────────────────────────
 
 $dt_format = array(
-	'label' => null,
+	'header' => null,
 	'type'  => 'datetime_single',
 	'chain' => array(),
 	'read'  => null,
@@ -466,7 +481,7 @@ $pg = bws_fold_parse_slot( t_gb_parse_options( '1:' . $vf )['1'], 'join' );
 check( 'P7.2 date format through the GB layer', ! isset( $pg['error'] ) && 'l, F jS \\a\\t g:i A' === $pg['opts']['format'], var_export( $pg, true ) );
 
 $literal = array(
-	'label' => null,
+	'header' => null,
 	'type'  => 'text',
 	'chain' => array(),
 	'read'  => array( 'kind' => 'key', 'field' => 'x' ),
@@ -478,7 +493,7 @@ $pl = bws_fold_parse_slot( $vl, 'join' );
 check( 'P7.3 author backslash-colon round trip', ! isset( $pl['error'] ) && 'g\\:i raw' === $pl['opts']['fallback'], "wire: $vl → " . var_export( $pl, true ) );
 
 $tail = array(
-	'label' => null,
+	'header' => null,
 	'type'  => 'text',
 	'chain' => array(),
 	'read'  => array( 'kind' => 'key', 'field' => 'x' ),
@@ -510,8 +525,8 @@ foreach ( $lenient as $i => $case ) {
 	check( "P8.$i normalize: $in", $out === $want, "want: $want\n      got:  $out" );
 }
 // Per-token delimiter rule: the OTHER pair is inert inside a value.
-$inert = bws_fold_parse_slot( 'label[Note (TBD];key(note)', 'table' );
-check( 'P8.4 inert other-pair inside a free-form value', ! isset( $inert['error'] ) && 'Note (TBD' === $inert['label'], var_export( $inert, true ) );
+$inert = bws_fold_parse_slot( 'header[Note (TBD];key(note)', 'table' );
+check( 'P8.4 inert other-pair inside a free-form value', ! isset( $inert['error'] ) && 'Note (TBD' === $inert['header'], var_export( $inert, true ) );
 // A lone close char of the non-canonical pair at depth 0 still errors.
 check( 'P8.5 stray alt-pair close flagged', isset( bws_fold_parse_slot( 'key(note)]', 'try' )['error'] ), '' );
 
@@ -577,10 +592,10 @@ check( 'P9.5 slot-level limit re-emits before use/key', 'limit(3);key(prices)' =
 // brackets is content, not the next hop.
 $nested = array(
 	// in, canonical out (a known `limit` sorts ahead of preserved unknowns)
-	array( 'src(refs,related_staff,label[A, B])', 'src(refs,related_staff,label[A, B])' ),
+	array( 'src(refs,related_staff,header[A, B])', 'src(refs,related_staff,header[A, B])' ),
 	array( 'src(refs,related_staff,tag[datetime_single,as[date]])', 'src(refs,related_staff,tag[datetime_single,as[date]])' ),
-	array( 'src(refs,related_staff,label[A, B],limit[5])', 'src(refs,related_staff,limit[5],label[A, B])' ),
-	array( 'src(refs,related_staff,label[A; B])', 'src(refs,related_staff,label[A; B])' ),
+	array( 'src(refs,related_staff,header[A, B],limit[5])', 'src(refs,related_staff,limit[5],header[A, B])' ),
+	array( 'src(refs,related_staff,header[A; B])', 'src(refs,related_staff,header[A; B])' ),
 );
 foreach ( $nested as $i => $case ) {
 	list( $in, $want ) = $case;
@@ -614,7 +629,7 @@ $row_chain  = 'src:' . bws_fold_emit_chain(
 );
 $column     = '2:' . bws_fold_emit_slot(
 	array(
-		'label' => 'Depts',
+		'header' => 'Depts',
 		'type'  => null,
 		'chain' => array( array( 'slug' => 'terms', 'arg' => 'department', 'limit' => '3', 'extra' => array() ) ),
 		'read'  => array( 'kind' => 'analog', 'slug' => 'title' ),
@@ -623,7 +638,7 @@ $column     = '2:' . bws_fold_emit_slot(
 	)
 );
 $table_wire = '{{table ' . $row_chain . '|' . $column . '}}';
-check( 'P10.3 both wrapper styles in one tag', '{{table src:post,9999;refs,related_staff,limit(5)|2:label(Depts);src(terms,department,limit[3]);use(title)}}' === $table_wire, "got: $table_wire" );
+check( 'P10.3 both wrapper styles in one tag', '{{table src:post,9999;refs,related_staff,limit(5)|2:header(Depts);src(terms,department,limit[3]);use(title)}}' === $table_wire, "got: $table_wire" );
 check( 'P10.4 no same-char immediate nesting in the emitted tag', '' === t_no_same_char_nesting( $table_wire ), t_no_same_char_nesting( $table_wire ) );
 // And the violation IS detectable — the guard fails under a deliberate break.
 check( 'P10.5 nesting guard fails on a deliberate break', '' !== t_no_same_char_nesting( 'src(refs,x,limit(2))' ), '' );

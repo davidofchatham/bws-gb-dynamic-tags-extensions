@@ -38,10 +38,6 @@ reasons for crossing that border, and the second is the durable one:
 2. **GB's query loop cannot reach this plugin's sources** without query-loop hacking. A source path —
    a root plus `refs`/`terms`/`rows` steps — is not a `WP_Query`, and nothing in GB consumes one.
 
-**Not registered by default while v1 is built:** `bws_register_table_tag()` runs only behind the
-`bws_dynamic_tags_register_table_tag` filter (default `false`), so the border is crossed by an opt-in
-tag rather than by the shipped set.
-
 A **single-result** output can be a **composite string** (`datetime_range` is both: one result, built from start+end fields). These are independent axes — composite-vs-not describes *how the one string is built*; list-mode-vs-not describes *how many strings are joined*. `try_` is transparent to both (see [CONTEXT.md](../CONTEXT.md) I6); query loop is out of dynamic-tag scope entirely.
 
 ---
@@ -52,22 +48,19 @@ Source resolution is split between **`src` option values** (traversal within a b
 
 ### `src` option values
 
-Traversal selector on every base tag. Serializes as `src:<value>` in the tag string. This table is the **authoritative definition of what each `src` value resolves to**; the per-slot UI/serialization mechanics (slot-2+ `same`/`current` distinction, editor-preview segment, labels) live in [§Source control](editor-controls.md#source-control--per-slot-ui-and-serialization).
+Traversal selector on every base tag. Serializes as `src:<value>` in the tag string. **This table lists ROOTS only** — where a chain starts. What can follow a root is a step, listed in [§Source CHAINS](#source-chains-1170); the flat-era `src:ref` is not a root either, it is the `refs` step's legacy spelling (described there). This table is the **authoritative definition of what each root resolves to**; the per-slot UI/serialization mechanics (slot-2+ `same`/`current` distinction, editor-preview segment, labels) live in [§Source control](editor-controls.md#source-control--per-slot-ui-and-serialization).
 
-| `src` value | Resolves to | Status |
+| Root | Resolves to | Status |
 |---|---|---|
-| unset (default) | Current entity (post or term per template context) | Implemented |
-| `ref` | Reference/relational field step — requires `ref` sub-option (field key) | Implemented |
+| `current` / unset | **The current context** — whatever the tag is rendering for: a query-loop item of any recognized kind (post, term, user, repeater row; an unrecognized item resolves nothing), else the queried term on a term archive, the queried user on an author archive, the [query context](#context-coverage--the-query-context-kinds-1190) on a date, search, 404, post-type archive or latest-posts home, else the current post. The precedence is owned by `bws_resolve_base_source()`'s PHPDoc. Usually the stripped default, so it is not written: a base tag and slot 1 leave `src` unset. It is written where it is not the default: on a `{{join}}`/`try_` slot 2+ (overriding the carry-over) and in a `{{table}}` column, whose default root is `inherit`. | Implemented |
 | `site` | Site-wide data (no entity) — an implicit-mode tag resolves the site analog, `key` reads an option. See [§Site Source](#site-source-srcsite). | Implemented (v1.9.0, Stage A) |
 | `term,<ID>` | **Specific term root** (1.20.0, FW-39). Roots the chain at ONE specific term, whatever the page is about. `<ID>` is required — a bare `term` resolves nothing (see below). Steps run off it like any other root (`term,34;refs,rel` is legal; `terms` is refused — no term→term edge). | Implemented |
 | `post,<ID>` | **Specific post root** (1.20.0, FW-39). Roots the chain at ONE specific post, whatever the page is about. `<ID>` is required — a bare `post` resolves nothing (see below); it would be `current` under another name. Authoring-only: unlike `term`, `post` has no legacy modifier family to stay compatible with (no `post_*` tags exist), so there is no converter/migration half. | Implemented |
 | *(a registered source key)* | Whatever that source's `resolve_id()` returns — post or term per its context type. Resolves whether or not the source is OFFERED (below). | Implemented |
-| `parent` | WP parent post/term | Planned |
-| `ancestor` | WP top-level ancestor | To be considered |
-| `child` | WP child posts/terms (list output) | To be considered |
-| `sibling` | WP same-parent posts/terms (list output) | To be considered |
 
 See [§Source control](editor-controls.md#source-control--per-slot-ui-and-serialization) for label/UI details and the per-slot serialization mechanics; the option keys themselves are [§Source group](#source-group).
+
+README §Build source paths to access related data › Starting points carries a simplified copy of this table (offered roots only, editor labels); a row changed here is changed there in the same edit.
 
 #### Root enum membership (1.17.0, [#83](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/83))
 
@@ -93,7 +86,7 @@ deliberately not the same rule.
   absent from a `{{join}}` field or a `try_` attempt. Rows APPEND after the built-ins, keeping
   `current` as the row an absent `src` stands for. Slots are ungated.
 - **Never on the shared base builder.** `bws_base_source_option()` does not grow these rows — the
-  derived families (`try_*`, `{{table}}`, `{{call}}`) build their own surfaces from its
+  derived families (`try_*`, `{{call}}`) build their own surfaces from its
   rows, so a leak there would offer a root inside its own Source dropdown and
   widen `{{call}}`'s deliberate allowlist.
 - **Registered roots offered through the `bws_dynamic_tags_chain_roots` filter route declare no
@@ -117,11 +110,19 @@ registered normally, at registry init rather than at enum-build time). See
 A source is a **chain**: a ROOT plus zero or more ordered **fanning** steps. The table above is the
 root vocabulary; a step continues from wherever the previous one landed.
 
-| Step slug | Follows | Resolves to |
-|---|---|---|
-| `refs,<field>` | a relationship / post-object field | `post` |
-| `terms,<taxonomy>` | the entity's terms in that taxonomy | `term` |
-| `rows,<field>` | a repeater field's rows | `meta_row` |
+| Step slug | Follows | Resolves to | Status |
+|---|---|---|---|
+| `refs,<field>` | a relationship / post-object field | `post` | Implemented |
+| `terms,<taxonomy>` | the entity's terms in that taxonomy | `term` | Implemented |
+| `rows,<field>` | a repeater field's rows | `meta_row` | Implemented |
+| `parent` | the WP parent post / parent term | same kind, one | Planned (FW-169) |
+| `ancestor` | the WP top-level ancestor | same kind, one | To be considered (FW-169) |
+| `children` | the WP child posts / child terms | same kind, list | To be considered (FW-169) |
+| `siblings` | the WP posts / terms sharing a parent | same kind, list | To be considered (FW-169) |
+
+A step that resolves to a list is spelled plural, one that resolves to a single entity singular. The four hierarchical names are reserved as root keys now (`SourceRegistry::is_expressible_root_key()`), before any of them is built.
+
+README §Build source paths to access related data › Steps carries a simplified copy of this table (implemented steps only, editor labels, what each step can follow); a row changed here, or a change to `BWS_TRAVERSAL_STEP_INPUT_KINDS`, is changed there in the same edit.
 
 Chain wire lives in the same `src` option, `;`-separated, each step `slug[,arg][,limit(N)]` —
 `src:refs,office;terms,category`. The flat spelling (`src:ref` + `ref:` + `srcTermIn:`) is READ
@@ -149,8 +150,8 @@ once an author converts it or the Tag Converter rewrites it.
   consequence for an integrator is in
   [`plugin-integration.md`](plugin-integration.md#what-a-non-resolving-source-renders).
 - **`rows` is offered on a base tag since 1.21.0, and it RENDERS.** `{{text}}`, `{{content}}`, `{{image}}`, `{{email}}`, `{{phone}}` and both `{{datetime_*}}` families read a `meta_row` chain — one named sub-field per row — and every container that absorbs the text read (`{{join}}` slots, `try_` attempts) came with it. `{{title}}` and `{{permalink}}` REFUSE a `rows` chain and render nothing — their stated fallback where the family has one, the editor preview label where it has that. **Until 1.21.0 they did not render empty, they printed the SURROUNDING PAGE**: the page's own title, address, image field or date, because a `rows` chain resolves no post and the post tail read the ambient entity. Neither will ever gain a row arm — their spellings are all analogs, and a row is not an entity. **The row read takes each family's OWN cardinality**, not a rule of its own: `{{text}}`/`{{email}}`/`{{phone}}`/`{{datetime_*}}` fan across the rows with the tag's `limit` and `sep` applying, while `{{content}}` and `{{image}}` collapse to the first row, because both are `takes_first_usable` (ADR 0007) and register neither key. An ANALOG refuses on a row (`use:title`, `{{content}}`'s `use:content`/`use:excerpt` and `{{image}}`'s `use:featured` all render nothing): a row is not an entity, and the hop those spellings imply is already sayable — `src:rows,team_members;refs,lead_ref|use:title`. **The image read is the one that needed the raw read seam**, because an image sub-field's stored shape follows its own field's return format — an array under ACF's default — and the string seam every other row arm reads through drops arrays; `bws_read_resolved_source_value()` is the half that does not. **The datetime read takes the VALUE half of that seam only**: each core keeps deriving its own custom-fields object id, a separate argument from the value read, and a row reaches no sub-field config — so a date sub-field on a wire row is parsed FORMAT-AGNOSTICALLY, and the field-object read that would close it is FW-3's. What `{{table}}` owns is ASSEMBLY — a row across many columns — not the read. **The step joined every chain-step offer in 1.21.0** — base tags, `{{join}}` fields and `try_` attempts alike, the three lists being asserted equal — once every keyed arm read a row; it was held back only while nothing consumed one, because a step no arm reads authors a chain that renders empty.
-- **The derived families keep the flat select.** `try_*` and `{{table}}` build their own
-  surfaces from the root enum's rows; a slot authors its chain inside its folded value instead
+- **The derived families keep the flat select.** `try_*` builds its own
+  surfaces from the root enum's rows (`{{table}}`'s tag-level source is the chain control, like a base tag's); a slot authors its chain inside its folded value instead
   (see [§Folded slot wire](#folded-slot-wire-multislot-containers)).
 
 ### Source-analog resolution
@@ -168,7 +169,7 @@ once an author converts it or the Tag Converter rewrites it.
 | `text` | *(keyed — no intrinsic analog; key required in all contexts)* | | | | |
 | `datetime_single` / `datetime_range` | *(field-keyed — no intrinsic analog; key/field required in all contexts)* | | | | |
 
-The **user** column resolves on an author archive only (ambient `WP_User`, #19 author kind, 1.15.0). Scope is `title`/`content` (1.15.0) + `text` (1.16.0: `use:title` → display name, key-mode → the author's user meta field). `{{join}}` slots inherit it through the text read seam; `try_text`/`try_title`/`try_content` slots resolve it too since 1.17.0, on their own dispatcher arm — the other six `try_` families follow their base tag and render empty there. `permalink`/`image`/datetime author analogs are deferred and render empty (not wrong) there. An explicit source (`src:site`/`src:ref`/`srcTermIn`) or a query-loop item overrides the author ambient, exactly as with the term column. `linkTo:permalink` on the author `title` links the author's archive URL.
+The **user** column resolves on an author archive only (ambient `WP_User`, #19 author kind). What each tag returns there is [§Coverage by ambient context](#coverage-by-ambient-context)'s; the `permalink` and featured-image author analogs are deferred. An explicit source (`src:site`/`src:ref`/`srcTermIn`) or a query-loop item overrides the author ambient, exactly as with the term column. `linkTo:permalink` on the author `title` links the author's archive URL.
 
 #### Context coverage — the query-context kinds (1.19.0)
 
@@ -186,30 +187,30 @@ The **query context** column resolves on the five entity-less main-query context
 
 Where core and GB Pro's `{{archive_title}}` disagree (search: Pro returns the bare query; latest-home: Pro returns the literal `Blog`), **we follow core** — `wp_get_document_title()` backs both values. Date and 404 are not divergences; Pro has no branch for either.
 
-**`{{content}}`** resolves the post type description on a PTA (core's `get_the_post_type_description` filter applies, `wpautop` included) and the `generate_404_text` borrow on a GP 404; the other contexts render empty — including the latest-posts home, which before 1.19.0 leaked the first post's entire rendered content there. **`{{text use:title}}`** reads the same heading as `{{title}}` (the absorb seam, so `{{join}}` slots inherit it), and the `try_text`/`try_title`/`try_content` slot arm agrees with the standalone tags; the other six `try_` families render empty. Everything else — key-mode `text`, `permalink`, `image`, datetime — renders **empty, not wrong**: before 1.19.0 every one of these read whatever post WordPress happened to leave in `$post` (the main query's first row). Explicit sources and query-loop items override the ambient context exactly as in the other columns. The search/404/latest-home override options are deferred (`docs/future-work.md`), and on a core-only site the **raw search query** is currently unreachable — the deferred search-format option is its designated home.
+**`{{content}}`** resolves the post type description on a PTA (core's `get_the_post_type_description` filter applies, `wpautop` included) and the `generate_404_text` borrow on a GP 404. **`{{text use:title}}`** reads the same heading as `{{title}}` (the absorb seam, so `{{join}}` slots inherit it). What every tag returns on each of these contexts is [§Coverage by ambient context](#coverage-by-ambient-context)'s. The search/404/latest-home override options are deferred (`docs/future-work.md`), and on a core-only site the **raw search query** is currently unreachable — the deferred search-format option is its designated home.
 
 Where a source has **no** intrinsic analog for a tag (term image, site content-body), the implicit-mode tag resolves empty and a `key`/field is required — the gap is honest, not papered over. (Site has no long-form content datum: its "Tagline" is a short string — WordPress itself frames it "In a few words…" — so it is *not* forced into the `content` slot. It also gets no dedicated `text` value, because it fails *both* sides of the gate — no unique affordance over GB's native `{{site_tagline}}`, and no strong cross-source analog (see the [qualifying test](#qualifying-test-for-new-use-values) below).) A *corollary*: a named `use:` value that would duplicate a datum already reachable elsewhere must not exist (e.g. no `use:home_url` when `permalink src:site` already = home URL). This keeps one canonical path per datum.
 
 **Strip-default caveat.** The analog is reached by the tag's *stripped-default* `use` value, which is its **first enum value** — and that first value is **key-mode** for `text` and `image` (so their analog is NOT the empty-wire default). An empty `use` therefore resolves to key-mode for text/image (read a `key`), to `content` for `content` (which, under `src:site`, has no analog → empty). The site **logo** is the explicit `use:featured` value, *not* the implicit-mode `{{image src:site}}` (which is key-mode → empty without a key). Key-mode was first kept as the default for a reason that no longer holds: a `key` left behind when `use` moved to an analog could not be told from intended key-mode. The editor now deletes that `key` when `use` leaves key-mode ([`editor-controls.md` §The `use` read wrapper](editor-controls.md#the-use-read-wrapper)). `text` stays key-mode because it is primarily a meta-field read; flipping `image` to lead with `featured` is tracked as FW-143 ([`future-work.md`](future-work.md)).
 
-This principle governs `src:site` below and should guide every future source (`parent`, `ancestor`, external) and any new base tag.
+This principle governs `src:site` below and should guide every future source or step (the hierarchical steps, external sources) and any new base tag.
 
 #### Coverage by ambient context
 
 What each tag reads where it has no `src`, no query-loop item and no `id`, measured on the testbed 2026-10-09 (`wp bws render-tag --url=…`). A cell names the datum the tag returns there; a dash means the tag renders empty (never `$post`'s value, and a stated `fallback` still fires). This is the consequence of the dispatch above, which stays the owner of how a context is told apart ([`CONTEXT.md` I9](../CONTEXT.md)). An explicit source or a query-loop item overrides every column.
 
-| Tag (read) | Singular | Term archive | Author archive | Date archive | Post type archive | Search | 404 | Latest-posts home |
-|---|---|---|---|---|---|---|---|---|
-| `title`, `text` (`use:title`) | post title | term name | display name | date span (`July 2026`) | archive label (`Staff`) | `Search Results for “…”` | GP 404 title, else GP default (core `Page not found` without GP) | site name |
-| `content` | post content | term description | user bio | — | type description | — | GP 404 text (— without GP) | — |
-| `permalink` | post URL | term URL | — | — | — | — | — | — |
-| `image` (`use:featured`) | featured image | — | — | — | — | — | — | — |
-| `image` (meta field) | post meta | term meta | user meta | — | — | — | — | — |
-| `text` (meta field) | post meta | term meta | user meta | — | — | — | — | — |
-| `email`, `phone` | post meta | term meta | user meta | — | — | — | — | — |
-| `datetime_single`, `datetime_range` | post meta | term meta | — | — | — | — | — | — |
+README §Use the same tags almost anywhere carries a simplified table built from this one (columns by source kind, the five query-context columns merged, no notes), plus a Site column from [§Site Source](#site-source-srcsite) and a Repeater row column from the `rows` note in [§Source CHAINS](#source-chains-1170); a cell changed in any of the three is changed there in the same edit.
 
-- **Every `try_` variant matches its base tag** in every cell, and a `{{join}}` slot follows the `text` rows (`use:title` gives the heading, a `key` gives the meta field).
+| Tag and field read | Singular | Term archive | Author archive | Date archive | Post type archive | Search | 404 | Latest-posts home |
+|---|---|---|---|---|---|---|---|---|
+| `title`, or `text use:title` | post title | term name | display name | date span (`July 2026`) | archive label (`Staff`) | `Search Results for “…”` | GP 404 title, else GP default (core `Page not found` without GP) | site name |
+| `content` | post content | term description | user bio | — | type description | — | GP 404 text (— without GP) | — |
+| `text`, `content`, `image`, `email`, and `phone` with `key:[field key]` | post meta | term meta | user meta | — | — | — | — | — |
+| `image use:featured` | featured image | — | — | — | — | — | — | — |
+| `datetime_single`, `datetime_range` | post meta | term meta | — | — | — | — | — | — |
+| `permalink` | post URL | term URL | — | — | — | — | — | — |
+
+- **Every `try_` variant matches its base tag** in every cell; a `{{join}}` slot follows the `text` rows (`use:title` gives the heading, a `key` gives the meta field), and so does a `{{table}}` column, which renders its row with the cell empty where the read is empty. The `{{table}}` cells are measured on search, 404, author and term archives ([TK6–TK9](../tools/test/table-test-matrix.md)); the date archive, post type archive and latest-posts home cells follow from the same read and were not run.
 - **"Singular"** includes an assigned front page or posts page, which is a page entity and takes the post column. **"Latest-posts home"** is the front page with no page assigned.
 - **A "meta field" read** is whatever the context's own field store holds: post meta, term meta (ACF `term_<id>`), or user meta. The five query-context kinds, which carry no entity (date, post type archive, search, 404, latest-posts home) have no store, so a keyed read is empty there.
 - **The term and author image reads answer for every ACF image return format** (Image Array, Image URL, Image ID), and the author read also for a plain user meta holding an attachment ID. The avatar analog for `use:featured` on an author is the separate, still-open design call on [FW-47](future-work.md).
@@ -541,7 +542,7 @@ constructors do not answer a taken name the same way:
 
 | Constructor | A name another plugin registered first |
 |---|---|
-| `bws_register_base_tags()`, plus the standalone base tags (`{{email}}`, `{{phone}}`, `{{table}}`, `{{call}}`) | Registered OVER, and the collision reported |
+| Every non-`try_` tag: `bws_register_base_tags()` (the base tags and `{{join}}`), plus the tags registered in their own files (`{{email}}`, `{{phone}}`, `{{table}}`, `{{call}}`) | Registered OVER, and the collision reported |
 | `TagTemplateRegistry::generate_base_try_tags()` (the `try_*` half) | Skipped; the first registrar keeps the name, and the skip is reported |
 
 A collision is detected three times, because it can go three ways and the DEVELOPER remedies differ:
@@ -581,19 +582,7 @@ collision no detection can see are stated at
 
 ## Custom editor controls registered
 
-Registered via the `generateblocks.editor.tagSpecificControls` JS filter. Each entry maps a custom option `type` string (referenced in PHP option definitions) to a React control:
-
-| Control type | Renders | Source file | Used by |
-|---|---|---|---|
-| `bws-media-picker` | `wp.media()` modal; persists attachment ID (re-fetches preview URL via `wp.data` `core` `getMedia(id)`) | `assets/js/image-tag-controls.js` | `image`, `try_image` fallback |
-| `bws-as-size` | Composite: return-mode `SelectControl` + a size `SelectControl` shown only under `url`. Owns the whole `as` token, folding size into its value (`as:url,medium`; nullary modes serialize bare). Size enum + pretty labels localized from PHP (`window.bwsImageSizes` ← `bws_get_image_size_options()`). Last-picked size stashed in React state so `url→alt→url` restores it (wire stays model-pure). Replaces GB's native `as` select AND `image-size` control. | `assets/js/as-size-control.js` | `as` on `image`, `try_image` |
-| `bws-format-input` | TextControl that escapes `:` / `\|` on save and unescapes for display, so format strings containing colons (e.g. `g:i A` time tokens) survive GB's JS `parseTag()` round-trip | `assets/js/format-input-control.js` | `format` option on `datetime_single`, `datetime_range` |
-| `bws-slot-fold` | The slot REPEATER: owns one folded slot value whole (source chain + field read + per-slot options), parsing and emitting it only through the grammar twin `assets/js/slot-fold-grammar.js`. Explicit add/remove slot count; removal compacts, materializing carried axes first so a `same` backreference cannot silently re-point. Renders `bws-field-combo` against a synthetic context for the field pickers (the shipped control is unmodified; it takes the repeater scope as an explicit `scopeKey` prop). Every enum, label and noun arrives on the PHP option definition's `fold` sub-array from `bws_build_fold_slot_options()` — the control hand-authors no vocabulary. Recovers legacy flat keys at mount and rewrites the slot on first commit. | `assets/js/slot-fold-control.js` | folded slot keys `A`, `B`, … on `{{join}}` and `try_*` (v1.17.0); `{{table}}` arrives folded. Three read SHAPES, all read off the derived config rather than the container name: kind enum + picker, picker alone (a key axis with no `use` enum), or no read at all. See [§Folded slot wire](#folded-slot-wire-multislot-containers) |
-| `bws-src-chain` | The BASE tag's source chain: a root plus ordered fanning steps, each with an optional per-step limit. Renders the SAME step component the folded-slot control uses (`window.bwsSlotFoldRepeater.chainSteps`) — a second renderer is where a hand-authored third spelling of `terms` gets in. Every enum, label, noun and slug map arrives on the PHP option definition's `fold` sub-array from `bws_build_src_chain_option()`. Reads a legacy tag's flat `src`/`ref`/`srcTermIn` as the chain they describe (display only, so a cancelled modal leaves stored wire untouched); the first commit writes chain wire, deletes the flat siblings, and carries the limit the old spelling implied onto the STEPS (`limit(1)` on each fanning step, visible in the step's own Limit field; an author's tag-level `limit` MOVES onto the last fanning step rather than staying behind) — because chain wire defaults to unlimited and a conversion that wrote nothing would fan the tag out under the author's hands. One mapping, `bws_fold_chain_apply_legacy_limit()`, shared with both migration paths so a converted tag and a scanned one are byte-identical. Edits the SOURCE only; the base tag keeps its own `use`/`key`. | `assets/js/src-chain-control.js` | `src` on `text`, `content`, `title`, `permalink`, `image`, `email`, `phone`, `datetime_single`, `datetime_range`. NOT on `try_*`/`{{table}}` — those derive their own surfaces from the root enum, and a slot authors its chain inside its folded value |
-| `bws-fanning-advisory` | Display-only, group-end advisory for the collapsing tags: one line at the end of the source box, shown only when the tag's chain actually fans (the grammar twin of `bws_fold_chain_fanning_steps()`). The copy arrives on the PHP option definition (`help`); the control writes nothing and its option (`srcFanNote`) is never serialized. The filter nulls it on a non-fanning chain so the group wrapper never draws an empty member. Mechanism: [`editor-controls.md` §Group-end fanning advisory](editor-controls.md#group-end-fanning-advisory). | `assets/js/src-chain-control.js` | `srcFanNote` on `content`, `permalink`, `image` (the `takes_first_usable` templates — [§Collapsing tags](#collapsing-tags-first-usable-source)) |
-| `bws-field-combo` | Discovery-backed field picker: a searchable `ComboboxControl` over the field envelope inlined as `window.bwsFieldEnvelope` (assembled once per editor load from the REST route `bws-dynamic-tags/v1/fields`, no runtime fetch), plus two `SelectControl` filters above it (**location** — a path tree `Post/Term/Site fields › group › container`, container fields flagged `(repeater)`/`(group)`; **type** — ACF type or "Loop fields"). Flat list, one row per `(kind, key, label)`; a key in several groups collapses and shows under each, distinct labels stay separate. Serializes the **bare key** as a plain string (option `value` is a private merge key; the `valueToKey` map strips it in `onChange`), so it is a pure render swap for the old `text` input. Free-text via a synthetic "Use custom key" option; clear via `allowReset`. Reads optional `dynamicLabel` (label tracks the active location's group/kind) and `labelPrefix` from PHP option config. Composes with the conditional-options filter (`if (!element) return element`). Offered keys are filtered through `GenerateBlocks_Dynamic_Tag_Security::DISALLOWED_KEYS` server-side (offered ⟺ resolvable). | `assets/js/field-combo-control.js` + `includes/rest/field-discovery.php` | `key` (base/content/email/phone), `ref`, `linkKey` (`labelPrefix:'URL'`), datetime `key`/`timeKey`/`startKey`/`startTimeKey`/`endKey`/`endTimeKey`, and their `N-` per-slot try_ equivalents |
-
-Image size selection is the `bws-as-size` composite (above) as of v1.16.0 — GB's native `image-size` support is dropped and size folds into the `as` value (see [§`as` serialization opt-out + `as`+`size` fold](#as-serialization-opt-out--assize-fold-image-try_image)). (History: a `bws-img-size` ComboboxControl was tried then retired mid-1.6.0 for GB's native support; the fold now retires the GB control in turn.)
+Moved to [`editor-controls.md` §Custom editor controls registered](editor-controls.md#custom-editor-controls-registered): which `bws-*` control type renders each option, and how. The option rows below name a control `type`; that table is where the type is described.
 
 ---
 
@@ -652,6 +641,8 @@ A constructor may legitimately place a group differently from another — the `t
 
 **Format-front is a deliberate departure from GB.** GB's own `post_date` serializes format LAST (link before `dateFormat`); we invert to format-FIRST for manual-edit copy-visibility. Everything else (`source → field → link`) mirrors GB's chain. (The `post_date` render≠serialize proof is a pure GB fact — see [`gb-constraints.md`](gb-constraints.md#serialization-order-is-independent-of-control-render-order--gb-itself-proves-it).)
 
+**[UNRELEASED]** `{{table}}`'s presentation keys (`layout`, `width`, the six text keys `color`, `fontSize`, `fontWeight`, `fontStyle`, `textAlign`, `textTransform`, then `stripe`, `border` and `borderRadius`) sort in the `source` group behind the read keys, both at tag level and as column tokens, so a tag reads `src`, then `layout`, `width`, the text keys, `stripe`, `border`, `borderRadius`, then the columns. The text keys follow the control order, which is not final: reordering the controls is a wire change. Their schema: [§Table tag](#table-tag).
+
 (No exceptions as of v1.16.0: image's former GB-native `size:` was folded into custom `as` by the `as`+`size` fold, so every option in the list above is a custom option the normalizer controls.)
 
 **Serialization order ≠ control order is intentional** (GB itself does this — see [`gb-constraints.md`](gb-constraints.md#serialization-order-is-independent-of-control-render-order--gb-itself-proves-it)). Our control order is `source → format → link → fallback` (format-early in the panel); our serialization order lifts `format` to front (`format → source → link → fallback`). The two are reconciled by a per-tag JS normalizer ([`serialization-order-normalizer.js`](../assets/js/serialization-order-normalizer.js), canonical map mirrored PHP-side in [`serialization-order.php`](../includes/helpers/serialization-order.php)) that rebuilds `extraTagParams` in the canonical serialization order inside `setState` (transform = lift `format` to front + keep each `N-` slot contiguous), gated per-tag-name via `tagSpecificControls`. Built v1.16.0 (FW-52); design rationale + build constraints (Strategy-1 `N-`-prefix block detection, registration-standardization unwind, two-writer coexistence) in [`.scratch/plans/combined-option-controls.md` §Phase 3+ + §Grill outcomes 2](../.scratch/plans/combined-option-controls.md).
@@ -670,7 +661,7 @@ Multiple conditions in one `show_if` map are AND'd. Array-of-conditions per key 
 
 **One option key per slot** (FW-56/57, v1.17.0). A multislot container registers keys `A`, `B`, … — each of type `bws-slot-fold` — and the whole slot lives in that key's **value**: its source chain, its field read, and its per-slot options. This replaces the six flat keys per slot (`{N}-src`/`ref`/`srcTermIn`/`use`/`key`/`limit`, slot 1 bare) the same containers registered through v1.16.x.
 
-**Shipped in:** `{{join}}` and `try_*` (v1.17.0). `{{table}}` arrives folded.
+**Shipped in:** `{{join}}` and `try_*` (v1.17.0). `{{table}}`'s columns are folded slots too, and were from the start: no table column was ever stored flat.
 
 ```
 {{join A:key(name_first)|B:src(same);key(name_last)}}
@@ -703,7 +694,7 @@ The **legacy `N-` sibling prefixes stay digits** (`2-src`, `2-key`). That wire w
 
 **Read axis is resolved by NAME, never by token order:** an explicit `use` names the read, except `use(key)` and `use(fixed)`, which mean "field not chosen yet" and "text not entered yet" and give way to the `key(…)` or `fixed(…)` token beside them. The flat wire reads the same way (`{{content key:foo}}` is the keyed read), so no tag changes meaning under the fold. With a field chosen the canonical spelling of a keyed read is the bare `key(x)` — `use(key)` is emitted only for the **field-pending** state (keyed read, no field yet), which the editor needs a wire spelling for because the control re-parses the value it just wrote to drive the read select. `fixed(x)` follows the same pattern: `use(fixed)` is the text-pending state, and the canonical spelling once text is entered is the bare `fixed(x)` (FW-141 02, `{{join}}` only so far — see [§Field group](#field-group)).
 
-**Container sensitivity is on the READ axis, and only on what ABSENCE means.** An explicit `use(same)` carries over everywhere. An absent read is **unconfigured** in a combining container (`{{join}}`, `{{table}}` — the slot is skipped, and skipped *before* it can feed the carry-forward) and **carry-over** in a selecting one (`try_*`). Source absence is not container-sensitive: `src(same)` carries over, an empty chain resolves against the ambient entity.
+**Container sensitivity is on the READ axis, and only on what ABSENCE means.** An explicit `use(same)` carries over everywhere. An absent read is **unconfigured** in a combining container (`{{join}}`, `{{table}}` — the slot is skipped, and skipped *before* it can feed the carry-forward) and **carry-over** in a selecting one (`try_*`). Source absence is container-sensitive in one container only: a `{{table}}` column hangs off its ROW, so its empty chain is the row (the default root `inherit`, the parent's resolved source, stripped at every column), `src(same)` at column A carries that row instead of skipping, and a chain that steps writes its root (`src(inherit;refs,x)`). Everywhere else `src(same)` carries over and an empty chain resolves against the ambient entity.
 
 **`src(same)` carries over the whole SOURCE, taxonomy step included** ([#74](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/74)). A term step is part of what a source IS, unlike `limit`, which is a *parameter of* a source and stays container-sensitive (above). Uniform across both containers and both wire eras — there is no era gate, so a legacy tag and its folded twin carry over identically. Two qualifications: a carried hop is a DEFAULT, so a slot that states its own `terms` step REPLACES it rather than colliding with it; and the hop travels with the source, so a slot stating its own root does not acquire it. Invariant: [`CONTEXT.md` I15](../CONTEXT.md).
 
@@ -757,6 +748,7 @@ In the source-agnostic architecture, each template has one GB tag registration. 
 | `email` | `'Email'` | `'cross-source'` | `mailto:` (own anchor, not `linkTo`) | Default-ON mailto wrap toggled by `noLink`; `visibility`-gated off `a`/`button`/`img`/`picture`. See [§Email tag](#email-tag). |
 | `phone` | `'Phone'` | `'cross-source'` | `tel:` (own anchor, not `linkTo`) | Default-ON tel wrap toggled by `noLink`; href rebuilt from stored value (author separators preserved); 2-tier country code; `visibility`-gated off `a`/`button`/`img`/`picture`. See [§Phone tag](#phone-tag). |
 | `join` | `'Join Fields'` | `'cross-source'` | ❌ | **Structural outlier — not a base tag.** Standalone COMBINING tag: absorbs up to 10 base `text` reads as slots and assembles all non-empty values (separator or template mode). No read of its own; no per-slot link-wrap. See [§join](#join). |
+| `table` **[UNRELEASED]** | `'Table'` | `'cross-source'` | ❌ | **Structural outlier — not a base tag.** Builds a whole `<table>`: one row per resolved source of its chain, one column per folded slot (up to 10). Output is HTML for a text-as-div host, never a `<p>`/`<span>`. See [§Table tag](#table-tag). |
 | `call` | `'Call Custom Function'` | `'post'` | ❌ | **Structural outlier — not a base tag.** Binds the loop-correct post (L1 only), then delegates to an allowlisted site PHP function; output is the function's return string, verbatim + unescaped. Type `'post'` (NOT `'cross-source'`) — no term/site/media/taxonomy features; `src` offers Current + Ref only. Ships with an empty allowlist. See [§Call tag](#call-tag). |
 
 **The `term_` modifier family is REMOVED as of v1.21.0** (FW-129) and registers no tag on any install. Its tags, its option surface, what a `{{term_*}}` string still stored in content does now that nothing registers the name, and the site-dependent question of whose tag a given `term_*` name ever was: [`deprecated-tags-options.md` §The `term_` modifier family](deprecated-tags-options.md#the-term_-modifier-family-removed-in-v1210). The replacement is a base tag with its source set to a term, and the Migration Tool writes it.
@@ -1341,6 +1333,96 @@ Pre-1.17.0 wire (`{{join key:name_first|2-key:name_last}}`) still renders — se
 translation, `'0'`, full-name dense/sparse collapse). Integration: standing matrix
 [`tools/test/join-test-matrix.md`](../tools/test/join-test-matrix.md) against the seeded testbed
 (assembly modes, absorb-visible behavior: site arm, per-slot `limit`, carry-forward, `'0'`).
+
+---
+
+<a id="table-tag"></a>
+## Table tag **[UNRELEASED]**
+
+`{{table}}` builds an HTML table from a source chain: one row per source the chain resolves to, one column per folded slot. **Structural outlier, not a base tag**, like `{{join}}` and `{{call}}`: registered unconditionally by `bws_register_table_tag()` in `includes/tags/table-tags.php` (GB type `'cross-source'`, title `'Table'`, no GB `supports`), with the pure assembly in `includes/helpers/table-helpers.php`. It is the one tag in the plugin that produces the **query loop** output shape ([§Output shape](#output-shape--terminology) says why it crosses that border).
+
+**Host.** The output is a complete `<table>`, so it belongs in a text-as-div host (the `{{content}}` precedent); inside a `<p>` or `<span>` it is invalid markup, which the tag's modal description warns about. The finished HTML still goes through the GB output boundary (`bws_gb_tag_output()`).
+
+**Rows are the chain's tail.** The tag-level `src` is a source chain, authored with the same control and root menu as a base tag's (`bws-src-chain`). Whatever the whole compiled chain resolves to is the row set, one row per resolved source, whatever its kind (`post`, `term`, `user`, `site`, `meta_row`, `query_context`). There is no kind allowlist, no minimum and no skip-if-all-empty: row count is the chain's cardinality.
+
+| Chain ends on | Rows |
+|---|---|
+| nothing (the current context) | one row |
+| `rows,<repeater>` | one per repeater row |
+| `refs,<field>` | one per related post |
+| `terms,<taxonomy>` | one per term |
+| a root naming one entity (`site`, `post,<id>`, a registered root) | one row |
+
+**The row cap is the chain's own per-hop `limit(N)`.** `{{table}}` registers no row-count option. It declares `takes_first_usable` explicitly false at registration, so a first-usable reading can never collapse it to one row ([§Collapsing tags](#collapsing-tags-first-usable-source)).
+
+**A root this render cannot use produces no table, not an empty one.** The callback asks `bws_base_read_refused()` with a serves list DERIVED by `bws_table_serves()` from the wire vocabulary (every root kind and every kind a step produces), never hand-listed, so a kind that joins the vocabulary is a valid row the day it joins. On the front end, a refused root, no rows or no columns render nothing; the editor shows a table or a placeholder instead ([`editor-tag-previews.md` §`{{table}}` preview](editor-tag-previews.md#table-preview)).
+
+**Columns are folded slots** `A`…`J`, at most `BWS_TABLE_MAX_COLS` (10; that constant's docblock says why there is a ceiling at all, and why this one). Registered by `bws_build_fold_slot_options()` (container `table`) over the shared text read leaf; [§Folded slot wire](#folded-slot-wire-multislot-containers) owns the grammar. `{{table}}` shipped folded, so no column has a flat era and no `{N}-*` key is ever read. Per column:
+
+- **Source: an empty chain is the ROW.** The default root is `inherit` (shown as "Tag Source" in the editor) and is stripped at every column, so a column that reads the row writes no `src` at all. A chain that steps from the row writes its root: `src(inherit;refs,lead_ref)`. Any other root is an escape that reads something else on every row: `src(site)`, `src(current)` (`current` is never a column's default, so it is always written). Offered steps: `refs`, `terms`, `rows`. A column root that is refused empties that column, not the table. The carry is seeded with the row, so a hand-written `src(same)` on column A carries the row.
+- **Read: keyed, analog or fixed**, the text leaf's three. A keyed read (`key(x)`) goes through the L2 read seam and works on every row kind. An analog read (`use(title)`) dispatches on the resolved kind through `bws_table_read_analog()`: post, term, user, site, and a `query_context` row's canonical heading. A `meta_row` has no analog (a repeater row is not an entity), so `use(title)` on repeater rows is an empty cell, never the ambient entity's title. A fixed read (`fixed(text)`) reads nothing and so applies on every row kind, `meta_row` included, shown wherever the column's own source resolves (`bws_fixed_text_read()` owns that rule). A column that resolves several sources on one row joins their values with `, `.
+- **Header: `header(text)`**, the column's heading cell. The token is shared grammar (it parses and round-trips in any container) but only `{{table}}` authors it. It is trimmed, and whitespace alone is no header. A `<thead>` is emitted only when at least one column has a header (`bws_table_has_header()`, which the stripe and header-line rules read too, so markup and CSS agree). A column with a header and no usable read is kept with every cell empty (a spacer or annotation column); a column with neither is dropped.
+- **A skipped column never feeds the carry**, whatever its chain says, as in `{{join}}`.
+
+**Caption and scroll region.** `caption` (optional) emits a `<caption>` and wraps the table in `<div role="region" tabindex="0" aria-labelledby="…">`, which it names; one footer rule (`BWS_TABLE_INLINE_CSS`) gives exactly that attribute triple `overflow:auto` and a focus outline, so the CSS only ever applies to a correctly labelled region. No caption means no wrapper, because a focusable region without a name would itself fail WCAG 4.1.2. Header cells carry no `scope` yet; `scope="col"` and `scope="row"` ship together with row headers (FW-164). `bws_table_assemble()`'s PHPDoc owns the markup rules.
+
+**Render order** (`bws_table_callback()`): read the columns; resolve the tag's base source and apply the refusal test; run the whole compiled chain to get the rows; for each column, compute once where its chain starts (the row, or its own root) and its steps; read every cell, row by row; build the presentation rules and assemble the table (`bws_table_html()`); hand the HTML to the GB output boundary.
+
+### Presentation
+
+**Keys.** Tag level: `layout` (`auto` or `fixed`; absent leaves the theme's layout; `layout:fixed` with no `width` renders `width:100%`), `width`, the six text keys `color`, `fontSize`, `fontWeight`, `fontStyle`, `textAlign`, `textTransform`, then `stripe`, `border` and `borderRadius`. Column tokens: `width(…)` and the same six text keys. Their serialization order is [§Option order](#option-order)'s.
+
+**Text keys.** A text key's value is `base;header,x`: the bare segment is the whole table at tag level and the body cells in a column, and `header,x` overrides it for header cells. A column's bare `textAlign` also covers its header cell; its color and font keys do not. A column value is emitted only where it differs from what the table already gives. `textAlign` takes `left`, `center`, `right` (no `justify`).
+
+**Values.** `width` is `auto`, a number with `px|em|rem|%|ch|vw`, or `var(--x)` with an optional fallback; colors are a strict allowlist (hex, `rgb()`, `rgba()`, `hsl()`, `hsla()`, `var()`, color names, `currentColor`, plus the CSS globals on text `color` only); `calc()` is never recognized. A value that fails its allowlist is dropped and flagged (the editor shows it with a repair button), never emitted; an unbalanced bracket drops the whole key.
+
+**Stripes.** `stripe:rows,odd,#eee,40%;cols` targets `rows` and `cols`, takes its args typed by value in any order (a parity, a color, an `N%` opacity), and a bare target means `even`. The header row counts as row 1: `even` shades body rows 1, 3, …, `odd` the header row and body rows 2, 4, …; a table with no `<thead>` counts from its first row. Column stripes run through the header cell. A color that carries its own alpha ignores the opacity; otherwise the stripe is `color-mix(in srgb, C N%, transparent)`. A stripe that writes neither color nor opacity uses the default, wrapped in `var(--bws-dte-table-stripe, …)` so a theme can still override it. The default is `currentColor` at 5%, set under **Settings → Tag Extensions → Table** ("Default stripe color", "Default stripe opacity"), saved through the same validators; an invalid saved value falls back to the built-in pair. Stripes paint as `background-image` gradients, so row and column stripes compound where they cross.
+
+**Borders.** `border:2px,solid,#ccc;rows,dotted` is a head-less base (a width, a style, a color and an optional `N%` opacity, typed by value in any order) with per-line overrides: `outer`, `header`, `rows` and `cols` take a width and a style only, and a line without its own follows the base. A base with a width or a style draws all four lines; a base that is only a color recolors the theme's lines and draws nothing new; a bare head under no base sets nothing, so the theme's line stays. A drawn line with no width or style anywhere is `1px solid`. A base style of `none` draws no lines, and a line named under it is drawn again (`border:none;rows,2px`). A line the key does not name is never touched. `borderRadius:outer,8px` rounds the table's corners; a bare length is reserved for cell corners, not built, and is dropped and flagged.
+
+**Where each rule is decided:** the PHPDoc of `bws_table_rules()`, `bws_table_text_for_cell()`, `bws_table_stripe_parse()`, `bws_table_border_parse()`, `bws_table_border_lines()` and `bws_head_args_items()` in `includes/helpers/table-helpers.php`. Their JS twins are in `assets/js/table-style-grammar.js`. Editor mechanism: [`editor-controls.md`](editor-controls.md#custom-editor-controls-registered).
+
+**One CSS vehicle, the scoped stylesheet**, because of kses. `wp_kses_post` on an inline `style` drops the whole attribute for `table-layout` and for every function-valued color (`rgb()`, `rgba()`, `hsl()`, `hsla()`, `color-mix()`), measured on WP 7.1.2, 2026-10-07. So nothing emitted carries an inline `style` or a `<colgroup>`, and nothing sets `display` on a table part (that strips table semantics from screen readers). Every rule goes into one stylesheet under the class `bws-dte-table-<hash>`, hashed from the built rules, so identical tables share one `<style>` and a table with no styling gets no class. One rule builder serves the front end, the editor's real table and its placeholder. The front end queues it at `wp_footer` (`bws_queue_inline_css()`); the editor preview is a REST request with no footer, so there the `<style>` travels just before the table, and a trusted user without `unfiltered_html` gets it stripped by GB's kses pass and sees an unstyled table (accepted, not worked around).
+
+**Theme behavior these keys answer to:**
+
+- **Layout differs by theme.** Twenty Sixteen sets `table-layout:fixed`, so `layout:auto` is written rather than stripped, and absence means the theme's own.
+- **Fixed layout is inert without a table width**, so `layout:fixed` brings `width:100%`. GeneratePress 3.6.1 already sets `table{width:100%}`; `width` is how an author narrows a full-width theme table.
+- **GeneratePress 3.6.1 draws a border on every cell** in the separate border model (the table draws top and left, every cell right and bottom). So `border` is never additive over the theme and never a reset of it: it sets longhand properties only, so the theme's style and color survive where nothing is set, and a named line owns BOTH edges of its boundary (set on one side, the facing side zeroed), because a neighbor's theme edge left standing still draws the line. In a collapse-model theme the outer line is the perimeter cells' edges, not the table's border, and is zeroed there too.
+- **`border` never changes the table's border model; `borderRadius` does.** A radius does not apply to a collapsed table, so `borderRadius` sets `border-collapse:separate;border-spacing:0` and clears the cell edges a collapse theme would then draw twice (in GeneratePress this changes nothing). The corners are clipped with `clip-path` on the row groups, not `overflow`, which in Chrome clips the caption too.
+
+**Options:**
+
+| Option | Type / control | Label | Notes |
+|---|---|---|---|
+| `src` | `bws-src-chain` | Source | The chain whose tail is the row set. |
+| `caption` | text | Caption | Optional. Emits `<caption>` and the labelled scroll region. |
+| `stylePreview` | `bws-table-style-preview` | Live Formatting Preview | Display-only; no value, never serialized. |
+| `layout` | `bws-table-sizing` | Column Sizing | Composite, writes `layout` + `width`. |
+| `width` | `bws-table-style-member` | Table Width | Written by the Sizing composite. |
+| `color` | `bws-table-typography` | Text Color | Composite, writes the six text keys at Table and Header. |
+| `fontSize`, `fontWeight`, `fontStyle`, `textAlign`, `textTransform` | `bws-table-style-member` | Font Size, Font Weight, Font Style, Text Alignment, Text Transform | Written by the Typography composite. |
+| `stripe` | `bws-table-stripes` | Stripes | Composite. |
+| `border` | `bws-table-borders` | Borders | Composite, writes `border` + `borderRadius`. |
+| `borderRadius` | `bws-table-style-member` | Radius | Written by the Borders composite. |
+| `A`…`J` | `bws-slot-fold` | Column A … | One folded slot per column: source chain, read, `header(…)`, `width(…)`, text tokens. |
+
+Every presentation key sits in the `style` visual group, so the composites draw as one box. Without the editor script each key is a plain GB text control, which is still valid wire.
+
+**Wire-format examples:**
+
+```
+{{table src:rows,team_members|A:header(Name);key(name)|B:header(Role);key(role)}}            → a row per repeater row
+{{table src:post,12;refs,related_staff,limit(5)|A:header(Staff);use(title)}}                  → up to 5 related posts
+{{table src:rows,team_members|A:header(Name);key(name)|B:header(Lead);src(inherit;refs,lead_ref);use(title)}}
+                                                                                              → column B hops off each row
+{{table src:post,12;terms,department|A:header(Dept);use(title)|B:header(Site);src(site);use(title)}}
+                                                                                              → a row per term; B reads the site on every row
+{{table caption:Our Team|layout:fixed|stripe:rows|A:header(Name);key(name);width(40%)}}       → captioned region, fixed layout, striped
+{{table border:1px,#888;header,3px|borderRadius:outer,8px|A:header(Name);key(name)}}          → 1px gray lines, 3px under the header, rounded corners
+```
+
+**Tests.** Pure harnesses: `table-assemble-test.php` (markup, caption-gated wrapper, rule builder, stripe counting, scope hashing), `table-rows-test.php` (row production, columns), `table-text-align-test.php`, `table-style-test.php`, `table-style-twin-test.php` (PHP↔JS agreement). Editor: `table-style-control-test.js`, `table-style-preview-test.js`. Integration and visible rows: [`tools/test/table-test-matrix.md`](../tools/test/table-test-matrix.md) against the testbed's `matrix-table` page.
 
 ---
 

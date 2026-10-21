@@ -25,6 +25,7 @@
 	var Fragment    = wp.element.Fragment;
 	var Button      = wp.components.Button;
 	var BaseControl = wp.components.BaseControl;
+	var __          = wp.i18n ? wp.i18n.__ : function ( s ) { return s; };
 
 	// --- Media picker ---
 
@@ -47,7 +48,7 @@
 		function open() {
 			if ( ! window.wp || ! wp.media ) { return; }
 			var frame = wp.media( {
-				title: 'Select Fallback Image', button: { text: 'Select' },
+				title: __( 'Select Fallback Image', 'generateblocks' ), button: { text: __( 'Select', 'generateblocks' ) },
 				multiple: false, library: { type: 'image' },
 			} );
 			frame.on( 'select', function () {
@@ -75,10 +76,10 @@
 			id
 				? el( Fragment, null,
 					el( 'img', { src: url, style: { maxWidth: '100%', maxHeight: '80px', display: 'block', marginBottom: '4px' } } ),
-					el( Button, { variant: 'secondary', onClick: open }, 'Change' ),
-					el( Button, { variant: 'link', isDestructive: true, onClick: clear, style: { marginLeft: '8px' } }, 'Remove' )
+					el( Button, { variant: 'secondary', onClick: open }, __( 'Change', 'generateblocks' ) ),
+					el( Button, { variant: 'link', isDestructive: true, onClick: clear, style: { marginLeft: '8px' } }, __( 'Remove', 'generateblocks' ) )
 				)
-				: el( Button, { variant: 'secondary', onClick: open }, 'Select Image' )
+				: el( Button, { variant: 'secondary', onClick: open }, __( 'Select Image', 'generateblocks' ) )
 		);
 	}
 
