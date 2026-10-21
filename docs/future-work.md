@@ -819,6 +819,18 @@ Open: Whether to read that setting alone (generic, and empty on a Core Framework
 
 Blocked by: —  •  Interacts with: FW-163 (the table's typography controls), FW-120 (`{{join}}` gains per-slot typography in its rebuild, so the same Font Size field)
 
+#### FW-173 — Match GB Pro's setting-field layout on the settings screen more closely
+
+The Tag Extensions settings screen takes GB Pro's design tokens and plain-element classes but keeps WordPress's field layout: a checkbox beside its label, and a label column left of the control. GB Pro's own settings screens stack a small-caps label, the input (with its unit inside) and the help text, and put an on/off setting's toggle at the right edge of a row with the help text under its label. Matching that would make the screen read as one of Pro's.
+
+Detail home: this row
+
+Progress: Not started; the gap was noted 2026-10-21 from screenshots of GB Pro's Global Max-Width field and Overlay panels toggle, after the restyle in PR #152 took the tokens and card frame but not the field layout. Not a change to any setting or stored value.
+
+Open: Which of the three to adopt: toggle placement (right-aligned in the row), the stacked label / input / help layout for text and number fields, and the toggle switch in place of the checkbox. Whether a switch can be built from plain markup and the tokens alone, or would mean copying a Pro control, which the restyle ruled out. Which of the screen's controls are on/off settings (`try_` tags, email obfuscation, the phone strip option) and which are values (the phone country code, the table stripe color and opacity), since only the first group takes a toggle. A switch must stay a real checkbox underneath, so the label, keyboard and screen-reader behavior are unchanged.
+
+Blocked by: —  •  Interacts with: FW-172 (screen-reader pass; a switch is a control that pass would have to cover)
+
 ### Testing & infrastructure
 
 #### FW-96 — Dependency replay over the harvest corpus
