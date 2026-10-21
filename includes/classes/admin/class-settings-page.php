@@ -737,29 +737,6 @@ class SettingsPage {
 			<form method="post" action="options.php" id="bws-settings-form">
 				<?php settings_fields( 'bws_dynamic_tags_settings_group' ); ?>
 
-				<?php /* ── Modifier Groups ── */ ?>
-				<div class="bws-tag-group">
-					<h2 class="bws-section-header"><?php esc_html_e( 'Modifier Groups', 'generateblocks' ); ?></h2>
-					<div class="bws-card">
-					<table class="bws-tags-table widefat">
-						<tbody>
-							<tr class="bws-tag-row">
-								<td class="bws-tag-checkbox">
-									<input type="checkbox" id="bws-modifier-try"
-										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[modifiers][try]"
-										value="1" <?php checked( self::is_modifier_enabled( 'try' ) ); ?> />
-								</td>
-								<td>
-									<label for="bws-modifier-try"><?php esc_html_e( 'try_ tags', 'generateblocks' ); ?></label>
-									<code class="bws-tag-name">try_</code>
-									<p class="description"><?php esc_html_e( 'Fallback-chain tags (try_text, try_image, etc.).', 'generateblocks' ); ?></p>
-								</td>
-							</tr>
-						</tbody>
-					</table>
-					</div>
-				</div>
-
 				<?php /* ── Email ── */ ?>
 				<div class="bws-tag-group">
 					<h2 class="bws-section-header"><?php esc_html_e( 'Email', 'generateblocks' ); ?></h2>
@@ -774,7 +751,7 @@ class SettingsPage {
 								</td>
 								<td>
 									<label for="bws-email-obfuscate"><?php esc_html_e( 'Obfuscate email addresses (anti-harvest)', 'generateblocks' ); ?></label>
-									<p class="description"><?php esc_html_e( 'Encode addresses output by the {{email}} tag with antispambot() to deter naive harvesters. Disable if a clean mailto: href is needed (e.g. analytics).', 'generateblocks' ); ?></p>
+									<p class="description"><?php printf( /* translators: %s: the email tag name. */ esc_html__( 'Encode addresses output by the %s tag with antispambot() to deter naive harvesters. Disable if a clean mailto: href is needed (e.g. analytics).', 'generateblocks' ), '<code>email</code>' ); ?></p>
 								</td>
 							</tr>
 						</tbody>
@@ -798,8 +775,8 @@ class SettingsPage {
 								<td>
 									<label for="bws-phone-country-code"><?php esc_html_e( 'Default country code', 'generateblocks' ); ?></label>
 									<p class="description">
-										<?php esc_html_e( 'Default country code (digits only, no +) for {{phone}} tel: links when a number has no international prefix. Leave empty for national-only tel: links.', 'generateblocks' ); ?>
-										<a href="https://www.countrycode.org" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Country code reference', 'generateblocks' ); ?></a>
+										<?php printf( /* translators: %s: the phone tag name. */ esc_html__( 'Default country code (digits only, no +) for %s tel: links when a number has no international prefix. Leave empty for national-only tel: links.', 'generateblocks' ), '<code>phone</code>' ); ?>
+										<a href="https://www.countrycode.org" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Country code reference', 'generateblocks' ); ?><span class="screen-reader-text"><?php esc_html_e( '(opens in a new tab)', 'generateblocks' ); ?></span><span class="dashicons dashicons-external bws-external-icon" aria-hidden="true"></span></a>
 									</p>
 								</td>
 							</tr>
@@ -811,13 +788,13 @@ class SettingsPage {
 								</td>
 								<td>
 									<label for="bws-phone-strip-cc"><?php esc_html_e( 'Strip unseparated leading digit(s) matching the default country code', 'generateblocks' ); ?></label>
-									<p class="description"><?php esc_html_e( 'For numbers stored with the country code run straight into the number and no +, such as 18005551212 with a default country code of 1. Numbers where the code is set off by a space, dash or +, such as +1 800 555 1212, are already handled and need no setting. Requires a default country code above.', 'generateblocks' ); ?></p>
+									<p class="description"><?php esc_html_e( 'Requires a default country code above. Only applies to numbers stored with the country code run straight into the number without a +, such as 18005551212, not when the code is set off by a space, dash or +, as in +1 800 555 1212.', 'generateblocks' ); ?></p>
 									<?php /* The warning is a separate element so it is not read as part of the description. */ ?>
 									<div class="gp-notice gp-notice--warn bws-notice">
 										<span class="gp-notice__status"><span class="gp-status-dot gp-status-dot--warn" aria-hidden="true"></span></span>
 										<div class="gp-notice__content">
 											<span class="screen-reader-text"><?php esc_html_e( 'Warning:', 'generateblocks' ); ?></span>
-											<?php esc_html_e( 'With nothing to mark where the code ends, a national number that happens to begin with the same digits loses its first digit, for example a number starting 1860 with a default code of 1. Turn this on only if your stored numbers consistently carry the extra country code.', 'generateblocks' ); ?>
+											<?php esc_html_e( 'A number stored without a country code that has an area code or subscriber number beginning with the same digits as the default country code will lose those digits. Turn this on only if your stored numbers consistently carry the country code.', 'generateblocks' ); ?>
 										</div>
 									</div>
 								</td>
@@ -843,7 +820,7 @@ class SettingsPage {
 								</td>
 								<td>
 									<label for="bws-table-stripe-color"><?php esc_html_e( 'Default stripe color', 'generateblocks' ); ?></label>
-									<p class="description"><?php esc_html_e( 'The color of a {{table}} stripe that does not set its own. Use a hex value, rgb(), rgba(), hsl(), hsla(), var(), currentColor, or a color name. An unrecognized value falls back to currentColor, the text color, which stays visible on any theme.', 'generateblocks' ); ?></p>
+									<p class="description"><?php printf( /* translators: %s: the table tag name. */ esc_html__( 'The color of a %s stripe that does not set its own. Use a hex value, rgb(), rgba(), hsl(), hsla(), var(), currentColor, or a color name. An unrecognized value falls back to currentColor, the text color, which stays visible on any theme.', 'generateblocks' ), '<code>table</code>' ); ?></p>
 								</td>
 							</tr>
 							<tr class="bws-tag-row">
@@ -858,7 +835,29 @@ class SettingsPage {
 								</td>
 								<td>
 									<label for="bws-table-stripe-opacity"><?php esc_html_e( 'Default stripe opacity', 'generateblocks' ); ?></label>
-									<p class="description"><?php esc_html_e( 'How strong a {{table}} stripe is when it does not set its own, from 0 to 100. A color that carries its own transparency ignores this. A theme can still override the stripe in CSS with --bws-dte-table-stripe.', 'generateblocks' ); ?></p>
+									<p class="description"><?php printf( /* translators: %s: the table tag name. */ esc_html__( 'How strong a %s stripe is when it does not set its own, from 0 to 100. A color that carries its own transparency ignores this. A theme can still override the stripe in CSS with --bws-dte-table-stripe.', 'generateblocks' ), '<code>table</code>' ); ?></p>
+								</td>
+							</tr>
+						</tbody>
+					</table>
+					</div>
+				</div>
+
+				<?php /* ── Multi-attempt tags ── */ ?>
+				<div class="bws-tag-group">
+					<h2 class="bws-section-header"><?php esc_html_e( 'Multi-Attempt Tags', 'generateblocks' ); ?></h2>
+					<div class="bws-card">
+					<table class="bws-tags-table widefat">
+						<tbody>
+							<tr class="bws-tag-row">
+								<td class="bws-tag-checkbox">
+									<input type="checkbox" id="bws-modifier-try"
+										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[modifiers][try]"
+										value="1" <?php checked( self::is_modifier_enabled( 'try' ) ); ?> />
+								</td>
+								<td>
+									<label for="bws-modifier-try"><?php esc_html_e( 'Enable multi-attempt tags', 'generateblocks' ); ?></label>
+									<p class="description"><?php printf( /* translators: 1: an example multi-attempt tag name, 2: another example tag name. */ esc_html__( 'Multi-attempt tags (%1$s, %2$s, etc.) that return the first attempt with a value.', 'generateblocks' ), '<code>try_text</code>', '<code>try_image</code>' ); ?></p>
 								</td>
 							</tr>
 						</tbody>
@@ -873,7 +872,7 @@ class SettingsPage {
 					<div class="bws-card">
 					<div class="bws-section-desc">
 						<p style="margin-top:0">
-							<?php esc_html_e( 'Custom functions must take a post ID as their first argument, sanitize their own output (HTML is allowed in the return string), and be registered via `bws_register_call_function()`:', 'generateblocks' ); ?>
+							<?php printf( /* translators: %s: the function name used to register a custom function. */ esc_html__( 'Custom functions must take a post ID as their first argument, sanitize their own output (HTML is allowed in the return string), and be registered via %s:', 'generateblocks' ), '<code>bws_register_call_function()</code>' ); ?>
 						</p>
 						<pre class="bws-code-block"><code>add_action( 'init', function () {
     bws_register_call_function( 'my_result' );
@@ -883,7 +882,7 @@ function my_result( $post_id, $arg = '' ) {
     return '&lt;span&gt;' . esc_html( get_the_title( $post_id ) ) . '&lt;/span&gt;';
 }</code></pre>
 						<p style="margin:0">
-							<?php esc_html_e( 'Properly registered functions will appear in the {{call}} tag\'s Function dropdown for easy access. Manually inserting an unregistered function in a {{call}} tag will cause it to return the tag\'s fallback text, if available, or return empty.', 'generateblocks' ); ?>
+							<?php printf( /* translators: %s: the call tag name. */ esc_html__( 'Properly registered functions will appear in the %1$s tag\'s Function dropdown for easy access. Manually inserting an unregistered function in a %1$s tag will cause it to return the tag\'s fallback text, if available, or return empty.', 'generateblocks' ), '<code>call</code>' ); ?>
 						</p>
 					</div>
 					<h3 class="bws-subhead"><?php esc_html_e( 'Registered Functions', 'generateblocks' ); ?></h3>
@@ -995,9 +994,15 @@ function my_result( $post_id, $arg = '' ) {
 					<?php /* US 26 — DISCLOSURE, not enumeration. A reported count with no stated
 					        boundary reads as a completeness claim it cannot back; an inventory
 					        answers a different question ("so I can go fix them"), deferred to #100. */ ?>
-					<p class="description bws-section-desc">
-						<?php esc_html_e( 'Covers post content and the block pattern cache. Tag strings stored elsewhere, such as in custom field values or another plugin\'s cache, are not reached by this tool.', 'generateblocks' ); ?>
-					</p>
+					<div class="bws-section-desc">
+						<div class="gp-notice bws-notice bws-notice--info">
+							<span class="gp-notice__status"><span class="gp-status-dot" aria-hidden="true"></span></span>
+							<div class="gp-notice__content">
+								<span class="screen-reader-text"><?php esc_html_e( 'Note:', 'generateblocks' ); ?></span>
+								<?php esc_html_e( 'Covers post content and the block pattern cache. Tag strings stored elsewhere, such as in custom field values or another plugin\'s cache, are not reached by this tool.', 'generateblocks' ); ?>
+							</div>
+						</div>
+					</div>
 
 					<?php
 					$live_option_groups    = self::group_option_entries_by_transform( $live_option_entries );
@@ -1067,9 +1072,9 @@ function my_result( $post_id, $arg = '' ) {
 					        actually repairing already-converted sites. The element is rendered
 					        even when empty so the AJAX handlers can fill it without a reload. */ ?>
 					<div class="bws-pattern-cache">
-						<p class="description"><?php esc_html_e( 'Block pattern caches are reconciled on every scan and migration, so the pattern library stops handing out pre-migration tags.', 'generateblocks' ); ?></p>
-						<p class="description bws-pattern-cache-status" id="bws-pattern-cache-status" aria-live="polite">
-							<?php echo esc_html( PatternCache::format_status( PatternCache::get_status() ) ); ?>
+						<p class="description bws-pattern-cache-status" aria-live="polite">
+							<?php esc_html_e( 'Block pattern caches are automatically reconciled on every scan and migration.', 'generateblocks' ); ?>
+							<span id="bws-pattern-cache-status"><?php echo esc_html( PatternCache::format_status( PatternCache::get_status() ) ); ?></span>
 						</p>
 					</div>
 
@@ -1292,7 +1297,7 @@ function my_result( $post_id, $arg = '' ) {
 										?>
 										<span class="gp-status-dot <?php echo 'warn' === $bws_c_state['icon'] ? 'gp-status-dot--error' : 'gp-status-dot--idle'; ?>" aria-hidden="true"></span>
 									</td>
-									<td><code><?php echo esc_html( '{{' . $bws_collision['tag'] . '}}' ); ?></code></td>
+									<td><code><?php echo esc_html( $bws_collision['tag'] ); ?></code></td>
 									<?php
 									// The status text IS the legend heading below, word for word. That
 									// is what links a row to the paragraph explaining it, with no

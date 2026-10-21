@@ -182,6 +182,8 @@
 	padding: 0;
 	border: 0;
 }
+.bws-dynamic-tags-settings .bws-section-desc .bws-notice { margin: 0; }
+.bws-dynamic-tags-settings .bws-notice.bws-notice--info .gp-status-dot { background: var(--bws-accent); }
 .bws-dynamic-tags-settings .bws-notice .gp-notice__status { display: inline-flex; align-items: center; height: 19px; }
 .bws-dynamic-tags-settings .bws-notice .gp-status-dot { display: block; flex: 0 0 7px; margin: 0; background: var(--bws-warn); }
 .bws-dynamic-tags-settings .bws-notice .gp-notice__content {
@@ -276,10 +278,9 @@
 	padding: 20px var(--bws-pad-x);
 }
 .bws-dynamic-tags-settings .bws-scan-status { color: var(--bws-muted); font-size: var(--gp-size-meta, 13px); }
-/* The two pattern-cache lines read as one block: what the scan does to the cache, then how it stands. */
+/* The pattern-cache line: what the scan does to the cache, then how it stands. */
 .bws-dynamic-tags-settings .bws-pattern-cache { padding: 0 var(--bws-pad-x) 20px; }
 .bws-dynamic-tags-settings .bws-pattern-cache p { margin: 0; }
-.bws-dynamic-tags-settings .bws-pattern-cache p + p { margin-top: 2px; }
 .bws-dynamic-tags-settings .bws-scan-exemption { padding: 0 var(--bws-pad-x) 12px; }
 .bws-dynamic-tags-settings .bws-scan-exemption .bws-notice { margin: 0; }
 .bws-dynamic-tags-settings .bws-scan-exemption p { margin: 0; }
@@ -340,3 +341,14 @@
 .bws-dynamic-tags-settings .bws-progress-wrap { display: flex; flex: 1; align-items: center; gap: 8px; min-width: 200px; }
 .bws-dynamic-tags-settings .bws-progress-bar { flex: 1; height: 8px; overflow: hidden; border-radius: 4px; background: var(--bws-fill-strong); }
 .bws-dynamic-tags-settings .bws-progress-fill { width: 0; height: 100%; background: var(--bws-accent); transition: width 0.2s; }
+
+/* ── External link: new-tab icon trailing the link text ── */
+.bws-dynamic-tags-settings .bws-external-icon {
+	width: 1em;
+	height: 1em;
+	margin-inline-start: 3px;
+	font-size: 14px;
+	line-height: 1;
+	vertical-align: -2px;
+	text-decoration: none;
+}
