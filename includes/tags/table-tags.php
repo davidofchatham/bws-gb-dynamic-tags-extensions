@@ -264,11 +264,11 @@ function bws_table_column_start( ?array $opts, string $explicit_id, $instance ) 
 	if ( null === $opts ) {
 		return false;
 	}
-	$root = bws_fold_src_root_token( $opts );
+	$res  = bws_base_src_resolution( $opts );
+	$root = $res['root'];
 	if ( '' === $root || BWS_FOLD_INHERIT_ROOT === $root ) {
 		return null;
 	}
-	$res = bws_base_src_resolution( $opts );
 	if ( '' !== $explicit_id && 'site' !== $res['kind'] ) {
 		$opts['id'] = $explicit_id;
 	}

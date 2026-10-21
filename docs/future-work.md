@@ -151,13 +151,17 @@ Open: Whether the radio as built fits the next deprecation window or needs resha
 
 Blocked by: — (reviewed when a deprecation window opens)  •  Interacts with: FW-153 (the same deprecation-window affordance class), FW-81 (the likely first window), FW-38 (`registered_by` / `lifecycle`), FW-33 (closed)
 
-#### FW-106 — The resolved chain is re-derived, not passed
+#### FW-106 — The chain parse is passed in some places and re-read in others
 
-"Which entity does this wire read from" is answered repeatedly within one render, from the same string, by three differently-named, non-memoizing functions (`bws_base_src_resolution`, `bws_fold_src_root_token`, `bws_resolve_base_source`).
+"Which entity does this wire read from" is answered repeatedly within one render, from the same string, by several differently-named, non-memoizing readers (`bws_base_src_resolution`, `bws_fold_src_root_token`, `bws_fold_src_root_arg`, the step assembly, all over `bws_fold_chain_from_options`). A structural concern, not a cost one: the convention of passing the resolution down already exists (`bws_base_read_refused()` takes it) and some sites skip it.
 
 Detail home: `.scratch/plans/architecture-review-2026-08.md` §FW-106
 
-Progress: Traced 2026-08-29 — a bare `{{text}}` on a term archive re-parses the chain 3x across 9 files / 14 hops; a folded `try_` slot re-parses 5x per slot, including once on a string the seam had just emitted. That `try_` count was traced through the pre-1.21.0 closure, which FW-136 deleted; an attempt now reads through its base tag's resolve seam, and the count on that path has not been re-traced. Does not re-open ADR 0002, which governs L1's resolved SOURCE (a binding); this concerns the CHAIN (a parse result).
+Progress: Reassessed 2026-10-21. Cost measured: one parse is 0.5 to 6 µs (empty chain 0.51, flat `src:ref` 0.73, two-step chain 6.14), so 3 to 5 parses per slot is at most ~30 µs and performance is not the motive. Counts read from source, not measured: a bare `{{text}}` on a term archive still parses 3x (`bws_base_src_resolution` in the resolve seam, `bws_fold_src_root_token` in the factory, a second resolution inside `bws_base_ambient_analog()` that its caller already holds). The 2026-08-29 `try_` count of 5x was the closure FW-136 deleted; an attempt now runs the same resolve seam as its base tag, so the count matches the base path, plus the slot-value parse. The count has grown since, not shrunk: `{{table}}` read the root token and the resolution on adjacent lines in `bws_table_column_start()` (closed, below) and resolves once more at the tag level's refusal test, which reads different options and is not a repeat. The "last to do" precondition (FW-113 removing the other dispatch sites) is met in effect; its remainder waits on FW-81. Does not re-open ADR 0002, which governs L1's resolved SOURCE (a binding); this concerns the CHAIN (a parse result).
+
+Open: Do not build the parse-once record standalone: the gain is drift resistance (CONTEXT.md I16), not speed, and a standalone pass would be redone on the seam FW-81 merges. Expected to follow from FW-81: one resolve seam parses once at its top and passes the resolution into `bws_base_ambient_analog()` and the factory. Memoizing `bws_fold_chain_from_options()` was considered and rejected (nothing measurable to buy, cache state in the harnesses). The one standalone-safe slice, `{{table}}`'s adjacent double read in `bws_table_column_start()`, shipped 2026-10-21 (find it with `git log -S'$root = $res' -- includes/tags/table-tags.php`): one resolution read per column, the root taken from it. Measured unchanged on served, refused and `inherit` column roots, and a clean page-snapshot run.
+
+Blocked by: FW-81  •  Interacts with: FW-113 (its remainder waits on the same merge), FW-120 (the parse half of the same re-derivation), FW-136 (closed; deleted the `try_` closure the old count was traced through)
 
 Open: Fix shape is parse-once-pass-down, with the three names becoming accessors on the record. Largest blast radius of the ten review candidates, and reads better after FW-113.
 
