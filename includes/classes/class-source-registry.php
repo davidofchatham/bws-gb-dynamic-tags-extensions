@@ -32,7 +32,7 @@ class SourceRegistry {
 		$key = $source->get_source_key();
 		self::$sources[ $key ] = $source;
 
-		if ( Admin\SettingsPage::is_registration_logging_enabled() ) {
+		if ( \bws_registration_logging_enabled() ) {
 			error_log( sprintf(
 				'[BWS Dynamic Tags] Source registered: key="%s" class="%s"',
 				$key,
@@ -239,7 +239,7 @@ class SourceRegistry {
 
 		$count_before = count( self::$sources );
 
-		if ( Admin\SettingsPage::is_registration_logging_enabled() ) {
+		if ( \bws_registration_logging_enabled() ) {
 			// WP_Hook doesn't implement Countable on PHP 8.x — count its callbacks array directly.
 			$wp_hook      = $GLOBALS['wp_filter']['bws_dynamic_tags_register_sources'] ?? null;
 			$listeners    = $wp_hook instanceof \WP_Hook ? count( $wp_hook->callbacks ) : 0;
@@ -278,7 +278,7 @@ class SourceRegistry {
 		// The FILTER route, last: class-route registrations win a key collision (#83).
 		self::register_filtered_roots();
 
-		if ( Admin\SettingsPage::is_registration_logging_enabled() ) {
+		if ( \bws_registration_logging_enabled() ) {
 			$action_added = count( self::$sources ) - $count_before;
 			error_log( sprintf(
 				'[BWS Dynamic Tags] bws_dynamic_tags_register_sources complete: %d pre-init + %d action-registered external source(s), total=%d (keys: %s)',

@@ -102,7 +102,7 @@ If you use GB's `{{featured_image key:alt|…}}` for alt text, an image that exi
 
 ### `content`: Output long-form content
 
-One portable tag for long-form content in any context. GeneratePress's Post Content block is the only native way to output full post content, and GenerateBlocks' `{{archive_description}}` covers term, post type and author descriptions but is empty outside an archive. `content` returns whichever fits where it renders: post content, term description, user bio, post type description, or GeneratePress's "not found" text on a 404.
+One portable tag for long-form content in any context. GeneratePress's Post Content block is the only native way to output full post content, and GenerateBlocks' `archive_description` covers term, post type and author descriptions but is empty outside an archive. `content` returns whichever fits where it renders: post content, term description, user bio, post type description, or GeneratePress's "not found" text on a 404.
 
 - **Post content renders safely inside a tag.** Blocks render as they would on the post itself, their CSS is gathered into the page footer, and a post that ends up showing itself is cut off instead of looping.
 - **Excerpt** returns the post excerpt instead, and **a field key** returns any long-form field, from a related post or a repeater row as much as from the page itself.

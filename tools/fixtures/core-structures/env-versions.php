@@ -61,6 +61,12 @@ return array(
 	// The date the baseline under `tools/test/snapshots/` was captured. Prose only —
 	// nothing compares it; it is here so a reader can place the record in time.
 	//
+	// 2026-10-21: a DEPENDENCY MOVE. GenerateBlocks 2.4.1 -> 2.5.0, GB Pro 2.7.1 -> 2.8.0 and
+	// WooCommerce 11.2.0 -> 11.2.1 moved NO line. The three lines that moved are Slim SEO 4.11.4
+	// (unversioned here, active-set only): the `slim-seo-schema` JSON-LD `@id`s on `ctx-404`,
+	// `ctx-date-202607` and `ctx-search` gained a trailing slash, its changelog's "schema @id
+	// URL consistency" fix. Active set unchanged.
+	//
 	// 2026-10-16: {{table}} analog columns (`use:title`) render. TB3's Lead column moved from
 	// empty to `Jane Partner` / empty; nothing else moved. Dependency versions and the active
 	// set unchanged.
@@ -119,7 +125,7 @@ return array(
 	// The 2026-09-14 capture is WooCommerce joining the fixture site (chrome only, no
 	// rendered tag moved); the 2026-09-03 one is where the head-deletion rule arrived — a
 	// reader hitting an ~800-line deletion further back in `git log` is looking at that.
-	'captured' => '2026-10-15',
+	'captured' => '2026-10-21',
 
 	// WordPress core, as `get_bloginfo( 'version' )` reports it. A change is a WARNING like a
 	// plugin version change, never a failure. First recorded 2026-09-25, read off the site
@@ -175,12 +181,12 @@ return array(
 	'plugins'  => array(
 		'generateblocks/plugin.php' => array(
 			'label'    => 'GenerateBlocks',
-			'version'  => '2.4.1',
+			'version'  => '2.5.0',
 			'required' => true,
 		),
 		'generateblocks-pro/plugin.php' => array(
 			'label'    => 'GenerateBlocks Pro',
-			'version'  => '2.7.1',
+			'version'  => '2.8.0',
 			'required' => true,
 		),
 		// Recorded for a reason no fixture row shows: it supplies no row's content, it
@@ -202,7 +208,7 @@ return array(
 		// naming WooCommerce is a better failure than 19 page diffs with no stated cause.
 		'woocommerce/woocommerce.php' => array(
 			'label'    => 'WooCommerce',
-			'version'  => '11.2.0',
+			'version'  => '11.2.1',
 			'required' => true,
 		),
 	),

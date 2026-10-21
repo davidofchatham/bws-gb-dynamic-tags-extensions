@@ -1488,15 +1488,7 @@ deterministic and idempotent, which a rebuild is not.
 existing allowlist rebuild), the on-upgrade pass in
 `bws_dynamic_tags_rebuild_allowlist_on_upgrade()`, and "Scan All Content".
 
-**Reporting.** A persisted summary in option `bws_dynamic_tags_pattern_cache_status`, shape
-`{ checked, reconciled, time, trigger, version }`, written on **every** run including zero-count
-ones — writing only on non-zero would make absence ambiguous again, which is this defect in
-miniature. Two numbers rather than one because a bare reconciled-count cannot distinguish "nothing
-needed fixing" from "nothing was checked". `trigger` and `version` are untranslated slugs, stored
-but never rendered: the upgrade trigger fires once per version change and cannot be replayed, so
-they are the only retroactive evidence that it ran. Rendered by `PatternCache::format_status()` as
-a persistent line in the Migration Tool box, and refreshed from both AJAX handlers so an
-un-reloaded page shows the run that just ran.
+**Reporting.** A persisted summary in option `bws_dynamic_tags_pattern_cache_status`, shape `{ checked, reconciled, time, trigger, version }`, written on **every** run including zero-count ones — writing only on non-zero would make absence ambiguous again, which is this defect in miniature. Two numbers rather than one because a bare reconciled-count cannot distinguish "nothing needed fixing" from "nothing was checked". `trigger` and `version` are untranslated slugs, stored but never rendered: the upgrade trigger fires once per version change and cannot be replayed, so they are the only retroactive evidence that it ran. Rendered by `PatternCache::format_status()` as the status half of one persistent sentence in the Migration Tool box ("Block pattern caches are automatically reconciled on every scan and migration. As of <time>: 1 pattern, all current."): the settings page prints the first half, and the formatter's output, which opens "As of <time>:", is the only part the two AJAX handlers replace, so an un-reloaded page shows the run that just ran.
 
 **Scope, stated to the user.** The Migration Tool section names its boundary (post content and the block pattern cache; not custom field values or other plugins' caches). Rewriting block widgets is tracker row FW-73; reporting a retiring tag name found in custom fields or options is FW-128.
 

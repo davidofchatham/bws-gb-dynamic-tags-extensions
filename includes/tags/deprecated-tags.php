@@ -1516,19 +1516,20 @@ function bws_modifier_skip_reason( array $options, string $root ): string {
  * them would put a second gate beside the opt-in and train click-through on the one gate
  * that can damage content.
  *
- * `%1$s` is the tag name, `%2$d` the number of stored strings.
+ * `%1$s` is the tag name. The count of stored strings is not in the sentence: the report
+ * states it beside the posts it was found in, where a plural can agree with it.
  *
  * @since 1.20.0
  * @return array<string, string> Reason → wording.
  */
 function bws_modifier_skip_report_lines(): array {
 	return array(
-		/* translators: 1: tag name, 2: number of stored tag strings. */
-		'tax_without_id'    => __( '%1$s names a taxonomy but no specific term, and a tag that states a taxonomy reads it differently. The %2$d stored tags are unchanged and still render what they render today.', 'generateblocks' ),
-		/* translators: 1: tag name, 2: number of stored tag strings. */
-		'bare_arg_root'     => __( '%1$s names a source that needs a specific term or post, with none given. The %2$d stored tags are unchanged and still render what they render today.', 'generateblocks' ),
-		/* translators: 1: tag name, 2: number of stored tag strings. */
-		'unusable_id'       => __( '%1$s names a term or post that is not a plain ID number, which the replacement tag cannot carry. The %2$d stored tags are unchanged and still render what they render today.', 'generateblocks' ),
+		/* translators: %1$s: tag name. */
+		'tax_without_id'    => __( '%1$s names a taxonomy but no specific term, and a tag that states a taxonomy reads it differently. These tags are unchanged and still render what they render today.', 'generateblocks' ),
+		/* translators: %1$s: tag name. */
+		'bare_arg_root'     => __( '%1$s names a source that needs a specific term or post, with none given. These tags are unchanged and still render what they render today.', 'generateblocks' ),
+		/* translators: %1$s: tag name. */
+		'unusable_id'       => __( '%1$s names a term or post that is not a plain ID number, which the replacement tag cannot carry. These tags are unchanged and still render what they render today.', 'generateblocks' ),
 	);
 }
 

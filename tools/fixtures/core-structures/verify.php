@@ -535,9 +535,11 @@ $check(
 if ( $trust_ready ) {
 	// P1 — the save gate's `applies` predicate SEES our tags. Asserted against the
 	// seeded page's own content so the markup is real rather than hand-built to pass.
+	// `false` = the content is unslashed, which is how GB's own rule calls it since 2.5.0
+	// (older GB ignores the extra argument and unslashes unconditionally).
 	$check(
 		'P1 applies: GB scans a GB block carrying one of our tags',
-		true === GenerateBlocks_Dynamic_Tag_Security::should_validate_content( $page->post_content )
+		true === GenerateBlocks_Dynamic_Tag_Security::should_validate_content( $page->post_content, false )
 	);
 
 	// The two negative controls are what make P1 mean something — a predicate that
@@ -546,12 +548,13 @@ if ( $trust_ready ) {
 	// this to a name list, our tags leave the gate silently and the first control flips.
 	$check(
 		'P1 control: one of our tags OUTSIDE a GB block is not scanned',
-		false === GenerateBlocks_Dynamic_Tag_Security::should_validate_content( '<p>{{phone key:main_line}}</p>' )
+		false === GenerateBlocks_Dynamic_Tag_Security::should_validate_content( '<p>{{phone key:main_line}}</p>', false )
 	);
 	$check(
 		'P1 control: a GB block carrying no tag is not scanned',
 		false === GenerateBlocks_Dynamic_Tag_Security::should_validate_content(
-			"<!-- wp:generateblocks/text {\"tagName\":\"p\"} -->\n<p>plain</p>\n<!-- /wp:generateblocks/text -->"
+			"<!-- wp:generateblocks/text {\"tagName\":\"p\"} -->\n<p>plain</p>\n<!-- /wp:generateblocks/text -->",
+			false
 		)
 	);
 

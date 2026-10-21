@@ -254,7 +254,7 @@ Always use this helper for content-template callbacks. Other text-template callb
 
 ## Debug logging
 
-`bws_content_debug( string $message )` is **gated solely** by the admin setting "Enable benchmark logging" (`SettingsPage::is_benchmark_logging_enabled()`). `WP_DEBUG` no longer activates it — that was changed because debug-on-WP_DEBUG bypassed the user-facing toggle entirely.
+`bws_content_debug( string $message )` is **gated solely** by the `bws_dynamic_tags_benchmark_logging` filter (`bws_benchmark_logging_enabled()`, default off; see [plugin-integration.md §11](plugin-integration.md#11-diagnostic-filters)). `WP_DEBUG` does not activate it.
 
 When enabled, output goes to `error_log()` prefixed `[BWS Content]`.
 

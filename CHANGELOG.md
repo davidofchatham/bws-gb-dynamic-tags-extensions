@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file. The format is b
 ### Highlights
 
 - A new `{{table}}` tag builds a real HTML table from one tag: one row for each repeater row, related post or term its source reaches, with up to 10 columns, headers, a caption and its own styling. *(Added)*
+- The Tag Extensions settings page is restyled to match GenerateBlocks Pro's admin screens, with a sticky Save header and the Migration Tool gathering the deprecated and removed entries. *(Changed)*
 
 ### Added
 
@@ -16,8 +17,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Changed
 
-- **For plugin developers: `inherit`, `parent`, `ancestor`, `children` and `siblings` can no longer be used as a chain-root key.** A root declared through `bws_dynamic_tags_chain_roots` under any of these names is skipped, like `same` and the step names already are: `inherit` is the table columns' "Tag Source" root, and the other four are reserved for later steps that follow the WordPress parent/child hierarchy of posts and terms. See [`docs/plugin-integration.md`](docs/plugin-integration.md) §1a.
+- **The scan report now says where a declined or skipped tag was found.** Each row in the Migration Tool's declined and skipped sections lists the first three posts holding the tag, linked to their editors, followed by "and N more" for the rest. Before, a row said how many stored tags it covered but not where they were. The stored-tag count moves out of the row's sentence and into its own line, shown only when it is higher than the post count, so it can agree with its noun ("1 stored tag", "4 stored tags").
+- **The Tag Extensions settings page is restyled to match GenerateBlocks Pro's admin screens.** It borrows Pro's stylesheets when they are present, so the page looks native beside them and stays a plain WordPress page without them. Save Settings now sits in a header that stays on screen as you scroll, and each section is a card. Removed Tags, Deprecated Options and Removed Options are no longer sections of their own: they are one "Deprecated and removed entries" block inside the Migration Tool card, above the scan. The "try_ tags" checkbox is now "Enable multi-attempt tags" in its own Multi-Attempt Tags section. Scan results swap their warning symbols for status dots, each row's checkbox and Migrate button names its post for screen readers, and the pattern cache line reads "Block pattern caches are automatically reconciled on every scan and migration. As of <time>: …". Tag names in the page's help text read as plain code, without braces. No setting changes.
 - In the editor's source menu, the group of steps that build on the current context is now headed "Starting from Current Context" (was "From Current Context"). The steps and what they write are unchanged.
+- **For plugin developers: `inherit`, `parent`, `ancestor`, `children` and `siblings` can no longer be used as a chain-root key.** A root declared through `bws_dynamic_tags_chain_roots` under any of these names is skipped, like `same` and the step names already are: `inherit` is the table columns' "Tag Source" root, and the other four are reserved for later steps that follow the WordPress parent/child hierarchy of posts and terms. See [`docs/plugin-integration.md`](docs/plugin-integration.md) §1a.
 - **For plugin developers: `bws_register_modifier_root_migrations()` now files its entries under Removed Tags by default.** No modifier family can be registered any more, so `prefix_removed` defaults to `true`. Pass `false` only if your plugin still registers its prefixed tags by hand.
 
 ### Removed
@@ -30,6 +33,7 @@ All notable changes to this project are documented in this file. The format is b
   - `bws_get_image_return_type_options()`: define the `as` option in your own registration.
   - `bws_get_terms_for_post( $post_id, $options )`: WordPress's `get_the_terms()`.
   - `bws_post_term_extraction_options()` and `bws_post_term_image_options()`: define the options in your own registration. This reverses 1.16.0, which kept `bws_post_term_extraction_options()` for integrating plugins.
+- **Three developer settings are now filters, and the settings page no longer shows them.** "Enable benchmark logging", "Enable source registration logging" and "Show all deprecated/removed tags and options" are gone from the settings page; the Diagnostics section now holds only Tag Name Conflicts. Each is switched on with a filter instead (`bws_dynamic_tags_benchmark_logging`, `bws_dynamic_tags_registration_logging`, `bws_dynamic_tags_show_all_deprecated`), all off by default; see [`docs/plugin-integration.md`](docs/plugin-integration.md) §11. A site that had one of the boxes ticked stops logging, or goes back to listing only the entries its content uses, until it adds the filter. `SettingsPage::is_benchmark_logging_enabled()`, `is_registration_logging_enabled()` and `is_show_all_deprecated_enabled()` are removed with them.
 
 ### Fixed
 

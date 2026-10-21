@@ -54,7 +54,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * re-reads it against. Pinned against the fixture environment's recorded Pro version by
  * tools/test/gb-trust-boundary-test.php.
  */
-const BWS_GB_TRUST_FALLBACK_READ_FROM = '2.7.1';
+const BWS_GB_TRUST_FALLBACK_READ_FROM = '2.8.0';
 
 /**
  * Whether the current user may author dynamic data, per GenerateBlocks.

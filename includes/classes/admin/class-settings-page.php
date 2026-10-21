@@ -9,7 +9,6 @@
  *       mode_with_path:    'keep'|'suppress'|'disable',
  *       mode_without_path: 'keep'|'suppress'|'disable',
  *     },
- *     diagnostics: { benchmark_logging: bool, registration_logging: bool },
  *     email:       { obfuscate: bool },
  *     phone:       { country_code: string, strip_leading_cc: bool },
  *     table:       { stripe_color: string, stripe_opacity: string },
@@ -49,6 +48,8 @@ class SettingsPage {
 		add_action( 'admin_menu', array( static::class, 'add_menu_page' ), 20 );
 		add_action( 'admin_init', array( static::class, 'register_settings' ) );
 		add_action( 'admin_enqueue_scripts', array( static::class, 'enqueue_scripts' ) );
+		add_filter( 'admin_body_class', array( static::class, 'add_body_class' ) );
+		add_action( 'in_admin_header', array( static::class, 'render_page_header' ) );
 		add_action( 'wp_ajax_bws_scan_tags', array( TagConverter::class, 'ajax_scan' ) );
 		add_action( 'wp_ajax_bws_migrate_tags', array( TagConverter::class, 'ajax_migrate' ) );
 		add_action( 'wp_ajax_bws_ownership_optin', array( TagConverter::class, 'ajax_ownership_optin' ) );
@@ -77,10 +78,57 @@ class SettingsPage {
 		);
 	}
 
+	private static function is_settings_screen(): bool {
+		$screen = get_current_screen();
+		return $screen && false !== strpos( $screen->id, 'bws-dynamic-tags' );
+	}
+
+	public static function add_body_class( string $classes ): string {
+		if ( ! self::is_settings_screen() ) {
+			return $classes;
+		}
+		// The edge-to-edge frame only makes sense when the design-system styles that
+		// supply its spacing are loaded.
+		return $classes . ( wp_style_is( 'generateblocks-pro-admin-ui', 'registered' ) ? ' bws-dynamic-tags-page bws-has-frame' : ' bws-dynamic-tags-page' );
+	}
+
+	/**
+	 * The page header carries Save, so it sits outside the form and submits it by id.
+	 */
+	public static function render_page_header(): void {
+		if ( ! self::is_settings_screen() ) {
+			return;
+		}
+		?>
+		<header class="gp-page-header">
+			<div class="gp-page-header__identity">
+				<h1 class="gp-page-header__title"><?php esc_html_e( 'BWS Dynamic Tag Extensions', 'generateblocks' ); ?></h1>
+			</div>
+			<div class="gp-page-header__actions">
+				<button type="submit" form="bws-settings-form" class="gp-button gp-button--primary gp-button--medium"><?php esc_html_e( 'Save Settings', 'generateblocks' ); ?></button>
+			</div>
+		</header>
+		<?php
+	}
+
 	public static function enqueue_scripts( string $hook ): void {
 		if ( false === strpos( $hook, 'bws-dynamic-tags' ) ) {
 			return;
 		}
+		// The page's own stylesheet reads the GB Pro design-system tokens when that
+		// stylesheet is registered, and carries a fallback for every one when it is not.
+		$bws_style_deps = array_values(
+			array_filter(
+				array( 'generateblocks-pro-gp-tokens', 'generateblocks-pro-admin-ui' ),
+				static fn( string $handle ): bool => wp_style_is( $handle, 'registered' )
+			)
+		);
+		wp_enqueue_style(
+			'bws-settings-page',
+			BWS_DYNAMIC_TAGS_URL . 'assets/css/settings-page.css',
+			$bws_style_deps,
+			BWS_DYNAMIC_TAGS_VERSION
+		);
 		wp_enqueue_script(
 			'bws-admin-tag-scanner',
 			BWS_DYNAMIC_TAGS_URL . 'assets/js/admin-tag-scanner.js',
@@ -99,7 +147,7 @@ class SettingsPage {
 					'scanning'       => __( 'Scanning…', 'generateblocks' ),
 					'migrating'      => __( 'Migrating…', 'generateblocks' ),
 					'noIssues'       => __( 'No deprecated tags or option issues found.', 'generateblocks' ),
-					'noRevision'     => __( '⚠ No undo — this post type does not support revisions.', 'generateblocks' ),
+					'noRevision'     => __( 'No undo: this post type does not support revisions.', 'generateblocks' ),
 					'migrateAll'     => __( 'Migrate Selected', 'generateblocks' ),
 					'done'           => __( 'Done', 'generateblocks' ),
 					'errorPrefix'    => __( 'Error:', 'generateblocks' ),
@@ -107,6 +155,10 @@ class SettingsPage {
 					'optsMigrated'   => __( 'option fixes applied', 'generateblocks' ),
 					'noChange'       => __( 'No changes needed', 'generateblocks' ),
 					'selectAll'      => __( 'Select all', 'generateblocks' ),
+					/* translators: %s: post title */
+					'selectPost'     => __( 'Select %s', 'generateblocks' ),
+					/* translators: %s: post title */
+					'migratePost'    => __( 'Migrate %s', 'generateblocks' ),
 					'deselectAll'    => __( 'Deselect all', 'generateblocks' ),
 					'progressLabel'  => __( 'Migrating post %1$d of %2$d…', 'generateblocks' ),
 					'bulkDone'       => __( '%d posts processed.', 'generateblocks' ),
@@ -114,7 +166,7 @@ class SettingsPage {
 					// those channels is composed in PHP and keyed by reason; these are the
 					// labels the layout itself authors.
 					'nothingToConvert' => __( 'Nothing to convert. See the sections below for what was left alone, and why.', 'generateblocks' ),
-					'storedExample'    => __( 'Stored example:', 'generateblocks' ),
+					'storedExample'    => __( 'Example:', 'generateblocks' ),
 					'claimLabel'       => __( 'These tags are mine, convert them', 'generateblocks' ),
 					'claimSaved'       => __( 'Saved. Scan again to pick up the change.', 'generateblocks' ),
 					'saving'           => __( 'Saving…', 'generateblocks' ),
@@ -129,12 +181,11 @@ class SettingsPage {
 
 	public static function sanitize_settings( $input ): array {
 		$sanitized = array(
-			'modifiers'   => array(),
-			'deprecated'  => array(),
-			'diagnostics' => array(),
-			'email'       => array(),
-			'phone'       => array(),
-			'table'       => array(),
+			'modifiers'  => array(),
+			'deprecated' => array(),
+			'email'      => array(),
+			'phone'      => array(),
+			'table'      => array(),
 		);
 
 		// Modifier toggles. An orphaned `modifiers.term` key on an existing row is simply
@@ -147,11 +198,6 @@ class SettingsPage {
 			$val = sanitize_key( $input['deprecated'][ $key ] ?? 'keep' );
 			$sanitized['deprecated'][ $key ] = in_array( $val, $valid_modes, true ) ? $val : 'keep';
 		}
-
-		// Diagnostics.
-		$sanitized['diagnostics']['benchmark_logging']    = ! empty( $input['diagnostics']['benchmark_logging'] );
-		$sanitized['diagnostics']['registration_logging'] = ! empty( $input['diagnostics']['registration_logging'] );
-		$sanitized['diagnostics']['show_all_deprecated']  = ! empty( $input['diagnostics']['show_all_deprecated'] );
 
 		// Email. `obfuscate` defaults ON; the checkbox renders checked, so an
 		// untouched first save submits 1. Unchecking it writes false.
@@ -240,25 +286,6 @@ class SettingsPage {
 	 */
 	public static function is_deprecated_tag_enabled( string $tag_name ): bool {
 		return self::is_deprecated_tag_registered( $tag_name );
-	}
-
-	public static function is_benchmark_logging_enabled(): bool {
-		return (bool) ( self::get_settings()['diagnostics']['benchmark_logging'] ?? false );
-	}
-
-	public static function is_registration_logging_enabled(): bool {
-		return (bool) ( self::get_settings()['diagnostics']['registration_logging'] ?? false );
-	}
-
-	/**
-	 * Whether the scan-allowlist hide filter is bypassed on the Deprecated/Removed
-	 * Tags+Options boxes — shows every registered entry regardless of scan match.
-	 *
-	 * @since 1.14.0
-	 * @invariant V8 — permanent escape hatch; toggle state is never reset by a scan.
-	 */
-	public static function is_show_all_deprecated_enabled(): bool {
-		return (bool) ( self::get_settings()['diagnostics']['show_all_deprecated'] ?? false );
 	}
 
 	/**
@@ -566,8 +593,100 @@ class SettingsPage {
 	 *
 	 * Entry classification (Deprecated vs Removed) is MigrationRegistry::is_entry_live()
 	 * (CONTEXT.md I10). The allowlist hide-filter (positive list) and the "show all" bypass are
-	 * TagConverter::get_allowlist() / is_show_all_deprecated_enabled() (V7/V8, PHPDoc there).
+	 * TagConverter::get_allowlist() / the `bws_dynamic_tags_show_all_deprecated` filter (V7/V8, PHPDoc there).
 	 */
+	/**
+	 * One list of migration entries. Flat by default; collapsed behind its count only when
+	 * "show all" is on, since that is the one case where the list is long.
+	 *
+	 * @param bool   $collapse Whether to put the table behind a disclosure.
+	 * @param string $summary  The disclosure's text (the count).
+	 * @param string $rows     Table rows, already escaped.
+	 */
+	private static function render_entry_list( bool $collapse, string $summary, string $rows ): void {
+		$table = '<table class="bws-tags-table widefat bws-ref-table"><tbody>' . $rows . '</tbody></table>';
+		if ( $collapse ) {
+			echo '<details class="bws-dep-tag-list"><summary>' . esc_html( $summary ) . '</summary>' . $table . '</details>'; // phpcs:ignore WordPress.Security.EscapeOutput -- rows are escaped where built.
+			return;
+		}
+		echo $table; // phpcs:ignore WordPress.Security.EscapeOutput -- rows are escaped where built.
+	}
+
+	/**
+	 * Rows for a list of deprecated or removed tags.
+	 */
+	private static function tag_rows_html( array $entries ): string {
+		ob_start();
+		foreach ( $entries as $entry ) :
+			$old_tag = $entry['old_tag'] ?? $entry['match_tag'] ?? '';
+			$new_tag = $entry['new_tag'] ?? '';
+			$since   = $entry['since']   ?? '';
+			if ( '' === $old_tag ) {
+				continue;
+			}
+			$target_string = $new_tag ? self::format_migration_target( $entry ) : '';
+			?>
+			<tr class="bws-tag-row">
+				<td>
+					<code class="bws-tag-name"><?php echo esc_html( '{{' . $old_tag . '}}' ); ?></code>
+					<?php if ( $target_string ) : ?>
+					<span class="bws-dep-arrow">→</span>
+					<code class="bws-tag-name bws-new-tag"><?php echo esc_html( $target_string ); ?></code>
+					<?php endif; ?>
+					<?php if ( $since ) : ?>
+					<span class="bws-dep-since"><?php echo esc_html( sprintf(
+						/* translators: %s: version */
+						__( '(since %s)', 'generateblocks' ), $since
+					) ); ?></span>
+					<?php endif; ?>
+				</td>
+			</tr>
+			<?php
+		endforeach;
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Rows for a list of option-key migrations, as grouped by group_option_entries_by_transform().
+	 */
+	private static function option_rows_html( array $groups ): string {
+		ob_start();
+		foreach ( $groups as $group_entry ) :
+			$tags     = array_unique( $group_entry['tags'] );
+			$old_keys = $group_entry['old_keys'];
+			$new_keys = $group_entry['new_keys'];
+			$reason   = $group_entry['reason'];
+			$old_html = implode( ' + ', array_map( fn( $k ) => '<code>' . esc_html( $k ) . '</code>', $old_keys ) );
+			$new_html = implode( ' + ', array_map( fn( $k ) => '<code>' . esc_html( $k ) . '</code>', $new_keys ) );
+			?>
+			<tr class="bws-tag-row">
+				<td>
+					<div class="bws-dep-rename">
+						<?php echo $old_html; // phpcs:ignore WordPress.Security.EscapeOutput -- escaped above. ?>
+						<?php if ( '' !== $old_html && '' !== $new_html ) : ?>
+						<span class="bws-dep-arrow">→</span>
+						<?php endif; ?>
+						<?php echo $new_html; // phpcs:ignore WordPress.Security.EscapeOutput -- escaped above. ?>
+						<?php if ( $reason ) : ?>
+						<span class="bws-dep-reason"><?php echo esc_html( '(' . $reason . ')' ); ?></span>
+						<?php endif; ?>
+					</div>
+					<?php if ( ! empty( $tags ) ) : ?>
+					<div class="description bws-dep-applies">
+						<?php esc_html_e( 'Applies to:', 'generateblocks' ); ?>
+						<?php
+						$pieces = array_map( fn( $t ) => '<code class="bws-tag-name">' . esc_html( $t ) . '</code>', $tags );
+						echo implode( ', ', $pieces ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped above.
+						?>
+					</div>
+					<?php endif; ?>
+				</td>
+			</tr>
+			<?php
+		endforeach;
+		return (string) ob_get_clean();
+	}
+
 	public static function render_page(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
@@ -578,8 +697,8 @@ class SettingsPage {
 		$mode_with    = $settings['deprecated']['mode_with_path']    ?? 'keep';
 		$mode_without = $settings['deprecated']['mode_without_path'] ?? 'keep';
 
-		// Scan allowlist: hides zero-match entries unless "show all" is on (V7/V8).
-		$show_all  = self::is_show_all_deprecated_enabled();
+		// Scan allowlist: hides zero-match entries unless the show-all filter is on (V7/V8).
+		$show_all  = (bool) apply_filters( 'bws_dynamic_tags_show_all_deprecated', false );
 		$allowlist = TagConverter::get_allowlist();
 		$tag_in_allowlist = fn( array $e ) => in_array( $e['old_tag'] ?? $e['match_tag'] ?? '', $allowlist['tags'], true );
 		$option_in_allowlist = fn( array $e ) => in_array( $e['label'] ?? '', $allowlist['option_labels'], true );
@@ -611,36 +730,17 @@ class SettingsPage {
 			'disable'  => __( 'Disable — tags are removed from GB (use only after migrating all content)', 'generateblocks' ),
 		);
 		?>
-		<div class="wrap bws-dynamic-tags-settings">
-			<h1><?php esc_html_e( 'BWS Dynamic Tag Extensions', 'generateblocks' ); ?></h1>
+		<div class="gp-admin-page">
+		<div class="wrap bws-dynamic-tags-settings gp-admin-page__main">
+			<hr class="wp-header-end">
 
-			<form method="post" action="options.php">
+			<form method="post" action="options.php" id="bws-settings-form">
 				<?php settings_fields( 'bws_dynamic_tags_settings_group' ); ?>
-
-				<?php /* ── Modifier Groups ── */ ?>
-				<div class="bws-tag-group">
-					<h2 class="bws-section-header"><?php esc_html_e( 'Modifier Groups', 'generateblocks' ); ?></h2>
-					<table class="bws-tags-table widefat">
-						<tbody>
-							<tr class="bws-tag-row">
-								<td class="bws-tag-checkbox">
-									<input type="checkbox" id="bws-modifier-try"
-										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[modifiers][try]"
-										value="1" <?php checked( self::is_modifier_enabled( 'try' ) ); ?> />
-								</td>
-								<td>
-									<label for="bws-modifier-try"><?php esc_html_e( 'try_ tags', 'generateblocks' ); ?></label>
-									<code class="bws-tag-name">try_</code>
-									<p class="description"><?php esc_html_e( 'Fallback-chain tags (try_text, try_image, etc.).', 'generateblocks' ); ?></p>
-								</td>
-							</tr>
-						</tbody>
-					</table>
-				</div>
 
 				<?php /* ── Email ── */ ?>
 				<div class="bws-tag-group">
 					<h2 class="bws-section-header"><?php esc_html_e( 'Email', 'generateblocks' ); ?></h2>
+					<div class="bws-card">
 					<table class="bws-tags-table widefat">
 						<tbody>
 							<tr class="bws-tag-row">
@@ -651,30 +751,32 @@ class SettingsPage {
 								</td>
 								<td>
 									<label for="bws-email-obfuscate"><?php esc_html_e( 'Obfuscate email addresses (anti-harvest)', 'generateblocks' ); ?></label>
-									<p class="description"><?php esc_html_e( 'Encode addresses output by the {{email}} tag with antispambot() to deter naive harvesters. Disable if a clean mailto: href is needed (e.g. analytics).', 'generateblocks' ); ?></p>
+									<p class="description"><?php printf( /* translators: %s: the email tag name. */ esc_html__( 'Encode addresses output by the %s tag with antispambot() to deter naive harvesters. Disable if a clean mailto: href is needed (e.g. analytics).', 'generateblocks' ), '<code>email</code>' ); ?></p>
 								</td>
 							</tr>
 						</tbody>
 					</table>
+					</div>
 				</div>
 
 				<?php /* ── Phone ── */ ?>
 				<div class="bws-tag-group">
 					<h2 class="bws-section-header"><?php esc_html_e( 'Phone', 'generateblocks' ); ?></h2>
+					<div class="bws-card">
 					<table class="bws-tags-table widefat">
 						<tbody>
 							<tr class="bws-tag-row">
 								<td class="bws-tag-checkbox">
-									<input type="text" id="bws-phone-country-code" style="width:14em"
+									<input type="text" id="bws-phone-country-code" class="gp-text-input bws-input-wide"
 										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[phone][country_code]"
 										value="<?php echo esc_attr( self::get_phone_country_code() ); ?>"
-										inputmode="numeric" placeholder="<?php esc_attr_e( 'e.g. 1 (US), 44 (UK)', 'generateblocks' ); ?>" />
+										inputmode="numeric" placeholder="<?php esc_attr_e( 'e.g. 44', 'generateblocks' ); ?>" />
 								</td>
 								<td>
 									<label for="bws-phone-country-code"><?php esc_html_e( 'Default country code', 'generateblocks' ); ?></label>
 									<p class="description">
-										<?php esc_html_e( 'Default country code (digits only, no +) for {{phone}} tel: links when a number has no international prefix. Leave empty for national-only tel: links.', 'generateblocks' ); ?>
-										<a href="https://www.countrycode.org" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Country code reference', 'generateblocks' ); ?></a>
+										<?php printf( /* translators: %s: the phone tag name. */ esc_html__( 'Default country code (digits only, no +) for %s tel: links when a number has no international prefix. Leave empty for national-only tel: links.', 'generateblocks' ), '<code>phone</code>' ); ?>
+										<a href="https://www.countrycode.org" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Country code reference', 'generateblocks' ); ?><span class="screen-reader-text"><?php esc_html_e( '(opens in a new tab)', 'generateblocks' ); ?></span><span class="dashicons dashicons-external bws-external-icon" aria-hidden="true"></span></a>
 									</p>
 								</td>
 							</tr>
@@ -686,57 +788,93 @@ class SettingsPage {
 								</td>
 								<td>
 									<label for="bws-phone-strip-cc"><?php esc_html_e( 'Strip unseparated leading digit(s) matching the default country code', 'generateblocks' ); ?></label>
-									<p class="description"><?php esc_html_e( 'Numbers where the country code is set off by a separator (e.g. 1-800-555-1212, 1 (800) 555-1212, +1 800 555 1212) are already detected automatically — no setting needed. This option covers only the harder case: a country code run TOGETHER with the national number and no + (e.g. 18005551212 with a default code of 1), where there is no separator to mark it. Requires a country code above; only strips a leading run that exactly matches it.', 'generateblocks' ); ?>
-										<strong><?php esc_html_e( 'Warning:', 'generateblocks' ); ?></strong> <?php esc_html_e( 'with no separator there is no way to tell a real country-code prefix from a national number that simply begins with the same digits, so this can strip a legitimate leading digit (e.g. a national number 1860… with default code 1). Leave off unless your stored numbers consistently carry a redundant, unseparated country-code prefix.', 'generateblocks' ); ?></p>
+									<p class="description"><?php esc_html_e( 'Requires a default country code above. Only applies to numbers stored with the country code run straight into the number without a +, such as 18005551212, not when the code is set off by a space, dash or +, as in +1 800 555 1212.', 'generateblocks' ); ?></p>
+									<?php /* The warning is a separate element so it is not read as part of the description. */ ?>
+									<div class="gp-notice gp-notice--warn bws-notice">
+										<span class="gp-notice__status"><span class="gp-status-dot gp-status-dot--warn" aria-hidden="true"></span></span>
+										<div class="gp-notice__content">
+											<span class="screen-reader-text"><?php esc_html_e( 'Warning:', 'generateblocks' ); ?></span>
+											<?php esc_html_e( 'A number stored without a country code that has an area code or subscriber number beginning with the same digits as the default country code will lose those digits. Turn this on only if your stored numbers consistently carry the country code.', 'generateblocks' ); ?>
+										</div>
+									</div>
 								</td>
 							</tr>
 						</tbody>
 					</table>
+					</div>
 				</div>
 
 				<?php /* ── Table ── */ ?>
 				<?php $bws_stripe = self::get_table_stripe_defaults(); ?>
 				<div class="bws-tag-group">
 					<h2 class="bws-section-header"><?php esc_html_e( 'Table', 'generateblocks' ); ?></h2>
+					<div class="bws-card">
 					<table class="bws-tags-table widefat">
 						<tbody>
 							<tr class="bws-tag-row">
 								<td class="bws-tag-checkbox">
-									<input type="text" id="bws-table-stripe-color" style="width:14em"
+									<input type="text" id="bws-table-stripe-color" class="gp-text-input bws-input-wide"
 										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[table][stripe_color]"
 										value="<?php echo esc_attr( $bws_stripe['color'] ); ?>"
 										placeholder="<?php echo esc_attr( BWS_TABLE_STRIPE_DEFAULT_COLOR ); ?>" />
 								</td>
 								<td>
 									<label for="bws-table-stripe-color"><?php esc_html_e( 'Default stripe color', 'generateblocks' ); ?></label>
-									<p class="description"><?php esc_html_e( 'The color of a {{table}} stripe that does not set its own. Use a hex value, rgb(), rgba(), hsl(), hsla(), var(), currentColor, or a color name. An unrecognized value falls back to currentColor, the text color, which stays visible on any theme.', 'generateblocks' ); ?></p>
+									<p class="description"><?php printf( /* translators: %s: the table tag name. */ esc_html__( 'The color of a %s stripe that does not set its own. Use a hex value, rgb(), rgba(), hsl(), hsla(), var(), currentColor, or a color name. An unrecognized value falls back to currentColor, the text color, which stays visible on any theme.', 'generateblocks' ), '<code>table</code>' ); ?></p>
 								</td>
 							</tr>
 							<tr class="bws-tag-row">
 								<td class="bws-tag-checkbox">
-									<input type="number" id="bws-table-stripe-opacity" style="width:6em" min="0" max="100" step="any"
-										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[table][stripe_opacity]"
-										value="<?php echo esc_attr( bws_table_css_number( $bws_stripe['opacity'] ) ); ?>"
-										placeholder="<?php echo esc_attr( bws_table_css_number( BWS_TABLE_STRIPE_DEFAULT_OPACITY ) ); ?>" /> %
+									<span class="bws-input-unit">
+										<input type="number" id="bws-table-stripe-opacity" class="gp-text-input bws-input-narrow" min="0" max="100" step="any"
+											name="<?php echo esc_attr( self::OPTION_NAME ); ?>[table][stripe_opacity]"
+											value="<?php echo esc_attr( bws_table_css_number( $bws_stripe['opacity'] ) ); ?>"
+											placeholder="<?php echo esc_attr( bws_table_css_number( BWS_TABLE_STRIPE_DEFAULT_OPACITY ) ); ?>" />
+										<span class="bws-input-unit__suffix">%</span>
+									</span>
 								</td>
 								<td>
 									<label for="bws-table-stripe-opacity"><?php esc_html_e( 'Default stripe opacity', 'generateblocks' ); ?></label>
-									<p class="description"><?php esc_html_e( 'How strong a {{table}} stripe is when it does not set its own, from 0 to 100. A color that carries its own transparency ignores this. A theme can still override the stripe in CSS with --bws-dte-table-stripe.', 'generateblocks' ); ?></p>
+									<p class="description"><?php printf( /* translators: %s: the table tag name. */ esc_html__( 'How strong a %s stripe is when it does not set its own, from 0 to 100. A color that carries its own transparency ignores this. A theme can still override the stripe in CSS with --bws-dte-table-stripe.', 'generateblocks' ), '<code>table</code>' ); ?></p>
 								</td>
 							</tr>
 						</tbody>
 					</table>
+					</div>
+				</div>
+
+				<?php /* ── Multi-attempt tags ── */ ?>
+				<div class="bws-tag-group">
+					<h2 class="bws-section-header"><?php esc_html_e( 'Multi-Attempt Tags', 'generateblocks' ); ?></h2>
+					<div class="bws-card">
+					<table class="bws-tags-table widefat">
+						<tbody>
+							<tr class="bws-tag-row">
+								<td class="bws-tag-checkbox">
+									<input type="checkbox" id="bws-modifier-try"
+										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[modifiers][try]"
+										value="1" <?php checked( self::is_modifier_enabled( 'try' ) ); ?> />
+								</td>
+								<td>
+									<label for="bws-modifier-try"><?php esc_html_e( 'Enable multi-attempt tags', 'generateblocks' ); ?></label>
+									<p class="description"><?php printf( /* translators: 1: an example multi-attempt tag name, 2: another example tag name. */ esc_html__( 'Multi-attempt tags (%1$s, %2$s, etc.) that return the first attempt with a value.', 'generateblocks' ), '<code>try_text</code>', '<code>try_image</code>' ); ?></p>
+								</td>
+							</tr>
+						</tbody>
+					</table>
+					</div>
 				</div>
 
 				<?php /* ── Call Custom Function (read-only allowlist mirror) ── */ ?>
 				<?php $bws_call_rows = self::get_call_allowlist_status(); ?>
 				<div class="bws-tag-group">
 					<h2 class="bws-section-header"><?php esc_html_e( 'Call Custom Function', 'generateblocks' ); ?></h2>
+					<div class="bws-card">
 					<div class="bws-section-desc">
 						<p style="margin-top:0">
-							<?php esc_html_e( 'Custom functions must take a post ID as their first argument, sanitize their own output (HTML is allowed in the return string), and be registered via `bws_register_call_function()`:', 'generateblocks' ); ?>
+							<?php printf( /* translators: %s: the function name used to register a custom function. */ esc_html__( 'Custom functions must take a post ID as their first argument, sanitize their own output (HTML is allowed in the return string), and be registered via %s:', 'generateblocks' ), '<code>bws_register_call_function()</code>' ); ?>
 						</p>
-						<pre style="margin:0 0 8px;padding:8px 10px;background:#f6f7f7;border:1px solid #dcdcde;overflow:auto"><code>add_action( 'init', function () {
+						<pre class="bws-code-block"><code>add_action( 'init', function () {
     bws_register_call_function( 'my_result' );
 } );
 
@@ -744,7 +882,7 @@ function my_result( $post_id, $arg = '' ) {
     return '&lt;span&gt;' . esc_html( get_the_title( $post_id ) ) . '&lt;/span&gt;';
 }</code></pre>
 						<p style="margin:0">
-							<?php esc_html_e( 'Properly registered functions will appear in the {{call}} tag\'s Function dropdown for easy access. Manually inserting an unregistered function in a {{call}} tag will cause it to return the tag\'s fallback text, if available, or return empty.', 'generateblocks' ); ?>
+							<?php printf( /* translators: %s: the call tag name. */ esc_html__( 'Properly registered functions will appear in the %1$s tag\'s Function dropdown for easy access. Manually inserting an unregistered function in a %1$s tag will cause it to return the tag\'s fallback text, if available, or return empty.', 'generateblocks' ), '<code>call</code>' ); ?>
 						</p>
 					</div>
 					<h3 class="bws-subhead"><?php esc_html_e( 'Registered Functions', 'generateblocks' ); ?></h3>
@@ -758,8 +896,8 @@ function my_result( $post_id, $arg = '' ) {
 							<?php foreach ( $bws_call_rows as $bws_call_row ) : ?>
 								<?php
 								$bws_call_ok = $bws_call_row['exists'] && $bws_call_row['passes'];
-								// Glyph = at-a-glance status. Text shown ONLY for a failure (the
-								// reason a glyph can't carry); an OK row needs no redundant "OK".
+								// Dot = at-a-glance status. Text shown ONLY for a failure (the
+								// reason a dot can't carry); an OK row needs no redundant "OK".
 								$bws_call_problem = $bws_call_ok
 									? ''
 									: ( ! $bws_call_row['exists']
@@ -768,7 +906,7 @@ function my_result( $post_id, $arg = '' ) {
 								?>
 								<tr class="bws-tag-row">
 									<td class="bws-tag-checkbox" style="width:1.5em">
-										<span class="<?php echo $bws_call_ok ? 'bws-call-ok' : 'bws-call-warn'; ?>" aria-hidden="true"><?php echo $bws_call_ok ? '✓' : '⚠'; ?></span>
+										<span class="gp-status-dot <?php echo $bws_call_ok ? '' : 'gp-status-dot--error'; ?>" aria-hidden="true"></span>
 										<span class="screen-reader-text"><?php echo $bws_call_ok ? esc_html__( 'OK', 'generateblocks' ) : esc_html( $bws_call_problem ); ?></span>
 									</td>
 									<td>
@@ -782,12 +920,14 @@ function my_result( $post_id, $arg = '' ) {
 						<?php endif; ?>
 						</tbody>
 					</table>
+					</div>
 				</div>
 
 				<?php /* ── Deprecated Tags (still GB-registered; K/S/D applies) ── */ ?>
 				<?php if ( ! empty( $live_with ) || ! empty( $live_without ) ) : ?>
 				<div class="bws-tag-group">
 					<h2 class="bws-section-header"><?php esc_html_e( 'Deprecated Tags', 'generateblocks' ); ?></h2>
+					<div class="bws-card">
 					<p class="description bws-section-desc">
 						<?php esc_html_e( 'Control how deprecated tags behave. Use the Migration Tool below to find and update content before disabling.', 'generateblocks' ); ?>
 					</p>
@@ -827,229 +967,19 @@ function my_result( $post_id, $arg = '' ) {
 							<?php endforeach; ?>
 						</div>
 
-						<details class="bws-dep-tag-list">
-							<summary><?php
-								echo esc_html( sprintf(
-									/* translators: %d: count of deprecated tags */
-									_n( '%d deprecated tag', '%d deprecated tags', count( $group['entries'] ), 'generateblocks' ),
-									count( $group['entries'] )
-								) );
-							?></summary>
-							<table class="bws-tags-table widefat bws-ref-table">
-								<tbody>
-								<?php foreach ( $group['entries'] as $entry ) :
-									$old_tag = $entry['old_tag'] ?? $entry['match_tag'] ?? '';
-									$new_tag = $entry['new_tag'] ?? '';
-									$since   = $entry['since']   ?? '';
-									if ( '' === $old_tag ) { continue; }
-									$target_string = $new_tag ? self::format_migration_target( $entry ) : '';
-								?>
-									<tr class="bws-tag-row">
-										<td>
-											<code class="bws-tag-name"><?php echo esc_html( '{{' . $old_tag . '}}' ); ?></code>
-											<?php if ( $target_string ) : ?>
-											<span class="bws-dep-arrow">→</span>
-											<code class="bws-tag-name bws-new-tag"><?php echo esc_html( $target_string ); ?></code>
-											<?php endif; ?>
-											<?php if ( $since ) : ?>
-											<span class="bws-dep-since"><?php echo esc_html( sprintf(
-												/* translators: %s: version */
-												__( '(since %s)', 'generateblocks' ), $since
-											) ); ?></span>
-											<?php endif; ?>
-										</td>
-									</tr>
-								<?php endforeach; ?>
-								</tbody>
-							</table>
-						</details>
+						<?php
+						self::render_entry_list(
+							$show_all,
+							sprintf(
+								/* translators: %d: count of deprecated tags */
+								_n( '%d deprecated tag', '%d deprecated tags', count( $group['entries'] ), 'generateblocks' ),
+								count( $group['entries'] )
+							),
+							self::tag_rows_html( $group['entries'] )
+						);
+						?>
 					</div>
 					<?php endforeach; ?>
-				</div>
-				<?php endif; ?>
-
-				<?php /* ── Removed Tags (GB registration gone; informational only) ── */ ?>
-				<?php if ( ! empty( $removed_with ) || ! empty( $removed_without ) ) : ?>
-				<div class="bws-tag-group">
-					<h2 class="bws-section-header"><?php esc_html_e( 'Removed Tags', 'generateblocks' ); ?></h2>
-					<p class="description bws-section-desc">
-						<?php esc_html_e( 'These tag names no longer register with GenerateBlocks. Use the Migration Tool below to find and update content still using them.', 'generateblocks' ); ?>
-					</p>
-
-					<?php foreach ( array(
-						array(
-							'label'   => __( 'Tags with migration path', 'generateblocks' ),
-							'desc'    => __( 'These removed tags can be automatically converted to current equivalents.', 'generateblocks' ),
-							'entries' => $removed_with,
-						),
-						array(
-							'label'   => __( 'Tags without migration path', 'generateblocks' ),
-							'desc'    => __( 'These removed tags have no automatic conversion. Manual update required.', 'generateblocks' ),
-							'entries' => $removed_without,
-						),
-					) as $group ) :
-						if ( empty( $group['entries'] ) ) { continue; }
-					?>
-
-					<div class="bws-dep-group">
-						<h3 class="bws-dep-group-header"><?php echo esc_html( $group['label'] ); ?></h3>
-						<p class="description"><?php echo esc_html( $group['desc'] ); ?></p>
-
-						<details class="bws-dep-tag-list">
-							<summary><?php
-								echo esc_html( sprintf(
-									/* translators: %d: count of removed tags */
-									_n( '%d removed tag', '%d removed tags', count( $group['entries'] ), 'generateblocks' ),
-									count( $group['entries'] )
-								) );
-							?></summary>
-							<table class="bws-tags-table widefat bws-ref-table">
-								<tbody>
-								<?php foreach ( $group['entries'] as $entry ) :
-									$old_tag = $entry['old_tag'] ?? $entry['match_tag'] ?? '';
-									$new_tag = $entry['new_tag'] ?? '';
-									$since   = $entry['since']   ?? '';
-									if ( '' === $old_tag ) { continue; }
-									$target_string = $new_tag ? self::format_migration_target( $entry ) : '';
-								?>
-									<tr class="bws-tag-row">
-										<td>
-											<code class="bws-tag-name"><?php echo esc_html( '{{' . $old_tag . '}}' ); ?></code>
-											<?php if ( $target_string ) : ?>
-											<span class="bws-dep-arrow">→</span>
-											<code class="bws-tag-name bws-new-tag"><?php echo esc_html( $target_string ); ?></code>
-											<?php endif; ?>
-											<?php if ( $since ) : ?>
-											<span class="bws-dep-since"><?php echo esc_html( sprintf(
-												/* translators: %s: version */
-												__( '(since %s)', 'generateblocks' ), $since
-											) ); ?></span>
-											<?php endif; ?>
-										</td>
-									</tr>
-								<?php endforeach; ?>
-								</tbody>
-							</table>
-						</details>
-					</div>
-					<?php endforeach; ?>
-				</div>
-				<?php endif; ?>
-
-				<?php /* ── Deprecated Options (fallback still live in reading code) ── */ ?>
-				<?php $live_option_groups = self::group_option_entries_by_transform( $live_option_entries ); ?>
-				<?php if ( ! empty( $live_option_groups ) ) : ?>
-				<div class="bws-tag-group">
-					<h2 class="bws-section-header"><?php esc_html_e( 'Deprecated Options', 'generateblocks' ); ?></h2>
-					<p class="description bws-section-desc">
-						<?php esc_html_e( 'Option-key migrations applied to current tags when stored content uses old option names. The Migration Tool below rewrites stored content; option-type migrations always have an automatic conversion path.', 'generateblocks' ); ?>
-					</p>
-
-					<div class="bws-dep-group">
-						<details class="bws-dep-tag-list">
-							<summary><?php
-								echo esc_html( sprintf(
-									/* translators: %d: count of deprecated option migrations */
-									_n( '%d deprecated option migration', '%d deprecated option migrations', count( $live_option_groups ), 'generateblocks' ),
-									count( $live_option_groups )
-								) );
-							?></summary>
-							<table class="bws-tags-table widefat bws-ref-table">
-								<tbody>
-								<?php foreach ( $live_option_groups as $group_entry ) :
-									$tags     = array_unique( $group_entry['tags'] );
-									$old_keys = $group_entry['old_keys'];
-									$new_keys = $group_entry['new_keys'];
-									$reason   = $group_entry['reason'];
-									$old_html = implode( ' + ', array_map( fn( $k ) => '<code>' . esc_html( $k ) . '</code>', $old_keys ) );
-									$new_html = implode( ' + ', array_map( fn( $k ) => '<code>' . esc_html( $k ) . '</code>', $new_keys ) );
-								?>
-									<tr class="bws-tag-row">
-										<td>
-											<div class="bws-dep-rename">
-												<?php echo $old_html; ?>
-												<?php if ( '' !== $old_html && '' !== $new_html ) : ?>
-												<span class="bws-dep-arrow">→</span>
-												<?php endif; ?>
-												<?php echo $new_html; ?>
-												<?php if ( $reason ) : ?>
-												<span class="bws-dep-reason"><?php echo esc_html( '(' . $reason . ')' ); ?></span>
-												<?php endif; ?>
-											</div>
-											<?php if ( ! empty( $tags ) ) : ?>
-											<div class="description bws-dep-applies">
-												<?php esc_html_e( 'Applies to:', 'generateblocks' ); ?>
-												<?php
-												$pieces = array_map( fn( $t ) => '<code class="bws-tag-name">' . esc_html( $t ) . '</code>', $tags );
-												echo implode( ', ', $pieces );
-												?>
-											</div>
-											<?php endif; ?>
-										</td>
-									</tr>
-								<?php endforeach; ?>
-								</tbody>
-							</table>
-						</details>
-					</div>
-				</div>
-				<?php endif; ?>
-
-				<?php /* ── Removed Options (legacy-key fallback deleted from reading code) ── */ ?>
-				<?php $removed_option_groups = self::group_option_entries_by_transform( $removed_option_entries ); ?>
-				<?php if ( ! empty( $removed_option_groups ) ) : ?>
-				<div class="bws-tag-group">
-					<h2 class="bws-section-header"><?php esc_html_e( 'Removed Options', 'generateblocks' ); ?></h2>
-					<p class="description bws-section-desc">
-						<?php esc_html_e( 'These option-key corrections no longer have a live fallback in the reading code — the old key is no longer accepted at all. The Migration Tool below still finds and fixes stored content using the old key.', 'generateblocks' ); ?>
-					</p>
-
-					<div class="bws-dep-group">
-						<details class="bws-dep-tag-list">
-							<summary><?php
-								echo esc_html( sprintf(
-									/* translators: %d: count of removed option migrations */
-									_n( '%d removed option migration', '%d removed option migrations', count( $removed_option_groups ), 'generateblocks' ),
-									count( $removed_option_groups )
-								) );
-							?></summary>
-							<table class="bws-tags-table widefat bws-ref-table">
-								<tbody>
-								<?php foreach ( $removed_option_groups as $group_entry ) :
-									$tags     = array_unique( $group_entry['tags'] );
-									$old_keys = $group_entry['old_keys'];
-									$new_keys = $group_entry['new_keys'];
-									$reason   = $group_entry['reason'];
-									$old_html = implode( ' + ', array_map( fn( $k ) => '<code>' . esc_html( $k ) . '</code>', $old_keys ) );
-									$new_html = implode( ' + ', array_map( fn( $k ) => '<code>' . esc_html( $k ) . '</code>', $new_keys ) );
-								?>
-									<tr class="bws-tag-row">
-										<td>
-											<div class="bws-dep-rename">
-												<?php echo $old_html; ?>
-												<?php if ( '' !== $old_html && '' !== $new_html ) : ?>
-												<span class="bws-dep-arrow">→</span>
-												<?php endif; ?>
-												<?php echo $new_html; ?>
-												<?php if ( $reason ) : ?>
-												<span class="bws-dep-reason"><?php echo esc_html( '(' . $reason . ')' ); ?></span>
-												<?php endif; ?>
-											</div>
-											<?php if ( ! empty( $tags ) ) : ?>
-											<div class="description bws-dep-applies">
-												<?php esc_html_e( 'Applies to:', 'generateblocks' ); ?>
-												<?php
-												$pieces = array_map( fn( $t ) => '<code class="bws-tag-name">' . esc_html( $t ) . '</code>', $tags );
-												echo implode( ', ', $pieces );
-												?>
-											</div>
-											<?php endif; ?>
-										</td>
-									</tr>
-								<?php endforeach; ?>
-								</tbody>
-							</table>
-						</details>
 					</div>
 				</div>
 				<?php endif; ?>
@@ -1057,18 +987,81 @@ function my_result( $post_id, $arg = '' ) {
 				<?php /* ── Migration Tool (AJAX driven) ── */ ?>
 				<div class="bws-tag-group bws-migration-tool" id="bws-migration-tool">
 					<h2 class="bws-section-header"><?php esc_html_e( 'Migration Tool', 'generateblocks' ); ?></h2>
+					<div class="bws-card">
 					<p class="description bws-section-desc">
-						<?php esc_html_e( 'Scan all post content for deprecated tags and option issues, then migrate per post or in bulk. A revision is created before each migration when the post type supports it. Block pattern caches are reconciled on every scan and migration, so the pattern library stops handing out pre-migration tags.', 'generateblocks' ); ?>
+						<?php esc_html_e( 'Scan all post content for deprecated tags and option issues, then migrate per post or in bulk. A revision is created before each migration when the post type supports it.', 'generateblocks' ); ?>
 					</p>
 					<?php /* US 26 — DISCLOSURE, not enumeration. A reported count with no stated
 					        boundary reads as a completeness claim it cannot back; an inventory
 					        answers a different question ("so I can go fix them"), deferred to #100. */ ?>
-					<p class="description bws-section-desc">
-						<?php esc_html_e( 'Covers post content and the block pattern cache. Tag strings stored elsewhere, such as in custom field values or another plugin\'s cache, are not reached by this tool.', 'generateblocks' ); ?>
-					</p>
+					<div class="bws-section-desc">
+						<div class="gp-notice bws-notice bws-notice--info">
+							<span class="gp-notice__status"><span class="gp-status-dot" aria-hidden="true"></span></span>
+							<div class="gp-notice__content">
+								<span class="screen-reader-text"><?php esc_html_e( 'Note:', 'generateblocks' ); ?></span>
+								<?php esc_html_e( 'Covers post content and the block pattern cache. Tag strings stored elsewhere, such as in custom field values or another plugin\'s cache, are not reached by this tool.', 'generateblocks' ); ?>
+							</div>
+						</div>
+					</div>
+
+					<?php
+					$live_option_groups    = self::group_option_entries_by_transform( $live_option_entries );
+					$removed_option_groups = self::group_option_entries_by_transform( $removed_option_entries );
+					$bws_inventory         = array(
+						array(
+							'label'   => __( 'Removed tags with a migration path', 'generateblocks' ),
+							'desc'    => __( 'These tag names no longer register with GenerateBlocks. The scan below can convert them to current equivalents.', 'generateblocks' ),
+							'summary' => sprintf(
+								/* translators: %d: count of removed tags */
+								_n( '%d removed tag', '%d removed tags', count( $removed_with ), 'generateblocks' ),
+								count( $removed_with )
+							),
+							'rows'    => $removed_with ? self::tag_rows_html( $removed_with ) : '',
+						),
+						array(
+							'label'   => __( 'Removed tags without a migration path', 'generateblocks' ),
+							'desc'    => __( 'These tag names no longer register with GenerateBlocks and have no automatic conversion. Manual update required.', 'generateblocks' ),
+							'summary' => sprintf(
+								/* translators: %d: count of removed tags */
+								_n( '%d removed tag', '%d removed tags', count( $removed_without ), 'generateblocks' ),
+								count( $removed_without )
+							),
+							'rows'    => $removed_without ? self::tag_rows_html( $removed_without ) : '',
+						),
+						array(
+							'label'   => __( 'Deprecated options', 'generateblocks' ),
+							'desc'    => __( 'Old option names on current tags. The scan below rewrites stored content to the current names.', 'generateblocks' ),
+							'summary' => sprintf(
+								/* translators: %d: count of deprecated option migrations */
+								_n( '%d deprecated option migration', '%d deprecated option migrations', count( $live_option_groups ), 'generateblocks' ),
+								count( $live_option_groups )
+							),
+							'rows'    => $live_option_groups ? self::option_rows_html( $live_option_groups ) : '',
+						),
+						array(
+							'label'   => __( 'Removed options', 'generateblocks' ),
+							'desc'    => __( 'The old option name is no longer accepted at all. The scan below still finds and fixes stored content that uses it.', 'generateblocks' ),
+							'summary' => sprintf(
+								/* translators: %d: count of removed option migrations */
+								_n( '%d removed option migration', '%d removed option migrations', count( $removed_option_groups ), 'generateblocks' ),
+								count( $removed_option_groups )
+							),
+							'rows'    => $removed_option_groups ? self::option_rows_html( $removed_option_groups ) : '',
+						),
+					);
+					?>
+					<h3 class="bws-subhead"><?php esc_html_e( 'Deprecated and removed entries', 'generateblocks' ); ?></h3>
+					<?php foreach ( $bws_inventory as $bws_list ) : ?>
+						<?php if ( '' === $bws_list['rows'] ) { continue; } ?>
+					<div class="bws-dep-group">
+						<h3 class="bws-dep-group-header"><?php echo esc_html( $bws_list['label'] ); ?></h3>
+						<p class="description"><?php echo esc_html( $bws_list['desc'] ); ?></p>
+						<?php self::render_entry_list( $show_all, $bws_list['summary'], $bws_list['rows'] ); ?>
+					</div>
+					<?php endforeach; ?>
 
 					<div class="bws-scan-controls">
-						<button type="button" id="bws-scan-btn" class="button button-primary">
+						<button type="button" id="bws-scan-btn" class="gp-button gp-button--primary gp-button--medium">
 							<?php esc_html_e( 'Scan All Content', 'generateblocks' ); ?>
 						</button>
 						<span id="bws-scan-status" class="bws-scan-status" aria-live="polite"></span>
@@ -1078,9 +1071,12 @@ function my_result( $post_id, $arg = '' ) {
 					        line: the on-upgrade trigger has no interface at all and is the one
 					        actually repairing already-converted sites. The element is rendered
 					        even when empty so the AJAX handlers can fill it without a reload. */ ?>
-					<p class="description bws-pattern-cache-status" id="bws-pattern-cache-status" aria-live="polite">
-						<?php echo esc_html( PatternCache::format_status( PatternCache::get_status() ) ); ?>
-					</p>
+					<div class="bws-pattern-cache">
+						<p class="description bws-pattern-cache-status" aria-live="polite">
+							<?php esc_html_e( 'Block pattern caches are automatically reconciled on every scan and migration.', 'generateblocks' ); ?>
+							<span id="bws-pattern-cache-status"><?php echo esc_html( PatternCache::format_status( PatternCache::get_status() ) ); ?></span>
+						</p>
+					</div>
 
 					<?php /* ── The report's THREE sections (FW-39, D46) ──
 					        To be converted (the table below), then DECLINED and SKIPPED. The
@@ -1097,18 +1093,20 @@ function my_result( $post_id, $arg = '' ) {
 
 					        Rendered empty and filled by the scan, like the pattern-cache line
 					        above: PHP composes every sentence, the script only places it. */ ?>
-					<div id="bws-scan-exemption" class="bws-scan-exemption notice notice-warning inline" style="display:none;">
-						<p id="bws-scan-exemption-line"></p>
-					</div>
-
 					<div id="bws-scan-results" style="display:none;">
 						<h3 class="bws-channel-header"><?php esc_html_e( 'To be converted', 'generateblocks' ); ?></h3>
+						<div id="bws-scan-exemption" class="bws-scan-exemption" style="display:none;">
+							<div class="gp-notice gp-notice--warn bws-notice">
+								<span class="gp-notice__status"><span class="gp-status-dot gp-status-dot--warn" aria-hidden="true"></span></span>
+								<div class="gp-notice__content"><p id="bws-scan-exemption-line"></p></div>
+							</div>
+						</div>
 						<div class="bws-results-toolbar">
 							<label>
 								<input type="checkbox" id="bws-select-all" />
 								<span id="bws-select-all-label"><?php esc_html_e( 'Select all', 'generateblocks' ); ?></span>
 							</label>
-							<button type="button" id="bws-migrate-selected-btn" class="button" disabled>
+							<button type="button" id="bws-migrate-selected-btn" class="gp-button gp-button--secondary gp-button--small" disabled>
 								<?php esc_html_e( 'Migrate Selected', 'generateblocks' ); ?>
 							</button>
 							<div class="bws-progress-wrap" id="bws-progress-wrap" style="display:none;">
@@ -1119,7 +1117,7 @@ function my_result( $post_id, $arg = '' ) {
 						<table class="bws-tags-table widefat bws-results-table" id="bws-results-table">
 							<thead>
 								<tr>
-									<th class="bws-cb-col"></th>
+									<th class="bws-cb-col"><span class="screen-reader-text"><?php esc_html_e( 'Select', 'generateblocks' ); ?></span></th>
 									<th><?php esc_html_e( 'Post', 'generateblocks' ); ?></th>
 									<th><?php esc_html_e( 'Type', 'generateblocks' ); ?></th>
 									<th><?php esc_html_e( 'Issues Found', 'generateblocks' ); ?></th>
@@ -1156,34 +1154,19 @@ function my_result( $post_id, $arg = '' ) {
 						</p>
 						<ul class="bws-channel-list" id="bws-skipped-list"></ul>
 					</div>
+					</div>
 				</div>
 
-				<?php /* ── Diagnostics: settings, then read-only reports ── */ ?>
+				<?php /* ── Diagnostics: read-only reports ── */ ?>
 				<div class="bws-tag-group">
 					<?php
-					// ONE HEADING OVER TWO SUBSECTIONS, so the heading names the CATEGORY and each
-					// subhead names its subject. The conflicts half changes nothing and only
-					// reports; the settings half changes behaviour. Labelling only one of them
-					// would leave the other orphaned, which is why "Settings" exists at all --
-					// three checkboxes do not need a name until something else sits beside them.
-					//
-					// THE REPORT COMES FIRST, THE SWITCHES SECOND. A reader arriving at Diagnostics
-					// is answering "did something break", and the answer is a finding, not a
-					// checkbox; the settings here only decide what gets written to a log for a
-					// LATER look. Ordering by what is read rather than by what is editable also
-					// keeps the one subsection that can carry a warning above the fold.
-					//
-					// Tag Name Conflicts was its own H2 until this. It was `Integration Status` with
-					// a subhead before that, narrowed on 2026-08-26 when its second subsection
-					// (dependency-version drift) was cut and deferred as FW-99, on the rule that one
-					// heading over one table names the subject rather than the category. The rule
-					// holds; what changed is that the block is no longer alone. FW-99 lands here as
-					// a third subhead rather than as a section of its own.
-					//
-					// The shape is not invented here: Call Custom Function is one H2 over its own
-					// settings plus a `Registered functions` subhead labelling a read-only table.
+					// The heading names the CATEGORY and each subhead names its subject. Every
+					// subsection here is a read-only report that changes nothing; Tag Name Conflicts
+					// is the only one so far, and FW-99 lands here as a second subhead rather than
+					// as a section of its own.
 					?>
 					<h2 class="bws-section-header"><?php esc_html_e( 'Diagnostics', 'generateblocks' ); ?></h2>
+					<div class="bws-card">
 
 					<?php /* ── Tag Name Conflicts (read-only; NOT config, changes nothing) ── */ ?>
 					<?php
@@ -1260,7 +1243,7 @@ function my_result( $post_id, $arg = '' ) {
 						?>
 						<div class="bws-section-desc bws-conflict-none">
 							<p style="margin:0">
-								<span class="bws-call-ok" aria-hidden="true">✓</span>
+								<span class="gp-status-dot" aria-hidden="true"></span>
 								<?php esc_html_e( 'If more than one plugin registers the same tag name, frontend output can change without warning. As of now, this plugin can register all its tags without conflict.', 'generateblocks' ); ?>
 							</p>
 						</div>
@@ -1268,7 +1251,7 @@ function my_result( $post_id, $arg = '' ) {
 					<table class="bws-tags-table widefat">
 						<thead>
 								<tr>
-									<th style="width:1.5em"></th>
+									<th style="width:1.5em"><span class="screen-reader-text"><?php esc_html_e( 'Severity', 'generateblocks' ); ?></span></th>
 									<th><?php esc_html_e( 'Tag', 'generateblocks' ); ?></th>
 									<th><?php esc_html_e( 'Status', 'generateblocks' ); ?></th>
 									<th><?php esc_html_e( 'Other plugin', 'generateblocks' ); ?></th>
@@ -1308,13 +1291,13 @@ function my_result( $post_id, $arg = '' ) {
 										<?php
 										// Decorative, and it carries NO screen-reader text: the status
 										// is printed as visible text two cells along, so a span here
-										// would have it read out twice in a row. The glyph varies by
+										// would have it read out twice in a row. The dot's color varies by
 										// state rather than marking every row the same way, which told
 										// a reader only what the table's presence already told them.
 										?>
-										<span class="<?php echo 'warn' === $bws_c_state['icon'] ? 'bws-call-warn' : 'bws-call-info'; ?>" aria-hidden="true"><?php echo 'warn' === $bws_c_state['icon'] ? '⚠' : 'ℹ'; ?></span>
+										<span class="gp-status-dot <?php echo 'warn' === $bws_c_state['icon'] ? 'gp-status-dot--error' : 'gp-status-dot--idle'; ?>" aria-hidden="true"></span>
 									</td>
-									<td><code><?php echo esc_html( '{{' . $bws_collision['tag'] . '}}' ); ?></code></td>
+									<td><code><?php echo esc_html( $bws_collision['tag'] ); ?></code></td>
 									<?php
 									// The status text IS the legend heading below, word for word. That
 									// is what links a row to the paragraph explaining it, with no
@@ -1362,7 +1345,7 @@ function my_result( $post_id, $arg = '' ) {
 									<?php continue; ?>
 								<?php endif; ?>
 								<h4>
-									<span class="<?php echo 'warn' === $bws_c_state['icon'] ? 'bws-call-warn' : 'bws-call-info'; ?>" aria-hidden="true"><?php echo 'warn' === $bws_c_state['icon'] ? '⚠' : 'ℹ'; ?></span>
+									<span class="gp-status-dot <?php echo 'warn' === $bws_c_state['icon'] ? 'gp-status-dot--error' : 'gp-status-dot--idle'; ?>" aria-hidden="true"></span>
 									<?php echo esc_html( $bws_c_state['heading'] ); ?>
 								</h4>
 								<p class="description"><?php echo esc_html( $bws_c_state['long'] ); ?></p>
@@ -1371,204 +1354,12 @@ function my_result( $post_id, $arg = '' ) {
 						</div>
 					<?php endif; ?>
 
-					<h3 class="bws-subhead"><?php esc_html_e( 'Settings', 'generateblocks' ); ?></h3>
-					<table class="bws-tags-table widefat">
-						<tbody>
-							<tr class="bws-tag-row">
-								<td class="bws-tag-checkbox">
-									<input type="checkbox" id="bws-diag-benchmark-logging"
-										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[diagnostics][benchmark_logging]"
-										value="1" <?php checked( self::is_benchmark_logging_enabled() ); ?> />
-								</td>
-								<td>
-									<label for="bws-diag-benchmark-logging"><?php esc_html_e( 'Enable benchmark logging', 'generateblocks' ); ?></label>
-									<p class="description"><?php esc_html_e( 'Log post content processing time and memory usage to the PHP error log.', 'generateblocks' ); ?></p>
-								</td>
-							</tr>
-							<tr class="bws-tag-row">
-								<td class="bws-tag-checkbox">
-									<input type="checkbox" id="bws-diag-registration-logging"
-										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[diagnostics][registration_logging]"
-										value="1" <?php checked( self::is_registration_logging_enabled() ); ?> />
-								</td>
-								<td>
-									<label for="bws-diag-registration-logging"><?php esc_html_e( 'Enable source registration logging', 'generateblocks' ); ?></label>
-									<p class="description"><?php esc_html_e( 'Log source registration and the bws_dynamic_tags_register_sources action to the PHP error log.', 'generateblocks' ); ?></p>
-								</td>
-							</tr>
-							<tr class="bws-tag-row">
-								<td class="bws-tag-checkbox">
-									<input type="checkbox" id="bws-diag-show-all-deprecated"
-										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[diagnostics][show_all_deprecated]"
-										value="1" <?php checked( self::is_show_all_deprecated_enabled() ); ?> />
-								</td>
-								<td>
-									<label for="bws-diag-show-all-deprecated"><?php esc_html_e( 'Show all deprecated/removed tags and options', 'generateblocks' ); ?></label>
-									<p class="description"><?php esc_html_e( 'By default, only deprecated or removed tags and options which were found in site content at the last plugin upgrade or Migration Tool scan are shown. Enable this to list every registered entry regardless of scan results.', 'generateblocks' ); ?></p>
-								</td>
-							</tr>
-						</tbody>
-					</table>
-
+					</div>
 				</div>
 
-				<?php submit_button( __( 'Save Settings', 'generateblocks' ) ); ?>
 			</form>
 		</div>
-
-		<style>
-			.bws-dynamic-tags-settings .bws-tag-group { margin-bottom: 24px; }
-			.bws-dynamic-tags-settings .bws-section-header {
-				margin: 0 0 0;
-				padding: 10px 12px;
-				background: #f0f0f1;
-				border: 1px solid #c3c4c7;
-				font-size: 14px;
-			}
-			.bws-dynamic-tags-settings .bws-section-desc {
-				padding: 8px 12px;
-				margin: 0;
-				background: #fff;
-				border: 1px solid #c3c4c7;
-				border-top: none;
-				border-bottom: none;
-			}
-			.bws-dynamic-tags-settings .bws-subhead {
-				margin: 0;
-				padding: 8px 12px;
-				background: #fff;
-				border: 1px solid #c3c4c7;
-				border-bottom: none;
-				font-size: 13px;
-			}
-			/* Sized down from the dashicon default of 20px so it sits on the description's
-			   13px line rather than above it; same red as .bws-call-warn. */
-			.bws-dynamic-tags-settings .bws-warn-icon {
-				color: #b32d2e;
-				font-size: 16px;
-				width: 16px;
-				height: 16px;
-				vertical-align: text-bottom;
-				margin-right: 4px;
-			}
-			.bws-dynamic-tags-settings .bws-call-ok   { color: #008a20; font-weight: 600; }
-			.bws-dynamic-tags-settings .bws-call-warn { color: #b32d2e; font-weight: 600; }
-			.bws-dynamic-tags-settings .bws-call-info { color: #2271b1; font-weight: 600; }
-			/* A subhead that FOLLOWS a subsection needs air, but the air goes INSIDE the box:
-			   every element in a group shares one continuous border, so a margin here breaks
-			   one section into two floating boxes instead of separating two subsections. The
-			   preceding table's bottom border is the divider; this only adds room above the
-			   heading and drops the doubled border line. */
-			.bws-dynamic-tags-settings .bws-tags-table + .bws-subhead,
-			.bws-dynamic-tags-settings .bws-conflict-none + .bws-subhead,
-			.bws-dynamic-tags-settings .bws-conflict-legend + .bws-subhead {
-				margin-top: 0;
-				padding-top: 18px;
-				border-top: none;
-			}
-			/* The empty state is the only subsection that ends in a paragraph rather than a
-			   table or the legend, so it carries the divider its neighbours get for free. */
-			.bws-dynamic-tags-settings .bws-conflict-none { border-bottom: 1px solid #c3c4c7; }
-			.bws-dynamic-tags-settings .bws-conflict-legend {
-				padding: 4px 12px 12px;
-				background: #fff;
-				border: 1px solid #c3c4c7;
-				border-top: none;
-			}
-			.bws-dynamic-tags-settings .bws-conflict-legend h4 { font-size: 13px; margin: 12px 0 4px; }
-			.bws-dynamic-tags-settings .bws-conflict-legend p  { margin: 0 0 6px; }
-			.bws-dynamic-tags-settings .bws-tags-table { border-top: none; }
-			.bws-dynamic-tags-settings .bws-tag-row td { padding: 6px 12px; vertical-align: middle; }
-			.bws-dynamic-tags-settings .bws-tag-checkbox { width: 30px; }
-			.bws-dynamic-tags-settings .bws-tag-name { margin-left: 4px; font-size: 12px; color: #787c82; }
-			.bws-dynamic-tags-settings .bws-new-tag { color: #2271b1; }
-			.bws-dynamic-tags-settings .bws-dep-arrow { margin: 0 2px; color: #787c82; }
-			.bws-dynamic-tags-settings .bws-dep-since { margin-left: 8px; font-size: 12px; color: #a0a0a0; }
-
-			/* Deprecated group */
-			.bws-dynamic-tags-settings .bws-dep-group {
-				padding: 12px;
-				background: #fff;
-				border: 1px solid #c3c4c7;
-				border-top: none;
-			}
-			.bws-dynamic-tags-settings .bws-dep-group + .bws-dep-group { border-top: 1px solid #c3c4c7; }
-			.bws-dynamic-tags-settings .bws-dep-group-header { margin: 0 0 4px; font-size: 13px; }
-			.bws-dynamic-tags-settings .bws-mode-radios { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
-			.bws-dynamic-tags-settings .bws-mode-radio-label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
-			.bws-dynamic-tags-settings .bws-dep-tag-list { margin-top: 8px; }
-			.bws-dynamic-tags-settings .bws-dep-tag-list summary { cursor: pointer; color: #2271b1; font-size: 13px; }
-			.bws-dynamic-tags-settings .bws-ref-table { margin-top: 6px; }
-			.bws-dynamic-tags-settings .bws-ref-table td { padding: 3px 10px; }
-			.bws-dynamic-tags-settings .bws-dep-label { margin: 2px 0 0 4px; font-size: 12px; color: #646970; }
-			.bws-dynamic-tags-settings .bws-dep-applies { margin: 2px 0 0 4px; font-size: 12px; color: #646970; }
-			.bws-dynamic-tags-settings .bws-dep-rename { font-size: 13px; }
-			.bws-dynamic-tags-settings .bws-dep-rename code { font-size: 12px; }
-			.bws-dynamic-tags-settings .bws-dep-reason { margin-left: 6px; color: #646970; font-size: 12px; }
-
-			/* Migration tool */
-			.bws-dynamic-tags-settings .bws-migration-tool {
-				background: #fff;
-				border: 1px solid #c3c4c7;
-			}
-			/* The report's three channels (FW-39). Each section is headed, so the two
-			   non-conversion lists read as peers of the table rather than as footnotes to it. */
-			.bws-dynamic-tags-settings .bws-channel-header {
-				margin: 20px 0 4px;
-				font-size: 14px;
-			}
-			.bws-dynamic-tags-settings .bws-channel-list { margin: 0; }
-			.bws-dynamic-tags-settings .bws-channel-item {
-				margin: 0 0 10px;
-				padding: 10px 12px;
-				border: 1px solid #dcdcde;
-				border-left-width: 4px;
-				background: #fff;
-			}
-			.bws-dynamic-tags-settings .bws-channel-declined { border-left-color: #d63638; }
-			.bws-dynamic-tags-settings .bws-channel-skipped  { border-left-color: #dba617; }
-			.bws-dynamic-tags-settings .bws-channel-line { margin: 0; }
-			.bws-dynamic-tags-settings .bws-channel-action,
-			.bws-dynamic-tags-settings .bws-channel-preview {
-				margin: 4px 0 0;
-				font-size: 12px;
-				color: #646970;
-			}
-			.bws-dynamic-tags-settings .bws-channel-claim { margin: 8px 0 0; }
-			.bws-dynamic-tags-settings .bws-claim-status { font-size: 12px; color: #646970; }
-			.bws-dynamic-tags-settings .bws-scan-controls {
-				display: flex;
-				align-items: center;
-				gap: 12px;
-				padding: 12px;
-				border-bottom: 1px solid #c3c4c7;
-			}
-			.bws-dynamic-tags-settings .bws-scan-status { font-size: 13px; color: #787c82; }
-			.bws-dynamic-tags-settings .bws-results-toolbar {
-				display: flex;
-				align-items: center;
-				gap: 12px;
-				padding: 8px 12px;
-				background: #f6f7f7;
-				border-bottom: 1px solid #c3c4c7;
-				flex-wrap: wrap;
-			}
-			.bws-dynamic-tags-settings .bws-results-table th,
-			.bws-dynamic-tags-settings .bws-results-table td { padding: 6px 12px; vertical-align: middle; }
-			.bws-dynamic-tags-settings .bws-cb-col { width: 28px; }
-			.bws-dynamic-tags-settings .bws-issue-list { margin: 0; padding: 0; list-style: none; font-size: 12px; }
-			.bws-dynamic-tags-settings .bws-issue-tag { color: #d63638; }
-			.bws-dynamic-tags-settings .bws-issue-opt { color: #996800; }
-			.bws-dynamic-tags-settings .bws-no-revision { font-size: 12px; color: #996800; }
-			.bws-dynamic-tags-settings .bws-row-status { font-size: 12px; margin-left: 6px; }
-			.bws-dynamic-tags-settings .bws-row-status.ok { color: #00a32a; }
-			.bws-dynamic-tags-settings .bws-row-status.err { color: #d63638; }
-
-			/* Progress bar */
-			.bws-dynamic-tags-settings .bws-progress-wrap { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 200px; }
-			.bws-dynamic-tags-settings .bws-progress-bar { flex: 1; height: 8px; background: #dcdcde; border-radius: 4px; overflow: hidden; }
-			.bws-dynamic-tags-settings .bws-progress-fill { height: 100%; background: #2271b1; width: 0; transition: width 0.2s; }
-		</style>
+		</div>
 		<?php
 	}
 }

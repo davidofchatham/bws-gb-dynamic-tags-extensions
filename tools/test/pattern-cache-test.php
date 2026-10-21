@@ -247,15 +247,15 @@ assert_eq( 'P6.2 checked 0 → honest for both "GB Pro absent" and "no patterns 
 	PatternCache::format_status( array( 'checked' => 0, 'reconciled' => 0, 'time' => $ts ) ) );
 
 assert_eq( 'P6.3 checked, none diverged',
-	'Pattern cache checked August 13, 2025 3:46 pm: 37 patterns, all current.',
+	'As of August 13, 2025 3:46 pm: 37 patterns, all current.',
 	PatternCache::format_status( array( 'checked' => 37, 'reconciled' => 0, 'time' => $ts ) ) );
 
 assert_eq( 'P6.4 …and the singular reads correctly',
-	'Pattern cache checked August 13, 2025 3:46 pm: 1 pattern, all current.',
+	'As of August 13, 2025 3:46 pm: 1 pattern, all current.',
 	PatternCache::format_status( array( 'checked' => 1, 'reconciled' => 0, 'time' => $ts ) ) );
 
 assert_eq( 'P6.5 some were repaired — M of N, so the denominator survives',
-	'Pattern cache checked August 13, 2025 3:46 pm: 5 of 37 patterns updated.',
+	'As of August 13, 2025 3:46 pm: 5 of 37 patterns updated.',
 	PatternCache::format_status( array( 'checked' => 37, 'reconciled' => 5, 'time' => $ts ) ) );
 
 // trigger/version are STORED but never rendered — retroactivity, not display. The line

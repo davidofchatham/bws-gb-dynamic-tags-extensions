@@ -203,6 +203,10 @@ class PatternCache {
 	 * patterns and for a site where the meta key was never found. `checked` is the
 	 * denominator that makes the claim falsifiable.
 	 *
+	 * The text opens "As of <time>:" because it CONTINUES a sentence the settings page prints
+	 * just before it (the `#bws-pattern-cache-status` span holds only this string, and both AJAX
+	 * handlers replace only the span). A caller that shows it anywhere else supplies its own lead-in.
+	 *
 	 * `trigger` and `version` are STORED but never rendered — they are retroactivity, not
 	 * display (see record_status()).
 	 *
@@ -233,8 +237,8 @@ class PatternCache {
 			return sprintf(
 				/* translators: 1: date and time of the check, 2: number of patterns checked. */
 				_n(
-					'Pattern cache checked %1$s: %2$d pattern, all current.',
-					'Pattern cache checked %1$s: %2$d patterns, all current.',
+					'As of %1$s: %2$d pattern, all current.',
+					'As of %1$s: %2$d patterns, all current.',
 					$checked,
 					'generateblocks'
 				),
@@ -245,7 +249,7 @@ class PatternCache {
 
 		return sprintf(
 			/* translators: 1: date and time of the check, 2: patterns updated, 3: patterns checked. */
-			__( 'Pattern cache checked %1$s: %2$d of %3$d patterns updated.', 'generateblocks' ),
+			__( 'As of %1$s: %2$d of %3$d patterns updated.', 'generateblocks' ),
 			$when,
 			$reconciled,
 			$checked

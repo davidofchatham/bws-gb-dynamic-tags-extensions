@@ -1,0 +1,354 @@
+/* Tag Extensions settings screen. */
+
+/* Every design-system token is read through one alias with a fallback, so the page keeps
+   its layout and colors when the token stylesheet is not loaded. */
+.bws-dynamic-tags-page {
+	--bws-canvas: var(--gp-surface-page, #f0f0f1);
+	--bws-surface: var(--gp-surface, #fff);
+	--bws-fill: var(--gp-fill, #f5f5f7);
+	--bws-fill-strong: var(--gp-fill-2, #e3e3e5);
+	--bws-line: var(--gp-hairline, #ebebea);
+	--bws-border: var(--gp-surface-border, #dcdcde);
+	--bws-outline: var(--gp-outline, #d2d2d7);
+	--bws-ink: var(--gp-text-heading, #111112);
+	--bws-text: var(--gp-text-body, #6e6e73);
+	--bws-muted: var(--gp-text-muted, #6b6b70);
+	--bws-accent: var(--gp-accent, var(--wp-admin-theme-color, #3858e9));
+	--bws-ok: var(--gp-status-ok, #00a32a);
+	--bws-warn: var(--gp-status-warn, #dba617);
+	--bws-error: var(--gp-status-error, #d63638);
+	/* Status colors are lines and dots at their token value; as text they are darkened to
+	   stay readable on the white card. */
+	--bws-ok-text: color-mix(in srgb, var(--bws-ok) 78%, #000);
+	--bws-warn-text: color-mix(in srgb, var(--bws-warn) 55%, #000);
+	--bws-error-text: color-mix(in srgb, var(--bws-error) 80%, #000);
+	--bws-radius-card: var(--gp-radius-panel-sm, 14px);
+	--bws-radius-field: var(--gp-radius-field, 10px);
+	--bws-pad-x: var(--gp-surface-pad-x, 28px);
+	--bws-mono: var(--gp-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+	--gp-page-header-top: var(--wp-admin--admin-bar--height, 0px);
+}
+
+@media (max-width: 600px) {
+	.bws-dynamic-tags-page {
+		--gp-page-header-top: 0px;
+	}
+}
+
+/* ── Page frame ── */
+.bws-has-frame #wpcontent { padding-left: 0; }
+.bws-has-frame .gp-admin-page { background: var(--bws-canvas); }
+.bws-has-frame .bws-dynamic-tags-settings.wrap { margin: 0 auto; }
+
+/* ── Sections: an eyebrow heading on the canvas, then a card ── */
+.bws-dynamic-tags-settings .bws-tag-group { margin: 0 0 var(--gp-space-section, 40px); }
+.bws-dynamic-tags-settings .bws-section-header {
+	margin: 0 0 12px;
+	padding: 0;
+	color: var(--bws-muted);
+	font-size: var(--gp-size-eyebrow, 11px);
+	font-weight: var(--gp-weight-medium, 500);
+	letter-spacing: var(--gp-tracking-eyebrow, 0.12em);
+	text-transform: uppercase;
+}
+.bws-dynamic-tags-settings .bws-card {
+	overflow: hidden;
+	background: var(--bws-surface);
+	border: 1px solid var(--bws-border);
+	border-radius: var(--bws-radius-card);
+	color: var(--bws-text);
+	font-size: var(--gp-size-control, 14px);
+}
+.bws-dynamic-tags-settings .bws-section-desc {
+	margin: 0;
+	padding: 20px var(--bws-pad-x) 4px;
+	color: var(--bws-muted);
+	font-size: var(--gp-size-meta, 13px);
+	line-height: var(--gp-lh-meta, 1.5);
+}
+.bws-dynamic-tags-settings .bws-section-desc + .bws-section-desc { padding-top: 8px; }
+.bws-dynamic-tags-settings .bws-subhead {
+	margin: 12px 0 0;
+	padding: 20px var(--bws-pad-x) 4px;
+	border-top: 1px solid var(--bws-line);
+	color: var(--bws-ink);
+	font-size: var(--gp-size-control, 14px);
+	font-weight: var(--gp-weight-medium, 500);
+}
+.bws-dynamic-tags-settings .bws-section-header + .bws-card > .bws-subhead:first-child {
+	margin-top: 0;
+	border-top: 0;
+}
+
+/* ── Tables: plain rows divided by hairlines ── */
+.bws-dynamic-tags-settings table {
+	width: 100%;
+	margin: 0;
+	border: 0;
+	border-collapse: collapse;
+	background: transparent;
+	box-shadow: none;
+}
+.bws-dynamic-tags-settings table th,
+.bws-dynamic-tags-settings table td {
+	border: 0;
+	background: transparent;
+	color: inherit;
+}
+.bws-dynamic-tags-settings table thead th {
+	padding: 10px 12px;
+	border-bottom: 1px solid var(--bws-line);
+	color: var(--bws-muted);
+	font-size: var(--gp-size-small, 12px);
+	font-weight: var(--gp-weight-medium, 500);
+	text-align: left;
+}
+.bws-dynamic-tags-settings table tr + tr td { border-top: 1px solid var(--bws-line); }
+.bws-dynamic-tags-settings table tbody tr:first-child td { border-top: 0; }
+.bws-dynamic-tags-settings table th:first-child,
+.bws-dynamic-tags-settings table td:first-child { padding-left: var(--bws-pad-x); }
+.bws-dynamic-tags-settings table th:last-child,
+.bws-dynamic-tags-settings table td:last-child { padding-right: var(--bws-pad-x); }
+.bws-dynamic-tags-settings .bws-tag-row td { padding: 16px 12px; vertical-align: middle; }
+/* The control column is as wide as its widest control and no wider, and each control sits
+   at its right edge, next to the label it belongs to. */
+.bws-dynamic-tags-settings .bws-tag-row td.bws-tag-checkbox { width: 1%; padding-right: 4px; text-align: right; white-space: nowrap; }
+.bws-dynamic-tags-settings .bws-tag-row label {
+	color: var(--bws-ink);
+	font-size: var(--gp-size-control, 14px);
+	font-weight: var(--gp-weight-medium, 500);
+}
+.bws-dynamic-tags-settings .description,
+.bws-dynamic-tags-settings .bws-tag-row .description {
+	margin: 4px 0 0;
+	color: var(--bws-muted);
+	font-size: var(--gp-size-meta, 13px);
+	font-style: normal;
+	line-height: var(--gp-lh-meta, 1.5);
+}
+.bws-dynamic-tags-settings .bws-section-desc.description { margin: 0; }
+.bws-dynamic-tags-settings a { color: var(--bws-accent); }
+/* A link inside a sentence differs from the text around it by less than 3:1 in color. */
+.bws-dynamic-tags-settings p a { text-decoration: underline; }
+
+/* ── Controls ── */
+.bws-dynamic-tags-settings input[type="checkbox"],
+.bws-dynamic-tags-settings input[type="radio"] {
+	margin: 0;
+	accent-color: var(--bws-accent);
+}
+.bws-dynamic-tags-settings input.gp-text-input { height: var(--gp-control-height, 42px); padding: 0 14px; }
+.bws-dynamic-tags-settings input.bws-input-wide { width: 14em; }
+/* Both hold at most three digits. */
+.bws-dynamic-tags-settings input.bws-input-narrow,
+.bws-dynamic-tags-settings #bws-phone-country-code { width: 6em; }
+.bws-dynamic-tags-settings .bws-input-unit { position: relative; display: inline-block; }
+.bws-dynamic-tags-settings .bws-input-unit input { padding-right: 32px; -moz-appearance: textfield; appearance: textfield; }
+.bws-dynamic-tags-settings .bws-input-unit input::-webkit-inner-spin-button,
+.bws-dynamic-tags-settings .bws-input-unit input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.bws-dynamic-tags-settings .bws-input-unit__suffix {
+	position: absolute;
+	top: 50%;
+	right: 14px;
+	color: var(--bws-muted);
+	pointer-events: none;
+	transform: translateY(-50%);
+}
+.bws-dynamic-tags-settings .bws-tag-checkbox input.gp-text-input { margin-top: 0; }
+.bws-dynamic-tags-settings .gp-button:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
+/* The scanner script creates this one, so it takes the small secondary look from here. */
+.bws-dynamic-tags-settings .bws-migrate-one-btn.button {
+	min-height: var(--gp-control-height-sm, 32px);
+	padding: 0 14px;
+	border: 1px solid var(--bws-accent);
+	border-radius: var(--gp-radius-pill, 100px);
+	background: var(--bws-surface);
+	color: var(--bws-accent);
+	font-size: var(--gp-size-small, 12px);
+	font-weight: var(--gp-weight-medium, 500);
+}
+.bws-dynamic-tags-settings .bws-migrate-one-btn.button:disabled { opacity: 0.4; }
+.bws-dynamic-tags-settings :focus-visible {
+	outline: 2px solid var(--bws-accent);
+	outline-offset: 2px;
+}
+
+/* ── Advisory: a status dot and a sentence, set off from the description above it ── */
+.bws-dynamic-tags-settings .bws-notice {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	margin: 10px 0 0;
+	padding: 0;
+	border: 0;
+}
+.bws-dynamic-tags-settings .bws-section-desc .bws-notice { margin: 0; }
+.bws-dynamic-tags-settings .bws-notice.bws-notice--info .gp-status-dot { background: var(--bws-accent); }
+.bws-dynamic-tags-settings .bws-notice .gp-notice__status { display: inline-flex; align-items: center; height: 19px; }
+.bws-dynamic-tags-settings .bws-notice .gp-status-dot { display: block; flex: 0 0 7px; margin: 0; background: var(--bws-warn); }
+.bws-dynamic-tags-settings .bws-notice .gp-notice__content {
+	flex: 1;
+	min-width: 0;
+	color: var(--bws-text);
+	font-size: var(--gp-size-meta, 13px);
+	line-height: var(--gp-lh-meta, 1.5);
+}
+
+/* ── Code ── */
+.bws-dynamic-tags-settings code {
+	padding: 2px 6px;
+	border-radius: 6px;
+	background: var(--bws-fill);
+	color: var(--bws-ink);
+	font-family: var(--bws-mono);
+	font-size: var(--gp-size-small, 12px);
+}
+.bws-dynamic-tags-settings .bws-tag-name { margin-left: 4px; color: var(--bws-muted); }
+.bws-dynamic-tags-settings .bws-new-tag { color: var(--bws-accent); }
+.bws-dynamic-tags-settings .bws-dep-arrow { margin: 0 2px; color: var(--bws-muted); }
+.bws-dynamic-tags-settings .bws-dep-since { margin-left: 8px; color: var(--bws-muted); font-size: var(--gp-size-small, 12px); }
+.bws-dynamic-tags-settings .bws-code-block {
+	margin: 12px var(--bws-pad-x) 12px;
+	padding: 14px 16px;
+	overflow: auto;
+	border: 1px solid var(--bws-line);
+	border-radius: var(--bws-radius-field);
+	background: var(--bws-fill);
+}
+.bws-dynamic-tags-settings .bws-section-desc .bws-code-block { margin-inline: 0; }
+.bws-dynamic-tags-settings .bws-code-block code { padding: 0; background: transparent; font-size: var(--gp-size-meta, 13px); }
+.bws-dynamic-tags-settings .bws-section-desc p { margin: 0; }
+
+/* ── Status dots: ok by default, then idle, warn and error. The mark never carries the
+   meaning alone; the text beside it, or the row's own text, says what it is. ── */
+.bws-dynamic-tags-settings .gp-status-dot {
+	display: inline-block;
+	width: 7px;
+	height: 7px;
+	margin-inline-end: 8px;
+	border-radius: 50%;
+	background: var(--bws-ok);
+	vertical-align: middle;
+}
+.bws-dynamic-tags-settings .gp-status-dot--idle { background: var(--gp-status-idle, #d2d2d7); }
+.bws-dynamic-tags-settings .gp-status-dot--warn { background: var(--bws-warn); }
+.bws-dynamic-tags-settings .gp-status-dot--error { background: var(--bws-error); }
+.bws-dynamic-tags-settings td > .gp-status-dot { margin-inline-end: 0; }
+.bws-dynamic-tags-settings .bws-row-status.ok::before,
+.bws-dynamic-tags-settings .bws-row-status.err::before {
+	content: "";
+	display: inline-block;
+	width: 7px;
+	height: 7px;
+	margin-inline-end: 6px;
+	border-radius: 50%;
+	background: var(--bws-ok);
+	vertical-align: middle;
+}
+.bws-dynamic-tags-settings .bws-row-status.err::before { background: var(--bws-error); }
+.bws-dynamic-tags-settings .bws-conflict-none { padding-bottom: 20px; }
+.bws-dynamic-tags-settings .bws-conflict-legend { padding: 4px var(--bws-pad-x) 20px; }
+.bws-dynamic-tags-settings .bws-conflict-legend h4 { margin: 12px 0 4px; color: var(--bws-ink); font-size: var(--gp-size-meta, 13px); }
+.bws-dynamic-tags-settings .bws-conflict-legend p { margin: 0 0 6px; }
+
+/* ── Deprecated and removed groups ── */
+.bws-dynamic-tags-settings .bws-dep-group { padding: 20px var(--bws-pad-x); }
+.bws-dynamic-tags-settings .bws-dep-group + .bws-dep-group { border-top: 1px solid var(--bws-line); }
+.bws-dynamic-tags-settings .bws-dep-group-header { margin: 0 0 4px; color: var(--bws-ink); font-size: var(--gp-size-control, 14px); font-weight: var(--gp-weight-medium, 500); }
+.bws-dynamic-tags-settings .bws-mode-radios { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.bws-dynamic-tags-settings .bws-mode-radio-label { display: flex; align-items: center; gap: 8px; color: var(--bws-ink); cursor: pointer; }
+.bws-dynamic-tags-settings .bws-dep-tag-list { margin-top: 8px; }
+.bws-dynamic-tags-settings .bws-dep-tag-list summary { color: var(--bws-accent); cursor: pointer; font-size: var(--gp-size-meta, 13px); }
+.bws-dynamic-tags-settings .bws-ref-table { margin-top: 8px; }
+.bws-dynamic-tags-settings .bws-ref-table td { padding: 6px 10px; }
+.bws-dynamic-tags-settings .bws-ref-table td:first-child { padding-left: 0; }
+.bws-dynamic-tags-settings .bws-dep-label,
+.bws-dynamic-tags-settings .bws-dep-applies,
+.bws-dynamic-tags-settings .bws-dep-reason { color: var(--bws-muted); font-size: var(--gp-size-small, 12px); }
+.bws-dynamic-tags-settings .bws-dep-label,
+.bws-dynamic-tags-settings .bws-dep-applies { margin: 2px 0 0 4px; }
+.bws-dynamic-tags-settings .bws-dep-reason { margin-left: 6px; }
+.bws-dynamic-tags-settings .bws-dep-rename { font-size: var(--gp-size-meta, 13px); }
+
+/* ── Migration tool ── */
+.bws-dynamic-tags-settings .bws-scan-controls {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 20px var(--bws-pad-x);
+}
+.bws-dynamic-tags-settings .bws-scan-status { color: var(--bws-muted); font-size: var(--gp-size-meta, 13px); }
+/* The pattern-cache line: what the scan does to the cache, then how it stands. */
+.bws-dynamic-tags-settings .bws-pattern-cache { padding: 0 var(--bws-pad-x) 20px; }
+.bws-dynamic-tags-settings .bws-pattern-cache p { margin: 0; }
+.bws-dynamic-tags-settings .bws-scan-exemption { padding: 0 var(--bws-pad-x) 12px; }
+.bws-dynamic-tags-settings .bws-scan-exemption .bws-notice { margin: 0; }
+.bws-dynamic-tags-settings .bws-scan-exemption p { margin: 0; }
+.bws-dynamic-tags-settings .bws-channel-header {
+	margin: 0;
+	padding: 20px var(--bws-pad-x) 8px;
+	border-top: 1px solid var(--bws-line);
+	color: var(--bws-ink);
+	font-size: var(--gp-size-control, 14px);
+	font-weight: var(--gp-weight-medium, 500);
+}
+.bws-dynamic-tags-settings .bws-scan-channel { padding-bottom: 8px; }
+.bws-dynamic-tags-settings .bws-scan-channel .bws-section-desc { padding-top: 0; }
+/* A report row is a dot and a body, set apart by hairlines like the other lists. */
+.bws-dynamic-tags-settings .bws-channel-list { margin: 0; padding: 0 var(--bws-pad-x) 12px; list-style: none; }
+.bws-dynamic-tags-settings .bws-channel-item {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	margin: 0;
+	padding: 14px 0;
+	border-top: 1px solid var(--bws-line);
+}
+.bws-dynamic-tags-settings .bws-channel-item:first-child { border-top: 0; }
+.bws-dynamic-tags-settings .bws-channel-item .gp-status-dot { flex: 0 0 7px; margin: 7px 0 0; }
+.bws-dynamic-tags-settings .bws-channel-body { flex: 1; min-width: 0; }
+.bws-dynamic-tags-settings .bws-channel-line { margin: 0; }
+.bws-dynamic-tags-settings .bws-channel-found { margin: 6px 0 0; color: var(--bws-text); font-size: var(--gp-size-meta, 13px); }
+.bws-dynamic-tags-settings .bws-channel-found + .bws-channel-preview { margin-top: 2px; }
+.bws-dynamic-tags-settings .bws-channel-count { color: var(--bws-muted); }
+.bws-dynamic-tags-settings .bws-channel-action,
+.bws-dynamic-tags-settings .bws-channel-preview,
+.bws-dynamic-tags-settings .bws-claim-status { margin: 4px 0 0; color: var(--bws-muted); font-size: var(--gp-size-small, 12px); }
+.bws-dynamic-tags-settings .bws-channel-claim { margin: 8px 0 0; }
+.bws-dynamic-tags-settings .bws-results-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 12px;
+	padding: 10px var(--bws-pad-x);
+	background: var(--bws-fill);
+	border-top: 1px solid var(--bws-line);
+	border-bottom: 1px solid var(--bws-line);
+}
+.bws-dynamic-tags-settings .bws-results-table th,
+.bws-dynamic-tags-settings .bws-results-table td { padding: 10px 12px; vertical-align: middle; }
+.bws-dynamic-tags-settings .bws-cb-col { width: 28px; }
+.bws-dynamic-tags-settings .bws-issue-list { margin: 0; padding: 0; font-size: var(--gp-size-small, 12px); list-style: none; }
+.bws-dynamic-tags-settings .bws-issue-tag { color: var(--bws-error-text); }
+.bws-dynamic-tags-settings .bws-issue-opt,
+.bws-dynamic-tags-settings .bws-no-revision { color: var(--bws-warn-text); }
+.bws-dynamic-tags-settings .bws-no-revision { font-size: var(--gp-size-small, 12px); }
+.bws-dynamic-tags-settings .bws-row-status { margin-left: 6px; font-size: var(--gp-size-small, 12px); }
+.bws-dynamic-tags-settings .bws-row-status.ok { color: var(--bws-ok-text); }
+.bws-dynamic-tags-settings .bws-row-status.err { color: var(--bws-error-text); }
+
+/* ── Progress bar ── */
+.bws-dynamic-tags-settings .bws-progress-wrap { display: flex; flex: 1; align-items: center; gap: 8px; min-width: 200px; }
+.bws-dynamic-tags-settings .bws-progress-bar { flex: 1; height: 8px; overflow: hidden; border-radius: 4px; background: var(--bws-fill-strong); }
+.bws-dynamic-tags-settings .bws-progress-fill { width: 0; height: 100%; background: var(--bws-accent); transition: width 0.2s; }
+
+/* ── External link: new-tab icon trailing the link text ── */
+.bws-dynamic-tags-settings .bws-external-icon {
+	width: 1em;
+	height: 1em;
+	margin-inline-start: 3px;
+	font-size: 14px;
+	line-height: 1;
+	vertical-align: -2px;
+	text-decoration: none;
+}
