@@ -30,7 +30,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * readers is open (any plugin may hook the filter) while the set of GB consumers is
  * closed and readable. A blocklist could only ever name collisions already suffered.
  *
- * Read from GenerateBlocks 2.4.1 -- see BWS_GB_TAG_OUTPUT_OPTIONS_READ_FROM. Each key
+ * Read from GenerateBlocks 2.5.0 -- see BWS_GB_TAG_OUTPUT_OPTIONS_READ_FROM. Each key
  * and the method that consumes it, all in class-dynamic-tag-callbacks.php:
  *
  *   trunc    with_trunc()    substr / wp_trim_words
@@ -75,7 +75,7 @@ const BWS_GB_TAG_OUTPUT_OPTIONS = array(
  * GenerateBlocks_Dynamic_Tag_Callbacks::output() when this no longer matches the GB on
  * the fixture site, and this string moves in the same edit as the set.
  */
-const BWS_GB_TAG_OUTPUT_OPTIONS_READ_FROM = '2.4.1';
+const BWS_GB_TAG_OUTPUT_OPTIONS_READ_FROM = '2.5.0';
 
 /**
  * Hand a finished tag string to GB's output pipeline, with only the options GB reads.
