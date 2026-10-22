@@ -14,6 +14,7 @@
  * @since 1.6.0 Removed get_title_prefix() and get_traversal_options().
  * @since 1.17.0 Added is_selectable_root() default (false) (#83).
  * @since 1.20.0 Added get_root_argument() default (none) + resolve_root_argument() default (FW-39).
+ * @since Unreleased Removed the defaults for the ten methods SourceInterface no longer declares.
  */
 
 namespace BWS\DynamicTags;
@@ -24,80 +25,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 abstract class AbstractSource implements SourceInterface {
 
-	public function get_tag_prefix(): string {
-		return $this->get_source_key();
-	}
-
-	public function get_gb_type(): string {
-		return 'post';
-	}
-
 	public function get_context_type(): string {
 		return 'post';
-	}
-
-	public function get_effective_source_id(): string {
-		return $this->get_tag_prefix();
-	}
-
-	/**
-	 * Format the resolved entity ID for ACF. Post-based sources return unchanged.
-	 * Override in non-post sources (e.g. TaxonomyTerm returns "term_{$id}").
-	 *
-	 * @since 1.2.0
-	 * @param int|string $id Resolved entity ID.
-	 * @return int|string
-	 */
-	public function format_id_for_acf( $id ) {
-		return $id;
-	}
-
-	/**
-	 * Whether direct tags from this source are enabled by default.
-	 *
-	 * @since 1.2.0
-	 * @return bool
-	 */
-	public function source_default_enabled(): bool {
-		return true;
-	}
-
-	/**
-	 * Whether individual tags from this source are enabled by default.
-	 * Distinct from source_default_enabled(), which controls the source toggle default.
-	 * Delegates to source_default_enabled() so existing sources need no override.
-	 *
-	 * @since 1.4.1
-	 * @return bool
-	 */
-	public function tag_default_enabled(): bool {
-		return $this->source_default_enabled();
-	}
-
-	/**
-	 * Get supports to exclude when generating post-context direct tags for this source.
-	 *
-	 * @since 1.3.0
-	 * @return string[]
-	 */
-	public function get_excluded_supports(): array {
-		return [];
-	}
-
-	/**
-	 * @since 1.5.0
-	 * @return bool
-	 */
-	public function needs_relationship_field(): bool {
-		return false;
-	}
-
-	/**
-	 * @since 1.5.0
-	 * @return string
-	 */
-	public function get_ui_group(): string {
-		return $this->get_context_type();
 	}
 
 	/**

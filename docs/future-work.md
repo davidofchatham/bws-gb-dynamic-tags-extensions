@@ -389,18 +389,6 @@ Open: Which request types read the entries (converter, settings, AJAX, editor mo
 
 Blocked by: —  •  Interacts with: FW-38 (the entry record being registered), FW-174 (the `term` call rides the same pass), FW-150
 
-#### FW-176 — Delete the source-contract methods nothing reads
-
-`SourceInterface` declares ten methods (nine with `AbstractSource` defaults; `get_source_options()` has none) no code in this plugin calls: `get_source_options()`, `get_tag_prefix()`, `get_gb_type()`, `get_effective_source_id()`, `format_id_for_acf()`, `source_default_enabled()`, `tag_default_enabled()`, `get_excluded_supports()`, `needs_relationship_field()` and `get_ui_group()`. This item deletes them from both files, which breaks no implementer: an override of a method the interface no longer declares is a harmless extra method.
-
-Detail home: this row
-
-Progress: Not started. Read 2026-10-22: the only `->` calls to any of the ten are inside `AbstractSource`'s own defaults and in `tools/test/`. The one known external source, site-views' `ViewSource`, overrides `get_gb_type()`, `get_excluded_supports()` and `get_source_options()` and calls none of them.
-
-Open: Whether any test fixture source needs trimming in the same commit. The site-views overrides become dead once this ships and are deleted there as a follow-up. `docs/plugin-integration.md` §2's line listing the unread methods goes with it.
-
-Blocked by: —  •  Interacts with: FW-38 (`get_gb_type()` belongs to the deprecated-type stamping it replaces)
-
 ### Feature follow-ups & UX
 
 #### FW-9 — Context-aware base tags — the deferred residue
@@ -1494,6 +1482,7 @@ Append-only ledger of closed, shipped, or cut work — both `FW-N` items deleted
 | FW-142 | Omit a redundant `use` on base tags when the field token already says the read | Shipped 1.21.0 (2026-09-25, [PR #141](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/pull/141)): a general read rule, absent `use` plus a non-empty field token = that token's mode (one map row today, `key → key`; explicit `use` always wins), owned by one PHP helper every `use`-branching read site and the preview route through. The editor wraps GB's `use` select to show the derived mode, writes `use` only when the tokens would not imply it, deletes a mode's field token when `use` leaves it, and normalizes stored redundant wire on open, with no converter entry since old and new wire render identically. Live change on `{{content}}` only: `{{content key:bio}}` now reads the field. `{{image}}`'s default flip split out to FW-143 | CHANGELOG 1.21.0; `bws_use_effective()` PHPDoc (the axis); `tools/test/use-stripped-default-test.php`, `tools/test/editor-filter-chain-test.js`; `tools/test/content-test-matrix.md` §CT8 on `/matrix-content/`; `docs/design-history/implied-use-read.md` (the build spec, committed whole after merge) |
 | FW-151 | Functions nothing in the plugin calls | Shipped in 1.22.0 (CHANGELOG 1.22.0): 22 uncalled `bws_` functions deleted, no shims, after a caller census of every known site found no external caller. Seven were documented for integrating plugins and are named in the CHANGELOG with replacements; the rest were leftovers of FW-136, 14bd054's deprecated-tag removal and the `ContentProcessor` move. `try-fixed-dispatch-test.php` went with the dispatchers it tested. Kept on purpose: `bws_fold_grammar_validate()` (test-only by design) and the two deprecation-warning helpers, now FW-153's candidate starting points. Closed FW-126 | CHANGELOG 1.22.0 §Removed; FW-153 |
 | FW-159 | `{{table}}` borders | Shipped with FW-53 (1.22.0), folded into v1 rather than following it: `border` touches only the lines it names and `borderRadius` rounds the table's outer corners (rules: `bws_table_border_lines()` PHPDoc). Measured in Chrome 155 and Firefox 149, then 2026-10-20 in Chromium 156, Firefox 157 and WebKit 27.2 (Playwright) with no difference in any used border width and no fill painted outside a rounded corner; Apple Safari itself unmeasured; the screen-reader pass is FW-172 | `tag-reference.md`; `bws_table_border_parse()` / `bws_table_border_lines()` PHPDoc; `table-test-matrix.md` TP15-TP23; decision record `docs/design-history/table-tag.md` §REOPENED 2026-10-20 |
+| FW-176 | Delete the source-contract methods nothing reads | Removed in the release after 1.22.0: the ten `SourceInterface` methods no code called, their `AbstractSource` defaults, and every in-tree override. No shim: an external override of a removed method is a harmless extra method, and only a call to one that is not overridden breaks. Deleting site-views' `ViewSource` overrides is that repo's own follow-up | CHANGELOG (release after 1.22.0) Removed; `docs/plugin-integration.md` §2 |
 | #21 | Editor preview: resolve-then-label | Closed 2026-05-19 (commit 9f4fa96), shipped v1.6.2 | Resolve-then-label on all base/modifier/try/datetime callbacks; CHANGELOG v1.6.2 |
 | #26 | Derive try_ slot option DEFS from base builders | Closed 2026-06-26 | `bws_build_slot_traversal_options`; option-DEFINITION derivation only, never the resolve loop |
 | C1 (#2) | Consolidate field extraction logic | Closed 2026-05-01, shipped v1.6.0 | `bws_read_field()`/`bws_read_term_field()` in `content-helpers.php`; CHANGELOG v1.6.0 |

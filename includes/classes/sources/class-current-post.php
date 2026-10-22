@@ -27,18 +27,6 @@ class CurrentPost extends AbstractSource {
 		return __( 'Specific Post', 'generateblocks' );
 	}
 
-	public function get_tag_prefix(): string {
-		return 'post';
-	}
-
-	public function get_gb_type(): string {
-		return 'post';
-	}
-
-	public function get_effective_source_id(): string {
-		return 'post';
-	}
-
 	public function resolve_id( array $options, $instance ) {
 		if ( ! class_exists( 'GenerateBlocks_Dynamic_Tags' ) ) {
 			return false;
@@ -47,10 +35,6 @@ class CurrentPost extends AbstractSource {
 		$post_id = \GenerateBlocks_Dynamic_Tags::get_id( $options, 'post', $instance );
 
 		return $post_id ? (int) $post_id : false;
-	}
-
-	public function get_source_options(): array {
-		return array();
 	}
 
 	/**

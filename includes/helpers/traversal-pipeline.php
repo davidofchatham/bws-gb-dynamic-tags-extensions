@@ -585,7 +585,7 @@ function bws_resolve_base_source( array $options, $instance, $signals = null ) {
 	// the CURRENT-CONTEXT base the caller steps FROM. ref itself is a STEP (added
 	// by the assembler), not a base kind; so an explicit ref still bases on the
 	// ambient/current entity below. A registry source that resolves its OWN id
-	// (needs_relationship_field false, resolves independently) is honored here.
+	// independently is honored here.
 	if ( '' !== $src && 'ref' !== $src ) {
 		$delegated = bws_factory_registry_source( $src, $options, $instance );
 		if ( null !== $delegated ) {

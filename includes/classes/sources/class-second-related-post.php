@@ -8,9 +8,6 @@
  * documents why; the registration stays so the entry still carries its source key and
  * context type for the admin surfaces.
  *
- * The source is enabled by default (source_default_enabled() = true). When the source is
- * enabled, all individual tags are on by default (tag_default_enabled() = true).
- *
  * @package BWS_Dynamic_Tags
  * @since 1.2.0
  */
@@ -31,42 +28,6 @@ class SecondRelatedPost extends AbstractSource {
 
 	public function get_source_label(): string {
 		return __( 'Post → 2nd Rel. Post', 'generateblocks' );
-	}
-
-	/**
-	 * Source is enabled by default for discoverability.
-	 *
-	 * @since 1.2.0
-	 * @return bool
-	 */
-	public function source_default_enabled(): bool {
-		return true;
-	}
-
-	/**
-	 * Individual tags are enabled by default when the source is on.
-	 * The source itself is opt-in (off by default); once enabled, no per-tag setup needed.
-	 *
-	 * @since 1.4.1
-	 * @return bool
-	 */
-	public function tag_default_enabled(): bool {
-		return true;
-	}
-
-	/**
-	 * Exclude 'source' support — traversal always starts from the current post via rel/rel_2,
-	 * so the GB post picker has no role here.
-	 *
-	 * @since 1.4.1
-	 * @return string[]
-	 */
-	public function get_excluded_supports(): array {
-		return array( 'source', 'link' );
-	}
-
-	public function needs_relationship_field(): bool {
-		return true;
 	}
 
 	/**
@@ -92,21 +53,6 @@ class SecondRelatedPost extends AbstractSource {
 	 */
 	public function resolve_id( array $options, $instance ) {
 		return false;
-	}
-
-	/**
-	 * No options, since 1.17.0 (#56).
-	 *
-	 * This used to return the two relationship field keys the hops read (`rel`, `rel_2`).
-	 * With resolve_id() inert they would be controls advertising a traversal that cannot
-	 * fire — an author could fill them in and get nothing, with no way to tell why. An
-	 * inert resolver and a live option surface is the worse half of both states.
-	 *
-	 * @since 1.17.0 Emptied alongside resolve_id() (#56).
-	 * @return array
-	 */
-	public function get_source_options(): array {
-		return array();
 	}
 
 }

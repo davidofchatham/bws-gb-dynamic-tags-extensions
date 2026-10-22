@@ -12,6 +12,10 @@ All notable changes to this project are documented in this file. The format is b
 
 - **For integrating plugins: the integration guide is rewritten around what works today.** It leads with chain roots, points to GenerateBlocks' own docs for registering a tag, and narrows the documented helpers to the content-rendering pipeline. Every other `bws_` function is now stated to be internal. See [`docs/plugin-integration.md`](docs/plugin-integration.md).
 
+### Removed
+
+- **For integrating plugins: ten source methods that nothing read are gone from `SourceInterface` and `AbstractSource`.** They are `get_source_options()`, `get_tag_prefix()`, `get_gb_type()`, `get_effective_source_id()`, `format_id_for_acf()`, `source_default_enabled()`, `tag_default_enabled()`, `get_excluded_supports()`, `needs_relationship_field()` and `get_ui_group()`. A source class that overrides any of them keeps working, and the override can be deleted. `get_source_options()` no longer has to be written at all. Any code that calls one of them on a source that does not override it, whether through `parent::`, `$this->` or a source object from the registry, now fails with a fatal error, so delete that call.
+
 ## [1.22.0] — 2026-10-22
 
 ### Highlights

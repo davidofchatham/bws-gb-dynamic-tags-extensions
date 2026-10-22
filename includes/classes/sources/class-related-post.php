@@ -24,26 +24,6 @@ class RelatedPost extends AbstractSource {
 		return __( 'Post → Rel. Post', 'generateblocks' );
 	}
 
-	public function get_tag_prefix(): string {
-		return 'related_post';
-	}
-
-	public function get_gb_type(): string {
-		return 'related';
-	}
-
-	public function get_excluded_supports(): array {
-		return array( 'source', 'link' );
-	}
-
-	public function get_effective_source_id(): string {
-		return 'related';
-	}
-
-	public function needs_relationship_field(): bool {
-		return true;
-	}
-
 	/**
 	 * Inert since 1.17.0 — the relationship hop is the `ref` step's job (issue #56).
 	 *
@@ -75,10 +55,6 @@ class RelatedPost extends AbstractSource {
 	 */
 	public function resolve_id( array $options, $instance ) {
 		return false;
-	}
-
-	public function get_source_options(): array {
-		return array(); // Was already empty; the relationship field is `ref`, on the tag.
 	}
 
 }

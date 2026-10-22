@@ -72,22 +72,6 @@ class CallbackRoot extends AbstractSource {
 	}
 
 	/**
-	 * Term-context roots yield a term entity, so ACF wants the `term_` prefix — the same
-	 * rule TaxonomyTerm states for itself. A post-context root passes through.
-	 *
-	 * @since 1.17.0
-	 * @param int|string $id Resolved entity ID.
-	 * @return int|string
-	 */
-	public function format_id_for_acf( $id ) {
-		return ( 'term' === $this->context ) ? 'term_' . $id : $id;
-	}
-
-	public function get_gb_type(): string {
-		return ( 'term' === $this->context ) ? 'term' : 'post';
-	}
-
-	/**
 	 * Declaring through the roots filter IS the opt-in — see the class header.
 	 *
 	 * @since 1.17.0
@@ -144,16 +128,5 @@ class CallbackRoot extends AbstractSource {
 	 */
 	public function resolve_root_argument( string $arg, array $options, $instance ) {
 		return call_user_func( $this->resolver, $options, $instance, $arg );
-	}
-
-	/**
-	 * No per-tag options. A filter-declared root is the CHEAP case by construction: it
-	 * states an entity and nothing else. A source needing its own options writes a class.
-	 *
-	 * @since 1.17.0
-	 * @return array
-	 */
-	public function get_source_options(): array {
-		return array();
 	}
 }

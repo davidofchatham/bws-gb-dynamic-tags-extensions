@@ -4,7 +4,6 @@
  *
  * @package BWS_Dynamic_Tags
  * @since 1.2.0
- * @since 1.2.0 Added format_id_for_acf().
  * @since 1.20.0 Offered as a DECLARING chain root — `term,<ID>` (FW-39).
  */
 
@@ -26,29 +25,8 @@ class TaxonomyTerm extends AbstractSource {
 		return __( 'Specific Term', 'generateblocks' );
 	}
 
-	public function get_tag_prefix(): string {
-		return 'term';
-	}
-
-	public function get_gb_type(): string {
-		return 'term';
-	}
-
 	public function get_context_type(): string {
 		return 'term';
-	}
-
-	/**
-	 * Format term ID as ACF object_id for relationship field traversal.
-	 *
-	 * ACF expects "term_{$id}" when querying fields on a term entity.
-	 *
-	 * @since 1.2.0
-	 * @param int|string $id Resolved term ID.
-	 * @return string
-	 */
-	public function format_id_for_acf( $id ) {
-		return 'term_' . $id;
 	}
 
 	/**
@@ -201,9 +179,5 @@ class TaxonomyTerm extends AbstractSource {
 			return false;
 		}
 		return (int) $term->term_id;
-	}
-
-	public function get_source_options(): array {
-		return array();
 	}
 }

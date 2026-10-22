@@ -117,7 +117,6 @@ class BWS_Test_Offered_Source extends \BWS\DynamicTags\AbstractSource {
 	public function get_source_label(): string { return 'Test Root'; }
 	public function is_selectable_root(): bool { return true; }
 	public function resolve_id( array $options, $instance ) { return 4242; }
-	public function get_source_options(): array { return array(); }
 }
 
 /**
@@ -130,7 +129,6 @@ class BWS_Test_Unoffered_Source extends \BWS\DynamicTags\AbstractSource {
 	public function get_source_key(): string { return 'quietsource'; }
 	public function get_source_label(): string { return 'Quiet Source'; }
 	public function resolve_id( array $options, $instance ) { return 777; }
-	public function get_source_options(): array { return array(); }
 }
 
 /**
@@ -147,7 +145,6 @@ class BWS_Test_Absent_Source extends \BWS\DynamicTags\AbstractSource {
 	public function get_source_label(): string { return 'Absent Root'; }
 	public function is_selectable_root(): bool { return true; }
 	public function resolve_id( array $options, $instance ) { return false; }
-	public function get_source_options(): array { return array(); }
 }
 
 /**
@@ -161,7 +158,6 @@ class BWS_Test_Term_Root_Source extends \BWS\DynamicTags\AbstractSource {
 	public function get_context_type(): string { return 'term'; }
 	public function is_selectable_root(): bool { return true; }
 	public function resolve_id( array $options, $instance ) { return 99; }
-	public function get_source_options(): array { return array(); }
 }
 
 /**
@@ -180,7 +176,6 @@ class BWS_Test_Pinned_Root_Source extends \BWS\DynamicTags\AbstractSource {
 		return array( 'label' => 'Which One', 'control' => 'bws-test-picker' );
 	}
 	public function resolve_id( array $options, $instance ) { return 4242; }
-	public function get_source_options(): array { return array(); }
 }
 
 /**
@@ -217,7 +212,6 @@ class BWS_Test_Pinned_Term_Source extends \BWS\DynamicTags\AbstractSource {
 	// an explicit, argless `src:term` used to reach TaxonomyTerm::resolve_id() and
 	// correctly read a loop's term; D8 now refuses before it is ever called).
 	public function resolve_id( array $options, $instance ) { return 555; }
-	public function get_source_options(): array { return array(); }
 }
 
 /**
@@ -239,7 +233,6 @@ class BWS_Test_Owner_Resolves_Root_Source extends \BWS\DynamicTags\AbstractSourc
 		);
 	}
 	public function resolve_id( array $options, $instance ) { return 11; }
-	public function get_source_options(): array { return array(); }
 }
 
 /**
@@ -258,7 +251,6 @@ class BWS_Test_Half_Declared_Root_Source extends \BWS\DynamicTags\AbstractSource
 		return array( 'label' => 'Which One' );
 	}
 	public function resolve_id( array $options, $instance ) { return 12; }
-	public function get_source_options(): array { return array(); }
 }
 
 /**
@@ -278,7 +270,6 @@ class BWS_Test_Nonscalar_Arg_Root_Source extends \BWS\DynamicTags\AbstractSource
 		return array( 'label' => array( 'Which One' ), 'control' => new \stdClass() );
 	}
 	public function resolve_id( array $options, $instance ) { return 13; }
-	public function get_source_options(): array { return array(); }
 }
 
 /**
@@ -294,5 +285,4 @@ class BWS_Test_Nonscalar_Policy_Root_Source extends \BWS\DynamicTags\AbstractSou
 		return array( 'label' => 'Which One', 'control' => 'bws-test-picker', 'argless' => array( 'owner-resolves' ) );
 	}
 	public function resolve_id( array $options, $instance ) { return 14; }
-	public function get_source_options(): array { return array(); }
 }

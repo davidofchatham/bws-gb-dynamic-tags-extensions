@@ -9,8 +9,6 @@
  * Note: only the first term in the taxonomy is used. If the post has multiple terms,
  * the first returned by get_the_terms() is used.
  *
- * The source toggle is off by default. When enabled, all tags are on by default.
- *
  * @package BWS_Dynamic_Tags
  * @since 1.4.1
  */
@@ -31,41 +29,6 @@ class PostTermRelatedPost extends AbstractSource {
 
 	public function get_source_label(): string {
 		return __( 'Post → Term → Rel. Post', 'generateblocks' );
-	}
-
-	/**
-	 * Source is enabled by default for discoverability.
-	 *
-	 * @since 1.4.1
-	 * @return bool
-	 */
-	public function source_default_enabled(): bool {
-		return true;
-	}
-
-	/**
-	 * Individual tags are enabled by default when the source is on.
-	 * The source itself is opt-in (off by default); once enabled, no per-tag setup needed.
-	 *
-	 * @since 1.4.1
-	 * @return bool
-	 */
-	public function tag_default_enabled(): bool {
-		return true;
-	}
-
-	/**
-	 * Exclude 'source' support — traversal always starts from the current post.
-	 *
-	 * @since 1.4.1
-	 * @return string[]
-	 */
-	public function get_excluded_supports(): array {
-		return array( 'source', 'link' );
-	}
-
-	public function needs_relationship_field(): bool {
-		return true;
 	}
 
 	/**
@@ -91,21 +54,6 @@ class PostTermRelatedPost extends AbstractSource {
 	 */
 	public function resolve_id( array $options, $instance ) {
 		return false;
-	}
-
-	/**
-	 * No options, since 1.17.0 (#56).
-	 *
-	 * This used to return the taxonomy (hop 1) and the relationship field key on the term
-	 * (hop 2). With resolve_id() inert they would be controls advertising a traversal that
-	 * cannot fire — an author could fill them in and get nothing, with no way to tell why.
-	 * An inert resolver and a live option surface is the worse half of both states.
-	 *
-	 * @since 1.17.0 Emptied alongside resolve_id() (#56).
-	 * @return array
-	 */
-	public function get_source_options(): array {
-		return array();
 	}
 
 }

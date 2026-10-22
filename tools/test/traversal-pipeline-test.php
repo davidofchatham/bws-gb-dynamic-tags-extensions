@@ -1586,16 +1586,6 @@ eq(
 	array( 'kind' => 'term', 'id' => 31 ),
 	bws_resolve_base_source( array( 'src' => 'filtertermroot' ), null, sig() )
 );
-// A term entity is addressed as `term_<id>` in a field read, so the adapter carries the
-// same ACF prefix rule TaxonomyTerm states for itself. A post-context root passes through.
-eq(
-	'…and formats a term id for ACF the way a term source does',
-	array( 'term_31', 5150 ),
-	array(
-		\BWS\DynamicTags\SourceRegistry::get_source( 'filtertermroot' )->format_id_for_acf( 31 ),
-		\BWS\DynamicTags\SourceRegistry::get_source( 'filterroot' )->format_id_for_acf( 5150 ),
-	)
-);
 
 // The term_ toggle reaches NEITHER offering nor resolution. Until 1.20.0 it reached
 // offering (a term-context root was hidden from the dropdown with the family switched

@@ -22,9 +22,7 @@ use BWS\DynamicTags\AbstractSource;
  * modifier's base source (1.14.0), and `ref` is the only spelling anything honours;
  * resolve_id() is inert and documents why.
  *
- * - Context type: post (the entity it used to resolve to)
- * - GB type: term (needs term selector in editor)
- * - UI group: term (appears in Term matrix)
+ * Context type: post (the entity it used to resolve to).
  *
  * @since 1.5.0
  * @since 1.17.0 Inert (#56); registration retained.
@@ -39,36 +37,8 @@ class TermRelatedPost extends AbstractSource {
 		return __( 'Term → Rel. Post', 'generateblocks' );
 	}
 
-	public function get_tag_prefix(): string {
-		return 'term_related_post';
-	}
-
-	public function get_gb_type(): string {
-		return 'term';
-	}
-
 	public function get_context_type(): string {
 		return 'post';
-	}
-
-	public function get_ui_group(): string {
-		return 'term';
-	}
-
-	public function source_default_enabled(): bool {
-		return true;
-	}
-
-	public function needs_relationship_field(): bool {
-		return true;
-	}
-
-	public function get_excluded_supports(): array {
-		return array( 'source', 'link' );
-	}
-
-	public function get_effective_source_id(): string {
-		return 'term_related';
 	}
 
 	/**
@@ -94,10 +64,6 @@ class TermRelatedPost extends AbstractSource {
 	 */
 	public function resolve_id( array $options, $instance = null ) {
 		return false;
-	}
-
-	public function get_source_options(): array {
-		return array();
 	}
 
 }

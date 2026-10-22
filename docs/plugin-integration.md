@@ -46,7 +46,7 @@ add_filter( 'bws_dynamic_tags_chain_roots', function( $roots ) {
 
 Write a class when the source should be registered but *not* offered (for example, one that only exists so a [migration entry](#4-migrating-your-own-old-tag-names) has a `src` value to inject), or when you would rather keep the logic in a class.
 
-Extend `AbstractSource`. Implementing `SourceInterface` directly means implementing every method `SourceInterface` declares, including the unread ones listed under [§2](#2-source-class-reference).
+Extend `AbstractSource`. Implementing `SourceInterface` directly means implementing every method it declares, including the ones `AbstractSource` gives a default under [§2](#2-source-class-reference).
 
 ```php
 use BWS\DynamicTags\AbstractSource;
@@ -64,10 +64,6 @@ class ExternalSource extends AbstractSource {
     public function resolve_id( array $options, $instance ) {
         $post_id = my_plugin_get_current_post_id( $instance );
         return $post_id ? (int) $post_id : false;
-    }
-
-    public function get_source_options(): array {
-        return array(); // Required by the interface; nothing reads it.
     }
 
     public function is_selectable_root(): bool {
@@ -169,13 +165,10 @@ Methods a class route source writes or overrides. `AbstractSource` supplies ever
 | `get_source_key(): string` | (must implement) | Registry key and `src` token. Same token rules as a key on [the filter route](#the-filter-route). |
 | `get_source_label(): string` | (must implement) | Author-facing name in the Source control and editor previews. |
 | `resolve_id( array $options, $instance ): int\|false` | (must implement) | The entity id from ambient context, or `false` for none. |
-| `get_source_options(): array` | (must implement) | Required by the interface; nothing reads it. Return `array()`. |
 | `get_context_type(): string` | `'post'` | `'term'` when `resolve_id()` returns a term id. Decides what kind of entity the chain starts from. |
 | `is_selectable_root(): bool` | `false` | Offer the source in the Source control. See [the class route](#the-class-route). |
 | `get_root_argument(): array` | `array()` | Declare a root argument. See [Root arguments](#root-arguments). |
 | `resolve_root_argument( string $arg, array $options, $instance ): int\|string\|false` | `false` | Resolve a declared argument. |
-
-`SourceInterface` also declares `get_tag_prefix()`, `get_gb_type()`, `get_effective_source_id()`, `format_id_for_acf()`, `source_default_enabled()`, `tag_default_enabled()`, `get_excluded_supports()`, `needs_relationship_field()` and `get_ui_group()`. Nothing in this plugin reads them; `AbstractSource`'s defaults are enough, and they stay on the interface only so existing implementations keep loading.
 
 ---
 

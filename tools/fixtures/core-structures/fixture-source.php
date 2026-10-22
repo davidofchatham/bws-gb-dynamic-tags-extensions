@@ -50,18 +50,6 @@ class BWS_Fixture_Root_Source extends \BWS\DynamicTags\AbstractSource {
 	}
 
 	/**
-	 * No GB entity picker. The root resolves its own id; a post picker would paint a
-	 * control that changes nothing (the same reason the real external source excludes it).
-	 */
-	public function get_excluded_supports(): array {
-		return array( 'source' );
-	}
-
-	public function get_source_options(): array {
-		return array();
-	}
-
-	/**
 	 * Opt in as a chain root — the CLASS route's entire declaration (#83).
 	 */
 	public function is_selectable_root(): bool {
