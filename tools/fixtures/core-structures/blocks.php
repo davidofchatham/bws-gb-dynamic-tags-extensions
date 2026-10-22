@@ -1973,8 +1973,8 @@ function bws_fixture_page_content_matrix_loops() {
 	// QL6 — a SPELLED source inside a post loop. `src:site` names the options page, so the
 	// loop item must not answer for it. The staff items carry no `org_party_datetime`, so a
 	// read that let the loop post outrank the option renders each item EMPTY; the datetime
-	// matrix's §D5.8 is this row. The repeater-row and term-archive halves have no fixture
-	// here and are pinned elsewhere (§D5.7 render-tag, loop-item-classify-test.php §C10).
+	// matrix's §D5.8 is this row. The repeater-row half is QL6.2 on matrix-repeaters; the
+	// term-archive half is §D5.7, render-tag only.
 	$sections[] = bws_fixture_gb_section( 'Loops QL6 - a site-sourced date inside a POST query loop', array(
 		bws_fixture_gb_query_loop(
 			array( 'post_type' => 'staff', 'posts_per_page' => 2, 'orderby' => 'title', 'order' => 'ASC' ),
@@ -2130,6 +2130,19 @@ function bws_fixture_page_content_matrix_repeaters() {
 		bws_fixture_gb_row( 'F23.4 the ONE-step control: the outer repeater on its own, so an empty F23.1 separates "the second step" from "the repeater" (-> Priya Raman, Luis Ortega)', '{{text src:rows,duty_roster|use:key|key:member|limit:0}}' ),
 		bws_fixture_gb_empty_row( 'F23.5 a nested repeater the rows do NOT carry - the shape F9c.4 has been passing on, here beside a nested read that works (-> EMPTY)', '{{text src:rows,duty_roster;rows,nope|use:key|key:shift_day|limit:0}}' ),
 		bws_fixture_gb_row( 'F23.6 the try_ slot spelling of F23.1, which is the container F9c.4 states its claim in (-> the SAME four days)', '{{try_text A:src(rows,duty_roster;rows,shifts);use(key);key(shift_day);limit(0)}}' ),
+	) );
+
+	// QL6.2 is NOT a depth row. It rides this page because it needs a repeater query loop
+	// and `duty_roster` is the one repeater no other row on its page competes with; it is
+	// the repeater-row half of loop-test-matrix.md §QL6 (QL6.1, the post-loop half, is on
+	// matrix-loops). The rows carry no `org_party_datetime`, so a row answering for the
+	// option renders each item EMPTY.
+	$sections[] = bws_fixture_gb_section( 'Loops QL6 - a site-sourced date inside a REPEATER query loop', array(
+		bws_fixture_gb_post_meta_loop(
+			'duty_roster',
+			'QL6.2 (expect September 20, 2030 6:00 PM on BOTH rows - the options page, never the repeater row): {{datetime_single src:site|key:org_party_datetime}}',
+			'ql6-2-site-datetime-in-repeater-loop'
+		),
 	) );
 
 	return implode( "\n\n", $sections );

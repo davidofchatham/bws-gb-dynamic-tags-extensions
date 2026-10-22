@@ -64,7 +64,9 @@ return array(
 	// 2026-10-22: QL6.1 added to `page-matrix-loops` (a `src:site` datetime in a staff post
 	// loop, the option date on both items); nothing else moved, including after the
 	// term-archive read left `bws_read_field()`, measured against the old baseline before
-	// the reseed. Dependency versions and the active set unchanged.
+	// the reseed. A second capture the same day added QL6.2 to `page-matrix-repeaters` (the
+	// same tag in the `duty_roster` repeater loop, the option date on both rows); nothing
+	// else moved. Dependency versions and the active set unchanged.
 	//
 	// 2026-10-21: a DEPENDENCY MOVE. GenerateBlocks 2.4.1 -> 2.5.0, GB Pro 2.7.1 -> 2.8.0 and
 	// WooCommerce 11.2.0 -> 11.2.1 moved NO line. The three lines that moved are Slim SEO 4.11.4

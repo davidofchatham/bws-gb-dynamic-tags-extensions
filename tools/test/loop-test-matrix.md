@@ -143,11 +143,12 @@ The outer loop is restricted by `post_name`, not by id: the ids are whatever the
 
 ## QL6 — a SPELLED source inside a POST query loop
 
-A tag that names its own source must not be answered by the loop item. The row is the visible half of [`datetime-test-matrix.md`](datetime-test-matrix.md) §D5.8, whose row owns the expectation.
+A tag that names its own source must not be answered by the loop item. The rows are the visible halves of [`datetime-test-matrix.md`](datetime-test-matrix.md) §D5.8 and §D5.9, which own the expectations. QL6.2 is on `/matrix-repeaters/`, the one page with a repeater loop to itself.
 
-| # | Tag (on `/matrix-loops/`) | Expected | Status |
+| # | Tag | Expected | Status |
 |---|---|---|---|
-| QL6.1 | `{{datetime_single src:site\|key:org_party_datetime}}`, in a staff post loop | see §D5.8 | **PASS** |
+| QL6.1 | `{{datetime_single src:site\|key:org_party_datetime}}`, in a staff post loop on `/matrix-loops/` | see §D5.8 | **PASS** |
+| QL6.2 | the same tag, in a `duty_roster` repeater loop on `/matrix-repeaters/` | see §D5.9 | **PASS** |
 
 ## QLP — a query loop over WooCommerce PRODUCTS: the object-shaped item that names a post (FW-100)
 
