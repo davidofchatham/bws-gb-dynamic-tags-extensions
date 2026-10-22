@@ -1898,8 +1898,9 @@ function bws_modifier_migration_live_marker(): string {
  * externals.
  *
  * **CALL IT AFTER TEMPLATES ARE REGISTERED** — later than the plugin's own init:20 pass;
- * init:21 is the natural home. Called too early, it raises _doing_it_wrong() rather than
- * registering nothing quietly.
+ * init:21 is the natural home. This file loads with that pass, so a call before it is an
+ * undefined-function fatal; a call after it but before the templates exist raises
+ * _doing_it_wrong() rather than registering nothing quietly.
  *
  * **IT NEVER OVERWRITES AN ENTRY YOU ALREADY REGISTERED.** A tag name that already HAS an
  * entry is skipped whole, so a hand-written entry for one template survives. The test is
@@ -2108,6 +2109,9 @@ function bws_migrate_rel_to_ref( string $tag_string ): string {
  * option keys. The tag name is unchanged; only options are transformed.
  *
  * Called from bws_dynamic_tags_register_all() after bws_register_v1_deprecated_tag_wrappers().
+ *
+ * The comments beside the blocks below state which entries must register before which.
+ * tools/test/migration-order-test.php fails by pair when one of them is broken.
  *
  * @since 1.6.0
  */

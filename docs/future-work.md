@@ -169,7 +169,7 @@ Seven unrelated concerns share one file, with three independently landable parts
 
 Detail home: `.scratch/plans/architecture-review-2026-08.md` §FW-108
 
-Progress: Not started. A wrong migration order can silently downgrade an image on customer content — the file already describes that failure mode.
+Progress: (b) shipped as `tools/test/migration-order-test.php`, with the early `plugins_loaded` load removed (the rest of (a), and (c), not started). A wrong migration order can silently downgrade an image on customer content — the file already describes that failure mode.
 
 Blocked by: —  •  Interacts with: FW-38 (`registered_by`/`lifecycle` reshapes the same entry record)
 

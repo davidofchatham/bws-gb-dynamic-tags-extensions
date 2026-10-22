@@ -641,7 +641,7 @@ add_action( 'init', function () {
 }, 21 );
 ```
 
-That registers one migration entry per **registered modifier template** — the same list your family was minted from — so there is no list of tag names to maintain. Call it after templates are registered: the plugin registers them on `init` priority 20, so priority 21 is the natural home. (Called too early, the template list is empty and `_doing_it_wrong()` says so.)
+That registers one migration entry per **registered modifier template** — the same list your family was minted from — so there is no list of tag names to maintain. Call it after templates are registered: the plugin registers them on `init` priority 20, so priority 21 is the natural home. (Called earlier than `init` priority 20 the function does not exist yet, which is a fatal error; called before the templates are registered, the template list is empty and `_doing_it_wrong()` says so.)
 
 **Your prefix is supplied, never derived.** Nothing in this plugin knows your family exists; you name it. The root key is usually your source key, but it does not have to be.
 
