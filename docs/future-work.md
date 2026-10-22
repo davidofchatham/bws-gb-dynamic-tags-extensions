@@ -207,7 +207,7 @@ Progress: Re-measured 2026-10-22. FW-129 unregistered `term_`, so two registrati
 
 Open: Whether to take Door and Constant alone; the Assembler waits for a tag family that cannot fit the current pattern.
 
-Blocked by: —  •  Interacts with: FW-112 (closed; its fold-builder deletion left this surface's registered options unchanged), FW-115
+Blocked by: —  •  Interacts with: FW-112 (closed), FW-115
 
 #### FW-113 — Kind dispatch that duplicates the ambient-analog seam without using it (no live behavior gap)
 

@@ -9,7 +9,7 @@
  * Covers:
  *   V1  — slot src rows derive from base, `site` filtered, slot >=2 prepends `same`.
  *   V6  — `site` is absent from derived src rows unless the container allows it.
-
+ *
  * Run:  php tools/test/slot-options-build-test.php
  * Exit 0 = pass, 1 = fail.
  *
@@ -294,10 +294,15 @@ assert_same(
 	array_column( $fold['srcRowsWithSame'], 'value' )
 );
 assert_same(
-	'the respelled row keeps the base label',
-	'Posts in Reference/Relational Field',
-	array_column( $fold['srcRows'], 'label', 'value' )['refs']
+	'srcRows labels (the respelled row keeps the base label)',
+	array(
+		'current' => 'Current Context',
+		'refs'    => 'Posts in Reference/Relational Field',
+		'site'    => 'Site',
+	),
+	array_column( $fold['srcRows'], 'label', 'value' )
 );
+assert_same( 'srcRowsWithSame carries the same-row label', 'Same as Previous Source', array_column( $fold['srcRowsWithSame'], 'label', 'value' )['same'] );
 assert_same( 'the respelled row keeps its label (only the value moves)', true, in_array( 'refs', array_column( $fold['srcRows'], 'value' ), true ) );
 assert_same( '...and no legacy `ref` value survives in the enum', false, in_array( 'ref', array_column( $fold['srcRows'], 'value' ), true ) );
 assert_same( 'site arm present when allowed', true, in_array( 'site', array_column( $fold['srcRows'], 'value' ), true ) );
