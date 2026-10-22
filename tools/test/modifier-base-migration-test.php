@@ -657,7 +657,7 @@ assert_eq( 'V6.12 …and the skip channel names it',
 	'tax_without_id',
 	bws_modifier_skip_reason( array( 'tax' => 'genre', 'key' => 'bio' ), 'pinnedterm' ) );
 
-// The `taxonomy` spelling is the same axis (bws_reliable_term_context_detection reads both).
+// The `taxonomy` spelling is the same axis (bws_modifier_skip_reason() reads both).
 assert_eq( 'V6.13 the legacy `taxonomy` spelling is the same shape',
 	'tax_without_id',
 	bws_modifier_skip_reason( array( 'taxonomy' => 'genre' ), 'pinnedterm' ) );

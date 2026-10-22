@@ -287,7 +287,7 @@ PHP entity resolvers used by base tag callbacks. Not surfaced directly in tag na
 | Source class | Context | Use |
 |---|---|---|
 | `CurrentPost` | post | the resolved starting entity in post context (`src:''` / `src:current`) |
-| `TaxonomyTerm` | term | the term the factory resolves on a term archive, and the `term` chain root's target (it was the `term_` family's base until FW-129 removed the family in v1.21.0) |
+| `TaxonomyTerm` | term | the `term` chain root's target: `term,<ID>` resolves to that term. It has no ambient answer; the term a term archive is about comes from the factory's own ambient capture, not this class (it was the `term_` family's base until FW-129 removed the family in v1.21.0) |
 | *(external source class)* | post or term | External source, registered via `SourceRegistry::register_source()` |
 
 **A source resolves a STARTING entity; it never traverses.** Since 1.14.0 the relationship hop

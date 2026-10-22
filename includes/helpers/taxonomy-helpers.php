@@ -2,8 +2,8 @@
 /**
  * Taxonomy term helper functions.
  *
- * Shared functions for term context detection, validation, image retrieval,
- * and fallback handling.
+ * Shared functions for the term-archive criterion, term validation, image
+ * retrieval, and fallback handling.
  *
  * @package BWS_Dynamic_Tags
  * @since 1.0.0
@@ -38,77 +38,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 if ( ! function_exists( 'bws_wp_is_term_archive' ) ) {
 function bws_wp_is_term_archive(): bool {
 	return function_exists( 'is_tax' ) && ( is_tax() || is_category() || is_tag() );
-}
-}
-
-/**
- * Reliable term context detection with multiple fallback methods.
- *
- * TIER NAMES ARE STABLE, AND THE GAP BELOW IS DELIBERATE. The quaternary tier (a bare
- * archive read, gated on the queried object's type) went with the `term_*` family in
- * 1.21.0 — see the Quinary comment. Renumbering the survivors would silently restate
- * every citation that names a tier by number; leave the numbering alone.
- *
- * Folding this into bws_capture_ambient_signals() is FW-8 (docs/future-work.md).
- *
- * @since 1.1.0
- * @since 1.21.0 Tier 4 removed with the `term_*` family (FW-129).
- * @param array $options Tag options that may contain specific term ID.
- * @return int|false Term ID or false if not found.
- */
-if ( ! function_exists( 'bws_reliable_term_context_detection' ) ) {
-function bws_reliable_term_context_detection( $options = array() ) {
-	// Primary: Check for specific term ID in options.
-	if ( isset( $options['term_id'] ) && $options['term_id'] ) {
-		$term_id = absint( $options['term_id'] );
-		if ( $term_id && term_exists( $term_id ) ) {
-			return $term_id;
-		}
-	}
-
-	// Secondary: Check for GenerateBlocks ID override.
-	if ( isset( $options['id'] ) && $options['id'] ) {
-		$term_id = absint( $options['id'] );
-		if ( $term_id && term_exists( $term_id ) ) {
-			return $term_id;
-		}
-	}
-
-	// Tertiary: Direct taxonomy queries (archive pages). A STATED `tax` IS DISCARDED HERE,
-	// and the order is deliberate rather than an oversight: on a term archive "the term this
-	// page is about" outranks a taxonomy hint, so the queried term answers even when it
-	// belongs to another taxonomy and tier 5 never runs. Reachable only from wire no editor
-	// offers (`tax` is not registered on the `term_` family), and the family is on a removal
-	// path — measured 2026-09-10, left alone deliberately (FW-39).
-	if ( is_tax() || is_category() || is_tag() ) {
-		$queried_object = get_queried_object();
-		if ( $queried_object && isset( $queried_object->term_id ) ) {
-			return $queried_object->term_id;
-		}
-	}
-
-	// Quinary: Check for first term from current post (if taxonomy specified). The
-	// quaternary tier that used to sit above it read a bare `get_queried_object_id()` on any
-	// archive, which is why it needed a type gate at all; it went in 1.21.0 with its last
-	// consumer (FW-129). Its removal moved no rendered output — the seven `ctx-*` page
-	// snapshots, a term archive among them, were byte-unchanged by it.
-	//
-	// The tertiary tier above gates on `is_tax() || is_category() || is_tag()`, which is the
-	// same predicate bws_capture_ambient_signals() claims a term archive by; what that
-	// predicate covers is that function's question, not this one's.
-	$taxonomy = $options['tax'] ?? $options['taxonomy'] ?? '';
-	if ( $taxonomy && ! is_admin() ) {
-		$post_id = get_the_ID();
-		if ( $post_id ) {
-			$terms = get_the_terms( $post_id, $taxonomy );
-			if ( ! is_wp_error( $terms ) && ! empty( $terms ) ) {
-				$first_term = reset( $terms );
-				return $first_term->term_id;
-			}
-		}
-	}
-
-	return false;
 }
 }
 

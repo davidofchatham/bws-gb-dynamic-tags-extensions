@@ -1,6 +1,6 @@
 <?php
 /**
- * Taxonomy Term source - resolves to a term in context (archive, source selector, or post assignment).
+ * Taxonomy Term source - resolves `term,<ID>` to that term; it has no ambient answer.
  *
  * @package BWS_Dynamic_Tags
  * @since 1.2.0
@@ -30,61 +30,22 @@ class TaxonomyTerm extends AbstractSource {
 	}
 
 	/**
-	 * Resolve the term ID from tag options and context.
+	 * No ambient term: this source always answers false.
 	 *
-	 * Uses GB's canonical term resolver first (consistent with GB Pro's term_meta),
-	 * then falls back to our multi-method detection for broader context support.
+	 * The root argument is REQUIRED (see get_root_argument()), so the factory refuses a bare
+	 * `term` and resolves `term,<ID>` through resolve_root_argument(); neither path asks this
+	 * method. The term a term archive is about is the factory's own ambient capture
+	 * (bws_capture_ambient_signals()), not this source's. `false` is the contract's "no entity
+	 * in this context", and it is also what a direct caller through
+	 * SourceRegistry::get_source( 'term' ) gets.
 	 *
-	 * NO AMBIENT ARM SINCE 1.21.0. GenerateBlocks_Dynamic_Tags::get_id( …, 'term' ) answers
-	 * from an explicit `id` option, from the `generateblocks_dynamic_tag_id` filter (how a
-	 * query loop hands down the row's term), or failing both from a bare
-	 * `get_queried_object_id()` — and nothing in the answer says which of the three replied.
-	 * That GB fact, and the measurement behind it, are docs/gb-constraints.md
-	 * §"`generateblocks_dynamic_tag_id` is not told WHICH entity the id was a fallback for".
-	 * The first two arms are somebody STATING a term. The third is a raw id for whatever WP
-	 * queried, of whatever kind, and its ids share one number space with terms, so a page
-	 * whose own id happens to be a real term's id reads that unrelated term's data. Through
-	 * 1.20.0 that arm was gated on the queried object's TYPE; the gate had exactly one
-	 * consumer, the `term_*` family, and went out with it in 1.21.0 (FW-129).
-	 *
-	 * WHAT REPLACED THE GATE IS NOT A WEAKER GATE — it is refusing the arm. An answer equal
-	 * to `get_queried_object_id()` and not stated as an `id` option is treated as the bare
-	 * arm and declined here, which drops the type question rather than answering it. The
-	 * cost is the arm's one honest case: a stated term id that COINCIDES with the queried
-	 * object's id now falls through instead of returning early, to the detector below.
-	 * WHAT THAT COSTS IS NOT ASSERTED HERE, because nothing measures it — this method is
-	 * unreachable through the factory (see is_selectable_root()), so no fixture row and no
-	 * snapshot exercises the fall-through, and a sentence about what it yields would rest on
-	 * the code's shape alone.
-	 *
-	 * EXISTENCE IS CHECKED TOO, as a SECOND and independent condition. A stated id still has
-	 * to name a term that is there, and the old unguarded `if ( $id )` never asked. It is not
-	 * a cheaper stand-in for the arm test above — both ids in the 1.20.0 collision named real
-	 * terms — so it is stated separately. bws_get_validated_term() owns what valid means.
-	 *
-	 * FAILING THIS GUARD IS NOT THE END OF RESOLUTION — it falls through to the detector
-	 * below, whose tiers still answer from the tag's own options (`term_id`, `id`), from a
-	 * term archive, and from `tax` + the current post.
-	 *
-	 * @since 1.20.0 The ambient arm gates on the queried object's TYPE.
-	 * @since 1.21.0 The ambient arm is refused outright; the type gate retired with `term_*`.
+	 * @since Unreleased Always false; the ambient detector behind it is deleted (FW-8).
 	 * @param array  $options  Tag options from GenerateBlocks.
 	 * @param object $instance Block instance.
-	 * @return int|false Term ID or false if unresolvable.
+	 * @return false
 	 */
 	public function resolve_id( array $options, $instance ) {
-		if ( class_exists( 'GenerateBlocks_Dynamic_Tags' ) ) {
-			$id = \GenerateBlocks_Dynamic_Tags::get_id( $options, 'term', $instance );
-
-			$stated = ! empty( $options['id'] ) || (int) $id !== (int) get_queried_object_id();
-
-			if ( $id && $stated && bws_get_validated_term( (int) $id ) ) {
-				return (int) $id;
-			}
-		}
-
-		// Fallback: our multi-method detection (handles term_id option, queried object, taxonomy+post).
-		return bws_reliable_term_context_detection( $options );
+		return false;
 	}
 
 	/**
@@ -97,13 +58,10 @@ class TaxonomyTerm extends AbstractSource {
 	 * already does (the ambient term on a term archive), so there is no second meaning for
 	 * it to carry, and the factory refuses it rather than resolving one.
 	 *
-	 * THAT REFUSAL DOES NOT REACH resolve_id() ABOVE, and the two say different things. The
-	 * root policy is enforced at the factory seam and is about wire that NAMES a root; what
-	 * resolve_id() answers is a separate question that has moved twice since (1.20.0 gated
-	 * the ambient arm on the queried object's type, 1.21.0 refused the arm outright). The
-	 * `term_*` family was the caller that kept the two apart; with it gone the refusal makes
-	 * resolve_id() unreachable for this source, which is a consequence of the declaration
-	 * being REQUIRED and not a license to fold one site into the other.
+	 * THE REFUSAL LIVES AT THE FACTORY SEAM, NOT IN resolve_id() ABOVE. The root policy is
+	 * about wire that NAMES a root; resolve_id() answers for a tag that names none. The
+	 * refusal makes resolve_id() unreachable for this source, which is a consequence of the
+	 * declaration being REQUIRED and not a license to fold one site into the other.
 	 *
 	 * UNREACHABLE IS A MEASURED CLAIM, and here is what it rests on (2026-09-16): a census of
 	 * every `->resolve_id(` call site under includes/ left only the factory above; and on

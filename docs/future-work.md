@@ -67,23 +67,11 @@ Open: The term-archive branch only, and what it costs is six CALL SITES, not thi
 
 **The gate was FW-74's read-seam split, and it is LIFTED (1.21.0).** `bws_read_resolved_source()` returns `string`, and the image family needs raw arrays — so image could not move while the seam had no `mixed` half. FW-74's first ticket built one: `bws_read_resolved_source_value()` owns the kind dispatch and returns what the store holds, and its post arm makes the array-preserving read `bws_get_meta_image_data()` used to make for itself. Image now has a seam to enter through; what is left of this item is the six call sites and the branch deletion, which is the same work it always was. Re-typed from `decision:cores take a resolved base` on 2026-09-16; gate lifted 2026-09-16.
 
-**Three term detectors exist, not two, and this item owns exactly one of them.** The factory's ambient capture, the 4-tier `bws_reliable_term_context_detection()` (FW-8's), and this branch. They are disjoint: the 4-tier helper's only live caller is `TaxonomyTerm::resolve_id` ([class-taxonomy-term.php:109](../includes/classes/sources/class-taxonomy-term.php#L109)), and `bws_read_field()` has never called it. FW-7 and FW-8 were never one change and must not be bundled.
+**Two term detectors exist, and this item owns one of them.** The factory's ambient capture and this branch. A third, the 4-tier `bws_reliable_term_context_detection()`, was deleted by FW-8 without touching this branch: its only caller was `TaxonomyTerm::resolve_id`, and `bws_read_field()` never called it.
 
 **The branch's CRITERION is already fixed, ahead of this item (1.21.0).** It asked only what the queried object happened to be, while the factory asked whether WP had queried an archive at all, and the `! REST_REQUEST` guard was standing in for the missing gate; both now call `bws_wp_is_term_archive()`, which owns the criterion. That makes this item a pure call-site move — the two routes now agree on WHICH entity, so deleting the branch is behaviour-neutral rather than a silent re-decision. The REST guard is dead code kept until the branch goes; delete them together.
 
-Blocked by: —  •  Interacts with: FW-8 (independent — see above), FW-74 (closed 1.21.0 — the gate it held is lifted, see above)
-
-#### FW-8 — Fold bws_reliable_term_context_detection into bws_capture_ambient_signals
-
-Two term-detection implementations coexist — a 4-tier one in taxonomy-helpers and the ambient-signal factory — and the factory is the intended single home.
-
-Detail home: `docs/design-history/traversal-pipeline.md` §Post-Phase-1 convergence
-
-Progress: Not started; excluded from Phase 1 because `TaxonomyTerm::resolve_id` and the `term_` modifiers depend on it, which would have widened the blast radius mid-refactor. Read in full 2026-09-07 for FW-39, with two findings for whoever takes this: **tier 5 ("first term of the current post") is an implicit `terms` hop**, guarded on a taxonomy read from the tag's own options, so the chain grammar already spells it better and a truly bare tag never reaches it; and **tier 3 gives the same answer a bare base tag has given since the term kind shipped in 1.14.0**, which is what lets FW-39 migrate an argless `term_*` to a bare base tag by equivalence. FW-39 leaves this item's surface unchanged: bare `term` is never offered there, so no new authored wire depends on the detector. **FW-129 (1.21.0) removed tier 4 and the `term_` modifiers**, so one of the two blockers named above is gone and the tier numbering is now 1, 2, 3, 5 — deliberately, so that citations naming a tier by number stay true.
-
-**The FW-7 coupling this row carried was never real (found 2026-09-16).** `Blocked by: row:FW-7` said FW-7 had to land first; it did not. `bws_reliable_term_context_detection()` has exactly one live caller, `TaxonomyTerm::resolve_id` ([class-taxonomy-term.php:109](../includes/classes/sources/class-taxonomy-term.php#L109)), and `bws_read_field()` — the whole of FW-7's surface — has never called it. The two items touch disjoint call graphs and always did. The gate is re-typed to the caller that actually holds this item, and the tier-4 half of the original blast-radius argument went with FW-129.
-
-Blocked by: code:`TaxonomyTerm::resolve_id` is the sole live caller  •  Interacts with: FW-7 (independent, despite the gate this row used to carry)
+Blocked by: —  •  Interacts with: FW-74 (closed 1.21.0 — the gate it held is lifted, see above)
 
 #### FW-38 — Explicit registered_by + lifecycle entry fields (retire the callback proxy)
 
@@ -93,7 +81,7 @@ Detail home: `.scratch/plans/fw-38-entry-record.md`; CONTEXT.md I10 (interim sta
 
 Progress: Not started. The integrator coordination this was scoped to feed is moot — the one integrating plugin deleted its modifier family and its aliases outright on 2026-09-08 instead of declaring a lifecycle for them, and the handoff plan it was tracked in went with them. That leaves the `callback`-presence proxy with only one population to classify (ours), so the "two populations a global default would split wrong" argument no longer holds up the bolt-on — see `CONTEXT.md` I10.
 
-Blocked by: —  •  Interacts with: FW-108 (closed; (c) moved here, and its order harness reads entries by `transform_callback`), FW-153 (the `gb_type` stamp), FW-129 (closed; deleted the API that minted external families, the proxy's last remaining reason to exist), FW-174 (whether the generator whose `prefix_removed => false` arm the proxy serves survives at all)
+Blocked by: —  •  Interacts with: FW-108 (closed; (c) moved here, and its order harness reads entries by `transform_callback`), FW-153 (the `gb_type` stamp), FW-129 (closed; deleted the API that minted external families, the proxy's last remaining reason to exist), FW-174 (whether the generator whose `prefix_removed => false` arm the proxy serves survives at all), FW-150 (`lifecycle` replaces the `prefix_removed` stand-in the `term_*` entries ride), FW-175 (the entry record being registered)
 
 #### FW-43 — Selecting half of the shared value fold
 
@@ -169,7 +157,7 @@ Blocked by: FW-81  •  Interacts with: FW-113 (its remainder waits on the same 
 
 Detail home: `.scratch/plans/architecture-review-2026-08.md` §FW-109
 
-Progress: The docblock says the write-back "must not be removed or simplified"; re-verified 2026-08-30 that two of the four callers (`preview-helpers.php:233`, `:414`) do not do it. `bws_fold_is_combining()` exists to avoid inline container-name comparisons, yet all four production callers pass a hardcoded bool.
+Progress: The docblock says the write-back "must not be removed or simplified"; re-verified 2026-08-30 that two of the four callers (`preview-helpers.php:290`, `:441`) do not do it. `{{table}}`'s column walk (`table-tags.php:235`, 1.22.0) is a fifth caller and does not do it either. `bws_fold_is_combining()` exists to avoid inline container-name comparisons, yet all four production callers pass a hardcoded bool.
 
 Open: Deletion test for any fix — the rules must stay, the out-params concentrate.
 
@@ -213,7 +201,7 @@ Blocked by: —  •  Interacts with: FW-47 (widening the user arm dissolves the
 
 #### FW-114 — Fold-grammar PHP↔JS twin checks the wrong constant for `chainRoot`
 
-`bws_fold_chain_root()` (PHP) derives its answer from `BWS_FOLD_STEP_TYPES` (`slot-fold-compile.php:80-84`), but the twin test (`slot-fold-twin-test.php`) instead asserts a *different*, redundant PHP constant — `BWS_FOLD_FANNING_SLUGS` (`slot-fold.php:103`) — against JS's `FANNING_SLUGS`. All three currently hold `{refs, terms, rows}`, so the check passes today, but it proves nothing about the constant `chainRoot` actually reads: a slug added to `BWS_FOLD_STEP_TYPES` alone, with no new twin-corpus case, would diverge PHP/JS silently. `slotKeyRe` is exported by the JS grammar (`slot-fold-grammar.js:821`) but never compared; `chainFanningSteps` has no comparison axis at all.
+`bws_fold_chain_root()` (PHP) derives its answer from `BWS_FOLD_STEP_TYPES` (`slot-fold-compile.php:80-84`), but the twin test (`slot-fold-twin-test.php`) instead asserts a *different*, redundant PHP constant — `BWS_FOLD_FANNING_SLUGS` (`slot-fold.php:121`) — against JS's `FANNING_SLUGS`. All three currently hold `{refs, terms, rows}`, so the check passes today, but it proves nothing about the constant `chainRoot` actually reads: a slug added to `BWS_FOLD_STEP_TYPES` alone, with no new twin-corpus case, would diverge PHP/JS silently. `slotKeyRe` is exported by the JS grammar (`slot-fold-grammar.js:865`) but never compared; `chainFanningSteps` has no comparison axis at all.
 
 Detail home: `.scratch/plans/architecture-review-2026-08.md` §FW-114
 
@@ -229,7 +217,7 @@ Blocked by: —  •  Interacts with: FW-115 (both are "two languages agree by c
 
 Detail home: `.scratch/plans/architecture-review-2026-08.md` §FW-115
 
-Progress: `base-shared.php:486-489` already names the hazard. The same shape has already fired one level down — the fold config's camelCase keys are written in PHP and read from a hardcoded list in `foldConfig()`, and the control's own comment records two consumers silently reverting to the non-collapsing branch while the feeding config was correct end to end.
+Progress: The one in-code note naming the hazard sat on `bws-term-hop` and went with that control in FW-129 (2026-09-16); no comment states it now. The same shape has already fired one level down — the fold config's camelCase keys are written in PHP and read from a hardcoded list in `foldConfig()`, and the control's own comment records two consumers silently reverting to the non-collapsing branch while the feeding config was correct end to end.
 
 Open: Fix shape is a tree census in the mould of `control-order-test.php` §9. Lowest confidence of the ten review candidates — it adds an instrument rather than deepening a module. The fold-config half has a cheaper shape than the control-type half and can land alone: the twin driver already exports a `grammar` surface whose PHP-only/JS-only field diff is asserted (`slot-fold-twin-test.php:88`), and the same treatment applied to `foldConfig` — PHP emitting `array_keys( $fold )`, JS emitting `Object.keys( foldConfig( cfg ) )`, set equality — closes it in ~20 lines touching no runtime code. Priced 2026-09-04 while grilling FW-121; deliberately NOT bundled into that rename, so the rename stays reviewable as a pure word swap.
 
@@ -311,11 +299,11 @@ The `term_*` GB tags were removed in 1.21.0 (FW-129), but their converter entrie
 
 Detail home: this row
 
-Progress: Not started, and deliberately not scheduled: the entries are kept indefinitely, with no target release. They are listed under Removed Tags on the settings page (`prefix_removed`), and `tools/test/control-order-test.php` §C3 pins that every modifier template still has one. `docs/deprecated-tags-options.md` §The `term_` modifier family states the promise to authors.
+Progress: Not started, and deliberately not scheduled: the entries are kept indefinitely, with no target release. They are listed in the Migration Tool's "Deprecated and removed entries" block on the settings page (`prefix_removed`), and `tools/test/control-order-test.php` §C3 pins that every modifier template still has one. `docs/deprecated-tags-options.md` §The `term_` modifier family states the promise to authors.
 
 **The versioning axis.** A MAJOR is warranted when stored content stops rendering and no migration reaches it. Nothing in the repo stated a rule before 1.21.0, and the one precedent cut the other way: `has_related_variant()` plus five related-variant methods were removed from `SourceInterface`/`AbstractSource` and flagged in the entry itself as a "breaking change for external sources", and it shipped as a MINOR ([`CHANGELOG.md`](../CHANGELOG.md) 1.5.0). The axis is chosen because wire lives in other people's databases past the point where anyone can fix it by editing our code, and an unregistered tag renders its own braces on a published page; every other break this repo can ship has an upgrade path or an empty population. Under it FW-129's 1.21.0 removal was a MINOR, because the entries are kept and unconverted content is still convertible, and retiring them is the major.
 
-Blocked by: —  •  Interacts with: FW-128 (a tags-in-use report would make the retirement gate checkable rather than hand-run per site), FW-38 (`lifecycle` replaces the `prefix_removed` stand-in these entries ride), FW-129 (closed; the removal this row finishes), FW-174 (these entries are the generator's last production caller)
+Blocked by: —  •  Interacts with: FW-128 (a tags-in-use report would make the retirement gate checkable rather than hand-run per site), FW-38 (`lifecycle` replaces the `prefix_removed` stand-in these entries ride), FW-129 (closed; the removal this row finishes), FW-174 (these entries are the generator's last production caller), FW-152 (retiring the entries leaves one consumer of the template list), FW-153 (the deprecation-window warning), FW-175 (the entries ride the same registration pass)
 
 #### FW-152 — Rename the "modifier template" surface
 
@@ -339,7 +327,7 @@ Progress: Not started. Read, not measured, 2026-10-12: the mount filters found a
 
 Open: Measure what actually runs at mount before designing. `docs/plugin-integration.md` stated "Option migrations also run when a tag modal opens" until `0de5d10` removed it; whether that sentence or the code moves is undecided, and this row is where it gets settled. Keys GB captures into private state (`docs/gb-constraints.md` §Reserved Option Keys) stay converter-only.
 
-Blocked by: —  •  Interacts with: FW-81 (the first family to add a mount rewrite), FW-73 (the converter half of the same reach problem)
+Blocked by: —  •  Interacts with: FW-81 (the first family to add a mount rewrite), FW-73 (the converter half of the same reach problem), FW-156 (mount migrations never reach a core block)
 
 #### FW-168 — The slot emitter writes the label before a type token
 
@@ -375,7 +363,7 @@ Progress: Not started. The function is kept because the bootstrap registers the 
 
 Open: When it retires: with FW-150, when its last production caller goes, or earlier by registering the `term_*` entries as plain data and keeping only the transform (`bws_migrate_modifier_root_chain()` and the helpers beneath it). Earlier retirement would delete the template enumeration, the `_doing_it_wrong()` branch, the `prefix_removed => false` arm and `bws_modifier_migration_live_marker()`, and would need the harness and the fixture family to exercise the transform some other way.
 
-Blocked by: —  •  Interacts with: FW-150 (its last production caller), FW-38 (the callback-presence proxy the live marker feeds), FW-108 (closed; the public-contract withdrawal this follows)
+Blocked by: —  •  Interacts with: FW-150 (its last production caller), FW-38 (the callback-presence proxy the live marker feeds), FW-108 (closed; the public-contract withdrawal this follows), FW-175 (the `term` call rides the same pass)
 
 #### FW-175 — Register the option-migration entries only where something reads them
 
@@ -413,7 +401,7 @@ Progress: v1 shipped 1.13.0 — ACF + sub-fields + options-page + term-meta + re
 
 Open: v2 type-priority and the items gated with it (recommend-divider vs multi-select Filter 2, a `refs` step's picker preferring `relationship` + `post_object` types, a dynamic label on that same picker, a custom combobox widget for reopen-highlight, and the Filter-1 preset's remaining halves — last-choice memory and derive-from-the-current-key-value); v-future pick-a-post-to-scan; **binding the pool to whatever kind the chain resolves to generally** rather than to `post` at the one `refs` site (added 2026-09-18 — a decision, not a tidy-up, because it needs a stand-down for a declaring root whose argument will not resolve); and **whether PROTECTED or UNREGISTERED postmeta should be offerable, and to whom** (added 2026-09-14 from FW-100 — a capability decision, not a display one, and FW-134 is a second population of it).
 
-Blocked by: —  •  Interacts with: FW-14 (the FU-1/2/3 follow-ups, same detail home — FU-1 rewrites the location filter this item keeps presetting), FW-131 (a specific user would want the same narrowing a specific term and post got), FW-132 (a record-side read would want its own keys offered from somewhere too), FW-134 (its keys are protected postmeta, the open question above), FW-20 (its `use`/`key` strip and its `linkTo` fold re-touch the very option keys this picker edits — its own row draws the line, that item owns the wire change and this one the discovery)
+Blocked by: —  •  Interacts with: FW-14 (the FU-1/2/3 follow-ups, same detail home — FU-1 rewrites the location filter this item keeps presetting), FW-131 (a specific user would want the same narrowing a specific term and post got), FW-132 (a record-side read would want its own keys offered from somewhere too), FW-134 (its keys are protected postmeta, the open question above), FW-20 (its `use`/`key` strip and its `linkTo` fold re-touch the very option keys this picker edits — its own row draws the line, that item owns the wire change and this one the discovery), FW-157 (field discovery could feed a bindings picker)
 
 #### FW-14 — Field-selector post-v1 follow-ups
 
@@ -425,7 +413,7 @@ Progress: Not started. FU-1 grew in 1.21.0 rather than moving: `containerRowPath
 
 Open: FU-1 and FU-3 are startable as they stand. FU-2 is NOT — its whole point is that the factory centralizes the props these ~14 option definitions share, and FW-13's v2 is what adds the next prop, so a signature shaped now would be a guess. Take it after v2's prop set exists, not before. Stated here rather than as a row blocker because two thirds of this item are unblocked.
 
-Blocked by: —  •  Interacts with: FW-13 (same detail home; its v2 prop set is what FU-2 waits on, per the Open line), FW-74 (closed 1.21.0 — its Location preset is FU-1's third round-tripping site), FW-81 (the datetime collapse more than halves FU-3's stacking), FW-53 ({{table}} lands FU-1 prior art + FU-3 second instance; its columns became folded slots, whose control mounts its own picker, so it SUBTRACTS its two `bws-field-combo` flips from FU-2's population rather than adding a proposal)
+Blocked by: —  •  Interacts with: FW-13 (same detail home; its v2 prop set is what FU-2 waits on, per the Open line), FW-74 (closed 1.21.0 — its Location preset is FU-1's third round-tripping site), FW-81 (the datetime collapse more than halves FU-3's stacking), FW-53 (closed 1.22.0; {{table}} lands FU-1 prior art + FU-3 second instance; its columns became folded slots, whose control mounts its own picker, so it SUBTRACTS its two `bws-field-combo` flips from FU-2's population rather than adding a proposal)
 
 #### FW-15 — {{phone}} follow-ups
 
@@ -629,7 +617,7 @@ Progress: DESIGNED. First grilled 2026-09-04 and deferred behind `{{table}}`; re
 
 Open: The migration is a bridge, not a permanent parse. The release ships a read-time parse (join's carry kept unfed, so a stranded `src(same)` keeps skipping) and a converter entry over `post_content` that writes every carried axis into the slot using it. The parse is deleted once the converter's count of legacy `{{join}}` wire reaches zero per site, which waits on FW-73 for block widgets; stores the converter cannot reach rest on FW-128's report or the author. Before building, measure in the testbed what a join in a GB attribute substitution does with a typography span.
 
-Blocked by: —  •  Interacts with: FW-53 (closed; `src(inherit)`, the text-key grammar and the analog dispatcher this promotes all ship there), FW-73 (the parse retirement gates on its widget reach), FW-128 (the unreachable stores), FW-106 (the parse half of the same re-derivation; whether its parse-once record also carries the resolved-source BINDING is FW-106's own scope call), FW-71 (closed)
+Blocked by: —  •  Interacts with: FW-53 (closed; `src(inherit)`, the text-key grammar and the analog dispatcher this promotes all ship there), FW-73 (the parse retirement gates on its widget reach), FW-128 (the unreachable stores), FW-106 (the parse half of the same re-derivation; whether its parse-once record also carries the resolved-source BINDING is FW-106's own scope call), FW-71 (closed), FW-168 (`{{join}}` slots carry type tokens), FW-171 (the per-slot typography gains the same Font Size field), FW-122 (copy-on-select retires `{{join}}`'s sibling carry)
 
 #### FW-128 — A multi-purpose content scanner: one walk, several reports
 
@@ -637,11 +625,11 @@ The scanner today walks `post_content` to answer ONE question — which strings 
 
 Detail home: this row (raised in the FW-39 grilling, 2026-09-07; the per-block handling a site-wide report complements shipped with FW-39 — [PR #134](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/pull/134))
 
-Progress: Not started. Two consumers already exist and are recorded elsewhere, which is what distinguishes this from a nice-to-have. **Validity:** FW-39 settles what happens without it — a dangling `src:term,34` renders silent-empty per the §V2 rule and the editor's tag configuration preview marks it `(missing)` — so an author only learns of a broken reference by opening the block that holds it, and there is no site-wide answer. **Tags in use:** the deprecation progression gates step 3 (unregistering a family) on the unreachable surfaces being EMPTY rather than on elapsed releases, because an unregistered tag renders LITERALLY — see `docs/design-history/external-source-roots.md` Q7. An inventory report is what could answer that in general; today nothing can. The one integrating plugin removed its modifier family on 2026-09-08 without such a report, on the operator's own knowledge of one install's content — which is exactly the answer this instrument would make checkable rather than asserted. **FW-129 then removed `term_*` in 1.21.0 without waiting for this row**, by hand-running the Migration Tool on 1.20.0 across every site under the owner's control and reading `TagConverter::scan()`'s own per-name report, with the gate set at zero `term_*` in ANY channel (skipped and ownership-declined included). That works because the converter already records `'tag' => $tag` per name, and it is exactly what this row would generalize: the special case is built, the instrument is not, and the method does not scale past sites one operator can enumerate. That gate was also narrower than "ANY channel" reads: `scan()` walks `post_content` only, so a `term_*` tag in a block widget, a custom field or another option was never counted (the M2 census found none there on the two clones it swept). **Retiring-name report**, settled as this row's first concrete build 2026-10-12: before a tag name is unregistered, search postmeta, options and termmeta for that exact name (`{{name}}` and `{{name ` followed by options) and list each hit with its container. It is the one enumeration a release needs, and it escapes the noise FW-73's 2026-08 measurement found in a brace-matching sweep (about 97% repaired cache, oEmbed HTML or other plugins' `{{…}}` syntax): searched by retiring name only, a foreign tag such as `{{current_date}}` cannot appear, and on the two clones it would have returned exactly the four real rows (`post_term_title` in one ACF field). The search is unindexed, so it runs from a button, never on upgrade. Hits are reported, not rewritten: custom fields and other options belong to whoever stores them; block widgets are rewritten by FW-73 instead. **Option values:** a third consumer, added 2026-09-14 when the FW-130 row it replaced was closed. An option KEY can be one of ours while its VALUE belongs to whoever consumes it, and nothing we ship reads at that depth — the converter's ownership guard checks keys only (`bws_converter_tag_ownership()`), so a foreign value on a shared key passes it. One corpus holds three incompatible readings of GB's own `link` key: an enum of six link targets in `GenerateBlocks_Dynamic_Tag_Callbacks::with_link()`, a plain boolean in the same class's `get_term_list()`, and a private `term` sentinel defined independently by our N×M era and by GB Query Enhancements 1.3.0. Measured across the Site P clone's harvest corpus 2026-09-14: of the seven keys in `BWS_GB_TAG_OUTPUT_OPTIONS`, `link` is the only one carrying a value at all, and two of its five stored values are ones `with_link()` does not answer for. The one instance that reached our own rewrite path is fixed at `bws_modifier_base_options()`; the general question — which values a report should check, against which consumer — is what lands here.
+Progress: Not started. Two consumers already exist and are recorded elsewhere, which is what distinguishes this from a nice-to-have. **Validity:** FW-39 settles what happens without it — a dangling `src:term,34` renders silent-empty per the §V2 rule and the editor's tag configuration preview marks it `(missing)` — so an author only learns of a broken reference by opening the block that holds it, and there is no site-wide answer. **Tags in use:** the deprecation progression gates step 3 (unregistering a family) on the unreachable surfaces being EMPTY rather than on elapsed releases, because an unregistered tag renders LITERALLY — see `docs/design-history/external-source-roots.md` Q7. An inventory report is what could answer that in general; today nothing can. The one integrating plugin removed its modifier family on 2026-09-08 without such a report, on the operator's own knowledge of one install's content — which is exactly the answer this instrument would make checkable rather than asserted. **FW-129 then removed `term_*` in 1.21.0 without waiting for this row**, by hand-running the Migration Tool on 1.20.0 across every site under the owner's control and reading `TagConverter::scan()`'s own per-name report, with the gate set at zero `term_*` in ANY channel (skipped and ownership-declined included). That works because the converter already records `'tag' => $tag` per name (and, since 1.22.0, its declined and skipped rows name the first posts each tag was found in), and it is exactly what this row would generalize: the special case is built, the instrument is not, and the method does not scale past sites one operator can enumerate. That gate was also narrower than "ANY channel" reads: `scan()` walks `post_content` only, so a `term_*` tag in a block widget, a custom field or another option was never counted (the M2 census found none there on the two clones it swept). **Retiring-name report**, settled as this row's first concrete build 2026-10-12: before a tag name is unregistered, search postmeta, options and termmeta for that exact name (`{{name}}` and `{{name ` followed by options) and list each hit with its container. It is the one enumeration a release needs, and it escapes the noise FW-73's 2026-08 measurement found in a brace-matching sweep (about 97% repaired cache, oEmbed HTML or other plugins' `{{…}}` syntax): searched by retiring name only, a foreign tag such as `{{current_date}}` cannot appear, and on the two clones it would have returned exactly the four real rows (`post_term_title` in one ACF field). The search is unindexed, so it runs from a button, never on upgrade. Hits are reported, not rewritten: custom fields and other options belong to whoever stores them; block widgets are rewritten by FW-73 instead. **Option values:** a third consumer, added 2026-09-14 when the FW-130 row it replaced was closed. An option KEY can be one of ours while its VALUE belongs to whoever consumes it, and nothing we ship reads at that depth — the converter's ownership guard checks keys only (`bws_converter_tag_ownership()`), so a foreign value on a shared key passes it. One corpus holds three incompatible readings of GB's own `link` key: an enum of six link targets in `GenerateBlocks_Dynamic_Tag_Callbacks::with_link()`, a plain boolean in the same class's `get_term_list()`, and a private `term` sentinel defined independently by our N×M era and by GB Query Enhancements 1.3.0. Measured across the Site P clone's harvest corpus 2026-09-14: of the seven keys in `BWS_GB_TAG_OUTPUT_OPTIONS`, `link` is the only one carrying a value at all, and two of its five stored values are ones `with_link()` does not answer for. The one instance that reached our own rewrite path is fixed at `bws_modifier_base_options()`; the general question — which values a report should check, against which consumer — is what lands here.
 
 Open: Whether the generalized scanner SUBSUMES the migration scan (one walk, migration becomes a report) or sits beside it — the existing walk is driven by registered migration entries, so a general walk inverts the relationship. What the report SURFACE is, given the current one has a migration audience and these questions have a maintenance audience. And which validity classes are decidable by inspection at all — a deleted term is, a field key that ACF supplies conditionally is not.
 
-Blocked by: — (cleared 2026-09-14: FW-39 landed the validity class this waited on, and the option-value consumer above arrived with it)  •  Interacts with: FW-73 (the reach half: it rewrites block widgets, this row reports what stays unreachable; an unregister gates on both), FW-81 (its hidden old datetime tags are the first unregister to need the report), FW-129 (closed; its 1.21.0 removal discharged the gate by hand, per-site, which is the special case this row generalizes), FW-150 (retiring the `term_*` entries wants the same answer), FW-67 (closed 1.21.0), FW-13 (a field-key validity check would read the same discovery envelope)
+Blocked by: — (cleared 2026-09-14: FW-39 landed the validity class this waited on, and the option-value consumer above arrived with it)  •  Interacts with: FW-73 (the reach half: it rewrites block widgets, this row reports what stays unreachable; an unregister gates on both), FW-81 (its hidden old datetime tags are the first unregister to need the report), FW-129 (closed; its 1.21.0 removal discharged the gate by hand, per-site, which is the special case this row generalizes), FW-150 (retiring the `term_*` entries wants the same answer), FW-67 (closed 1.21.0), FW-13 (a field-key validity check would read the same discovery envelope), FW-155 (reports what the snippet converter declines), FW-156 (its survey's parsed-block walk lives here)
 
 #### FW-131 — Select a specific user (`user,<ID>`), plus the two questions parked beside it
 
@@ -689,7 +677,7 @@ Progress: Not started. Only a throwaway prototype toggle ever existed, and it is
 
 Open: Whether it generalizes (the folded-slot control behind `{{join}}` and `try_` slots gets it too) or stays table-only, and whether the closed-state summary can come from the same struct the editor preview text reads rather than a second summarizer.
 
-Blocked by: —  •  Interacts with: FW-53 (closed; the `{{table}}` Columns cards are where it would land first)
+Blocked by: —  •  Interacts with: FW-53 (closed; the `{{table}}` Columns cards are where it would land first), FW-158 (both add controls to the Columns cards)
 
 #### FW-153 — Editor warning for tags in a deprecation window
 
@@ -737,7 +725,7 @@ Progress: Not started. `compact` was deferred in plan Settled #29 for missing pr
 
 Open: The key name and value shape (one length, or the CSS shorthand), whether the header takes its own value through the `header` segment, and whether columns carry it.
 
-Blocked by: —  •  Interacts with: the shipped `border` key (FW-159, closed; padding and borders set density together), FW-163 (`lineHeight` is the other density control)
+Blocked by: —  •  Interacts with: the shipped `border` key (FW-159, closed; padding and borders set density together), FW-163 (`lineHeight` is the other density control), FW-167
 
 #### FW-162 — `{{table}}` sticky header row and pinned first column
 
@@ -875,7 +863,7 @@ Blocked by: —  •  Interacts with: FW-114 (same "twin proof" family, split fo
 
 #### FW-118 — `show_if` condition strings are a one-sided DSL with no validator
 
-PHP option definitions author `show_if`/`show_if_any` condition strings that only a JS-only grammar (`editor-conditional-options.js`) interprets — no enum, no schema, nothing that fails if PHP writes a string the JS grammar can't parse. One incident already shipped this way (`registration-helpers.php:171-174`: a legacy `show_if src:'ref'` literal-equality check silently missed chain-wire `src` values, so a flat control kept rendering duplicated beside its chain replacement) — worked around by deleting the option (`bws_drop_chain_flat_options()`), not by making the DSL self-checking. Not filed as a GitHub issue: the one known incident is already resolved and not currently reproducible by a plugin user; what's missing is test/validator coverage, not an outstanding user-facing defect, so it tracks here per the bug-vs-coverage-gap split.
+PHP option definitions author `show_if`/`show_if_any` condition strings that only a JS-only grammar (`editor-conditional-options.js`) interprets — no enum, no schema, nothing that fails if PHP writes a string the JS grammar can't parse. One incident already shipped this way (`registration-helpers.php:194-197`: a legacy `show_if src:'ref'` literal-equality check silently missed chain-wire `src` values, so a flat control kept rendering duplicated beside its chain replacement) — worked around by deleting the option (`bws_drop_chain_flat_options()`), not by making the DSL self-checking. Not filed as a GitHub issue: the one known incident is already resolved and not currently reproducible by a plugin user; what's missing is test/validator coverage, not an outstanding user-facing defect, so it tracks here per the bug-vs-coverage-gap split.
 
 Detail home: `.scratch/plans/architecture-review-2026-08.md` §FW-114 (split out 2026-09-02, same reasoning as FW-117)
 
@@ -947,7 +935,7 @@ Progress: Gap noted 2026-10-02 in a code review of those two commits. The behavi
 
 Open: Whether the fixture needs an oversized group, then the rows in `field-selector-test-matrix.md`, generated as visible GB blocks with the reseed and snapshot re-capture the matrix rules require. Separately, whether the caution should state the cap itself ("showing the first 20"), which means the REST response carrying the limit it applied.
 
-Blocked by: —  •  Interacts with: FW-97 (fixture reorganization; a new fixture page shares its re-capture rule), FW-145 (fixture rows with unmeasured causes)
+Blocked by: —  •  Interacts with: FW-97 (fixture reorganization; a new fixture page shares its re-capture rule), FW-145 (fixture rows with unmeasured causes), FW-172 (the screen-reader pass covers its announcement surfaces)
 
 #### FW-172 — Screen-reader pass over the plugin's editor controls
 
@@ -959,7 +947,7 @@ Progress: Not started. Raised 2026-10-20 at the `{{table}}` ship (FW-53), whose 
 
 Open: Which screen readers and browsers (NVDA with Chrome and Firefox on Windows is reachable here; VoiceOver needs a Mac). Whether to start with the `{{table}}` controls or sweep every `bws-*` control type in `editor-controls.md`'s registered-controls table. Where the results are recorded so a later change can be checked against them.
 
-Blocked by: —  •  Interacts with: FW-53 (closed; the controls that prompted it), FW-147 (the entity picker's caution and loading state are announcement surfaces too)
+Blocked by: —  •  Interacts with: FW-53 (closed; the controls that prompted it), FW-147 (the entity picker's caution and loading state are announcement surfaces too), FW-173 (a toggle switch would be a control this pass covers)
 
 ### Docs & vocabulary
 
@@ -1009,7 +997,7 @@ Detail home: `.scratch/plans/vocabulary-pass.md` §OPEN 1 + §OPEN 2
 
 Progress: "Tag string" is not a coinage — it is GB's own noun for the same artifact (`parse_tag_string()`), with 98 uses already. Against: "wire" reads well in compounds, and ADR 0004 names it in a record that is never corrected. How many of the 557 sites are compounds needing a rephrase rather than a swap is unmeasured. The arrival-route pair (§F9c, one kind reached two ways) rides whichever noun is chosen.
 
-Blocked by: decision:which noun  •  Interacts with: FW-95
+Blocked by: decision:which noun  •  Interacts with: FW-95, FW-152 (the modifier-template rename)
 
 #### FW-95 — The remaining term-of-art inventory
 
@@ -1019,7 +1007,7 @@ Detail home: `.scratch/plans/vocabulary-pass.md` §OPEN 4
 
 Progress: Not started. Method: count live sites per term, check whether it's defined at an owning site, then apply the plain-English rule.
 
-Blocked by: —  •  Interacts with: FW-93, FW-67 (closed 1.21.0 — `hop`'s last carrier was deleted there, and it was never part of this inventory)
+Blocked by: —  •  Interacts with: FW-93, FW-67 (closed 1.21.0 — `hop`'s last carrier was deleted there, and it was never part of this inventory), FW-152 (the modifier-template rename)
 
 #### FW-101 — "Author" and "user" name three different relations and the docs blur them
 
@@ -1043,7 +1031,7 @@ Progress: Censused 2026-09-04 while grilling FW-121 — 15 `carry-forward`, 12 "
 
 Open: Everything. Whether the mechanism renames at all, or the two spellings simply collapse onto one of themselves. No candidate survives yet — `accumulator` loses the directionality, `hand-off` collides with CLAUDE.md's own "SLOT SOURCE HAND-OFF" trigger (which names the very function holding `$carry`), and `propagation` is jargon the repo uses nowhere.
 
-Blocked by: —  •  Interacts with: FW-121 (closed; created the second axis and deliberately declined to fix it), FW-93, FW-95
+Blocked by: —  •  Interacts with: FW-121 (closed; created the second axis and deliberately declined to fix it), FW-93, FW-95, FW-120 (copy-on-select retires `{{join}}`'s authored sibling carry, shrinking where the relation is written)
 
 ### Future possibilities
 
@@ -1079,7 +1067,7 @@ Progress: Mostly satisfied by the approved FW-57 fold wire (2026-07-31 assessmen
 
 Open: Remaining scope is narrow — per-type OPTION tokens inside a slot (a `datetime_single` slot cannot yet carry that tag's `format`, an image slot cannot carry `as`/`size`).
 
-Blocked by: —  •  Interacts with: FW-25, FW-16, FW-56 (closed), FW-57 (closed)
+Blocked by: —  •  Interacts with: FW-25, FW-16, FW-56 (closed), FW-57 (closed), FW-168 (a typed slot needs the type-first emitter)
 
 #### FW-25 — Multislot-only field options
 
@@ -1101,7 +1089,7 @@ Progress: Direction confirmed and sharpened (user, 2026-08-01): embedded option,
 
 Open: Before build: a prototype pass on two-level groups of conditions (variant G; v1 now nests two levels, user 2026-10-01), the shared datetime-semantics home (doc plus test vectors, no runtime code yet), and the proposals for Meta Conductor (detail home). The editor control's configuration flow is settled by prototype F (user, 2026-10-01): one grouped test list, and no group box until a test is chosen, as Link To behaves. The test words and the preview-append position are settled (detail home §Grill 2026-10-01).
 
-Blocked by: —  •  Interacts with: FW-141 (closed, merged for 1.21.0; shipping `when` in 1.21.0 too is preferred but does not block that release; the driving case, a boolean showing a fixed word in a `{{join}}` slot; the Fixed Text / Email / Phone Number help says the text shows "every time", which a `when` makes untrue), FW-26 (closed), FW-57 (closed), FW-56 (closed), FW-59 (closed; compare text is bracketed by the slot fold's inner-grammar rule), FW-60, FW-88 (absorbed: `when` filters before `limit`), FW-35 (forcing a datetime to mean its whole day, later), FW-43, FW-81 (the subject part reuses its read form), FW-146 (the date-and-time rules `when` states for itself, and the vectors it could later load)
+Blocked by: —  •  Interacts with: FW-141 (closed, merged for 1.21.0; shipping `when` in 1.21.0 too is preferred but does not block that release; the driving case, a boolean showing a fixed word in a `{{join}}` slot; the Fixed Text / Email / Phone Number help says the text shows "every time", which a `when` makes untrue), FW-26 (closed), FW-57 (closed), FW-56 (closed), FW-59 (closed; compare text is bracketed by the slot fold's inner-grammar rule), FW-60, FW-88 (absorbed: `when` filters before `limit`), FW-35 (forcing a datetime to mean its whole day, later), FW-43, FW-81 (the subject part reuses its read form), FW-146 (the date-and-time rules `when` states for itself, and the vectors it could later load), FW-166 (`when` filters rows on the server; that row filters them in the browser)
 
 #### FW-28 — Composition-of-composers
 
@@ -1428,6 +1416,7 @@ Append-only ledger of closed, shipped, or cut work — both `FW-N` items deleted
 | FW-4 | `src:site` slot for the remaining `try_` tags | Shipped 1.15.0 — pure wiring: a `try_site_fn` descriptor leg, five thin closures over `bws_site_resolve_value`, single-result site link-wrap for I6/C9 parity | CHANGELOG 1.15.0; registry PHPDoc (`try_site_fn`, deleted by FW-136); `src-site-test-matrix.md` R7 |
 | FW-5 | Collapse the `try_core_fn`/`try_term_fn` fork | Retired 2026-08-15 by #103 (closed) — the four hand-written `try_` arms collapsed onto one dispatch keyed by resolved source kind, through the pure table in `includes/helpers/try-slot-arms.php` (both deleted by FW-136) | FW-71 |
 | FW-6 | Datetime list mode | Shipped 1.15.0: `limit`/`sep` on both datetime tags, text/title V14 parity, `src:ref` plural fan-out | CHANGELOG 1.15.0; `tag-reference.md` §List mode; `tools/test/datetime-test-matrix.md` D4 |
+| FW-8 | Fold `bws_reliable_term_context_detection()` into the factory's ambient capture | Re-scoped to a deletion and removed in the release after 1.22.0: the detector's one caller, `TaxonomyTerm::resolve_id()`, was unreachable once FW-39 made the `term` root's argument required, and the factory already owned the archive tier. `resolve_id()` now returns `false`. No CHANGELOG entry: internal function, unreachable path, no rendered output moved | `TaxonomyTerm::resolve_id()` PHPDoc; `docs/design-history/traversal-pipeline.md` §Post-Phase-1 convergence |
 | FW-10 | `src:site` → ref | Shipped 1.17.0 — the engine's `ref` step accepts a site source; a site-rooted relationship is a CHAIN (`src:site;refs,x`), not a re-exposed control | CHANGELOG 1.17.0; `bws_run_step()` PHPDoc; GH #28 (closed) |
 | FW-11 | Gate wrap-capable base tags on img/picture | Cut 2026-07-21 — inert, no code shipped. No editor-reachable GB block presents `tagName` img/picture to the picker's compare | GH #31 (closed inert); `gb-constraints.md` §visibility blind spot |
 | FW-12 | Custom time format on two-ended `as:time` range | Shipped 1.15.0: per-side format via the single-ended resolver chain | CHANGELOG 1.15.0; `bws_format_time_range()` PHPDoc; matrix D3 |
