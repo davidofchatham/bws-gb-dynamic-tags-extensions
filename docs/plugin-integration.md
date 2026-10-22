@@ -84,7 +84,7 @@ Base tags (`text`, `image`, `content`, `title`, `permalink`, `datetime_single`, 
 To let authors choose it, opt in as a chain root (below). The older routes remain:
 
 1. **Chain root** (preferred) — one row in the Source control on every base tag and in every folded slot. See [§1a Offering your source as a chain root](#1a-offering-your-source-as-a-chain-root).
-2. **Context modifier** (*withdrawn in 1.21.0, deleted in 1.22.0*) — `TagTemplateRegistry::register_modifier()` used to create a prefixed tag group (`example_text`, `example_image`, etc.) backed by your source. Superseded by the chain root, which gives your source the whole base-tag surface instead of a copy of it. See [§2](#2-registering-a-context-modifier) for the route out, and [§9](#9-migrating-a-modifier-family-to-a-base-tag) for tags already saved in content.
+2. **Context modifier** (*withdrawn in 1.21.0, deleted in 1.22.0*) — `TagTemplateRegistry::register_modifier()` used to create a prefixed tag group (`example_text`, `example_image`, etc.) backed by your source. Superseded by the chain root, which gives your source the whole base-tag surface instead of a copy of it. See [§2](#2-registering-a-context-modifier) for the route out, and [§9](#9-migrating-a-modifier-family-to-a-base-tag) for what that leaves for tags already saved in content.
 3. **Manual registration** — register individual GB tags directly and call your source's `resolve_id()` in the callback. See [§4 Plugin-Specific Tags](#4-plugin-specific-tags-no-built-in-template).
 4. **Deprecated wrappers only** — if you only need backward-compat wrappers for legacy tag names, `register_source()` makes the source available to `DeprecatedTagRegistry` callbacks without creating any new GB tags. See [§7 Registering Deprecated Tag Wrappers](#7-registering-deprecated-tag-wrappers).
 
@@ -194,7 +194,7 @@ Where a rooted tag cannot resolve in the editor (common when your source reads r
 
 **Register a [chain root](#1a-offering-your-source-as-a-chain-root) instead.** A modifier family was a second copy of the base tags that every new capability had to be built into by hand. A chain root gives your source the whole base-tag surface instead of a copy of it: source paths, per-step limits, field pickers and editor previews, all of it arriving for free as the base tags gain it.
 
-**Tags already saved in content are a separate job from the registration.** [§9 Migrating a Modifier Family to a Base Tag](#9-migrating-a-modifier-family-to-a-base-tag) converts stored `{{example_text}}` wire to base tags rooted at your source in one converter run, and older prefixes registered as plain renames chain into it automatically. §9 is live and unaffected by this withdrawal. Do this before you retire your prefix — an unregistered tag renders its own braces on a published page.
+**Tags already saved in content are a separate job from the registration, and this plugin no longer offers a route for it.** [§9](#9-migrating-a-modifier-family-to-a-base-tag) records that the converter-entry call is no longer supported. An unregistered tag renders its own braces on a published page, so rewrite your stored `{{example_text}}` tags yourself before you retire your prefix.
 
 The `bws_dynamic_tags_preview_modifier_map` filter went with the constructor: its only population was prefixes minted here. The preview-text schema itself is [`editor-tag-previews.md`](editor-tag-previews.md).
 
@@ -619,7 +619,7 @@ Migration available only for deprecated entries that declare `new_tag` plus at l
 
 > **Withdrawn in 1.21.0, along with [§2](#2-registering-a-context-modifier) (deleted in 1.22.0).** There is no supported way to mint a prefixed tag family any more, so there is no new prefix to rename one to.
 
-If you are here with old notes and a prefix you wanted to move off: **do not rename it — exit it.** [§9 Migrating a Modifier Family to a Base Tag](#9-migrating-a-modifier-family-to-a-base-tag) rewrites your stored `{{oldname_text}}` wire into base tags rooted at your source, in a single converter run, and chains older prefixes into it automatically. That is the same one run a rename would have cost you, and it lands on a tag surface that is still supported.
+If you are here with old notes and a prefix you wanted to move off: **do not rename it, and do not expect a conversion route either.** [§9](#9-migrating-a-modifier-family-to-a-base-tag) records that stored prefixed wire from an external owner has no supported conversion path here. Rewrite it to base tags rooted at your source before you retire the prefix.
 
 Registering a plain old-name → new-name wrapper is still a live mechanism in its own right — [§7 Registering Deprecated Tag Wrappers](#7-registering-deprecated-tag-wrappers) owns it, including the Migration Tool's conversion behavior and the `prefix_removed` flag that files an entry under **Removed Tags**. Only the modifier-family framing this section carried is gone.
 
@@ -627,64 +627,9 @@ Registering a plain old-name → new-name wrapper is still a live mechanism in i
 
 ## 9. Migrating a Modifier Family to a Base Tag
 
-Once your source is offered as a [chain root](#1a-offering-your-source-as-a-chain-root), your prefixed tag family and the base tags say the same thing two ways. `{{example_text key:bio}}` and `{{text src:example|key:bio}}` read the same field from the same entity — but only the base tag gets source paths, per-step limits and every capability added since.
+> **Withdrawn in 1.22.0.** `bws_register_modifier_root_migrations()` is no longer supported integration surface and is slated for retirement. The function stays defined for now, because this plugin's own `term_*` conversion entries are registered through it, but nothing about it is promised.
 
-One call rewrites your stored tags into base tags rooted at your source:
-
-```php
-add_action( 'init', function () {
-    bws_register_modifier_root_migrations(
-        'example',                            // your retired modifier prefix
-        'example',                            // the registered source key to root at
-        array( 'since' => '3.4.0' )
-    );
-}, 21 );
-```
-
-That registers one migration entry per **registered modifier template** — the same list your family was minted from — so there is no list of tag names to maintain. Call it after templates are registered: the plugin registers them on `init` priority 20, so priority 21 is the natural home. (Called earlier than `init` priority 20 the function does not exist yet, which is a fatal error; called before the templates are registered, the template list is empty and `_doing_it_wrong()` says so.)
-
-**Your prefix is supplied, never derived.** Nothing in this plugin knows your family exists; you name it. The root key is usually your source key, but it does not have to be.
-
-**Your entries are listed under Removed Tags** on the settings page, since no modifier family is registered. If you still register your prefixed tags yourself (with [manual GB registration](#option-b-manual-gb-registration)), pass `prefix_removed => false` and they are listed under **Deprecated Tags** instead.
-
-### What a converted tag looks like
-
-The rewrite is a whole-string transform, one row per stored shape:
-
-| Your stored tag | Becomes |
-|---|---|
-| `{{example_text key:bio}}` | `{{text src:example\|key:bio}}` |
-| `{{example_text src:current\|key:bio}}` | `{{text src:example\|key:bio}}` — on a modifier tag "current" meant *your* entity |
-| `{{example_text src:ref\|ref:office\|key:bio}}` | `{{text src:example;refs,office\|key:bio}}` — the hop becomes a real step |
-| `{{example_text srcTermIn:genre\|key:bio}}` | `{{text src:example;terms,genre\|key:bio}}` |
-| both sidecars | `{{text src:example;refs,office;terms,genre\|key:bio}}` |
-| `{{example_text src:site\|…}}` | `{{text src:site\|…}}`, with `ref` / `srcTermIn` **dropped** |
-
-The last row is the one that can change rendered output, and it is deliberate: under `src:site` the modifier callback returned *before* reading either sidecar, so neither has ever run — while a relationship step now accepts site input, so carrying one through would start executing a hop that never once executed.
-
-A tag-level `limit` is left alone here and absorbed onto the fanning step by the base-tag chain migration in the converter's later pass, so both routes land on identical wire.
-
-After conversion, the retired flat controls (`ref`, `srcTermIn`, the legacy `source` spelling) are gone: the source is stated in exactly one place.
-
-### What it does not do, and what stays true
-
-- **Your tags are no longer registered.** With `register_modifier()` gone, any stored tag you have not converted is not a tag: GenerateBlocks has no name to dispatch and the literal `{{oldname_text}}` string appears in the rendered page until the Migration Tool converts it.
-- **Keep this call for as long as such content may exist.** Deleting your `bws_register_modifier_root_migrations()` call removes the entries the **Convert** button needs, so those tags can no longer be repaired from the admin screen. Convert first, confirm nothing is left, then delete — and note that this plugin has no site-wide "where is this tag still used" report to confirm with today, so that confirmation rests on your own knowledge of the content.
-- **The converter's reach is the posts table** — every non-revision, non-trashed post, which does include reusable blocks, template parts and theme-element post types. Tags stored in the **options table** (block widgets) are out of its reach and are simply not rewritten.
-- **It never overwrites an entry you registered yourself.** A tag name that already has *any* entry is skipped whole, so a hand-written entry for one template keeps its own rules and the generator covers the rest.
-- **Older prefixes chain automatically.** If `oldname_text → example_text` is registered as a plain rename ([§8](#8-renaming-a-modifier-prefix)), the converter re-reads the tag name after each rewrite, so `{{oldname_text}}` reaches the base tag in one run. No extra entry.
-- **Editor mounts do not migrate.** Option migrations also run when a tag modal opens; a *rename* cannot, because the tag name belongs to the block's parsed tag and is chosen by the picker. This migration is converter-only by construction, not by omission.
-
-### Parameter reference
-
-| Arg | Type | Default | Meaning |
-|---|---|---|---|
-| `$prefix` | string | — | Your modifier prefix, with or without the trailing underscore. |
-| `$root` | string | — | Registered source key migrated tags are rooted at. |
-| `since` | string | `''` | Version you deprecated the prefix in. Shown in the settings list. |
-| `prefix_removed` | bool | `true` | Files the entries under **Removed Tags**. Pass `false` only while you still register the prefixed tags yourself; they are then listed under **Deprecated Tags**. |
-
-Returns the modifier tag names entries were generated for, in template order.
+**Stored tags are yours to convert.** Nothing in this plugin converts a prefixed tag family you minted. With `register_modifier()` gone ([§2](#2-registering-a-context-modifier)), a stored `{{example_text}}` is not a registered tag, so GenerateBlocks has no name to dispatch and the literal string renders on the page. Rewrite the stored wire to base tags rooted at your source before you retire your prefix: `{{example_text key:bio}}` becomes `{{text src:example|key:bio}}`. The mapping this plugin applied to its own `term_*` tags, including the relationship, taxonomy and `src:site` shapes, is recorded in [`deprecated-tags-options.md`](deprecated-tags-options.md#modifier-prefix--base-tag-with-a-registered-root-1170).
 
 ---
 

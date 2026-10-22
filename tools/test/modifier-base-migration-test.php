@@ -405,7 +405,7 @@ assert_eq( 'V4.7 the chain terminates at the base tag (no further rewrite)',
 // Serialization). What is uncommon is the other half — one deprecated name renaming to
 // another — which is why this survived. Not a breakage while it lasted: the tag landed on
 // a still-registered name that still rendered, and a SECOND converter run finished it,
-// which is exactly what makes plugin-integration.md §9's "in one run" the property to pin.
+// which is exactly what makes "in one run" (deprecated-tags-options.md §Modifier prefix → base tag) the property to pin.
 MigrationRegistry::register( array(
 	'type'      => 'tag',
 	'match_tag' => 'former_permalink',

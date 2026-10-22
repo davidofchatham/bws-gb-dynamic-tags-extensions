@@ -85,22 +85,15 @@ The ☐ cells reflect the former per-source opt-in defaults, preserved here as d
 
 A **modifier family** (minted by `TagTemplateRegistry::register_modifier()`, withdrawn in 1.21.0 and deleted in 1.22.0) was the pre-chain way of spelling one option value: `{{view_text key:x}}` says with a tag name what `{{text src:view|key:x}}` says with a source. Now that a registered source can be [offered as a chain root](tag-reference.md#root-enum-membership-1170-83), the two spellings are the same read, and the converter rewrites the first into the second ([#84](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/84), [#86](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/86)).
 
-**The owning plugin registers its own entries** (`bws_register_modifier_root_migrations()`), and
-registration never retires ahead of migration. The API, the registration timing, the converter's
-reach and what a run does not do are owned by
-[`plugin-integration.md` §9](plugin-integration.md#9-migrating-a-modifier-family-to-a-base-tag) and
-are not repeated here.
+**This plugin registers entries for its own `term_*` prefix only.** The generator, `bws_register_modifier_root_migrations()`, is not supported integration surface and is slated for retirement (see [`plugin-integration.md` §9](plugin-integration.md#9-migrating-a-modifier-family-to-a-base-tag)), and registration never retires ahead of migration. What a run reaches and what it never overwrites are stated in the generator's own docblock.
 
-**`term_*` IS migrated, from 1.20.0 (FW-39).** It is the first in-repo family to use this API, and it registers its entries through the same generator an external owner calls. Two shapes the external worked example below does not cover, because its root takes no argument: an ARGLESS `{{term_*}}` tag converts to a bare base tag with no source at all, and one NAMING A TERM (`id:34`) converts to `{{text src:term,34}}` — the root's argument, not GB's `id` key, which is dropped. A taxonomy set beside a term id is dropped too; a term id is unique on its own. Three hand-typed shapes are SKIPPED whole rather than converted (`bws_modifier_skip_reason()` owns which and why). The argless rewrite is the one place this repo's migrations are not output-neutral, which was measured rather than assumed — build record in [`docs/design-history/term-family-migration-output-neutrality.md`](design-history/term-family-migration-output-neutrality.md). `fixture_*` exists only in the test blueprint.
+**`term_*` IS migrated, from 1.20.0 (FW-39).** It is the only family that registers entries through the generator. Two shapes the worked example below does not cover, because its root takes no argument: an ARGLESS `{{term_*}}` tag converts to a bare base tag with no source at all, and one NAMING A TERM (`id:34`) converts to `{{text src:term,34}}` — the root's argument, not GB's `id` key, which is dropped. A taxonomy set beside a term id is dropped too; a term id is unique on its own. Three hand-typed shapes are SKIPPED whole rather than converted (`bws_modifier_skip_reason()` owns which and why). The argless rewrite is the one place this repo's migrations are not output-neutral, which was measured rather than assumed — build record in [`docs/design-history/term-family-migration-output-neutrality.md`](design-history/term-family-migration-output-neutrality.md). `fixture_*` exists only in the test blueprint.
 
-**No EXTERNAL family is registered for this migration today.** The one integrating plugin deleted its modifier family AND its `bws_register_modifier_root_migrations()` companion in the same release (2026-09-08), so one of its tags still stored in content neither renders (nothing registers the name — GB emits the literal string) nor converts (no entry describes the rewrite). That is the owner's decision about the owner's names; recorded here because the rows below now read as a worked example rather than as a conversion an external plugin can still perform. Retiring the API these rows describe is `future-work.md` FW-129.
+**No EXTERNAL family is registered for this migration, and none can be supported.** The one integrating plugin deleted its modifier family AND its `bws_register_modifier_root_migrations()` companion in the same release (2026-09-08), so one of its tags still stored in content neither renders (nothing registers the name — GB emits the literal string) nor converts (no entry describes the rewrite). That is the owner's decision about the owner's names; recorded here because the rows below read as a worked example of the transform rather than as a conversion an external plugin can still perform. The generator's public contract was retired in 1.22.0, and the function itself is slated for retirement (`future-work.md` FW-174).
 
 ### What a stored tag becomes
 
-Rows below use prefix `view` and root key `view`; every prefix maps identically. The rewrite is a
-whole-string transform rather than a rename plus an injected `src`, because on a modifier tag the
-root came from the TAG: renaming and injecting would leave `ref` unread and **silently erase the
-hop** (rationale on `bws_modifier_base_options()`'s docblock).
+Rows below use prefix `view` and root key `view`; every prefix maps identically. The rewrite is a whole-string transform rather than a rename plus an injected `src`, because on a modifier tag the root came from the TAG: renaming and injecting would leave `ref` unread and **silently erase the hop** (rationale on `bws_modifier_base_options()`'s docblock).
 
 | Stored | Becomes | Notes |
 |---|---|---|
@@ -112,13 +105,9 @@ hop** (rationale on `bws_modifier_base_options()`'s docblock).
 | `{{view_text src:site\|ref:f\|srcTermIn:tax\|key:x}}` | `{{text src:site\|key:x}}` | **Both sidecars dropped deliberately.** The modifier callback returns on `site` before reading either, so neither has ever run; a `refs` step now accepts site input, so a survivor would compound into a hop that has never once executed. The one row that changes rendered output |
 | `{{view_text src:ref\|rel:f\|key:x}}` | `{{text src:view;refs,f\|key:x}}` | The dead `rel` spelling is settled here by the sibling repair's own rule (`ref` wins; an absent one takes `rel`, which brings `src:ref` with it). `bws_migrate_rel_to_ref()` structurally cannot reach a tag this renames — the converter runs every TAG rename before any OPTION entry — so an unread `rel` would come out as a flat key beside chain wire that nothing consults |
 
-`src`, `source`, `ref`, `rel` and `srcTermIn` are all consumed; every other option (field key,
-fallback, link, format, `as`) is carried through untouched and the result is re-ordered through
-`bws_serialization_order_sort_map()`. A tag-level `limit` is deliberately NOT consumed here — the
-base-tag chain entry absorbs it onto the fanning step in the converter's later pass, so the two
-routes land on identical wire.
+`src`, `source`, `ref`, `rel` and `srcTermIn` are all consumed; every other option (field key, fallback, link, format, `as`) is carried through untouched and the result is re-ordered through `bws_serialization_order_sort_map()`. A tag-level `limit` is deliberately NOT consumed here — the base-tag chain entry absorbs it onto the fanning step in the converter's later pass, so the two routes land on identical wire.
 
-A row above states one entry's rewrite. An older prefix pointing at a newer one also reaches the base tag in a single run, since the converter re-reads the tag name after each rewrite; see [§9 in `plugin-integration.md`](plugin-integration.md#9-migrating-a-modifier-family-to-a-base-tag).
+A row above states one entry's rewrite. An older prefix pointing at a newer one also reaches the base tag in a single run, since the converter re-reads the tag name after each rewrite.
 
 ---
 

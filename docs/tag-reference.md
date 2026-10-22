@@ -278,14 +278,7 @@ The one place tagline *might* earn its keep is as **feedstock for a multi-slot t
 | (no prefix — base) | `'cross-source'` | — | Current entity (post in post loop, term on term archive) | Built-in |
 | `try_` | `'first-available'` | — | Per-slot — see [§Try_ tags](#try_-tags) | Built-in |
 
-**A modifier family is the pre-chain way of spelling one option value (1.17.0).** Once its source is
-offered as a [chain root](#root-enum-membership-1170-83), `{{view_text key:x}}` and
-`{{text src:view|key:x}}` are the same read, and the second gets every capability added to base tags.
-The Tag Converter rewrites the first into the second where the owning plugin registers entries for
-its prefix. The mapping table and its rules live in
-[`deprecated-tags-options.md` §Modifier prefix → base tag](deprecated-tags-options.md#modifier-prefix--base-tag-with-a-registered-root-1170);
-the registration call is [`plugin-integration.md` §9](plugin-integration.md#9-migrating-a-modifier-family-to-a-base-tag).
-`term_` is the one in-repo family that took this route, and its entries outlived its tags — they still ship (see the forward-ref above).
+**A modifier family is the pre-chain way of spelling one option value (1.17.0).** Once its source is offered as a [chain root](#root-enum-membership-1170-83), `{{view_text key:x}}` and `{{text src:view|key:x}}` are the same read, and the second gets every capability added to base tags. The Tag Converter rewrites the first into the second for the one prefix that has entries. The mapping table and its rules live in [`deprecated-tags-options.md` §Modifier prefix → base tag](deprecated-tags-options.md#modifier-prefix--base-tag-with-a-registered-root-1170); the registration call is no longer supported integration surface ([`plugin-integration.md` §9](plugin-integration.md#9-migrating-a-modifier-family-to-a-base-tag)). `term_` is the one in-repo family that took this route, and its entries outlived its tags — they still ship (see the forward-ref above).
 
 ### Source classes
 

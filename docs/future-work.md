@@ -93,7 +93,7 @@ Detail home: `.scratch/plans/fw-38-entry-record.md`; CONTEXT.md I10 (interim sta
 
 Progress: Not started. The integrator coordination this was scoped to feed is moot — the one integrating plugin deleted its modifier family and its aliases outright on 2026-09-08 instead of declaring a lifecycle for them, and the handoff plan it was tracked in went with them. That leaves the `callback`-presence proxy with only one population to classify (ours), so the "two populations a global default would split wrong" argument no longer holds up the bolt-on — see `CONTEXT.md` I10.
 
-Blocked by: —  •  Interacts with: FW-108 ((c) moved here; its order harness reads entries by `transform_callback`), FW-153 (the `gb_type` stamp), FW-129 (closed; deleted the API that minted external families, the proxy's last remaining reason to exist)
+Blocked by: —  •  Interacts with: FW-108 (closed; (c) moved here, and its order harness reads entries by `transform_callback`), FW-153 (the `gb_type` stamp), FW-129 (closed; deleted the API that minted external families, the proxy's last remaining reason to exist), FW-174 (whether the generator whose `prefix_removed => false` arm the proxy serves survives at all)
 
 #### FW-43 — Selecting half of the shared value fold
 
@@ -162,16 +162,6 @@ Progress: Reassessed 2026-10-21; the figures and the rejected memoization are in
 Open: Whether FW-81's merged resolve seam is enough on its own (parse once at its top, pass the resolution into `bws_base_ambient_analog()` and the factory) or the chain still wants a parse-once record; and if a record, whether it also carries the resolved-source BINDING (FW-120 leaves that scope call here).
 
 Blocked by: FW-81  •  Interacts with: FW-113 (its remainder waits on the same merge), FW-120 (the parse half of the same re-derivation), FW-136 (closed; deleted the `try_` closure the old count was traced through), FW-107 (closed), ADR 0002 (scope, not conflict)
-
-#### FW-108 — deprecated-tags.php: split the public API, declare the migration order
-
-Seven unrelated concerns share one file, with three independently landable parts: (a) the documented third-party migration-root API forces eager loading of the whole legacy wire corpus; (b) `bws_register_option_migrations()` encodes a total order over its entries in comments only; (c) a wide entry record with several mutually-exclusive shapes and rules the shape can't express.
-
-Detail home: `.scratch/plans/architecture-review-2026-08.md` §FW-108
-
-Progress: (b) shipped as `tools/test/migration-order-test.php`, with the early `plugins_loaded` load removed; (a)'s remainder is deferred and (c) moved to FW-38. A wrong migration order can silently downgrade an image on customer content — the file already describes that failure mode.
-
-Blocked by: —  •  Interacts with: FW-38 (`registered_by`/`lifecycle` reshapes the same entry record)
 
 #### FW-109 — The slot seam answers through three channels
 
@@ -325,7 +315,7 @@ Progress: Not started, and deliberately not scheduled: the entries are kept inde
 
 **The versioning axis.** A MAJOR is warranted when stored content stops rendering and no migration reaches it. Nothing in the repo stated a rule before 1.21.0, and the one precedent cut the other way: `has_related_variant()` plus five related-variant methods were removed from `SourceInterface`/`AbstractSource` and flagged in the entry itself as a "breaking change for external sources", and it shipped as a MINOR ([`CHANGELOG.md`](../CHANGELOG.md) 1.5.0). The axis is chosen because wire lives in other people's databases past the point where anyone can fix it by editing our code, and an unregistered tag renders its own braces on a published page; every other break this repo can ship has an upgrade path or an empty population. Under it FW-129's 1.21.0 removal was a MINOR, because the entries are kept and unconverted content is still convertible, and retiring them is the major.
 
-Blocked by: —  •  Interacts with: FW-128 (a tags-in-use report would make the retirement gate checkable rather than hand-run per site), FW-38 (`lifecycle` replaces the `prefix_removed` stand-in these entries ride), FW-129 (closed; the removal this row finishes)
+Blocked by: —  •  Interacts with: FW-128 (a tags-in-use report would make the retirement gate checkable rather than hand-run per site), FW-38 (`lifecycle` replaces the `prefix_removed` stand-in these entries ride), FW-129 (closed; the removal this row finishes), FW-174 (these entries are the generator's last production caller)
 
 #### FW-152 — Rename the "modifier template" surface
 
@@ -374,6 +364,30 @@ Progress: Not started. Read 2026-10-16: no `wp_set_script_translations()` or `lo
 Open: The text domain. Every string, PHP and JS, uses `'generateblocks'` (the plugin header's `Text Domain` too), so PHP strings translate only where GenerateBlocks' own language pack happens to hold an identical string, and a JS translation file keyed to our script paths would never come from GB's pack. Whether the plugin moves to its own domain (a sweep of every `__()` call plus a `.pot`) or deliberately stays on GB's is the decision this row waits on. Then which handles get the call, and where the `.json` files are generated and shipped.
 
 Blocked by: decision:text domain  •  Interacts with: —
+
+#### FW-174 — Retire `bws_register_modifier_root_migrations()` internally
+
+`bws_register_modifier_root_migrations()` stopped being supported integration surface in 1.22.0 (FW-108 (a)), its one production caller is the bootstrap's `term` call, and it is slated for retirement. This item decides when.
+
+Detail home: this row
+
+Progress: Not started. The function is kept because the bootstrap registers the `term_*` entries through it (kept until FW-150), `tools/test/modifier-base-migration-test.php` exercises it with fixture families, and the core-structures blueprint calls it for a `fixture` family.
+
+Open: When it retires: with FW-150, when its last production caller goes, or earlier by registering the `term_*` entries as plain data and keeping only the transform (`bws_migrate_modifier_root_chain()` and the helpers beneath it). Earlier retirement would delete the template enumeration, the `_doing_it_wrong()` branch, the `prefix_removed => false` arm and `bws_modifier_migration_live_marker()`, and would need the harness and the fixture family to exercise the transform some other way.
+
+Blocked by: —  •  Interacts with: FW-150 (its last production caller), FW-38 (the callback-presence proxy the live marker feeds), FW-108 (closed; the public-contract withdrawal this follows)
+
+#### FW-175 — Register the option-migration entries only where something reads them
+
+`bws_register_option_migrations()` registers about 115 entries in the init:20 pass on every request, front end included, beside the deprecated-tag wrappers, which must stay because old tags still have to render. This item asks whether the option-migration entries, which a converter or editor reads, can be registered lazily.
+
+Detail home: `.scratch/plans/architecture-review-2026-08.md` §FW-108 (a)
+
+Progress: Not started and not measured. Read 2026-10-22: the registration is unconditional, and a grep finds the PHP readers of the entries in `TagConverter` and `MigrationRegistry` only. The editor-mount path was not traced, and the saving's size has never been measured; the plan that raised it first called it a saving and then withdrew that.
+
+Open: Which request types read the entries (converter, settings, AJAX, editor mount, REST), and whether registration cost on a front-end request is measurable at all. Whatever moves must keep ONE registration site, because `tools/test/migration-order-test.php` reads the shipped order and the `term` generator call must follow it.
+
+Blocked by: —  •  Interacts with: FW-38 (the entry record being registered), FW-174 (the `term` call rides the same pass), FW-150
 
 ### Feature follow-ups & UX
 
@@ -1455,6 +1469,7 @@ Append-only ledger of closed, shipped, or cut work — both `FW-N` items deleted
 | FW-100 | Product-shaped loop items are unrecognized, and WooCommerce loops render empty | Fixed in 1.20.0 (2026-09-15). The recognizer learned a FIFTH accepting shape: an object-shaped item that NAMES A POST, established by evidence the DATABASE agrees with rather than by any vendor vocabulary — an `id` plus a `slug` the post's `post_name` equals, with a `permalink` (when the item carries one) that must not contradict the post's own. A WooCommerce product item is one instance of that shape and the code never says so. The arm runs LAST, after term and user, because `id` is the weakest of the three keys; a recognized item answers the existing `post` kind, so the gate, the field reads and the traversal pipeline are untouched. Measured by the flip: `loop-test-matrix.md` §QLP1.1/1.2 went from empty to the product's name and permalink against the v21 snapshot baseline, with the two non-vacuity rows and both other loop kinds unmoved. Ambient product surfaces were MEASURED rather than assumed (§C-PROD, a new snapshot page) and needed no code, as expected but not as evidence. Two capabilities deliberately not built, each with a home: record-side reads at FW-132, pickable protected meta at FW-13 | CHANGELOG 1.20.0; `bws_classify_loop_item()` + `bws_loop_item_post_id()` PHPDoc (the axis); `tools/test/loop-item-classify-test.php` §C9; `docs/coresident/woocommerce.md`; `docs/coresident/gb-query-enhancements.md`; `tools/test/loop-test-matrix.md` §QLP; `tools/test/context-test-matrix.md` §C-PROD |
 | FW-103 | Page snapshots shift when a co-resident plugin toggles | Fixed, closed 2026-08-28: the normalizer stopped capturing the document head; `env-versions.php` now records the active plugin set so a toggle is reported as a warning instead of silently absorbed | `tools/test/page-snapshots.php` rule 8; `docs/update-triggers.md` §Page-snapshot instrument |
 | FW-107 | The try_ slot resolver has no seam under it | Dissolved by FW-136 rather than fixed: the arm table and the closure that consumed it were both deleted once all nine `supports_try` families read through their base tags' own resolve seams, so the refusal the post-arm branch overwrote no longer has a table to be stated in. The stated fix shape is what shipped — per-attempt resolution lifted into a named function, `bws_try_run_attempts()`, taking the family's resolve seam as a callable rather than a string another file switches on — and `try_query_fn`'s shape asymmetry dissolved with it, since no family carries one | FW-136 (what dissolved it); `bws_try_run_attempts()` PHPDoc + `tools/test/try-slot-loop-test.php` |
+| FW-108 | deprecated-tags.php: split the public API, declare the migration order | Closed 2026-10-22. (b), the migration order, shipped as `tools/test/migration-order-test.php` (`850fbd6`). (a) closed by withdrawing the public contract rather than relocating it: `bws_register_modifier_root_migrations()` is no longer supported integration surface (CHANGELOG `[Unreleased]`), and retiring the function itself is FW-174. The lazy-registration idea the plan floated for (a) is FW-175. (c) moved to FW-38. | CHANGELOG `[Unreleased]` Removed; `tools/test/migration-order-test.php`; `.scratch/plans/architecture-review-2026-08.md` §FW-108 |
 | FW-112 | Dead option-builder surface, kept alive by its own tests | Deleted in 9c57e5d (no CHANGELOG entry, no behavior change): `bws_slot_qualify_show_if()` and `slot-qualify-show-if-test.php` are gone, and the two slot builders became row-only helpers, `bws_build_slot_src_rows()` / `bws_build_slot_read_rows()`. Every tag's registered options are byte-identical before and after (77 tags dumped), and the stale "join's shipped registration reads it" comment went with the helper it sat on | `base-shared.php`; `slot-options-build-test.php` |
 | FW-121 | "inherit" names the sibling relation everywhere it ships, and the parent relation needs the word | Shipped 1.20.0 (2026-09-15) — renamed the SIBLING carry (three user-facing strings, four identifiers, the `'inherit'` skip-reason token, ~140 sibling-axis sites across ~15 files, ~27 live-doc sites) from `inherit` to **carries over**, freeing `inherit` for FW-53's future `src(inherit)` PARENT relation. Landed STANDALONE and FIRST, ahead of `src(inherit)`. Fixture row labels + page-snapshot baseline split into a second commit so the rename's own snapshot diff stayed empty; a code-review pass then caught and fixed five missed sites plus a broken array alignment | CHANGELOG 1.20.0; commits `d6b29ec`, `8c81529`, `4eac93b`; `.scratch/plans/table-tag.md` §H |
 | FW-125 | Consume GB 2.4's dynamic-data trust model at the surfaces GB cannot reach | Shipped 1.19.2 (2026-09-10): one seam asks GenerateBlocks whether the current user may author dynamic data (`bws_gb_user_can_author_dynamic_data()`, with the key-scoped `bws_gb_option_allowed_for_current_user()` beside it), and two per-user gates ride it: a site option value no longer resolves in the editor preview for a user who cannot author dynamic data, and the field-key picker's data is no longer sent to one. The untrusted-user REST fixture both gates still lack went to FW-127. The item left the tracker in `274be94` without a ledger row; this row was added 2026-09-23 | CHANGELOG 1.19.2 §Security; `includes/helpers/gb-trust-boundary.php` PHPDoc; ADR 0008; `docs/design-history/dynamic-data-trust-predicate.md` (the build record); `verify.php`'s GB-trust-model section |

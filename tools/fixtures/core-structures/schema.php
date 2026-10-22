@@ -1140,7 +1140,7 @@ function bws_fixture_core_structures_chain_roots( $roots ) {
  *
  * Registers at init:21, after bws_register_base_tags() populates the modifier templates at
  * init:20 — the template list is what the entries are generated from, one call, no list of
- * tag names to maintain. See docs/plugin-integration.md §9.
+ * tag names to maintain. See the generator's docblock.
  */
 function bws_fixture_core_structures_register_migrations() {
 	if ( function_exists( 'bws_register_modifier_root_migrations' ) ) {

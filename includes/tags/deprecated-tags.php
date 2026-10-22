@@ -1850,8 +1850,7 @@ function bws_migrate_modifier_root_chain( string $tag_string, string $prefix, st
  * Bind a prefix + root to the shared modifier → base transform.
  *
  * A `transform_callback` receives only the tag string, so the per-family facts are bound
- * here — as a closure, so an external plugin registers its own entries without this repo
- * naming its family.
+ * here — as a closure, so registering a family's entries needs no per-family function.
  *
  * @since 1.17.0
  * @param string $prefix Modifier prefix (e.g. 'view').
@@ -1883,26 +1882,23 @@ function bws_modifier_migration_live_marker(): string {
 /**
  * Generate one migration entry per REGISTERED MODIFIER TEMPLATE, for a retired prefix.
  *
- * The integration seam for a plugin that owns a modifier family and wants its stored tags
- * rewritten into base tags rooted at its registered source. One call, no list of tag names:
+ * Rewrites a retired prefix's stored tags into base tags rooted at a registered source. One
+ * call, no list of tag names.
  *
- *     add_action( 'init', function () {
- *         bws_register_modifier_root_migrations( 'view', 'view', array( 'since' => '3.4.0' ) );
- *     }, 21 );
+ * **INTERNAL, and slated for retirement (FW-174).** Not supported integration surface: the
+ * one production caller is the plugin bootstrap's `term` registration, which outlives its
+ * tags until FW-150.
  *
  * **ENUMERATING TEMPLATES IS THE POINT.** A hand-kept list of tag names drifts; the
  * registry is the same list a family constructor iterates to mint the tags.
  *
  * **THE PREFIX IS SUPPLIED, NEVER DERIVED** (as bws_migrate_rel_to_ref's `term` hardcode):
- * a derived prefix list can only name the in-repo family while implying it covered
- * externals.
+ * a derived prefix list could only ever name the in-repo family.
  *
- * **CALL IT AFTER TEMPLATES ARE REGISTERED** — later than the plugin's own init:20 pass;
- * init:21 is the natural home. This file loads with that pass, so a call before it is an
- * undefined-function fatal; a call after it but before the templates exist raises
+ * **CALL IT AFTER TEMPLATES ARE REGISTERED** — a call before they exist raises
  * _doing_it_wrong() rather than registering nothing quietly.
  *
- * **IT NEVER OVERWRITES AN ENTRY YOU ALREADY REGISTERED.** A tag name that already HAS an
+ * **IT NEVER OVERWRITES AN EXISTING ENTRY.** A tag name that already HAS an
  * entry is skipped whole, so a hand-written entry for one template survives. The test is
  * entry PRESENCE, not has_migration_path() — see the guard.
  *
@@ -1928,8 +1924,8 @@ function bws_modifier_migration_live_marker(): string {
  *
  *     @type string   $since          Version the prefix was deprecated in. Shown in admin.
  *     @type bool     $prefix_removed Files the entries in the Removed box. Default true:
- *                                    no modifier family is registered. Pass false only
- *                                    while you still register the prefixed tags yourself.
+ *                                    no modifier family is registered. False files them
+ *                                    under Deprecated instead.
  * }
  * @return string[] The modifier tag names entries were generated for, in template order.
  */

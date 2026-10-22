@@ -895,8 +895,8 @@ class TagConverter {
 			// the closing braces, matched no entry, and stalled every option-less chain one
 			// hop in (#111). Bare is the ordinary shape, so the stall was not exotic; what
 			// made it rare, and what let it survive, is that it also needs one deprecated
-			// name renaming to another. plugin-integration.md §9 promises that reaches the
-			// base tag in one run, and spells its own example bare.
+			// name renaming to another. deprecated-tags-options.md (§Modifier prefix → base
+			// tag) says that reaches the base tag in one run, and spells its own rows bare.
 			// The pattern this replaced gave TWO guards free, and both are kept: a
 			// non-empty name, and the `{{` anchor. parse_tag_string() strips braces only
 			// if they are there, and transform_tag() matches on the NAME alone — so a
