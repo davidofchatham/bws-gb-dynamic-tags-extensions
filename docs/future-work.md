@@ -157,7 +157,7 @@ Blocked by: FW-81  •  Interacts with: FW-113 (its remainder waits on the same 
 
 Detail home: `.scratch/plans/architecture-review-2026-08.md` §FW-109
 
-Progress: The docblock says the write-back "must not be removed or simplified"; re-verified 2026-08-30 that two of the four callers (`preview-helpers.php:290`, `:441`) do not do it. `{{table}}`'s column walk (`table-tags.php:235`, 1.22.0) is a fifth caller and does not do it either. `bws_fold_is_combining()` exists to avoid inline container-name comparisons, yet all four production callers pass a hardcoded bool.
+Progress: The docblock says the write-back "must not be removed or simplified"; re-verified 2026-08-30 that two of the four callers (`preview-helpers.php:290`, `:441`) do not do it. `{{table}}`'s column walk (`table-tags.php:235`, 1.22.0) is a fifth caller and does not do it either. `bws_fold_is_combining()` exists to avoid inline container-name comparisons, yet all five production callers pass a hardcoded bool.
 
 Open: Deletion test for any fix — the rules must stay, the out-params concentrate.
 

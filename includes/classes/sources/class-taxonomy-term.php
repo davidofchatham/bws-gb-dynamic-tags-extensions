@@ -67,7 +67,9 @@ class TaxonomyTerm extends AbstractSource {
 	 * every `->resolve_id(` call site under includes/ left only the factory above; and on
 	 * the testbed both
 	 * `{{text src:term|use:title}}` and `{{text src:term,999999|use:title}}` render empty on /department/sales/, where reaching
-	 * resolve_id() would have returned the page's own term.
+	 * resolve_id() as it then stood would have returned the page's own term. resolve_id() now
+	 * answers false, so that render no longer tells the two apart; the census, re-run
+	 * 2026-10-22 with the same result, is what the claim rests on now.
 	 *
 	 * @since 1.20.0
 	 * @return bool
