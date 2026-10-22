@@ -203,7 +203,7 @@ No "assemble a tag's panel" module exists: the base registrations and the `try_`
 
 Detail home: `.scratch/plans/architecture-review-2026-08.md` §FW-111
 
-Progress: Not started. Re-measured against the tree 2026-10-22: FW-129 left two registration constructors, not three, and the Door and Constant slices are byte-identical moves. Figures are in the detail home.
+Progress: Not started. Re-checked against the tree 2026-10-22; the detail home has the figures.
 
 Open: Whether to take Door and Constant alone; the Assembler waits for a tag family that cannot fit the current pattern.
 
