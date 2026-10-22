@@ -18,12 +18,7 @@ env:
 bin/wp.sh testbed bws render-tag '{{TAG}}' --url=https://testbed.test/matrix-fixture-roots/ --porcelain
 ```
 
-Location-independent equivalent (works from Windows or WSL, since Docker Desktop shares one daemon):
-
-```bash
-docker exec wp-litespeed-litespeed-1 sh -c 'cd /var/www/vhosts/testbed/html && \
-  wp bws render-tag "{{TAG}}" --url=https://testbed.test/matrix-fixture-roots/ --porcelain --allow-root'
-```
+From Windows, wrap it in `wsl.exe -d Ubuntu -- bash -lc 'cd ~/wp-litespeed && …'`; many rows go through one wpcli container ([docs/testbed.md](../../docs/testbed.md) §Where the commands live).
 
 **Also browsable + editable.** Every §FR1-§FR4 row is generated as a visible GB block on
 `/matrix-fixture-roots/` (`blocks.php` → `bws_fixture_page_content_matrix_fixture_roots`, the
