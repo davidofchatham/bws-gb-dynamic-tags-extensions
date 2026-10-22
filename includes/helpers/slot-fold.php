@@ -100,7 +100,7 @@ const BWS_FOLD_FLAGS = array( 'newTab', 'showCurrentYear', 'showMidnight', 'noLi
  * `editor-conditional-options.js` mirrors this rule for the `empty` / `not_empty`
  * show_if checks on the keys in BWS_FOLD_FLAGS.
  *
- * @since Unreleased
+ * @since 1.22.0
  *
  * @param array  $options Tag or slot options.
  * @param string $key     Flag key.
@@ -1325,7 +1325,7 @@ function bws_fold_empty_slot(): array {
  * walks) would otherwise each hold the literal and have to be edited in lockstep.
  *
  * @since 1.17.0
- * @since Unreleased $has_parent.
+ * @since 1.22.0 $has_parent.
  * @param string $default_read The stripped first `use` value of the leaf the container's
  *                             slots read through (bws_use_stripped_default()); '' on a
  *                             container with no read axis. Every container states it —

@@ -681,7 +681,7 @@ function bws_build_slot_read_rows( int $n, array $base_read, bool $allow_same = 
  *
  * @since 1.17.0
  * @since 1.21.0 $base_fixed (FW-141 02).
- * @since Unreleased The `table` container leads its root enum with `inherit` and ships `stepGroup`.
+ * @since 1.22.0 The `table` container leads its root enum with `inherit` and ships `stepGroup`.
  * @param array $args {
  *     @type string $container       'join' | 'table' | 'try' (required).
  *     @type array  $base_read       Base read definition (e.g. bws_get_text_field_options()['use']).

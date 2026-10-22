@@ -634,7 +634,7 @@ A constructor may legitimately place a group differently from another — the `t
 
 **Format-front is a deliberate departure from GB.** GB's own `post_date` serializes format LAST (link before `dateFormat`); we invert to format-FIRST for manual-edit copy-visibility. Everything else (`source → field → link`) mirrors GB's chain. (The `post_date` render≠serialize proof is a pure GB fact — see [`gb-constraints.md`](gb-constraints.md#serialization-order-is-independent-of-control-render-order--gb-itself-proves-it).)
 
-**[UNRELEASED]** `{{table}}`'s presentation keys (`layout`, `width`, the six text keys `color`, `fontSize`, `fontWeight`, `fontStyle`, `textAlign`, `textTransform`, then `stripe`, `border` and `borderRadius`) sort in the `source` group behind the read keys, both at tag level and as column tokens, so a tag reads `src`, then `layout`, `width`, the text keys, `stripe`, `border`, `borderRadius`, then the columns. The text keys follow the control order, which is not final: reordering the controls is a wire change. Their schema: [§Table tag](#table-tag).
+`{{table}}`'s presentation keys (`layout`, `width`, the six text keys `color`, `fontSize`, `fontWeight`, `fontStyle`, `textAlign`, `textTransform`, then `stripe`, `border` and `borderRadius`) sort in the `source` group behind the read keys, both at tag level and as column tokens, so a tag reads `src`, then `layout`, `width`, the text keys, `stripe`, `border`, `borderRadius`, then the columns. The text keys follow the control order, which is not final: reordering the controls is a wire change. Their schema: [§Table tag](#table-tag).
 
 (No exceptions as of v1.16.0: image's former GB-native `size:` was folded into custom `as` by the `as`+`size` fold, so every option in the list above is a custom option the normalizer controls.)
 
@@ -741,7 +741,7 @@ In the source-agnostic architecture, each template has one GB tag registration. 
 | `email` | `'Email'` | `'cross-source'` | `mailto:` (own anchor, not `linkTo`) | Default-ON mailto wrap toggled by `noLink`; `visibility`-gated off `a`/`button`/`img`/`picture`. See [§Email tag](#email-tag). |
 | `phone` | `'Phone'` | `'cross-source'` | `tel:` (own anchor, not `linkTo`) | Default-ON tel wrap toggled by `noLink`; href rebuilt from stored value (author separators preserved); 2-tier country code; `visibility`-gated off `a`/`button`/`img`/`picture`. See [§Phone tag](#phone-tag). |
 | `join` | `'Join Fields'` | `'cross-source'` | ❌ | **Structural outlier — not a base tag.** Standalone COMBINING tag: absorbs up to 10 base `text` reads as slots and assembles all non-empty values (separator or template mode). No read of its own; no per-slot link-wrap. See [§join](#join). |
-| `table` **[UNRELEASED]** | `'Table'` | `'cross-source'` | ❌ | **Structural outlier — not a base tag.** Builds a whole `<table>`: one row per resolved source of its chain, one column per folded slot (up to 10). Output is HTML for a text-as-div host, never a `<p>`/`<span>`. See [§Table tag](#table-tag). |
+| `table` | `'Table'` | `'cross-source'` | ❌ | **Structural outlier — not a base tag.** Builds a whole `<table>`: one row per resolved source of its chain, one column per folded slot (up to 10). Output is HTML for a text-as-div host, never a `<p>`/`<span>`. See [§Table tag](#table-tag). |
 | `call` | `'Call Custom Function'` | `'post'` | ❌ | **Structural outlier — not a base tag.** Binds the loop-correct post (L1 only), then delegates to an allowlisted site PHP function; output is the function's return string, verbatim + unescaped. Type `'post'` (NOT `'cross-source'`) — no term/site/media/taxonomy features; `src` offers Current + Ref only. Ships with an empty allowlist. See [§Call tag](#call-tag). |
 
 **The `term_` modifier family is REMOVED as of v1.21.0** (FW-129) and registers no tag on any install. Its tags, its option surface, what a `{{term_*}}` string still stored in content does now that nothing registers the name, and the site-dependent question of whose tag a given `term_*` name ever was: [`deprecated-tags-options.md` §The `term_` modifier family](deprecated-tags-options.md#the-term_-modifier-family-removed-in-v1210). The replacement is a base tag with its source set to a term, and the Migration Tool writes it.
@@ -1330,7 +1330,7 @@ translation, `'0'`, full-name dense/sparse collapse). Integration: standing matr
 ---
 
 <a id="table-tag"></a>
-## Table tag **[UNRELEASED]**
+## Table tag
 
 `{{table}}` builds an HTML table from a source chain: one row per source the chain resolves to, one column per folded slot. **Structural outlier, not a base tag**, like `{{join}}` and `{{call}}`: registered unconditionally by `bws_register_table_tag()` in `includes/tags/table-tags.php` (GB type `'cross-source'`, title `'Table'`, no GB `supports`), with the pure assembly in `includes/helpers/table-helpers.php`. It is the one tag in the plugin that produces the **query loop** output shape ([§Output shape](#output-shape--terminology) says why it crosses that border).
 

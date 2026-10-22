@@ -147,7 +147,7 @@ const BWS_FOLD_PARSE_TIME_ROOT_KINDS = array(
  * parent term) intended later. Do not claim that slug for anything else; see
  * SourceRegistry::is_expressible_root_key() for where both are held back from sources.
  *
- * @since Unreleased
+ * @since 1.22.0
  */
 const BWS_FOLD_INHERIT_ROOT = 'inherit';
 
@@ -279,7 +279,7 @@ function bws_fold_chain_join( array $carried, array $own ): array {
  * own. Null (the default) is a container with no parent.
  *
  * @since 1.17.0
- * @since Unreleased $parent_kind.
+ * @since 1.22.0 $parent_kind.
  * @param array       $chain       Parsed chain (bws_fold_parse_chain shape).
  * @param string|null $parent_kind The parent's resolved kind, when the container has one.
  * @return array{root:string, kind:string, fans:bool}

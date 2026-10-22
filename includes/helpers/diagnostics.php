@@ -16,13 +16,13 @@
  * NOTHING HERE IS RE-INCLUDE GUARDED, matching gb-output-boundary.php and slot-fold.php.
  *
  * @package BWS_Dynamic_Tags
- * @since Unreleased
+ * @since 1.22.0
  */
 
 /**
  * Whether post-content processing logs its time and memory to the PHP error log.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @return bool
  */
 function bws_benchmark_logging_enabled(): bool {
@@ -33,7 +33,7 @@ function bws_benchmark_logging_enabled(): bool {
  * Whether source registration and the `bws_dynamic_tags_register_sources` action log to the
  * PHP error log.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @return bool
  */
 function bws_registration_logging_enabled(): bool {

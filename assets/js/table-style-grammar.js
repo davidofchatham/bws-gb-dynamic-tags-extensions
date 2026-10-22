@@ -19,7 +19,7 @@
  * hand-edited value cannot read two ways. Its PHP twin is bws_head_args_items().
  *
  * @package BWS_Dynamic_Tags
- * @since   Unreleased
+ * @since   1.22.0
  */
 ( function () {
 	'use strict';

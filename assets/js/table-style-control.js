@@ -29,7 +29,7 @@
  * fields rather than a second set.
  *
  * @package BWS_Dynamic_Tags
- * @since   Unreleased
+ * @since   1.22.0
  */
 ( function () {
 	'use strict';

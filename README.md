@@ -16,7 +16,7 @@ A [GenerateBlocks Pro](https://generatepress.com/blocks/) extension with advance
 | `email` | An email address as a `mailto` link (by default) or plain text. Validates emails (by format) and returns empty if invalid. | | `try_email` |
 | `phone` | A phone number as a `tel` link (by default) or plain text. Normalizes numbers and allows global country code configuration. | | `try_phone` |
 | [`join`](#join-combine-multiple-text-fields) | Up to 10 text fields combined into one string, by separator or format template. | Plain text only; no link options. | — |
-| [`table`](#table-build-a-dynamic-table-unreleased) **[UNRELEASED]** | A complete HTML table: one row per repeater row, related post or term, up to 10 columns. | | — |
+| [`table`](#table-build-a-dynamic-table) | A complete HTML table: one row per repeater row, related post or term, up to 10 columns. | | — |
 | [`call`](#call-return-custom-function-output) | The output of a registered PHP function, passed the post ID. | Post sources only. | — |
 
 ## What's different (other than the tag names)?
@@ -121,7 +121,7 @@ Output is plain text; no link options are currently available.
 
 **Note:** For feet and inches, use the prime marks `′` and `″` rather than straight quotes (`%A′%B″` renders **5′11″**, or **5′** with no inches value). WordPress converts a straight `'`/`"` to a curly quote in normal page content, but not when the block renders through a GP Element or a hooked layout, so straight marks render inconsistently depending on where the block lives. The prime marks look the same everywhere.
 
-### `table`: Build a dynamic table **[UNRELEASED]**
+### `table`: Build a dynamic table
 
 GenerateBlocks' query loop can build a list but not a table. The `table` tag returns a complete HTML table built from fields pulled from repeater rows, related posts, taxonomy terms, etc.
 

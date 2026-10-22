@@ -18,7 +18,7 @@
  * so the controls below do not jump.
  *
  * @package BWS_Dynamic_Tags
- * @since   Unreleased
+ * @since   1.22.0
  */
 ( function () {
 	'use strict';

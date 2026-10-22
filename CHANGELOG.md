@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.22.0] — 2026-10-22
+
 ### Highlights
 
 - A new `{{table}}` tag builds a real HTML table from one tag: one row for each repeater row, related post or term its source reaches, with up to 10 columns, headers, a caption and its own styling. *(Added)*

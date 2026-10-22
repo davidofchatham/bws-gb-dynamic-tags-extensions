@@ -7,7 +7,7 @@
  * the test boundary already was.
  *
  * @package BWS_Dynamic_Tags
- * @since Unreleased
+ * @since 1.22.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * The one answer for the assembler and for the stripe/header rules, so the markup and the CSS
  * written for it cannot disagree about whether a header row exists.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param string[] $headers Column header labels (may contain '' entries).
  * @return bool
  */
@@ -158,7 +158,7 @@ const BWS_TABLE_HEADER_HEAD = 'header';
  * this function's alone, so one hand-edited value cannot read two ways. Its JS twin is
  * `headArgsItems()` in table-style-grammar.js.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param string $value Raw key value.
  * @return array<int,array{raw:string,parts:string[]}>|null Null when a bracket is unbalanced.
  */
@@ -191,7 +191,7 @@ function bws_head_args_items( string $value ): ?array {
  * Do not give a key its own splitter: two readers of one hand-edited value would read it two
  * ways.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param string   $value Raw value (`right`, `right;header,center`, `header,center`).
  * @param callable $valid Takes one candidate string, returns its canonical form or null when refused.
  * @return array{base:?string,header:?string,flags:string[]}|null Null when a bracket is unbalanced.
@@ -233,7 +233,7 @@ function bws_headed_value_parse( string $value, callable $valid ): ?array {
 /**
  * Canonical form of one `textAlign` candidate, or null when it is neither an alignment nor a CSS global.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param string $candidate Raw value.
  * @return string|null
  */
@@ -247,7 +247,7 @@ function bws_table_text_align_value( string $candidate ): ?string {
 /**
  * Read a `textAlign` value, tag level or column token.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param string $value Raw value.
  * @return array{base:?string,header:?string,flags:string[]}|null See bws_headed_value_parse().
  */
@@ -259,7 +259,7 @@ function bws_table_text_align_parse( string $value ): ?array {
  * The alignment one cell takes, or '' for none (the theme's). The `textAlign` case of
  * bws_table_text_for_cell(), kept for its own harness.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param array|null $table     bws_table_text_align_parse() of the tag-level key.
  * @param array|null $column    bws_table_text_align_parse() of the column token.
  * @param bool       $is_header True for a `<th>` in the header row.
@@ -301,7 +301,7 @@ const BWS_TABLE_FONT_SIZE_KEYWORDS = array( 'xx-small', 'x-small', 'small', 'med
  * The fallback carries no parentheses and none of `; { } < > " ' \ / @`, so it cannot open
  * a nested function or leave the declaration it sits in. Width, color and font size share it.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param string $value Candidate.
  * @return string|null
  */
@@ -319,7 +319,7 @@ function bws_table_css_var( string $value ): ?string {
  * sanitize_text_field(), which strips `%` followed by two hex digits. `calc()`,
  * `fit-content` and `max-content` are refused.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param string $candidate Raw value.
  * @return string|null
  */
@@ -344,7 +344,7 @@ function bws_table_width_value( string $candidate ): ?string {
  * a denylist of characters: `}`, `;`, `<`, quotes and comment syntax are refused because none
  * appears in an allowed form.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param string $candidate Raw value.
  * @param bool   $globals   Also accept the CSS globals (the text `color` key does, a stripe does not).
  * @return string|null
@@ -374,7 +374,7 @@ function bws_table_color_value( string $candidate, bool $globals = false ): ?str
  * Whether a color from bws_table_color_value() carries its own alpha, so a stripe opacity does
  * not apply to it: 4- or 8-digit hex, `rgba()`, `hsla()`, slash syntax, `transparent`.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param string $color A canonical color.
  * @return bool
  */
@@ -386,7 +386,7 @@ function bws_table_color_has_alpha( string $color ): bool {
  * Canonical `fontSize`: a number with a unit, `var()`, a size keyword or a CSS global.
  * `calc()` stays unrecognized.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param string $candidate Raw value.
  * @return string|null
  */
@@ -406,7 +406,7 @@ function bws_table_font_size_value( string $candidate ): ?string {
  * Canonical form of one candidate for a text key, or null when the key is unknown or the value
  * is refused. The one dispatch from key to validator.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param string $key       One of the BWS_TABLE_TEXT_KEYS.
  * @param string $candidate Raw value.
  * @return string|null
@@ -434,7 +434,7 @@ function bws_table_text_value( string $key, string $candidate ): ?string {
 /**
  * Read one text key's value, tag level or column token.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param string $key   One of the BWS_TABLE_TEXT_KEYS.
  * @param string $value Raw value.
  * @return array{base:?string,header:?string,flags:string[]}|null See bws_headed_value_parse().
@@ -457,7 +457,7 @@ function bws_table_text_parse( string $key, string $value ): ?array {
  * value is simply not in the parse, so the cascade falls through it. THE one statement of the
  * cascade: bws_table_rules() asks it rather than restating it.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param string     $key       One of the BWS_TABLE_TEXT_KEYS.
  * @param array|null $table     bws_table_text_parse() of the tag-level key.
  * @param array|null $column    bws_table_text_parse() of the column token.
@@ -480,7 +480,7 @@ function bws_table_text_for_cell( string $key, ?array $table, ?array $column, bo
 /**
  * Canonical stripe opacity (`N%`, 0 to 100) as a float, or null.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param string $candidate Raw value.
  * @return float|null
  */
@@ -501,7 +501,7 @@ function bws_table_opacity_value( string $candidate ): ?float {
  * unknown head drops the item; an unbalanced bracket drops the whole key (null). A color that
  * was refused is never carried, so it cannot reach the stylesheet in any form.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param string $value Raw value.
  * @return array{rows:?array,cols:?array,flags:string[]}|null Each target `{parity,color,opacity}`.
  */
@@ -562,7 +562,7 @@ const BWS_TABLE_BORDER_UNITS = 'px|em|rem';
 /**
  * Canonical border width or radius, or null: a number with px, em or rem, or `var()`.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param string $candidate Raw value.
  * @return string|null
  */
@@ -587,7 +587,7 @@ function bws_table_border_length_value( string $candidate ): ?string {
  * repeated line or a second base keeps the first; an unbalanced bracket drops the whole key
  * (null). What the parsed value draws is bws_table_border_lines()'s.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param string $value Raw value.
  * @return array{base:?array,lines:array<string,?array>,flags:string[]}|null Base
  *   `{width,style,color,opacity}`, each line `{width,style}`, unset parts null.
@@ -657,7 +657,7 @@ function bws_table_border_parse( string $value ): ?array {
  * line named under a base style `none` is drawn again (`border:none;rows`), so it never inherits
  * that `none`. `off` is a line whose style is `none`.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param array $border bws_table_border_parse().
  * @return array<string,?array{off:bool,width:string,style:string}> Keyed by BWS_TABLE_BORDER_HEADS.
  */
@@ -686,7 +686,7 @@ function bws_table_border_lines( array $border ): array {
  * The color a `border` base paints its lines, or null to keep the theme's. Opacity with no color
  * rides `currentColor`; nothing else gets a default color.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param array|null $base The parsed base.
  * @return string|null
  */
@@ -707,7 +707,7 @@ function bws_table_border_color( ?array $base ): ?string {
  * is dropped and flagged with no repair, since the reader cannot tell cells from the table. A
  * repeated `outer` keeps the first; an unbalanced bracket drops the key (null).
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param string $value Raw value.
  * @return array{outer:?string,flags:string[]}|null
  */
@@ -737,7 +737,7 @@ function bws_table_border_radius_parse( string $value ): ?array {
 /**
  * Read every text key present in an options array (tag level or a slot's opts).
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param array $options Tag options or a slot's `opts`.
  * @return array<string,array> Key => bws_table_text_parse(), only keys that parsed to something.
  */
@@ -758,7 +758,7 @@ function bws_table_text_read( array $options ): array {
  * `layout` is `auto` or `fixed`; anything else is as if absent. A refused value is as if
  * absent everywhere, so the table renders what its other keys say.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param array $options Tag options.
  * @return array{layout:?string,width:?string,text:array<string,array>,stripe:?array,border:?array,radius:?string}
  */
@@ -780,7 +780,7 @@ function bws_table_style_read( array $options ): array {
 /**
  * Whether a bws_table_style_read() carries nothing that renders.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param array $style bws_table_style_read().
  * @return bool
  */
@@ -791,7 +791,7 @@ function bws_table_style_is_empty( array $style ): bool {
 /**
  * Read a column's presentation tokens off its slot options.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param array $slot_opts A folded slot's `opts`.
  * @return array{width:?string,text:array<string,array>}
  */
@@ -811,7 +811,7 @@ const BWS_TABLE_STRIPE_DEFAULT_OPACITY = 5.0;
 /**
  * A number for a stylesheet: locale-free, no trailing zeros.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param float $n Number.
  * @return string
  */
@@ -826,7 +826,7 @@ function bws_table_css_number( float $n ): string {
  * alpha. Neither a color nor an opacity written means the DEFAULT, wrapped in
  * `var(--bws-dte-table-stripe, …)` so a theme can still override it in CSS.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param array $spec     A stripe target `{parity,color,opacity}`.
  * @param array $defaults `{color,opacity}`: the saved or built-in default pair.
  * @return string
@@ -855,7 +855,7 @@ function bws_table_stripe_color( array $spec, array $defaults ): string {
  * and `odd` the header row and body rows 2, 4, …; with none, counting starts at the first
  * emitted row. Nothing here sets `display` on a table part.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param array $table           bws_table_style_read().
  * @param array $columns         Per column `{width,text}` (bws_table_column_style_read()), in cell order.
  * @param bool  $has_header      Whether a `<thead>` is emitted (bws_table_has_header()).
@@ -1012,7 +1012,7 @@ function bws_table_rules( array $table, array $columns, bool $has_header, array 
  * The scope class for a rule list: `bws-dte-table-<hash>`, the hash taken from the built rules
  * so identical tables share one stylesheet and differing ones cannot. '' for no rules.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param array[] $rules bws_table_rules().
  * @return string
  */
@@ -1026,7 +1026,7 @@ function bws_table_style_class( array $rules ): string {
  * Every value in the rules passed a validator in this file, so none can carry a `}`, `;` or
  * markup out of its declaration; this is the sink, and it escapes nothing further.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param string  $scope Scope class from bws_table_style_class().
  * @param array[] $rules bws_table_rules().
  * @return string
@@ -1047,7 +1047,7 @@ function bws_table_rules_css( string $scope, array $rules ): string {
  * The settings page stores a bare percent; the wire spells it `N%`. Both read here, so the
  * settings sanitizer and the saved-value accessor cannot disagree.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param string $raw Saved value.
  * @return float|null 0 to 100, or null when empty or out of range.
  */
@@ -1063,7 +1063,7 @@ function bws_table_stripe_opacity_setting( string $raw ): ?float {
  * The stripe default pair from the two saved settings, each falling back to its built-in
  * value when empty or invalid (`currentColor` at 5%).
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param string $color   Saved Default stripe color.
  * @param string $opacity Saved Default stripe opacity.
  * @return array{color:string,opacity:float}
@@ -1082,7 +1082,7 @@ function bws_table_stripe_defaults_resolve( string $color, string $opacity ): ar
  * carry different lists; the regex SHAPES (a number with a unit, a hex color, `var()`) are the
  * twin's, held to PHP by tools/test/table-style-twin-test.php.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @return array<string,mixed>
  */
 function bws_table_style_vocabulary(): array {

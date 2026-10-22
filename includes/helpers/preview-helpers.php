@@ -189,14 +189,14 @@ function bws_slot_warnings_text( array $slot_warnings, array $tag_warnings = arr
  * gives it words; an INERT source reports alone, because the slot reads nothing whatever its
  * key says; otherwise a keyed read with no key, or a fixed read with no text.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param array|null $flat       bws_fold_slot_chain_options()'s result; null = the seam skipped.
  * @param string     $skip       The seam's skip reason.
  * @param bool       $bare_fixed A fixed read shows its text unquoted (join's template mode,
  *                               which already wraps the whole format in “…”).
  * @param string     $rootless_root The root a rootless chain is read from; a table column's
  *                               starts at its row, so it passes `inherit`.
- * @since Unreleased `$rootless_root`.
+ * @since 1.22.0 `$rootless_root`.
  * @return array|null `{ text: ?string, warning: string }`; `text` null for a skipped slot.
  *                    Null for a slot that is silently skipped (unconfigured).
  */
@@ -1212,7 +1212,7 @@ function bws_preview_inert_warning( array $inert, bool $slot = false ): string {
  *                         step in the other. One parse, one answer.
  * @param string $rootless_root The root a rootless chain is read from. A table column's bare chain
  *                         starts at its row, so it passes `inherit`; everything else is `current`.
- * @since Unreleased `$rootless_root`.
+ * @since 1.22.0 `$rootless_root`.
  * @return string Source segment (e.g. "Current", "Ref 'rel_post'", "Ref 'rel_post' → Category Term").
  */
 if ( ! function_exists( 'bws_try_preview_source_part' ) ) {

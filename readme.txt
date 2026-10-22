@@ -3,7 +3,7 @@ Contributors: david-mitchell
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 1.21.1
+Stable tag: 1.22.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -11,7 +11,7 @@ See README.md for overview, docs/tag-reference.md for architecture, and CHANGELO
 
 == Upgrade Notice ==
 
-= Unreleased =
+= 1.22.0 =
 ⚠ For developers: custom code that still calls TagTemplateRegistry::register_modifier() now causes a fatal error. It has registered nothing since 1.21.0; offer your source as a chain root instead. Sites with no custom integration code are unaffected.
 
 = 1.21.0 =

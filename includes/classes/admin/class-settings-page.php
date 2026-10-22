@@ -344,7 +344,7 @@ class SettingsPage {
 	 * Each half falls back to its built-in (`currentColor`, 5) when unset or invalid, so
 	 * a hand-edited option row can never reach the stylesheet.
 	 *
-	 * @since Unreleased
+	 * @since 1.22.0
 	 * @return array{color:string,opacity:float}
 	 */
 	public static function get_table_stripe_defaults(): array {

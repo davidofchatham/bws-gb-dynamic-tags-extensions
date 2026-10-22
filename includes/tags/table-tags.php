@@ -94,7 +94,7 @@ function bws_register_table_tag(): void {
  * a column from those keys nor deletes them on commit.
  *
  * @since 1.17.0
- * @since Unreleased Columns are folded slots; the flat `{N}-*` keys and tag-level `key` are gone.
+ * @since 1.22.0 Columns are folded slots; the flat `{N}-*` keys and tag-level `key` are gone.
  * @return array Option definitions keyed by option name.
  */
 function bws_get_table_options(): array {
@@ -149,7 +149,7 @@ function bws_get_table_options(): array {
  * The values are validated where they are READ (bws_table_style_read()), never here: this
  * file only declares the keys.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @return array Option definitions keyed by option name.
  */
 function bws_get_table_style_options(): array {
@@ -210,7 +210,7 @@ function bws_get_table_style_options(): array {
  * The carry is seeded with the PARENT: an empty column chain is the row, so a
  * hand-written `src(same)` on column A carries that rather than skipping.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param array $options Tag options.
  * @param array $dropped Out: `{ n, skip }` per column dropped for a skip with no header, so the
  *                       editor skeleton can still warn about it.
@@ -254,7 +254,7 @@ function bws_table_columns( array $options, array &$dropped = array() ): array {
  *
  * Asked once per column, not per row — only an `inherit`/empty root depends on the row.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param array|null $opts    The column's resolved slot options; null (a header-only column) starts nowhere.
  * @param string $explicit_id The editor-injected post id ('' on the front end; I11).
  * @param object $instance    GB tag instance.
@@ -289,7 +289,7 @@ function bws_table_column_start( ?array $opts, string $explicit_id, $instance ) 
  * both are '' and never fall through to the ambient entity. `query_context` (a 404, search or
  * archive page as the row) reads its canonical heading.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param array  $source   One resolved source.
  * @param array  $opts     The column's slot options.
  * @param object $instance GB instance.
@@ -328,7 +328,7 @@ function bws_table_read_analog( array $source, array $opts, $instance ): string 
  * bws_table_read_analog().
  *
  * @since 1.17.0
- * @since Unreleased A column is a folded slot; keyed, analog and fixed reads.
+ * @since 1.22.0 A column is a folded slot; keyed, analog and fixed reads.
  * @param array  $row_source One resolved row source.
  * @param array  $col        `{ opts, start, steps }`; null `opts` is a header-only column.
  * @param object $instance   GB instance.
@@ -380,7 +380,7 @@ const BWS_TABLE_INLINE_CSS = '[role="region"][aria-labelledby][tabindex]{overflo
  * DERIVED, never hand-listed — a row may be any resolved kind, so a kind that joins the
  * vocabulary is servable the day it joins. A literal list would start refusing it.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @return string[] Root kinds and step-produced kinds off bws_fold_wire_vocabulary().
  */
 function bws_table_serves(): array {
@@ -397,7 +397,7 @@ function bws_table_serves(): array {
 /**
  * Whether this render is the editor's tag preview (a REST request), where no `wp_footer` runs.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @return bool
  */
 function bws_table_in_editor_preview(): bool {
@@ -407,7 +407,7 @@ function bws_table_in_editor_preview(): bool {
 /**
  * The stripe default pair: the saved settings where valid, else the built-in `currentColor` at 5%.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @return array{color:string,opacity:float}
  */
 function bws_table_stripe_defaults(): array {
@@ -424,7 +424,7 @@ function bws_table_stripe_defaults(): array {
  * class is hashed off the built rules, so an unstyled table has none and identical tables share
  * one.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param array   $options     Tag options.
  * @param array[] $columns     bws_table_columns() records (`header`, `style`).
  * @param array[] $matrix      Row-major cell strings.
@@ -490,7 +490,7 @@ const BWS_TABLE_SKELETON_ROWS = 3;
  * outline + accessible name (the marker does not say why) and cell text that reads as
  * configuration (that alone reads as data). The note line says why.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param array   $options Tag options.
  * @param array[] $columns bws_table_columns() records; empty when none is configured.
  * @param array[] $dropped bws_table_columns()' dropped columns, warned about but not shown.
@@ -549,7 +549,7 @@ function bws_table_skeleton( array $options, array $columns, array $dropped = ar
  * (composing-tag id threading, CONTEXT.md I11) so the editor preview resolves.
  *
  * @since 1.17.0
- * @since Unreleased The editor preview: the real table, or a skeleton.
+ * @since 1.22.0 The editor preview: the real table, or a skeleton.
  * @param array  $options  Tag options.
  * @param object $block    GB block (unused; signature parity).
  * @param object $instance GB tag instance.
@@ -604,7 +604,7 @@ function bws_table_callback( $options, $block, $instance ): string {
  * already fully-formed HTML. The class_exists guard stays: it is what keeps a GB-less install
  * returning the bare markup rather than fatalling.
  *
- * @since Unreleased
+ * @since 1.22.0
  * @param string $html     Table HTML.
  * @param array  $options  Tag options.
  * @param object $instance GB tag instance.
