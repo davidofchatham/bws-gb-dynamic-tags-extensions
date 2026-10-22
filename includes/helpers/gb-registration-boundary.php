@@ -60,8 +60,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * and reported like the other two directions. Standing down silently meant a documented tag
  * simply did not exist with nothing anywhere saying why.
  *
- * THIS FUNCTION IS INTERNAL, AND STAYS INTERNAL. It has no row in
- * docs/plugin-integration.md §5, and §4 Option B still tells an integrator to construct
+ * THIS FUNCTION IS INTERNAL, AND STAYS INTERNAL. It is not on the supported surface in
+ * docs/plugin-integration.md §3, and §3 still tells an integrator to construct
  * GB's registrar directly, which is correct for them: their tag is not one of ours to
  * overwrite or to report on. No caller outside this repo exists, and publishing an entry
  * point buys a compatibility obligation on speculation — the same reasoning that dropped

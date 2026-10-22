@@ -97,13 +97,13 @@ deliberately not the same rule.
 - **A root key must be writable as a `src` token.** The filter route refuses a key that is a chain
   step slug (`refs`/`terms`/`rows`, read from `BWS_FOLD_STEP_TYPES` rather than re-typed), the
   slot carry-over sentinel `same`, or one carrying a grammar character — each would parse back as
-  something other than a root, offering a row that cannot resolve. Route A cannot hit this; its
-  keys are class-authored.
+  something other than a root, offering a row that cannot resolve. The class route cannot hit this;
+  its keys are class-authored.
 
 Two registration routes, one registry — a source class overriding the flag, or a declarative spec
 through the `bws_dynamic_tags_chain_roots` filter (adapted into a `Sources\CallbackRoot` and
 registered normally, at registry init rather than at enum-build time). See
-[`docs/plugin-integration.md` §1a](plugin-integration.md#1a-offering-your-source-as-a-chain-root).
+[`docs/plugin-integration.md` §1](plugin-integration.md#1-offering-your-source-as-a-chain-root).
 
 #### Source CHAINS (1.17.0)
 
@@ -271,14 +271,14 @@ The one place tagline *might* earn its keep is as **feedstock for a multi-slot t
 
 ### Modifier prefixes
 
-**No modifier prefix is registered any more.** A modifier family wrapped base tag templates in a context-shifting prefix, duplicated the base tags, and had to be taught every capability separately, which the [chain root](#root-enum-membership-1170-83) makes unnecessary. The `term_` family, the last one, was removed in v1.21.0, and `TagTemplateRegistry::register_modifier()`, the registration route, was deleted in v1.22.0. [`deprecated-tags-options.md` §The `term_` modifier family](deprecated-tags-options.md#the-term_-modifier-family-removed-in-v1210) owns what the family was; an external source is offered as a chain root instead ([`plugin-integration.md` §1a](plugin-integration.md#1a-offering-your-source-as-a-chain-root)).
+**No modifier prefix is registered any more.** A modifier family wrapped base tag templates in a context-shifting prefix, duplicated the base tags, and had to be taught every capability separately, which the [chain root](#root-enum-membership-1170-83) makes unnecessary. The `term_` family, the last one, was removed in v1.21.0, and `TagTemplateRegistry::register_modifier()`, the registration route, was deleted in v1.22.0. [`deprecated-tags-options.md` §The `term_` modifier family](deprecated-tags-options.md#the-term_-modifier-family-removed-in-v1210) owns what the family was; an external source is offered as a chain root instead ([`plugin-integration.md` §1](plugin-integration.md#1-offering-your-source-as-a-chain-root)).
 
 | Prefix | GB type | Modifier label | Starting context | Registered by |
 |---|---|---|---|---|
 | (no prefix — base) | `'cross-source'` | — | Current entity (post in post loop, term on term archive) | Built-in |
 | `try_` | `'first-available'` | — | Per-slot — see [§Try_ tags](#try_-tags) | Built-in |
 
-**A modifier family is the pre-chain way of spelling one option value (1.17.0).** Once its source is offered as a [chain root](#root-enum-membership-1170-83), `{{view_text key:x}}` and `{{text src:view|key:x}}` are the same read, and the second gets every capability added to base tags. The Tag Converter rewrites the first into the second for the one prefix that has entries. The mapping table and its rules live in [`deprecated-tags-options.md` §Modifier prefix → base tag](deprecated-tags-options.md#modifier-prefix--base-tag-with-a-registered-root-1170); the registration call is no longer supported integration surface ([`plugin-integration.md` §9](plugin-integration.md#9-migrating-a-modifier-family-to-a-base-tag)). `term_` is the one in-repo family that took this route, and its entries outlived its tags — they still ship (see the forward-ref above).
+**A modifier family is the pre-chain way of spelling one option value (1.17.0).** Once its source is offered as a [chain root](#root-enum-membership-1170-83), `{{view_text key:x}}` and `{{text src:view|key:x}}` are the same read, and the second gets every capability added to base tags. The Tag Converter rewrites the first into the second for the one prefix that has entries. The mapping table and its rules live in [`deprecated-tags-options.md` §Modifier prefix → base tag](deprecated-tags-options.md#modifier-prefix--base-tag-with-a-registered-root-1170); the registration call is no longer supported integration surface ([`plugin-integration.md` §Retired integration routes](plugin-integration.md#retired-integration-routes)). `term_` is the one in-repo family that took this route, and its entries outlived its tags — they still ship (see the forward-ref above).
 
 ### Source classes
 
@@ -1486,7 +1486,7 @@ existing allowlist rebuild), the on-upgrade pass in
 **Scope, stated to the user.** The Migration Tool section names its boundary (post content and the block pattern cache; not custom field values or other plugins' caches). Rewriting block widgets is tracker row FW-73; reporting a retiring tag name found in custom fields or options is FW-128.
 
 **Integration surface.** `bws_dynamic_tags_content_written` — see
-[`plugin-integration.md` §10](plugin-integration.md#10-reacting-to-a-direct-content-write).
+[`plugin-integration.md` §5](plugin-integration.md#5-reacting-to-a-direct-content-write).
 
 ---
 

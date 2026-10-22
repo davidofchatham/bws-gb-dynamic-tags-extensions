@@ -196,7 +196,7 @@ class SourceRegistry {
 			// else: `refs` parses as a fanning STEP rather than a root, so the chain
 			// would resolve the ambient entity and the offered root would never run. That
 			// breaks the one guarantee this route exists to keep — an offered root is
-			// always resolvable. Route A cannot hit this (its keys are class-authored);
+			// always resolvable. The class route cannot hit this (its keys are class-authored);
 			// the filter route is the one that invites arbitrary strings.
 			if ( ! self::is_expressible_root_key( $key ) ) {
 				continue;

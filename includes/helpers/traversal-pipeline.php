@@ -119,6 +119,10 @@ const BWS_SOURCE_KIND_UNRESOLVED = 'unresolved';
  * predicate — that injectability is what keeps the engine harness pure
  * (that record's §S20 corrected).
  *
+ * SUPPORTED INTEGRATION SURFACE (docs/plugin-integration.md §3): outside tag callbacks
+ * call it with `array( 'kind' => 'post'|'term'|'user', 'id' => $id )`, so that input
+ * shape and the bool return stay stable; other typedef keys are optional to it.
+ *
  * @since 1.18.0
  * @param array $source Resolved source (see file header typedef).
  * @return bool True when the source may feed reads and consume limit budget.

@@ -148,7 +148,7 @@ The settings page files a deprecated tag under **Deprecated** (still registers/r
 
 The `prefix_removed`/`callback` proxy is **interim**: a later release (FW-38) replaces it with explicit `registered_by` + `lifecycle` (`unset=active | deprecated | removed`) fields recorded at `register()` time, so box placement reads `lifecycle` only and `callback` becomes irrelevant to classification.
 
-Enforced at: `MigrationRegistry::is_entry_live()` PHPDoc (the classifier + why-not-callback rationale) + `register()` `@param` docs (`prefix_removed`, `legacy_fallback_removed`). Integrator guidance: `docs/plugin-integration.md` §"Alias status and retiring a prefix". Future direction: `docs/future-work.md` FW-38.
+Enforced at: `MigrationRegistry::is_entry_live()` PHPDoc (the classifier + why-not-callback rationale) + `register()` `@param` docs (`prefix_removed`, `legacy_fallback_removed`). Integrator guidance: `docs/plugin-integration.md` §4 (Migrating your own old tag names). Future direction: `docs/future-work.md` FW-38.
 
 ---
 

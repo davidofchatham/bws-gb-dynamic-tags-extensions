@@ -11,7 +11,7 @@
  *
  * `bws_dynamic_tags_show_all_deprecated` is the same kind of switch for the settings page, but
  * its one caller reads it inline (`SettingsPage::render_page()`), so it has no function here.
- * All three are documented in docs/plugin-integration.md §11.
+ * All three are documented in docs/plugin-integration.md §6.
  *
  * NOTHING HERE IS RE-INCLUDE GUARDED, matching gb-output-boundary.php and slot-fold.php.
  *

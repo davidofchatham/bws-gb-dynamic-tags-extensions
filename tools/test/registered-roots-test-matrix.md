@@ -36,7 +36,7 @@ text are reachable ONLY there. §FR6 is a script rather than a block, for the re
 the rewrite's mapping rows in
 [`docs/deprecated-tags-options.md` §Modifier prefix → base tag](../../docs/deprecated-tags-options.md#modifier-prefix--base-tag-with-a-registered-root-1170),
 and the integrator-facing API in
-[`docs/plugin-integration.md` §1a](../../docs/plugin-integration.md#1a-offering-your-source-as-a-chain-root).
+[`docs/plugin-integration.md` §1](../../docs/plugin-integration.md#1-offering-your-source-as-a-chain-root).
 
 **Cache-bust with a LITERAL token when curling.** `?nocache=$RANDOM` does not expand in the
 container's `sh`, so the URL stays constant and LiteSpeed serves the cached page — which reads as

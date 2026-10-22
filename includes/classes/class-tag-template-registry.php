@@ -85,7 +85,7 @@ class TagTemplateRegistry {
 	 * INTERNAL. Not an integrator surface: a template yields only a try_ tag, and only when
 	 * it names a base tag's resolve seam as `resolve_fn`, so an outside caller would have to
 	 * run a base tag of its own first. A source that wants the base-tag surface registers a
-	 * chain root instead (docs/plugin-integration.md §1a).
+	 * chain root instead (docs/plugin-integration.md §1).
 	 *
 	 * @since 1.6.0
 	 * @internal

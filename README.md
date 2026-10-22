@@ -161,7 +161,7 @@ A security gate blocks adding PHP built-ins (`system`, `unlink`, `eval`, and the
 
 ## Extending
 
-Another plugin can add its own starting point to our source path options, and that starting point can take an argument of its own, so it can name a specific entity rather than only something available from the context. See [`docs/plugin-integration.md`](docs/plugin-integration.md) §1a.
+Another plugin can add its own starting point to our source path options, and that starting point can take an argument of its own, so it can name a specific entity rather than only something available from the context. See [`docs/plugin-integration.md` §1](docs/plugin-integration.md#1-offering-your-source-as-a-chain-root).
 
 ## Requirements
 
@@ -176,7 +176,7 @@ Another plugin can add its own starting point to our source path options, and th
 - [`docs/editor-tag-previews.md`](docs/editor-tag-previews.md) — editor-time tag configuration preview text
 - [`CONTEXT.md`](CONTEXT.md) — cross-cutting design invariants (source-analog model, `use`-dispatch, qualifying gate)
 - [`docs/deprecated-tags-options.md`](docs/deprecated-tags-options.md) — N×M historical reference + migration tracker
-- [`docs/plugin-integration.md`](docs/plugin-integration.md) — external plugin API (source classes, chain roots, deprecated wrappers)
+- [`docs/plugin-integration.md`](docs/plugin-integration.md) — external plugin API (chain roots, source classes, migration entries)
 - [`docs/gb-constraints.md`](docs/gb-constraints.md) — GB editor/runtime constraint catalog
 
 ## Acknowledgements

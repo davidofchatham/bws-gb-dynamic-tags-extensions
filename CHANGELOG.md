@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- **For integrating plugins: `bws_source_gate()` is now supported API.** A tag your plugin registers itself can pass the entity it resolved through the same check the base tags apply, so it hides a post the visitor may not see exactly as they do. See [Plugin integration §3](docs/plugin-integration.md#3-registering-your-own-tag).
+
+### Changed
+
+- **For integrating plugins: the integration guide is rewritten around what works today.** It leads with chain roots, points to GenerateBlocks' own docs for registering a tag, and narrows the documented helpers to the content-rendering pipeline. Every other `bws_` function is now stated to be internal. See [`docs/plugin-integration.md`](docs/plugin-integration.md).
+
 ## [1.22.0] — 2026-10-22
 
 ### Highlights
