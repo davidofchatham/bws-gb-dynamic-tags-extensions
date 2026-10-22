@@ -704,7 +704,7 @@ mutation.** Removing the text arm's guard entirely leaves every §F11a row green
 singular cores return before reading anything (`! $post_id && ! $read_may_serve`), so the arm guard and
 the core's guard produce the same empty output. The guard earns its place only where the core would
 have gone on to read something — a query-loop item the read can be served from
-(`bws_loop_item_is_post_or_row()` is that question), or the queried TERM on an archive.
+(`bws_loop_item_is_post_or_row()` is that question).
 
 That asymmetry is not a defect in §F11a; those rows pin the unknown-STEP door, which IS observable
 off-loop (removing the title arm's guard makes §F11a.6 render `Jane Partner`). It just means the two

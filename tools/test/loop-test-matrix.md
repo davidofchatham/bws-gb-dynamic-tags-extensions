@@ -47,15 +47,7 @@ repeater rows. **WooCommerce product loops are that shape already, and they are 
 the refusal rather than a future case** — `docs/future-work.md` FW-100 carries the measured item
 shape and what a fixture for it would need.
 
-**One consequence of the recognition is NOT reachable from this page, and that is why it went
-unnoticed for a pass.** A term or user item now makes `in_loop` true with no post behind it, and
-the render sites that skip their own "no entity" bail on that flag reach a post-meta read which
-cannot serve it; that read then falls to its TERM-ARCHIVE fallback and returns the SURROUNDING
-archive's meta. Reproducing it needs a non-post loop rendered on a term archive at once, and no
-fixture page is an archive. Measured through `do_blocks()`/`replace_tags()` on
-`/department/support/` instead (2026-08-26): a USER loop returned `October 5, 2030` — that
-department's `event_date` — from `{{datetime_single key:event_date}}`. The predicate those sites
-now gate on is `bws_loop_item_is_post_or_row()`, pinned in `loop-item-classify-test.php` §C6.
+**One consequence of the recognition is NOT reachable from this page, and that is why it went unnoticed for a pass.** A term or user item makes `in_loop` true with no post behind it, and the render sites that skipped their own "no entity" bail on that flag reached a post-meta read which could not serve it; that read then fell to the field read's term-archive fallback and returned the SURROUNDING archive's meta. Reproducing it needed a non-post loop rendered on a term archive at once, and no fixture page is an archive. Measured through `do_blocks()`/`replace_tags()` on `/department/support/` instead (2026-08-26): a USER loop returned `October 5, 2030` — that department's `event_date` — from `{{datetime_single key:event_date}}`. The predicate those sites now gate on is `bws_loop_item_is_post_or_row()`, pinned in `loop-item-classify-test.php` §C6.
 
 Baselines captured 2026-08-25, flipped 2026-08-26, against GenerateBlocks 2.4.1 / GB Pro 2.7.0 /
 GB Query Enhancements 1.3.0 (the set `env-versions.php` records).
@@ -148,6 +140,14 @@ The outer loop is restricted by `post_name`, not by id: the ids are whatever the
 |---|---|---|---|
 | QL5.1 | `{{title}}`, in the OUTER post item beside the nested query | `Fixture Ref Target`, `Fixture Root Entity` — the non-vacuity control, and why the inner values below are crossed against QL4's rather than repeated | **PASS** |
 | QL5.2 | `{{title}}`, inside the INNER term loop | `Warehouse` under Fixture Ref Target, `Sales` under Fixture Root Entity — the inner loop's own term. The outer staff name here would be the live `get_the_ID()` fallback winning | **PASS** |
+
+## QL6 — a SPELLED source inside a POST query loop
+
+A tag that names its own source must not be answered by the loop item. The row is the visible half of [`datetime-test-matrix.md`](datetime-test-matrix.md) §D5.8, whose row owns the expectation.
+
+| # | Tag (on `/matrix-loops/`) | Expected | Status |
+|---|---|---|---|
+| QL6.1 | `{{datetime_single src:site\|key:org_party_datetime}}`, in a staff post loop | see §D5.8 | **PASS** |
 
 ## QLP — a query loop over WooCommerce PRODUCTS: the object-shaped item that names a post (FW-100)
 

@@ -16,6 +16,10 @@ All notable changes to this project are documented in this file. The format is b
 
 - **For integrating plugins: ten source methods that nothing read are gone from `SourceInterface` and `AbstractSource`.** They are `get_source_options()`, `get_tag_prefix()`, `get_gb_type()`, `get_effective_source_id()`, `format_id_for_acf()`, `source_default_enabled()`, `tag_default_enabled()`, `get_excluded_supports()`, `needs_relationship_field()` and `get_ui_group()`. A source class that overrides any of them keeps working, and the override can be deleted. `get_source_options()` no longer has to be written at all. Any code that calls one of them on a source that does not override it, whether through `parent::`, `$this->` or a source object from the registry, now fails with a fatal error, so delete that call.
 
+### Fixed
+
+- **`{{datetime_single}}` and `{{datetime_range}}` reading a date from an ACF options page now show it on archive pages and inside query loops.** On a category, tag or taxonomy archive the tag rendered empty, and inside a query loop it read the field from each looped post or repeater row instead of the options page, so it could show a date that belonged to something else. It now reads the options page wherever it is placed.
+
 ## [1.22.0] — 2026-10-22
 
 ### Highlights

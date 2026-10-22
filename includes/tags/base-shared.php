@@ -1029,8 +1029,8 @@ const BWS_BASE_WIRE_KINDS_ALWAYS_SERVED = array( 'post', 'render_time', 'term' )
  * Each arm: no read, its own empty path, stated fallback fires. Refusing ≠ reading
  * nothing — [I15] ("an ambient read must be SPELLED, never reached by fallback"). The
  * arms' catch-all does the SINGULAR read, and with no id bws_read_field() falls back to
- * a query-loop item and then the queried TERM — a plausible value from an entity the
- * wire never named, worse than empty.
+ * the query-loop item — a plausible value from an entity the wire never named, worse
+ * than empty.
  *
  * So the test runs AFTER THE FACTORY, above the core: the cores' falsy-id loop-item read
  * is load-bearing for repeater rows, where ABSENT legitimately means the row; the core

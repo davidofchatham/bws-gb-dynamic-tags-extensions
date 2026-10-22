@@ -61,6 +61,11 @@ return array(
 	// The date the baseline under `tools/test/snapshots/` was captured. Prose only —
 	// nothing compares it; it is here so a reader can place the record in time.
 	//
+	// 2026-10-22: QL6.1 added to `page-matrix-loops` (a `src:site` datetime in a staff post
+	// loop, the option date on both items); nothing else moved, including after the
+	// term-archive read left `bws_read_field()`, measured against the old baseline before
+	// the reseed. Dependency versions and the active set unchanged.
+	//
 	// 2026-10-21: a DEPENDENCY MOVE. GenerateBlocks 2.4.1 -> 2.5.0, GB Pro 2.7.1 -> 2.8.0 and
 	// WooCommerce 11.2.0 -> 11.2.1 moved NO line. The three lines that moved are Slim SEO 4.11.4
 	// (unversioned here, active-set only): the `slim-seo-schema` JSON-LD `@id`s on `ctx-404`,
@@ -125,7 +130,7 @@ return array(
 	// The 2026-09-14 capture is WooCommerce joining the fixture site (chrome only, no
 	// rendered tag moved); the 2026-09-03 one is where the head-deletion rule arrived — a
 	// reader hitting an ~800-line deletion further back in `git log` is looking at that.
-	'captured' => '2026-10-21',
+	'captured' => '2026-10-22',
 
 	// WordPress core, as `get_bloginfo( 'version' )` reports it. A change is a WARNING like a
 	// plugin version change, never a failure. First recorded 2026-09-25, read off the site

@@ -38,6 +38,7 @@
  *        CENSUS of every ungated `item_post_id` consumer in the tree
  *   §C9  the object-shaped item that NAMES A POST — the agreeing slug, the permalink
  *        veto, the arm's position last, and the permanent refusal of an empty object
+ *   §C10 the `'option'` sentinel outranks every ambient entity, with both its gates intact
  *
  * Run:  php tools/test/loop-item-classify-test.php   (exit 0 = pass, 1 = fail)
  *
@@ -134,14 +135,27 @@ if ( ! function_exists( 'get_queried_object' ) ) {
 		return $GLOBALS['stub_queried_object'];
 	}
 }
-// The two stubs below are deliberately INDEPENDENT of one another. The term-archive read
-// asks bws_wp_is_term_archive() (did WP query an archive) BEFORE it asks what the queried
-// object is, and C8.7 exists to hold that ordering: a stub that derived one from the other
-// would agree with the pre-1.21.0 bare queried-object check and pin nothing.
+// bws_read_field() asks neither of these. They exist so a row can stand on a term archive
+// and show the read IGNORING it (C8.4, C10.2): the field read has no term-archive branch,
+// and the factory is the one place that turns an archive into a term source.
 $GLOBALS['stub_is_term_archive'] = false;
 if ( ! function_exists( 'bws_wp_is_term_archive' ) ) {
 	function bws_wp_is_term_archive(): bool {
 		return (bool) $GLOBALS['stub_is_term_archive'];
+	}
+}
+
+// The options-page read behind the `'option'` sentinel, echoing its key like the meta
+// stubs above. The allowlist lives in base-tags.php (not loaded); `secret` stands in for a
+// key it refuses.
+if ( ! function_exists( 'get_field' ) ) {
+	function get_field( $key, $object_id = false ) {
+		return "{$object_id}:{$key}";
+	}
+}
+if ( ! function_exists( 'bws_site_allowlist_ok' ) ) {
+	function bws_site_allowlist_ok( string $key ): bool {
+		return 'secret' !== $key;
 	}
 }
 
@@ -257,9 +271,8 @@ echo "\n=== C6 - bws_loop_item_is_post_or_row(): the predicate six render sites 
 
 // The two TRUE kinds are bws_read_field()'s loop branch stated as a predicate: it reads
 // a post's meta for a POST item and $loop_item[$key] for a ROW, and serves nothing else.
-// What a FALSE costs is not visible from here — a term or user item let past reaches
-// that function's term-archive fallback and returns the surrounding archive's meta.
-// That is a rendered read, measured on the testbed rather than here.
+// What a FALSE costs is not visible from here — it is the render core's bail, a rendered
+// read measured on the testbed rather than here.
 assert_same( 'C6.1 a post item', true, bws_loop_item_is_post_or_row( inst( new WP_Post( 5 ) ) ) );
 assert_same( 'C6.2 a numeric post item', true, bws_loop_item_is_post_or_row( inst( 5 ) ) );
 assert_same( 'C6.3 a repeater row', true, bws_loop_item_is_post_or_row( inst( array( 'name' => 'Ada' ) ) ) );
@@ -334,26 +347,16 @@ echo "\n=== C8 - the source gate on a loop item (#122) ===\n";
 assert_same( 'C8.1 a loop post the gate passes is read', 'post5:name', bws_read_field( 'name', inst( new WP_Post( 5 ) ), false ) );
 assert_same( 'C8.2 a loop post the gate REFUSES reads nothing', null, bws_read_field( 'name', inst( new WP_Post( 6 ) ), false ) );
 
-// THE LOAD-BEARING PAIR. A refusal must RETURN, not skip its branch: a post item's raw
-// value is a WP_Post rather than an array, so a skipped branch walks past the repeater
-// arm and into the term-archive read, which on an archive page answers with the
-// SURROUNDING term's meta — a plausible value from an entity the wire never named.
-// C8.4 is what stops C8.3 passing for the wrong reason: without it, a term-archive
-// fallback that was simply broken would satisfy C8.3.
+// A refusal must RETURN, not skip its branch: a post item's raw value is a WP_Post rather
+// than an array, so a skipped branch walks on to whatever reads come after the loop arms.
+// On a term archive, C8.4 holds that no read after them answers with the SURROUNDING
+// term's meta — a plausible value from an entity the wire never named ([I15]).
 $GLOBALS['stub_queried_object']  = new WP_Term( 7, 'department' );
 $GLOBALS['stub_is_term_archive'] = true;
-assert_same( 'C8.3 HARD STOP - a refused loop post does NOT fall through to the term archive', null, bws_read_field( 'name', inst( new WP_Post( 6 ) ), false ) );
-assert_same( 'C8.4 CONTROL - the same archive DOES answer when there is no loop at all', 'term7:name', bws_read_field( 'name', inst( null ), false ) );
-
-// C8.4b holds the criterion the branch reads the archive BY (1.21.0). A queried object that
-// happens to be a WP_Term is not enough — WP must have queried the archive. Secondary
-// queries hand back a term the rendered page is not about, and the read must refuse it.
-// Flip bws_wp_is_term_archive() to true here and this row serves term 7's meta from a page
-// that is not term 7's archive, which is the defect this criterion replaced.
+assert_same( 'C8.3 HARD STOP - a refused loop post reads nothing, even on a term archive', null, bws_read_field( 'name', inst( new WP_Post( 6 ) ), false ) );
+assert_same( 'C8.4 NO TERM-ARCHIVE READ - no loop and no id on an archive reads nothing', null, bws_read_field( 'name', inst( null ), false ) );
 $GLOBALS['stub_is_term_archive'] = false;
-assert_same( 'C8.4b a WP_Term queried object is NOT read when WP did not query an archive', null, bws_read_field( 'name', inst( null ), false ) );
-
-$GLOBALS['stub_queried_object'] = null;
+$GLOBALS['stub_queried_object']  = null;
 
 // Mode 2b. A repeater row has no post identity, so this branch never reaches the gate at
 // all — which is what the row below holds. What the gate itself does with a `meta_row`
@@ -514,6 +517,39 @@ assert_same( 'C9.13 the reader itself answers the id on an agreeing one', 5, bws
 assert_same( 'C9.14 a recognized object-shaped post item passes the render-core predicate', true, bws_loop_item_is_post_or_row( inst( (object) array( 'id' => 5, 'slug' => 'sample-post' ) ) ) );
 assert_same( 'C9.15 and it reaches the post READ, rather than stopping at the classification', 'post5:name', bws_read_field( 'name', inst( (object) array( 'id' => 5, 'slug' => 'sample-post' ) ), false ) );
 assert_same( 'C9.16 the SOURCE GATE still applies to it - a refused post reads nothing', null, bws_read_field( 'name', inst( (object) array( 'id' => 6, 'slug' => 'gated-post' ) ), false ) );
+
+echo "\n=== C10 - the 'option' sentinel is SPELLED, so no ambient entity outranks it ===\n";
+
+// `src:site` datetime reads its value as bws_read_field( $key, $instance, 'option' ). The
+// sentinel is not a post id, so nothing about it stops the loop branches from answering
+// unless it is tested ahead of them. C10.3/C10.4 fail by name if a loop item answers for
+// the option; C10.2 stands on a term archive so a term read anywhere ahead of it fails too.
+assert_same( 'C10.1 no loop - the options-page field is read', 'option:founded', bws_read_field( 'founded', inst( null ), 'option' ) );
+$GLOBALS['stub_queried_object']  = new WP_Term( 7, 'department' );
+$GLOBALS['stub_is_term_archive'] = true;
+assert_same( 'C10.2 on a term archive - still the option, not the queried term', 'option:founded', bws_read_field( 'founded', inst( null ), 'option' ) );
+$GLOBALS['stub_is_term_archive'] = false;
+$GLOBALS['stub_queried_object']  = null;
+assert_same( 'C10.3 inside a post loop - still the option, not the loop post', 'option:founded', bws_read_field( 'founded', inst( new WP_Post( 5 ) ), 'option' ) );
+assert_same( 'C10.4 inside a repeater row - still the option, not the row', 'option:founded', bws_read_field( 'founded', inst( array( 'founded' => 'row value' ) ), 'option' ) );
+assert_same( 'C10.5 the allowlist still refuses, ahead of the loop as well', '', bws_read_field( 'secret', inst( new WP_Post( 5 ) ), 'option' ) );
+
+// The per-user REST gate, the second of the branch's two gates. bws_site_option_withheld_from_user()
+// is the real function; it reads REST_REQUEST, which cannot be undefined again, so this row
+// runs LAST. `withheld` is the key the stubbed GB answer refuses for this user.
+define( 'REST_REQUEST', true );
+if ( ! function_exists( 'current_user_can' ) ) {
+	function current_user_can( $cap ) {
+		return true;
+	}
+}
+if ( ! function_exists( 'bws_gb_option_allowed_for_current_user' ) ) {
+	function bws_gb_option_allowed_for_current_user( string $key ): bool {
+		return 'withheld' !== $key;
+	}
+}
+assert_same( 'C10.6 the per-user REST gate still withholds, ahead of the loop as well', '', bws_read_field( 'withheld', inst( new WP_Post( 5 ) ), 'option' ) );
+assert_same( 'C10.6b CONTROL - the same REST render reads a key the user may see', 'option:founded', bws_read_field( 'founded', inst( new WP_Post( 5 ) ), 'option' ) );
 
 echo "\n";
 echo $failures

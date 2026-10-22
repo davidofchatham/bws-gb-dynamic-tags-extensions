@@ -1869,8 +1869,8 @@ eq(
 //
 // "The singular cores' falsy-id guard refuses by construction" reads true and is not:
 // bws_read_field() does not stop at a falsy id, it falls back to a query-loop item it can
-// be served from and then to the queried TERM (bws_read_field()'s own docblock owns which
-// shapes those are; a TERM or USER item is not one of them). So consumer 3 handing the arm
+// be served from (bws_read_field()'s own docblock owns which shapes those are; a TERM or
+// USER item is not one of them). So consumer 3 handing the arm
 // `false` is only half the story — a core called with it still reads an ambient entity,
 // which is the very defect, arriving one layer lower.
 //

@@ -98,6 +98,8 @@ Mirrors base text/title list mode: slice to `limit` (default 1), join with `sep`
 | D5.4 | `{{datetime_single src:ref|ref:related_staff|key:event_datetime}}` | `May 1, 2030 10:00 AM` (single ref read, jane first) |
 | D5.5 | `{{datetime_single key:event_datetime}}` + `--loop-item=<jane id>` | `May 1, 2030 10:00 AM` (the loop item wins over page context). **render-tag-only** — synthetic loop item, no fixture query loop on the page (stated exception to the visible-rows rule) |
 | D5.6 | `{{datetime_single key:missing_dt_field|fallback:Date TBA}}` | `Date TBA` |
+| D5.7 | `{{datetime_single src:site|key:org_party_datetime}}` on `/department/support/` | `September 20, 2030 6:00 PM` (the option, not the queried term). **render-tag-only** — needs a term archive as ambient context (stated exception to the visible-rows rule) |
+| D5.8 | the same tag inside a post query loop | `September 20, 2030 6:00 PM` on every item (the option, not the loop post). Visible on `/matrix-loops/` as QL6.1; `--loop-item=<id>` reproduces it under render-tag |
 
 `src:site` range rows: see [`src-site-test-matrix.md`](src-site-test-matrix.md) §R5 (R5.3) — linked, not duplicated.
 

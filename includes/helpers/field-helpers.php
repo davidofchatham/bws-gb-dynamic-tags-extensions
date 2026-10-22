@@ -634,10 +634,10 @@ function bws_get_loop_item_context( $instance ): array {
  * succeed is asking THIS, and only this.
  *
  * NOT `in_loop`, which is true for a TERM, a USER and an unrecognized item too, and
- * every one of those reaches a post-meta read that cannot serve it. The read then falls
- * past both loop branches to bws_read_field()'s TERM-ARCHIVE fallback, and on an archive
- * page that returns the SURROUNDING archive's term meta — a plausible value from an
- * entity the wire never named ([I15]).
+ * every one of those reaches a post-meta read that cannot serve it. Nothing after
+ * bws_read_field()'s loop branches answers such an item today, but this predicate is the
+ * guard, not that absence: a read added there would answer with a plausible value from
+ * an entity the wire never named ([I15]).
  *
  * A term or user item is not "no loop" either, and callers must not read this as
  * saying so. It means the entity was resolved ABOVE the field read — by the source
@@ -712,21 +712,25 @@ function bws_loop_item_gated_post_id( $instance ) {
  * functions if Meta_Handler unavailable.
  *
  * Branching order:
- *  1. $post_id > 0 (explicit caller-resolved target)  → read post meta on that id
- *  2. The query loop's post (no explicit id)          → read post meta on it, or STOP
+ *  1. $post_id === 'option' (src:site datetime)       → read the options-page field
+ *  2. $post_id > 0 (explicit caller-resolved target)  → read post meta on that id
+ *  3. The query loop's post (no explicit id)          → read post meta on it, or STOP
  *                                                       when the source gate refuses it
- *  3. The query loop's repeater row (no explicit id)  → read $loop_item[$key] directly
- *  4. Term archive (non-REST, no explicit id)             → read term meta on queried term
+ *  4. The query loop's repeater row (no explicit id)  → read $loop_item[$key] directly
  *  5. null
  *
+ * NO TERM-ARCHIVE BRANCH. A term archive reaches a term read through the source factory
+ * (bws_resolve_base_source()), never by inference here — so a falsy id on an archive
+ * page reads nothing rather than the queried term's meta.
+ *
  * BEING IN A LOOP IS NOT ITSELF A BRANCH HERE. A loop item may be a TERM or a USER, in
- * which case `in_loop` is true and neither 2 nor 3 fires — the read falls past both,
+ * which case `in_loop` is true and neither 3 nor 4 fires — the read falls past both,
  * exactly as it should: the entity a term/user item names is resolved ABOVE this
  * function, by the source factory, and reaches the term/user reader arms rather than a
  * post-meta read. This note exists so the fallthrough is not read as a hole.
  *
- * A LOOP POST THE SOURCE GATE REFUSES STOPS THE READ AT BRANCH 2 — it does not continue
- * to 3 or 4, and returning null there is the point rather than a shortcut.
+ * A LOOP POST THE SOURCE GATE REFUSES STOPS THE READ AT BRANCH 3 — it does not continue
+ * to 4, and returning null there is the point rather than a shortcut.
  * bws_loop_item_gated_post_id() owns the decision to apply the gate here and owns why
  * the factory route does not share it; bws_source_gate() owns the criterion itself.
  *
@@ -752,6 +756,31 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
 		return null;
 	}
 
+	// src:site datetime — ACF options-page field value read. The 'option' sentinel
+	// reaches here only from bws_datetime_single_core('option', ...) (site datetime
+	// path). It is an explicit target like a post id, so it is answered FIRST: neither a
+	// loop item nor any other ambient entity may answer for an option the wire named.
+	// Gated through the SAME TWO gates as use:option and site linkTo:key — the
+	// key allowlist and the per-user REST gate. ACF field keys are flat — no dot-path
+	// split. This branch does NOT route through bws_site_read_option() (it reads an ACF
+	// FIELD via get_field, a different datum), so both gates are restated here rather
+	// than inherited: ADR 0001's "option reads are option reads regardless of which
+	// control triggers them".
+	// See docs/adr/0001-site-option-read-allowlist.md and
+	// docs/adr/0008-site-option-per-user-rest-gate.md.
+	if ( 'option' === $post_id ) {
+		if ( ! function_exists( 'get_field' ) ) {
+			return null;
+		}
+		if ( function_exists( 'bws_site_allowlist_ok' ) && ! bws_site_allowlist_ok( $key ) ) {
+			return '';
+		}
+		if ( bws_site_option_withheld_from_user( $key ) ) {
+			return '';
+		}
+		return get_field( $key, 'option' );
+	}
+
 	// Which shape did the query loop hand us?
 	// Explicit $post_id (e.g. resolved via src:relationship step) always wins — caller has already
 	// done entity resolution and the loop item is irrelevant to that target.
@@ -763,8 +792,7 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
 		// A post — read its meta, if it may be read at all.
 		// THE REFUSAL RETURNS, it does not fall through to the branch below. A post item's
 		// raw value is a WP_Post or an id rather than an array, so a merely-skipped branch
-		// walks on to the TERM-ARCHIVE read and serves the SURROUNDING archive's meta:
-		// the [I15] failure, and worse than the leak it would be replacing.
+		// walks on past the repeater arm into whatever read follows the loop branches.
 		if ( $loop['item_post_id'] ) {
 			$gated = bws_loop_item_gated_post_id( $instance );
 			return $gated
@@ -783,40 +811,6 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
 	}
 	if ( is_numeric( $post_id ) && (int) $post_id > 0 ) {
 		return bws_meta_handler_read( (int) $post_id, $key, $single_only, 'get_post_meta' );
-	}
-
-	// Term archive fallback. bws_wp_is_term_archive() owns the criterion.
-	//
-	// THE REST_REQUEST GUARD IS SUBSUMED, AND KEPT ON PURPOSE: the predicate already
-	// refuses under a REST render on its own. It is dead rather than load-bearing, and
-	// nothing measures REST behaviour here (text-test-matrix.md §T4 runs through
-	// `bws render-tag`, which is CLI). Deleting dead code with no pin buys nothing; it goes
-	// when FW-7 deletes the whole branch.
-	if ( ! ( defined( 'REST_REQUEST' ) && REST_REQUEST ) && bws_wp_is_term_archive() ) {
-		$queried = get_queried_object();
-		if ( $queried instanceof WP_Term ) {
-			return bws_meta_handler_read( (int) $queried->term_id, $key, $single_only, 'get_term_meta' );
-		}
-	}
-
-	// src:site datetime — ACF options-page field value read. The 'option' sentinel
-	// reaches here only from bws_datetime_single_core('option', ...) (site datetime
-	// path). Gated through the SAME TWO gates as use:option and site linkTo:key — the
-	// key allowlist and the per-user REST gate. ACF field keys are flat — no dot-path
-	// split. This branch does NOT route through bws_site_read_option() (it reads an ACF
-	// FIELD via get_field, a different datum), so both gates are restated here rather
-	// than inherited: ADR 0001's "option reads are option reads regardless of which
-	// control triggers them".
-	// See docs/adr/0001-site-option-read-allowlist.md and
-	// docs/adr/0008-site-option-per-user-rest-gate.md.
-	if ( 'option' === $post_id && function_exists( 'get_field' ) ) {
-		if ( function_exists( 'bws_site_allowlist_ok' ) && ! bws_site_allowlist_ok( $key ) ) {
-			return '';
-		}
-		if ( bws_site_option_withheld_from_user( $key ) ) {
-			return '';
-		}
-		return get_field( $key, 'option' );
 	}
 
 	return null;

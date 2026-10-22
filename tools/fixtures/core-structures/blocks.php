@@ -871,9 +871,9 @@ function bws_fixture_page_content_matrix_post_meta() {
 	// loop the singular cores return before reading anything (! $post_id && ! $read_may_serve),
 	// so the arm guard and the core's guard produce the same empty output. The guard earns
 	// its place only where the core would have gone on to read something - a loop item the
-	// read can be served from (bws_loop_item_is_post_or_row() is that question), or the
-	// queried TERM on an archive. F11a still pins the unknown-STEP door, which IS
-	// observable off loop; the two doors simply need different rows.
+	// read can be served from (bws_loop_item_is_post_or_row() is that question). F11a still
+	// pins the unknown-STEP door, which IS observable off loop; the two doors simply need
+	// different rows.
 	//
 	// Loop over `staff`, so each item's ambient entity carries values of its own.
 	$sections[] = bws_fixture_gb_section( 'Fold F11c - the root door in a QUERY LOOP (where the arm guard is observable at all)', array(
@@ -1967,6 +1967,19 @@ function bws_fixture_page_content_matrix_loops() {
 					'WP_Term_Query'
 				),
 			'ql5-outer-post-loop'
+		),
+	) );
+
+	// QL6 — a SPELLED source inside a post loop. `src:site` names the options page, so the
+	// loop item must not answer for it. The staff items carry no `org_party_datetime`, so a
+	// read that let the loop post outrank the option renders each item EMPTY; the datetime
+	// matrix's §D5.8 is this row. The repeater-row and term-archive halves have no fixture
+	// here and are pinned elsewhere (§D5.7 render-tag, loop-item-classify-test.php §C10).
+	$sections[] = bws_fixture_gb_section( 'Loops QL6 - a site-sourced date inside a POST query loop', array(
+		bws_fixture_gb_query_loop(
+			array( 'post_type' => 'staff', 'posts_per_page' => 2, 'orderby' => 'title', 'order' => 'ASC' ),
+			'QL6.1 (expect September 20, 2030 6:00 PM on BOTH items - the options page, never the looped staff post): {{datetime_single src:site|key:org_party_datetime}}',
+			'ql6-1-site-datetime-in-post-loop'
 		),
 	) );
 	return implode( "\n\n", $sections );

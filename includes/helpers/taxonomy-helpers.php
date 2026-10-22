@@ -22,15 +22,12 @@ if ( ! defined( 'ABSPATH' ) ) {
  * hand back a term the rendered page is not about, and a read gated on that serves
  * a foreign entity's meta.
  *
- * Two sites ask, and they legitimately do different things with the answer, which is
- * why this is a predicate rather than a term lookup. `bws_capture_ambient_signals()`
- * needs the archive-claimed-but-no-WP_Term case to stay distinguishable from
- * not-an-archive, because that degenerate case short-circuits the factory to empty
- * instead of leaking the current post (SPEC §V17). `bws_read_field()`'s term-archive
- * branch only needs to bail. A `?WP_Term` return would collapse the two.
- *
- * The second caller is temporary. FW-7 deletes `bws_read_field()`'s branch outright
- * once its callers take a resolved source, leaving the factory as the only asker.
+ * A predicate rather than a term lookup because its one asker,
+ * `bws_capture_ambient_signals()`, needs the archive-claimed-but-no-WP_Term case to stay
+ * distinguishable from not-an-archive: that degenerate case short-circuits the factory
+ * to empty instead of leaking the current post. A `?WP_Term` return would collapse the
+ * two. The factory is the only place an archive becomes a term source; the field read
+ * has no term-archive branch of its own.
  *
  * @since 1.21.0
  * @return bool True when WP queried a taxonomy, category or tag archive.
