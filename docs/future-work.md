@@ -165,7 +165,7 @@ Blocked by: FW-81  •  Interacts with: FW-113 (its remainder waits on the same 
 
 #### FW-108 — deprecated-tags.php: split the public API, declare the migration order
 
-Seven unrelated concerns share one file, with three independently landable parts: (a) the documented third-party migration-root API forces eager loading of the whole legacy wire corpus; (b) `bws_register_option_migrations()` encodes a total order over its entries in comments only, with `TagConverter::scan()` independently re-deriving the same order; (c) a wide entry record with several mutually-exclusive shapes and rules the shape can't express.
+Seven unrelated concerns share one file, with three independently landable parts: (a) the documented third-party migration-root API forces eager loading of the whole legacy wire corpus; (b) `bws_register_option_migrations()` encodes a total order over its entries in comments only; (c) a wide entry record with several mutually-exclusive shapes and rules the shape can't express.
 
 Detail home: `.scratch/plans/architecture-review-2026-08.md` §FW-108
 
