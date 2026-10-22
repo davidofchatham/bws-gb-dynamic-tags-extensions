@@ -87,13 +87,13 @@ Blocked by: code:`TaxonomyTerm::resolve_id` is the sole live caller  •  Intera
 
 #### FW-38 — Explicit registered_by + lifecycle entry fields (retire the callback proxy)
 
-Replace the callback-presence proxy that box-placement leans on today (plus its `prefix_removed` bolt-on) with explicit `registered_by` (internal vs external plugin id) and `lifecycle` (`active` | `deprecated` | `removed`) fields recorded at `register()` time.
+Replace the callback-presence proxy that box-placement leans on today (plus its `prefix_removed` bolt-on) with explicit `registered_by` (internal vs external plugin id) and `lifecycle` (`active` | `deprecated` | `removed`) fields recorded at `register()` time, and narrow the wide `MigrationRegistry::register()` entry shape in the same pass (absorbed from FW-108 (c)).
 
-Detail home: memory `project_registered_by_lifecycle.md`; CONTEXT.md I10 (interim state it replaces)
+Detail home: `.scratch/plans/fw-38-entry-record.md`; CONTEXT.md I10 (interim state it replaces)
 
 Progress: Not started. The integrator coordination this was scoped to feed is moot — the one integrating plugin deleted its modifier family and its aliases outright on 2026-09-08 instead of declaring a lifecycle for them, and the handoff plan it was tracked in went with them. That leaves the `callback`-presence proxy with only one population to classify (ours), so the "two populations a global default would split wrong" argument no longer holds up the bolt-on — see `CONTEXT.md` I10.
 
-Blocked by: —  •  Interacts with: FW-129 (closed; deleted the API that minted external families, the proxy's last remaining reason to exist)
+Blocked by: —  •  Interacts with: FW-108 ((c) moved here; its order harness reads entries by `transform_callback`), FW-153 (the `gb_type` stamp), FW-129 (closed; deleted the API that minted external families, the proxy's last remaining reason to exist)
 
 #### FW-43 — Selecting half of the shared value fold
 
@@ -169,7 +169,7 @@ Seven unrelated concerns share one file, with three independently landable parts
 
 Detail home: `.scratch/plans/architecture-review-2026-08.md` §FW-108
 
-Progress: (b) shipped as `tools/test/migration-order-test.php`, with the early `plugins_loaded` load removed (the rest of (a), and (c), not started). A wrong migration order can silently downgrade an image on customer content — the file already describes that failure mode.
+Progress: (b) shipped as `tools/test/migration-order-test.php`, with the early `plugins_loaded` load removed; (a)'s remainder is deferred and (c) moved to FW-38. A wrong migration order can silently downgrade an image on customer content — the file already describes that failure mode.
 
 Blocked by: —  •  Interacts with: FW-38 (`registered_by`/`lifecycle` reshapes the same entry record)
 
