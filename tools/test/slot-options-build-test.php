@@ -1,22 +1,15 @@
 <?php
 /**
- * Standalone unit harness for bws_build_slot_traversal_options() in
- * includes/tags/base-shared.php — the #26 slot-option derive (V7/V9 auto-gate).
+ * Standalone unit harness for bws_build_slot_src_rows() and bws_build_slot_read_rows() in
+ * includes/tags/base-shared.php, the slot enum-row derives the folded registration reads,
+ * plus the field leaves and bws_build_fold_slot_options() built on them.
  *
- * Pure fn of (slot ordinal, base src options, base traversal options). No WP
- * beyond __() (shimmed). Asserts the DERIVED slot src/ref defs against
- * the byte-exact pre-derive inline shapes (V7), EXCEPT the two intentional ref
- * drift-fixes (placeholder related_post→related_posts, fuller help) — those are
- * asserted at their NEW base values (C4/V7 carve-out, V10).
+ * Pure fn of (slot ordinal, base options). No WP beyond __() (shimmed).
  *
  * Covers:
- *   V1  — slot src derives from base, `site` filtered, slot ≥2 prepends `same`.
- *   V5  — `_strip_default` persists on derived src.
- *   V6  — `site` ∉ derived src options.
- *   V2  — ref derives from base traversal, re-keyed show_if.
- *   V10 — only `N: ` label/pickLabel prefix overlaid; body/placeholder/help = base.
- *   V7  — current/ref slot JSON identical to pre-derive EXCEPT ref drift-fix.
- *
+ *   V1  — slot src rows derive from base, `site` filtered, slot >=2 prepends `same`.
+ *   V6  — `site` is absent from derived src rows unless the container allows it.
+
  * Run:  php tools/test/slot-options-build-test.php
  * Exit 0 = pass, 1 = fail.
  *
@@ -72,72 +65,34 @@ function assert_same( $label, $expected, $actual ): void {
 $base_src  = bws_base_source_option();
 $base_trav = bws_base_traversal_options();
 
-echo "bws_build_slot_traversal_options\n";
+echo "bws_build_slot_src_rows\n";
 
-// ============ Slot 1 ============
-$s1 = bws_build_slot_traversal_options( 1, $base_src, $base_trav );
-
-// V1/V6: src options = base minus 'site', NO 'same' prepend (slot 1).
+// V1/V6: slot 1 = base minus 'site', NO 'same' prepend.
+$s1 = bws_build_slot_src_rows( 1, $base_src );
 assert_same(
-	'slot1 src options = current,ref (site filtered, no same)',
+	'slot1 src rows = current,ref (site filtered, no same)',
 	array(
 		array( 'value' => 'current', 'label' => 'Current Context' ),
 		array( 'value' => 'ref',     'label' => 'Posts in Reference/Relational Field' ),
 	),
-	$s1['src']['options']
-);
-// V5: _strip_default persists.
-assert_same( 'slot1 src _strip_default true', true, $s1['src']['_strip_default'] ?? null );
-// V10: label gets "1: " prefix.
-assert_same( 'slot1 src label "1: Source"', '1: Source', $s1['src']['label'] );
-assert_same( 'slot1 src type select', 'select', $s1['src']['type'] );
-
-// V7 ref — derived from base verbatim (label prefixed). type is bws-field-combo:
-// the ref key uses the field-discovery combobox control, not a plain text input.
-// What that control OPENS on is `presetKind()`'s and is pinned by
-// field-combo-control-test.js §F15; nothing below checks it, so nothing here says it.
-assert_same(
-	'slot1 ref derived (label prefixed, base body/help/placeholder, show_if bare src:ref)',
-	array(
-		'type'        => 'bws-field-combo',
-		'label'       => '1: Relationship Field Key',
-		'help'        => 'ACF relationship or post object field key.',
-		'placeholder' => 'related_posts',
-		'show_if'     => array( 'src' => 'ref' ),
-	),
-	$s1['ref']
+	$s1
 );
 
-// The term-hop control was the second derived sibling until 1.20.0 (FW-67). Its
-// absence is asserted at the LEAF instead — see the base-traversal section below.
-
-// ============ Slot 2 ============
-$s2 = bws_build_slot_traversal_options( 2, $base_src, $base_trav );
-
-// V1: slot ≥2 prepends 'same' `same` row.
+// V1: slot >=2 prepends the `same` row.
+$s2 = bws_build_slot_src_rows( 2, $base_src );
 assert_same(
-	'slot2 src options = same,current,ref',
+	'slot2 src rows = same,current,ref',
 	array(
 		array( 'value' => 'same',    'label' => 'Same as Previous Source' ),
 		array( 'value' => 'current', 'label' => 'Current Context' ),
 		array( 'value' => 'ref',     'label' => 'Posts in Reference/Relational Field' ),
 	),
-	$s2['src']['options']
+	$s2
 );
-assert_same( 'slot2 src label "2: Source"', '2: Source', $s2['src']['label'] );
 
-// V2: ref show_if re-keyed to 2-src.
-assert_same( 'slot2 ref show_if re-keyed 2-src:ref', array( '2-src' => 'ref' ), $s2['ref']['show_if'] );
-assert_same( 'slot2 ref label "2: ..."', '2: Relationship Field Key', $s2['ref']['label'] );
-
-// V6 explicit: no 'site' value anywhere in derived src options (any slot).
-$has_site = false;
-foreach ( array( $s1, $s2 ) as $s ) {
-	foreach ( $s['src']['options'] as $o ) {
-		if ( 'site' === ( $o['value'] ?? '' ) ) { $has_site = true; }
-	}
-}
-assert_same( 'V6 site absent from derived src options', false, $has_site );
+// V6: site only where the container allows it.
+assert_same( 'allow_site keeps the site row', true, in_array( 'site', array_column( bws_build_slot_src_rows( 1, $base_src, true ), 'value' ), true ) );
+assert_same( 'site absent by default, any slot', false, in_array( 'site', array_merge( array_column( $s1, 'value' ), array_column( $s2, 'value' ) ), true ) );
 
 // Base source option offers site (the base tag is the unrooted site read).
 $base_has_site = false;
@@ -240,50 +195,33 @@ foreach ( array(
 }
 
 // ============================================================
-// bws_build_slot_read_options() — the READ twin (build step 4)
+// bws_build_slot_read_rows() — the READ twin (build step 4)
 // ============================================================
 
-echo "\nbws_build_slot_read_options\n";
+echo "\nbws_build_slot_read_rows\n";
 
 // --- Slot 1: base enum verbatim, no `same` row regardless of $allow_same. ---
-$r1 = bws_build_slot_read_options( 1, $leaf['use'], true );
-assert_same( 'slot1 read options = key,title,fixed (no same)', array( 'key', 'title', 'fixed' ), array_column( $r1['options'], 'value' ) );
-assert_same( 'slot1 read label "1: Text Field"', '1: Text Field', $r1['label'] );
-assert_same( 'slot1 read type select', 'select', $r1['type'] );
-assert_same( 'slot1 read _strip_default derived from base', true, $r1['_strip_default'] );
+assert_same( 'slot1 read rows = key,title,fixed (no same)', array( 'key', 'title', 'fixed' ), array_column( bws_build_slot_read_rows( 1, $leaf['use'], true ), 'value' ) );
 
-// --- Slot ≥2 SELECTING (try_): `same` row prepended, shipped string. ---
-$r2 = bws_build_slot_read_options( 2, $leaf['use'], true );
-assert_same( 'slot2 selecting prepends same', array( 'same', 'key', 'title', 'fixed' ), array_column( $r2['options'], 'value' ) );
-assert_same( 'slot2 same row label', 'Same as Previous Field', $r2['options'][0]['label'] );
-assert_same( 'slot2 read label "2: Text Field"', '2: Text Field', $r2['label'] );
+// --- Slot >=2 SELECTING (try_): `same` row prepended, shipped string. ---
+$r2 = bws_build_slot_read_rows( 2, $leaf['use'], true );
+assert_same( 'slot2 selecting prepends same', array( 'same', 'key', 'title', 'fixed' ), array_column( $r2, 'value' ) );
+assert_same( 'slot2 same row label', 'Same as Previous Field', $r2[0]['label'] );
 
-// --- Slot ≥2 COMBINING ({{join}}): NO `same` row. Byte-for-byte the literal the
-// twin replaced — join's rejoin is a behavioral no-op. Not-built-yet (per-slot
-// handlers), NOT degenerate: flipping the flag is the whole change when they ship.
-$j2 = bws_build_slot_read_options( 2, $leaf['use'], false );
+// --- Slot >=2 COMBINING ({{join}}): NO `same` row. Not-built-yet (per-slot handlers),
+// NOT degenerate: flipping the flag is the whole change when they ship.
 assert_same(
-	'slot2 combining == pre-twin join literal',
+	'slot2 combining = the base rows verbatim',
 	array(
-		'type'           => 'select',
-		'label'          => '2: Text Field',
-		'options'        => array(
-			array( 'value' => 'key',   'label' => 'Meta/Option Field' ),
-			array( 'value' => 'title', 'label' => 'Title/Name' ),
-			array( 'value' => 'fixed', 'label' => 'Fixed Text' ),
-		),
-		'_strip_default' => true,
+		array( 'value' => 'key',   'label' => 'Meta/Option Field' ),
+		array( 'value' => 'title', 'label' => 'Title/Name' ),
+		array( 'value' => 'fixed', 'label' => 'Fixed Text' ),
 	),
-	$j2
+	bws_build_slot_read_rows( 2, $leaf['use'], false )
 );
 
-// --- Label NOUN comes off the base def, never hand-authored per container. ---
-$img = bws_build_slot_read_options( 3, array( 'label' => 'Image Field', 'options' => array( array( 'value' => 'url', 'label' => 'URL' ) ) ), true );
-assert_same( 'read label noun derives from base def', '3: Image Field', $img['label'] );
-assert_same( 'read _strip_default false when base omits it', false, $img['_strip_default'] );
-
-// --- No options = nothing to select: empty def, so the caller registers no key. ---
-assert_same( 'empty base read → empty def', array(), bws_build_slot_read_options( 2, array(), true ) );
+// --- No options = nothing to select: no rows, so the caller offers none. ---
+assert_same( 'empty base read → no rows', array(), bws_build_slot_read_rows( 2, array(), true ) );
 
 // ===========================================================================
 // bws_build_fold_slot_options() — the FOLDED registration (FW-56/57)
@@ -345,23 +283,20 @@ $fold = $joins['A']['fold'];
 // are the shipped ones. Slot 1 has no `same` row; slot ≥2 does. The twin's `ref` row
 // is respelled to the wire slug `refs` (#70): that row is the relationship STEP's UI,
 // and with the slugMap retired the picker's value must BE the stored step's slug.
-$respell_ref = static function ( array $rows ): array {
-	foreach ( $rows as &$row ) {
-		if ( 'ref' === ( $row['value'] ?? '' ) ) {
-			$row['value'] = 'refs';
-		}
-	}
-	return $rows;
-};
 assert_same(
-	'srcRows derive from the slot twin at slot 1, `ref` respelled to the wire slug',
-	$respell_ref( bws_build_slot_traversal_options( 1, $base_src, $base_trav, true )['src']['options'] ),
-	$fold['srcRows']
+	'srcRows at slot 1, `ref` respelled to the wire slug (value only, label kept)',
+	array( 'current', 'refs', 'site' ),
+	array_column( $fold['srcRows'], 'value' )
 );
 assert_same(
-	'srcRowsWithSame derive from the slot twin at slot 2 (same-row included)',
-	$respell_ref( bws_build_slot_traversal_options( 2, $base_src, $base_trav, true )['src']['options'] ),
-	$fold['srcRowsWithSame']
+	'srcRowsWithSame at slot 2 (same-row first)',
+	array( 'same', 'current', 'refs', 'site' ),
+	array_column( $fold['srcRowsWithSame'], 'value' )
+);
+assert_same(
+	'the respelled row keeps the base label',
+	'Posts in Reference/Relational Field',
+	array_column( $fold['srcRows'], 'label', 'value' )['refs']
 );
 assert_same( 'the respelled row keeps its label (only the value moves)', true, in_array( 'refs', array_column( $fold['srcRows'], 'value' ), true ) );
 assert_same( '...and no legacy `ref` value survives in the enum', false, in_array( 'ref', array_column( $fold['srcRows'], 'value' ), true ) );
@@ -371,10 +306,12 @@ assert_same( 'site arm present when allowed', true, in_array( 'site', array_colu
 // — absent there means unconfigured (slot skipped), which is not what the first enum
 // row means. `allow_same_read` false ⇒ no `same` row, matching the resolver.
 assert_same(
-	'readRows = unset row + the read twin rows (combining)',
-	array_merge(
-		array( array( 'value' => '', 'label' => 'Select…' ) ),
-		bws_build_slot_read_options( 1, $text['use'], false )['options']
+	'readRows = unset row + the text leaf rows (combining)',
+	array(
+		array( 'value' => '',      'label' => 'Select…' ),
+		array( 'value' => 'key',   'label' => 'Meta/Option Field' ),
+		array( 'value' => 'title', 'label' => 'Title/Name' ),
+		array( 'value' => 'fixed', 'label' => 'Fixed Text' ),
 	),
 	$fold['readRows']
 );
@@ -509,8 +446,12 @@ $sel = bws_build_fold_slot_options(
 $sel_fold = $sel['A']['fold'];
 assert_same( 'selecting header derives from ITS noun', 'Attempt A', $sel['A']['label'] );
 assert_same(
-	'selecting readRows are the twin rows with NO unset row',
-	bws_build_slot_read_options( 1, $text['use'], false )['options'],
+	'selecting readRows are the text leaf rows with NO unset row',
+	array(
+		array( 'value' => 'key',   'label' => 'Meta/Option Field' ),
+		array( 'value' => 'title', 'label' => 'Title/Name' ),
+		array( 'value' => 'fixed', 'label' => 'Fixed Text' ),
+	),
 	$sel_fold['readRows']
 );
 assert_same( 'selecting slot ≥2 offers the read `same` row', true, in_array( 'same', array_column( $sel_fold['readRowsWithSame'], 'value' ), true ) );
@@ -1102,9 +1043,9 @@ assert_same(
 	$root_values( bws_base_source_option()['src']['options'] )
 );
 assert_same(
-	'...so the derived slot twin does not either',
+	'...so the derived slot rows do not either',
 	array( 'current', 'ref' ),
-	$root_values( bws_build_slot_traversal_options( 1, bws_base_source_option(), $base_trav, false )['src']['options'] )
+	$root_values( bws_build_slot_src_rows( 1, bws_base_source_option(), false ) )
 );
 
 // ── The term_ toggle does NOT gate offering (1.20.0, FW-39/D39) ──────────────────────

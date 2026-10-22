@@ -702,7 +702,7 @@ function bws_get_join_options(): array {
 				'base_fixed'      => $text_field['fixed'] ?? array(),
 				'allow_site'      => true,
 				// No `same` read row until per-slot handlers ship (a hand-written
-				// `use(same)` still renders) — see bws_build_slot_read_options().
+				// `use(same)` still renders) — see bws_build_slot_read_rows().
 				'allow_same_read' => false,
 				// A slot's source is a base tag's source ([I16]): same offer, asserted
 				// equal by control-order-test.php §7.

@@ -152,7 +152,7 @@ run `php tools/test/slot-options-build-test.php` (registration output — which 
 
 ## Field-option LEAF or slot-read change
 
-**Fires on:** Field-option leaf or slot-read change (`bws_get_text_field_options` / `bws_get_content_field_options` / `bws_get_image_field_options` = the three `use`+`key` LEAVES, `bws_build_slot_read_options` = the slot READ twin, all `base-shared.php`; or any of their consumers — the base `{{text}}`/`{{content}}`/`{{image}}` registrations, their modifier templates, the try_ slot loop, `bws_get_join_options`)
+**Fires on:** Field-option leaf or slot-read change (`bws_get_text_field_options` / `bws_get_content_field_options` / `bws_get_image_field_options` = the three `use`+`key` LEAVES, `bws_build_slot_read_rows` = the slot READ twin, all `base-shared.php`; or any of their consumers — the base `{{text}}`/`{{content}}`/`{{image}}` registrations, their modifier templates, the try_ slot loop, `bws_get_join_options`)
 
 run `php tools/test/slot-options-build-test.php` (leaf shape + twin derive, incl. the byte-exact combining case) + `php tools/test/use-stripped-default-test.php` (a leaf's FIRST value is its tag's stripped default, and the map states it). See the leaves' PHPDoc (`includes/tags/base-shared.php`) for why a consumer must never re-inline the enum.
 

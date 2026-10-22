@@ -311,7 +311,7 @@ function bws_fold_step_offer( array $steps, array $vocab ): array {
  *
  * NOT applied to derived families: `bws_base_source_option()` stays a plain select
  * because `try_*` builds its surface from its rows
- * (bws_pick_src_values, bws_build_slot_traversal_options).
+ * (bws_pick_src_values, bws_build_slot_src_rows).
  *
  * @since 1.17.0
  * @param array $args {
@@ -465,7 +465,7 @@ function bws_base_traversal_options(): array {
  * folded-slot control.
  *
  * NEVER RE-INLINE THIS ENUM AT A CONSUMER — copies drift. A container wanting a
- * DIFFERENT read enum takes a PARAMETER on the twin (bws_build_slot_read_options()'s
+ * DIFFERENT read enum takes a PARAMETER on the twin (bws_build_slot_read_rows()'s
  * `$allow_same`), never its own literal.
  *
  * ONE LEAF PER TAG WITH A READ AXIS (siblings below: content, image, contact). The first
@@ -475,7 +475,7 @@ function bws_base_traversal_options(): array {
  *
  * `readTag` names the leaf's row in that map for assets/js/use-read-control.js (GB never
  * hands a control filter the tag name). Stamped on the leaf so enum and row can't be
- * mispaired; bws_build_slot_read_options copies rows, not this key.
+ * mispaired; bws_build_slot_read_rows copies rows, not this key.
  *
  * Carries the FIXED READ: a `fixed` enum row and same-labeled `fixed` input whose value
  * IS the output.
@@ -629,54 +629,34 @@ function bws_get_contact_field_options( string $tag ): array {
 }
 
 /**
- * Build the READ (`use`) option definition for one numbered slot, derived from a
- * base read definition. The read-axis twin of bws_build_slot_traversal_options()
- * (source axis) — same derive-don't-copy contract, same `$n` duties.
+ * The READ (`use`) enum rows for one numbered slot, derived from a base read definition.
+ * The read-axis twin of bws_build_slot_src_rows().
  *
- * Derivation rules:
- *   - options: base `use.options` verbatim. Slot ≥2 prepends the `same` (carry-over)
- *     row when $allow_same — the read-axis counterpart of "Same as Previous Source".
- *   - label: "N: <noun>", noun from the base definition's label. Never hand-author a
- *     per-container read label.
- *   - `_strip_default` preserved.
+ *   - rows: base `use.options` verbatim. Slot >=2 prepends the `same` (carry-over) row
+ *     when $allow_same, the read-axis counterpart of "Same as Previous Source".
+ *   - $allow_same is FALSE for COMBINING containers ({{join}}) only because per-slot
+ *     handlers aren't built; flip to true when they ship.
  *
- * `$n` serves exactly TWO purposes: the same-row gate and the "N: " prefix. The FOLD
- * uses only the `['options']` ROWS; the prefixed label is for legacy FLAT callers. Do
- * not "clean up" the prefix — join's shipped registration reads it.
+ * Rows only: the fold builds the slot's control itself (bws_build_fold_slot_options).
  *
  * Pure (no WP beyond __()); harnessed by slot-options-build-test.php.
  *
  * @since 1.17.0
  * @param int   $n           Slot ordinal (1-based).
  * @param array $base_read   Base `use` definition (e.g. bws_get_text_field_options()['use']).
- * @param bool  $allow_same  When true, slot ≥2 gets the `same` row. FALSE for
- *                           COMBINING containers ({{join}}) only because per-slot
- *                           handlers aren't built; flip to true when they ship.
- * @return array One option definition (type/label/options/_strip_default). Empty
- *               array when $base_read carries no options (nothing to select).
+ * @param bool  $allow_same  When true, slot >=2 gets the `same` row.
+ * @return array Option rows. Empty when $base_read carries no options (nothing to select).
  */
-function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same = true ): array {
-	$read_opts = $base_read['options'] ?? array();
-	if ( empty( $read_opts ) ) {
-		return array();
-	}
-
-	$rows = array_values( $read_opts );
+function bws_build_slot_read_rows( int $n, array $base_read, bool $allow_same = true ): array {
+	$rows = array_values( $base_read['options'] ?? array() );
 	// Hardcoded `same` row: un-hardcoding it is FW-43's open residue (docs/future-work.md).
-	if ( $n >= 2 && $allow_same ) {
+	if ( $rows && $n >= 2 && $allow_same ) {
 		array_unshift(
 			$rows,
 			array( 'value' => 'same', 'label' => __( 'Same as Previous Field', 'generateblocks' ) )
 		);
 	}
-
-	return array(
-		'type'           => 'select',
-		/* translators: 1: read option label (e.g. "Text Field"), 2: slot number */
-		'label'          => sprintf( '%2$d: %1$s', $base_read['label'] ?? __( 'Field', 'generateblocks' ), $n ),
-		'options'        => $rows,
-		'_strip_default' => ! empty( $base_read['_strip_default'] ),
-	);
+	return $rows;
 }
 
 /**
@@ -774,8 +754,8 @@ function bws_build_fold_slot_options( array $args ): array {
 		}
 		return $rows;
 	};
-	$src_rows            = $respell( bws_build_slot_traversal_options( 1, $base_src, $base_trav, $allow_site )['src']['options'] );
-	$src_rows_with_same  = $respell( bws_build_slot_traversal_options( 2, $base_src, $base_trav, $allow_site )['src']['options'] );
+	$src_rows            = $respell( bws_build_slot_src_rows( 1, $base_src, $allow_site ) );
+	$src_rows_with_same  = $respell( bws_build_slot_src_rows( 2, $base_src, $allow_site ) );
 	// Registered roots (see bws_registered_root_rows()); ungated by `$allow_site`.
 	$registered_roots    = bws_registered_root_rows();
 	$src_rows            = array_merge( $src_rows, $registered_roots );
@@ -794,8 +774,8 @@ function bws_build_fold_slot_options( array $args ): array {
 	// Read enum through the read twin (rows only). COMBINING adds an unset row: absent
 	// there means UNCONFIGURED (slot skipped). In a selecting container absent IS the
 	// first row's stripped default, so no extra row.
-	$read_rows           = bws_build_slot_read_options( 1, $base_read, false )['options'] ?? array();
-	$read_rows_with_same = bws_build_slot_read_options( 2, $base_read, $allow_same_read )['options'] ?? array();
+	$read_rows           = bws_build_slot_read_rows( 1, $base_read, false );
+	$read_rows_with_same = bws_build_slot_read_rows( 2, $base_read, $allow_same_read );
 	if ( $combining ) {
 		$unset_row           = array( 'value' => '', 'label' => __( 'Select…', 'generateblocks' ) );
 		$read_rows           = array_merge( array( $unset_row ), $read_rows );
@@ -895,94 +875,40 @@ function bws_build_fold_slot_options( array $args ): array {
 }
 
 /**
- * Re-qualify a base option's `show_if` condition keys for a numbered try_ slot.
+ * The source (`src`) enum rows for one numbered slot, derived from the base source
+ * definition. Pure (no WP beyond __()); harnessed by slot-options-build-test.php.
  *
- * Base traversal options carry bare sibling-key conditions (e.g. `ref` shows when
- * `['src' => 'ref']`). In a try_ slot ≥2 those sibling keys are ordinal-prefixed
- * (`{N}-src`), so the condition key must follow: `src` → `2-src`. Slot 1 keeps the
- * bare key (no prefix). Only keys present in $sibling_keys are rewritten; any other
- * condition key (e.g. a cross-option reference) is left untouched. Condition VALUES
- * (`'ref'`, `'not:site'`) are never altered.
+ *   - `site` is filtered out by DEFAULT; $allow_site re-allows it (email/phone, where
+ *     site is the canonical contact fallback).
+ *   - Slot >=2 prepends `same`.
  *
- * Pure; harnessed by slot-qualify-show-if-test.php.
- *
- * @since 1.11.0
- * @param array $show_if      Condition map { key => value }. Empty → empty out.
- * @param int   $n            Slot ordinal (1-based). Slot 1 = bare keys.
- * @param array $sibling_keys Keys eligible for `{N}-` prefixing (e.g. ['src','ref','srcTermIn']).
- * @return array Re-keyed condition map, values unchanged.
- */
-function bws_slot_qualify_show_if( array $show_if, int $n, array $sibling_keys ): array {
-	if ( $n <= 1 || empty( $show_if ) ) {
-		return $show_if;
-	}
-	$out = array();
-	foreach ( $show_if as $key => $value ) {
-		$qualified         = in_array( $key, $sibling_keys, true ) ? "{$n}-{$key}" : $key;
-		$out[ $qualified ] = $value;
-	}
-	return $out;
-}
-
-/**
- * Build the source + traversal option definitions for one numbered try_ slot,
- * derived from the base builders. Pure (no $slot_trigger merge — the registry owns
- * visibility); harnessed by slot-options-build-test.php.
- *
- * Derivation rules:
- *   - src: base `src.options`. `site` filtered out by DEFAULT; $allow_site re-allows
- *     it (email/phone, where site is the canonical contact fallback). Slot ≥2 prepends
- *     `same`. `_strip_default` preserved. Label "N: Source".
- *   - ref: base definition verbatim, show_if re-qualified via bws_slot_qualify_show_if,
- *     label prefixed "N: ".
+ * Rows only: the fold builds the slot's control itself (bws_build_fold_slot_options),
+ * which also respells `ref` to its wire slug.
  *
  * @since 1.11.0
  * @param int   $n          Slot ordinal (1-based).
  * @param array $base_src   bws_base_source_option() result.
- * @param array $base_trav  bws_base_traversal_options() result.
  * @param bool  $allow_site When true, keep `site` in the src list (per-template
  *                          opt-in, gated on the resolver site arm). Default false.
- * @return array { 'src' => array, 'ref' => array } — option definitions WITHOUT
- *               $slot_trigger (caller merges show_if_any).
+ * @return array Option rows.
  */
-function bws_build_slot_traversal_options( int $n, array $base_src, array $base_trav, bool $allow_site = false ): array {
-	$sibling_keys = array( 'src', 'ref' );
-
-	// --- src: filter 'site' unless allowed, prepend 'same' for slot ≥2. ---
-	$base_src_opts = $base_src['src']['options'] ?? array();
-	$src_opts      = $allow_site
-		? array_values( $base_src_opts )
-		: array_values( array_filter(
-			$base_src_opts,
+function bws_build_slot_src_rows( int $n, array $base_src, bool $allow_site = false ): array {
+	$rows = array_values( $base_src['src']['options'] ?? array() );
+	if ( ! $allow_site ) {
+		$rows = array_values( array_filter(
+			$rows,
 			static function ( $o ) {
 				return 'site' !== ( $o['value'] ?? '' );
 			}
 		) );
+	}
 	if ( $n >= 2 ) {
 		array_unshift(
-			$src_opts,
+			$rows,
 			array( 'value' => 'same', 'label' => __( 'Same as Previous Source', 'generateblocks' ) )
 		);
 	}
-	$src_def = array(
-		'type'           => 'select',
-		/* translators: %d: slot number */
-		'label'          => sprintf( __( '%d: Source', 'generateblocks' ), $n ),
-		'options'        => $src_opts,
-		'_strip_default' => true,
-	);
-
-	// --- ref: base def verbatim, show_if re-qualified, "N: " label prefix. ---
-	$ref_def          = $base_trav['ref'];
-	$ref_def['label'] = sprintf( /* translators: 1: slot number, 2: base label */ '%1$d: %2$s', $n, $base_trav['ref']['label'] );
-	if ( isset( $ref_def['show_if'] ) ) {
-		$ref_def['show_if'] = bws_slot_qualify_show_if( $ref_def['show_if'], $n, $sibling_keys );
-	}
-
-	return array(
-		'src' => $src_def,
-		'ref' => $ref_def,
-	);
+	return $rows;
 }
 
 // ===============================================
