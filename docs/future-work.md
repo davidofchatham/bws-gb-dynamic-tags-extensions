@@ -203,7 +203,7 @@ No "assemble a tag's panel" module exists: the base registrations and the `try_`
 
 Detail home: `.scratch/plans/architecture-review-2026-08.md` §FW-111
 
-Progress: Re-measured 2026-10-22. FW-129 unregistered `term_`, so two registration constructors remain, not three. **Door:** the pass is called at 12 sites in `includes/tags/*.php` and inside `register_gb_tag()`, but not by `bws_gb_register_tag()`; a second pass over every registered tag of ours changes nothing (measured), so the move is byte-identical, and §9 scans for a second registrar door while nothing scans for a registration that skipped the pass (none has been found to). **Constant:** the three call sites are `class-tag-template-registry.php`, `base-tags.php` and `table-tags.php`, each equal to the default of the step-offer parameter in `base-shared.php`. **Assembler:** the expensive slice. The harness asserts contiguity, not sequence, so reproducing today's orders is provable by a before/after dump of registered option keys, but normalizing the remaining divergences (fallback, link placement, `leading_options`, `{{table}}`'s own source, caption, style, columns shape) changes the editor panel, which only a manual editor pass measures.
+Progress: Not started. Re-measured against the tree 2026-10-22: FW-129 left two registration constructors, not three, and the Door and Constant slices are byte-identical moves. Figures are in the detail home.
 
 Open: Whether to take Door and Constant alone; the Assembler waits for a tag family that cannot fit the current pattern.
 
