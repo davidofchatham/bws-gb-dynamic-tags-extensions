@@ -1723,5 +1723,65 @@ check( 'fixed control: foldConfig carries fixedOption through', FIXED_CONF.fixed
 const fixedBox = keyedNodes( renderPanel( FIXED_CONF, { A: 'fixed(Team)', B: 'key(x)' } ), 'readArg' )[ 0 ];
 check( 'fixed control: the rendered text box shows that label', fixedBox && fixedBox.children[ 0 ].props.label, 'Fixed Text' );
 
+// ── `parent` (FW-169): offered, argless, kind-preserving, never fanning ─────
+//
+// The step record is shaped as bws_fold_wire_vocabulary() ships it: `produces` is the
+// `settles` marker, so the control must read the kind through the step rather than treat
+// the marker as a kind of its own.
+const MARKER = 'settles_at_render';
+const PARENT_CONF = rep.foldConfig( { fold: Object.assign( {}, CHAIN_FOLD, {
+	steps: Object.assign( {}, CHAIN_FOLD.steps, {
+		parent: { label: 'Parent Post/Term', arg: '', accepts: [ 'post', 'term' ], produces: MARKER }
+	} ),
+	settles: MARKER,
+	offer: [ 'terms', 'refs', 'rows', 'parent' ]
+} ) } );
+function renderParent( chain ) {
+	return rep.chainSteps( {
+		conf: PARENT_CONF,
+		chain: chain,
+		onChange: function () {},
+		sameOnEmpty: false,
+		slotNoun: 'attempt',
+		stepContext: function () { return { state: {}, setState: function () {} }; }
+	} );
+}
+const parentRow = rowsOf( selectsIn( renderParent( [] ) )[ 0 ] ).filter( function ( r ) { return 'parent' === r.value; } )[ 0 ];
+check( 'parent: offered at position 0, in the existing Current Context group', parentRow && parentRow.group, 'Starting from Current Context' );
+check( 'parent: labeled from the vocabulary', parentRow && parentRow.label, 'Parent Post/Term' );
+
+const afterRefsParent = renderParent( [ { slug: 'refs', arg: 'office', limit: null }, { slug: 'parent', arg: null, limit: null } ] );
+check( 'parent: a later step of the same offer is a plain row (no group)', rowsOf( selectsIn( afterRefsParent )[ 1 ] ).filter( function ( r ) { return r.group; } ).length, 0 );
+check( 'parent: carries no Limit control, while the fanning step before it keeps its own', limitsIn( afterRefsParent ).length, 1 );
+check( 'parent: renders no argument control (no field or taxonomy picker)', argsIn( afterRefsParent ).length, 1 );
+check( 'parent: a complete step, so Add step is reachable', hasAddStep( afterRefsParent ), true );
+
+// A limit stored on the step is not shown, and is not lost: the grammar carries it both ways.
+const storedLimit = fold.parseChain( 'parent,limit(3)' );
+check( 'parent: a stored limit(N) parses onto the step', String( storedLimit[ 0 ].limit ), '3' );
+check( 'parent: ...and re-emits unchanged', fold.emitChain( storedLimit, 0 ), 'parent,limit(3)' );
+check( 'parent: ...with no Limit control drawn for it', limitsIn( renderParent( storedLimit ) ).length, 0 );
+
+// The kind it hands on is the kind it was given (BWS_FOLD_KIND_SETTLES_AT_RENDER): a
+// `terms` step takes a post, so it is offered after posts-then-parent and refused after
+// terms-then-parent. Read as its own kind, both would be refused.
+check( 'parent: after a post it still hands a post on (terms is offered)',
+	lastPickerValues( renderParent( [ { slug: 'refs', arg: 'office', limit: null }, { slug: 'parent', arg: null, limit: null } ] ) ).indexOf( 'terms' ) !== -1, true );
+check( 'parent: after a term it still hands a term on (terms is refused)',
+	lastPickerValues( renderParent( [ { slug: 'terms', arg: 'department', limit: null }, { slug: 'parent', arg: null, limit: null } ] ) ).indexOf( 'terms' ), -1 );
+check( 'parent: off an ambient root nothing is guessed (terms is offered)',
+	lastPickerValues( renderParent( [ { slug: 'parent', arg: null, limit: null } ] ) ).indexOf( 'terms' ) !== -1, true );
+check( 'parent: it is refused off a site root, as the engine refuses it',
+	lastPickerValues( renderParent( [ { slug: 'site', arg: null, limit: null }, { slug: 'refs', arg: 'partner', limit: null } ] ) ).indexOf( 'parent' ), -1 );
+
+// The slot's READ picker is handed the whole chain when the terminal keeps its input's kind,
+// because the terminal alone names nothing; any other terminal is untouched.
+function readSrc( wire ) {
+	const slot = { chain: fold.parseChain( wire ), read: null };
+	return rep.fieldContext( slot, function () {}, void 0, PARENT_CONF ).state.src;
+}
+check( 'parent: the read picker sees the chain it settles through', readSrc( 'refs,office;parent' ), 'refs,office;parent' );
+check( 'parent: ...and a non-preserving terminal is still just its own token', readSrc( 'refs,office' ), 'refs,office' );
+
 console.log( '\n' + ( total - fail ) + '/' + total + ' passed' );
 process.exit( fail ? 1 : 0 );

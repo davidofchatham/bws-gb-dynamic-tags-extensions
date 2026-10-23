@@ -1339,6 +1339,49 @@ check(
 	bws_build_preview_label( [ 'src' => 'rows,team_members;terms,category', 'use' => 'key', 'key' => 'name' ], 'text' ),
 	"['name' from Rows 'team_members' → Category Term]"
 );
+// `parent` (FW-169) is the one POSITIONAL segment: it names the hop off whatever precedes it,
+// so unlike the grouped kinds above it stays right after the step it follows. It is single-
+// valued and keeps its input's kind, so it takes no argument and no arrow.
+check(
+	'base: `parent` after a relationship hop reads after that hop',
+	bws_build_preview_label( [ 'src' => 'refs,rel_post;parent', 'use' => 'key', 'key' => 'name' ], 'text' ),
+	"['name' from Ref 'rel_post' Parent]"
+);
+check(
+	'base: `parent` off the ambient entity is the whole source part',
+	bws_build_preview_label( [ 'src' => 'parent', 'use' => 'key', 'key' => 'name' ], 'text' ),
+	"['name' from Parent]"
+);
+check(
+	'base: a `parent` that LEADS comes before the steps it feeds, not grouped after them',
+	bws_build_preview_label( [ 'src' => 'parent;refs,rel_post', 'use' => 'key', 'key' => 'name' ], 'text' ),
+	"['name' from Parent Ref 'rel_post']"
+);
+check(
+	'base: `parent` after a term step follows the term segment',
+	bws_build_preview_label( [ 'src' => 'terms,category;parent', 'use' => 'key', 'key' => 'name' ], 'text' ),
+	"['name' from Category Term Parent]"
+);
+check(
+	'base: `parent` before a term step keeps the arrow rule (a segment precedes the term)',
+	bws_build_preview_label( [ 'src' => 'parent;terms,category', 'use' => 'key', 'key' => 'name' ], 'text' ),
+	"['name' from Parent → Category Term]"
+);
+check(
+	'base: `parent;parent` names both hops',
+	bws_build_preview_label( [ 'src' => 'parent;parent', 'use' => 'key', 'key' => 'name' ], 'text' ),
+	"['name' from Parent Parent]"
+);
+check(
+	'base: `parent` is not unfinished (no argument is the whole step): no warning',
+	false !== strpos( bws_build_preview_label( [ 'src' => 'parent', 'use' => 'key', 'key' => 'name' ], 'text' ), '⚠' ),
+	false
+);
+check(
+	'join: a slot whose chain is a bare `parent` is anchored at the ambient entity',
+	bws_build_join_preview_label( [ 'A' => 'src(parent);key(name)' ] ),
+	"[Join 'name' from Current Parent]"
+);
 // NEGATIVES — the internal spellings of the ambient entity and of a relationship hop all
 // resolve, so none of them flags.
 check( 'negative: bare tag',   bws_build_preview_label( [ 'use' => 'key', 'key' => 'sku' ], 'text' ), "['sku']" );

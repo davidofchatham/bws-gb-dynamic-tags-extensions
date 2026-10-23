@@ -214,6 +214,8 @@ function bws_fold_rows_picker_def(): array {
  *                             (BWS_TRAVERSAL_STEP_INPUT_KINDS). Display only: a stored step
  *                             always shows; absent list means "offer it".
  *                produces   — the kind the step outputs (BWS_FOLD_STEP_KINDS).
+ *   settles    the `produces` value that means "the kind the step was given"
+ *              (`parent`), which the editor resolves off the step before it.
  *   roots      root token → parse-time kind (BWS_FOLD_PARSE_TIME_ROOT_KINDS owns the
  *              axis). A root absent there resolves at render; the editor filters nothing off it.
  *   retiredSrc retired source tokens the mount migrator must DECLINE, from the constant
@@ -260,6 +262,7 @@ function bws_fold_wire_vocabulary(): array {
 
 	return array(
 		'steps'       => $steps,
+		'settles'     => defined( 'BWS_FOLD_KIND_SETTLES_AT_RENDER' ) ? BWS_FOLD_KIND_SETTLES_AT_RENDER : '',
 		'roots'       => defined( 'BWS_FOLD_PARSE_TIME_ROOT_KINDS' ) ? BWS_FOLD_PARSE_TIME_ROOT_KINDS : array(),
 		'retiredSrc'  => defined( 'BWS_FOLD_RETIRED_SRC_TOKENS' ) ? BWS_FOLD_RETIRED_SRC_TOKENS : array(),
 		// The number counts ITEMS READ, not results shown (ADR 0007): an item with an
@@ -319,7 +322,7 @@ function bws_fold_step_offer( array $steps, array $vocab ): array {
  *     @type array $source_opt A bws_base_source_option()-shaped array to upgrade.
  *                             Default bws_base_source_option().
  *     @type array $steps       WIRE step slugs offered as steps, in offer order.
- *                             Default ['refs','terms','rows']. Offer only steps some
+ *                             Default ['refs','terms','rows','parent']. Offer only steps some
  *                             arm reads; otherwise the chain renders empty.
  *     @type bool  $takes_first_usable The template's collapsing capability (ADR 0007):
  *                             the step renderer suppresses the limit control
@@ -329,7 +332,7 @@ function bws_fold_step_offer( array $steps, array $vocab ): array {
  */
 function bws_build_src_chain_option( array $args = array() ): array {
 	$source_opt = $args['source_opt'] ?? bws_base_source_option();
-	$steps       = $args['steps'] ?? array( 'refs', 'terms', 'rows' );
+	$steps       = $args['steps'] ?? array( 'refs', 'terms', 'rows', 'parent' );
 
 	if ( ! isset( $source_opt['src'] ) ) {
 		return $source_opt;

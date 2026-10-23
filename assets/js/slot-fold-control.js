@@ -125,6 +125,9 @@
 			// list) and the kind it produces. See bws_fold_wire_vocabulary(). Absent
 			// facts stay permissive — this feeds a DISPLAY filter, never a gate.
 			steps: c.steps || {},
+			// The `produces` value that means "the kind this step was given" (`parent`), so
+			// kindIn() reads the kind through it. '' = no such step.
+			settles: c.settles || '',
 			// The per-container OFFER: an ordered slug list, the only per-container
 			// step fact. Labels come off `steps`, never typed beside the offer.
 			offer: c.offer || [],
@@ -466,7 +469,7 @@
 		var read = slot.read;
 		var picker = window.bwsFieldComboControl;
 		var label = ( opt.labelApply && read && 'key' === read.kind && picker && picker.reachableLabel )
-			? picker.reachableLabel( window.bwsFieldEnvelope, fieldContext( slot, function () {}, parentChain ).state, 'key', read.field )
+			? picker.reachableLabel( window.bwsFieldEnvelope, fieldContext( slot, function () {}, parentChain, conf ).state, 'key', read.field )
 			: null;
 		if ( ! label || label === slot.header ) {
 			return null;
@@ -796,7 +799,7 @@
 	 * of its own reads off the container chain's TAIL, and is unnarrowed when that tail is
 	 * render-time.
 	 */
-	function fieldContext( slot, commitField, parentChain ) {
+	function fieldContext( slot, commitField, parentChain, conf ) {
 		var lineage = lineageOf( slot.chain, parentChain );
 		var terminal = lineage.length ? lineage[ lineage.length - 1 ] : null;
 		var synth = {};
@@ -805,6 +808,11 @@
 				synth.src = 'site';
 			} else if ( 'terms' === terminal.slug ) {
 				synth.srcTermIn = terminal.arg || '1';
+			} else if ( conf && conf.settles && ( stepDef( conf, terminal.slug ) || {} ).produces === conf.settles ) {
+				// A kind-preserving terminal (`parent`) says nothing alone: what it resolved
+				// to is whatever the steps before it did. Hand over the whole chain and let the
+				// picker read the kind through it (presetKind()).
+				synth.src = fold.emitChain( lineage, 0 );
 			} else if ( 'same' !== terminal.slug ) {
 				synth.src = terminal.slug + ( terminal.arg ? ',' + terminal.arg : '' );
 			}
@@ -979,7 +987,8 @@
 			}
 			var def = stepDef( conf, prev.slug );
 			if ( def && def.produces ) {
-				return def.produces;
+				// A kind-preserving step hands on what it was given, so ask one step back.
+				return ( conf.settles && def.produces === conf.settles ) ? kindIn( seq, at - 1 ) : def.produces;
 			}
 			return ( at > 1 ) ? '' : ( ( conf.roots || {} )[ prev.slug ] || '' );
 		}
@@ -1266,7 +1275,11 @@
 			// losing the capability moves the control with no second list to remember.
 			// Stored wire is untouched either way; a saved limit(N) survives the
 			// round-trip (the grammar preserves tokens the panel does not show).
-			if ( known && ! conf.takesFirstUsable ) {
+			//
+			// Likewise hidden on a step that does not FAN (`parent` resolves one source, so
+			// there is nothing to bound): asked of the grammar's own fanning list, never a
+			// slug named here, so the next single-valued step needs no edit.
+			if ( known && ! conf.takesFirstUsable && -1 !== fold.grammar.fanningSlugs.indexOf( stepObj.slug ) ) {
 				var limitCfg = conf.limitOption || {};
 				// The step names its own bound where it can ("Limit Posts Read"), because
 				// what the number counts is what the step PRODUCES and only the step knows
@@ -1630,7 +1643,7 @@
 							help: keyCfg.help,
 							placeholder: keyCfg.placeholder,
 							dynamicLabel: keyCfg.dynamicLabel,
-							context: fieldContext( slot, commitField, parentChain )
+							context: fieldContext( slot, commitField, parentChain, conf )
 						} )
 						: el( TextControl, {
 							label: keyCfg.label,

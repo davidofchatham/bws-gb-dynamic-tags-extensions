@@ -517,6 +517,8 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 	// same question one position earlier. The picker mounts standalone on a base tag's `key`
 	// and has no fold config to read, so it gets the same two maps as a global rather than a
 	// copy of `BWS_FOLD_STEP_KINDS` / `BWS_FOLD_PARSE_TIME_ROOT_KINDS` written out in JS.
+	// `settles` names the step kind that means "the kind the step was given" (`parent`), so
+	// the picker looks through such a step to the one before it.
 	//
 	// SEPARATE FROM `bwsRootArgKinds` above, which answers a different question — which roots
 	// TAKE an argument, derived from the root ROWS so an integrator's root is included. This
@@ -533,8 +535,9 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 			'bws-dynamic-tags-field-combo-control',
 			'window.bwsChainKinds = ' . wp_json_encode(
 				array(
-					'steps' => (object) $bws_step_kinds,
-					'roots' => (object) ( $bws_vocab['roots'] ?? array() ),
+					'steps'   => (object) $bws_step_kinds,
+					'settles' => (string) ( $bws_vocab['settles'] ?? '' ),
+					'roots'   => (object) ( $bws_vocab['roots'] ?? array() ),
 				)
 			) . ';',
 			'before'

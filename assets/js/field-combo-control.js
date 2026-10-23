@@ -255,15 +255,45 @@
 	 * @return {Object|null} `{ slug, arg }` with `arg` normalized to a string, or null.
 	 */
 	function chainTail( state, optionKey ) {
-		var fold = window.bwsSlotFold;
-		if ( ! state || ! fold || 'function' !== typeof fold.parseChain ) { return null; }
-		var wire = String( state[ slotPrefix( optionKey ) + 'src' ] || '' ).trim();
-		if ( '' === wire ) { return null; }
-		var chain = fold.parseChain( wire );
-		if ( ! Array.isArray( chain ) || ! chain.length ) { return null; }
+		var chain = parsedChain( state, optionKey );
+		if ( ! chain.length ) { return null; }
 		var tail = chain[ chain.length - 1 ];
 		if ( ! tail || ! tail.slug ) { return null; }
 		return { slug: String( tail.slug ), arg: tail.arg ? String( tail.arg ) : '' };
+	}
+
+	/** The sibling `src` wire parsed through the shipped grammar; [] when absent or unparseable. */
+	function parsedChain( state, optionKey ) {
+		var fold = window.bwsSlotFold;
+		if ( ! state || ! fold || 'function' !== typeof fold.parseChain ) { return []; }
+		var wire = String( state[ slotPrefix( optionKey ) + 'src' ] || '' ).trim();
+		if ( '' === wire ) { return []; }
+		var chain = fold.parseChain( wire );
+		return Array.isArray( chain ) ? chain : [];
+	}
+
+	/**
+	 * The kind the sibling `src` chain RESOLVES TO, off the `window.bwsChainKinds` maps.
+	 *
+	 * The last step's own entry, except where that entry is the `settles` marker (`parent`:
+	 * "the kind it was given"), which is looked through to the step before it. A chain that
+	 * ends on the marker with nothing named before it (`parent` off the ambient entity)
+	 * answers undefined, like any other render-time root.
+	 *
+	 * @param {Object} state     extraTagParams.
+	 * @param {string} optionKey The key control's own option key (for the slot prefix).
+	 * @param {Object} vocab     `window.bwsChainKinds`.
+	 * @return {string|undefined} The kind, or undefined when the wire does not name one.
+	 */
+	function tailKind( state, optionKey, vocab ) {
+		var chain = parsedChain( state, optionKey );
+		for ( var i = chain.length - 1; i >= 0; i-- ) {
+			var slug = String( chain[ i ].slug || '' );
+			var kind = ( vocab.steps || {} )[ slug ];
+			if ( undefined === kind ) { kind = ( vocab.roots || {} )[ slug ]; }
+			if ( ! vocab.settles || kind !== vocab.settles ) { return kind; }
+		}
+		return undefined;
 	}
 
 	/**
@@ -424,8 +454,7 @@
 		if ( ! tail ) { return null; }
 
 		var vocab = window.bwsChainKinds || {};
-		var kind  = ( vocab.steps || {} )[ tail.slug ];
-		if ( undefined === kind ) { kind = ( vocab.roots || {} )[ tail.slug ]; }
+		var kind  = tailKind( state, optionKey, vocab );
 
 		// A kind with no root label of its own is not a Location the filter can open on.
 		// That is the honest answer for `meta_row` and for anything a later step type

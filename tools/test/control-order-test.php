@@ -598,7 +598,7 @@ foreach ( $registered as $tag => $args ) {
 		}
 	}
 }
-assert_same( 'a base tag offers refs then terms then rows', array( 'refs', 'terms', 'rows' ), $base_offer );
+assert_same( 'a base tag offers refs then terms then rows then parent', array( 'refs', 'terms', 'rows', 'parent' ), $base_offer );
 
 $slot_offers = array();
 foreach ( $registered as $tag => $args ) {

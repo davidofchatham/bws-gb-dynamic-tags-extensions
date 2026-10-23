@@ -126,7 +126,7 @@ function bws_get_table_options(): array {
 			'base_fixed' => $text_field['fixed'] ?? array(),
 			'allow_site' => true,
 			// A column's source is a base tag's source ([I16]): same offer as {{join}}.
-			'steps'      => array( 'refs', 'terms', 'rows' ),
+			'steps'      => array( 'refs', 'terms', 'rows', 'parent' ),
 			'tag_level'  => BWS_FOLD_FLAT_AXES,
 			'noun'       => __( 'column', 'generateblocks' ),
 		)

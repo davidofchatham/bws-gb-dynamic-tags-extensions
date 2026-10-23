@@ -375,7 +375,8 @@ global.window.bwsRootArgKinds = { term: 'term', post: 'post' };
 // the opposite of its name. `meta_row` likewise stays, so §F15.7 measures a produced kind the
 // picker has no Location for rather than one nothing ships.
 global.window.bwsChainKinds = {
-	steps: { refs: 'post', terms: 'term', rows: 'meta_row' },
+	steps: { refs: 'post', terms: 'term', rows: 'meta_row', parent: 'settles_at_render' },
+	settles: 'settles_at_render',
 	roots: { site: 'site', term: 'term', post: 'post' },
 };
 
@@ -1462,6 +1463,35 @@ async function main() {
 		'F15.9 `site` presets through the ROOT map now, not through a literal equality',
 		await presetOf( { src: 'site' } ),
 		[ 'Site fields', 'Site Option Field Key' ]
+	);
+
+	// `parent` (FW-169) keeps the kind it was given, and its vocabulary entry is the `settles`
+	// marker rather than a kind. The preset reads THROUGH it to the step before, and says nothing
+	// where nothing before it names a kind.
+	check(
+		'F15.9b a parent tail presets the kind of the step it follows (refs: Post)',
+		await presetOf( { src: 'refs,lead;parent' } ),
+		[ 'Post fields', 'Post Meta Field Key' ]
+	);
+	check(
+		'F15.9c ...through a taxonomy step (terms: Term)',
+		await presetOf( { src: 'terms,department;parent' } ),
+		[ 'Term fields', 'Term Meta Field Key' ]
+	);
+	check(
+		'F15.9d ...and through two parents in a row',
+		await presetOf( { src: 'refs,lead;parent;parent' } ),
+		[ 'Post fields', 'Post Meta Field Key' ]
+	);
+	check(
+		'F15.9e ...off a declaring root that names its kind',
+		await presetOf( { src: 'term,34;parent' } ),
+		[ 'Term fields', 'Term Meta Field Key' ]
+	);
+	check(
+		'F15.9f a parent off an ambient root presets nothing — its kind is only known at render',
+		await presetOf( { src: 'parent' } ),
+		[ '__all_locations', 'Meta/Option Field Key' ]
 	);
 
 	// The maps are PHP's. With none delivered the control presets nothing rather than

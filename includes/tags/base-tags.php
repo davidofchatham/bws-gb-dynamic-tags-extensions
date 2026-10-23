@@ -707,7 +707,7 @@ function bws_get_join_options(): array {
 				'allow_same_read' => false,
 				// A slot's source is a base tag's source ([I16]): same offer, asserted
 				// equal by control-order-test.php §7.
-				'steps'            => array( 'refs', 'terms', 'rows' ),
+				'steps'            => array( 'refs', 'terms', 'rows', 'parent' ),
 				// "+ Add field" and header "Field A".
 				'noun'            => __( 'field', 'generateblocks' ),
 			) )

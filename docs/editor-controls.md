@@ -143,6 +143,8 @@ count, because the compiler drops it. The predicate is `bws_fold_chain_fanning_s
 one the migrator stamps by and the render seam defaults by — reached in the editor through its
 shipped JS twin, never re-derived from the index.
 
+**The limit control is also hidden on a step that does not fan** (`parent`, **[UNRELEASED]**): it resolves one source, so there is nothing to bound. The test is membership in the grammar's fanning-slug list, never a slug named in the control, and a `limit(N)` already in stored wire is neither shown nor rewritten. A step picker that follows `parent` is unscoped, as one that follows `terms` is: neither names a field.
+
 **The limit control is SUPPRESSED on a collapsing tag** — `content` / `permalink` / `image` and their
 `try_` slots, the templates whose `takes_first_usable` capability makes the render ignore every
 step limit ([tag-reference.md §Collapsing tags](tag-reference.md#collapsing-tags-first-usable-source)).
