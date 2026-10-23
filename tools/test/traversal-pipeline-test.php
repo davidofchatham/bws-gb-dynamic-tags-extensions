@@ -1931,6 +1931,50 @@ eq(
 	bws_base_read_refused( array( 'kind' => 'post', 'fans' => true ), array( 'kind' => 'meta_row', 'row' => array( 'name' => 'x' ) ) )
 );
 
+// ── FW-169: the `parent` step ────────────────────────────────────────────────
+// The reader answers the parent's id (0 = none); the engine owns admission, the coercion and
+// the generic gate. Keyed by (kind:id) like make_reader().
+$parent_reader = make_reader( array( 'post:102' => 101, 'post:101' => 100, 'post:100' => 0, 'term:15' => 14, 'term:14' => 13, 'term:13' => 0, 'post:2102' => 22 ) );
+$parent_step   = array( 'type' => 'parent' );
+
+eq( 'FW-169: parent of a post is its parent post', array( post_src( 101 ) ), bws_run_traversal( array( post_src( 102 ) ), array( $parent_step ), $parent_reader ) );
+eq( 'FW-169: parent of a term is its parent term', array( term_src( 14 ) ), bws_run_traversal( array( term_src( 15 ) ), array( $parent_step ), $parent_reader ) );
+eq( 'FW-169: an attachment gives the post it is attached to', array( post_src( 22 ) ), bws_run_traversal( array( post_src( 2102 ) ), array( $parent_step ), $parent_reader ) );
+eq( 'FW-169: a top-level post gives an EMPTY chain, not itself', array(), bws_run_traversal( array( post_src( 100 ) ), array( $parent_step ), $parent_reader ) );
+eq( 'FW-169: a top-level term gives an EMPTY chain, not itself', array(), bws_run_traversal( array( term_src( 13 ) ), array( $parent_step ), $parent_reader ) );
+eq( 'FW-169: parent;parent walks two levels', array( post_src( 100 ) ), bws_run_traversal( array( post_src( 102 ) ), array( $parent_step, $parent_step ), $parent_reader ) );
+eq(
+	'FW-169: parent after a refs hop steps off the ref\'d post',
+	array( post_src( 101 ) ),
+	bws_run_traversal( array( post_src( 7 ) ), array( array( 'type' => 'refs', 'field' => 'rel' ), $parent_step ), make_reader( array( 'post:7' => array( 102 ), 'post:102' => 101 ) ) )
+);
+foreach ( array( array( 'kind' => 'site' ), user_src( 3 ), row_src( array( 'a' => 1 ) ) ) as $refused ) {
+	eq( 'FW-169: parent REFUSES a ' . $refused['kind'] . ' input', array(), bws_run_step( $parent_step, $refused, function () { return 99; } ) );
+}
+eq(
+	'FW-169: an unviewable parent is cut by the generic gate at the hop',
+	array(),
+	bws_run_traversal( array( post_src( 102 ) ), array( $parent_step ), $parent_reader, function ( array $s ) { return 101 !== ( $s['id'] ?? 0 ); } )
+);
+eq(
+	'FW-169: a parent step carries a per-step limit like any other (harmless on one result)',
+	array( post_src( 101 ) ),
+	bws_run_traversal( array( post_src( 102 ) ), array( array( 'type' => 'parent', 'limit' => 1 ) ), $parent_reader )
+);
+eq( 'FW-169: parent admits exactly post and term', array( 'post', 'term' ), BWS_TRAVERSAL_STEP_INPUT_KINDS['parent'] ?? null );
+
+// settle-at-render: the marker kind becomes the FACTORY's post/term, anything else refuses.
+$marked = array( 'root' => '', 'kind' => BWS_FOLD_KIND_SETTLES_AT_RENDER, 'fans' => true );
+eq( 'FW-169: a marker settles to post off a post base', 'post', bws_base_settle_kind( $marked, post_src( 5 ) )['kind'] );
+eq( 'FW-169: …to term off a term base', 'term', bws_base_settle_kind( $marked, term_src( 5 ) )['kind'] );
+eq( 'FW-169: …to a REFUSAL off a user base', '', bws_base_settle_kind( $marked, user_src( 5 ) )['kind'] );
+eq( 'FW-169: …to a REFUSAL off a repeater-row base', '', bws_base_settle_kind( $marked, row_src( array() ) )['kind'] );
+eq( 'FW-169: …to a REFUSAL off an unresolved base', '', bws_base_settle_kind( $marked, array( 'kind' => BWS_SOURCE_KIND_UNRESOLVED ) )['kind'] );
+eq( 'FW-169: a non-marker kind is returned untouched', array( 'root' => '', 'kind' => 'term', 'fans' => true ), bws_base_settle_kind( array( 'root' => '', 'kind' => 'term', 'fans' => true ), post_src( 5 ) ) );
+eq( 'FW-169: an UNSETTLED marker is refused (default-refuse safety net)', true, bws_base_read_refused( $marked, post_src( 5 ) ) );
+eq( 'FW-169: …and a settled one is read', false, bws_base_read_refused( bws_base_settle_kind( $marked, post_src( 5 ) ), post_src( 5 ) ) );
+eq( 'FW-169: the ambient shortcut is NOT taken for a marker chain', null, bws_base_ambient_analog( 'title', term_src( 3 ), array( 'src' => 'current;parent' ), null ) );
+
 // ── report ───────────────────────────────────────────────────────────────────
 echo "\n";
 echo 'traversal-pipeline: ' . $GLOBALS['pass'] . ' passed, ' . $GLOBALS['fail'] . " failed\n";

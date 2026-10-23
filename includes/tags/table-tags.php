@@ -273,7 +273,7 @@ function bws_table_column_start( ?array $opts, string $explicit_id, $instance ) 
 		$opts['id'] = $explicit_id;
 	}
 	$base = bws_base_resolve_source_for_callback( $opts, $instance );
-	return bws_base_read_refused( $res, $base, bws_table_serves() ) ? false : $base;
+	return bws_base_read_refused( bws_base_settle_kind( $res, $base ), $base, bws_table_serves() ) ? false : $base;
 }
 
 /**
@@ -387,7 +387,9 @@ function bws_table_serves(): array {
 	$vocab = bws_fold_wire_vocabulary();
 	$kinds = array_values( (array) ( $vocab['roots'] ?? array() ) );
 	foreach ( (array) ( $vocab['steps'] ?? array() ) as $step ) {
-		if ( isset( $step['produces'] ) ) {
+		// The settle marker is no kind of its own: the callback settles it to the base's
+		// kind before this list is asked, so an unsettled one must still refuse.
+		if ( isset( $step['produces'] ) && BWS_FOLD_KIND_SETTLES_AT_RENDER !== $step['produces'] ) {
 			$kinds[] = $step['produces'];
 		}
 	}
@@ -597,7 +599,7 @@ function bws_table_callback( $options, $block, $instance ): string {
 
 	// A root this render cannot use produces no table, not an empty one.
 	$base    = empty( $columns ) ? array() : bws_base_resolve_source_for_callback( $options, $instance );
-	$refused = empty( $columns ) || bws_base_read_refused( bws_base_src_resolution( $options ), $base, bws_table_serves() );
+	$refused = empty( $columns ) || bws_base_read_refused( bws_base_settle_kind( bws_base_src_resolution( $options ), $base ), $base, bws_table_serves() );
 	if ( $refused ) {
 		return $is_preview ? bws_table_output( bws_table_skeleton( $options, $columns, $dropped ), $options, $instance ) : '';
 	}

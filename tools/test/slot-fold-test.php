@@ -1578,6 +1578,11 @@ check( 'P15.4b …and a FLAT-spelled slot carries its implied 1', array( 1 => 1,
 $own_static = t_limit_walk( array( 'A' => 'src(refs,office,limit[3]);use(title)', 'B' => 'src(site);key(org_name)' ) );
 check( 'P15.7 a slot stating its own NON-fanning root also takes the carry (inert: one source)', array( 1 => 3, 2 => 3 ) === $own_static, json_encode( $own_static ) );
 
+// FW-169: a stored `limit(N)` on a step that does not fan (`parent`) is harmless, not a slot
+// bound. Combining container, so the slot would otherwise take the last step's number.
+$parent_lim = t_limit_walk( array( 'A' => 'src(refs,office;parent,limit(2));use(title)' ), 'join' );
+check( 'P15.8 a stored limit on a non-fanning step does not bound the slot', ! isset( $parent_lim[1] ) || 2 !== $parent_lim[1], json_encode( $parent_lim ) );
+
 // COMBINING is the deliberate contrast — and P13.1 `term hop with limit` is the
 // shipped-legacy case that would otherwise move.
 $carry_join = t_limit_walk( array( 'A' => 'src(terms,category,limit[3]);use(title)', 'B' => 'src(same);key(blurb)' ), 'join' );

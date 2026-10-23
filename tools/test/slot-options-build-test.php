@@ -377,7 +377,7 @@ assert_same(
 // an author writing a chain that renders nothing with no control saying why.
 assert_same(
 	'steps is keyed by WIRE slug, in the vocabulary\'s own order',
-	array( 'refs', 'terms', 'rows' ),
+	array( 'refs', 'terms', 'rows', 'parent' ),
 	array_keys( $fold['steps'] )
 );
 // `accepts` IS the engine's refusal list. Since V9 that list is itself keyed by the

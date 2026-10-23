@@ -133,6 +133,7 @@ const doc = {
 		flags: g.flags,
 		freeform: g.freeform,
 		fanningSlugs: g.fanningSlugs,
+		stepSlugs: g.stepSlugs,
 		brackets: [ fold.bracketPair( 1 ), fold.bracketPair( 2 ), fold.bracketPair( 3 ) ]
 	},
 	slots: corpus.slots.map( function ( c ) {

@@ -96,13 +96,13 @@ class SourceRegistry {
 	 * Whether a source key can be written as a chain ROOT token.
 	 *
 	 * Two ways a key fails. It can COLLIDE with the chain grammar's own step vocabulary —
-	 * `refs`/`terms`/`rows` parse as fanning steps wherever they appear, `same` is the slot
-	 * carry-over sentinel, `inherit` is the parent-source root (BWS_FOLD_INHERIT_ROOT) and
-	 * `parent`, `ancestor`, `children` and `siblings` are RESERVED, unregistered, for the
-	 * hierarchical steps intended later (FW-169) — never claim them for anything else, and
-	 * once one ships as a step it is reserved by the step map below. In those cases
-	 * selecting the row authors wire that reads back as something other than the source and
-	 * never runs it. Or it can
+	 * `refs`/`terms`/`rows`/`parent` parse as steps wherever they appear (the step map below
+	 * reserves every shipped step), `same` is the slot carry-over sentinel, `inherit` is the
+	 * parent-source root (BWS_FOLD_INHERIT_ROOT) and `ancestor`, `children` and `siblings`
+	 * are RESERVED, unregistered, for the hierarchical list steps intended later (FW-169) —
+	 * never claim them for anything else, and once one ships as a step it is reserved by the
+	 * step map too. In those cases selecting the row authors wire that reads back as something
+	 * other than the source and never runs it. Or it can
 	 * carry a grammar CHARACTER (`;` `,` `(` `)` `[` `]` `:` `|`), which either splits the
 	 * value or ends the option.
 	 *
@@ -117,7 +117,7 @@ class SourceRegistry {
 		if ( preg_match( '/[;,()\[\]:|\s]/', $key ) ) {
 			return false;
 		}
-		if ( in_array( $key, array( 'same', 'inherit', 'parent', 'ancestor', 'children', 'siblings' ), true ) ) {
+		if ( in_array( $key, array( 'same', 'inherit', 'ancestor', 'children', 'siblings' ), true ) ) {
 			return false;
 		}
 		return ! ( defined( 'BWS_FOLD_STEP_TYPES' ) && isset( BWS_FOLD_STEP_TYPES[ $key ] ) );

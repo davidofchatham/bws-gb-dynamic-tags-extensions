@@ -194,9 +194,10 @@ function bws_run_traversal( array $sources, array $steps, $reader = null, $gate 
  *               is the point.
  */
 const BWS_TRAVERSAL_STEP_INPUT_KINDS = array(
-	'refs'  => array( 'post', 'term', 'user', 'meta_row', 'site' ),
-	'terms' => array( 'post' ),
-	'rows'  => array( 'post', 'term', 'user', 'meta_row', 'site' ),
+	'refs'   => array( 'post', 'term', 'user', 'meta_row', 'site' ),
+	'terms'  => array( 'post' ),
+	'rows'   => array( 'post', 'term', 'user', 'meta_row', 'site' ),
+	'parent' => array( 'post', 'term' ),
 );
 
 /**
@@ -212,6 +213,9 @@ const BWS_TRAVERSAL_STEP_INPUT_KINDS = array(
  *               Valid input kind: post only.
  *   - rows    : step into a repeater field via get_field → meta_row[]
  *               Valid input kinds: post, term, user, meta_row, site.
+ *   - parent  : step to the input's hierarchy parent → one source of the INPUT's kind
+ *               (post_parent / the term's `parent`); a top-level item gives array().
+ *               Valid input kinds: post, term (@since Unreleased).
  *
  * Unknown step type, unknown/terminal source kind, or an input kind invalid for
  * the step → array() (SPEC §V2 silent-empty, never fatal).
@@ -272,6 +276,14 @@ function bws_run_step( array $step, array $source, $reader = null ) {
 			// nothing here and a lookup everywhere else (see the coercer's PHPDoc).
 			$raw = call_user_func( $reader, $step, $source );
 			return bws_pipeline_rows_to_sources( $raw, $source, (string) ( $step['field'] ?? '' ) );
+
+		case 'parent':
+			// The input's own hierarchy parent, in the input's own kind (a post's `post_parent`,
+			// a term's `parent` in its own taxonomy). The reader answers the id; 0 = top level,
+			// which is an EMPTY result and not the item itself, so the chain short-circuits.
+			// The generic gate in bws_run_traversal() cuts an unviewable parent at this hop.
+			$parent_id = (int) call_user_func( $reader, $step, $source );
+			return $parent_id > 0 ? array( array( 'kind' => $kind, 'id' => $parent_id ) ) : array();
 
 		default:
 			return array(); // Unknown step type.
@@ -890,12 +902,28 @@ function bws_factory_current_post_id( array $options, $instance ) {
  * @since 1.14.0
  * @param array $step   The step ( 'type', 'field'/'slug' ).
  * @param array $source The resolved source being stepped from.
- * @return mixed Raw field value (refs) or WP_Term[] (terms); '' / array() on miss.
+ * @return mixed Raw field value (refs), WP_Term[] (terms) or the parent's int id (parent,
+ *               0 = none); '' / array() on miss.
  */
 if ( ! function_exists( 'bws_pipeline_default_reader' ) ) {
 function bws_pipeline_default_reader( array $step, array $source ) {
 	$type = $step['type'] ?? '';
 	$kind = $source['kind'] ?? '';
+
+	if ( 'parent' === $type ) {
+		// An attachment's `post_parent` is the post it is attached to. get_term() is asked
+		// without a taxonomy: the id alone names the term and its `parent` is already in
+		// the term's own taxonomy.
+		$entity_id = (int) ( $source['id'] ?? 0 );
+		if ( 'post' === $kind ) {
+			return (int) wp_get_post_parent_id( $entity_id );
+		}
+		if ( 'term' === $kind ) {
+			$term = get_term( $entity_id );
+			return ( $term instanceof WP_Term ) ? (int) $term->parent : 0;
+		}
+		return 0;
+	}
 
 	if ( 'terms' === $type ) {
 		$slug = $step['slug'] ?? '';
