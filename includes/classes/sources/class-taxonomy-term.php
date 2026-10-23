@@ -39,7 +39,7 @@ class TaxonomyTerm extends AbstractSource {
 	 * in this context", and it is also what a direct caller through
 	 * SourceRegistry::get_source( 'term' ) gets.
 	 *
-	 * @since Unreleased Always false; the ambient detector behind it is deleted (FW-8).
+	 * @since 1.23.0 Always false; the ambient detector behind it is deleted (FW-8).
 	 * @param array  $options  Tag options from GenerateBlocks.
 	 * @param object $instance Block instance.
 	 * @return false

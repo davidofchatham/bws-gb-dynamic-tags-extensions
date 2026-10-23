@@ -14,7 +14,7 @@
  * @since 1.6.0 Removed get_title_prefix() and get_traversal_options().
  * @since 1.17.0 Added is_selectable_root() default (false) (#83).
  * @since 1.20.0 Added get_root_argument() default (none) + resolve_root_argument() default (FW-39).
- * @since Unreleased Removed the defaults for the ten methods SourceInterface no longer declares.
+ * @since 1.23.0 Removed the defaults for the ten methods SourceInterface no longer declares.
  */
 
 namespace BWS\DynamicTags;

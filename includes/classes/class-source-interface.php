@@ -12,7 +12,7 @@
  * @since 1.17.0 Added is_selectable_root() (#83).
  * @since 1.20.0 Added get_root_argument() + the argless-policy constants (FW-39).
  * @since 1.20.0 Added resolve_root_argument() (FW-39).
- * @since Unreleased Removed ten methods nothing read (FW-176).
+ * @since 1.23.0 Removed ten methods nothing read (FW-176).
  */
 
 namespace BWS\DynamicTags;

@@ -769,7 +769,7 @@ if ( ! defined( 'BWS_PREVIEW_ENTITY_UNAVAILABLE' ) ) {
  * bws_preview_root_entity_segment() already treats a null return as unavailable without a
  * WP_Error check to make.
  *
- * @since Unreleased
+ * @since 1.23.0
  * @return array<string,string>
  */
 if ( ! function_exists( 'bws_preview_entity_resolvers' ) ) {

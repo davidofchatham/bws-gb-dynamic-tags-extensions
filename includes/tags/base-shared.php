@@ -1074,7 +1074,7 @@ function bws_base_read_refused( array $res, array $base, array $serves = array()
  * bws_base_read_refused() refuses. Every other kind is returned untouched. Applied BEFORE the
  * refusal test; an arm that forgets it still refuses, because the marker is in no served list.
  *
- * @since Unreleased
+ * @since 1.23.0
  * @param array $res  A bws_base_src_resolution() result.
  * @param array $base A bws_base_resolve_source_for_callback() result.
  * @return array The same resolution, its `kind` settled.

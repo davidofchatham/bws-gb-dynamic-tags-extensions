@@ -96,7 +96,7 @@ const BWS_FOLD_STEP_TYPES = array(
  * It is not a root kind, an engine source kind or a vocabulary word, and an arm that does
  * not settle it refuses (it is in no served list).
  *
- * @since Unreleased
+ * @since 1.23.0
  */
 const BWS_FOLD_KIND_SETTLES_AT_RENDER = 'settles_at_render';
 
@@ -208,7 +208,7 @@ const BWS_FOLD_INHERIT_ROOT = 'inherit';
  * keeps its input's kind is read as that input's, and a tail whose kind only render can name
  * is left whole rather than guessed at.
  *
- * @since Unreleased
+ * @since 1.23.0
  *
  * Declines to trim at all where either end is UNKNOWN vocabulary — an unknown step
  * short-circuits the chain to empty by design ([I14]), and rewriting a source on the
@@ -316,7 +316,7 @@ function bws_fold_chain_join( array $carried, array $own ): array {
  *
  * @since 1.17.0
  * @since 1.22.0 $parent_kind.
- * @since Unreleased Kind-preserving steps (`parent`).
+ * @since 1.23.0 Kind-preserving steps (`parent`).
  * @param array       $chain       Parsed chain (bws_fold_parse_chain shape).
  * @param string|null $parent_kind The parent's resolved kind, when the container has one.
  * @return array{root:string, kind:string, fans:bool}

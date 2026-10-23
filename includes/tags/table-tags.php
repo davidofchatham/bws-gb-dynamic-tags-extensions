@@ -486,7 +486,7 @@ const BWS_TABLE_SKELETON_ROWS = 3;
  * The same words the base tag preview uses: this asks the namer through the resolvers every
  * preview passes and keeps the segment carrying BWS_PREVIEW_ENTITY_UNAVAILABLE.
  *
- * @since Unreleased
+ * @since 1.23.0
  * @param string $src The tag's `src` wire.
  * @return string
  */

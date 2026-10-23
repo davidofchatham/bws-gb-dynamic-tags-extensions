@@ -114,14 +114,14 @@ A source is a **chain**: a ROOT plus zero or more ordered steps. The table above
 | `refs,<field>` | a relationship / post-object field | `post` | Implemented |
 | `terms,<taxonomy>` | the entity's terms in that taxonomy | `term` | Implemented |
 | `rows,<field>` | a repeater field's rows | `meta_row` | Implemented |
-| `parent` | the WP parent post / parent term | same kind, one | Implemented **[UNRELEASED]** |
+| `parent` | the WP parent post / parent term | same kind, one | Implemented |
 | `ancestor` | the WP top-level ancestor | same kind, one | To be considered (FW-169) |
 | `children` | the WP child posts / child terms | same kind, list | To be considered (FW-169) |
 | `siblings` | the WP posts / terms sharing a parent | same kind, list | To be considered (FW-169) |
 
 A step that resolves to a list is spelled plural, one that resolves to a single entity singular. None of the four hierarchical names can be a root key (`SourceRegistry::is_expressible_root_key()`): `parent` because it is a step, the other three because they are reserved before any of them is built.
 
-**[UNRELEASED]** `parent` takes no argument and does not fan, so it has no limit. A post's parent is its `post_parent` in any post type (an attachment's is the post it is attached to); a term's parent stays in the term's own taxonomy. A top-level post or term has no parent, so the chain resolves nothing and the tag renders empty (its fallback fires); it never falls back to the item itself. A parent the visitor may not see is cut by the source gate like any other hop. Off a site, user or repeater row it resolves nothing (`BWS_TRAVERSAL_STEP_INPUT_KINDS`). Off the current context the chain cannot say at parse time whether it lands on a post or a term (a singular page gives the parent post, a term archive the parent term), so it gets its own kind answer, distinct from a root-only chain's; which answer is `bws_fold_chain_resolution()`'s, see [CONTEXT.md §Kind determination](../CONTEXT.md).
+`parent` takes no argument and does not fan, so it has no limit. A post's parent is its `post_parent` in any post type (an attachment's is the post it is attached to); a term's parent stays in the term's own taxonomy. A top-level post or term has no parent, so the chain resolves nothing and the tag renders empty (its fallback fires); it never falls back to the item itself. A parent the visitor may not see is cut by the source gate like any other hop. Off a site, user or repeater row it resolves nothing (`BWS_TRAVERSAL_STEP_INPUT_KINDS`). Off the current context the chain cannot say at parse time whether it lands on a post or a term (a singular page gives the parent post, a term archive the parent term), so it gets its own kind answer, distinct from a root-only chain's; which answer is `bws_fold_chain_resolution()`'s, see [CONTEXT.md §Kind determination](../CONTEXT.md).
 
 README §Build source paths to access related data › Steps carries a simplified copy of this table (implemented steps only, editor labels, what each step can follow); a row changed here, or a change to `BWS_TRAVERSAL_STEP_INPUT_KINDS`, is changed there in the same edit.
 

@@ -13,7 +13,7 @@
  * fatal at load instead of a silent bypass. The plugin loads this once, with `require_once`.
  *
  * @package BWS_Dynamic_Tags
- * @since Unreleased
+ * @since 1.23.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -85,7 +85,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * shape and the bool return stay stable; other typedef keys are optional to it.
  *
  * @since 1.18.0 As bws_source_gate(), in traversal-pipeline.php.
- * @since Unreleased Renamed bws_is_source_usable(); the visibility filter.
+ * @since 1.23.0 Renamed bws_is_source_usable(); the visibility filter.
  * @param array $source Resolved source (see traversal-pipeline.php's file header typedef).
  * @return bool True when the source may feed reads and consume limit budget.
  */

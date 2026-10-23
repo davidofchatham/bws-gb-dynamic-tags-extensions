@@ -215,7 +215,7 @@ const BWS_TRAVERSAL_STEP_INPUT_KINDS = array(
  *               Valid input kinds: post, term, user, meta_row, site.
  *   - parent  : step to the input's hierarchy parent → one source of the INPUT's kind
  *               (post_parent / the term's `parent`); a top-level item gives array().
- *               Valid input kinds: post, term (@since Unreleased).
+ *               Valid input kinds: post, term (@since 1.23.0).
  *
  * Unknown step type, unknown/terminal source kind, or an input kind invalid for
  * the step → array() (SPEC §V2 silent-empty, never fatal).
