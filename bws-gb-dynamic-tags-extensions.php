@@ -62,7 +62,7 @@ function bws_dynamic_tags_init_update_checker() {
 	// attached release asset rather than the auto-generated source zip.
 	$api = $update_checker->getVcsApi();
 	if ( $api ) {
-		$api->enableReleaseAssets();
+		$api->enableReleaseAssets( '/bws-gb-dynamic-tags-extensions-[\d.]+\.zip/', \YahnisElsts\PluginUpdateChecker\v5p7\Vcs\Api::REQUIRE_RELEASE_ASSETS );
 	}
 }
 bws_dynamic_tags_init_update_checker();
