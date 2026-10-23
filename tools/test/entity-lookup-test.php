@@ -400,7 +400,7 @@ check(
 	array( 'id' => 5, 'label' => '#5 News', 'group' => 'Category', 'scope' => 'category' ),
 	bws_entity_lookup_resolve_term( 5 )
 );
-check( 'a deleted term resolves to null (the picker\'s "(missing)" case)', null, bws_entity_lookup_resolve_term( 999 ) );
+check( 'a deleted term resolves to null (the picker\'s "(not available)" case)', null, bws_entity_lookup_resolve_term( 999 ) );
 check(
 	'a term in a taxonomy the user cannot read resolves to null too',
 	null,
@@ -527,7 +527,7 @@ check(
 	null,
 	bws_entity_lookup_resolve_post( 7 )
 );
-check( 'a deleted post resolves to null (the picker\'s "(missing)" case)', null, bws_entity_lookup_resolve_post( 999 ) );
+check( 'a deleted post resolves to null (the picker\'s "(not available)" case)', null, bws_entity_lookup_resolve_post( 999 ) );
 check(
 	'a post in a post type the user cannot read resolves to null too',
 	null,

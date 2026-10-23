@@ -749,11 +749,44 @@ function bws_preview_tax_label( string $tax ): string {
 }
 
 /**
+ * The marker a preview appends to a root argument that names no reachable entity. THE ONE
+ * SPELLING: the namer writes it and every surface that reads it back (the `{{table}}`
+ * skeleton note) matches this, never its own copy of the words.
+ */
+if ( ! defined( 'BWS_PREVIEW_ENTITY_UNAVAILABLE' ) ) {
+	define( 'BWS_PREVIEW_ENTITY_UNAVAILABLE', '(not available)' );
+}
+
+/**
+ * The `entity_resolvers` every caller with a real WordPress passes to
+ * bws_preview_source_segments(), keyed by root token.
+ *
+ * `term` takes `bws_get_validated_term()` (taxonomy-helpers.php), not bare `get_term`: the
+ * plugin's one "is this term real" rule, already the answer every other term-existence read in
+ * this codebase takes, rather than a second falsy/WP_Error check owned only by the preview.
+ * `post` has no equivalent helper to route through (D13: no legacy read path to keep
+ * compatible with, unlike term's), so it takes bare `get_post`, D20's own stated default;
+ * bws_preview_root_entity_segment() already treats a null return as unavailable without a
+ * WP_Error check to make.
+ *
+ * @since Unreleased
+ * @return array<string,string>
+ */
+if ( ! function_exists( 'bws_preview_entity_resolvers' ) ) {
+function bws_preview_entity_resolvers(): array {
+	return array(
+		'term' => 'bws_get_validated_term',
+		'post' => 'get_post',
+	);
+}
+}
+
+/**
  * The author-facing segment for one root's ARGUMENT — "Term: News" (D20, FW-39).
  *
  * THREE distinct answers, and they are three different questions:
  *   - the argument resolves to a named entity  → "<Label>: <Name>" ("Term: News")
- *   - the argument resolves to NOTHING         → "<root> <arg> (missing)" — a deleted
+ *   - the argument resolves to NOTHING         → "<root> <arg> (not available)" — a deleted
  *     term, so the author can find and repoint the tag rather than read a silent blank.
  *   - the argument cannot be READ AT ALL (not numeric, or the resolver hands back
  *     something with no name) → the root and argument as typed ("term abc"), because
@@ -799,7 +832,7 @@ function bws_preview_root_entity_segment( string $root, string $arg, string $lab
 
 	$entity = call_user_func( $resolver, (int) $arg );
 	if ( ! $entity || ( function_exists( 'is_wp_error' ) && is_wp_error( $entity ) ) ) {
-		return $token . ' (missing)';
+		return $token . ' ' . BWS_PREVIEW_ENTITY_UNAVAILABLE;
 	}
 
 	// `name` is WP_Term's; a future kind (post) reads `post_title` instead — this
@@ -1345,20 +1378,8 @@ function bws_build_preview_label( array $options, string $template ): string {
 	$ctx_segments = bws_preview_source_segments(
 		$chain,
 		array(
-			// The ONE caller with a real WordPress to ask (D20) — every other reader
-			// of bws_preview_source_segments() is a pure test supplying its own fake.
-			// `bws_get_validated_term()` (taxonomy-helpers.php), not bare `get_term`:
-			// the plugin's one "is this term real" rule, already the answer every
-			// other term-existence read in this codebase takes, rather than a second
-			// falsy/WP_Error check owned only by the preview. `post` has no equivalent
-			// "is this post real" helper to route through (D13: no legacy read path to
-			// keep compatible with, unlike term's), so it takes bare `get_post` — D20's
-			// own stated default, and `bws_preview_root_entity_segment()` already
-			// treats a null return as "missing" without a WP_Error check to make.
-			'entity_resolvers' => array(
-				'term' => 'bws_get_validated_term',
-				'post' => 'get_post',
-			),
+			// A caller with a real WordPress to ask (D20); the pure tests supply their own fake.
+			'entity_resolvers' => bws_preview_entity_resolvers(),
 		),
 		$src_missing,
 		$src_inert

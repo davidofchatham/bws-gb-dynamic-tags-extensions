@@ -80,7 +80,7 @@ class CurrentPost extends AbstractSource {
 	 *
 	 * VERIFIED against the post store with `get_post()`, not cast and trusted — same
 	 * posture as TaxonomyTerm::resolve_root_argument(). A post whose id has never existed,
-	 * or that has been permanently deleted, must render blank and read `(missing)` in the
+	 * or that has been permanently deleted, must render blank and read `(not available)` in the
 	 * editor rather than silently reading nothing through a dead id. A TRASHED post still
 	 * exists in the store (trash is a status, not a deletion) and resolves — an author who
 	 * selected a post before moving it to trash is not the case this seam exists to catch.

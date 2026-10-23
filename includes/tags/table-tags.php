@@ -479,6 +479,37 @@ function bws_table_html( array $options, array $columns, array $matrix, bool $al
 const BWS_TABLE_SKELETON_ROWS = 3;
 
 /**
+ * The skeleton note's words for a root argument naming an entity that is not available, or ''.
+ *
+ * The same words the base tag preview uses: this asks the namer through the resolvers every
+ * preview passes and keeps the segment carrying BWS_PREVIEW_ENTITY_UNAVAILABLE.
+ *
+ * @since Unreleased
+ * @param string $src The tag's `src` wire.
+ * @return string
+ */
+function bws_table_unavailable_root_entity( string $src ): string {
+	$chain    = bws_fold_chain_from_options( array( 'src' => $src ) );
+	$missing  = array();
+	$inert    = array();
+	$segments = bws_preview_source_segments(
+		$chain,
+		array(
+			'site'             => false,
+			'entity_resolvers' => bws_preview_entity_resolvers(),
+		),
+		$missing,
+		$inert
+	);
+	foreach ( $segments as $segment ) {
+		if ( str_ends_with( $segment, ' ' . BWS_PREVIEW_ENTITY_UNAVAILABLE ) ) {
+			return $segment;
+		}
+	}
+	return '';
+}
+
+/**
  * The editor's placeholder for a table that cannot render here: the real table's shape, each
  * cell holding its column's configuration, never invented data.
  *
@@ -506,6 +537,9 @@ function bws_table_skeleton( array $options, array $columns, array $dropped = ar
 		$inert          = array();
 		bws_try_preview_source_part( (string) ( $options['src'] ?? '' ), true, $inert );
 		$source_warning = bws_preview_inert_warning( $inert );
+		if ( '' === $source_warning ) {
+			$source_warning = bws_table_unavailable_root_entity( (string) ( $options['src'] ?? '' ) );
+		}
 		$tag_warnings   = array( '' !== $source_warning ? $source_warning : 'source not available in the editor' );
 	}
 

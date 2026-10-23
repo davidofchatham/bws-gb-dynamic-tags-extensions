@@ -637,9 +637,9 @@ check(
 // A DELETED term's pin is MARKED, not silently blank — the failure an author can see
 // least, since a missing pin and an empty field both render nothing.
 check(
-	'pinned term, deleted → "(missing)"',
+	'pinned term, deleted → "(not available)"',
 	bws_build_preview_label( [ 'src' => 'term,999', 'key' => 'sku' ], 'text' ),
-	"['sku' from term 999 (missing)]"
+	"['sku' from term 999 (not available)]"
 );
 // A NON-NUMERIC argument falls back to the wire TOKEN — D10 dropped the designed
 // slug-recovery affordance, so this is not reinterpreted as anything else.
@@ -676,9 +676,9 @@ check(
 	"['sku' from Post: Hello world!]"
 );
 check(
-	'pinned post, deleted → "(missing)"',
+	'pinned post, deleted → "(not available)"',
 	bws_build_preview_label( [ 'src' => 'post,999', 'key' => 'sku' ], 'text' ),
-	"['sku' from post 999 (missing)]"
+	"['sku' from post 999 (not available)]"
 );
 check(
 	'pinned post, non-numeric argument → falls back to the token',
@@ -708,7 +708,7 @@ check(
 check(
 	'segment: missing entity',
 	bws_preview_root_entity_segment( 'term', '99', 'Term', static function () { return null; } ),
-	'term 99 (missing)'
+	'term 99 (not available)'
 );
 check(
 	'segment: no resolver supplied → falls back to the token',

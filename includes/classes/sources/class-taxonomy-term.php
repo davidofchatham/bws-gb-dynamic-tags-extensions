@@ -108,7 +108,7 @@ class TaxonomyTerm extends AbstractSource {
 	 * Resolve `term,<ID>` to that term, or to nothing (FW-39).
 	 *
 	 * VERIFIED against the taxonomy store, not cast and trusted. An argument whose term has been
-	 * deleted must render blank and read `(missing)` in the editor, and an unchecked
+	 * deleted must render blank and read `(not available)` in the editor, and an unchecked
 	 * `(int)` would hand a dead id to the field read, where a missing term and a term with
 	 * an empty field produce the same empty output — the failure the author is least able
 	 * to see.

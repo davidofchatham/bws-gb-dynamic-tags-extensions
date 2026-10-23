@@ -1682,7 +1682,7 @@ function bws_modifier_entry_root( string $tag_string ): string {
  * empty. Measured on the testbed — `{{term_text id:999999|use:title}}` renders `Sales` on
  * `/department/sales/` and empty on six other contexts; `{{text src:term,999999|use:title}}`
  * renders empty on all seven. Value→empty, deliberately: a dead reference reads as broken
- * (`(missing)` in the editor) rather than silently borrowing the page's term. **No decision
+ * (`(not available)` in the editor) rather than silently borrowing the page's term. **No decision
  * id yet.** Rows: `context-test-matrix.md` §C-CONV13/14.
  *
  * @since 1.17.0

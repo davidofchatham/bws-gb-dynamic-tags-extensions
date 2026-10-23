@@ -2314,7 +2314,7 @@ function bws_fixture_page_content_matrix_table() {
 	$sections[] = bws_fixture_gb_section( 'Table TE - editor preview: the real table, or a skeleton', array(
 		bws_fixture_gb_block_host_row( 'TE1 rows resolve (-> the real 2-row table, front end and editor alike: Alice Adams/Staff, Bob Brown/Staff)', "{{table {$src}|A:header(Name);key(name)|B:header(Team);fixed(Staff)}}" ),
 		bws_fixture_gb_block_host_row( 'TE2 the chain resolves to zero rows (-> front end nothing; editor the real table, header Name/Team and an empty body, no dashed outline)', "{{table src:post,{$meta_id};rows,no_such_repeater|A:header(Name);key(name)|B:header(Team);fixed(Staff)}}" ),
-		bws_fixture_gb_block_host_row( 'TE3 unresolvable source, styled (-> front end nothing; editor a dashed skeleton, note "Table: source not available in the editor", header Name/Team, 3 rows of \'name\' / "Staff" in blue-grey with row stripes)', "{{table src:post,999999;rows,team_members|color:#475569|stripe:rows|A:header(Name);key(name)|B:header(Team);fixed(Staff)}}" ),
+		bws_fixture_gb_block_host_row( 'TE3 unresolvable source, styled (-> front end nothing; editor a dashed skeleton, note "Table: post 999999 (not available)", header Name/Team, 3 rows of \'name\' / "Staff" in blue-grey with row stripes)', "{{table src:post,999999;rows,team_members|color:#475569|stripe:rows|A:header(Name);key(name)|B:header(Team);fixed(Staff)}}" ),
 		bws_fixture_gb_block_host_row( 'TE4 unresolvable source, no headers (-> front end nothing; editor a dashed skeleton with NO header row, 3 rows of \'name\' / \'role\')', "{{table src:post,999999;rows,team_members|A:key(name)|B:key(role)}}" ),
 		bws_fixture_gb_block_host_row( 'TE5 no columns (-> front end nothing; editor a dashed skeleton, note "Table: no columns set", one column reading No columns)', "{{table {$src}}}" ),
 	) );
@@ -2825,7 +2825,7 @@ function bws_fixture_element_content_context_header() {
 				'{{term_text id:999999|use:title}}'
 			),
 			bws_fixture_gb_empty_row(
-				'C-CONV14 what C-CONV13 converts to -> EMPTY on all seven, term archive included. THE ONE ROW IN THIS SECTION THAT RUNS value->empty: the conversion is not output-neutral for a dead pin, and that is the decided outcome - a broken pin reads as broken (and as `(missing)` in the editor) instead of silently borrowing the page term. Every other pinned row above is byte-identical in both directions',
+				'C-CONV14 what C-CONV13 converts to -> EMPTY on all seven, term archive included. THE ONE ROW IN THIS SECTION THAT RUNS value->empty: the conversion is not output-neutral for a dead pin, and that is the decided outcome - a broken pin reads as broken (and as `(not available)` in the editor) instead of silently borrowing the page term. Every other pinned row above is byte-identical in both directions',
 				'{{text src:term,999999|use:title}}'
 			),
 		)
