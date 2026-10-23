@@ -4,7 +4,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Highlights
+
+- A new Parent Post/Term source step reads the parent page of the page you are on, the parent term on a term archive, or the parent of whatever an earlier step reached. *(Added)*
+- Integrating plugins can hide a post from this plugin's tags, and run their own tags through the same visibility check. *(Added)*
+
 ### Added
+
+- **Parent Post/Term source step.** A source path can now step to the WordPress parent of the post or term it has reached: a page's parent page, a child post's parent in any hierarchical post type, an attachment's attached-to post, or a term's parent term in the same taxonomy. It works directly off the current context (on a singular page it gives the parent post, on a term archive the parent term) and after any step that lands on a post or a term, such as a relationship field's posts. A top-level post or term has no parent, so the tag shows its fallback rather than the item itself, and a parent the visitor may not see is skipped like any other source. It is offered on base tags, `{{join}}` fields, `try_` attempts and `{{table}}` columns (not under a repeater-row tag source, since a row has no parent), under "Starting from Current Context" ("Starting from Tag Source" in a table column). It returns one item, so it has no Limit box. See [`docs/tag-reference.md`](docs/tag-reference.md) §Source CHAINS.
 
 - **For integrating plugins: `bws_is_source_usable()` is now supported API.** A tag your plugin registers itself can pass the entity it resolved through the same check the base tags apply, so it hides a post the visitor may not see exactly as they do. Its `bws_dynamic_tags_source_visible` filter lets your plugin hide more than that check does: if your plugin decides who may see a post, return `false` for it and this plugin's tags treat it as not visible: a tag skips past it to the next usable entity, or reads empty when none is left, and a query-loop row for it shows none of this plugin's tags. The filter can only hide; it never sees an entity the built-in check already refused. See [Plugin integration §3](docs/plugin-integration.md#3-registering-your-own-tag).
 

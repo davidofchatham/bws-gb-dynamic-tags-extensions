@@ -61,6 +61,7 @@ A source path is where a tag starts, plus any steps it takes from there.
 | Posts in Reference/Relational Field | A post, term, user, repeater row, or site options | The posts stored in that field |
 | Terms in Taxonomy | A post | That post's terms in the taxonomy |
 | Rows in Repeater Field | A post, term, user, repeater row, or site options | The field's rows |
+| **[UNRELEASED]** Parent Post/Term | A post or term | Its parent post, or its parent term in the same taxonomy. A top-level post or term has none, so the tag shows its fallback |
 
 Steps chain in any order the "Can follow" column allows, for example a relationship field's posts, then each post's categories. `title` and `permalink` can't read a repeater row, since a row has no title or address. `call` takes post sources only.
 

@@ -380,16 +380,13 @@ iterations live in one render. The item is a ROOT: GB chose it, and a source pat
 is never called one, whichever shape the item has.
 
 **Kind determination** (a third axis, alongside the two source-binding axes above, and
-independent of both): *when is the kind a chain resolves to knowable?* Three answers, and
-they must stay three — collapsing the last two into one "unknown" is what GH #109 cost.
+independent of both): *when is the kind a chain resolves to knowable?* Four answers, and
+they must stay four — collapsing render-time and unrecognized into one "unknown" is what GH #109 cost, and collapsing settles-at-render into render-time costs the same way.
 
-- **parse-time** — the wire names the kind. Reading the parsed chain is enough; no render
-  needed.
-- **render-time** — the wire cannot say, so the factory answers when the tag runs. Covers
-  BOTH an ambient root and a registered source answering for itself, which is why the name
-  says *when* rather than *how*. Spelled `render_time` in code.
-- **unrecognized** — the wire names step vocabulary we do not have. Not "known later": there
-  is nothing to know, and the chain short-circuits to empty. Spelled `''`.
+- **parse-time** — the wire names the kind. Reading the parsed chain is enough; no render needed.
+- **render-time** — the wire cannot say, so the factory answers when the tag runs. Covers BOTH an ambient root and a registered source answering for itself, which is why the name says *when* rather than *how*. Spelled `render_time` in code.
+- **settles-at-render** **[UNRELEASED]** — the chain STEPS, and whether it lands on a post or a term is known only once the factory answers (`parent` off the current context). Not render-time: a reader that takes the render-time shortcut reads the root and drops the step. Spelled `settles_at_render` in code.
+- **unrecognized** — the wire names step vocabulary we do not have. Not "known later": there is nothing to know, and the chain short-circuits to empty. Spelled `''`.
 
 Which answer a given chain gets is `bws_fold_chain_resolution()`'s to decide and is stated
 there. Note the layering: this axis says what kind SHOULD arrive, while resolvable / exists /

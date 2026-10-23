@@ -1371,11 +1371,23 @@ Four chain steps that follow WordPress's own hierarchy of posts and terms off wh
 
 Detail home: this row; the step table in [`tag-reference.md` §Source CHAINS](tag-reference.md#source-chains-1170)
 
-Progress: Not started. All four names are reserved as chain-root keys (`SourceRegistry::is_expressible_root_key()`), so no registered source can claim one before it ships. `parent` is Planned; the other three are To be considered.
+Progress: `parent` shipped in the first release after 1.22.0 (post and term input, editor label "Parent Post/Term", `tag-reference.md` §Source CHAINS). `ancestor`, `children` and `siblings` are To be considered and parked: no driving use case today (user, 2026-10-23). All three stay reserved as chain-root keys (`SourceRegistry::is_expressible_root_key()`), so no registered source can claim one before it ships.
 
-Open: Whether to build all four or only `parent`. The input kinds each step accepts (`BWS_TRAVERSAL_STEP_INPUT_KINDS`); none can take a `meta_row` or a user. Whether `children` and `siblings` take a post-type or taxonomy narrowing argument, and their default order. Whether `ancestor` needs a clearer name, since a step resolving the whole ancestor list would be `ancestors`. The editor labels.
+Open: For the three parked steps: their input kinds (`parent` takes `post` and `term` only, the precedent). Whether `children` and `siblings` take a post-type or taxonomy narrowing argument, their default order, and the default for their unlimited fan-out. Whether `siblings` includes the item itself. Whether post `children` may cross post types (attachments are children of a post). Whether `ancestor` needs a clearer name, since a step resolving the whole ancestor list would be `ancestors`. The editor labels.
 
-Blocked by: —  •  Interacts with: FW-53 (closed; `inherit` is the table's parent-SOURCE root, a different relation; the name `parent` was reserved for this one)
+Blocked by: decision:a driving use case for any of the three  •  Interacts with: FW-53 (closed; `inherit` is the table's parent-SOURCE root, a different relation), FW-177 (adjacent posts are an ordered relation like `siblings`; one ordering and filtering grammar should serve both)
+
+#### FW-177 — Previous / next post with an order and a filter
+
+Chain steps (or a root) that reach the post before or after the current one. GB Pro offers previous/next post already; this one adds an order-by (date, title, menu order, a meta field) and a filter-by, for example only posts sharing a term in a given taxonomy with the current post, so a series can be walked in its own order.
+
+Detail home: this row (user request, 2026-10-23; no plan yet)
+
+Progress: Not started.
+
+Open: Step or root (a step can follow `refs`/`parent`; a root reads only the ambient post). Singular names (`previous`/`next`, one each), and whether a list form is wanted. The order-by and filter-by argument grammar under ADR 0004's human-readable wire, and whether it is shared with `children`/`siblings`. Wrap-around at the ends (default: none, the chain resolves empty). Post-type scope (same type only by default). Behavior inside a query loop.
+
+Blocked by: decision:step or root, and the order/filter grammar  •  Interacts with: FW-169 (`siblings` raises the same order/filter questions)
 
 ## Closed / Retired
 

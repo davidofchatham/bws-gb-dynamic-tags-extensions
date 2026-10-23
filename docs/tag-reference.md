@@ -107,20 +107,21 @@ registered normally, at registry init rather than at enum-build time). See
 
 #### Source CHAINS (1.17.0)
 
-A source is a **chain**: a ROOT plus zero or more ordered **fanning** steps. The table above is the
-root vocabulary; a step continues from wherever the previous one landed.
+A source is a **chain**: a ROOT plus zero or more ordered steps. The table above is the root vocabulary; a step continues from wherever the previous one landed.
 
 | Step slug | Follows | Resolves to | Status |
 |---|---|---|---|
 | `refs,<field>` | a relationship / post-object field | `post` | Implemented |
 | `terms,<taxonomy>` | the entity's terms in that taxonomy | `term` | Implemented |
 | `rows,<field>` | a repeater field's rows | `meta_row` | Implemented |
-| `parent` | the WP parent post / parent term | same kind, one | Planned (FW-169) |
+| `parent` | the WP parent post / parent term | same kind, one | Implemented **[UNRELEASED]** |
 | `ancestor` | the WP top-level ancestor | same kind, one | To be considered (FW-169) |
 | `children` | the WP child posts / child terms | same kind, list | To be considered (FW-169) |
 | `siblings` | the WP posts / terms sharing a parent | same kind, list | To be considered (FW-169) |
 
-A step that resolves to a list is spelled plural, one that resolves to a single entity singular. The four hierarchical names are reserved as root keys now (`SourceRegistry::is_expressible_root_key()`), before any of them is built.
+A step that resolves to a list is spelled plural, one that resolves to a single entity singular. None of the four hierarchical names can be a root key (`SourceRegistry::is_expressible_root_key()`): `parent` because it is a step, the other three because they are reserved before any of them is built.
+
+**[UNRELEASED]** `parent` takes no argument and does not fan, so it has no limit. A post's parent is its `post_parent` in any post type (an attachment's is the post it is attached to); a term's parent stays in the term's own taxonomy. A top-level post or term has no parent, so the chain resolves nothing and the tag renders empty (its fallback fires); it never falls back to the item itself. A parent the visitor may not see is cut by the source gate like any other hop. Off a site, user or repeater row it resolves nothing (`BWS_TRAVERSAL_STEP_INPUT_KINDS`). Off the current context the chain cannot say at parse time whether it lands on a post or a term (a singular page gives the parent post, a term archive the parent term), so it gets its own kind answer, distinct from a root-only chain's; which answer is `bws_fold_chain_resolution()`'s, see [CONTEXT.md §Kind determination](../CONTEXT.md).
 
 README §Build source paths to access related data › Steps carries a simplified copy of this table (implemented steps only, editor labels, what each step can follow); a row changed here, or a change to `BWS_TRAVERSAL_STEP_INPUT_KINDS`, is changed there in the same edit.
 
@@ -137,11 +138,7 @@ once an author converts it or the Tag Converter rewrites it.
   `limit`, which bounds the resolved-source list ONCE, before the read — see
   [§List mode](#list-mode-limit--sep). Its control is labelled for what the step produces (**Limit Posts Read**, **Limit Terms Read**, **Limit Repeater Rows Read**), and it is a position in
   this value rather than an option key — [§Chain step controls](editor-controls.md#chain-step-controls).
-- **What a chain RESOLVES TO is the render path's dispatch axis** (`bws_fold_src_resolution()`:
-  kind ∈ `post|term|meta_row|site|base`, plus whether it fans). Pure and static, from the wire
-  alone — the editor's pickers and the list-mode reveal both scope themselves before anything
-  resolves. Every base arm asks that one question instead of comparing `src` to `'ref'`/`'site'` or
-  reading `srcTermIn`, which is what makes the two spellings take the same arm.
+- **What a chain RESOLVES TO is the render path's dispatch axis** (`bws_fold_src_resolution()`: the resolved-source kind, plus whether it fans; the kinds are `bws_fold_chain_resolution()`'s). Pure and static, from the wire alone — the editor's pickers and the list-mode reveal both scope themselves before anything resolves. Every base arm asks that one question instead of comparing `src` to `'ref'`/`'site'` or reading `srcTermIn`, which is what makes the two spellings take the same arm.
 - **A source that is present but unusable makes the tag render NOTHING, and a stated fallback
   fires.** An unregistered root token, a registered source that resolves nothing in this context,
   and an unknown step slug all take this path; a base tag renders empty, a `try_` attempt is
