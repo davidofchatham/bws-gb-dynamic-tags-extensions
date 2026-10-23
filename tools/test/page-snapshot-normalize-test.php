@@ -434,6 +434,20 @@ $check( 'P13.3 any other post type derives /<post_type>/<slug>/', '/staff/alpha/
 $check( 'P13.4 the set is key-sorted, so manifest reordering does not move the report', array_keys( $set ) === array( 'a-staff', 'z-page' ) );
 $check( 'P13.5 an empty manifest yields an empty set rather than a notice', array() === bws_page_snapshot_pages( array() ) );
 
+// A page under a parent lives at /parent/child/. The parent needs no builder of its own to
+// contribute its segment, and `post_parent` on a type that is not a page changes nothing.
+$tree = bws_page_snapshot_pages( array(
+	'posts' => array(
+		'top'   => array( 'post_type' => 'page', 'post_name' => 'top' ),
+		'mid'   => array( 'post_type' => 'page', 'post_name' => 'mid', 'post_parent' => 'top', 'content_builder' => 'x' ),
+		'leaf'  => array( 'post_type' => 'page', 'post_name' => 'leaf', 'post_parent' => 'mid', 'content_builder' => 'x' ),
+		'staff' => array( 'post_type' => 'staff', 'post_name' => 'sam', 'post_parent' => 'top', 'content_builder' => 'x' ),
+	),
+) );
+$check( 'P13.6 a child page derives /<parent>/<child>/, through a parent that has no builder', '/top/mid/' === $tree['mid']['path'] );
+$check( 'P13.6b ...and a grandchild the whole chain', '/top/mid/leaf/' === $tree['leaf']['path'] );
+$check( 'P13.6c a non-page type ignores post_parent', '/staff/sam/' === $tree['staff']['path'] );
+
 /* =========================================================================
  * §P13a — the other two provenances
  *
@@ -462,7 +476,7 @@ $date_rows = array_filter( array_keys( $set2 ), static function ( $k ) {
 	return 0 === strpos( $k, 'ctx-date-' );
 } );
 
-$check( 'P13a.1 a declared post type yields its archive path', '/staff/' === $set2['ctx-pta-staff']['path'] );
+$check( 'P13a.1 a declared post type yields its archive path, scoped to the blueprint own posts', '/staff/?bwsfx_scope=core' === $set2['ctx-pta-staff']['path'] );
 $check( 'P13a.2 ...carrying the body class that proves it is still an archive', 'post-type-archive-staff' === $set2['ctx-pta-staff']['body_class'] );
 // The whole reason the date is derived rather than declared: a written-down /YYYY/MM/ is
 // only true for the month the fixture happened to be seeded in.

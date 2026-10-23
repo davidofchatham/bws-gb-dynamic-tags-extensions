@@ -53,6 +53,20 @@ function bws_fixture_core_structures_register_types() {
 			'hierarchical' => true,
 		)
 	);
+
+	// A SECOND hierarchical taxonomy, on pages only, so a term can have a parent (FW-169, the
+	// `parent` step's term arm). Not more `department` terms: every department term is counted
+	// and printed on /matrix-loops/, so adding one moves that page's baseline for nothing.
+	register_taxonomy(
+		'kb_topic',
+		array( 'page' ),
+		array(
+			'label'        => 'Topics',
+			'public'       => true,
+			'show_in_rest' => true,
+			'hierarchical' => true,
+		)
+	);
 }
 
 /**
@@ -997,6 +1011,18 @@ function bws_fixture_seeded_post_id( $slug, $post_type ) {
 	}
 	$post = get_page_by_path( $slug, OBJECT, $post_type );
 	if ( ! $post instanceof WP_Post ) {
+		// A CHILD page is not found by its bare slug (get_page_by_path wants the full
+		// hierarchical path), and the parent-chain fixtures are children. Same explicit
+		// status list the seeder's own lookup uses, for the same reason.
+		$found = get_posts( array(
+			'name'        => $slug,
+			'post_type'   => $post_type,
+			'post_status' => array( 'publish', 'draft', 'private', 'pending', 'future' ),
+			'numberposts' => 1,
+		) );
+		$post  = $found ? $found[0] : null;
+	}
+	if ( ! $post instanceof WP_Post ) {
 		return false;
 	}
 	$cache[ $ck ] = (int) $post->ID;
@@ -1164,8 +1190,43 @@ function bws_fixture_core_structures_404_title( $title ) {
 	return 'Fixture 404 Title (filter)';
 }
 
+/**
+ * Narrow a post-type ARCHIVE to the posts this blueprint seeded, when the request asks.
+ *
+ * The archive lists every post of its type the visitor may see, so a post another fixture set
+ * adds moves the first article and the page count of an archive snapshot while nothing of ours
+ * changed. `?bwsfx_scope=core` restricts the main archive query to the manifest's own posts of
+ * that type, by slug. Removed from the query rather than normalized out of the snapshot, as the
+ * WooCommerce related-products block is: the list stays rendered and stays covered, and only
+ * the population is pinned. Fixture site only; the plugin never ships this.
+ *
+ * @param WP_Query $query Query under construction.
+ */
+function bws_fixture_core_structures_scope_archive( $query ) {
+	if ( is_admin() || ! $query->is_main_query() || ! $query->is_post_type_archive() ) {
+		return;
+	}
+	if ( ! isset( $_GET['bwsfx_scope'] ) || 'core' !== $_GET['bwsfx_scope'] ) { // phpcs:ignore WordPress.Security.NonceVerification
+		return;
+	}
+	$type = $query->get( 'post_type' );
+	if ( ! is_string( $type ) || '' === $type ) {
+		return;
+	}
+	$manifest = require __DIR__ . '/manifest.php';
+	$names    = array();
+	foreach ( ( $manifest['posts'] ?? array() ) as $def ) {
+		if ( ( $def['post_type'] ?? '' ) === $type && ! empty( $def['post_name'] ) ) {
+			$names[] = $def['post_name'];
+		}
+	}
+	// No seeded post of the type: match nothing rather than fall back to everything.
+	$query->set( 'post_name__in', $names ? $names : array( '__bwsfx_none__' ) );
+}
+
 // Runtime path (mu-plugin loader stub): hook normally.
 if ( function_exists( 'add_action' ) && ! defined( 'BWS_FIXTURE_SEEDING' ) ) {
+	add_action( 'pre_get_posts', 'bws_fixture_core_structures_scope_archive' );
 	add_action( 'init', 'bws_fixture_core_structures_register_types', 5 );
 	add_action( 'init', 'bws_fixture_core_structures_register_meta', 5 );
 	add_action( 'acf/init', 'bws_fixture_core_structures_register_acf', 5 );

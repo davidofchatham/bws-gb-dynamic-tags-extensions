@@ -165,6 +165,8 @@ container, so a capture under `wp eval-file` can write nothing. Comparison only 
 `posts` entry carrying a `content_builder` is snapshotted, so a new fixture page enters the set
 by existing. Nothing to register.
 
+**The post-type archive is scoped to this blueprint's own posts**, by `?bwsfx_scope=core` on its derived URL. An archive lists every post of its type a visitor may see, and the fixture site is shared, so a visible post from another fixture set moved the first article and the page count while nothing of ours had changed (measured 2026-10-23, `ctx-pta-staff`). The fixture mu-plugin (`bws_fixture_core_structures_scope_archive` in `schema.php`) restricts the main archive query to the manifest's posts of that type by slug, so the list is still rendered and still covered and only its population is pinned. A fixture post of ours added to a type that has an archive snapshot joins it by being in the manifest; one from anywhere else never does.
+
 **Cache-busting is built in** (the §page cache rule above applies to this instrument too, and it
 generates its own bust value per request — do not wrap it in one). A reseed does not invalidate
 the baseline either: `post_modified` and its siblings are normalized out, so `bin/seed.sh` and

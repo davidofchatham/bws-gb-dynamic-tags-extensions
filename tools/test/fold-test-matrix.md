@@ -1100,6 +1100,49 @@ The ids below are resolved at BUILD TIME (`bws_fixture_seeded_term_id()` / `bws_
 
 **Verified live** (`render-tag`, 2026-09-29, blueprint v28): all five rows measured against the real seeded `/matrix-post-meta/` page.
 
+## §F25 — the `parent` chain step (FW-169, ticket 04)
+
+**Three pages** (blueprint v32): `/matrix-parent/` (top level, the EMPTY case), `/matrix-parent/matrix-parent-mid/` (a body and a `main_line`, no rows) and `/matrix-parent/matrix-parent-mid/matrix-parent-leaf/` (the rows below). The leaf's own `main_line` is empty and the middle page's is `(555) 310-2200`, so F25.2 against F25.3 is the whole assertion that the step read the PARENT's value. The leaf also holds the plain-meta relationship `related_page` (-> the middle page), so the relationship route and the hierarchy route reach one value two ways (F25.30/F25.31). A `kb_topic` term chain (Regions > East > Coastal) and an attachment attached to the middle page cover the term and attachment arms; a published page under a DRAFT page (`matrix-parent-orphan`, no builder) is the gate row.
+
+Visible rows carry the same ids as this table. A term ARCHIVE as the ambient context is `render-tag` only (a request shape, no page content to host a row), so F25.50–F25.53 have no visible block, per [docs/testbed.md](../../docs/testbed.md).
+
+| # | Tag | Context | Expected |
+|---|---|---|---|
+| F25.1 | `{{text src:current;parent\|use:title}}` | leaf | `Matrix: Parent (middle)` |
+| F25.2 | `{{text src:current;parent\|key:main_line}}` | leaf | `(555) 310-2200` — the parent's field |
+| F25.3 | `{{text key:main_line}}` | leaf | EMPTY — the non-vacuity control for F25.2 |
+| F25.4 | `{{text src:current;parent;parent\|use:title}}` | leaf | `Matrix: Parent (top)` |
+| F25.5 | `{{text src:current;parent;parent;parent\|use:title}}` | leaf | EMPTY — past the top, never the page it started from |
+| F25.6 | `{{text src:refs,related_page;parent\|use:title}}` | leaf | `Matrix: Parent (top)` — parent of the related page, not of this one |
+| F25.7 | `{{text src:terms,kb_topic;parent\|use:title}}` | leaf | `East` — the leaf is in Coastal |
+| F25.8 | `{{text src:post,<mid id>;parent\|use:title}}` | leaf | `Matrix: Parent (top)` — a pinned post root |
+| F25.9 | `{{text src:term,<coastal id>;parent\|use:title}}` | leaf | `East` — a pinned term root |
+| F25.10 | `{{text src:post,<attachment id>;parent\|use:title}}` | leaf | `Matrix: Parent (middle)` — the post it is attached to |
+| F25.11 | `{{text src:post,<orphan id>;parent\|use:title}}` | leaf | EMPTY for a visitor (the draft parent is cut at the hop, [I19]); `Matrix: Parent (draft)` for an administrator (`render-tag --user=1`) |
+| F25.11b | `{{text src:post,<orphan id>\|use:title}}` | leaf | `Matrix: Parent (under a draft)` — the non-vacuity control for F25.11: the orphan is readable on its own, so F25.11's empty is the hop |
+| F25.12 | `{{text src:site;parent\|use:title}}` | leaf | EMPTY — `site` is not an accepted input kind for the step |
+| F25.12b | `{{text src:site\|use:title}}` | leaf | `BWS Testbed` — the non-vacuity control for F25.12 |
+| F25.20 | `{{content src:current;parent}}` | leaf | the middle page's body, `This is the body of the middle page in the parent chain.` |
+| F25.21 | `{{title src:current;parent}}` | leaf | `Matrix: Parent (middle)` |
+| F25.22 | `{{permalink src:current;parent}}` | leaf | `https://testbed.test/matrix-parent/matrix-parent-mid/` |
+| F25.23 | `{{image src:current;parent\|key:feature_image\|use:key\|as:alt}}` | leaf | `Fixture photo alt text` |
+| F25.30 | `{{try_text A:key(main_line)\|B:src(refs,related_page);key(main_line)}}` | leaf | `(555) 310-2200` — slot 1 empty, falls back through the relationship (the shape a visibility-restricted post needs) |
+| F25.31 | `{{try_text A:key(main_line)\|B:src(current;parent);key(main_line)}}` | leaf | `(555) 310-2200` — the same fallback through the hierarchy |
+| F25.32 | `{{try_text A:src(current);use(title)\|B:src(current;parent);use(title)}}` | leaf | `Matrix: Parent (leaf)` — slot 1 wins, the parent attempt never runs |
+| F25.33 | `{{join mode:template\|A:src(current;parent);use(title)\|B:src(current);use(title)\|format:%A / %B}}` | leaf | `Matrix: Parent (middle) / Matrix: Parent (leaf)` |
+| F25.40 | `{{text src:current;parent\|use:title}}` | top | EMPTY |
+| F25.41 | `{{content src:current;parent}}` | top | EMPTY — not the page's own body (fw-169/01 found this leaking). Under `render-tag` the page's own `{{content}}` is non-empty, so a leak shows there; the served page may blank its own body through a recursion guard (unmeasured), so `render-tag` is the evidence for this row and the visible block alone cannot tell a leak from the right answer |
+| F25.42 | `{{title src:current;parent}}` | top | EMPTY |
+| F25.43 | `{{permalink src:current;parent}}` | top | EMPTY — not the page's own URL (the same leak) |
+| F25.44 | `{{image src:current;parent\|key:feature_image\|use:key\|as:alt}}` | top | EMPTY (one space, the `as:alt` pad). The top page holds a `feature_image` of its own (`Fixture photo alt text`), so a leak would print it |
+| F25.45 | `{{try_text A:src(current;parent);use(title)\|B:src(current);use(title)}}` | top | `Matrix: Parent (top)` — an empty parent attempt hands over to the next one |
+| F25.50 | `{{text src:current;parent\|use:title}}` | `/kb_topic/coastal/` (render-tag) | `East` |
+| F25.51 | `{{title src:current;parent}}` | `/kb_topic/coastal/` (render-tag) | `East` |
+| F25.52 | `{{permalink src:current;parent}}` | `/kb_topic/coastal/` (render-tag) | `https://testbed.test/kb_topic/east/` |
+| F25.53 | `{{text src:current\|use:title}}` | `/kb_topic/coastal/` (render-tag) | `Coastal` — the non-vacuity control for F25.50–52 |
+
+**Verified live** (`render-tag` and an anonymous front-end fetch, 2026-10-23, blueprint v32): every row above reads its Expected value. **Not measured here:** `{{table}}` columns, the editor's step row and Limit suppression, and `try_`/`join` slots off a term-archive root.
+
 ## Fail triage
 
 1. **A §F1/§F2/§F8 pair diverges** → the fold seam or the compiler. Run `slot-fold-test.php` +
