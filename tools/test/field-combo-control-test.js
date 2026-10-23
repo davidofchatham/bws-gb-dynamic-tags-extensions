@@ -751,7 +751,7 @@ async function main() {
 	 * variant uncommittable.
 	 * ================================================================== */
 
-	async function withTyped( typed, state ) {
+	async function withTyped( typed, state, onSet ) {
 		hooks.cells = [];
 		hooks.dirty = true;
 		let t = null;
@@ -761,7 +761,7 @@ async function main() {
 			hooks.dirty = false;
 			hooks.idx = 0;
 			hooks.effects = [];
-			t = FieldComboControl( { optionKey: 'key', label: 'Field', context: ctx( state || {} ) } );
+			t = FieldComboControl( { optionKey: 'key', label: 'Field', context: ctx( state || {}, onSet ) } );
 			hooks.effects.forEach( function ( fn ) { fn(); } );
 			if ( ! hooks.dirty && ! typedYet && combo( t ) ) {
 				typedYet = true;
@@ -777,13 +777,13 @@ async function main() {
 	check(
 		'F7.1 an unmatched typed key offers a custom-key option, at the head of the list',
 		combo( typedNew ).options[ 0 ],
-		{ value: 'my_own_key', label: 'Use custom key: "my_own_key"' }
+		{ value: 'my_own_key', label: 'Press Enter or select this to use custom key "my_own_key"' }
 	);
 
 	const typedExisting = await withTyped( 'venue_city' );
 	check(
 		'F7.2 typing a key that already commits an option offers no duplicate',
-		combo( typedExisting ).options.filter( function ( o ) { return o.label.indexOf( 'Use custom key' ) === 0; } ),
+		combo( typedExisting ).options.filter( function ( o ) { return /use custom key/.test( o.label ); } ),
 		[]
 	);
 
@@ -791,8 +791,40 @@ async function main() {
 	check(
 		'F7.3 the suppression is case-SENSITIVE — meta keys are, so the variant stays committable',
 		combo( typedCase ).options[ 0 ],
-		{ value: 'Venue_City', label: 'Use custom key: "Venue_City"' }
+		{ value: 'Venue_City', label: 'Select this to use custom key "Venue_City"' }
 	);
+	check(
+		'F7.3b a custom row that real matches sit above does not promise Enter (the first match is highlighted)',
+		/^Select this/.test( combo( await withTyped( 'cit' ) ).options[ 0 ].label ),
+		true
+	);
+
+	// Enter commits a typed key only when no listed field is left for it to mean.
+	const enterOf = ( tree ) => findAll( tree, 'div' ).filter( ( n ) => n.props.onKeyDownCapture )[ 0 ].props.onKeyDownCapture;
+	const pressEnter = ( tree ) => {
+		const ev = { key: 'Enter', prevented: false, stopped: false, preventDefault() { this.prevented = true; }, stopPropagation() { this.stopped = true; } };
+		enterOf( tree )( ev );
+		return ev;
+	};
+	let wrote = [];
+	const enterNew = await withTyped( 'my_own_key', {}, ( s ) => wrote.push( s ) );
+	const enterEv = pressEnter( enterNew );
+	check( 'F7.4 Enter on text matching no listed field commits it as the custom key, and is consumed', [ wrote, enterEv.prevented, enterEv.stopped ], [ [ { key: 'my_own_key' } ], true, true ] );
+
+	wrote = [];
+	const enterSearch = await withTyped( 'cit', {}, ( s ) => wrote.push( s ) );
+	const searchEv = pressEnter( enterSearch );
+	check( 'F7.5 Enter on text that still matches a listed field is left to the list: nothing commits', [ wrote, searchEv.prevented ], [ [], false ] );
+
+	wrote = [];
+	const enterExact = await withTyped( 'venue_city', {}, ( s ) => wrote.push( s ) );
+	pressEnter( enterExact );
+	check( 'F7.6 Enter on a key that is already an option is left to the list', wrote, [] );
+
+	wrote = [];
+	const enterEmpty = await withTyped( '', {}, ( s ) => wrote.push( s ) );
+	pressEnter( enterEmpty );
+	check( 'F7.7 Enter with nothing typed commits nothing', wrote, [] );
 
 	/* =====================================================================
 	 * §F8 — the repeater auto-scope

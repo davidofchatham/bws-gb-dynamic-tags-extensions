@@ -11,6 +11,8 @@ All notable changes to this project are documented in this file. The format is b
 ### Changed
 
 - **For integrating plugins: the integration guide is rewritten around what works today.** It leads with chain roots, points to GenerateBlocks' own docs for registering a tag, and narrows the documented helpers to the content-rendering pipeline. Every other `bws_` function is now stated to be internal. See [`docs/plugin-integration.md`](docs/plugin-integration.md).
+- **Typing a custom value into a combobox no longer needs a click on the "use" row.** In the `{{table}}` color, size, width and border fields, Enter or leaving the field commits typed text that is a valid value (a `var()`, `1.5rem`, a keyword), and a bare number such as `1.5` takes the field's default unit. In the field selector, Enter commits a custom key when no listed field still matches the typed text, so searching is never mistaken for entering a key. The "use" row's text now says how to pick it: "Press Enter or select this to use custom key", or just "Select this to use custom key" when real matches are listed above it.
+- **Clicking a custom value to edit it keeps its text in the field.** A `{{table}}` size, width, color or border value that is not on the list, and a field selector key that discovery never found, now stay in the input as editable text instead of vanishing into the list. Leaving the field no longer leaves a stray "Use…" label in it, and the field selector's search text is cleared when you leave, so the list does not reopen pre-filtered.
 
 ### Removed
 

@@ -39,12 +39,12 @@ field/group names in the rows are that blueprint's fixture names (`schema.php` /
 
 | # | Action | Expect |
 |---|---|---|
-| M1.1 | Type an unregistered key `made_up_key` | Top option **`Use custom key: "made_up_key"`** appears |
+| M1.1 | Type an unregistered key `made_up_key` | Top option **`Press Enter or select this to use custom key "made_up_key"`** appears |
 | M1.2 | Enter / click that option | Tag serializes bare `key:made_up_key` — no separate "Add" step |
 | M1.3 | Pick a real field, then click the ✕ | Value cleared; `key:` omitted from the tag (never a bare `key:`) |
 | M1.4 | Save + reload, reopen the tag | The persisted key shows selected (round-trip) |
-| M1.5 | Type a custom key that is a **substring of a visible label** (e.g. `city` when "City ('venue_city')" is listed) | **`Use custom key: "city"`** still appears; suppression is exact-key, NOT substring-of-label (V12/B3), so the literal `city` remains committable |
-| M1.6 | With a field whose key is `Event_Date` in the list, type the **case-variant** `event_date` | **`Use custom key: "event_date"`** appears (case-sensitive match), and committing serializes `key:event_date` verbatim, NOT `Event_Date`. Meta keys are case-sensitive (B6). |
+| M1.5 | Type a custom key that is a **substring of a visible label** (e.g. `city` when "City ('venue_city')" is listed) | **`Select this to use custom key "city"`** still appears; suppression is exact-key, NOT substring-of-label (V12/B3), so the literal `city` remains committable |
+| M1.6 | With a field whose key is `Event_Date` in the list, type the **case-variant** `event_date` | **`Select this to use custom key "event_date"`** appears (case-sensitive match), and committing serializes `key:event_date` verbatim, NOT `Event_Date`. Meta keys are case-sensitive (B6). |
 
 ## M2 — filters (location + type)
 
