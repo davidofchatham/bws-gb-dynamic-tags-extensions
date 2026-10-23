@@ -62,11 +62,10 @@ if ( ! function_exists( 'bws_extract_post_id' ) ) {
 require __DIR__ . '/../../includes/helpers/serialization-order.php';
 require __DIR__ . '/../../includes/helpers/slot-fold.php';
 require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
-// Source-gate stub before the engine require (same seam as the traversal harness):
-// this file drives the COMPILER; every source it feeds the engine should pass.
-if ( ! function_exists( 'bws_source_gate' ) ) {
-	function bws_source_gate( array $source ) { return empty( $source['__gated'] ); }
-}
+// Source-gate stub (same seam as the traversal harness; the real one is in
+// source-usable.php, never required here): this file drives the COMPILER; every
+// source it feeds the engine should pass.
+function bws_is_source_usable( array $source ) { return empty( $source['__gated'] ); }
 require __DIR__ . '/../../includes/helpers/traversal-pipeline.php';
 
 $failures = 0;
@@ -883,6 +882,69 @@ assert_same(
 	'a lone inherit resolves to the parent source itself',
 	array( $parent_row ),
 	bws_run_traversal( array( $parent_row ), bws_field_values_assemble_steps( array( 'src' => 'inherit' ) ), $reader )
+);
+
+echo "\n§C10 FW-169 — the argless, kind-preserving `parent` step\n";
+
+$settle = BWS_FOLD_KIND_SETTLES_AT_RENDER;
+assert_same( '`parent` is a step type with NO argument key', '', BWS_FOLD_STEP_TYPES['parent'] ?? null );
+assert_same( '`parent` reports the settle marker as its output kind', $settle, BWS_FOLD_STEP_KINDS['parent'] ?? null );
+assert_same( 'a leading `parent` is a STEP, so the chain roots at the ambient entity', '', bws_fold_chain_root( chain_of( 'parent' ) ) );
+assert_same( '`src:parent` is chain wire', true, bws_fold_chain_is_wire( 'parent' ) );
+assert_same(
+	'compile: an argless step is {type} only, with no empty arg key',
+	array( array( 'type' => 'parent' ) ),
+	bws_fold_chain_to_steps( chain_of( 'parent' ) )
+);
+assert_same(
+	'compile: current;parent drops the root and keeps the step',
+	array( array( 'type' => 'parent' ) ),
+	bws_fold_chain_to_steps( chain_of( 'current;parent' ) )
+);
+assert_same(
+	'compile: a stored limit(N) on parent still rides the step',
+	array( array( 'type' => 'refs', 'field' => 'x' ), array( 'type' => 'parent', 'limit' => 2 ) ),
+	bws_fold_chain_to_steps( chain_of( 'refs,x;parent,limit(2)' ) )
+);
+
+$res = static function ( string $wire, ?string $parent_kind = null ): string {
+	$r = bws_fold_chain_resolution( chain_of( $wire ), $parent_kind );
+	return $r['kind'] . '/' . ( $r['fans'] ? 'fans' : 'one' );
+};
+assert_same( 'ambient root: `current;parent` settles at render', "{$settle}/fans", $res( 'current;parent' ) );
+assert_same( 'ambient root: a leading `parent` settles at render', "{$settle}/fans", $res( 'parent' ) );
+assert_same( 'ambient root: parent;parent still settles at render', "{$settle}/fans", $res( 'parent;parent' ) );
+assert_same( 'known input: refs,x;parent is post at parse time', 'post/fans', $res( 'refs,x;parent' ) );
+assert_same( 'known input: terms,x;parent is term at parse time', 'term/fans', $res( 'refs,a;terms,x;parent' ) );
+assert_same( 'known input: a declaring post root', 'post/fans', $res( 'post,12;parent' ) );
+assert_same( 'known input: a declaring term root', 'term/fans', $res( 'term,34;parent' ) );
+assert_same( 'a step after an ambient parent decides the kind again', 'post/fans', $res( 'current;parent;refs,x' ) );
+assert_same( 'refused input: site;parent is unrecognized so the arms refuse', '/fans', $res( 'site;parent' ) );
+assert_same( 'refused input: rows,x;parent is unrecognized so the arms refuse', '/fans', $res( 'rows,x;parent' ) );
+assert_same( 'a container parent kind seeds a leading parent: post', 'post/fans', $res( 'parent', 'post' ) );
+assert_same( 'unchanged: refs,x alone is still post', 'post/fans', $res( 'refs,x' ) );
+assert_same( 'unchanged: an unknown trailing step is still unrecognized', '/fans', $res( 'refs,x;nope' ) );
+
+// The carry-over join reads the marker as "same kind as its input", never as a kind of its own.
+$join = static function ( string $carried, string $own ): string {
+	return bws_fold_emit_chain( bws_fold_chain_join( chain_of( $carried ), chain_of( $own ) ), 0 );
+};
+assert_same( 'join: a carried parent off a known post keeps, so a refs step can follow', 'refs,x;parent', $join( 'refs,x;parent', 'refs,y' ) );
+assert_same( 'join: a carried parent off a known term gives way to a terms step', 'refs,x', $join( 'refs,x;terms,t;parent', 'terms,u' ) );
+assert_same( 'join: a carried parent off an ambient root is NOT trimmed (kind unknown until render)', 'current;parent', $join( 'current;parent', 'terms,u' ) );
+assert_same( 'join: an own parent step runs off a carried post chain untouched', 'refs,x', $join( 'refs,x', 'parent' ) );
+assert_same( 'join: an own parent step runs off a carried term chain untouched', 'refs,x;terms,t', $join( 'refs,x;terms,t', 'parent' ) );
+
+// The wrapper carries a parent hop in its leading post-producing run (the empty-fan leak).
+assert_same(
+	'wrapper: parent is part of the leading run',
+	array( array( 'type' => 'parent' ) ),
+	bws_wrapper_ref_steps( array( 'src' => 'current;parent' ) )
+);
+assert_same(
+	'wrapper: refs then parent, then the run stops at terms',
+	array( array( 'type' => 'refs', 'field' => 'x' ), array( 'type' => 'parent' ) ),
+	bws_wrapper_ref_steps( array( 'src' => 'refs,x;parent;terms,t' ) )
 );
 
 echo "\n";

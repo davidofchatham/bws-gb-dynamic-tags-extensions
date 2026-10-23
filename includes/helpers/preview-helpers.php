@@ -749,11 +749,44 @@ function bws_preview_tax_label( string $tax ): string {
 }
 
 /**
+ * The marker a preview appends to a root argument that names no reachable entity. THE ONE
+ * SPELLING: the namer writes it and every surface that reads it back (the `{{table}}`
+ * skeleton note) matches this, never its own copy of the words.
+ */
+if ( ! defined( 'BWS_PREVIEW_ENTITY_UNAVAILABLE' ) ) {
+	define( 'BWS_PREVIEW_ENTITY_UNAVAILABLE', '(not available)' );
+}
+
+/**
+ * The `entity_resolvers` every caller with a real WordPress passes to
+ * bws_preview_source_segments(), keyed by root token.
+ *
+ * `term` takes `bws_get_validated_term()` (taxonomy-helpers.php), not bare `get_term`: the
+ * plugin's one "is this term real" rule, already the answer every other term-existence read in
+ * this codebase takes, rather than a second falsy/WP_Error check owned only by the preview.
+ * `post` has no equivalent helper to route through (D13: no legacy read path to keep
+ * compatible with, unlike term's), so it takes bare `get_post`, D20's own stated default;
+ * bws_preview_root_entity_segment() already treats a null return as unavailable without a
+ * WP_Error check to make.
+ *
+ * @since Unreleased
+ * @return array<string,string>
+ */
+if ( ! function_exists( 'bws_preview_entity_resolvers' ) ) {
+function bws_preview_entity_resolvers(): array {
+	return array(
+		'term' => 'bws_get_validated_term',
+		'post' => 'get_post',
+	);
+}
+}
+
+/**
  * The author-facing segment for one root's ARGUMENT — "Term: News" (D20, FW-39).
  *
  * THREE distinct answers, and they are three different questions:
  *   - the argument resolves to a named entity  → "<Label>: <Name>" ("Term: News")
- *   - the argument resolves to NOTHING         → "<root> <arg> (missing)" — a deleted
+ *   - the argument resolves to NOTHING         → "<root> <arg> (not available)" — a deleted
  *     term, so the author can find and repoint the tag rather than read a silent blank.
  *   - the argument cannot be READ AT ALL (not numeric, or the resolver hands back
  *     something with no name) → the root and argument as typed ("term abc"), because
@@ -799,7 +832,7 @@ function bws_preview_root_entity_segment( string $root, string $arg, string $lab
 
 	$entity = call_user_func( $resolver, (int) $arg );
 	if ( ! $entity || ( function_exists( 'is_wp_error' ) && is_wp_error( $entity ) ) ) {
-		return $token . ' (missing)';
+		return $token . ' ' . BWS_PREVIEW_ENTITY_UNAVAILABLE;
 	}
 
 	// `name` is WP_Term's; a future kind (post) reads `post_title` instead — this
@@ -967,13 +1000,24 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 		}
 	}
 
-	// Each fanning step's argument, and whether any of them is MISSING one.
+	// Each fanning step's argument, keyed by its position in `$steps`, and whether any of
+	// them is MISSING one.
 	$ref_args  = array();
 	$term_args = array();
 	$row_args  = array();
-	foreach ( $steps as $step ) {
+	// `parent` is positional where the three kinds below are grouped: it names the hop OFF
+	// whatever precedes it. Counted against the step it follows (-1 = it leads), so its
+	// segment lands right after that step's own rather than in a group of its own kind.
+	$parents_after = array();
+	$last_step     = -1;
+	foreach ( $steps as $i => $step ) {
 		$slug = (string) ( $step['slug'] ?? '' );
 		$arg  = trim( (string) ( $step['arg'] ?? '' ) );
+		if ( 'parent' === $slug ) {
+			$parents_after[ $last_step ] = ( $parents_after[ $last_step ] ?? 0 ) + 1;
+			continue;
+		}
+		$last_step = $i;
 
 		// An UNKNOWN step slug short-circuits the chain at the engine ([I14]), and the
 		// resolution query cannot see it: `kind` reports the chain's TAIL, so
@@ -989,19 +1033,19 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 			if ( '' === $arg ) {
 				$missing['refs'] = true;
 			} else {
-				$ref_args[] = $arg;
+				$ref_args[ $i ] = $arg;
 			}
 		} elseif ( 'terms' === $slug ) {
 			if ( '' === $arg ) {
 				$missing['terms'] = true;
 			} else {
-				$term_args[] = $arg;
+				$term_args[ $i ] = $arg;
 			}
 		} elseif ( 'rows' === $slug ) {
 			if ( '' === $arg ) {
 				$missing['rows'] = true;
 			} else {
-				$row_args[] = $arg;
+				$row_args[ $i ] = $arg;
 			}
 		}
 	}
@@ -1081,9 +1125,18 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 		}
 	}
 
+	// The segment(s) a `parent` step adds after step `$after`, as a list.
+	$parent_segments = static function ( int $after ) use ( $parents_after ): array {
+		return array_fill( 0, $parents_after[ $after ] ?? 0, 'Parent' );
+	};
+
+	// A `parent` that LEADS acts on the entity the chain starts from, so it comes first.
+	$segments = array_merge( $segments, $parent_segments( -1 ) );
+
 	// One segment per relationship step, in wire order — a chain may hop more than once.
-	foreach ( $ref_args as $ref_arg ) {
+	foreach ( $ref_args as $at => $ref_arg ) {
 		$segments[] = "Ref '" . $ref_arg . "'";
+		$segments   = array_merge( $segments, $parent_segments( $at ) );
 	}
 
 	// One segment per repeater step, in the order the steps were stored. It NAMES the step
@@ -1099,8 +1152,9 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 	// joins the existing shape rather than introducing it. Fixing it means one pass over
 	// `$steps` emitting as it goes, which moves `terms`' arrow rule and every pinned mixed
 	// chain with it — a change of its own, not a rider on the offer.
-	foreach ( $row_args as $row_arg ) {
+	foreach ( $row_args as $at => $row_arg ) {
 		$segments[] = "Rows '" . $row_arg . "'";
+		$segments   = array_merge( $segments, $parent_segments( $at ) );
 	}
 
 	// A site root has no entity to hop from, so it never combines with the steps around it.
@@ -1111,11 +1165,12 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 	// One segment per term step, same as the relationship steps above — the chain may drop
 	// into a taxonomy more than once, and rendering only the first would describe a
 	// different source than the wire states.
-	foreach ( $term_args as $term_arg ) {
+	foreach ( $term_args as $at => $term_arg ) {
 		// '→' arrow only when this hop segment follows another. When it opens the label
 		// (current post → term, nothing else said), drop the arrow.
 		$prefix     = ! empty( $segments ) ? '→ ' : '';
 		$segments[] = $prefix . bws_preview_tax_label( $term_arg ) . ' Term';
+		$segments   = array_merge( $segments, $parent_segments( $at ) );
 	}
 
 	return $segments;
@@ -1345,20 +1400,8 @@ function bws_build_preview_label( array $options, string $template ): string {
 	$ctx_segments = bws_preview_source_segments(
 		$chain,
 		array(
-			// The ONE caller with a real WordPress to ask (D20) — every other reader
-			// of bws_preview_source_segments() is a pure test supplying its own fake.
-			// `bws_get_validated_term()` (taxonomy-helpers.php), not bare `get_term`:
-			// the plugin's one "is this term real" rule, already the answer every
-			// other term-existence read in this codebase takes, rather than a second
-			// falsy/WP_Error check owned only by the preview. `post` has no equivalent
-			// "is this post real" helper to route through (D13: no legacy read path to
-			// keep compatible with, unlike term's), so it takes bare `get_post` — D20's
-			// own stated default, and `bws_preview_root_entity_segment()` already
-			// treats a null return as "missing" without a WP_Error check to make.
-			'entity_resolvers' => array(
-				'term' => 'bws_get_validated_term',
-				'post' => 'get_post',
-			),
+			// A caller with a real WordPress to ask (D20); the pure tests supply their own fake.
+			'entity_resolvers' => bws_preview_entity_resolvers(),
 		),
 		$src_missing,
 		$src_inert

@@ -68,99 +68,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 const BWS_SOURCE_KIND_UNRESOLVED = 'unresolved';
 
 /**
- * The default source gate — the deciding rule for the EXISTS and VISIBLE levels.
- *
- * @invariant A limit bounds USABLE sources (CONTEXT.md I19; ADR 0007
- * "a limit counts usable sources"). THIS FUNCTION OWNS THE AXIS: a source is
- * usable iff it is resolvable (it reached this gate at all) AND names a live
- * entity (exists — viewer-independent) AND the current viewer may read it
- * (visible — viewer-relative). Per kind:
- *
- *   post      exists = get_post() non-null (a TRASHED post exists);
- *             visible = the RESOLVED status (get_post_status(), never the raw
- *             column) is publicly viewable, OR — for a status that is neither
- *             public nor `internal` — the current user has `read_post` on it.
- *             Viewer-relative BY DESIGN there, so an author previewing their
- *             own draft resolves it (record: docs/design-history/
- *             deterministic-source-selection.md §S19). An INTERNAL status is refused
- *             for EVERY viewer, capability or not: `trash` and `auto-draft` are
- *             deletion/scratch states rather than publication ones, and WP's own
- *             front end renders neither to anyone, so honouring `read_post` on
- *             them would show an editor content no visitor can reach.
- *             Resolving first is load-bearing: an attachment stores `inherit`,
- *             which is itself an internal status and would be refused, while
- *             get_post_status() answers it with the parent's status (or
- *             `publish` when unattached).
- *   term      exists = get_term() yields a WP_Term; no publication status, so
- *             visible adds nothing (that record's §S21).
- *   user      exists = get_userdata() truthy; same, existence only.
- *   site      vacuously usable — no entity to test.
- *   meta_row  vacuously usable — carries a row, not an entity id; the direct
- *             reader {{table}} uses for `use:key` rows holds no entity to test,
- *             so it is out of gate reach AND out of gate need (that record's
- *             §S48 records the audit; the note also sits at the reader).
- *   other     passes — the gate restricts only what it can test (S27's
- *             restrict-only posture); `unresolved` is refused by the input-kind
- *             gate, not here.
- *
- * FIELD POPULATION IS DELIBERATELY NO PART OF THIS TEST — selection must be
- * field-independent so adjacent tags on one source path read the same entity
- * (the 2026-08-21 determinism reversal; ADR 0007 §Why the read-based axis was
- * reversed).
- *
- * Filterable BY CONSTRUCTION, unshipped: when a consumer needs the hook (the
- * known one is an integrating plugin's post-visibility predicate), an AND-composed, restrict-only
- * apply_filters lands inside this body — one line, no seam change. The contract
- * is decided and the row is FW-89; the record is
- * docs/design-history/deterministic-source-selection.md §S22 loosened + §O8.
- *
- * Pure-harness note: this function names WP symbols and is therefore NEVER
- * called by tools/test/traversal-pipeline-test.php, which injects its own
- * predicate — that injectability is what keeps the engine harness pure
- * (that record's §S20 corrected).
- *
- * SUPPORTED INTEGRATION SURFACE (docs/plugin-integration.md §3): outside tag callbacks
- * call it with `array( 'kind' => 'post'|'term'|'user', 'id' => $id )`, so that input
- * shape and the bool return stay stable; other typedef keys are optional to it.
- *
- * @since 1.18.0
- * @param array $source Resolved source (see file header typedef).
- * @return bool True when the source may feed reads and consume limit budget.
- */
-if ( ! function_exists( 'bws_source_gate' ) ) {
-function bws_source_gate( array $source ) {
-	$kind = isset( $source['kind'] ) ? (string) $source['kind'] : '';
-
-	if ( 'post' === $kind ) {
-		$post = get_post( isset( $source['id'] ) ? (int) $source['id'] : 0 );
-		if ( ! $post instanceof WP_Post ) {
-			return false; // Fails EXISTS.
-		}
-		$status = get_post_status( $post ); // Resolves an attachment's `inherit`.
-		if ( is_post_status_viewable( $status ) ) {
-			return true;
-		}
-		$status_obj = get_post_status_object( (string) $status );
-		if ( is_object( $status_obj ) && ! empty( $status_obj->internal ) ) {
-			return false; // trash / auto-draft: refused for every viewer.
-		}
-		return current_user_can( 'read_post', $post->ID ); // VISIBLE, viewer-relative.
-	}
-
-	if ( 'term' === $kind ) {
-		$term = get_term( isset( $source['id'] ) ? (int) $source['id'] : 0 );
-		return $term instanceof WP_Term; // EXISTS only (no publication status).
-	}
-
-	if ( 'user' === $kind ) {
-		return (bool) get_userdata( isset( $source['id'] ) ? (int) $source['id'] : 0 );
-	}
-
-	return true; // site / meta_row / unknown: nothing testable here.
-}
-}
-
-/**
  * Run a resolved-source list through an ordered list of traversal steps.
  *
  * Pure fold, no side effects (SPEC §V9): each step consumes the current source
@@ -207,12 +114,12 @@ function bws_source_gate( array $source ) {
  * step's produce — passes $gate BEFORE that position's limit slices, so a gated-out
  * source never consumes limit budget, at ANY position, and an entity failing the
  * gate cannot be a stepping stone (a chain routed through it is cut at that hop).
- * The default is the real gate (bws_source_gate, whose PHPDoc owns the axis); the
+ * The default is the real gate (bws_is_source_usable, whose PHPDoc owns the axis); the
  * pure harness injects its own predicate instead of shimming capabilities.
  *
  * @since 1.14.0
  * @since 1.17.0 Per-step `limit` (FW-56).
- * @since 1.18.0 $gate — the injected source gate, default bws_source_gate.
+ * @since 1.18.0 $gate — the injected source gate, default bws_is_source_usable.
  * @param array[] $sources Resolved sources (see file header typedef).
  * @param array[] $steps   Ordered steps; each: array( 'type' => 'refs'|'terms'|'rows',
  *                         … , 'limit' => int|null ).
@@ -221,13 +128,13 @@ function bws_source_gate( array $source ) {
  *                              returning raw ref-field / term data. Defaults to
  *                              the real WP/ACF read (bws_pipeline_default_reader).
  * @param callable|null $gate   Optional source gate — signature ( array $source ): bool.
- *                              Defaults to bws_source_gate (exists + visible).
+ *                              Defaults to bws_is_source_usable (exists + visible).
  * @return array[] Flat resolved-source list; array() if any step empties.
  */
 if ( ! function_exists( 'bws_run_traversal' ) ) {
 function bws_run_traversal( array $sources, array $steps, $reader = null, $gate = null ) {
 	if ( null === $gate ) {
-		$gate = 'bws_source_gate';
+		$gate = 'bws_is_source_usable';
 	}
 	// Gate the INITIAL list too — a root the viewer may not read is as unusable
 	// as one a step produced, and gating only hops would leave depth-0 reads open.
@@ -287,9 +194,10 @@ function bws_run_traversal( array $sources, array $steps, $reader = null, $gate 
  *               is the point.
  */
 const BWS_TRAVERSAL_STEP_INPUT_KINDS = array(
-	'refs'  => array( 'post', 'term', 'user', 'meta_row', 'site' ),
-	'terms' => array( 'post' ),
-	'rows'  => array( 'post', 'term', 'user', 'meta_row', 'site' ),
+	'refs'   => array( 'post', 'term', 'user', 'meta_row', 'site' ),
+	'terms'  => array( 'post' ),
+	'rows'   => array( 'post', 'term', 'user', 'meta_row', 'site' ),
+	'parent' => array( 'post', 'term' ),
 );
 
 /**
@@ -305,6 +213,9 @@ const BWS_TRAVERSAL_STEP_INPUT_KINDS = array(
  *               Valid input kind: post only.
  *   - rows    : step into a repeater field via get_field → meta_row[]
  *               Valid input kinds: post, term, user, meta_row, site.
+ *   - parent  : step to the input's hierarchy parent → one source of the INPUT's kind
+ *               (post_parent / the term's `parent`); a top-level item gives array().
+ *               Valid input kinds: post, term (@since Unreleased).
  *
  * Unknown step type, unknown/terminal source kind, or an input kind invalid for
  * the step → array() (SPEC §V2 silent-empty, never fatal).
@@ -365,6 +276,14 @@ function bws_run_step( array $step, array $source, $reader = null ) {
 			// nothing here and a lookup everywhere else (see the coercer's PHPDoc).
 			$raw = call_user_func( $reader, $step, $source );
 			return bws_pipeline_rows_to_sources( $raw, $source, (string) ( $step['field'] ?? '' ) );
+
+		case 'parent':
+			// The input's own hierarchy parent, in the input's own kind (a post's `post_parent`,
+			// a term's `parent` in its own taxonomy). The reader answers the id; 0 = top level,
+			// which is an EMPTY result and not the item itself, so the chain short-circuits.
+			// The generic gate in bws_run_traversal() cuts an unviewable parent at this hop.
+			$parent_id = (int) call_user_func( $reader, $step, $source );
+			return $parent_id > 0 ? array( array( 'kind' => $kind, 'id' => $parent_id ) ) : array();
 
 		default:
 			return array(); // Unknown step type.
@@ -983,12 +902,28 @@ function bws_factory_current_post_id( array $options, $instance ) {
  * @since 1.14.0
  * @param array $step   The step ( 'type', 'field'/'slug' ).
  * @param array $source The resolved source being stepped from.
- * @return mixed Raw field value (refs) or WP_Term[] (terms); '' / array() on miss.
+ * @return mixed Raw field value (refs), WP_Term[] (terms) or the parent's int id (parent,
+ *               0 = none); '' / array() on miss.
  */
 if ( ! function_exists( 'bws_pipeline_default_reader' ) ) {
 function bws_pipeline_default_reader( array $step, array $source ) {
 	$type = $step['type'] ?? '';
 	$kind = $source['kind'] ?? '';
+
+	if ( 'parent' === $type ) {
+		// An attachment's `post_parent` is the post it is attached to. get_term() is asked
+		// without a taxonomy: the id alone names the term and its `parent` is already in
+		// the term's own taxonomy.
+		$entity_id = (int) ( $source['id'] ?? 0 );
+		if ( 'post' === $kind ) {
+			return (int) wp_get_post_parent_id( $entity_id );
+		}
+		if ( 'term' === $kind ) {
+			$term = get_term( $entity_id );
+			return ( $term instanceof WP_Term ) ? (int) $term->parent : 0;
+		}
+		return 0;
+	}
 
 	if ( 'terms' === $type ) {
 		$slug = $step['slug'] ?? '';

@@ -1656,7 +1656,10 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 	// an earlier slot's number as this one's.
 	$limit     = null;
 	$last_step = end( $steps );
-	if ( is_array( $last_step ) && null !== ( $last_step['limit'] ?? null ) && '' !== $last_step['limit'] ) {
+	// A step that does not fan (`parent`) produces one source, so a number stored on it
+	// bounds nothing and is not a slot bound.
+	if ( is_array( $last_step ) && in_array( (string) ( $last_step['slug'] ?? '' ), BWS_FOLD_FANNING_SLUGS, true )
+		&& null !== ( $last_step['limit'] ?? null ) && '' !== $last_step['limit'] ) {
 		$limit = (string) $last_step['limit'];
 	}
 	if ( null === $limit && isset( $slot['opts']['limit'] ) && '' !== $slot['opts']['limit'] ) {

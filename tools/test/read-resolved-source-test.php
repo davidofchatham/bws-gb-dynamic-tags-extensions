@@ -118,11 +118,10 @@ if ( ! function_exists( 'get_queried_object' ) ) {
 	}
 }
 // Stubbed by definition, as traversal-pipeline-test.php and loop-item-classify-test.php
-// each declare in their own preamble: the real one is WP-bound and nothing here is a loop.
-if ( ! function_exists( 'bws_source_gate' ) ) {
-	function bws_source_gate( array $source ) {
-		return true;
-	}
+// each declare in their own preamble: the real one (source-usable.php, never required
+// here) is WP-bound and nothing here is a loop.
+function bws_is_source_usable( array $source ) {
+	return true;
 }
 if ( ! function_exists( 'bws_wp_is_term_archive' ) ) {
 	function bws_wp_is_term_archive(): bool {

@@ -33,8 +33,8 @@
  *     Filter 2 Field type — plain select
  *       (All field types / Loop fields / <ACF types>).
  * - Free-text entry via synthetic option (ComboboxControl does NOT accept off-list
- *   text): typing an unmatched key injects a "Use custom key" option that
- *   serializes the BARE typed key. Clear via built-in allowReset -> onChange(null).
+ *   text): typing an unmatched key injects a "Press Enter or select this to use custom key" option that
+ *   serializes the BARE typed key; Enter commits it too, but only when no listed field still matches the text. Clear via built-in allowReset -> onChange(null).
  * - Pure render swap: writes the SAME plain-string key the text input did
  *   (whole-object setState; `delete` on empty, never '' — GB serializes bare key:).
  * - Composes with existing tagSpecificControls filters: `if (!element) return
@@ -115,6 +115,11 @@
 			}
 		}
 		return envelopePromise;
+	}
+
+	/** Lower-cased, accents stripped: how typed text is compared with what the list shows. */
+	function foldText( s ) {
+		return String( s === undefined || s === null ? '' : s ).normalize( 'NFD' ).replace( /[̀-ͯ]/g, '' ).toLowerCase();
 	}
 
 	/**
@@ -250,15 +255,45 @@
 	 * @return {Object|null} `{ slug, arg }` with `arg` normalized to a string, or null.
 	 */
 	function chainTail( state, optionKey ) {
-		var fold = window.bwsSlotFold;
-		if ( ! state || ! fold || 'function' !== typeof fold.parseChain ) { return null; }
-		var wire = String( state[ slotPrefix( optionKey ) + 'src' ] || '' ).trim();
-		if ( '' === wire ) { return null; }
-		var chain = fold.parseChain( wire );
-		if ( ! Array.isArray( chain ) || ! chain.length ) { return null; }
+		var chain = parsedChain( state, optionKey );
+		if ( ! chain.length ) { return null; }
 		var tail = chain[ chain.length - 1 ];
 		if ( ! tail || ! tail.slug ) { return null; }
 		return { slug: String( tail.slug ), arg: tail.arg ? String( tail.arg ) : '' };
+	}
+
+	/** The sibling `src` wire parsed through the shipped grammar; [] when absent or unparseable. */
+	function parsedChain( state, optionKey ) {
+		var fold = window.bwsSlotFold;
+		if ( ! state || ! fold || 'function' !== typeof fold.parseChain ) { return []; }
+		var wire = String( state[ slotPrefix( optionKey ) + 'src' ] || '' ).trim();
+		if ( '' === wire ) { return []; }
+		var chain = fold.parseChain( wire );
+		return Array.isArray( chain ) ? chain : [];
+	}
+
+	/**
+	 * The kind the sibling `src` chain RESOLVES TO, off the `window.bwsChainKinds` maps.
+	 *
+	 * The last step's own entry, except where that entry is the `settles` marker (`parent`:
+	 * "the kind it was given"), which is looked through to the step before it. A chain that
+	 * ends on the marker with nothing named before it (`parent` off the ambient entity)
+	 * answers undefined, like any other render-time root.
+	 *
+	 * @param {Object} state     extraTagParams.
+	 * @param {string} optionKey The key control's own option key (for the slot prefix).
+	 * @param {Object} vocab     `window.bwsChainKinds`.
+	 * @return {string|undefined} The kind, or undefined when the wire does not name one.
+	 */
+	function tailKind( state, optionKey, vocab ) {
+		var chain = parsedChain( state, optionKey );
+		for ( var i = chain.length - 1; i >= 0; i-- ) {
+			var slug = String( chain[ i ].slug || '' );
+			var kind = ( vocab.steps || {} )[ slug ];
+			if ( undefined === kind ) { kind = ( vocab.roots || {} )[ slug ]; }
+			if ( ! vocab.settles || kind !== vocab.settles ) { return kind; }
+		}
+		return undefined;
 	}
 
 	/**
@@ -419,8 +454,7 @@
 		if ( ! tail ) { return null; }
 
 		var vocab = window.bwsChainKinds || {};
-		var kind  = ( vocab.steps || {} )[ tail.slug ];
-		if ( undefined === kind ) { kind = ( vocab.roots || {} )[ tail.slug ]; }
+		var kind  = tailKind( state, optionKey, vocab );
 
 		// A kind with no root label of its own is not a Location the filter can open on.
 		// That is the honest answer for `meta_row` and for anything a later step type
@@ -1138,6 +1172,7 @@
 			// Synthetic free-text option: typing an unmatched key offers to commit it
 			// bare. Its value IS the bare key (self-committing).
 			var typed = ( filterText || '' ).trim();
+			var customOnly = false;
 			if ( typed ) {
 				// Suppress the synthetic option only when the typed text ALREADY commits
 				// an existing option: its bare key (valueToKey) or raw option value
@@ -1148,11 +1183,24 @@
 				// over-suppress, e.g. `city` vs a visible "City ('venue_city')".)
 				var matches = options.some( function ( o ) {
 					return o.value === typed || valueToKey[ o.value ] === typed;
-				} );
+				} ) || typed === value; // the stored custom key, put back for editing: it is the selected row already
 				if ( ! matches ) {
+					// Enter commits the custom key only when no listed field is left for
+					// Enter to mean: typed text is a SEARCH first, so a real match wins.
+					// Generous on purpose (label or key, accents folded): a miss here
+					// makes Enter do nothing, never commit a half-typed search.
+					var needle = foldText( typed );
+					customOnly = ! options.some( function ( o ) {
+						return foldText( o.label ).indexOf( needle ) !== -1
+							|| foldText( valueToKey[ o.value ] ).indexOf( needle ) !== -1;
+					} );
 					options = [ {
 						value: typed,
-						label: __( 'Use custom key:', 'generateblocks' ) + ' "' + typed + '"',
+						// Enter only reaches this row when it is the only one; with real matches
+						// listed the first of those is highlighted, so the hint must not promise it.
+						label: ( customOnly
+							? __( 'Press Enter or select this to use custom key', 'generateblocks' )
+							: __( 'Select this to use custom key', 'generateblocks' ) ) + ' "' + typed + '"',
 					} ].concat( options );
 					valueToKey[ typed ] = typed;
 				}
@@ -1197,12 +1245,16 @@
 				}
 			}
 
-			return { options: options, valueToKey: valueToKey, selectedValue: selectedValue };
+			return { options: options, valueToKey: valueToKey, selectedValue: selectedValue, customOnly: customOnly, typed: typed };
 		}, [ records, activeLoc, typeVal, filterText, value, reached, reachSig ] );
 
 		var options       = derived.options;
 		var valueToKey    = derived.valueToKey;
 		var selectedValue = derived.selectedValue;
+
+		// A stored key discovery never found: shown bare, and the one case where clicking in
+		// keeps the text (a known field's friendly row is better re-picked from the list).
+		var unknownKey = !! value && ! records.some( function ( rec ) { return rec.key === value; } );
 
 		function onChange( next ) {
 			var upd = Object.assign( {}, state );
@@ -1278,18 +1330,53 @@
 		return el( Fragment, null, [
 			// Two filters side-by-side above the field selector (hidden when auto-scoped).
 			filtersBlock,
-			el( ComboboxControl, {
-				key:                 'combo',
-				label:               label,
-				help:                props.help,
-				placeholder:         props.placeholder,
-				value:               selectedValue,
-				options:             options,
-				onChange:            onChange,
-				onFilterValueChange: setFilterText,
-				allowReset:          true,
-				__nextHasNoMarginBottom: true,
-			} ),
+			// display:contents keeps the wrapper out of layout; it only listens for Enter.
+			el( 'div', {
+				key:   'combo',
+				style: { display: 'contents' },
+				onFocusCapture: function ( e ) {
+					var input = e.target;
+					if ( ! unknownKey || ! input || input.getAttribute( 'role' ) !== 'combobox' ) {
+						return;
+					}
+					// WP blanks the input on focus; put the custom key back so it can be edited.
+					// Deferred past WP's own render; the native setter keeps React's change
+					// tracking honest, so the input event reaches WP as typing. The table
+					// style fields' `ComboField` does the same.
+					setTimeout( function () {
+						if ( document.activeElement !== input || input.value ) {
+							return;
+						}
+						Object.getOwnPropertyDescriptor( window.HTMLInputElement.prototype, 'value' ).set.call( input, value );
+						input.dispatchEvent( new window.Event( 'input', { bubbles: true } ) );
+					}, 0 );
+				},
+				onBlur: function ( e ) {
+					// WP shows the selected row again but never reports the emptied search.
+					if ( ! ( e.relatedTarget && e.currentTarget.contains( e.relatedTarget ) ) ) {
+						setFilterText( '' );
+					}
+				},
+				onKeyDownCapture: function ( e ) {
+					if ( e.key === 'Enter' && ! e.isComposing && derived.customOnly ) {
+						e.preventDefault();
+						e.stopPropagation();
+						onChange( derived.typed );
+					}
+				},
+			},
+				el( ComboboxControl, {
+					label:               label,
+					help:                props.help,
+					placeholder:         props.placeholder,
+					value:               selectedValue,
+					options:             options,
+					onChange:            onChange,
+					onFilterValueChange: setFilterText,
+					allowReset:          true,
+					__nextHasNoMarginBottom: true,
+				} )
+			),
 		] );
 	}
 

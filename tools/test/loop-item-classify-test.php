@@ -15,7 +15,7 @@
  * kind, not what WordPress stores.
  *
  * WHAT THIS HARNESS CAN AND CANNOT SEE. It sees the classification, the predicate, and
- * — since §C8 — the BRANCH a gate refusal takes, because bws_source_gate() is stubbed
+ * — since §C8 — the BRANCH a gate refusal takes, because bws_is_source_usable() is stubbed
  * by definition the way traversal-pipeline-test.php and fold-chain-compile-test.php
  * already stub it. It does NOT see the gate's own verdicts: whether a trashed post is
  * refused for everyone is WP-bound and measured on the testbed, never here.
@@ -102,18 +102,16 @@ if ( ! function_exists( 'get_userdata' ) ) {
 	}
 }
 
-// The SOURCE GATE, stubbed. The real bws_source_gate() lives in traversal-pipeline.php,
+// The SOURCE GATE, stubbed. The real bws_is_source_usable() lives in source-usable.php,
 // is WP-bound, and is not loaded here — the same stub-by-definition traversal-pipeline-test.php
 // and fold-chain-compile-test.php each declare in their own preamble (grep either for
-// `function bws_source_gate`; the technique is the citation, not a line).
+// `function bws_is_source_usable`; the technique is the citation, not a line).
 // Post 6 exists and is REFUSED, which is the shape of a draft/private/trashed row: it
 // classifies perfectly well and then may not be read.
 const STUB_GATE_REFUSES = array( 6 );
-if ( ! function_exists( 'bws_source_gate' ) ) {
-	function bws_source_gate( array $source ) {
-		return ! ( 'post' === ( $source['kind'] ?? '' )
-			&& in_array( (int) ( $source['id'] ?? 0 ), STUB_GATE_REFUSES, true ) );
-	}
+function bws_is_source_usable( array $source ) {
+	return ! ( 'post' === ( $source['kind'] ?? '' )
+		&& in_array( (int) ( $source['id'] ?? 0 ), STUB_GATE_REFUSES, true ) );
 }
 
 // The READ side, stubbed to echo what it was asked for, so a row states WHICH entity
@@ -337,7 +335,7 @@ assert_same(
 
 echo "\n=== C8 - the source gate on a loop item (#122) ===\n";
 
-// The gate itself is bws_source_gate() in traversal-pipeline.php and is WP-bound
+// The gate itself is bws_is_source_usable() in source-usable.php and is WP-bound
 // (get_post / is_post_status_viewable / current_user_can); the STUB above is what makes
 // this section pure, exactly as traversal-pipeline-test.php and fold-chain-compile-test.php
 // already do. So what these rows pin is that the gate is CONSULTED and what a refusal
@@ -360,7 +358,7 @@ $GLOBALS['stub_queried_object']  = null;
 
 // Mode 2b. A repeater row has no post identity, so this branch never reaches the gate at
 // all — which is what the row below holds. What the gate itself does with a `meta_row`
-// source is bws_source_gate()'s own PHPDoc (nothing here pins it, and the stub above
+// source is bws_is_source_usable()'s own PHPDoc (nothing here pins it, and the stub above
 // would agree with any answer). It is also the branch the falsy-id read exists for, so a
 // fix that refused falsy ids wholesale would blank it.
 assert_same( 'C8.5 a repeater ROW is untouched by the gate', 'Ada', bws_read_field( 'name', inst( array( 'name' => 'Ada' ) ), false ) );

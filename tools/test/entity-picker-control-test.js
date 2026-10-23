@@ -146,6 +146,7 @@ global.wp = {
 		Object.keys( responses ).forEach( function ( needle ) {
 			if ( opts.path.indexOf( needle ) !== -1 ) { hit = responses[ needle ]; }
 		} );
+		if ( hit && hit.reject ) { return Promise.reject( new Error( 'fixture: request failed' ) ); }
 		// The fixture server honors `group` the way the route does: it narrows the
 			// ROWS to one scope and leaves `groups` whole.
 			const m = /[?&]group=([^&]*)/.exec( opts.path );
@@ -362,13 +363,14 @@ async function main() {
 		'34'
 	);
 	check(
-		'a pin PRESENT in the list gets NO caption — the combo already reads as its name',
-		findAll( withValue, 'p' ).some( function ( n ) { return 'resolved' === n.props.key; } ),
-		false
+		'a pin PRESENT in the list gets no stand-in option (no duplicate entry)',
+		labels( combo( withValue ).options ).filter( function ( l ) { return '#34 Support' === l; } ).length,
+		1
 	);
+	check( 'no caption element is rendered under the combo', findAll( withValue, 'p' ).some( function ( n ) { return 'resolved' === n.props.key; } ), false );
 
-	// The caption's whole job: a pin the browse list does not hold has no option to
-	// render, so the combo box comes up empty and only the caption names the entity.
+	// A pin the browse list does not hold has no option, and ComboboxControl renders an
+	// empty box for a value with no option, so the resolved label stands in as one.
 	responses[ 'kind=term&mode=resolve&id=77' ] = { row: { id: 77, label: '#77 Archived', group: 'Benefit Tier' } };
 	const offList = await render( EntityPickerControl, {
 		kind: 'term',
@@ -377,10 +379,8 @@ async function main() {
 		onChange: function () {},
 	} );
 	check(
-		'a pin ABSENT from the list keeps its caption, which is the only place its name shows',
-		findAll( offList, 'p' )
-			.filter( function ( n ) { return 'resolved' === n.props.key; } )
-			.map( function ( n ) { return n.children[ 0 ]; } ),
+		'a pin ABSENT from the list is offered as an option carrying its resolved label',
+		combo( offList ).options.filter( function ( o ) { return '77' === o.value; } ).map( function ( o ) { return o.label; } ),
 		[ '#77 Archived' ]
 	);
 
@@ -396,9 +396,18 @@ async function main() {
 		onChange: function () {},
 	} );
 	check(
-		'a deleted pin resolves to no caption, without erroring',
-		findAll( missing, 'p' ).some( function ( n ) { return 'resolved' === n.props.key; } ),
-		false
+		'a deleted pin is offered as its #id marked (not available), without erroring',
+		combo( missing ).options.filter( function ( o ) { return '999' === o.value; } ).map( function ( o ) { return o.label; } ),
+		[ '#999 (not available)' ]
+	);
+
+	// A FAILED request says nothing about whether the entity exists: bare #id, no mark.
+	responses[ 'kind=term&mode=resolve&id=55' ] = { reject: true };
+	const failed = await render( EntityPickerControl, { kind: 'term', value: '55', label: 'Term', onChange: function () {} } );
+	check(
+		'a failed resolve keeps the bare #id, not an unavailable claim',
+		combo( failed ).options.filter( function ( o ) { return '55' === o.value; } ).map( function ( o ) { return o.label; } ),
+		[ '#55' ]
 	);
 
 	// TRUNCATION HINT: shown only when the route says the list was cut short.
@@ -457,6 +466,17 @@ async function main() {
 	check( 'before the first response the list reads Loading', labels( combo( loadingTree ).options ), [ 'Loading…' ] );
 	combo( loadingTree ).onChange( combo( loadingTree ).options[ 0 ].value );
 	check( 'choosing the Loading placeholder does not change the value', picked, [] );
+	// A stored value shows as its own `#id` on first paint, before the resolve or the
+	// browse request returns, so the box is never empty while they are in flight.
+	hooks.cells = [];
+	hooks.idx = 0;
+	hooks.effects = [];
+	const idPaint = EntityPickerControl( { kind: 'term', value: '34', label: 'Term', onChange: function () {} } );
+	check(
+		'a stored value paints as its #id before any response (the Loading row follows it)',
+		labels( combo( idPaint ).options ),
+		[ '#34', 'Loading…' ]
+	);
 	global.window.bwsEntityGroups = {};
 	const trusted = await render( EntityPickerControl, { kind: 'term', value: '', label: 'Term', onChange: function () {} } );
 	check( 'a present-but-empty inline is trusted: no selector, no fallback to the response', selects( trusted ).length, 0 );

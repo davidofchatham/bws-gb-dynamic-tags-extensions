@@ -968,7 +968,7 @@ The staff ids come from `wp post list --post_type=staff --post_status=publish,dr
 | F18.1c | administrator, **in the EDITOR** | same tag as F18.1b | `Dana`, `Paul`, `Grace` | THE DIVERGENCE ROW, and it is EXPECTED rather than a defect. The gate ends in `current_user_can( 'read_post' )`, so an editor preview shows an administrator values a logged-out visitor's front end does not — the same viewer-relative behaviour 1.18.0 accepted for the chain route (§F17.2), reached through the loop instead. Trash is refused in BOTH surfaces, which is what separates "this viewer may read it" from "this content resolves for nobody". A run finding the editor and the front end disagreeing on draft or private has measured the design, not a bug |
 | F18.3 | both | `{{try_text A:key(name_first)}}` | as F18.1 / F18.1b | The `try_` family reaches the same read through the loop fallthrough (a slot stating no source of its own), so it must blank with it. A `try_` arm that kept rendering here would mean the fallthrough had grown its own ungated read |
 
-> **The repeater-row path must NOT move, and §F9c is what says so.** A GB Pro repeater row has no post behind it, so the loop branch it uses never reaches the gate at all — what the gate would do with a `meta_row` source is `bws_source_gate()`'s own PHPDoc, and no row here pins it. A fix that refused falsy ids wholesale would blank every §F9c row, which is the failure to check for first if this section and that one ever go red together.
+> **The repeater-row path must NOT move, and §F9c is what says so.** A GB Pro repeater row has no post behind it, so the loop branch it uses never reaches the gate at all — what the gate would do with a `meta_row` source is `bws_is_source_usable()`'s own PHPDoc, and no row here pins it. A fix that refused falsy ids wholesale would blank every §F9c row, which is the failure to check for first if this section and that one ever go red together.
 
 ## §F19 — the `try_` query-context arm (1.19.0 FW-9)
 
@@ -999,7 +999,7 @@ selection is authored by numeric ID (D9) and a fresh install's term is not guara
 | F20.1 | `{{text src:term,<sales-id>\|use:title}}` | `Sales` — the tracer bullet: the selected term, not ambient |
 | F20.2 | `{{text use:title}}` | `Matrix: Pinned Entity Roots` — the ambient contrast, same page |
 | F20.3 | `{{text src:term\|use:title}}` (bare, no argument — D2/D8/D33; hand-wire only, nothing offers this) | **empty** — an argless declaring root refuses at the factory seam. The editor's own preview of the same tag reads `[⚠ Term: nothing selected]` rather than looking like a healthy bare tag (D8) |
-| F20.4 | `{{text src:term,999999\|use:title}}` | **empty** — an argument naming a nonexistent term refuses too; the editor's own preview marks this `term 999999 (missing)` |
+| F20.4 | `{{text src:term,999999\|use:title}}` | **empty** — an argument naming a nonexistent term refuses too; the editor's own preview marks this `term 999999 (not available)` |
 | F20.5 | `{{try_text A:src(term,<sales-id>);use(title)}}` | `Sales` — the SAME picker's offering resolves identically inside a `try_` attempt (D11, D18) |
 | F20.6 | `{{join mode:template\|A:src(term,<sales-id>);use(title)\|B:src(current);use(title)\|format:%A / %B}}` | `Sales / Matrix: Pinned Entity Roots` — one composed string names the selected term AND the ambient page, proving they are two independent reads |
 | F20.7 | `{{text src:term,<sales-id>;refs,dept_lead\|use:title}}` | `Tom Associate` — D3: a RELATIONSHIP STEP running off a specific term root. `dept_lead` (v20, a `relationship` field, max 1) is the one term-meta field in the blueprint answering a POST reference rather than the reverse hop every other term field here carries |
@@ -1035,7 +1035,7 @@ against the reseeded testbed, all green.
 | F21.1 | `{{text src:post,<tom-id>\|use:title}}` | `Tom Associate` — the tracer bullet: the selected post, not ambient |
 | F21.2 | `{{text use:title}}` | `Matrix: Pinned Entity Roots` — the ambient contrast, same page |
 | F21.3 | `{{text src:post\|use:title}}` (bare, no argument — D2/D8; hand-wire only, nothing offers this) | **empty** — an argless declaring root refuses at the factory seam, same as §F20.3. The editor's own preview reads `[⚠ Post: nothing selected]` |
-| F21.4 | `{{text src:post,999999\|use:title}}` | **empty** — an argument naming a nonexistent post refuses too; the editor's own preview marks this `post 999999 (missing)` |
+| F21.4 | `{{text src:post,999999\|use:title}}` | **empty** — an argument naming a nonexistent post refuses too; the editor's own preview marks this `post 999999 (not available)` |
 | F21.5 | `{{try_text A:src(post,<tom-id>);use(title)}}` | `Tom Associate` — the SAME picker's offering resolves identically inside a `try_` attempt |
 | F21.6 | `{{join mode:template\|A:src(post,<tom-id>);use(title)\|B:src(current);use(title)\|format:%A / %B}}` | `Tom Associate / Matrix: Pinned Entity Roots` — one composed string names the selected post AND the ambient page |
 | F21.7 | `{{text src:post,<tom-id>;refs,reports_to\|use:title}}` | `Jane Partner` — D3: a RELATIONSHIP STEP running off a specific POST root, the mirror direction of §F20.7 (a post hopping to a post, rather than a term hopping to one) |
@@ -1099,6 +1099,49 @@ The ids below are resolved at BUILD TIME (`bws_fixture_seeded_term_id()` / `bws_
 | F24.5 | `{{join A:src(refs,missing_rel);fixed(Team)}}` | EMPTY — the fixed TEXT never comes up empty, but the SLOT still needs a resolved source: `missing_rel` is not a real relationship field, the chain hop resolves nothing, and `bws_base_read_refused()` refuses the read before the fixed text is ever reached. This is the assertion the §Highlights CHANGELOG line names ("still needs a resolved source to render against") and F24.1–4 don't cover it, because none of them put a chain step ahead of the `fixed(…)` read |
 
 **Verified live** (`render-tag`, 2026-09-29, blueprint v28): all five rows measured against the real seeded `/matrix-post-meta/` page.
+
+## §F25 — the `parent` chain step (FW-169, ticket 04)
+
+**Three pages** (blueprint v32): `/matrix-parent/` (top level, the EMPTY case), `/matrix-parent/matrix-parent-mid/` (a body and a `main_line`, no rows) and `/matrix-parent/matrix-parent-mid/matrix-parent-leaf/` (the rows below). The leaf's own `main_line` is empty and the middle page's is `(555) 310-2200`, so F25.2 against F25.3 is the whole assertion that the step read the PARENT's value. The leaf also holds the plain-meta relationship `related_page` (-> the middle page), so the relationship route and the hierarchy route reach one value two ways (F25.30/F25.31). A `kb_topic` term chain (Regions > East > Coastal) and an attachment attached to the middle page cover the term and attachment arms; a published page under a DRAFT page (`matrix-parent-orphan`, no builder) is the gate row.
+
+Visible rows carry the same ids as this table. A term ARCHIVE as the ambient context is `render-tag` only (a request shape, no page content to host a row), so F25.50–F25.53 have no visible block, per [docs/testbed.md](../../docs/testbed.md).
+
+| # | Tag | Context | Expected |
+|---|---|---|---|
+| F25.1 | `{{text src:current;parent\|use:title}}` | leaf | `Matrix: Parent (middle)` |
+| F25.2 | `{{text src:current;parent\|key:main_line}}` | leaf | `(555) 310-2200` — the parent's field |
+| F25.3 | `{{text key:main_line}}` | leaf | EMPTY — the non-vacuity control for F25.2 |
+| F25.4 | `{{text src:current;parent;parent\|use:title}}` | leaf | `Matrix: Parent (top)` |
+| F25.5 | `{{text src:current;parent;parent;parent\|use:title}}` | leaf | EMPTY — past the top, never the page it started from |
+| F25.6 | `{{text src:refs,related_page;parent\|use:title}}` | leaf | `Matrix: Parent (top)` — parent of the related page, not of this one |
+| F25.7 | `{{text src:terms,kb_topic;parent\|use:title}}` | leaf | `East` — the leaf is in Coastal |
+| F25.8 | `{{text src:post,<mid id>;parent\|use:title}}` | leaf | `Matrix: Parent (top)` — a pinned post root |
+| F25.9 | `{{text src:term,<coastal id>;parent\|use:title}}` | leaf | `East` — a pinned term root |
+| F25.10 | `{{text src:post,<attachment id>;parent\|use:title}}` | leaf | `Matrix: Parent (middle)` — the post it is attached to |
+| F25.11 | `{{text src:post,<orphan id>;parent\|use:title}}` | leaf | EMPTY for a visitor (the draft parent is cut at the hop, [I19]); `Matrix: Parent (draft)` for an administrator (`render-tag --user=1`) |
+| F25.11b | `{{text src:post,<orphan id>\|use:title}}` | leaf | `Matrix: Parent (under a draft)` — the non-vacuity control for F25.11: the orphan is readable on its own, so F25.11's empty is the hop |
+| F25.12 | `{{text src:site;parent\|use:title}}` | leaf | EMPTY — `site` is not an accepted input kind for the step |
+| F25.12b | `{{text src:site\|use:title}}` | leaf | `BWS Testbed` — the non-vacuity control for F25.12 |
+| F25.20 | `{{content src:current;parent}}` | leaf | the middle page's body, `This is the body of the middle page in the parent chain.` |
+| F25.21 | `{{title src:current;parent}}` | leaf | `Matrix: Parent (middle)` |
+| F25.22 | `{{permalink src:current;parent}}` | leaf | `https://testbed.test/matrix-parent/matrix-parent-mid/` |
+| F25.23 | `{{image src:current;parent\|key:feature_image\|use:key\|as:alt}}` | leaf | `Fixture photo alt text` |
+| F25.30 | `{{try_text A:key(main_line)\|B:src(refs,related_page);key(main_line)}}` | leaf | `(555) 310-2200` — slot 1 empty, falls back through the relationship (the shape a visibility-restricted post needs) |
+| F25.31 | `{{try_text A:key(main_line)\|B:src(current;parent);key(main_line)}}` | leaf | `(555) 310-2200` — the same fallback through the hierarchy |
+| F25.32 | `{{try_text A:src(current);use(title)\|B:src(current;parent);use(title)}}` | leaf | `Matrix: Parent (leaf)` — slot 1 wins, the parent attempt never runs |
+| F25.33 | `{{join mode:template\|A:src(current;parent);use(title)\|B:src(current);use(title)\|format:%A / %B}}` | leaf | `Matrix: Parent (middle) / Matrix: Parent (leaf)` |
+| F25.40 | `{{text src:current;parent\|use:title}}` | top | EMPTY |
+| F25.41 | `{{content src:current;parent}}` | top | EMPTY — not the page's own body (fw-169/01 found this leaking). Under `render-tag` the page's own `{{content}}` is non-empty, so a leak shows there; the served page may blank its own body through a recursion guard (unmeasured), so `render-tag` is the evidence for this row and the visible block alone cannot tell a leak from the right answer |
+| F25.42 | `{{title src:current;parent}}` | top | EMPTY |
+| F25.43 | `{{permalink src:current;parent}}` | top | EMPTY — not the page's own URL (the same leak) |
+| F25.44 | `{{image src:current;parent\|key:feature_image\|use:key\|as:alt}}` | top | EMPTY (one space, the `as:alt` pad). The top page holds a `feature_image` of its own (`Fixture photo alt text`), so a leak would print it |
+| F25.45 | `{{try_text A:src(current;parent);use(title)\|B:src(current);use(title)}}` | top | `Matrix: Parent (top)` — an empty parent attempt hands over to the next one |
+| F25.50 | `{{text src:current;parent\|use:title}}` | `/kb_topic/coastal/` (render-tag) | `East` |
+| F25.51 | `{{title src:current;parent}}` | `/kb_topic/coastal/` (render-tag) | `East` |
+| F25.52 | `{{permalink src:current;parent}}` | `/kb_topic/coastal/` (render-tag) | `https://testbed.test/kb_topic/east/` |
+| F25.53 | `{{text src:current\|use:title}}` | `/kb_topic/coastal/` (render-tag) | `Coastal` — the non-vacuity control for F25.50–52 |
+
+**Verified live** (`render-tag` and an anonymous front-end fetch, 2026-10-23, blueprint v32): every row above reads its Expected value. **Not measured here:** `{{table}}` columns, the editor's step row and Limit suppression, and `try_`/`join` slots off a term-archive root.
 
 ## Fail triage
 

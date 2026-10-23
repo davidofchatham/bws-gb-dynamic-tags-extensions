@@ -37,9 +37,7 @@ if ( ! function_exists( 'bws_gb_tag_output' ) ) {
 }
 // The source gate names WP symbols (its own PHPDoc: never called by a pure harness). Admit all,
 // so an analog case reaches the dispatcher, whose own id guards are what is under test.
-if ( ! function_exists( 'bws_source_gate' ) ) {
-	function bws_source_gate( array $source ) { return true; }
-}
+function bws_is_source_usable( array $source ) { return true; }
 require __DIR__ . '/../../includes/tags/base-shared.php';
 require __DIR__ . '/../../includes/helpers/serialization-order.php';
 require __DIR__ . '/../../includes/helpers/slot-fold.php';

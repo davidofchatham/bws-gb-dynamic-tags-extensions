@@ -16,12 +16,20 @@ the testbed, never the live/cached site.
 shell** in `~/wp-litespeed` — Windows Git Bash cannot reach it. Name the env, not its location.
 There is no `bin/` in this plugin repo.
 
-**Location-independent alternative (prefer when scripting):** Docker Desktop shares one daemon
-across Windows and WSL, so addressing the container BY NAME works from either shell unchanged:
+**From Windows,** wrap the same call: `wsl.exe -d Ubuntu -- bash -lc 'cd ~/wp-litespeed && bin/wp.sh testbed <cmd>'`. The plugin is mounted at `/plugins/bws-gb-dynamic-tags-extensions` in the wpcli container, so an `eval-file` path starts there.
+
+**wp-cli runs in the `wpcli` container, never through `docker exec` into the web container.** A `docker exec wp-litespeed-litespeed-1 … wp …` puts wp-cli under the web container's memory cap beside the lsphp workers, which makes any jam there worse and harder to diagnose (the env's finding, 2026-10-22). `curl` against `testbed.test` is the exception, because a page fetch IS a web request.
+
+**Many renders: one wpcli container, a loop inside it** — never `bin/wp.sh` in a loop, which starts a container per call before WordPress boots. Sequential, from `~/wp-litespeed` (measured 2026-10-22):
 
 ```
-docker exec wp-litespeed-litespeed-1 sh -c 'cd /var/www/vhosts/testbed/html && wp <cmd> --allow-root'
+docker compose run --rm --no-deps -e WORDPRESS_DB_NAME=testbed --entrypoint bash wpcli -c '
+for t in "{{text key:email}}" "{{datetime_single src:site|key:org_party_datetime}}"; do
+  wp --path=/var/www/vhosts/testbed/html bws render-tag "$t" --url=https://testbed.test/department/support/ --porcelain; echo
+done'
 ```
+
+A tag census across URLs is the env's `bin/replay-tags.sh`. A sweep that outlives a tool timeout keeps running in the background: check `docker ps` before starting another. A `request failed` or 500 during a page fetch may be a worker the env's memory trap killed, so read its `logs/lsphp-memwatch.log` before retrying.
 
 ## Two entrypoints
 
@@ -88,7 +96,7 @@ foreach ( $tags as $tag ) {
 }
 ```
 
-Driven by a shell loop over the context list, one `wp eval-file … --url=<ctx>` per context. It is small enough to rewrite per sweep and lives in `.scratch/` with the tag list; the sweeps themselves are throwaway, not instruments.
+Driven by a shell loop over the context list, one `wp eval-file … --url=<ctx>` per context, inside one wpcli container (§Where the commands live). It is small enough to rewrite per sweep and lives in `.scratch/` with the tag list; the sweeps themselves are throwaway, not instruments.
 
 **Contexts stay in SEPARATE processes, and that is the load-bearing half.** Re-running `wp()` over a live `$wp_query` inside one boot is where per-request memoization leaks one context's ambient answers into the next, and a sweep that lies is worse than a slow one. The saving is already 34× without it.
 
@@ -156,6 +164,8 @@ container, so a capture under `wp eval-file` can write nothing. Comparison only 
 **The page set comes from the blueprint manifest**, not from a list kept in the script: every
 `posts` entry carrying a `content_builder` is snapshotted, so a new fixture page enters the set
 by existing. Nothing to register.
+
+**The post-type archive is scoped to this blueprint's own posts**, by `?bwsfx_scope=core` on its derived URL. An archive lists every post of its type a visitor may see, and the fixture site is shared, so a visible post from another fixture set moved the first article and the page count while nothing of ours had changed (measured 2026-10-23, `ctx-pta-staff`). The fixture mu-plugin (`bws_fixture_core_structures_scope_archive` in `schema.php`) restricts the main archive query to the manifest's posts of that type by slug, so the list is still rendered and still covered and only its population is pinned. A fixture post of ours added to a type that has an archive snapshot joins it by being in the manifest; one from anywhere else never does.
 
 **Cache-busting is built in** (the §page cache rule above applies to this instrument too, and it
 generates its own bust value per request — do not wrap it in one). A reseed does not invalidate

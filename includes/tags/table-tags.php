@@ -126,7 +126,7 @@ function bws_get_table_options(): array {
 			'base_fixed' => $text_field['fixed'] ?? array(),
 			'allow_site' => true,
 			// A column's source is a base tag's source ([I16]): same offer as {{join}}.
-			'steps'      => array( 'refs', 'terms', 'rows' ),
+			'steps'      => array( 'refs', 'terms', 'rows', 'parent' ),
 			'tag_level'  => BWS_FOLD_FLAT_AXES,
 			'noun'       => __( 'column', 'generateblocks' ),
 		)
@@ -273,7 +273,7 @@ function bws_table_column_start( ?array $opts, string $explicit_id, $instance ) 
 		$opts['id'] = $explicit_id;
 	}
 	$base = bws_base_resolve_source_for_callback( $opts, $instance );
-	return bws_base_read_refused( $res, $base, bws_table_serves() ) ? false : $base;
+	return bws_base_read_refused( bws_base_settle_kind( $res, $base ), $base, bws_table_serves() ) ? false : $base;
 }
 
 /**
@@ -387,7 +387,9 @@ function bws_table_serves(): array {
 	$vocab = bws_fold_wire_vocabulary();
 	$kinds = array_values( (array) ( $vocab['roots'] ?? array() ) );
 	foreach ( (array) ( $vocab['steps'] ?? array() ) as $step ) {
-		if ( isset( $step['produces'] ) ) {
+		// The settle marker is no kind of its own: the callback settles it to the base's
+		// kind before this list is asked, so an unsettled one must still refuse.
+		if ( isset( $step['produces'] ) && BWS_FOLD_KIND_SETTLES_AT_RENDER !== $step['produces'] ) {
 			$kinds[] = $step['produces'];
 		}
 	}
@@ -479,6 +481,37 @@ function bws_table_html( array $options, array $columns, array $matrix, bool $al
 const BWS_TABLE_SKELETON_ROWS = 3;
 
 /**
+ * The skeleton note's words for a root argument naming an entity that is not available, or ''.
+ *
+ * The same words the base tag preview uses: this asks the namer through the resolvers every
+ * preview passes and keeps the segment carrying BWS_PREVIEW_ENTITY_UNAVAILABLE.
+ *
+ * @since Unreleased
+ * @param string $src The tag's `src` wire.
+ * @return string
+ */
+function bws_table_unavailable_root_entity( string $src ): string {
+	$chain    = bws_fold_chain_from_options( array( 'src' => $src ) );
+	$missing  = array();
+	$inert    = array();
+	$segments = bws_preview_source_segments(
+		$chain,
+		array(
+			'site'             => false,
+			'entity_resolvers' => bws_preview_entity_resolvers(),
+		),
+		$missing,
+		$inert
+	);
+	foreach ( $segments as $segment ) {
+		if ( str_ends_with( $segment, ' ' . BWS_PREVIEW_ENTITY_UNAVAILABLE ) ) {
+			return $segment;
+		}
+	}
+	return '';
+}
+
+/**
  * The editor's placeholder for a table that cannot render here: the real table's shape, each
  * cell holding its column's configuration, never invented data.
  *
@@ -506,6 +539,9 @@ function bws_table_skeleton( array $options, array $columns, array $dropped = ar
 		$inert          = array();
 		bws_try_preview_source_part( (string) ( $options['src'] ?? '' ), true, $inert );
 		$source_warning = bws_preview_inert_warning( $inert );
+		if ( '' === $source_warning ) {
+			$source_warning = bws_table_unavailable_root_entity( (string) ( $options['src'] ?? '' ) );
+		}
 		$tag_warnings   = array( '' !== $source_warning ? $source_warning : 'source not available in the editor' );
 	}
 
@@ -563,7 +599,7 @@ function bws_table_callback( $options, $block, $instance ): string {
 
 	// A root this render cannot use produces no table, not an empty one.
 	$base    = empty( $columns ) ? array() : bws_base_resolve_source_for_callback( $options, $instance );
-	$refused = empty( $columns ) || bws_base_read_refused( bws_base_src_resolution( $options ), $base, bws_table_serves() );
+	$refused = empty( $columns ) || bws_base_read_refused( bws_base_settle_kind( bws_base_src_resolution( $options ), $base ), $base, bws_table_serves() );
 	if ( $refused ) {
 		return $is_preview ? bws_table_output( bws_table_skeleton( $options, $columns, $dropped ), $options, $instance ) : '';
 	}

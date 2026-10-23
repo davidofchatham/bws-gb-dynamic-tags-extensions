@@ -79,6 +79,9 @@
 	var FLAGS = [ 'newTab', 'showCurrentYear', 'showMidnight', 'noLink' ];
 	var FREEFORM = [ 'format', 'fallback', 'sep', 'valueSep', 'rangeSep', 'timeSep', 'header', 'fixed' ];
 	var FANNING_SLUGS = [ 'refs', 'terms', 'rows' ];
+	// Every chain STEP slug, i.e. the keys of BWS_FOLD_STEP_TYPES: the fanning ones plus the
+	// argless `parent`. This is what tells a step from a ROOT; FANNING_SLUGS is only which steps fan.
+	var STEP_SLUGS = [ 'refs', 'terms', 'rows', 'parent' ];
 
 	// Option names the emitter ranks. Membership only — the RANKS come from
 	// window.bwsReorderKeys, so this list must not grow its own ordering opinion.
@@ -688,7 +691,7 @@
 		if ( '' === v ) {
 			return false;
 		}
-		if ( -1 !== FANNING_SLUGS.indexOf( v ) ) {
+		if ( -1 !== STEP_SLUGS.indexOf( v ) ) {
 			return true;
 		}
 		return /[;,[\]()]/.test( v );
@@ -708,7 +711,7 @@
 			return '';
 		}
 		var slug = chain[ 0 ].slug || '';
-		return ( -1 !== FANNING_SLUGS.indexOf( slug ) ) ? '' : slug;
+		return ( -1 !== STEP_SLUGS.indexOf( slug ) ) ? '' : slug;
 	}
 
 	/**
@@ -741,7 +744,7 @@
 	 */
 	function chainFans( chain ) {
 		return ( chain || [] ).some( function ( link, i ) {
-			return i > 0 || -1 !== FANNING_SLUGS.indexOf( link.slug );
+			return i > 0 || -1 !== STEP_SLUGS.indexOf( link.slug );
 		} );
 	}
 
@@ -874,7 +877,8 @@
 			types: TYPES,
 			flags: FLAGS,
 			freeform: FREEFORM,
-			fanningSlugs: FANNING_SLUGS
+			fanningSlugs: FANNING_SLUGS,
+			stepSlugs: STEP_SLUGS
 		},
 		bracketPair: bracketPair,
 		escapeValue: escapeValue,

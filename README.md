@@ -61,6 +61,7 @@ A source path is where a tag starts, plus any steps it takes from there.
 | Posts in Reference/Relational Field | A post, term, user, repeater row, or site options | The posts stored in that field |
 | Terms in Taxonomy | A post | That post's terms in the taxonomy |
 | Rows in Repeater Field | A post, term, user, repeater row, or site options | The field's rows |
+| **[UNRELEASED]** Parent Post/Term | A post or term | Its parent post, or its parent term in the same taxonomy. A top-level post or term has none, so the tag shows its fallback |
 
 Steps chain in any order the "Can follow" column allows, for example a relationship field's posts, then each post's categories. `title` and `permalink` can't read a repeater row, since a row has no title or address. `call` takes post sources only.
 
@@ -162,6 +163,8 @@ A security gate blocks adding PHP built-ins (`system`, `unlink`, `eval`, and the
 ## Extending
 
 Another plugin can add its own starting point to our source path options, and that starting point can take an argument of its own, so it can name a specific entity rather than only something available from the context. See [`docs/plugin-integration.md` §1](docs/plugin-integration.md#1-offering-your-source-as-a-chain-root).
+
+**[UNRELEASED]** A plugin that decides who may see a post, such as a membership or audience plugin, can hide that post from our tags too, and its own tags can apply the same visibility check ours do. It can only hide content, never reveal what the built-in check refuses. See [`docs/plugin-integration.md` §3](docs/plugin-integration.md#narrowing-who-may-see-an-entity).
 
 ## Requirements
 

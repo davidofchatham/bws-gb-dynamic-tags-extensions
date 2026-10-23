@@ -2314,7 +2314,7 @@ function bws_fixture_page_content_matrix_table() {
 	$sections[] = bws_fixture_gb_section( 'Table TE - editor preview: the real table, or a skeleton', array(
 		bws_fixture_gb_block_host_row( 'TE1 rows resolve (-> the real 2-row table, front end and editor alike: Alice Adams/Staff, Bob Brown/Staff)', "{{table {$src}|A:header(Name);key(name)|B:header(Team);fixed(Staff)}}" ),
 		bws_fixture_gb_block_host_row( 'TE2 the chain resolves to zero rows (-> front end nothing; editor the real table, header Name/Team and an empty body, no dashed outline)', "{{table src:post,{$meta_id};rows,no_such_repeater|A:header(Name);key(name)|B:header(Team);fixed(Staff)}}" ),
-		bws_fixture_gb_block_host_row( 'TE3 unresolvable source, styled (-> front end nothing; editor a dashed skeleton, note "Table: source not available in the editor", header Name/Team, 3 rows of \'name\' / "Staff" in blue-grey with row stripes)', "{{table src:post,999999;rows,team_members|color:#475569|stripe:rows|A:header(Name);key(name)|B:header(Team);fixed(Staff)}}" ),
+		bws_fixture_gb_block_host_row( 'TE3 unresolvable source, styled (-> front end nothing; editor a dashed skeleton, note "Table: post 999999 (not available)", header Name/Team, 3 rows of \'name\' / "Staff" in blue-grey with row stripes)', "{{table src:post,999999;rows,team_members|color:#475569|stripe:rows|A:header(Name);key(name)|B:header(Team);fixed(Staff)}}" ),
 		bws_fixture_gb_block_host_row( 'TE4 unresolvable source, no headers (-> front end nothing; editor a dashed skeleton with NO header row, 3 rows of \'name\' / \'role\')', "{{table src:post,999999;rows,team_members|A:key(name)|B:key(role)}}" ),
 		bws_fixture_gb_block_host_row( 'TE5 no columns (-> front end nothing; editor a dashed skeleton, note "Table: no columns set", one column reading No columns)', "{{table {$src}}}" ),
 	) );
@@ -2533,7 +2533,7 @@ function bws_fixture_page_content_matrix_products() {
  * read path was believed to treat one post type differently from another — and an
  * expectation derived from the code's shape is not evidence here, which is why these rows
  * exist rather than a sentence saying so. What the source gate actually decides on is
- * bws_source_gate()'s own PHPDoc and is not restated here.
+ * bws_is_source_usable()'s own PHPDoc and is not restated here.
  *
  * THIS CONTENT IS THE PRODUCT'S DESCRIPTION. WooCommerce renders it through `the_content`
  * on the single-product template, so the blocks below are the product's own body and not
@@ -2551,8 +2551,105 @@ function bws_fixture_page_content_product_single() {
 	) );
 }
 
+/**
+ * Page content: the LEAF of the parent chain (page-matrix-parent-leaf). The visible half of
+ * fold-test-matrix.md §F25 (FW-169, the `parent` chain step).
+ *
+ * The leaf is the page that HAS a parent, so the ambient rows (`src:current;parent`) read
+ * its middle page; the fixture's shape and what it asserts are in the matrix §F25 intro. The
+ * top page (bws_fixture_page_content_matrix_parent_top) is the empty case; the middle page
+ * only has a body and an image to be read.
+ *
+ * Ids a pin needs are resolved at BUILD TIME, never hand-typed, as in matrix-pinned-roots.
+ * A term ARCHIVE as the ambient context is `render-tag` only (the testbed's stated exception),
+ * so the matrix carries those rows and this page does not.
+ *
+ * @return string
+ */
+function bws_fixture_page_content_matrix_parent_leaf() {
+	$mid_id     = function_exists( 'bws_fixture_seeded_post_id' ) ? bws_fixture_seeded_post_id( 'matrix-parent-mid', 'page' ) : false;
+	$orphan_id  = function_exists( 'bws_fixture_seeded_post_id' ) ? bws_fixture_seeded_post_id( 'matrix-parent-orphan', 'page' ) : false;
+	$coastal_id = function_exists( 'bws_fixture_seeded_term_id' ) ? bws_fixture_seeded_term_id( 'coastal', 'kb_topic' ) : false;
+	$att_id     = function_exists( 'bws_fixture_seeded_attachment_id' ) ? bws_fixture_seeded_attachment_id( 'kb-diagram' ) : 0;
+	if ( ! $mid_id || ! $orphan_id || ! $coastal_id || ! $att_id ) {
+		return bws_fixture_gb_text_block(
+			'PARENT-STEP FIXTURE ERROR: the parent-chain pages, the "coastal" kb_topic term or the "kb-diagram" attachment was not found. Reseed before this page.',
+			'parent-missing'
+		);
+	}
+
+	$sections = array();
+
+	$sections[] = bws_fixture_gb_section( 'Fold F25 - the parent step on text (FW-169): this page is the LEAF', array(
+		bws_fixture_gb_row( 'F25.1 the parent POST off the ambient root (-> Matrix: Parent (middle))', '{{text src:current;parent|use:title}}' ),
+		bws_fixture_gb_row( 'F25.2 the parent\'s FIELD, which this page does not hold itself (-> (555) 310-2200)', '{{text src:current;parent|key:main_line}}' ),
+		bws_fixture_gb_empty_row( 'F25.3 the NON-VACUITY control for F25.2: the same field read off THIS page - EMPTY, so F25.2 can only have come from the parent', '{{text key:main_line}}' ),
+		bws_fixture_gb_row( 'F25.4 two parent steps (-> Matrix: Parent (top))', '{{text src:current;parent;parent|use:title}}' ),
+		bws_fixture_gb_empty_row( 'F25.5 a third parent step runs past the top of the chain - EMPTY, never the page it started from', '{{text src:current;parent;parent;parent|use:title}}' ),
+		bws_fixture_gb_row( 'F25.6 after a relationship step: related_page is the middle page, so its parent is the top (-> Matrix: Parent (top))', '{{text src:refs,related_page;parent|use:title}}' ),
+		bws_fixture_gb_row( 'F25.7 after a taxonomy step: this page is in Coastal, so the parent TERM (-> East)', '{{text src:terms,kb_topic;parent|use:title}}' ),
+		bws_fixture_gb_row( "F25.8 off a PINNED post root, the middle page (-> Matrix: Parent (top))", "{{text src:post,{$mid_id};parent|use:title}}" ),
+		bws_fixture_gb_row( "F25.9 off a PINNED term root, Coastal (-> East)", "{{text src:term,{$coastal_id};parent|use:title}}" ),
+		bws_fixture_gb_row( "F25.10 an ATTACHMENT's parent is the post it is attached to (-> Matrix: Parent (middle))", "{{text src:post,{$att_id};parent|use:title}}" ),
+		bws_fixture_gb_empty_row( "F25.11 the parent is a DRAFT page: the source gate cuts it at the hop for a visitor (-> EMPTY; logged in as an administrator, Matrix: Parent (draft))", "{{text src:post,{$orphan_id};parent|use:title}}" ),
+		bws_fixture_gb_row( "F25.11b NON-VACUITY for F25.11: the same orphan page read WITHOUT the step (-> Matrix: Parent (under a draft)), so the empty above is the hop and not the pin", "{{text src:post,{$orphan_id}|use:title}}" ),
+		bws_fixture_gb_empty_row( 'F25.12 a root the step does not accept (site) - EMPTY', '{{text src:site;parent|use:title}}' ),
+		bws_fixture_gb_row( 'F25.12b NON-VACUITY for F25.12: the site root WITHOUT the step (-> BWS Testbed)', '{{text src:site|use:title}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Fold F25 - the parent step on the other tags (FW-169)', array(
+		bws_fixture_gb_block_host_row( 'F25.20 content of the parent page (-> This is the body of the middle page in the parent chain.)', '{{content src:current;parent}}' ),
+		bws_fixture_gb_row( 'F25.21 title (-> Matrix: Parent (middle))', '{{title src:current;parent}}' ),
+		bws_fixture_gb_row( 'F25.22 permalink (-> https://testbed.test/matrix-parent/matrix-parent-mid/)', '{{permalink src:current;parent}}' ),
+		bws_fixture_gb_row( 'F25.23 image, the parent\'s feature_image alt text (-> Fixture photo alt text)', '{{image src:current;parent|key:feature_image|use:key|as:alt}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Fold F25 - the parent step in a container (FW-169)', array(
+		bws_fixture_gb_row( 'F25.30 try_ falls back through the RELATIONSHIP: this page has no main_line, related_page does (-> (555) 310-2200)', '{{try_text A:key(main_line)|B:src(refs,related_page);key(main_line)}}' ),
+		bws_fixture_gb_row( 'F25.31 try_ falls back through the HIERARCHY, same value by the other route (-> (555) 310-2200)', '{{try_text A:key(main_line)|B:src(current;parent);key(main_line)}}' ),
+		bws_fixture_gb_row( 'F25.32 try_ keeps its own value when it has one, the parent attempt never runs (-> Matrix: Parent (leaf))', '{{try_text A:src(current);use(title)|B:src(current;parent);use(title)}}' ),
+		bws_fixture_gb_row( 'F25.33 join composes the parent with the page itself (-> Matrix: Parent (middle) / Matrix: Parent (leaf))', '{{join mode:template|A:src(current;parent);use(title)|B:src(current);use(title)|format:%A / %B}}' ),
+	) );
+
+	return implode( "\n\n", $sections );
+}
+
+/**
+ * Page content: the TOP of the parent chain (page-matrix-parent). The EMPTY case of
+ * fold-test-matrix.md §F25: a top-level page has no parent, and every tag must say so
+ * rather than print the page it was asked from (the leak fw-169/01 found on the singular
+ * permalink, content and image routes, which is why those three rows are here and not only
+ * title and text).
+ *
+ * @return string
+ */
+function bws_fixture_page_content_matrix_parent_top() {
+	return bws_fixture_gb_section( 'Fold F25 - a TOP-LEVEL page has no parent (FW-169): every row here is EMPTY', array(
+		bws_fixture_gb_empty_row( 'F25.40 text - EMPTY, not Matrix: Parent (top)', '{{text src:current;parent|use:title}}' ),
+		bws_fixture_gb_empty_row( 'F25.41 content - EMPTY, not this page\'s own body (the matrix says why render-tag is the evidence for this one)', '{{content src:current;parent}}' ),
+		bws_fixture_gb_empty_row( 'F25.42 title - EMPTY', '{{title src:current;parent}}' ),
+		bws_fixture_gb_empty_row( 'F25.43 permalink - EMPTY, not this page\'s own URL', '{{permalink src:current;parent}}' ),
+		bws_fixture_gb_empty_row( 'F25.44 image - EMPTY (this page has a feature_image of its own, so a leak would print it)', '{{image src:current;parent|key:feature_image|use:key|as:alt}}' ),
+		bws_fixture_gb_row( 'F25.45 try_ moves PAST the empty parent attempt to the next one (-> Matrix: Parent (top))', '{{try_text A:src(current;parent);use(title)|B:src(current);use(title)}}' ),
+	) );
+}
+
+/**
+ * Page content: the MIDDLE of the parent chain (page-matrix-parent-mid). Only a body to be
+ * read by `{{content}}`, free of any tag (the standing fixture caution), and no rows: this
+ * page's own `main_line` and `feature_image` are what the leaf's rows read.
+ *
+ * @return string
+ */
+function bws_fixture_page_content_matrix_parent_mid() {
+	return bws_fixture_gb_text_block( 'This is the body of the middle page in the parent chain.', 'parent-mid-body' );
+}
+
 function bws_fixture_build_page_content( $builder ) {
 	$map = array(
+		'matrix_parent_leaf'   => 'bws_fixture_page_content_matrix_parent_leaf',
+		'matrix_parent_top'    => 'bws_fixture_page_content_matrix_parent_top',
+		'matrix_parent_mid'    => 'bws_fixture_page_content_matrix_parent_mid',
 		'matrix_post_meta'     => 'bws_fixture_page_content_matrix_post_meta',
 		'matrix_term_hop'      => 'bws_fixture_page_content_matrix_term_hop',
 		'matrix_content'       => 'bws_fixture_page_content_matrix_content',
@@ -2825,7 +2922,7 @@ function bws_fixture_element_content_context_header() {
 				'{{term_text id:999999|use:title}}'
 			),
 			bws_fixture_gb_empty_row(
-				'C-CONV14 what C-CONV13 converts to -> EMPTY on all seven, term archive included. THE ONE ROW IN THIS SECTION THAT RUNS value->empty: the conversion is not output-neutral for a dead pin, and that is the decided outcome - a broken pin reads as broken (and as `(missing)` in the editor) instead of silently borrowing the page term. Every other pinned row above is byte-identical in both directions',
+				'C-CONV14 what C-CONV13 converts to -> EMPTY on all seven, term archive included. THE ONE ROW IN THIS SECTION THAT RUNS value->empty: the conversion is not output-neutral for a dead pin, and that is the decided outcome - a broken pin reads as broken (and as `(not available)` in the editor) instead of silently borrowing the page term. Every other pinned row above is byte-identical in both directions',
 				'{{text src:term,999999|use:title}}'
 			),
 		)

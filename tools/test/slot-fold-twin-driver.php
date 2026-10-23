@@ -31,6 +31,8 @@ if ( ! function_exists( 'sanitize_key' ) ) {
 require __DIR__ . '/../../includes/helpers/serialization-order.php';
 require __DIR__ . '/../../includes/helpers/slot-fold.php';
 require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
+// The resolution reads the engine's input-kind list for a kind-preserving step (FW-169).
+require __DIR__ . '/../../includes/helpers/traversal-pipeline.php';
 
 /** Flatten a chain step list to ordered arrays. */
 function twin_canon_chain( $steps ) {
@@ -93,6 +95,7 @@ $doc = array(
 		'flags'        => BWS_FOLD_FLAGS,
 		'freeform'     => BWS_FOLD_FREEFORM,
 		'fanningSlugs' => BWS_FOLD_FANNING_SLUGS,
+		'stepSlugs'    => array_keys( BWS_FOLD_STEP_TYPES ),
 		'brackets'     => array( bws_fold_bracket_pair( 1 ), bws_fold_bracket_pair( 2 ), bws_fold_bracket_pair( 3 ) ),
 	),
 	'slots'   => array(),

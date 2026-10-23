@@ -137,6 +137,16 @@ function bws_page_snapshot_pages( $manifest = null ) {
 		$type = isset( $entry['post_type'] ) ? $entry['post_type'] : 'post';
 		$slug = $entry['post_name'];
 
+		// A PAGE under a parent lives at /parent/child/, not /child/. The chain is read off the
+		// manifest's own `post_parent` keys; the depth cap only stops a mistyped cycle.
+		$segments = array( $slug );
+		$cursor   = $entry;
+		while ( 'page' === $type && ! empty( $cursor['post_parent'] ) && isset( $post_entries[ $cursor['post_parent'] ] ) && count( $segments ) < 10 ) {
+			$cursor = $post_entries[ $cursor['post_parent'] ];
+			array_unshift( $segments, $cursor['post_name'] );
+		}
+		$slug_path = implode( '/', $segments );
+
 		$out[ $key ] = array(
 			'key'        => $key,
 			'provenance' => 'post',
@@ -147,7 +157,7 @@ function bws_page_snapshot_pages( $manifest = null ) {
 			// `page` AND `post` are flat under this site's /%postname%/ permastruct;
 			// every other type is prefixed. The rule can rot, which is exactly what
 			// bws_page_snapshot_assert_permalinks() exists to catch under WP.
-			'path'       => in_array( $type, array( 'page', 'post' ), true ) ? "/{$slug}/" : "/{$type}/{$slug}/",
+			'path'       => in_array( $type, array( 'page', 'post' ), true ) ? "/{$slug_path}/" : "/{$type}/{$slug}/",
 		);
 	}
 
@@ -159,7 +169,10 @@ function bws_page_snapshot_pages( $manifest = null ) {
 		$out[ 'ctx-pta-' . $type ] = array(
 			'key'        => 'ctx-pta-' . $type,
 			'provenance' => 'derived',
-			'path'       => "/{$type}/",
+			// `?bwsfx_scope=core` is the fixture mu-plugin's narrowing (schema.php,
+			// bws_fixture_core_structures_scope_archive): the archive lists every post of the
+			// type a visitor may see, so without it another fixture set's post moves the page.
+			'path'       => "/{$type}/?bwsfx_scope=core",
 			'body_class' => 'post-type-archive-' . $type,
 		);
 	}

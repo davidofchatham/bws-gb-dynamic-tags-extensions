@@ -62,7 +62,7 @@ function bws_dynamic_tags_init_update_checker() {
 	// attached release asset rather than the auto-generated source zip.
 	$api = $update_checker->getVcsApi();
 	if ( $api ) {
-		$api->enableReleaseAssets();
+		$api->enableReleaseAssets( '/bws-gb-dynamic-tags-extensions-[\d.]+\.zip/', \YahnisElsts\PluginUpdateChecker\v5p7\Vcs\Api::REQUIRE_RELEASE_ASSETS );
 	}
 }
 bws_dynamic_tags_init_update_checker();
@@ -120,6 +120,7 @@ function bws_dynamic_tags_init() {
 	// seam (field-helpers) and modifier registry that call bws_resolve_base_source /
 	// bws_run_traversal. No load-time side effects (all WP touched inside functions).
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/traversal-pipeline.php';
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/source-usable.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/field-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/link-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/preview-helpers.php';
@@ -516,6 +517,8 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 	// same question one position earlier. The picker mounts standalone on a base tag's `key`
 	// and has no fold config to read, so it gets the same two maps as a global rather than a
 	// copy of `BWS_FOLD_STEP_KINDS` / `BWS_FOLD_PARSE_TIME_ROOT_KINDS` written out in JS.
+	// `settles` names the step kind that means "the kind the step was given" (`parent`), so
+	// the picker looks through such a step to the one before it.
 	//
 	// SEPARATE FROM `bwsRootArgKinds` above, which answers a different question — which roots
 	// TAKE an argument, derived from the root ROWS so an integrator's root is included. This
@@ -532,8 +535,9 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 			'bws-dynamic-tags-field-combo-control',
 			'window.bwsChainKinds = ' . wp_json_encode(
 				array(
-					'steps' => (object) $bws_step_kinds,
-					'roots' => (object) ( $bws_vocab['roots'] ?? array() ),
+					'steps'   => (object) $bws_step_kinds,
+					'settles' => (string) ( $bws_vocab['settles'] ?? '' ),
+					'roots'   => (object) ( $bws_vocab['roots'] ?? array() ),
 				)
 			) . ';',
 			'before'

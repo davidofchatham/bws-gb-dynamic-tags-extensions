@@ -542,6 +542,7 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 
 	// L1 — resolve the base source once. Explicit src/loop/id already won inside the factory.
 	$base = bws_base_resolve_source_for_callback( $options, $instance );
+	$res  = bws_base_settle_kind( $res, $base );
 
 	// REFUSED — read nothing. The empty triple IS the empty path (the callback then runs
 	// preview label or fallback). Covers {{join}} slots too: the field drops out of the
@@ -706,7 +707,7 @@ function bws_get_join_options(): array {
 				'allow_same_read' => false,
 				// A slot's source is a base tag's source ([I16]): same offer, asserted
 				// equal by control-order-test.php §7.
-				'steps'            => array( 'refs', 'terms', 'rows' ),
+				'steps'            => array( 'refs', 'terms', 'rows', 'parent' ),
 				// "+ Add field" and header "Field A".
 				'noun'            => __( 'field', 'generateblocks' ),
 			) )
@@ -891,6 +892,7 @@ function bws_base_content_resolve_value( array $options, $instance ): array {
 	}
 
 	$base = bws_base_resolve_source_for_callback( $options, $instance );
+	$res  = bws_base_settle_kind( $res, $base );
 
 	// REFUSED — read nothing; fallback stated here, '' in preview (see PHPDoc).
 	if ( bws_base_read_refused( $res, $base, array( 'meta_row' ) ) ) {
@@ -1015,6 +1017,7 @@ function bws_base_title_resolve_value( array $options, $instance ): array {
 	}
 
 	$base = bws_base_resolve_source_for_callback( $options, $instance );
+	$res  = bws_base_settle_kind( $res, $base );
 
 	// REFUSED (GH #75/#76/#109) — read nothing. The empty triple IS this arm's own empty
 	// path: {{title}} registers no `fallback` option, so the shell's whole empty path is
@@ -1142,6 +1145,7 @@ function bws_base_permalink_resolve_value( array $options, $instance ): array {
 	}
 
 	$base = bws_base_resolve_source_for_callback( $options, $instance );
+	$res  = bws_base_settle_kind( $res, $base );
 
 	// REFUSED — read nothing. No fallback and no preview label (a bracketed placeholder
 	// would break the href), so '' is the whole empty path.
@@ -1240,6 +1244,7 @@ function bws_base_image_resolve_value( array $options, $instance ): array {
 	}
 
 	$base = bws_base_resolve_source_for_callback( $options, $instance );
+	$res  = bws_base_settle_kind( $res, $base );
 
 	// REFUSED — read nothing; no core may be reached. The shell emits the fallback.
 	if ( bws_base_read_refused( $res, $base, array( 'meta_row' ) ) ) {

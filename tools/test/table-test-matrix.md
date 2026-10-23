@@ -12,12 +12,7 @@
 bin/wp.sh testbed bws render-tag '{{TAG}}' --url=https://testbed.test/matrix-table/ --porcelain
 ```
 
-Location-independent equivalent (works from Windows or WSL, since Docker Desktop shares one daemon):
-
-```bash
-docker exec wp-litespeed-litespeed-1 sh -c 'cd /var/www/vhosts/testbed/html && \
-  wp bws render-tag "{{TAG}}" --url=https://testbed.test/matrix-table/ --porcelain --allow-root'
-```
+From Windows, wrap it in `wsl.exe -d Ubuntu -- bash -lc 'cd ~/wp-litespeed && …'`; many rows go through one wpcli container ([docs/testbed.md](../../docs/testbed.md) §Where the commands live).
 
 `--porcelain` prints the table HTML and none of the page's inline CSS: a styled table shows only its `bws-dte-table-<hash>` class there, and the rules are in the front-end page's footer `<style id="bws-dte-table-<hash>">`. The TP expectations below quote those rules, read off the page. A cached front end hides brand-new rows; cache-bust with a literal token (`?nocache=run1`), never `$RANDOM`.
 

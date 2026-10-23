@@ -15,7 +15,7 @@
 
 return array(
 	'blueprint' => 'core-structures',
-	'version'   => 31, // 31: TABLE PRESENTATION page — `matrix-table` (blocks.php 'matrix_table'), `{{table}}` presentation rows over the repeater matrix-post-meta owns; additive, no seeded data. 30: TERM SCALAR READ corpus (#143) — on the `sales` department term, three ACF image fields (`dept_logo_array`/`_url`/`_id`, one per return format, all the seeded `fixture-photo`) and a single `post_object` returning Post ID (`dept_liaison` → staff-jane-partner), the scalar twin of the relationship `dept_lead`. A term read that asks array-preserving alone drops the URL, the ID and the bare post id, so these are the rows that tell the two-pass read from it. Visible on the term-archive context element and on /matrix-pinned-roots/ (§F20). Additive; no existing row names any of the four keys. 29: AUTHOR IMAGE corpus (#144) — an ACF `Author Details` group on users (`author_photo_array`/`_url`/`_id`, one per ACF image return format) plus a plain-meta `author_photo_plain`, all on `fixture-author` pointing at the seeded `fixture-photo`; and the visible C-rows that read them on the author archive. ACF stores the attachment ID in user meta whichever format a field returns, so the trio buys a pin on "the stored value, not the formatted one" rather than three different shapes. Additive; no existing row names any of the four keys. 28: EMAIL OBFUSCATION seeded OFF (FW-137) — one key in the `bws_dynamic_tags_settings` baseline, sitting beside the phone pair that was already there. `antispambot()` flips a coin per CHARACTER, so an obfuscated `{{email}}` differs from ITSELF between two renders of one build, and a before/after `render-tag` sweep reports one address under two encodings as confidently as a regression — measured during FW-136 ticket 02, where the first parity sweep returned 83 such phantom cells. Seeds NO new entity and moves NO baseline: all 23 snapshot pages pass with the toggle in either position, because the snapshot normalizer decodes ASCII numeric references once (page-snapshot-normalize-test.php §P9) and OFF is the degenerate encoding. A FIXTURE default only — the plugin still ships obfuscation ON. The rows whose expectation text named the encoding (src-site §R6.1/§R6.9, fold §F7c.5/§F9.5f) are reworded in the same commit, and §R6.9 reverses direction: it is now the row that turns the toggle ON and back.
+	'version'   => 32, // 32: PARENT-STEP corpus (FW-169) — a three-level page chain (`matrix-parent` > `-mid` > `-leaf`), a hierarchical-term chain in a NEW `kb_topic` taxonomy (Regions > East > Coastal; schema.php says why it is not `department`), an attachment attached to the middle page, a published page under a DRAFT page (the gate row), and the plain-meta relationship `related_page` on the leaf pointing at the middle page. The leaf's `main_line` is EMPTY and the middle page's is set; fold matrix §F25 owns what that buys. Seeder gains `post_parent` (posts, attachments) and term `parent`, and `post_terms` now follows each term's own taxonomy. Additive; no existing row names any of it, and `main_line` on the new pages is the only existing field key written. 31: TABLE PRESENTATION page — `matrix-table` (blocks.php 'matrix_table'), `{{table}}` presentation rows over the repeater matrix-post-meta owns; additive, no seeded data. 30: TERM SCALAR READ corpus (#143) — on the `sales` department term, three ACF image fields (`dept_logo_array`/`_url`/`_id`, one per return format, all the seeded `fixture-photo`) and a single `post_object` returning Post ID (`dept_liaison` → staff-jane-partner), the scalar twin of the relationship `dept_lead`. A term read that asks array-preserving alone drops the URL, the ID and the bare post id, so these are the rows that tell the two-pass read from it. Visible on the term-archive context element and on /matrix-pinned-roots/ (§F20). Additive; no existing row names any of the four keys. 29: AUTHOR IMAGE corpus (#144) — an ACF `Author Details` group on users (`author_photo_array`/`_url`/`_id`, one per ACF image return format) plus a plain-meta `author_photo_plain`, all on `fixture-author` pointing at the seeded `fixture-photo`; and the visible C-rows that read them on the author archive. ACF stores the attachment ID in user meta whichever format a field returns, so the trio buys a pin on "the stored value, not the formatted one" rather than three different shapes. Additive; no existing row names any of the four keys. 28: EMAIL OBFUSCATION seeded OFF (FW-137) — one key in the `bws_dynamic_tags_settings` baseline, sitting beside the phone pair that was already there. `antispambot()` flips a coin per CHARACTER, so an obfuscated `{{email}}` differs from ITSELF between two renders of one build, and a before/after `render-tag` sweep reports one address under two encodings as confidently as a regression — measured during FW-136 ticket 02, where the first parity sweep returned 83 such phantom cells. Seeds NO new entity and moves NO baseline: all 23 snapshot pages pass with the toggle in either position, because the snapshot normalizer decodes ASCII numeric references once (page-snapshot-normalize-test.php §P9) and OFF is the degenerate encoding. A FIXTURE default only — the plugin still ships obfuscation ON. The rows whose expectation text named the encoding (src-site §R6.1/§R6.9, fold §F7c.5/§F9.5f) are reworded in the same commit, and §R6.9 reverses direction: it is now the row that turns the toggle ON and back.
 	                   // 27: PER-ITEM LINK corpus (FW-85 ticket 03) — a new `matrix-links` page (blocks.php 'matrix_links') plus the state its rows read: three plain-meta reference lists on the page (`link_term_host`, `link_staff`, `link_staff_gap`) and a `profile_url` plain meta on three staff singles, with `staff-fixture-root` deliberately carrying none. Per-item link wrapping shipped with no rendered page at all: the harness pins the markup, but "each value is an anchor to its OWN entity" is a claim about hrefs, and a link pointing at the wrong sibling reads identically to a correct one unless every entity in the list has a DISTINCT destination — which is what this corpus buys and what no existing page could supply. Its own page rather than more rows on matrix-post-meta, because that page already carries ~380 blocks and every family's rows, and this concern needs the term, post-permalink and URL-field arms side by side. `profile_url` deliberately is NOT a permalink, so a key-mode read that fell back to the permalink route prints a different href rather than the same one. The page is assigned NO department term and its term arm hops to /matrix-terms-mixed/ instead: every department term's count is printed on /matrix-loops/ (QL3.2), so a direct assignment moves a baseline this change has nothing to do with — measured, not assumed. Additive; no existing row names any of the three reference lists, `profile_url` or the new page, and no existing row's VALUE is produced by anything this version seeds (the two QL3.2 term counts the baseline re-records moved because their cached counts were stale, which the commit states).
 	                   // 26: NESTED REPEATER corpus (FW-74 ticket 08) — the `duty_roster` repeater whose rows each carry a `shifts` repeater, on a NEW `matrix-repeaters` page (blocks.php 'matrix_repeaters'), the visible half of fold-test-matrix.md §F23. The engine has admitted `meta_row` as a `rows` input since 1.17.0 and the arm has read rows since 1.21.0, but NO blueprint post carried a repeater inside a repeater, so the nested case was reachable only as a MISS: F9c.4 states a nested source and passes by finding nothing, which reads the same whether the nested read works or is broken. Its own page rather than more rows on matrix-post-meta, because that page already carries ~380 blocks and every family's rows, and a nested repeater needs its own field group anyway (a sub-repeater on `team_members` would become a {{table}} column and move the TB rows). Four shifts across two members, interleaved, so the fan-out ORDER is readable off the rendered string. Additive; no existing row names `duty_roster`, `shifts` or the new page.
 	                   // 25: DATETIME row targets (FW-74 ticket 06) — `contract_start`/`contract_end`/`review_dmy` sub-fields on the matrix-post-meta `team_members` rows. A PAIR, because `{{datetime_range}}` is a separate family with its own refusal call site and one date field cannot exercise it. `review_dmy` is the FORMAT BOUNDARY probe: a row reaches no sub-field config, so every row date parses format-agnostically, and its two values are chosen so row 1 is ambiguous under that walk and row 2 is not — the boundary is READABLE off the page instead of asserted. Additive; no {{table}} column, no F9c row and no loop row names any of the three.
@@ -25,7 +25,7 @@ return array(
 	// redefine these — compose + reuse instead).
 	'defines'   => array(
 		'post_types' => array( 'staff' ),
-		'taxonomies' => array( 'department' ),
+		'taxonomies' => array( 'department', 'kb_topic' ),
 		'acf_groups' => array(
 			'group_bwsfx_staff_contact',
 			'group_bwsfx_site_settings',
@@ -87,6 +87,15 @@ return array(
 	// (idempotent — re-uses an existing attachment with the same _bws_fixture_slug
 	// meta). Used as the target for image-field reads (FW-52 {{image}} editor rows).
 	'attachments' => array(
+		// ATTACHED to a page (v32, FW-169): `post_parent` is a fixture POST key, applied after
+		// posts exist. `parent` on an attachment is the post it is attached to, not a folder.
+		'kb-diagram' => array(
+			'title'       => 'Parent Step Diagram',
+			'alt'         => 'Parent step diagram alt text',
+			'color'       => '6aa84f',
+			'filename'    => 'parent-step-diagram.png',
+			'post_parent' => 'page-matrix-parent-mid',
+		),
 		'fixture-photo' => array(
 			'title'    => 'Fixture Photo',
 			'alt'      => 'Fixture photo alt text',
@@ -207,6 +216,26 @@ return array(
 			'name'        => 'Workshop',
 			'slug'        => 'workshop',
 			'description' => 'The Workshop department term. Deliberately carries no posts, so its term count is zero.',
+		),
+
+		// The hierarchical-term chain (v32, FW-169). `parent` is a fixture term key, listed
+		// before its children. A taxonomy of its own, assigned to pages only.
+		'kb-topic-regions' => array(
+			'taxonomy' => 'kb_topic',
+			'name'     => 'Regions',
+			'slug'     => 'regions',
+		),
+		'kb-topic-east' => array(
+			'taxonomy' => 'kb_topic',
+			'name'     => 'East',
+			'slug'     => 'east',
+			'parent'   => 'kb-topic-regions',
+		),
+		'kb-topic-coastal' => array(
+			'taxonomy' => 'kb_topic',
+			'name'     => 'Coastal',
+			'slug'     => 'coastal',
+			'parent'   => 'kb-topic-east',
 		),
 	),
 
@@ -418,6 +447,47 @@ return array(
 			'post_name'       => 'matrix-gate',
 			'post_title'      => 'Matrix: Source Gate',
 			'content_builder' => 'matrix_gate',
+		),
+
+		// The PARENT-STEP corpus (v32, FW-169, fold matrix §F25). A page chain, top > middle >
+		// leaf, parents listed first. Each level carries rows only where the rows are about
+		// that level: the leaf holds the "this page has a parent" rows, the top holds the
+		// "no parent" (empty) rows, and the middle only has a body and a main_line to be read.
+		'page-matrix-parent' => array(
+			'post_type'       => 'page',
+			'post_name'       => 'matrix-parent',
+			'post_title'      => 'Matrix: Parent (top)',
+			'content_builder' => 'matrix_parent_top',
+		),
+		'page-matrix-parent-mid' => array(
+			'post_type'       => 'page',
+			'post_name'       => 'matrix-parent-mid',
+			'post_title'      => 'Matrix: Parent (middle)',
+			'post_parent'     => 'page-matrix-parent',
+			'content_builder' => 'matrix_parent_mid',
+		),
+		// The GATE rows: a DRAFT page, and a published page whose parent it is. Neither
+		// carries a builder, so neither is a snapshot page; the leaf's rows pin the orphan by id.
+		// Listed BEFORE the leaf because a page's content is built the moment it is inserted, and
+		// the leaf's rows resolve the orphan's id at build time.
+		'page-matrix-parent-draft' => array(
+			'post_type'   => 'page',
+			'post_name'   => 'matrix-parent-draft',
+			'post_title'  => 'Matrix: Parent (draft)',
+			'post_status' => 'draft',
+		),
+		'page-matrix-parent-orphan' => array(
+			'post_type'   => 'page',
+			'post_name'   => 'matrix-parent-orphan',
+			'post_title'  => 'Matrix: Parent (under a draft)',
+			'post_parent' => 'page-matrix-parent-draft',
+		),
+		'page-matrix-parent-leaf' => array(
+			'post_type'       => 'page',
+			'post_name'       => 'matrix-parent-leaf',
+			'post_title'      => 'Matrix: Parent (leaf)',
+			'post_parent'     => 'page-matrix-parent-mid',
+			'content_builder' => 'matrix_parent_leaf',
 		),
 
 		// The QUERY LOOP corpus page (v16, §QL). The only fixture page whose loops
@@ -675,6 +745,9 @@ return array(
 		'page-matrix-terms-valid' => array( 'department-support', 'department-sales' ),
 		'page-matrix-terms-mixed' => array( 'department-support', 'department-sales', 'department-warehouse' ),
 		'page-matrix-terms-junk'  => array( 'department-warehouse' ),
+		// The leaf carries the DEEPEST kb_topic term only (v32): its `terms` hop lands on
+		// Coastal, whose parent is East, whose parent is Regions.
+		'page-matrix-parent-leaf' => array( 'kb-topic-coastal' ),
 		// NOTE (v27): `page-matrix-links` deliberately appears in NO row here. Its term
 		// arm hops to /matrix-terms-mixed/ and reads THAT page's departments instead,
 		// through the `link_term_host` meta below. Assigning terms to it directly was
@@ -751,6 +824,17 @@ return array(
 			// datetime matrix — second src:ref target (list rows show both dates).
 			'event_datetime'     => '2030-06-01 11:00:00',
 			'event_end_datetime' => '2030-06-05 12:00:00',
+		),
+
+		// v32 (FW-169): the MIDDLE page holds the value and the LEAF holds none (why: fold matrix
+		// §F25). The TOP page carries an image too, so a top-level image row that leaked its own
+		// page would print it instead of an empty cell identical to the correct answer.
+		'page-matrix-parent-mid' => array(
+			'main_line'     => '(555) 310-2200',
+			'feature_image' => 'fixture-photo',
+		),
+		'page-matrix-parent' => array(
+			'feature_image' => 'fixture-photo',
 		),
 
 		'page-matrix-post-meta' => array(
@@ -990,6 +1074,14 @@ return array(
 			'bws_page_only'  => 'page-only note value',
 			'bws_zero_probe' => '0', // text matrix T5 — '0' is a REAL value, must render
 			'plain_meta_date' => '2030-06-15', // datetime D0.10 — plain-meta (non-ACF) read path
+		),
+
+		// --- PARENT-STEP corpus (v32, FW-169) --------------------------------
+		// A relationship from the leaf to the MIDDLE page, as plain meta (the §F17.3 / v27
+		// precedent: the `refs` step reads a raw id list, and an ACF relationship scoped to
+		// pages would be schema added for nothing). Same target as `post_parent`; see §F25.
+		'page-matrix-parent-leaf' => array(
+			'related_page' => array( 'page-matrix-parent-mid' ),
 		),
 
 		// --- PER-ITEM LINK corpus (v27, FW-85 ticket 03, §T11) ---------------

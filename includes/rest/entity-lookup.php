@@ -353,15 +353,15 @@ function bws_entity_lookup_groups_by_kind(): array {
  * CurrentPost resolves a trashed post that was already selected; this function governs only
  * what the BROWSE list offers going forward).
  *
- * A DIFFERENT AXIS FROM bws_source_gate() (traversal-pipeline.php), deliberately, not a
- * second uncoordinated statement of the one that already exists. bws_source_gate() answers
+ * A DIFFERENT AXIS FROM bws_is_source_usable() (source-usable.php), deliberately, not a
+ * second uncoordinated statement of the one that already exists. bws_is_source_usable() answers
  * "may THIS request's VIEWER see this entity right now" at render time, for any visitor
  * including an anonymous one — a per-post EXISTS/VISIBLE question keyed on `read_post` plus
  * internal-status handling. This function answers "may THIS EDITOR, already past the
  * plugin-wide trust seam, browse candidates of this post type at all" — a per-POST-TYPE
  * capability question, asked once per browse/resolve call rather than once per candidate
  * (D18's explicit rule: no per-post check over a browse page). Routing this through
- * bws_source_gate() would mean a capability check per row on every browse request, which is
+ * bws_is_source_usable() would mean a capability check per row on every browse request, which is
  * the exact cost D18 rules out.
  *
  * @since 1.20.0

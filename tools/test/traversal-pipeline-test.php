@@ -57,19 +57,17 @@ if ( ! function_exists( 'bws_extract_post_id' ) ) {
 	}
 }
 
-// SOURCE-GATE STUB, defined BEFORE the require so the real file's function_exists
-// guard yields to it (plan §S20 corrected — the harness supplies its own predicate;
-// the REAL gate names get_post/current_user_can and is integration-tested on the
-// testbed, never here). Controllable: a source carrying '__gated' => true is
-// dropped, every other source passes, so pre-gate rows are untouched and the gate
-// section below drives budget/stepping-stone behaviour through the same default
-// path the shipped callers take.
-if ( ! function_exists( 'bws_source_gate' ) ) {
-	function bws_source_gate( array $source ) { return empty( $source['__gated'] ); }
-}
+// SOURCE-GATE STUB. The real gate lives in source-usable.php, which no harness
+// requires, so this definition is the only one (plan §S20 corrected — the harness
+// supplies its own predicate; the REAL gate names get_post/current_user_can and is
+// integration-tested on the testbed, never here). Controllable: a source carrying
+// '__gated' => true is dropped, every other source passes, so pre-gate rows are
+// untouched and the gate section below drives budget/stepping-stone behaviour
+// through the same default path the shipped callers take.
+function bws_is_source_usable( array $source ) { return empty( $source['__gated'] ); }
 
-// LINK-WRAP STUB, same treatment and same reason as the gate stub above: defined
-// BEFORE the require so the real file yields to it. The shipped wrapper lives in
+// LINK-WRAP STUB, defined BEFORE the require so the real file's function_exists
+// guard yields to it. The shipped wrapper lives in
 // link-helpers.php and resolves its URL through get_permalink / get_term_link /
 // get_post_meta, so it cannot run WP-free — and it is not what the FW-85 rows are
 // about. What the fold owes it is the CALL: one per value, against that value's own
@@ -244,7 +242,7 @@ eq(
 // ── §S48 — the source gate (I19: a gated-out source never spends limit budget) ──
 // The DEFAULT path runs this harness's stub gate (drops '__gated' sources); the
 // explicit-$gate rows drive the injected parameter the same way shipped consumers
-// could. The REAL bws_source_gate body is WP-bound and integration-tested only.
+// could. The REAL bws_is_source_usable body is WP-bound and integration-tested only.
 
 // The INITIAL source list is gated, not just hop produce (depth-0 reads covered).
 eq(
@@ -1932,6 +1930,50 @@ eq(
 	false,
 	bws_base_read_refused( array( 'kind' => 'post', 'fans' => true ), array( 'kind' => 'meta_row', 'row' => array( 'name' => 'x' ) ) )
 );
+
+// ── FW-169: the `parent` step ────────────────────────────────────────────────
+// The reader answers the parent's id (0 = none); the engine owns admission, the coercion and
+// the generic gate. Keyed by (kind:id) like make_reader().
+$parent_reader = make_reader( array( 'post:102' => 101, 'post:101' => 100, 'post:100' => 0, 'term:15' => 14, 'term:14' => 13, 'term:13' => 0, 'post:2102' => 22 ) );
+$parent_step   = array( 'type' => 'parent' );
+
+eq( 'FW-169: parent of a post is its parent post', array( post_src( 101 ) ), bws_run_traversal( array( post_src( 102 ) ), array( $parent_step ), $parent_reader ) );
+eq( 'FW-169: parent of a term is its parent term', array( term_src( 14 ) ), bws_run_traversal( array( term_src( 15 ) ), array( $parent_step ), $parent_reader ) );
+eq( 'FW-169: an attachment gives the post it is attached to', array( post_src( 22 ) ), bws_run_traversal( array( post_src( 2102 ) ), array( $parent_step ), $parent_reader ) );
+eq( 'FW-169: a top-level post gives an EMPTY chain, not itself', array(), bws_run_traversal( array( post_src( 100 ) ), array( $parent_step ), $parent_reader ) );
+eq( 'FW-169: a top-level term gives an EMPTY chain, not itself', array(), bws_run_traversal( array( term_src( 13 ) ), array( $parent_step ), $parent_reader ) );
+eq( 'FW-169: parent;parent walks two levels', array( post_src( 100 ) ), bws_run_traversal( array( post_src( 102 ) ), array( $parent_step, $parent_step ), $parent_reader ) );
+eq(
+	'FW-169: parent after a refs hop steps off the ref\'d post',
+	array( post_src( 101 ) ),
+	bws_run_traversal( array( post_src( 7 ) ), array( array( 'type' => 'refs', 'field' => 'rel' ), $parent_step ), make_reader( array( 'post:7' => array( 102 ), 'post:102' => 101 ) ) )
+);
+foreach ( array( array( 'kind' => 'site' ), user_src( 3 ), row_src( array( 'a' => 1 ) ) ) as $refused ) {
+	eq( 'FW-169: parent REFUSES a ' . $refused['kind'] . ' input', array(), bws_run_step( $parent_step, $refused, function () { return 99; } ) );
+}
+eq(
+	'FW-169: an unviewable parent is cut by the generic gate at the hop',
+	array(),
+	bws_run_traversal( array( post_src( 102 ) ), array( $parent_step ), $parent_reader, function ( array $s ) { return 101 !== ( $s['id'] ?? 0 ); } )
+);
+eq(
+	'FW-169: a parent step carries a per-step limit like any other (harmless on one result)',
+	array( post_src( 101 ) ),
+	bws_run_traversal( array( post_src( 102 ) ), array( array( 'type' => 'parent', 'limit' => 1 ) ), $parent_reader )
+);
+eq( 'FW-169: parent admits exactly post and term', array( 'post', 'term' ), BWS_TRAVERSAL_STEP_INPUT_KINDS['parent'] ?? null );
+
+// settle-at-render: the marker kind becomes the FACTORY's post/term, anything else refuses.
+$marked = array( 'root' => '', 'kind' => BWS_FOLD_KIND_SETTLES_AT_RENDER, 'fans' => true );
+eq( 'FW-169: a marker settles to post off a post base', 'post', bws_base_settle_kind( $marked, post_src( 5 ) )['kind'] );
+eq( 'FW-169: …to term off a term base', 'term', bws_base_settle_kind( $marked, term_src( 5 ) )['kind'] );
+eq( 'FW-169: …to a REFUSAL off a user base', '', bws_base_settle_kind( $marked, user_src( 5 ) )['kind'] );
+eq( 'FW-169: …to a REFUSAL off a repeater-row base', '', bws_base_settle_kind( $marked, row_src( array() ) )['kind'] );
+eq( 'FW-169: …to a REFUSAL off an unresolved base', '', bws_base_settle_kind( $marked, array( 'kind' => BWS_SOURCE_KIND_UNRESOLVED ) )['kind'] );
+eq( 'FW-169: a non-marker kind is returned untouched', array( 'root' => '', 'kind' => 'term', 'fans' => true ), bws_base_settle_kind( array( 'root' => '', 'kind' => 'term', 'fans' => true ), post_src( 5 ) ) );
+eq( 'FW-169: an UNSETTLED marker is refused (default-refuse safety net)', true, bws_base_read_refused( $marked, post_src( 5 ) ) );
+eq( 'FW-169: …and a settled one is read', false, bws_base_read_refused( bws_base_settle_kind( $marked, post_src( 5 ) ), post_src( 5 ) ) );
+eq( 'FW-169: the ambient shortcut is NOT taken for a marker chain', null, bws_base_ambient_analog( 'title', term_src( 3 ), array( 'src' => 'current;parent' ), null ) );
 
 // ── report ───────────────────────────────────────────────────────────────────
 echo "\n";

@@ -131,8 +131,13 @@
 		var stateQuery  = useState( '' );
 		var query       = stateQuery[ 0 ];
 		var setQuery    = stateQuery[ 1 ];
-		var stateLabel  = useState( '' );
-		var resolvedLabel = stateLabel[ 0 ];
+		// { id, label, unavailable } — the id guards against a previous value's label naming a new one;
+		// unavailable = the route answered with no row: deleted, or not offered here (a trashed post,
+		// an unreadable post type). The route cannot tell those apart; a failed request is neither.
+		var stateLabel  = useState( { id: '', label: '', unavailable: false } );
+		var resolved    = stateLabel[ 0 ].id === value ? stateLabel[ 0 ] : { label: '', unavailable: false };
+		var resolvedLabel = resolved.label;
+		var resolvedUnavailable = resolved.unavailable;
 		var setResolvedLabel = stateLabel[ 1 ];
 
 		// BROWSE/SEARCH (D17): re-fetched whenever the typed query or the group filter
@@ -168,19 +173,19 @@
 		// currently match the typed search must still show its own name.
 		useEffect( function () {
 			if ( '' === value ) {
-				setResolvedLabel( '' );
+				setResolvedLabel( { id: '', label: '', unavailable: false } );
 				return;
 			}
 			var cancelled = false;
 			wp.apiFetch( { path: lookupPath( { kind: kind, mode: 'resolve', id: value } ) } )
 				.then( function ( res ) {
 					if ( ! cancelled ) {
-						setResolvedLabel( res && res.row ? res.row.label : '' );
+						setResolvedLabel( { id: value, label: res && res.row ? res.row.label : '', unavailable: ! ( res && res.row ) } );
 					}
 				} )
 				.catch( function () {
 					if ( ! cancelled ) {
-						setResolvedLabel( '' );
+						setResolvedLabel( { id: value, label: '', unavailable: false } );
 					}
 				} );
 			return function () { cancelled = true; };
@@ -190,17 +195,23 @@
 		// "No items found", which reads as a finding. A placeholder option says what is
 		// happening instead; it is never a value (see onChange).
 		var options = useMemo( function () {
-			if ( loading && ! ( rows || [] ).length ) {
-				return [ { value: LOADING, label: __( 'Loading…', 'generateblocks' ) } ];
-			}
-			return ( rows || [] ).map( function ( r ) {
+			var mapped = ( rows || [] ).map( function ( r ) {
 				return { value: String( r.id ), label: r.label };
 			} );
-		}, [ rows, loading ] );
-
-		var valueInOptions = useMemo( function () {
-			return ( options || [] ).some( function ( o ) { return o.value === value; } );
-		}, [ options, value ] );
+			if ( loading && ! mapped.length ) {
+				mapped.push( { value: LOADING, label: __( 'Loading…', 'generateblocks' ) } );
+			}
+			// A selection the capped/filtered list does not hold has no option, and
+			// ComboboxControl renders an empty box for a value with no option. The resolved
+			// label stands in as one; until the resolve request returns (or when it finds
+			// nothing) the stored id itself, in the list's own `#id` label shape, so the
+			// box is never empty. An id the route returns no row for says so, in the words the
+			// editor tag preview uses for the same case.
+			if ( value && ! mapped.some( function ( o ) { return o.value === value; } ) ) {
+				mapped.unshift( { value: value, label: resolvedLabel || '#' + value + ( resolvedUnavailable ? ' ' + __( '(not available)', 'generateblocks' ) : '' ) } );
+			}
+			return mapped;
+		}, [ rows, loading, value, resolvedLabel, resolvedUnavailable ] );
 
 		return el( Fragment, null, [
 			groups.length > 1
@@ -247,18 +258,6 @@
 				allowReset: true,
 				__nextHasNoMarginBottom: true,
 			} ),
-			// The RESOLVED label as a quiet caption, ONLY when the combo itself cannot
-			// show it: a selection outside the current browse/search list (a different
-			// taxonomy selected, or the list simply has not loaded it yet) has no
-			// matching option, so ComboboxControl renders an empty box. When the
-			// option IS present the combo already reads as the entity's name and the
-			// caption would only repeat it.
-			( value && resolvedLabel && ! valueInOptions )
-				? el( 'p', {
-					key: 'resolved',
-					style: { fontSize: '11px', opacity: 0.75, margin: '4px 0 0' },
-				}, resolvedLabel )
-				: null,
 		] );
 	}
 

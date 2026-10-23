@@ -175,6 +175,7 @@ so the schema survives snapshot restores.
   and a rendered code block so the meta layer's recursive unslash has something to damage.
   Browsable with no `blocks.php` row by construction.
 - Table page (v31): `matrix-table` carries every `{{table}}` row of [`table-test-matrix.md`](../../test/table-test-matrix.md): TB (shape), TK (one row-set per resolved kind, the user kind inside a user query loop) and TP (presentation), over the `team_members` repeater `matrix-post-meta` owns, so an author can open a table control in the editor without that page's ~380 blocks. TB0, the one ambient `rows` control, stays on `matrix-post-meta`.
+- Parent-step corpus (v32, [`fold-test-matrix.md`](../../test/fold-test-matrix.md) §F25): a three-level page chain `matrix-parent` > `matrix-parent-mid` > `matrix-parent-leaf`, a draft page `matrix-parent-draft` with a published page `matrix-parent-orphan` under it, a hierarchical `kb_topic` term chain (Regions > East > Coastal) and an attachment attached to the middle page. A blueprint that needs the same value-on-one, empty-on-the-other, one-relationship shape on its own post type copies the three entries into its own manifest rather than editing this one; §F25's intro says what the shape asserts. The seeder takes `post_parent` (posts, attachments) and a term `parent`.
 - Query-loop corpus (v16): page `matrix-loops` (a term loop and a user loop) + the
   `department-workshop` term, assigned to no post. See §Query-loop corpus.
 - Source-gate corpus (v13/v14): page `matrix-gate` + staff `gate-draft` (draft, owned by

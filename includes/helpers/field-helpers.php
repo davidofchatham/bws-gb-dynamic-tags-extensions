@@ -658,7 +658,7 @@ function bws_loop_item_is_post_or_row( $instance ): bool {
  * The query loop item's post id, GATED — or false when it may not be read.
  *
  * THE SAME GATE A CHAIN-RESOLVED SOURCE PASSES, applied to the entity a loop item
- * names. bws_source_gate() (traversal-pipeline.php) owns the axis and states it; this
+ * names. bws_is_source_usable() (source-usable.php) owns the axis and states it; this
  * function owns nothing but the decision to apply it here, and deliberately does not
  * restate what it decides. `item_post_id` on the context is the UNGATED identity and
  * stays that way; a caller about to READ off a loop item wants this instead.
@@ -670,7 +670,7 @@ function bws_loop_item_is_post_or_row( $instance ): bool {
  * render their meta inside a query loop.
  *
  * THE FACTORY ROUTE DOES NOT SHARE THIS, DELIBERATELY, and must not be "unified"
- * with it. Both call bws_source_gate(), so the criterion is single-owned; what
+ * with it. Both call bws_is_source_usable(), so the criterion is single-owned; what
  * differs is the LAYER, and a refusal costs a different thing at each. At the factory
  * a refused post is removed from the FAN, which changes WHICH ARM RUNS — a post-kind
  * source that becomes nothing there falls into the meta_row / fallthrough territory
@@ -681,7 +681,7 @@ function bws_loop_item_is_post_or_row( $instance ): bool {
  * REFUSING IS A HARD STOP AT THE CALL SITE, not a skipped branch — bws_read_field()'s
  * loop branch states why, beside the return that does it.
  *
- * NO function_exists() GUARD on the gate, deliberately. traversal-pipeline.php is
+ * NO function_exists() GUARD on the gate, deliberately. source-usable.php is
  * required one line before this file in the plugin bootstrap, so a guard defends a
  * state that cannot occur — and if it ever could, the guard would make the refusal
  * disappear silently and hand back the unreadable post's value again. That is the
@@ -698,7 +698,7 @@ function bws_loop_item_gated_post_id( $instance ) {
 	if ( ! $post_id ) {
 		return false;
 	}
-	return bws_source_gate( array( 'kind' => 'post', 'id' => (int) $post_id ) )
+	return bws_is_source_usable( array( 'kind' => 'post', 'id' => (int) $post_id ) )
 		? (int) $post_id
 		: false;
 }
@@ -732,7 +732,7 @@ function bws_loop_item_gated_post_id( $instance ) {
  * A LOOP POST THE SOURCE GATE REFUSES STOPS THE READ AT BRANCH 3 — it does not continue
  * to 4, and returning null there is the point rather than a shortcut.
  * bws_loop_item_gated_post_id() owns the decision to apply the gate here and owns why
- * the factory route does not share it; bws_source_gate() owns the criterion itself.
+ * the factory route does not share it; bws_is_source_usable() owns the criterion itself.
  *
  * INVARIANT: An explicit `$post_id` passed by the caller always wins over loop-item
  * inference. Try-loop `src:ref` slots resolve a target post via `bws_resolve_post_by_source()`
@@ -1399,7 +1399,7 @@ function bws_collect_value_list( array $items, callable $render, array $options 
  * the count. So `limit:3` can print two, a collapsing tag at $n = 1 outputs its
  * first source's read even when that read is empty, and adjacent tags on the same
  * source path always read the same entities. Which sources are ELIGIBLE at all is a
- * different axis, owned by bws_source_gate() (traversal-pipeline.php) and stated there,
+ * different axis, owned by bws_is_source_usable() (source-usable.php) and stated there,
  * decided before this function ever sees them.
  *
  * THE $populated PREDICATE IS A DORMANT SEAM (FW-88), called by nothing shipped.

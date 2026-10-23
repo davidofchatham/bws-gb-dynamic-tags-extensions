@@ -49,7 +49,7 @@ class TagTemplateRegistry {
 	 *   is_image              bool     Image template — custom as/size/fallback controls.
 	 *   takes_first_usable    bool     The tag emits at most ONE result: the read of the FIRST
 	 *                    USABLE source its chain produces — usable is the engine gate's
-	 *                    question and bws_source_gate() states it, NEVER field-populated,
+	 *                    question and bws_is_source_usable() states it, NEVER field-populated,
 	 *                    so the read may be empty and selection is field-independent (ADR 0007, the
 	 *                    2026-08-21 reversal). THE AXIS, owned here: keyed on the template's
 	 *                    DISPOSITION toward a plural resolved-source list — NOT on list mode
@@ -365,7 +365,7 @@ class TagTemplateRegistry {
 						'base_fixed'      => $per_slot_use ? ( $tpl_options['fixed'] ?? [] ) : [],
 						'allow_site'      => $allow_site_slot,
 						'allow_same_read' => true,
-						'steps'            => [ 'refs', 'terms', 'rows' ],
+						'steps'            => [ 'refs', 'terms', 'rows', 'parent' ],
 						// The axes that are TAG-level on this template, so the editor's
 						// mount migrator and the control leave them alone at every slot
 						// position — same split, same owner, as the trailing-option strip

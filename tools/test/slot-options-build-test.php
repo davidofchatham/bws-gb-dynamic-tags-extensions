@@ -377,7 +377,7 @@ assert_same(
 // an author writing a chain that renders nothing with no control saying why.
 assert_same(
 	'steps is keyed by WIRE slug, in the vocabulary\'s own order',
-	array( 'refs', 'terms', 'rows' ),
+	array( 'refs', 'terms', 'rows', 'parent' ),
 	array_keys( $fold['steps'] )
 );
 // `accepts` IS the engine's refusal list. Since V9 that list is itself keyed by the
@@ -583,7 +583,13 @@ assert_same(
 // a step nothing reads authors a chain that renders empty. The vocabulary record it ships
 // is BYTE-IDENTICAL to the slot builder's: container-invariant by construction, both
 // consuming one helper (#70).
-assert_same( 'base chain: offer = refs,terms,rows in offer order', array( 'refs', 'terms', 'rows' ), $base_fold['offer'] );
+assert_same( 'base chain: offer = refs,terms,rows,parent in offer order', array( 'refs', 'terms', 'rows', 'parent' ), $base_fold['offer'] );
+// `parent` (FW-169): single-valued, argless and kind-preserving, so its record carries a
+// label and NO `limitLabel` (nothing to bound), and `settles` ships the marker its
+// `produces` is, for the editor to look through.
+assert_same( 'parent: labeled, with no limit label', array( 'Parent Post/Term', false ), array( $base_fold['steps']['parent']['label'], isset( $base_fold['steps']['parent']['limitLabel'] ) ) );
+assert_same( 'parent: takes post or term input and no argument', array( array( 'post', 'term' ), '' ), array( $base_fold['steps']['parent']['accepts'], $base_fold['steps']['parent']['arg'] ) );
+assert_same( 'settles IS the marker `parent` produces', array( BWS_FOLD_KIND_SETTLES_AT_RENDER, BWS_FOLD_KIND_SETTLES_AT_RENDER ), array( $base_fold['settles'], $base_fold['steps']['parent']['produces'] ) );
 // The `rows` step's ARG picker ships wherever the step is offered, or the control paints
 // a field combo with no label. One definition, both builders (bws_fold_rows_picker_def).
 assert_same( 'base chain: the offered `rows` step ships its argument picker', true, ! empty( $base_fold['rowsOption']['label'] ) );
@@ -1017,6 +1023,7 @@ assert_same( 'table: no tag-level `key` survives', false, isset( $table_opts['ke
 assert_same( 'table: the tag source is the chain control, as on a base tag', 'bws-src-chain', $table_opts['src']['type'] ?? null );
 assert_same( 'table: no flat relationship/taxonomy control rides beside the chain', array( false, false ), array( isset( $table_opts['ref'] ), isset( $table_opts['srcTermIn'] ) ) );
 assert_same( 'table: the chain offers the same steps a base tag does', bws_build_src_chain_option()['src']['fold']['offer'], $table_opts['src']['fold']['offer'] );
+assert_same( 'table: a column offers them too (`parent` included)', bws_build_src_chain_option()['src']['fold']['offer'], $table_opts['A']['fold']['offer'] );
 assert_same( 'table: `caption` stays tag-level', true, isset( $table_opts['caption'] ) );
 assert_same( 'table: no per-slot flat axes', array(), $table_opts['A']['fold']['flatAxes'] );
 assert_same( 'table: columns offer the fixed read', true, ! empty( $table_opts['A']['fold']['fixedOption'] ) );

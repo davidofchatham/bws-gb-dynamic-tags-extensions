@@ -30,10 +30,9 @@
  * Run (after seed.php):
  *   bin/wp.sh <site> eval-file <mounted-repo>/tools/fixtures/core-structures/verify-pattern-cache.php --user=1
  *
- * Location-independent equivalent (Docker shares one daemon across Windows and WSL):
- *   docker exec wp-litespeed-litespeed-1 sh -c 'cd /var/www/vhosts/testbed/html && \
- *     wp eval-file wp-content/plugins/bws-gb-dynamic-tags-extensions/tools/fixtures/core-structures/verify-pattern-cache.php \
- *     --user=1 --allow-root'
+ * From Windows (wp-cli stays in the wpcli container; docs/testbed.md says why):
+ *   wsl.exe -d Ubuntu -- bash -lc 'cd ~/wp-litespeed && bin/wp.sh testbed eval-file \
+ *     /plugins/bws-gb-dynamic-tags-extensions/tools/fixtures/core-structures/verify-pattern-cache.php --user=1'
  *
  * No --url is needed: nothing here renders a tag, so there is no ambient context to be
  * wrong about. The reconcile is deliberately context-free — that is the property that made

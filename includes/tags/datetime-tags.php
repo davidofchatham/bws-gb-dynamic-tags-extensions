@@ -808,6 +808,7 @@ function bws_base_datetime_single_resolve_value( array $options, $instance ): ar
 	$base = function_exists( 'bws_base_resolve_source_for_callback' )
 		? bws_base_resolve_source_for_callback( $options, $instance )
 		: array( 'kind' => 'post', 'id' => 0 );
+	$res     = bws_base_settle_kind( $res, $base );
 	$ambient = function_exists( 'bws_base_ambient_analog' )
 		? bws_base_ambient_analog( 'datetime_single', $base, $options, $instance )
 		: null;
@@ -1042,6 +1043,7 @@ function bws_base_datetime_range_resolve_value( array $options, $instance ): arr
 	$base = function_exists( 'bws_base_resolve_source_for_callback' )
 		? bws_base_resolve_source_for_callback( $options, $instance )
 		: array( 'kind' => 'post', 'id' => 0 );
+	$res     = bws_base_settle_kind( $res, $base );
 	$ambient = function_exists( 'bws_base_ambient_analog' )
 		? bws_base_ambient_analog( 'datetime_range', $base, $options, $instance )
 		: null;

@@ -380,16 +380,13 @@ iterations live in one render. The item is a ROOT: GB chose it, and a source pat
 is never called one, whichever shape the item has.
 
 **Kind determination** (a third axis, alongside the two source-binding axes above, and
-independent of both): *when is the kind a chain resolves to knowable?* Three answers, and
-they must stay three — collapsing the last two into one "unknown" is what GH #109 cost.
+independent of both): *when is the kind a chain resolves to knowable?* Four answers, and
+they must stay four — collapsing render-time and unrecognized into one "unknown" is what GH #109 cost, and collapsing settles-at-render into render-time costs the same way.
 
-- **parse-time** — the wire names the kind. Reading the parsed chain is enough; no render
-  needed.
-- **render-time** — the wire cannot say, so the factory answers when the tag runs. Covers
-  BOTH an ambient root and a registered source answering for itself, which is why the name
-  says *when* rather than *how*. Spelled `render_time` in code.
-- **unrecognized** — the wire names step vocabulary we do not have. Not "known later": there
-  is nothing to know, and the chain short-circuits to empty. Spelled `''`.
+- **parse-time** — the wire names the kind. Reading the parsed chain is enough; no render needed.
+- **render-time** — the wire cannot say, so the factory answers when the tag runs. Covers BOTH an ambient root and a registered source answering for itself, which is why the name says *when* rather than *how*. Spelled `render_time` in code.
+- **settles-at-render** **[UNRELEASED]** — the chain STEPS, and whether it lands on a post or a term is known only once the factory answers (`parent` off the current context). Not render-time: a reader that takes the render-time shortcut reads the root and drops the step. Spelled `settles_at_render` in code.
+- **unrecognized** — the wire names step vocabulary we do not have. Not "known later": there is nothing to know, and the chain short-circuits to empty. Spelled `''`.
 
 Which answer a given chain gets is `bws_fold_chain_resolution()`'s to decide and is stated
 there. Note the layering: this axis says what kind SHOULD arrive, while resolvable / exists /
@@ -406,8 +403,8 @@ L1's output executing a target — the **bound *where*** a read happens, key not
 
 **Resolvable / exists / visible** (properties of a resolved source — three of the four levels a candidate passes on its way to output; the fourth, *a non-empty read*, deliberately gets no noun because the phrase is already precise):
 - **resolvable** — L1 emitted a bound: the source layer produced a `ResolvedSource` for it. Says nothing about what the bound names — a relationship field holding the id of a deleted post is resolvable; the bound exists, it names nothing.
-- **exists** — the bound names a LIVE entity. VIEWER-INDEPENDENT, which is the whole reason it is its own level: existence is checkable with no viewer in hand and permission is not, so the two are enforceable atomically at the engine gate (split out of *visible*, 2026-08-21). A trashed post EXISTS; what it fails is *visible*. Which entity kinds are tested, and how, is the gate's own rule — `bws_source_gate()`'s PHPDoc (`includes/helpers/traversal-pipeline.php`) owns it.
-- **visible** — the existing entity is one **the current viewer may read**. VIEWER-RELATIVE, deliberately, not a fixed status allowlist: the same author previewing their own draft must resolve it, which only works if the test is relative to who is asking. Enforced with [I19] at the engine's gate predicate, whose PHPDoc owns the deciding rule (decision record [ADR 0007](docs/adr/0007-a-limit-counts-usable-sources.md)); the gate applies at EVERY step, so an entity failing it cannot be a stepping stone — a chain routed through it is cut at that hop.
+- **exists** — the bound names a LIVE entity. VIEWER-INDEPENDENT, which is the whole reason it is its own level: existence is checkable with no viewer in hand and permission is not, so the two are enforceable atomically at the engine gate (split out of *visible*, 2026-08-21). A trashed post EXISTS; what it fails is *visible*. Which entity kinds are tested, and how, is the gate's own rule — `bws_is_source_usable()`'s PHPDoc (`includes/helpers/source-usable.php`) owns it.
+- **visible** — the existing entity is one **the current viewer may read**. VIEWER-RELATIVE, deliberately, not a fixed status allowlist: the same author previewing their own draft must resolve it, which only works if the test is relative to who is asking. Enforced with [I19] at the engine's gate predicate, whose PHPDoc owns the deciding rule (decision record [ADR 0007](docs/adr/0007-a-limit-counts-usable-sources.md)); the gate applies at EVERY step, so an entity failing it cannot be a stepping stone — a chain routed through it is cut at that hop. An integrating plugin may narrow *visible* further through a filter, never widen it ([plugin-integration.md §3](docs/plugin-integration.md#narrowing-who-may-see-an-entity)).
 
 What a LIMIT counts against these levels is `usable`, which is a property of the limit schema, not of a source — defined once beside that schema ([tag-reference.md §List mode](docs/tag-reference.md#list-mode-limit--sep)), never here.
 

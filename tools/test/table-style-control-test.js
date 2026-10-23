@@ -165,14 +165,25 @@ const rowsFor = ( typed ) => {
 check( 'Width field: a stored value is the selected option', widthField.props.value, '8rem' );
 check( 'Width field: the list opens with one hint row, disabled', [ widthField.props.options[ 0 ].disabled, widthField.props.options[ 0 ].value ], [ true, '__hint' ] );
 let commits = [];
-const sf = expand( UI.SizeField( { label: 'W', value: '', kind: 'width', onChange: ( v ) => commits.push( v ) } ) );
+const comboOf = ( tree ) => find( tree, ( n ) => n.type === 'Combo' )[ 0 ];
+const sf = comboOf( expand( UI.SizeField( { label: 'W', value: '', kind: 'width', onChange: ( v ) => commits.push( v ) } ) ) );
 sf.props.onChange( '__hint' );
 sf.props.onChange( '__invalid:calc(1px)' );
 sf.props.onChange( '12rem' );
 sf.props.onChange( null );
 check( 'Width field: the hint row and an invalid row commit nothing; a value and a reset do', commits, [ '12rem', '' ] );
 check( 'Width field: a refused stored value is shown with the "not a recognized width" error', find( expand( UI.SizeField( { label: 'W', value: 'calc(1px)', kind: 'width', onChange: () => {} } ) ), ( n ) => n.type === 'span' && /not a recognized width/.test( n.children.join( '' ) ) ).length, 1 );
-check( 'Font size field: the hint names keywords', /keyword/.test( expand( UI.SizeField( { label: 'S', value: '', kind: 'size', onChange: () => {} } ) ).props.options[ 0 ].label ), true );
+check( 'Font size field: the hint names keywords', /keyword/.test( comboOf( expand( UI.SizeField( { label: 'S', value: '', kind: 'size', onChange: () => {} } ) ) ).props.options[ 0 ].label ), true );
+
+// Enter / blur commit: typed text commits without picking the synthetic row.
+const T = global.window.bwsTableStyle;
+const fsOpts = ( t ) => UI.sizeOptions( t, 'size', 'rem' );
+check( 'Typed commit: a var() commits as typed', UI.typedCommit( 'var(--fs-lg)', T.fontSizeValue, fsOpts ), 'var(--fs-lg)' );
+check( 'Typed commit: a value with a unit commits', UI.typedCommit( '1.5em', T.fontSizeValue, fsOpts ), '1.5em' );
+check( 'Typed commit: a keyword commits', UI.typedCommit( 'Large', T.fontSizeValue, fsOpts ), 'large' );
+check( 'Typed commit: a bare number takes the default unit', UI.typedCommit( '1.5', T.fontSizeValue, fsOpts ), '1.5rem' );
+check( 'Typed commit: a bare width takes the width default unit', UI.typedCommit( '50', T.widthValue, ( t ) => UI.sizeOptions( t, 'width', '%' ) ), '50%' );
+check( 'Typed commit: an unrecognized value commits nothing', UI.typedCommit( 'var(', T.fontSizeValue, fsOpts ), null );
 
 // ── Typography ───────────────────────────────────────────────────────────────────────
 m = mount( UI.TypographyControl, {} );
@@ -349,7 +360,7 @@ check( 'Color list: currentColor is the first option under the hint, then a dash
 check( 'Color list: currentColor appears once', colorRows.filter( ( r ) => r.value === 'currentColor' ).length, 1 );
 check( 'Color list: no heading rows', colorRows.some( ( r ) => /^(Site colors|Color names|CSS values)$/.test( r.label ) ), false );
 check( 'Color list: names group ends in the search hint', colorRows.some( ( r ) => r.label === 'Type to search more color names.' ), true );
-const colorField = expand( UI.ColorField( { label: 'C', value: '', onChange: ( v ) => commits.push( v ) } ) );
+const colorField = comboOf( expand( UI.ColorField( { label: 'C', value: '', onChange: ( v ) => commits.push( v ) } ) ) );
 commits = [];
 colorField.props.onChange( '__sep:1' );
 colorField.props.onChange( '__hint:names' );

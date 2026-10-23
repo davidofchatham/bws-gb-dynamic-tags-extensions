@@ -182,6 +182,13 @@ $contact_email_keys = array(
 $term_ids = array();
 foreach ( $manifest['terms'] as $slug => $def ) {
 	$term_args = array( 'slug' => $def['slug'] );
+	// `parent` is a fixture term key, resolved from this loop's own earlier iterations, so the
+	// manifest lists a parent before its children. Absent = top level (WP's default).
+	if ( isset( $def['parent'], $term_ids[ $def['parent'] ] ) ) {
+		$term_args['parent'] = $term_ids[ $def['parent'] ];
+	} elseif ( isset( $def['parent'] ) ) {
+		WP_CLI::warning( "term {$slug}: parent '{$def['parent']}' is not seeded yet (list a parent before its children); seeding at top level" );
+	}
 	if ( isset( $def['description'] ) ) {
 		$term_args['description'] = $def['description'];
 	}
@@ -191,6 +198,9 @@ foreach ( $manifest['terms'] as $slug => $def ) {
 		// Upsert description on re-seed (wp_insert_term only sets it on create).
 		if ( isset( $def['description'] ) ) {
 			wp_update_term( (int) $existing->term_id, $def['taxonomy'], array( 'description' => $def['description'] ) );
+		}
+		if ( isset( $term_args['parent'] ) ) {
+			wp_update_term( (int) $existing->term_id, $def['taxonomy'], array( 'parent' => $term_args['parent'] ) );
 		}
 	} else {
 		$res = wp_insert_term( $def['name'], $def['taxonomy'], $term_args );
@@ -384,6 +394,13 @@ foreach ( $manifest['posts'] as $slug => $def ) {
 	if ( isset( $def['post_author'], $user_ids[ $def['post_author'] ] ) ) {
 		$args['post_author'] = $user_ids[ $def['post_author'] ];
 	}
+	// `post_parent` is a fixture post key resolved from an EARLIER manifest entry (the parent
+	// is listed first). Passed on the update path too, so a re-seed converges.
+	if ( isset( $def['post_parent'], $post_ids[ $def['post_parent'] ] ) ) {
+		$args['post_parent'] = $post_ids[ $def['post_parent'] ];
+	} elseif ( isset( $def['post_parent'] ) ) {
+		WP_CLI::warning( "post {$slug}: post_parent '{$def['post_parent']}' is not seeded yet (list a parent before its children); seeding at top level" );
+	}
 	// Absent = dated at insert, which is right for every fixture whose date nothing
 	// reads. It is fixture DATA for the one post whose date IS a URL: the date archive
 	// (context-test-matrix C1/C11) lives at whatever /YYYY/MM/ that post falls in, so an
@@ -405,17 +422,29 @@ foreach ( $manifest['posts'] as $slug => $def ) {
 }
 $log( 'posts: ' . count( $post_ids ) . ' upserted' );
 
+// An attachment's `post_parent` (the post it is attached to) is a POST key, and attachments seed
+// before posts exist, so it is applied here.
+foreach ( ( $manifest['attachments'] ?? array() ) as $slug => $def ) {
+	if ( isset( $def['post_parent'], $attachment_ids[ $slug ], $post_ids[ $def['post_parent'] ] ) ) {
+		wp_update_post( array( 'ID' => $attachment_ids[ $slug ], 'post_parent' => $post_ids[ $def['post_parent'] ] ) );
+	}
+}
+
 foreach ( $manifest['post_terms'] as $slug => $terms ) {
 	if ( ! isset( $post_ids[ $slug ] ) ) {
 		continue;
 	}
-	$ids = array();
+	// Grouped by each term's OWN taxonomy. `department` is always present, so a post listing
+	// no department still has that taxonomy cleared, as it was before a second one existed.
+	$by_tax = array( 'department' => array() );
 	foreach ( $terms as $t ) {
 		if ( isset( $term_ids[ $t ] ) ) {
-			$ids[] = $term_ids[ $t ];
+			$by_tax[ $manifest['terms'][ $t ]['taxonomy'] ][] = $term_ids[ $t ];
 		}
 	}
-	wp_set_object_terms( $post_ids[ $slug ], $ids, 'department' );
+	foreach ( $by_tax as $taxonomy => $ids ) {
+		wp_set_object_terms( $post_ids[ $slug ], $ids, $taxonomy );
+	}
 }
 $log( 'post→term assignments applied' );
 

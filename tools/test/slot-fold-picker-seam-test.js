@@ -186,7 +186,8 @@ global.window.bwsFieldEnvelope = {
 // editor page, as the picker's own harness inlines them.
 global.window.bwsRootArgKinds = { term: 'term', post: 'post' };
 global.window.bwsChainKinds = {
-	steps: { refs: 'post', terms: 'term', rows: 'meta_row' },
+	steps: { refs: 'post', terms: 'term', rows: 'meta_row', parent: 'settles_at_render' },
+	settles: 'settles_at_render',
 	roots: { site: 'site', term: 'term', post: 'post' },
 };
 
@@ -249,8 +250,10 @@ const FOLD = {
 		refs: { label: 'Posts in Reference/Relational Field', arg: 'field', accepts: [ 'post', 'term', 'user', 'meta_row', 'site' ], produces: 'post' },
 		terms: { label: 'Terms in Taxonomy', arg: 'slug', accepts: [ 'post' ], produces: 'term' },
 		rows: { label: 'Rows in Repeater Field', arg: 'field', accepts: [ 'post', 'term', 'user', 'meta_row', 'site' ], produces: 'meta_row' },
+		parent: { label: 'Parent Post/Term', arg: '', accepts: [ 'post', 'term' ], produces: 'settles_at_render' },
 	},
-	offer: [ 'terms', 'refs', 'rows' ],
+	settles: 'settles_at_render',
+	offer: [ 'terms', 'refs', 'rows', 'parent' ],
 	roots: { site: 'site' },
 	defaultRoot: 'current',
 	refOption: { label: 'Relationship Field Key', placeholder: 'related_posts' },
@@ -458,6 +461,27 @@ async function main() {
 		'S1.6 a `current` tail hands over nothing, and the pool keeps all three kinds',
 		await poolRootsOf( readOnCurrent ),
 		[ 'Post fields', 'Site fields', 'Term fields', '__all_locations' ]
+	);
+
+	// A `parent` tail keeps the kind it was given and names no field, so the terminal alone
+	// says nothing: the seam hands the picker the WHOLE chain, and the picker reads the kind
+	// through the step. The post-type narrowing is `refs`-tail only, so it does not apply
+	// (the parent's type is not the relationship field's).
+	const readOnParent = readPickerIn( mountSlot( 'src(refs,dept_lead;parent);key(main_line)' ) );
+	check(
+		'S1.6b a `parent` tail reaches the read picker as the chain it settles through',
+		readOnParent.props.context.state.src,
+		'refs,dept_lead;parent'
+	);
+	check(
+		'S1.6c ...so the list opens on Post fields, and does not inherit the relationship field\'s post-type narrowing',
+		await listOf( readOnParent ),
+		await listOf( readOnAny )
+	);
+	check(
+		'S1.6d a `parent` off a term chain opens on TERM fields',
+		await listOf( readPickerIn( mountSlot( 'src(current;terms,department;parent);key(blurb)' ) ) ),
+		[ "Blurb (Text Area, 'blurb')" ]
 	);
 
 	// A `terms` tail resolves to a TERM, so the post-type narrowing must not reach it and

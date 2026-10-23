@@ -64,8 +64,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Wire slug → the step key each step type reads its argument from.
  *
- * The FANNING family (plural slugs, BWS_FOLD_FANNING_SLUGS) in full. A slug absent from
- * this map at a step position is unknown vocabulary, not a root — see the header.
+ * The FANNING family (plural slugs, BWS_FOLD_FANNING_SLUGS) plus the ARGLESS steps, which map
+ * to `''` (no argument key; `parent` is the first, FW-169). A slug absent from this map at a
+ * step position is unknown vocabulary, not a root — see the header. Presence is tested with
+ * `isset()`/`null ===`, never truthiness, because the argless value is the empty string.
  *
  * Still the SEAM — the single owner of "which slugs are steps, and what each one
  * consumes" — but narrowed to the one fact the slug does not carry. It used to also map
@@ -78,10 +80,25 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @since 1.17.0 V9: narrowed from slug => { type, arg } — engine types align to the slugs.
  */
 const BWS_FOLD_STEP_TYPES = array(
-	'refs'  => 'field',
-	'terms' => 'slug',
-	'rows'  => 'field',
+	'refs'   => 'field',
+	'terms'  => 'slug',
+	'rows'   => 'field',
+	'parent' => '',
 );
+
+/**
+ * The kind a step reports when its output is "the kind it was given".
+ *
+ * `parent` produces a post from a post and a term from a term, so its kind is only known
+ * once its input is. Where the input is known at parse time (`refs,x;parent`, `term,34;parent`)
+ * bws_fold_chain_resolution() substitutes the real kind; off an AMBIENT root it stays this
+ * marker and the render arm settles it from the factory's base kind (bws_base_settle_kind()).
+ * It is not a root kind, an engine source kind or a vocabulary word, and an arm that does
+ * not settle it refuses (it is in no served list).
+ *
+ * @since Unreleased
+ */
+const BWS_FOLD_KIND_SETTLES_AT_RENDER = 'settles_at_render';
 
 /**
  * Wire slug → the RESOLVED-SOURCE KIND a step of that type produces.
@@ -89,15 +106,16 @@ const BWS_FOLD_STEP_TYPES = array(
  * The dispatch axis FW-63 replaced the flat token tests with. Deliberately a
  * separate map from BWS_FOLD_STEP_TYPES: that one names the ARG KEY a step consumes,
  * this one names the KIND that step's output carries (`post`/`term`/`meta_row`, the
- * traversal-pipeline typedef). A render arm asks the second question and never the
- * first.
+ * traversal-pipeline typedef) or BWS_FOLD_KIND_SETTLES_AT_RENDER for a step that keeps
+ * its input's kind. A render arm asks the second question and never the first.
  *
  * @since 1.17.0
  */
 const BWS_FOLD_STEP_KINDS = array(
-	'refs'  => 'post',
-	'terms' => 'term',
-	'rows'  => 'meta_row',
+	'refs'   => 'post',
+	'terms'  => 'term',
+	'rows'   => 'meta_row',
+	'parent' => BWS_FOLD_KIND_SETTLES_AT_RENDER,
 );
 
 /**
@@ -143,9 +161,10 @@ const BWS_FOLD_PARSE_TIME_ROOT_KINDS = array(
  * handed back to the container), which is why nothing else here special-cases it. What the
  * parent IS belongs to the container: a `{{table}}` column's parent is its row.
  *
- * `parent` is RESERVED, not registered, for the real hierarchical relation (parent post /
- * parent term) intended later. Do not claim that slug for anything else; see
- * SourceRegistry::is_expressible_root_key() for where both are held back from sources.
+ * `parent` is the hierarchy STEP (BWS_FOLD_STEP_TYPES), not a root; `ancestor`, `children`
+ * and `siblings` are RESERVED for the list relations intended later. Do not claim any of them
+ * for anything else; see SourceRegistry::is_expressible_root_key() for where they are held
+ * back from sources.
  *
  * @since 1.22.0
  */
@@ -185,6 +204,11 @@ const BWS_FOLD_INHERIT_ROOT = 'inherit';
  * DERIVED from the two shipped maps, never a list of slugs: BWS_FOLD_STEP_KINDS says what a
  * step produces, BWS_TRAVERSAL_STEP_INPUT_KINDS what it accepts. Widen what the engine takes
  * and this follows, because the reason a step gave way was that the engine refused it.
+ * What a carried chain ENDS ON is its resolved kind (bws_fold_chain_resolution), so a step that
+ * keeps its input's kind is read as that input's, and a tail whose kind only render can name
+ * is left whole rather than guessed at.
+ *
+ * @since Unreleased
  *
  * Declines to trim at all where either end is UNKNOWN vocabulary — an unknown step
  * short-circuits the chain to empty by design ([I14]), and rewriting a source on the
@@ -217,10 +241,15 @@ function bws_fold_chain_join( array $carried, array $own ): array {
 	// root — position 0 is only a root when its slug is not a step type, which the loop's
 	// own `produces` lookup answers for free (a root has no entry and ends the trim).
 	while ( $carried ) {
-		$last     = end( $carried );
-		$produces = BWS_FOLD_STEP_KINDS[ (string) ( $last['slug'] ?? '' ) ] ?? '';
-		if ( '' === $produces || in_array( $produces, $accepts, true ) ) {
-			break;   // a root, unknown vocabulary, or a tail this chain can run off.
+		$last = end( $carried );
+		if ( ! isset( BWS_FOLD_STEP_KINDS[ (string) ( $last['slug'] ?? '' ) ] ) ) {
+			break;   // a root, or unknown vocabulary.
+		}
+		// What the carried chain ENDS ON, which for a kind-preserving step is its input's
+		// kind and is read off the chain's resolution, never the step's own map entry.
+		$ends = bws_fold_chain_resolution( $carried )['kind'];
+		if ( '' === $ends || in_array( $ends, array( 'render_time', BWS_FOLD_KIND_SETTLES_AT_RENDER ), true ) || in_array( $ends, $accepts, true ) ) {
+			break;   // unknown vocabulary, a kind only render can name, or a tail this chain can run off.
 		}
 		array_pop( $carried );
 	}
@@ -246,9 +275,15 @@ function bws_fold_chain_join( array $carried, array $own ): array {
  * kind and has no steps:
  *
  *   'site'     the chain roots at the site store and never steps (`src:site`).
- *   'post'     the last step is `refs`.
+ *   'post'     the last step is `refs` (or a `parent` off a known post).
  *   'term'     the last step is `terms`.
  *   'meta_row' the last step is `rows`.
+ *   'settles_at_render' (BWS_FOLD_KIND_SETTLES_AT_RENDER) a kind-preserving step (`parent`)
+ *              off an ambient root: stepped, so NOT `render_time`, but post-or-term is only
+ *              known at render. The arm settles it from the factory's base kind
+ *              (bws_base_settle_kind). Off a known kind (`refs,x;parent`, `term,34;parent`)
+ *              the step answers that kind here; off one it cannot take (`site`, `rows`) it
+ *              answers `''`.
  *   'render_time' root-only, rooted at the ambient entity or a registry source — the
  *              kind is whatever the FACTORY resolves at render (post on a singular
  *              page, term on a term archive, user on an author archive, meta_row in
@@ -263,8 +298,9 @@ function bws_fold_chain_join( array $carried, array $own ): array {
  *              (GH #109; bws_fold_chain_join() below is the posture to copy).
  *
  * `fans` is CAPACITY read from the wire — "this chain may resolve more than one
- * source" — never a claim about a given render. Every step slug fans, so it is true
- * iff the chain steps at all.
+ * source" — never a claim about a given render. It is true iff the chain steps at all, so it
+ * also holds for a single-valued step (`parent`); whether a step multiplies is
+ * BWS_FOLD_FANNING_SLUGS' business.
  *
  * The chain is read as PARSED, not as COMPILED. The two no longer disagree about argless
  * steps (#74 stopped the compiler dropping them), but the distinction still matters and
@@ -280,14 +316,16 @@ function bws_fold_chain_join( array $carried, array $own ): array {
  *
  * @since 1.17.0
  * @since 1.22.0 $parent_kind.
+ * @since Unreleased Kind-preserving steps (`parent`).
  * @param array       $chain       Parsed chain (bws_fold_parse_chain shape).
  * @param string|null $parent_kind The parent's resolved kind, when the container has one.
  * @return array{root:string, kind:string, fans:bool}
  */
 function bws_fold_chain_resolution( array $chain, ?string $parent_kind = null ): array {
-	$root  = bws_fold_chain_root( $chain );
-	$last  = '';
-	$fans  = false;
+	$root     = bws_fold_chain_root( $chain );
+	$inherits = null !== $parent_kind && ( '' === $root || BWS_FOLD_INHERIT_ROOT === $root );
+	$kind     = $inherits ? $parent_kind : ( BWS_FOLD_PARSE_TIME_ROOT_KINDS[ $root ] ?? 'render_time' );
+	$fans     = false;
 
 	foreach ( array_values( $chain ) as $i => $step ) {
 		$slug = (string) ( $step['slug'] ?? '' );
@@ -298,23 +336,21 @@ function bws_fold_chain_resolution( array $chain, ?string $parent_kind = null ):
 		if ( 0 === $i && ! isset( BWS_FOLD_STEP_TYPES[ $slug ] ) ) {
 			continue;
 		}
-		$last = $slug;
-		$fans = true;
-	}
-
-	if ( ! $fans ) {
-		$inherits = null !== $parent_kind && ( '' === $root || BWS_FOLD_INHERIT_ROOT === $root );
-		return array(
-			'root' => $root,
-			'kind' => $inherits ? $parent_kind : ( BWS_FOLD_PARSE_TIME_ROOT_KINDS[ $root ] ?? 'render_time' ),
-			'fans' => false,
-		);
+		$fans     = true;
+		$produces = BWS_FOLD_STEP_KINDS[ $slug ] ?? '';
+		if ( BWS_FOLD_KIND_SETTLES_AT_RENDER !== $produces ) {
+			$kind = $produces;
+		} elseif ( ! in_array( $kind, BWS_TRAVERSAL_STEP_INPUT_KINDS[ $slug ] ?? array(), true ) ) {
+			// An input the engine refuses for this step is a refusal here too. A kind only
+			// render can name stays unnamed until the arm settles it.
+			$kind = in_array( $kind, array( 'render_time', BWS_FOLD_KIND_SETTLES_AT_RENDER ), true ) ? BWS_FOLD_KIND_SETTLES_AT_RENDER : '';
+		}
 	}
 
 	return array(
 		'root' => $root,
-		'kind' => BWS_FOLD_STEP_KINDS[ $last ] ?? '',
-		'fans' => true,
+		'kind' => $kind,
+		'fans' => $fans,
 	);
 }
 
@@ -452,7 +488,10 @@ function bws_fold_chain_to_steps( array $chain, bool $ignore_limits = false ): a
 			// A sanitized-to-nothing `terms` arg lands here too: an unusable argument and
 			// an absent one are the same state, and the flat spelling could not tell them
 			// apart either.
-			$engine_step = ( '' === $arg )
+			//
+			// A step with NO argument key (`parent`, mapped to '') is complete as it stands:
+			// it never takes an argument, so a stray one on the wire is ignored.
+			$engine_step = ( '' === $arg || '' === $known )
 				? array( 'type' => $slug )
 				: array( 'type' => $slug, $known => $arg );
 		}
@@ -644,9 +683,9 @@ function bws_field_values_assemble_steps( array $options, bool $ignore_limits = 
  * bws_field_values_assemble_steps(), which compiles the WHOLE chain because it reads
  * fields by kind (§V6/§V12).
  *
- * Since 1.17.0 this is the chain's LEADING RUN of `refs` steps, stopping at the first step
- * of any other type. Two properties come out of that: a legacy `src:ref|srcTermIn:x`
- * still yields the ref step alone (unchanged), and a multi-step relationship chain
+ * This is the chain's LEADING RUN of steps that can leave a POST (`refs`, and a
+ * kind-preserving `parent`), stopping at the first step of any other type. Two properties come
+ * out of that: a legacy `src:ref|srcTermIn:x` still yields the ref step alone (unchanged), and a multi-step relationship chain
  * (`refs,a;refs,b`) now steps BOTH instead of one. Stopping — rather than filtering — is
  * what keeps the result honest: steps after a dropped term/rows step would run against
  * the wrong entity.
@@ -664,7 +703,10 @@ if ( ! function_exists( 'bws_wrapper_ref_steps' ) ) {
 function bws_wrapper_ref_steps( array $options, bool $ignore_limits = false ): array {
 	$leading = array();
 	foreach ( bws_field_values_assemble_steps( $options, $ignore_limits ) as $step ) {
-		if ( 'refs' !== ( $step['type'] ?? '' ) ) {
+		// A step that can leave a POST: `refs`, and a kind-preserving one (`parent`), which
+		// would otherwise be dropped here and let an empty hop fall back to the ambient post.
+		$produces = BWS_FOLD_STEP_KINDS[ $step['type'] ?? '' ] ?? '';
+		if ( 'post' !== $produces && BWS_FOLD_KIND_SETTLES_AT_RENDER !== $produces ) {
 			break;
 		}
 		$leading[] = $step;

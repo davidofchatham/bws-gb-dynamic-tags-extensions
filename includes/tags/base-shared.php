@@ -214,6 +214,8 @@ function bws_fold_rows_picker_def(): array {
  *                             (BWS_TRAVERSAL_STEP_INPUT_KINDS). Display only: a stored step
  *                             always shows; absent list means "offer it".
  *                produces   — the kind the step outputs (BWS_FOLD_STEP_KINDS).
+ *   settles    the `produces` value that means "the kind the step was given"
+ *              (`parent`), which the editor resolves off the step before it.
  *   roots      root token → parse-time kind (BWS_FOLD_PARSE_TIME_ROOT_KINDS owns the
  *              axis). A root absent there resolves at render; the editor filters nothing off it.
  *   retiredSrc retired source tokens the mount migrator must DECLINE, from the constant
@@ -233,18 +235,19 @@ function bws_fold_wire_vocabulary(): array {
 	// The limit label names what the step PRODUCES (ADR 0007), authored rather than
 	// derived from `produces`: kinds like `meta_row` are internals, not author nouns.
 	$labels = array(
-		'refs'  => array( __( 'Posts in Reference/Relational Field', 'generateblocks' ), __( 'Limit Posts Read', 'generateblocks' ) ),
-		'terms' => array( __( 'Terms in Taxonomy', 'generateblocks' ), __( 'Limit Terms Read', 'generateblocks' ) ),
-		'rows'  => array( __( 'Rows in Repeater Field', 'generateblocks' ), __( 'Limit Repeater Rows Read', 'generateblocks' ) ),
+		'refs'   => array( __( 'Posts in Reference/Relational Field', 'generateblocks' ), __( 'Limit Posts Read', 'generateblocks' ) ),
+		'terms'  => array( __( 'Terms in Taxonomy', 'generateblocks' ), __( 'Limit Terms Read', 'generateblocks' ) ),
+		'rows'   => array( __( 'Rows in Repeater Field', 'generateblocks' ), __( 'Limit Repeater Rows Read', 'generateblocks' ) ),
+		// Single-valued, so no Limit label (the control is hidden for it).
+		'parent' => array( __( 'Parent Post/Term', 'generateblocks' ) ),
 	);
 
 	$steps = array();
 	foreach ( $labels as $slug => $authored ) {
-		list( $label, $limit_label ) = $authored;
-		$step = array(
-			'label'      => $label,
-			'limitLabel' => $limit_label,
-		);
+		$step = array( 'label' => $authored[0] );
+		if ( isset( $authored[1] ) ) {
+			$step['limitLabel'] = $authored[1];
+		}
 		if ( defined( 'BWS_FOLD_STEP_TYPES' ) && isset( BWS_FOLD_STEP_TYPES[ $slug ] ) ) {
 			$step['arg'] = BWS_FOLD_STEP_TYPES[ $slug ];
 		}
@@ -259,6 +262,7 @@ function bws_fold_wire_vocabulary(): array {
 
 	return array(
 		'steps'       => $steps,
+		'settles'     => defined( 'BWS_FOLD_KIND_SETTLES_AT_RENDER' ) ? BWS_FOLD_KIND_SETTLES_AT_RENDER : '',
 		'roots'       => defined( 'BWS_FOLD_PARSE_TIME_ROOT_KINDS' ) ? BWS_FOLD_PARSE_TIME_ROOT_KINDS : array(),
 		'retiredSrc'  => defined( 'BWS_FOLD_RETIRED_SRC_TOKENS' ) ? BWS_FOLD_RETIRED_SRC_TOKENS : array(),
 		// The number counts ITEMS READ, not results shown (ADR 0007): an item with an
@@ -318,7 +322,7 @@ function bws_fold_step_offer( array $steps, array $vocab ): array {
  *     @type array $source_opt A bws_base_source_option()-shaped array to upgrade.
  *                             Default bws_base_source_option().
  *     @type array $steps       WIRE step slugs offered as steps, in offer order.
- *                             Default ['refs','terms','rows']. Offer only steps some
+ *                             Default ['refs','terms','rows','parent']. Offer only steps some
  *                             arm reads; otherwise the chain renders empty.
  *     @type bool  $takes_first_usable The template's collapsing capability (ADR 0007):
  *                             the step renderer suppresses the limit control
@@ -328,7 +332,7 @@ function bws_fold_step_offer( array $steps, array $vocab ): array {
  */
 function bws_build_src_chain_option( array $args = array() ): array {
 	$source_opt = $args['source_opt'] ?? bws_base_source_option();
-	$steps       = $args['steps'] ?? array( 'refs', 'terms', 'rows' );
+	$steps       = $args['steps'] ?? array( 'refs', 'terms', 'rows', 'parent' );
 
 	if ( ! isset( $source_opt['src'] ) ) {
 		return $source_opt;
@@ -1060,6 +1064,30 @@ function bws_base_read_refused( array $res, array $base, array $serves = array()
 }
 
 /**
+ * Settle a chain's kind that only render can name — each arm's line right after the factory.
+ *
+ * A chain stepped off an ambient root by a kind-preserving step (`current;parent`) reports
+ * BWS_FOLD_KIND_SETTLES_AT_RENDER: stepped, so not `render_time` (whose ambient shortcut would
+ * silently drop the step, GH #109), yet post-or-term depends on the request. The factory has
+ * already decided that, so the marker becomes the factory's kind when every family serves it
+ * (BWS_BASE_WIRE_KINDS_ALWAYS_SERVED), and any other base becomes `''`, which
+ * bws_base_read_refused() refuses. Every other kind is returned untouched. Applied BEFORE the
+ * refusal test; an arm that forgets it still refuses, because the marker is in no served list.
+ *
+ * @since Unreleased
+ * @param array $res  A bws_base_src_resolution() result.
+ * @param array $base A bws_base_resolve_source_for_callback() result.
+ * @return array The same resolution, its `kind` settled.
+ */
+function bws_base_settle_kind( array $res, array $base ): array {
+	if ( BWS_FOLD_KIND_SETTLES_AT_RENDER === ( $res['kind'] ?? '' ) ) {
+		$base_kind   = (string) ( $base['kind'] ?? '' );
+		$res['kind'] = in_array( $base_kind, BWS_BASE_WIRE_KINDS_ALWAYS_SERVED, true ) ? $base_kind : '';
+	}
+	return $res;
+}
+
+/**
  * The tag's STATED fallback, rendered — or '' when the author stated none.
  *
  * One owner for the text-shaped fallback emit; never re-inline at a call site.
@@ -1218,7 +1246,7 @@ function bws_base_term_ids_from_source( array $base, array $options, bool $ignor
  * The FIRST usable post's read, off a base tag's whole chain (ADR 0007, [I19]).
  *
  * The collapsing callbacks' POST route: the unbounded fan arrives gated
- * (bws_source_gate owns the criterion); bws_read_bounded_sources() at n = 1 reads the
+ * (bws_is_source_usable owns the criterion); bws_read_bounded_sources() at n = 1 reads the
  * FIRST source only, even if empty. Does NOT search past an empty field — selection is
  * field-independent (ADR 0007). An EMPTY fan still does the single falsy-id read (the
  * cores' repeater-row semantics), so the reader always runs once.

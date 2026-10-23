@@ -432,10 +432,26 @@
 	// ── The field: a combobox that also takes typed text ─────────────────────────
 
 	/**
+	 * What Enter or blur commits for typed text: its canonical form, or for a bare number the
+	 * first unit row `options` offers (the natural default, listed first), or null.
+	 */
+	function typedCommit( q, validate, options ) {
+		var canon = validate( q );
+		if ( canon !== null || ! NUMBER_RE.test( q ) ) {
+			return canon;
+		}
+		var row = options( q ).filter( function ( o ) {
+			return validate( o.value ) !== null;
+		} )[ 0 ];
+		return row ? row.value : null;
+	}
+
+	/**
 	 * A text value with a suggestion list. WP's ComboboxControl refuses off-list text, so a
 	 * typed value is offered as a synthetic first row (the bws-field-combo precedent); picking
-	 * it commits. A typed value that fails `validate` is offered as an error row that commits
-	 * nothing, so an unrecognized value never reaches the wire from here.
+	 * it commits, and so do Enter and leaving the field (unless the list was arrowed into, where
+	 * Enter picks the highlighted row). A typed value that fails `validate` is offered as an
+	 * error row that commits nothing, so an unrecognized value never reaches the wire from here.
 	 *
 	 * @param {Object} p label, value, onChange(canonicalOrEmpty), validate(raw)→canonical|null,
 	 *   options(typed)→rows, hint, placeholder, errorKind, help, hideLabel.
@@ -447,6 +463,9 @@
 		var errState = useState( '' );
 		var err = errState[ 0 ];
 		var setErr = errState[ 1 ];
+		var navState = useState( false );
+		var navigated = navState[ 0 ];
+		var setNavigated = navState[ 1 ];
 
 		var value = p.value || '';
 		var rows = p.options( typed );
@@ -455,10 +474,10 @@
 			var canon = p.validate( q );
 			var exists = rows.some( function ( o ) {
 				return o.value === q || o.value === canon;
-			} );
+			} ) || ( canon !== null && canon === value );
 			if ( ! exists ) {
 				rows = [ canon !== null
-					? { value: canon, label: __( 'Use', 'generateblocks' ) + ' "' + q + '"' }
+					? { value: canon, label: __( 'Press Enter or select this to use', 'generateblocks' ) + ' "' + q + '"' }
 					: { value: '__invalid:' + q, label: errorText( p.errorKind, q ) }
 				].concat( rows );
 			}
@@ -490,7 +509,58 @@
 			p.hint ? el( 'span', { key: 'd', className: 'screen-reader-text' }, p.hint ) : null
 		] );
 
-		return el( ComboboxControl, {
+		/** Commit the typed text if it is a value; true when it did. */
+		function commitTyped() {
+			var next = q ? typedCommit( q, p.validate, p.options ) : null;
+			if ( next === null ) {
+				return false;
+			}
+			if ( next !== value ) {
+				commit( next );
+			}
+			return true;
+		}
+
+		// WP empties the input on focus and lists the current value as a row. A value that is not
+		// one of the listed rows (a typed var(), 1.5rem) is text to edit, so put it back in.
+		var isCustom = !! value && ! p.options( '' ).some( function ( o ) {
+			return o.value === value;
+		} );
+
+		// display:contents keeps the wrapper out of layout; it only listens, for focus, Enter and blur.
+		return el( 'div', {
+			style: { display: 'contents' },
+			onFocusCapture: function ( e ) {
+				var input = e.target;
+				if ( ! isCustom || ! input || input.getAttribute( 'role' ) !== 'combobox' ) {
+					return;
+				}
+				// After WP's own render has blanked the input; the native setter keeps React's
+				// change tracking honest so the input event reaches WP as typing.
+				setTimeout( function () {
+					if ( document.activeElement !== input || input.value ) {
+						return;
+					}
+					Object.getOwnPropertyDescriptor( window.HTMLInputElement.prototype, 'value' ).set.call( input, value );
+					input.dispatchEvent( new window.Event( 'input', { bubbles: true } ) );
+				}, 0 );
+			},
+			onKeyDownCapture: function ( e ) {
+				if ( e.key === 'ArrowDown' || e.key === 'ArrowUp' ) {
+					setNavigated( true );
+				} else if ( e.key === 'Enter' && ! navigated && commitTyped() ) {
+					e.preventDefault();
+					e.stopPropagation();
+				}
+			},
+			onBlur: function ( e ) {
+				if ( ! ( e.relatedTarget && e.currentTarget.contains( e.relatedTarget ) ) ) {
+					if ( ! commitTyped() ) {
+						setTyped( '' );
+					}
+				}
+			}
+		}, el( ComboboxControl, {
 			label: p.label,
 			hideLabelFromVision: !! p.hideLabel,
 			value: value,
@@ -500,6 +570,7 @@
 			onChange: commit,
 			onFilterValueChange: function ( t ) {
 				setTyped( t );
+				setNavigated( false );
 				if ( err ) {
 					setErr( '' );
 				}
@@ -507,7 +578,7 @@
 			allowReset: true,
 			__next40pxDefaultSize: true,
 			__nextHasNoMarginBottom: true
-		} );
+		} ) );
 	}
 
 	/** Width / size field: the combobox with the unit shown as a list. */
@@ -1770,6 +1841,8 @@
 		readText: readText,
 		ComboField: ComboField,
 		SizeField: SizeField,
+		typedCommit: typedCommit,
+		sizeOptions: sizeOptions,
 		ColorField: ColorField,
 		ChoiceButtons: ChoiceButtons,
 		TextStyleBlock: TextStyleBlock,
