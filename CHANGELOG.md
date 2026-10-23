@@ -22,6 +22,7 @@ All notable changes to this project are documented in this file. The format is b
 
 - **The post and term pickers show the selection while they load, and say so when it is not available.** A selected post or term that was not in the first page of the list used to leave the field empty, with its name in a caption underneath. The field now shows `#<id>` immediately and the full name once it loads. If the entity is deleted, trashed or otherwise not offered in the picker it reads `#<id> (not available)`. The editor preview of a tag rooted at a post or term that does not exist now says `(not available)` instead of `(missing)`, and `{{table}}`’s editor placeholder uses the same words instead of the generic “source not available in the editor”.
 - **`{{datetime_single}}` and `{{datetime_range}}` reading a date from an ACF options page now show it on archive pages and inside query loops.** On a category, tag or taxonomy archive the tag rendered empty, and inside a query loop it read the field from each looped post or repeater row instead of the options page, so it could show a date that belonged to something else. It now reads the options page wherever it is placed.
+- **A release without its zip no longer installs the source tree.** A release tagged without its built `.zip` now offers installed sites no update, instead of installing the repository source tree with its dev files (`bws_dynamic_tags_init_update_checker()` passes `REQUIRE_RELEASE_ASSETS`).
 
 ## [1.22.0] — 2026-10-22
 
