@@ -163,6 +163,8 @@ A security gate blocks adding PHP built-ins (`system`, `unlink`, `eval`, and the
 
 Another plugin can add its own starting point to our source path options, and that starting point can take an argument of its own, so it can name a specific entity rather than only something available from the context. See [`docs/plugin-integration.md` §1](docs/plugin-integration.md#1-offering-your-source-as-a-chain-root).
 
+**[UNRELEASED]** A plugin that decides who may see a post, such as a membership or audience plugin, can hide that post from our tags too, and its own tags can apply the same visibility check ours do. It can only hide content, never reveal what the built-in check refuses. See [`docs/plugin-integration.md` §3](docs/plugin-integration.md#narrowing-who-may-see-an-entity).
+
 ## Requirements
 
 - WordPress 6.5+

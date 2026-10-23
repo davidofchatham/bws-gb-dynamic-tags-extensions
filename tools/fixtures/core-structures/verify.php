@@ -386,6 +386,76 @@ if ( $gate_page instanceof WP_Post ) {
 	// this pair must AGREE while F17.1/F17.2 diverge on the same page.
 	$check( 'F17.8 a TRASHED source is refused for both viewers and spends no limit budget', 'Grace' === $anon_trash && $anon_trash === $admin_trash, 'anon=' . var_export( $anon_trash, true ) . ' admin=' . var_export( $admin_trash, true ) );
 	$check( 'F17.9 an ATTACHMENT source resolves for a visitor (its `inherit` is the PARENT status, not an internal refusal)', 'Fixture Photo' === $anon_att && $anon_att === $admin_att, 'anon=' . var_export( $anon_att, true ) . ' admin=' . var_export( $admin_att, true ) );
+
+	// THE VISIBILITY FILTER (FW-89), registered in-process and removed after each arm, so no
+	// fixture page moves. One stub consumer refuses one id; the contract under test is that a
+	// filter refusal behaves exactly like a default refusal, and that the filter never sees
+	// a source the default already refused (restrict-only by construction, not by convention).
+	$dana_id  = (int) ( $gate_refs[0] ?? 0 );
+	$paul_id  = (int) ( $gate_refs[1] ?? 0 );
+	$grace_id = (int) ( $gate_refs[2] ?? 0 );
+	$refuse   = 0;
+	$seen     = array();
+	$stub     = static function ( $ok, $source ) use ( &$refuse, &$seen ) {
+		$seen[] = (int) ( $source['id'] ?? 0 );
+		if ( ! $ok ) {
+			return $ok;
+		}
+		return $refuse !== (int) ( $source['id'] ?? 0 );
+	};
+	add_filter( 'bws_dynamic_tags_source_visible', $stub, 10, 2 );
+
+	$GLOBALS['post'] = $gate_page;
+	setup_postdata( $gate_page );
+
+	wp_set_current_user( 0 );
+	$refuse          = $grace_id;
+	$seen            = array();
+	$anon_filtered   = $render( $first_tag );
+	$anon_seen       = $seen;
+
+	wp_set_current_user( $admin_id );
+	$refuse          = $dana_id;
+	$admin_filtered  = $render( $first_tag );
+	// limit:2 over draft, private, published: a refused Dana that still spent a slot
+	// would leave room for Paul alone.
+	$admin_limited   = $render( '{{text src:refs,gate_staff|use:key|key:name_first|limit:2|sep:, }}' );
+
+	// The second caller: a query-loop item reaches the same function through
+	// bws_loop_item_gated_post_id(), not through a chain. Same fake instance shape
+	// `bws render-tag --loop-item=` builds.
+	wp_set_current_user( 0 );
+	$loop_instance          = new stdClass();
+	$loop_instance->context = array(
+		'generateblocks/loopItem'  => $grace_id,
+		'generateblocks/queryType' => 'WP_Query',
+	);
+	$loop_render = static function () use ( $loop_instance ) {
+		return trim( (string) GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{text key:name_first}}', [], $loop_instance ) );
+	};
+	$refuse        = 0;
+	$loop_open     = $loop_render();
+	$refuse        = $grace_id;
+	$loop_filtered = $loop_render();
+
+	remove_filter( 'bws_dynamic_tags_source_visible', $stub, 10 );
+	wp_set_current_user( $prev_user );
+	$GLOBALS['post'] = $prev_post;
+	if ( $prev_post ) {
+		setup_postdata( $prev_post );
+	}
+
+	$check( 'FW-89.1 a filter refusing the only visible source leaves the tag EMPTY for a visitor', '' === $anon_filtered, 'out=' . var_export( $anon_filtered, true ) );
+	$check( 'FW-89.2 a filter-refused source is passed over: the next usable one is read', 'Paul' === $admin_filtered, 'out=' . var_export( $admin_filtered, true ) );
+	$check( 'FW-89.2b a filter-refused source spends no limit slot (limit:2 still reads two)', 'Paul, Grace' === $admin_limited, 'out=' . var_export( $admin_limited, true ) );
+	// Both halves: absent ids prove restrict-only; Grace present proves the stub ran at all.
+	$check(
+		'FW-89.3 the filter never sees a source the default refused (draft + private absent, Grace present)',
+		$grace_id && in_array( $grace_id, $anon_seen, true ) && ! in_array( $dana_id, $anon_seen, true ) && ! in_array( $paul_id, $anon_seen, true ),
+		'seen=' . implode( ',', $anon_seen )
+	);
+	$check( 'FW-89.4 the query-loop caller reads the item with no refusal (non-vacuity)', 'Grace' === $loop_open, 'out=' . var_export( $loop_open, true ) );
+	$check( 'FW-89.5 the query-loop caller honors the filter: refused item reads empty', '' === $loop_filtered, 'out=' . var_export( $loop_filtered, true ) );
 }
 
 /*

@@ -57,19 +57,17 @@ if ( ! function_exists( 'bws_extract_post_id' ) ) {
 	}
 }
 
-// SOURCE-GATE STUB, defined BEFORE the require so the real file's function_exists
-// guard yields to it (plan §S20 corrected — the harness supplies its own predicate;
-// the REAL gate names get_post/current_user_can and is integration-tested on the
-// testbed, never here). Controllable: a source carrying '__gated' => true is
-// dropped, every other source passes, so pre-gate rows are untouched and the gate
-// section below drives budget/stepping-stone behaviour through the same default
-// path the shipped callers take.
-if ( ! function_exists( 'bws_source_gate' ) ) {
-	function bws_source_gate( array $source ) { return empty( $source['__gated'] ); }
-}
+// SOURCE-GATE STUB. The real gate lives in source-usable.php, which no harness
+// requires, so this definition is the only one (plan §S20 corrected — the harness
+// supplies its own predicate; the REAL gate names get_post/current_user_can and is
+// integration-tested on the testbed, never here). Controllable: a source carrying
+// '__gated' => true is dropped, every other source passes, so pre-gate rows are
+// untouched and the gate section below drives budget/stepping-stone behaviour
+// through the same default path the shipped callers take.
+function bws_is_source_usable( array $source ) { return empty( $source['__gated'] ); }
 
-// LINK-WRAP STUB, same treatment and same reason as the gate stub above: defined
-// BEFORE the require so the real file yields to it. The shipped wrapper lives in
+// LINK-WRAP STUB, defined BEFORE the require so the real file's function_exists
+// guard yields to it. The shipped wrapper lives in
 // link-helpers.php and resolves its URL through get_permalink / get_term_link /
 // get_post_meta, so it cannot run WP-free — and it is not what the FW-85 rows are
 // about. What the fold owes it is the CALL: one per value, against that value's own
@@ -244,7 +242,7 @@ eq(
 // ── §S48 — the source gate (I19: a gated-out source never spends limit budget) ──
 // The DEFAULT path runs this harness's stub gate (drops '__gated' sources); the
 // explicit-$gate rows drive the injected parameter the same way shipped consumers
-// could. The REAL bws_source_gate body is WP-bound and integration-tested only.
+// could. The REAL bws_is_source_usable body is WP-bound and integration-tested only.
 
 // The INITIAL source list is gated, not just hop produce (depth-0 reads covered).
 eq(

@@ -6,7 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
-- **For integrating plugins: `bws_source_gate()` is now supported API.** A tag your plugin registers itself can pass the entity it resolved through the same check the base tags apply, so it hides a post the visitor may not see exactly as they do. See [Plugin integration §3](docs/plugin-integration.md#3-registering-your-own-tag).
+- **For integrating plugins: `bws_is_source_usable()` is now supported API.** A tag your plugin registers itself can pass the entity it resolved through the same check the base tags apply, so it hides a post the visitor may not see exactly as they do. Its `bws_dynamic_tags_source_visible` filter lets your plugin hide more than that check does: if your plugin decides who may see a post, return `false` for it and this plugin's tags treat it as not visible: a tag skips past it to the next usable entity, or reads empty when none is left, and a query-loop row for it shows none of this plugin's tags. The filter can only hide; it never sees an entity the built-in check already refused. See [Plugin integration §3](docs/plugin-integration.md#3-registering-your-own-tag).
 
 ### Changed
 

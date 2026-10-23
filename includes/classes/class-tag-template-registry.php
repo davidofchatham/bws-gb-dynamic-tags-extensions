@@ -49,7 +49,7 @@ class TagTemplateRegistry {
 	 *   is_image              bool     Image template — custom as/size/fallback controls.
 	 *   takes_first_usable    bool     The tag emits at most ONE result: the read of the FIRST
 	 *                    USABLE source its chain produces — usable is the engine gate's
-	 *                    question and bws_source_gate() states it, NEVER field-populated,
+	 *                    question and bws_is_source_usable() states it, NEVER field-populated,
 	 *                    so the read may be empty and selection is field-independent (ADR 0007, the
 	 *                    2026-08-21 reversal). THE AXIS, owned here: keyed on the template's
 	 *                    DISPOSITION toward a plural resolved-source list — NOT on list mode

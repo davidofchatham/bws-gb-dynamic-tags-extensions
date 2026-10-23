@@ -87,7 +87,7 @@ possible future tag-level OPT-IN (tracked in `docs/future-work.md`); it is not a
 
 - The gate ships WITH this release, both arms live (exists and visible), so "usable" reaches its
   final meaning once: no interim tightening, no matrix rows written to be revised. What each kind
-  is tested against is the gate's rule, not this decision's — `bws_source_gate()`'s PHPDoc.
+  is tested against is the gate's rule, not this decision's — `bws_is_source_usable()`'s PHPDoc.
 - Two subtractive author-visible changes ride one Upgrade Notice: the term route of collapsing
   tags no longer searches past the first term, and unpublished content stops resolving for viewers
   who cannot read it. Everything else renders the same or more.

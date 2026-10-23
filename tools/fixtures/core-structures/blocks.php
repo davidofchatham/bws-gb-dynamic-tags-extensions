@@ -2533,7 +2533,7 @@ function bws_fixture_page_content_matrix_products() {
  * read path was believed to treat one post type differently from another — and an
  * expectation derived from the code's shape is not evidence here, which is why these rows
  * exist rather than a sentence saying so. What the source gate actually decides on is
- * bws_source_gate()'s own PHPDoc and is not restated here.
+ * bws_is_source_usable()'s own PHPDoc and is not restated here.
  *
  * THIS CONTENT IS THE PRODUCT'S DESCRIPTION. WooCommerce renders it through `the_content`
  * on the single-product template, so the blocks below are the product's own body and not

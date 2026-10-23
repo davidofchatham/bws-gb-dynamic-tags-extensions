@@ -176,13 +176,13 @@ Methods a class route source writes or overrides. `AbstractSource` supplies ever
 
 If no base tag reading from your source does what you need, register the tag with GenerateBlocks directly. GenerateBlocks documents the registration API: [Registering dynamic tags](https://learn.generatepress.com/developer-doc/registering-dynamic-tags/). Before choosing option keys or a tag name, read [`gb-constraints.md`](gb-constraints.md): it records the tag-name prefix rule, the option keys GB reserves and how default values serialize.
 
-Find your entity by calling your registered source's `resolve_id()`, not your own lookup, so your tag and the base tags rooted at your source pick the same entity. Then pass it through `bws_source_gate()`, the check base tags apply to every entity they read: it refuses an entity that does not exist, or that the current viewer may not see. A callback calling `resolve_id()` directly gets none of that on its own. The gate takes `array( 'kind' => 'post', 'id' => $id )`, with `'term'` or `'user'` as the kind for those entities.
+Find your entity by calling your registered source's `resolve_id()`, not your own lookup, so your tag and the base tags rooted at your source pick the same entity. Then pass it through `bws_is_source_usable()`, the check base tags apply to every entity they read: it refuses an entity that does not exist, or that the current viewer may not see. A callback calling `resolve_id()` directly gets none of that on its own. The gate takes `array( 'kind' => 'post', 'id' => $id )`, with `'term'` or `'user'` as the kind for those entities.
 
 ```php
 function my_plugin_unique_field_callback( $options, $block, $instance ) {
     $source  = \BWS\DynamicTags\SourceRegistry::get_source( 'external' );
     $post_id = $source ? $source->resolve_id( $options, $instance ) : false;
-    if ( $post_id && ! bws_source_gate( array( 'kind' => 'post', 'id' => $post_id ) ) ) {
+    if ( $post_id && ! bws_is_source_usable( array( 'kind' => 'post', 'id' => $post_id ) ) ) {
         $post_id = false;
     }
     $value = $post_id ? get_post_meta( $post_id, 'unique_field_key', true ) : '';
@@ -192,6 +192,26 @@ function my_plugin_unique_field_callback( $options, $block, $instance ) {
 ```
 
 Need a relationship hop? Offer the source as a [chain root](#1-offering-your-source-as-a-chain-root) and let the base tags' source paths do it, rather than reading the relationship field in your callback.
+
+### Narrowing who may see an entity
+
+If your plugin decides who may see a post (a membership, an audience, a per-page rule), filter `bws_dynamic_tags_source_visible`. Every check `bws_is_source_usable()` makes, in the base tags and in your own, then applies your rule as well.
+
+```php
+add_filter( 'bws_dynamic_tags_source_visible', function ( $ok, $source ) {
+    if ( ! $ok || 'post' !== $source['kind'] ) {
+        return $ok;
+    }
+    return $ok && my_plugin_viewer_may_see( (int) $source['id'] );
+}, 10, 2 );
+```
+
+- **It can only hide.** It runs after the built-in check has passed, so it never sees an entity that check refused, and returning `true` cannot reveal one.
+- **Return `$ok && your answer`, and return `$ok` unchanged for anything you do not judge.** WordPress hands each callback the previous one's result, so a callback that returns a bare `true` undoes a refusal another plugin made earlier in the chain.
+- **It runs once per entity, for every kind.** Check `$source['kind']` and pass through the kinds you do not handle. `$source` carries the `kind` and the `id`; anything else your rule needs, such as the current page or user, comes from the request.
+- **Nothing is cached here.** If your check is costly, memoize it per request yourself.
+- **The editor preview runs the same check**, with whatever context the editor's request resolves.
+- **A refused post blanks this plugin's tags and nothing else.** Inside a GenerateBlocks query loop, the row for a refused post still renders, along with GenerateBlocks' own tags in it. Keeping the post out of the loop is a job for the loop's query. A `get_field()` or `get_post_meta()` call outside these tags never passes through this filter either.
 
 ### Rendering block content
 
@@ -206,7 +226,7 @@ function my_plugin_content_callback( $options, $block, $instance ) {
 
     $source  = \BWS\DynamicTags\SourceRegistry::get_source( 'external' );
     $post_id = $source ? $source->resolve_id( $options, $instance ) : false;
-    if ( ! $post_id || ! bws_source_gate( array( 'kind' => 'post', 'id' => $post_id ) ) ) {
+    if ( ! $post_id || ! bws_is_source_usable( array( 'kind' => 'post', 'id' => $post_id ) ) ) {
         return '';
     }
 
@@ -226,7 +246,7 @@ function my_plugin_content_callback( $options, $block, $instance ) {
 | `bws_content_memory_threshold` | `0.80` | Fraction of `memory_limit` below which the full render runs. At or above it, rendering falls back to CSS extraction only. |
 | `bws_content_max_recursion_depth` | `3` | Content nesting depth beyond which further renders are blocked. |
 
-**`bws_source_gate()`, these four functions, the two filters, and the classes and hooks this guide names are the supported surface.** Every other `bws_` function is internal and may change without notice. The pipeline itself: [`post-content-processing-reference.md`](post-content-processing-reference.md).
+**`bws_is_source_usable()` and its `bws_dynamic_tags_source_visible` filter, these four functions, the two filters, and the classes and hooks this guide names are the supported surface.** Every other `bws_` function is internal and may change without notice. The pipeline itself: [`post-content-processing-reference.md`](post-content-processing-reference.md).
 
 ---
 

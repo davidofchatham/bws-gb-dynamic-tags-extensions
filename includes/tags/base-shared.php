@@ -1218,7 +1218,7 @@ function bws_base_term_ids_from_source( array $base, array $options, bool $ignor
  * The FIRST usable post's read, off a base tag's whole chain (ADR 0007, [I19]).
  *
  * The collapsing callbacks' POST route: the unbounded fan arrives gated
- * (bws_source_gate owns the criterion); bws_read_bounded_sources() at n = 1 reads the
+ * (bws_is_source_usable owns the criterion); bws_read_bounded_sources() at n = 1 reads the
  * FIRST source only, even if empty. Does NOT search past an empty field — selection is
  * field-independent (ADR 0007). An EMPTY fan still does the single falsy-id read (the
  * cores' repeater-row semantics), so the reader always runs once.
