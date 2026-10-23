@@ -459,6 +459,27 @@ if ( ! self::is_array_or_object( $parent_value ) ) {
 
 **Where this bites us:** any read that needs an array-shaped value whole and asks `single_only => false` alone drops every scalar. Measured twice on term reads: a `refs` step off a TERM-kind source (a `post_object` field storing a bare id), and the term image read (an ACF image field with a URL or ID return format, #143). Our response is owned by `bws_meta_handler_read_preserving_arrays()`'s PHPDoc ([`includes/helpers/field-helpers.php`](../includes/helpers/field-helpers.php)). Measured 2026-09-07 building the FW-39 `term,<ID>;refs,<field>` fixture row (`fold-test-matrix.md` §F20.7): `GenerateBlocks_Meta_Handler::get_meta( 7, 'dept_lead', false, 'get_term_meta' )` returned `''` for a correctly-stored id, while the identical call with `true` returned it.
 
+## Once the head has printed, GB inlines a block's CSS, once per `uniqueId`
+
+Read from source, GB 2.5.0 (2026-10-23), not measured at runtime. Hook reference: [CSS output and block rendering (learn.generatepress.com)](https://learn.generatepress.com/developer-doc/css-output/).
+
+A GB 2.x block's CSS is its saved `css` attribute, handed back by `GenerateBlocks_Block::get_css()` ([`class-block.php`](https://plugins.trac.wordpress.org/browser/generateblocks/tags/2.5.0/includes/blocks/class-block.php#L64)), which also records the block's `uniqueId` as seen. Each block's render callback then asks `generateblocks_maybe_add_block_css()` ([`functions.php`](https://plugins.trac.wordpress.org/browser/generateblocks/tags/2.5.0/includes/functions.php#L1346)) what to do with it, and the answers come in this order:
+
+1. `generateblocks_do_inline_styles` (default `false`) is read first. It is an override that turns off the next two skips and forces the inline output in step 4.
+2. A `uniqueId` already recorded is skipped, so a block whose CSS is in the head, or was already inlined earlier in the request, adds nothing.
+3. `GenerateBlocks_Inline_CSS::can_process_block_css()` ([`class-inline-css.php`](https://plugins.trac.wordpress.org/browser/generateblocks/tags/2.5.0/includes/class-inline-css.php#L56)) must be true: the head CSS callback (`wp_enqueue_scripts`, priority 25 by default) has started, or the theme is a block theme. Otherwise the block adds nothing.
+4. If `did_action( 'wp_head' )` (or the override), the CSS is prepended to the block's HTML as a `<style>` element. Otherwise it is added to the head pool through `generateblocks_css_output`.
+
+What follows from it:
+
+- **Anything rendered in the body inlines.** The head scan covers only the current post's content (`generateblocks_do_content`'s default), so a related post's blocks have no head CSS unless their `uniqueId`s happen to match the ambient page's, and they arrive as `<style>` elements in the rendered string.
+- **GB dedupes inline CSS itself, per `uniqueId` per request.** A second render of the same post emits no second `<style>` for blocks already recorded.
+- **The override defeats that dedupe.** Setting `generateblocks_do_inline_styles` around a render makes every block inline its CSS again, including blocks whose CSS is already in the head. It is meant for output that bypasses the page entirely (an AJAX or REST render), not for content rendered inside it.
+- **There is a window with no CSS at all.** On a classic theme, a block not in the head scan that renders before the head CSS callback starts is skipped at step 3 and its CSS is never emitted. Unmeasured; nothing of ours is known to render that early.
+- **Legacy 1.x blocks differ.** `grid`, `container`, `button-container`, `button`, `headline` and `image` go through `generateblocks_maybe_add_legacy_block_css()` ([`functions.php`](https://plugins.trac.wordpress.org/browser/generateblocks/tags/2.5.0/includes/functions.php#L1415)): their CSS comes from `get_css_data()`, not the `css` attribute, though the `wp_head` and override switches are the same.
+
+Where it meets ours: [`post-content-processing-reference.md`](post-content-processing-reference.md) §Cross-post inline CSS handling.
+
 ## Upstream-documented affordances
 
 Pulled from the [upstream registration doc](https://learn.generatepress.com/developer-doc/dynamic-tag-registration/). Facts here are GB-owned API surface — if upstream changes, that doc wins. Listed here as known extension points; most are not exercised in this plugin (the exception is `visibility`, first used by `{{email}}` in 1.9.0 — see below).

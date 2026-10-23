@@ -140,7 +140,7 @@ Used automatically when memory is below threshold at the entry to `render()`. `d
 4. `wpautop()` + `bws_sanitize_rich_content()`.
 5. Queues the extracted CSS via `ContentProcessor::queue_inline_css()` if any was found.
 
-Trade-off: layout is approximate (no block-level rendering), dynamic content inside the post is dropped, but the page still renders rather than crashing on OOM.
+Trade-off: layout is approximate (no block-level rendering), dynamic content inside the post is dropped, but the page still renders rather than crashing on OOM. Step 1 also reads only the `css` attribute, so legacy 1.x blocks (which build CSS from `get_css_data()`) yield none, and the `generateblocks_block_css` filter is not applied ([`gb-constraints.md`](gb-constraints.md#once-the-head-has-printed-gb-inlines-a-blocks-css-once-per-uniqueid)).
 
 Fallback does **not** push the recursion stack — `do_blocks()` is not invoked, so there is no nested rendering to guard.
 
@@ -215,7 +215,7 @@ The number of setup renders is **not fixed**: a single loop produces two, and ne
 
 ## Cross-post inline CSS handling
 
-When `do_blocks()` runs against a post **other** than the current page's post — e.g., a related-post `content` tag — GB cannot enqueue block CSS through `wp_head` (which has already fired). It falls back to inlining `<style>` elements directly before each block's HTML.
+When `do_blocks()` runs against a post **other** than the current page's post — e.g., a related-post `content` tag — GB cannot add block CSS to the head (which has already printed), so it inlines a `<style>` element directly before each block's HTML. When GB does this, and why `generateblocks_do_inline_styles` must not be set around `do_blocks()` here: [`gb-constraints.md`](gb-constraints.md#once-the-head-has-printed-gb-inlines-a-blocks-css-once-per-uniqueid).
 
 `wp_kses_post()` then strips the `<style>` tags but leaves the raw CSS text behind, which renders as visible page content. Helpers (all live on `ContentProcessor`; procedural wrappers preserved):
 
