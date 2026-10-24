@@ -63,7 +63,7 @@ Detail home: `.scratch/plans/fw-38-entry-record.md`; CONTEXT.md I10 (interim sta
 
 Progress: Not started. The integrator coordination this was scoped to feed is moot — the one integrating plugin deleted its modifier family and its aliases outright on 2026-09-08 instead of declaring a lifecycle for them, and the handoff plan it was tracked in went with them. That leaves the `callback`-presence proxy with only one population to classify (ours), so the "two populations a global default would split wrong" argument no longer holds up the bolt-on — see `CONTEXT.md` I10.
 
-Open: Whether `removed` keeps meaning unregistered, given that a tag registered with [`visibility: false`](gb-constraints.md#visibility-false-hides-a-tag-from-the-picker-only) keeps stored content rendering where an unregistered one prints literal braces; and whether the window state is a hidden-but-registered tag or our own `deprecated` tag type (visible, shown in a Deprecated picker group, because GB builds picker groups from whatever type string a tag carries). FW-104, FW-153 and FW-178 hold the same question from the settings, editor-warning and `try_` sides.
+Open: Whether `removed` keeps meaning unregistered, or splits into a hidden and suppressed state (still registered, returning a space so blocks survive) that tags with no migration keep indefinitely, then a last unregistered state; and whether `deprecated` is the hidden state. Our `deprecated` tag type is our own string, not a GB state. See [`visibility: false`](gb-constraints.md#visibility-false-hides-a-tag-from-the-picker-only); Whether a hidden tag with a replacement forwards to it through its migration entry (one generic stub, so the old code can go at deprecation rather than at removal), and what the entries that cannot convert do instead. FW-104, FW-153 and FW-178 hold the same question.
 
 Blocked by: —  •  Interacts with: FW-108 (closed; (c) moved here, and its order harness reads entries by `transform_callback`), FW-153 (the `gb_type` stamp), FW-129 (closed; deleted the API that minted external families, the proxy's last remaining reason to exist), FW-174 (whether the generator whose `prefix_removed => false` arm the proxy serves survives at all), FW-150 (`lifecycle` replaces the `prefix_removed` stand-in the `term_*` entries ride), FW-175 (the entry record being registered)
 
@@ -117,9 +117,9 @@ The settings page's Keep / Suppress / Disable radio stores a value nothing reads
 
 Detail home: `.scratch/plans/deprecation-mode-radio.md` (moved from GH #110, closed 2026-10-12)
 
-Progress: Not wired. The external-family trap that made finishing it dangerous is unreachable since FW-129. Measured 2026-10-23: Disable unregisters the tag, so stored `{{tag}}` text prints as literal braces on the page ([FW-150](#fw-150--retire-the-term_-migrator-entries) states why that is the dangerous outcome), while [`visibility: false`](gb-constraints.md#visibility-false-hides-a-tag-from-the-picker-only) keeps a tag rendering and only removes it from the picker. The `try_` family, whose checkbox skips registration today, is FW-178.
+Progress: Not wired. The external-family trap that made finishing it dangerous is unreachable since FW-129. Disable unregisters the tag, so stored `{{tag}}` prints as literal braces ([FW-150](#fw-150--retire-the-term_-migrator-entries)); registering the tag hidden instead is measured in [`visibility: false`](gb-constraints.md#visibility-false-hides-a-tag-from-the-picker-only). The `try_` family is FW-178.
 
-Open: Whether the radio as built fits the next deprecation window or needs reshaping first, in particular whether a hide mode replaces Disable (leaving Suppress, registered and returning empty, as the only mode that stops content rendering).
+Open: Whether the radio goes entirely, with the window state set per tag by FW-38's `lifecycle` instead of by the site owner (which reverses the 2026-10-12 decision to keep it).
 
 Blocked by: — (reviewed when a deprecation window opens)  •  Interacts with: FW-153 (the same deprecation-window affordance class), FW-81 (the likely first window), FW-38 (`registered_by` / `lifecycle`), FW-33 (closed)
 
@@ -659,9 +659,9 @@ A tag still registered with GenerateBlocks under its `deprecated` type (the shap
 
 Detail home: this row
 
-Progress: Not started. In-editor deprecation warnings existed before 1.14.0, on the N×M wrapper callbacks; the `term_*` window in 1.20.0 had none, only the Deprecated picker group GB builds from that type string. `bws_build_deprecation_preview_label()` and `bws_deprecated_tag_notice()` in `deprecated-tags.php` survive from that era as candidate starting points, but they were built to REPLACE a wrapper callback's output, not to add to a live preview, so their fit is unproven. A tag hidden with [`visibility: false`](gb-constraints.md#visibility-false-hides-a-tag-from-the-picker-only) renders and previews, and nothing in GB marks it: no badge in the preview or the modal, and the modal's tag picker box reads blank (measured 2026-10-23, GB 2.5.0).
+Progress: Not started. In-editor deprecation warnings existed before 1.14.0, on the N×M wrapper callbacks; the `term_*` window in 1.20.0 had none, only the Deprecated picker group GB builds from that type string. `bws_build_deprecation_preview_label()` and `bws_deprecated_tag_notice()` in `deprecated-tags.php` survive from that era as candidate starting points, but they were built to REPLACE a wrapper callback's output, not to add to a live preview, so their fit is unproven. A hidden tag shows no marker in the preview or the modal; the modal reads the tag's `description`, and a stub's own callback can answer the preview ([`visibility: false`](gb-constraints.md#visibility-false-hides-a-tag-from-the-picker-only)).
 
-Open: Whether the warning triggers on the GB `deprecated` type stamp or on FW-38's `lifecycle` field, and whether a hidden tag falls in scope (unlike a removed one, it renders).
+Open: Whether the warning triggers on the GB `deprecated` type stamp or on FW-38's `lifecycle` field, and whether it covers every registered state (a hidden tag and a suppressed stub both render or answer in the editor, unlike a removed one).
 
 Blocked by: —  •  Interacts with: FW-38 (`lifecycle` is a candidate trigger), FW-150 (retires the `term_*` entries the 1.20.0 window left), FW-104 (the deprecation-mode setting governs the same registrations)
 

@@ -499,6 +499,8 @@ Registering a tag with `'visibility' => false` removes it from the "Select a dyn
 - **One visible difference.** The "Select a dynamic tag" box is blank for a hidden tag, where a visible tag shows its title, because that box looks the value up in the filtered list. Nothing else marks the tag as hidden: no badge in the preview, none in the modal.
 - **It is not access control.** The filter is client-side. A hand-typed `{{tag}}` in Edit mode still works and renders.
 - **Our own controls are unaffected.** A real `try_text` hidden with `visibility` false after our registration (a throwaway `mu-plugin` setting it through reflection) rendered on the front end and in the preview, and its modal showed every attempt, field, separator, link and fallback control.
+- **A hidden tag needs no registered options.** One registered with none (measured 2026-10-23, GB 2.5.0, a throwaway tag with `visibility` false, a `description` and a space as its return) opens a modal with a blank picker box, the `description`, an editable tag string and GB's Required checkbox, and nothing else. Options in the stored string that nothing registers survive "Insert dynamic tag", though GB rewrites the string with `required` first. A string typed into the box is stored verbatim.
+- **A space keeps the block where an empty string kills it.** GB removes the block when a replacement is falsy, so a callback returning `' '` instead of `''` keeps it and the text around the tag. Measured the same day: `before {{tag}} after` rendered as `before   after`, and `href="{{tag}}"` rendered as `href=""`. `includes/hooks.php` uses the same device for `as:alt`.
 
 #### `visibility` blind spot — `img`/`picture` is unreachable (verified GB 2.3.0, 2026-07-21)
 
