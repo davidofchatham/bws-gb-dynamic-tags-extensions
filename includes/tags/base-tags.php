@@ -140,6 +140,9 @@ function bws_register_base_tags(): void {
 		'tag'      => 'content',
 		'type'     => 'cross-source',
 		'supports' => array(),
+		// Help text in the tag selector / modal. Like {{table}}, the output is block-level
+		// markup (post content is wpautop'd), so the host element must be a block container.
+		'description' => __( 'Outputs post content or excerpt, term description, a rich-text meta field, user bio, post type description, or GeneratePress\'s 404 text, as block-level markup. Place it in a <div> or other block container, not inside a <p> or <span>.', 'generateblocks' ),
 		'options'  => bws_prepare_registration_options( array_merge(
 			$source_opt_fu,
 			$traversal_opts,

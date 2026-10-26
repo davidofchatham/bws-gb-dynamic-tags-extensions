@@ -12,6 +12,8 @@ All notable changes to this project are documented in this file. The format is b
 
 - **Each old tag on the settings page shows its current registration.** A row now ends with "registered, hidden", "registered, listed" or "migration only" (the tag is not registered and its entry exists only so the Migration Tool can convert it), or points to the Tag Name Conflicts block when another plugin holds the name. The label is display only and never moves a tag between boxes.
 
+- **`{{content}}` now has a tag description with a placement warning.** The tag selector lists what it can output (post content or excerpt, term description, a rich-text meta field, user bio, post type description, GeneratePress's 404 text) and says it is block-level markup, so it belongs in a `<div>` or other block container and not inside a `<p>` or `<span>`, as `{{table}}` already says.
+
 ### Changed
 
 - **The settings page's Removed boxes are now Retired.** The Removed tags and Removed options boxes are renamed Retired, with the same entries in them, and the option boxes follow the same two names. Nothing moves between boxes.

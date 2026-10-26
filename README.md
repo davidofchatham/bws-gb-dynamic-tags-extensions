@@ -9,7 +9,7 @@ A [GenerateBlocks Pro](https://generatepress.com/blocks/) extension with advance
 | `text` | Simple meta/option text fields or post title/term name. | | `try_text` |
 | `title` | Post titles, term names, user display names, archive labels, date spans, search and 404 headings, or the site name (for a blog homepage). | | `try_title` |
 | `permalink` | Post/term permalink or site URL. | | `try_permalink` |
-| [`content`](#content-output-long-form-content) | Post content, term description, user bio, post type description, or GeneratePress's 404 text, via a processing pipeline that handles block-rendered content safely, including consolidating block CSS for embedded post content into the page footer. | Since there's no site-wide body/content field, an option field name must be supplied to use this tag with the *Site* source. | `try_content` |
+| [`content`](#content-output-long-form-content) | Post content or excerpt, term description, a rich-text meta field, user bio, post type description, or GeneratePress's 404 text, via a processing pipeline that handles block-rendered content safely, including consolidating block CSS for embedded post content into the page footer. | Since there's no site-wide body/content field, an option field name must be supplied to use this tag with the *Site* source. | `try_content` |
 | `image` | An image from a meta field or the post featured image or site logo field, with return options like GB's (alt text, etc.) and a Media Library fallback image selector. | Since terms have no native image fields, a field name must be supplied to retrieve images from a term source. | `try_image` |
 | `datetime_single` | Combined datetime fields, or separate date and time fields, formatted as a single date and time. By default, also hides midnight times and the current year. Multi-result sources can render a delimited date list. | | `try_datetime_single` |
 | `datetime_range` | Like `datetime_single`, but formats a range from separate start and end fields. In a range list, the result separator joins whole ranges while the range separator stays between each start and end. | | `try_datetime_range` |
@@ -103,7 +103,7 @@ If you use GB's `{{featured_image key:alt|…}}` for alt text, an image that exi
 
 ### `content`: Output long-form content
 
-One portable tag for long-form content in any context. GeneratePress's Post Content block is the only native way to output full post content, and GenerateBlocks' `archive_description` covers term, post type and author descriptions but is empty outside an archive. `content` returns whichever fits where it renders: post content, term description, user bio, post type description, or GeneratePress's "not found" text on a 404.
+One portable tag for long-form content in any context. GeneratePress's Post Content block is the only native way to output full post content, and GenerateBlocks' `archive_description` covers term, post type and author descriptions but is empty outside an archive. `content` returns whichever fits where it renders: post content or excerpt, term description, a rich-text meta field, user bio, post type description, or GeneratePress's "not found" text on a 404.
 
 - **Post content renders safely inside a tag.** Blocks render as they would on the post itself, their CSS is gathered into the page footer, and a post that ends up showing itself is cut off instead of looping.
 - **Excerpt** returns the post excerpt instead, and **a field key** returns any long-form field, from a related post or a repeater row as much as from the page itself.
