@@ -76,3 +76,39 @@ function bws_core_blocks_enabled(): array {
 function bws_core_blocks_allow( $allowed ): array {
 	return array_values( array_unique( array_merge( is_array( $allowed ) ? $allowed : array(), bws_core_blocks_enabled() ) ) );
 }
+
+/**
+ * GB's block-context keys a tag reads to see the loop item it sits in. Not a block's to
+ * declare for itself: a core block does not use them unless we add them.
+ *
+ * @since Unreleased
+ */
+const BWS_CORE_BLOCKS_LOOP_CONTEXT = array(
+	'generateblocks/loopItem',
+	'generateblocks/loopIndex',
+	'generateblocks/queryType',
+	'generateblocks/queryId',
+	'generateblocks/queryData',
+	'postId',
+	'postType',
+);
+
+/**
+ * `init` pass: add GB's loop keys to each enabled block type's registered `uses_context`.
+ *
+ * Without them a core block never receives the loop item, so a row-reading tag in it would
+ * silently read the page instead (spec invariant 2). Existing keys are kept in place, missing
+ * ones appended; an unregistered name is skipped; an empty set writes nothing. Runs after every
+ * block has registered, so it is one late write rather than a `register_block_type_args` hook.
+ *
+ * @since Unreleased
+ */
+function bws_core_blocks_add_loop_context(): void {
+	$registry = \WP_Block_Type_Registry::get_instance();
+	foreach ( bws_core_blocks_enabled() as $name ) {
+		$type = $registry->get_registered( $name );
+		if ( $type ) {
+			$type->uses_context = array_values( array_unique( array_merge( (array) $type->uses_context, BWS_CORE_BLOCKS_LOOP_CONTEXT ) ) );
+		}
+	}
+}

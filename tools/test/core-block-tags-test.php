@@ -39,6 +39,20 @@ function apply_filters( $tag, $value, ...$rest ) {
 	}
 	return $value;
 }
+function add_action( $tag, $fn, $priority = 10, $args = 1 ) {
+	$GLOBALS['__actions'][ $tag ][] = array( $fn, $priority );
+	return true;
+}
+/** Minimal registry: just the get_registered() the pass reads, handing back live WP_Block_Type-like objects. */
+class WP_Block_Type_Registry {
+	public static $types = array();
+	public static function get_instance() {
+		return new self();
+	}
+	public function get_registered( $name ) {
+		return self::$types[ $name ] ?? null;
+	}
+}
 function get_option( $name, $default = false ) {
 	return $GLOBALS['__option'][ $name ] ?? $default;
 }
@@ -142,6 +156,42 @@ assert_same( 'set is appended; GB entries not duplicated', array( 'generateblock
 
 with_saved( array( 'core/paragraph' ) );
 assert_same( 'a non-array GB value is treated as empty list', array( 'core/paragraph' ), apply_filters( $gb, null ) );
+
+echo "§4 — the loop-key pass\n";
+$loop_keys = array( 'generateblocks/loopItem', 'generateblocks/loopIndex', 'generateblocks/queryType', 'generateblocks/queryId', 'generateblocks/queryData', 'postId', 'postType' );
+
+/** Register fake block types (name => uses_context) and run the pass. */
+function run_pass( array $types ): array {
+	WP_Block_Type_Registry::$types = array();
+	foreach ( $types as $name => $uses ) {
+		WP_Block_Type_Registry::$types[ $name ] = (object) array( 'uses_context' => $uses );
+	}
+	bws_core_blocks_add_loop_context();
+	return array_map( fn( $t ) => $t->uses_context, WP_Block_Type_Registry::$types );
+}
+
+$hooked = array_filter( $GLOBALS['__actions']['init'] ?? array(), fn( $a ) => 'bws_core_blocks_add_loop_context' === $a[0] );
+assert_same( 'hooks.php registers the pass on init', 1, count( $hooked ) );
+assert_same( 'the pass runs after core and plugin block registration (priority > 10)', true, $hooked && array_values( $hooked )[0][1] > 10 );
+
+with_saved( array( 'core/paragraph' ) );
+$out = run_pass( array( 'core/paragraph' => array(), 'core/heading' => array() ) );
+assert_same( 'keys added to a selected block with no context', $loop_keys, $out['core/paragraph'] );
+assert_same( 'an unselected block is untouched', array(), $out['core/heading'] );
+
+$out = run_pass( array( 'core/paragraph' => array( 'postId', 'acme/custom' ) ) );
+assert_same( 'existing keys kept in place, missing keys appended once', array( 'postId', 'acme/custom', 'generateblocks/loopItem', 'generateblocks/loopIndex', 'generateblocks/queryType', 'generateblocks/queryId', 'generateblocks/queryData', 'postType' ), $out['core/paragraph'] );
+
+$again = run_pass( array( 'core/paragraph' => $out['core/paragraph'] ) );
+assert_same( 'a second run changes nothing (idempotent)', $out['core/paragraph'], $again['core/paragraph'] );
+
+with_saved( array( 'core/paragraph', 'acme/not-registered' ) );
+$out = run_pass( array( 'core/paragraph' => array() ) );
+assert_same( 'a selected name that is not registered is skipped without error', $loop_keys, $out['core/paragraph'] );
+
+with_saved( array() );
+$out = run_pass( array( 'core/paragraph' => array(), 'core/heading' => array( 'postId' ) ) );
+assert_same( 'empty set touches no block type', array( 'core/paragraph' => array(), 'core/heading' => array( 'postId' ) ), $out );
 
 echo "\n{$count} assertions, {$failures} failed\n";
 exit( $failures ? 1 : 0 );
