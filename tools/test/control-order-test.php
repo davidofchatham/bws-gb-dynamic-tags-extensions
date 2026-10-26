@@ -1002,7 +1002,7 @@ foreach ( \BWS\DynamicTags\MigrationRegistry::get_by_type( 'tag' ) as $entry ) {
 		$term_live[] = $entry['match_tag'];
 	}
 }
-assert_same( 'no term_ entry reads live (settings page lists them under Removed)', array(), $term_live );
+assert_same( 'no term_ entry reads live (settings page lists them under Retired)', array(), $term_live );
 assert_same(
 	'the shipped term_ migrations call passes lifecycle retired',
 	1,
@@ -1045,7 +1045,7 @@ assert_same(
 	array( $seam_rec['seam_hidden']['tag'] ?? null, $seam_rec['seam_hidden']['title'] ?? null, isset( $seam_rec['seam_hidden']['return'] ) )
 );
 
-// --- C2. the settings-page marker over that record --------------------------
+// --- C5. the settings-page marker over that record --------------------------
 
 // bws_gb_registration_marker() is the pure decision the Deprecated/Retired rows print. It is
 // driven here by the real record and GB's real (stub) registry, so the three states a row can

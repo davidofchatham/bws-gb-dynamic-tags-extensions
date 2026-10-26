@@ -72,6 +72,12 @@ if ( ! function_exists( 'sanitize_key' ) ) {
 if ( ! function_exists( 'apply_filters' ) ) {
 	function apply_filters( $hook, $value ) { return $value; }
 }
+$GLOBALS['bws_doing_it_wrong'] = array();
+if ( ! function_exists( '_doing_it_wrong' ) ) {
+	function _doing_it_wrong( $fn, $message, $version ) {
+		$GLOBALS['bws_doing_it_wrong'][] = array( $fn, $message, $version );
+	}
+}
 
 require __DIR__ . '/../../includes/helpers/serialization-order.php';
 // bws_root_argument_row() — the normalizer bws_modifier_root_facts() reads a declaration
@@ -562,15 +568,11 @@ assert_eq( 'V5.13c lifecycle => deprecated classifies live, and sits in the live
 		MigrationRegistry::is_entry_live( $entry_for( 'lc_dep' ) ),
 		in_array( 'lc_dep', array_column( MigrationRegistry::get_by_type_and_liveness( 'tag', true ), 'match_tag' ), true ),
 	) );
-$rejected = '';
-try {
-	MigrationRegistry::register( array( 'type' => 'tag', 'match_tag' => 'lc_bad', 'lifecycle' => 'removed' ) );
-} catch ( \InvalidArgumentException $e ) {
-	$rejected = $e->getMessage();
-}
-assert_eq( 'V5.13d an unknown lifecycle is rejected and registers nothing',
-	array( true, array() ),
-	array( '' !== $rejected, $entry_for( 'lc_bad' ) ) );
+$GLOBALS['bws_doing_it_wrong'] = array();
+MigrationRegistry::register( array( 'type' => 'tag', 'match_tag' => 'lc_bad', 'lifecycle' => 'removed' ) );
+assert_eq( 'V5.13d an unknown lifecycle raises a notice and the entry registers as retired',
+	array( 1, 'retired' ),
+	array( count( $GLOBALS['bws_doing_it_wrong'] ), $entry_for( 'lc_bad' )['lifecycle'] ?? '' ) );
 assert_eq( 'V5.13e option entries are untouched: no lifecycle is stamped on them',
 	false,
 	array_key_exists( 'lifecycle', ( static function () {

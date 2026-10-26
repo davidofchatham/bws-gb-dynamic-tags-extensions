@@ -173,16 +173,8 @@ function bws_gb_tags_we_registered( array $record = array() ): array {
  * worse one: `{{text}}` keeps rendering, on every page that already used it, through
  * somebody else's callback.
  *
- * AXIS — A TAG IS STILL OURS IFF THE CALLABLE GB HOLDS FOR IT IS IDENTICALLY THE ONE WE
- * HANDED OVER. Not the title, not the option array: the callable is what runs at render, so
- * it is the thing whose replacement changes what a page outputs, and it is the only field
- * of the registration a stranger cannot coincidentally match. Identity is `===` against the
- * value recorded at registration, which is exact for every shape we pass — our tags
- * register either a function-name string (`'bws_base_text_callback'`) or a Closure built
- * once during the pass, and `===` compares a string by value and a Closure by object
- * identity. Nothing mutates GB's entries in place: its registry is a private static array
- * written only by the constructor, so a differing callable means a re-registration and
- * nothing else. A name that has vanished from the registry entirely counts as lost too.
+ * What counts as "no longer ours" is decided in bws_gb_tag_is_still_ours(); a name that has
+ * vanished from GB's registry entirely counts as lost too.
  *
  * ONE PASS OVER WHAT WE REGISTERED, on `wp_loaded` at PHP_INT_MAX. No transient: the
  * finding is about the plugin set live in THIS request, and a stored copy would outlive the
@@ -233,8 +225,19 @@ function bws_gb_recheck_tag_ownership(): void {
 /**
  * Whether GB's current entry for a name is still the registration we handed it.
  *
- * The ownership rule itself is stated at bws_gb_recheck_tag_ownership(); this is its one
- * comparison, shared by the late pass and the settings-page marker so the two cannot disagree.
+ * AXIS — A TAG IS STILL OURS IFF THE CALLABLE GB HOLDS FOR IT IS IDENTICALLY THE ONE WE
+ * HANDED OVER. Not the title, not the option array: the callable is what runs at render, so
+ * it is the thing whose replacement changes what a page outputs, and it is the only field
+ * of the registration a stranger cannot coincidentally match. Identity is `===` against the
+ * value recorded at registration, which is exact for every shape we pass — our tags
+ * register either a function-name string (`'bws_base_text_callback'`) or a Closure built
+ * once during the pass, and `===` compares a string by value and a Closure by object
+ * identity. Nothing mutates GB's entries in place: its registry is a private static array
+ * written only by the constructor, so a differing callable means a re-registration and
+ * nothing else.
+ *
+ * This is the one comparison, shared by the late pass in bws_gb_recheck_tag_ownership() and
+ * the settings-page marker so the two cannot disagree.
  *
  * @since Unreleased
  * @internal
@@ -249,11 +252,12 @@ function bws_gb_tag_is_still_ours( array $mine, ?array $now ): bool {
 /**
  * The registration state a settings-page row shows for one tag name.
  *
- * DISPLAY ONLY. The answer never decides which box a row sits in, what the scan hides or what
- * the allowlist holds: those follow the entry's `lifecycle`, and this function is not called
- * from, and must not be called by, any of that code. It reads two things the caller hands in --
- * our own record and GB's current entry -- and reads nothing else, so it carries no load-order
- * or toggle dependence of its own. Whether the name is still ours is bws_gb_tag_is_still_ours().
+ * DISPLAY ONLY. The answer is never an input to classification: it does not decide which box a
+ * row sits in, what the scan hides or what the allowlist holds, and this function is not called
+ * from, and must not be called by, any of that code (what does decide is
+ * MigrationRegistry::register()'s PHPDoc). It reads two things the caller hands in -- our own
+ * record and GB's current entry -- and reads nothing else, so it carries no load-order or
+ * toggle dependence of its own. Whether the name is still ours is bws_gb_tag_is_still_ours().
  *
  * Returns one of:
  *   'hidden'          -- we registered it with `hidden => true` and GB still holds ours.

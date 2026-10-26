@@ -593,8 +593,10 @@ class SettingsPage {
 	 *
 	 * Entry classification (Deprecated vs Retired) is MigrationRegistry::is_entry_live()
 	 * (CONTEXT.md I10). A tag row's registration marker is display only and is never an input
-	 * to classification, the scan-aware hiding or the allowlist. The allowlist hide-filter (positive list) and the "show all" bypass are
-	 * TagConverter::get_allowlist() / the `bws_dynamic_tags_show_all_deprecated` filter (V7/V8, PHPDoc there).
+	 * to classification, the scan-aware hiding or the allowlist (MigrationRegistry::register()'s
+	 * PHPDoc owns what classifies). The allowlist hide-filter (positive list) and the "show all"
+	 * bypass are TagConverter::get_allowlist() / the `bws_dynamic_tags_show_all_deprecated`
+	 * filter (V7/V8, PHPDoc there).
 	 */
 	/**
 	 * One list of migration entries. Flat by default; collapsed behind its count only when
@@ -621,12 +623,19 @@ class SettingsPage {
 	 * never registered needs no read to be "migration only".
 	 */
 	private static function tag_rows_html( array $entries ): string {
-		$ours = function_exists( 'bws_gb_tags_we_registered' ) ? bws_gb_tags_we_registered() : array();
-		$live = $ours && class_exists( 'GenerateBlocks_Register_Dynamic_Tag' ) ? \GenerateBlocks_Register_Dynamic_Tag::get_tags() : array();
+		$have_marker = function_exists( 'bws_gb_tags_we_registered' ) && function_exists( 'bws_gb_registration_marker' );
+		$ours        = $have_marker ? bws_gb_tags_we_registered() : array();
+		$live        = $ours && class_exists( 'GenerateBlocks_Register_Dynamic_Tag' ) ? \GenerateBlocks_Register_Dynamic_Tag::get_tags() : array();
+		// One entry per state bws_gb_registration_marker() can return; every value is escaped here.
 		$marker_text = array(
-			'hidden'         => __( 'registered, hidden', 'generateblocks' ),
-			'listed'         => __( 'registered, listed', 'generateblocks' ),
-			'migration-only' => __( 'migration only', 'generateblocks' ),
+			'hidden'          => esc_html__( 'registered, hidden', 'generateblocks' ),
+			'listed'          => esc_html__( 'registered, listed', 'generateblocks' ),
+			'migration-only'  => esc_html__( 'migration only', 'generateblocks' ),
+			'other-registrar' => sprintf(
+				/* translators: %s: link to the Tag Name Conflicts section */
+				esc_html__( 'another plugin holds this name, see %s', 'generateblocks' ),
+				'<a href="#bws-tag-name-conflicts">' . esc_html__( 'Tag Name Conflicts', 'generateblocks' ) . '</a>'
+			),
 		);
 		ob_start();
 		foreach ( $entries as $entry ) :
@@ -651,14 +660,8 @@ class SettingsPage {
 						__( '(since %s)', 'generateblocks' ), $since
 					) ); ?></span>
 					<?php endif; ?>
-						<?php $state = bws_gb_registration_marker( $ours[ $old_tag ] ?? null, $live[ $old_tag ] ?? null ); ?>
-						<span class="bws-dep-since bws-dep-registration">
-							<?php if ( 'other-registrar' === $state ) : ?>
-							(<?php esc_html_e( 'another plugin holds this name, see', 'generateblocks' ); ?> <a href="#bws-tag-name-conflicts"><?php esc_html_e( 'Tag Name Conflicts', 'generateblocks' ); ?></a>)
-							<?php else : ?>
-							<?php echo esc_html( '(' . $marker_text[ $state ] . ')' ); ?>
-							<?php endif; ?>
-						</span>
+						<?php $state = $have_marker ? bws_gb_registration_marker( $ours[ $old_tag ] ?? null, $live[ $old_tag ] ?? null ) : 'migration-only'; ?>
+						<span class="bws-dep-since bws-dep-registration"><?php echo '(' . $marker_text[ $state ] . ')'; // phpcs:ignore WordPress.Security.EscapeOutput -- escaped where built. ?></span>
 				</td>
 			</tr>
 			<?php
@@ -943,7 +946,7 @@ function my_result( $post_id, $arg = '' ) {
 					</div>
 				</div>
 
-				<?php /* ── Deprecated Tags (still GB-registered; K/S/D applies) ── */ ?>
+				<?php /* ── Deprecated Tags (lifecycle 'deprecated'; registered hidden or migration-only, never listed; the K/S/D controls are FW-81's to rewire) ── */ ?>
 				<?php if ( ! empty( $live_with ) || ! empty( $live_without ) ) : ?>
 				<div class="bws-tag-group">
 					<h2 class="bws-section-header"><?php esc_html_e( 'Deprecated Tags', 'generateblocks' ); ?></h2>

@@ -75,7 +75,8 @@ class MigrationRegistry {
 	 *   @type string  $description     GB tag description (auto-generated if omitted).
 	 *   @type string  $gb_type         Always overwritten to 'deprecated' for 'tag' entries.
 	 *   @type string  $lifecycle       Hand-set intent, 'deprecated' or 'retired'; anything else
-	 *                                   throws InvalidArgumentException. THE OWNER of what the two
+	 *                                   raises a `_doing_it_wrong()` notice and is stored as
+	 *                                   'retired' (the entry still registers). THE OWNER of what the two
 	 *                                   mean; the settings page and CONTEXT.md state consequences.
 	 *                                   'deprecated': a replacement exists and the tag still works
 	 *                                   as before, so the converter offers the migration.
@@ -115,9 +116,16 @@ class MigrationRegistry {
 			$args['gb_type']   = 'deprecated';
 			$args['lifecycle'] = $args['lifecycle'] ?? 'retired';
 			if ( ! in_array( $args['lifecycle'], array( 'deprecated', 'retired' ), true ) ) {
-				throw new \InvalidArgumentException(
-					'MigrationRegistry::register(): lifecycle must be "deprecated" or "retired".'
+				_doing_it_wrong(
+					__METHOD__,
+					sprintf(
+						'Unknown lifecycle "%1$s" on tag entry "%2$s"; it must be "deprecated" or "retired". Registered as "retired".',
+						is_scalar( $args['lifecycle'] ) ? (string) $args['lifecycle'] : gettype( $args['lifecycle'] ),
+						(string) ( $args['match_tag'] ?? '' )
+					),
+					'Unreleased'
 				);
+				$args['lifecycle'] = 'retired';
 			}
 		}
 

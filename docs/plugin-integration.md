@@ -283,7 +283,7 @@ add_action( 'bws_dynamic_tags_register_sources', function () {
 | `combine_options` | New key to `array( 'when_present' => $flag_key, 'value_from' => $value_key )`: folds a presence flag and a value into one key. Applied before `option_renames`. |
 | `fixed_options` | Key/value pairs always added on migration. |
 | `transform_callback` | `fn( string $tag_string ): string` that replaces all of the above, for a reshape the declarative keys cannot express. Return the string unchanged when there is nothing to do. |
-| `lifecycle` | `'deprecated'` or `'retired'`; any other value throws `InvalidArgumentException`. Files the entry under **Deprecated Tags** or **Retired Tags** on the settings page. `'deprecated'`: a replacement exists and the old tag still works as before. `'retired'`: unsupported. Defaults to `'retired'`, so an entry that does not say is filed as Retired. |
+| `lifecycle` | `'deprecated'` or `'retired'`; any other value raises a `_doing_it_wrong()` notice and is filed as Retired. Files the entry under **Deprecated Tags** or **Retired Tags** on the settings page. `'deprecated'`: a replacement exists and the old tag still works as before. `'retired'`: unsupported. Defaults to `'retired'`, so an entry that does not say is filed as Retired. |
 
 `callback`, `prefix_removed`, `title`, `supports`, `options`, `description` and `gb_type` are accepted for compatibility and unused. In particular a `callback` no longer files an entry under Deprecated; set `lifecycle` instead.
 

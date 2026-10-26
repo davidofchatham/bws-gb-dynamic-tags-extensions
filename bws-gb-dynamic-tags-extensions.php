@@ -189,7 +189,7 @@ function bws_dynamic_tags_init() {
 	// the reasoning, and what it still cannot see, are at bws_gb_recheck_tag_ownership().
 	add_action( 'wp_loaded', 'bws_gb_recheck_tag_ownership', PHP_INT_MAX );
 
-	// Rebuild the deprecated/removed scan allowlist once per version change (a fresh
+	// Rebuild the deprecated/retired scan allowlist once per version change (a fresh
 	// install has no stored version either, so it falls through this same check on its
 	// first request). Priority 25 — after tag registration (20) so MigrationRegistry is
 	// fully populated before scan().
