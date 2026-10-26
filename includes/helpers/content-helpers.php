@@ -436,7 +436,9 @@ function bws_markup_has_block_level_tag( string $markup ): bool {
 		'strong', 'em', 'b', 'i', 'span', 'code', 'sub', 'sup', 'mark', 'small',
 		'del', 'ins', 'cite', 'q', 'abbr', 'br', 'a', 'img',
 	);
-	if ( ! preg_match_all( '/<\/?([a-z][a-z0-9-]*)/i', $markup, $m ) ) {
+	// A name only counts when the tag ends there (`<john@x.com>` is text); comments go first.
+	$markup = preg_replace( '/<!--.*?-->/s', '', $markup );
+	if ( ! preg_match_all( '/<\/?([a-z][a-z0-9-]*)(?=[\s\/>])/i', $markup, $m ) ) {
 		return false;
 	}
 	return (bool) array_diff( array_map( 'strtolower', $m[1] ), $inline );

@@ -32,7 +32,9 @@ $cases    = array(
 	array( 'closing tag only',            'x</p>',                                       true ),
 	array( 'custom element',              '<my-widget>x</my-widget>',                    true ),
 	array( 'comment is not a tag',        '<!-- note --> text',                          false ),
-	array( 'comment hiding a block',      '<!-- wp:paragraph --><p>x</p>',               true ),
+	array( 'block comment, block after it','<!-- wp:paragraph --><p>x</p>',              true ),
+	array( 'tag only inside a comment',   '<!-- <p>x</p> --> text',                      false ),
+	array( 'angle-bracket email is text', 'Write to <john@example.com> today',           false ),
 	array( 'lone angle bracket',          '3 < 4 and 5 > 2',                             false ),
 );
 
