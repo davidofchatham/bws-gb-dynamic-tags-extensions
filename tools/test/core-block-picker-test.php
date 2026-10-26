@@ -206,8 +206,8 @@ class WP_Block_Type_Registry {
 	public static function get_instance() {
 		return new self();
 	}
-	public function is_registered( $name ) {
-		return true;
+	public function get_registered( $name ) {
+		return (object) array( 'uses_context' => BWS_CORE_BLOCKS_LOOP_CONTEXT );
 	}
 }
 // Declared conditionally so it is not hoisted above the 'GB absent' assertion.

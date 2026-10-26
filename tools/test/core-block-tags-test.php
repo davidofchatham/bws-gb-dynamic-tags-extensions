@@ -151,7 +151,8 @@ echo "§3 — GB allowlist hook\n";
 $gb = 'generateblocks_dynamic_tags_allowed_blocks';
 assert_same( 'hooks.php registers the GB allowlist filter', true, ! empty( $GLOBALS['__filters'][ $gb ] ) );
 
-WP_Block_Type_Registry::$types = array( 'core/paragraph' => (object) array(), 'core/heading' => (object) array(), 'generateblocks/text' => (object) array() );
+$with_keys = (object) array( 'uses_context' => BWS_CORE_BLOCKS_LOOP_CONTEXT );
+WP_Block_Type_Registry::$types = array( 'core/paragraph' => $with_keys, 'core/heading' => $with_keys, 'generateblocks/text' => $with_keys );
 
 with_saved( null );
 assert_same( 'empty set leaves GB list byte-identical', array( 'generateblocks/text' ), apply_filters( $gb, array( 'generateblocks/text' ) ) );
@@ -166,8 +167,22 @@ with_saved( array( 'core/paragraph', 'acme/deactivated-block' ) );
 assert_same( 'an unregistered name is withheld from GB (it would get no loop keys)', array( 'core/paragraph' ), apply_filters( $gb, array() ) );
 assert_same( 'the same name stays in the enabled set, so the selection survives', array( 'core/paragraph', 'acme/deactivated-block' ), bws_core_blocks_enabled() );
 
-WP_Block_Type_Registry::$types['acme/deactivated-block'] = (object) array();
-assert_same( 'once the plugin is back and the block registers, it is allowed again', array( 'core/paragraph', 'acme/deactivated-block' ), apply_filters( $gb, array() ) );
+WP_Block_Type_Registry::$types['acme/deactivated-block'] = (object) array( 'uses_context' => array() );
+assert_same( 'a block registered without the loop keys (a late registration) is withheld, so it prints literally rather than reading the page', array( 'core/paragraph' ), apply_filters( $gb, array() ) );
+
+WP_Block_Type_Registry::$types['acme/deactivated-block'] = (object) array( 'uses_context' => array_slice( BWS_CORE_BLOCKS_LOOP_CONTEXT, 0, -1 ) );
+assert_same( 'a block carrying only some of the loop keys is still withheld', array( 'core/paragraph' ), apply_filters( $gb, array() ) );
+
+WP_Block_Type_Registry::$types['acme/deactivated-block'] = (object) array( 'uses_context' => array_merge( array( 'acme/own' ), BWS_CORE_BLOCKS_LOOP_CONTEXT ) );
+assert_same( 'once the block carries every loop key, it is allowed', array( 'core/paragraph', 'acme/deactivated-block' ), apply_filters( $gb, array() ) );
+
+echo "§3b — the shared name predicates
+";
+assert_same( 'a namespace/name slug is a block name', true, bws_core_blocks_is_block_name( 'core/paragraph' ) );
+assert_same( 'a bare word, an uppercase slug and a non-string are not', array( false, false, false ), array( bws_core_blocks_is_block_name( 'paragraph' ), bws_core_blocks_is_block_name( 'Core/Paragraph' ), bws_core_blocks_is_block_name( 7 ) ) );
+assert_same( 'the cleaner trims and keeps only block names', array( 'core/heading' ), bws_core_blocks_clean( array( ' core/heading ', 'nope', 3 ) ) );
+assert_same( 'GenerateBlocks and GB Pro namespaces are its own', array( true, true ), array( bws_core_blocks_is_gb_own( 'generateblocks/text' ), bws_core_blocks_is_gb_own( 'generateblocks-pro/chart' ) ) );
+assert_same( 'a core block, and a lookalike namespace, are not', array( false, false ), array( bws_core_blocks_is_gb_own( 'core/paragraph' ), bws_core_blocks_is_gb_own( 'generateblocksx/text' ) ) );
 
 echo "§4 — the loop-key pass\n";
 $loop_keys = array( 'generateblocks/loopItem', 'generateblocks/loopIndex', 'generateblocks/queryType', 'generateblocks/queryId', 'generateblocks/queryData', 'postId', 'postType' );

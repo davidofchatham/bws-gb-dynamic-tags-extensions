@@ -244,24 +244,17 @@ Allow-list (`:350-364`): `generateblocks/element`, `loop-item`, `looper`, `media
 `query-page-numbers`, `shape`, `text`. **Gated on NAME only** — not on attributes, not on content.
 A `{{tag}}` inside any other block renders as its literal string.
 
-**The list is filterable: `generateblocks_dynamic_tags_allowed_blocks`.** Adding a core block name
-to it makes GB process tags inside that block's rendered output. This plugin hooks
-it for the block types a site selects ([`tag-reference.md` §Tags in core blocks](tag-reference.md#tags-in-core-blocks-unreleased)). `replace_tags()` asks `get_allowed_blocks()` for every block it renders, so the list is read at render time, and the save gate reads the same list (§Dynamic data is suppressed by POST SOURCE below), so a block type added to it widens both. What makes the extension viable on the GB side: the replacement is a pure regex over `$content`,
-markup-agnostic and fast-pathed by a `generateblocks_str_contains( $block_html, '{{' )` guard
-(`class-register-dynamic-tag.php:111`) — it neither knows nor cares which block produced the HTML.
-Whether a given core block can actually *hold* a tag is a WP-core question, not a GB one.
+**The list is filterable: `generateblocks_dynamic_tags_allowed_blocks`.** Adding a core block name to it makes GB process tags inside that block's rendered output. This plugin hooks it for the block types a site selects ([`tag-reference.md` §Tags in core blocks](tag-reference.md#tags-in-core-blocks-unreleased)). `replace_tags()` asks `get_allowed_blocks()` for every block it renders, so the list is read at render time, and the save gate reads the same list (§Dynamic data is suppressed by POST SOURCE below), so a block type added to it widens both. What makes the extension viable on the GB side: the replacement is a pure regex over `$content`, markup-agnostic and fast-pathed by a `generateblocks_str_contains( $block_html, '{{' )` guard (`class-register-dynamic-tag.php:111`) — it neither knows nor cares which block produced the HTML. Whether a given core block can actually *hold* a tag is a WP-core question, not a GB one.
 
-Caveats when extending: the tag must be a **registered** GB dynamic tag (the pattern is built from
-`array_keys( $availableTags )`), dynamic-tag security/context still applies, and a non-GB block
-supplies **no loop context** by itself — only ambient-entity tags resolve there, until the block type's `uses_context` is extended (next section).
+Caveats when extending: the tag must be a **registered** GB dynamic tag (the pattern is built from `array_keys( $availableTags )`), dynamic-tag security/context still applies, and a non-GB block supplies **no loop context** by itself — only ambient-entity tags resolve there, until the block type's `uses_context` is extended (next section).
 
-## A late write to a block type's `uses_context` reaches the block at render (GB 2.5.0, GB Pro 2.8.0, WP 7.1.3)
+## A late write to a block type's `uses_context` reaches the block at render (GB 2.5.0, WP 7.1.3)
 
-Measured 2026-10-26 on the fixture site (versions as recorded in `tools/fixtures/core-structures/env-versions.php`). A core block does not declare GenerateBlocks' loop keys (`generateblocks/loopItem` and the rest), so inside a loop its `WP_Block::$context` lacks them. Writing them into the registered block type's `uses_context` on `init` at priority 99, after every block has registered, **does reach the block instance at render**: a `core/paragraph` inside a GB Pro `post_meta` repeater read the page's value before the write and the row's values after it, matching a `generateblocks/text` control beside it. A `WP_Query` loop rendered the row values even without the write. Not measured: other loop kinds (term, user), other WP or GB versions.
+Measured 2026-10-26 on the fixture site (versions as recorded in `tools/fixtures/core-structures/env-versions.php`). A core block does not declare GenerateBlocks' loop keys (`generateblocks/loopItem` and the rest), so inside a loop its `WP_Block::$context` lacks them. Writing them into the registered block type's `uses_context` on `init` at priority 99, after every block has registered, **does reach the block instance at render**: a `core/paragraph` inside a repeater loop read the page's value before the write and the row's values after it, matching a `generateblocks/text` control beside it. A `WP_Query` loop rendered the row values even without the write. Not measured: other loop kinds (term, user), other WP or GB versions.
 
 What the plugin does with it is stated in [`tag-reference.md` §Tags in core blocks](tag-reference.md#tags-in-core-blocks-unreleased).
 
-## GenerateBlocks runs `esc_url()` over a URL attribute after replacement (GB 2.5.0, GB Pro 2.8.0, WP 7.1.3)
+## GenerateBlocks runs `esc_url()` over a URL attribute after replacement (GB 2.5.0, WP 7.1.3)
 
 Measured 2026-10-26 on the fixture site (versions as recorded in `tools/fixtures/core-structures/env-versions.php`), on a `core/button` whose link held a tag. After a tag in a URL attribute such as `href` is replaced, GenerateBlocks passes the whole value through `esc_url()`. A value with no scheme comes back prefixed `http://` (`Director` became `http://Director`), spaces become `%20`, and a scheme already in the value survives: `mailto:` before an email tag rendered `mailto:blocks@example.test`, and `tel:` before a phone tag rendered `tel:(919)%20555-0134` for a stored `(919) 555-0134` and `tel:+19195550134` for a stored `+19195550134`. WordPress itself leaves the same literal `href` untouched, so the prefix is GenerateBlocks'. Not measured: how a phone dialer treats the percent-encoded spaces.
 

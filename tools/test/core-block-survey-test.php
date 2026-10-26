@@ -58,6 +58,7 @@ function esc_html( $text ) {
 	return htmlspecialchars( (string) $text, ENT_QUOTES );
 }
 
+require dirname( __DIR__, 2 ) . '/includes/helpers/core-block-tags.php';
 require dirname( __DIR__, 2 ) . '/includes/helpers/core-block-survey.php';
 
 $known = array( 'text' => true, 'phone' => true, 'table' => true, 'content' => true );

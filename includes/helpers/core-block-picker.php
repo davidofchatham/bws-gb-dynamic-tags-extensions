@@ -110,7 +110,7 @@ function bws_core_blocks_picker_rows( array $entries, array $categories, array $
 	$known   = array();
 	foreach ( $entries as $e ) {
 		$known[ $e['name'] ] = true;
-		$gb_own = 1 === preg_match( '#^generateblocks(-pro)?/#', $e['name'] );
+		$gb_own = bws_core_blocks_is_gb_own( $e['name'] );
 		if ( ( empty( $e['inserter'] ) || $gb_own || in_array( $e['name'], $native, true ) ) && ! in_array( $e['name'], $enabled, true ) ) {
 			continue;
 		}

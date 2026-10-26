@@ -99,7 +99,7 @@ function bws_core_blocks_survey_clean( $raw ): ?array {
 	}
 	$blocks = array();
 	foreach ( $raw['blocks'] as $name => $cell ) {
-		if ( is_string( $name ) && is_array( $cell ) && preg_match( '/^[a-z0-9][a-z0-9-]*\/[a-z0-9][a-z0-9-]*$/', $name ) ) {
+		if ( is_array( $cell ) && bws_core_blocks_is_block_name( $name ) ) {
 			$blocks[ $name ] = array(
 				'registered'   => (int) ( $cell['registered'] ?? 0 ),
 				'unregistered' => (int) ( $cell['unregistered'] ?? 0 ),

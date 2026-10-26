@@ -44,7 +44,7 @@ Text tag in a GB text block and in a `core/paragraph` side by side, inside a que
 | CB2.1 | GB Pro `post_meta` loop over this page's `team_members` | `{{text key:role}}` | `Design` / `Design`, then `Platform` / `Platform` | PASS 2026-10-26 |
 | CB2.2 | `WP_Query` loop over Jane Partner then Tom Associate | `{{text use:key\|key:main_line}}` | `(555) 200-3000` / `(555) 200-3000`, then `(555) 200-4000` / `(555) 200-4000` | PASS 2026-10-26 |
 
-CB2.1 is the row the late `uses_context` write exists for (measured before it shipped; the measurement and the GB/WP fact it rests on are in [`gb-constraints.md`](../../docs/gb-constraints.md#a-late-write-to-a-block-types-uses_context-reaches-the-block-at-render-gb-250-gb-pro-280-wp-713)).
+CB2.1 is the row the late `uses_context` write exists for (measured before it shipped; the measurement and the GB/WP fact it rests on are in [`gb-constraints.md`](../../docs/gb-constraints.md#a-late-write-to-a-block-types-uses_context-reaches-the-block-at-render-gb-250-wp-713)).
 
 ## CB3: `{{content}}` in an inline-only block
 
@@ -62,7 +62,7 @@ Block-level markup is reduced to inline text; a GB container is untouched. Lossy
 
 ## CB4: link-wrapping tags in `core/button`
 
-The same tag sits in the button's text and, in CB4.1 to 4.3, in its `href`. In a GB block each still wraps. The button's own link is not wrapped, and GenerateBlocks then runs `esc_url()` over it ([`gb-constraints.md`](../../docs/gb-constraints.md#generateblocks-runs-esc_url-over-a-url-attribute-after-replacement-gb-250-gb-pro-280-wp-713)), so a link with no scheme gains `http://`. An author who wants a mail or phone link types the scheme before the tag (CB4.7 to 4.9); the button note on the settings page says so.
+The same tag sits in the button's text and, in CB4.1 to 4.3, in its `href`. In a GB block each still wraps. The button's own link is not wrapped, and GenerateBlocks then runs `esc_url()` over it ([`gb-constraints.md`](../../docs/gb-constraints.md#generateblocks-runs-esc_url-over-a-url-attribute-after-replacement-gb-250-wp-713)), so a link with no scheme gains `http://`. An author who wants a mail or phone link types the scheme before the tag (CB4.7 to 4.9); the button note on the settings page says so.
 
 | # | Host | Tag (text, and link where noted) | Expected text | Expected rendered `href` | Status |
 |---|---|---|---|---|---|
