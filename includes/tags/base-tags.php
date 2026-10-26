@@ -1006,7 +1006,8 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 
 	$value = bws_base_content_resolve_value( (array) $options, $instance )['value'];
 	if ( '' !== $value ) {
-		return $value;
+		// An inline-only core host takes the value reduced to inline content (FW-156).
+		return bws_content_strip_for_host( $value, $block );
 	}
 
 	return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'content' ) : '';

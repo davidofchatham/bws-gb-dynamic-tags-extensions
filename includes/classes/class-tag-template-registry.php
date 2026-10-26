@@ -489,7 +489,8 @@ class TagTemplateRegistry {
 							$won['link_type']
 						);
 					}
-					return $value;
+					// The content slot's final value, reduced for an inline-only core host (FW-156).
+					return 'content' === $tpl_key ? bws_content_strip_for_host( $value, $b ) : $value;
 				}
 
 				$is_preview = ! empty( $inst->context['bwsEditorPreview'] );

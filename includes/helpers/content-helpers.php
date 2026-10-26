@@ -415,15 +415,31 @@ function bws_safe_content_output( $content, $options, $instance ) {
 }
 
 /**
+ * The tags that count as inline: THE vocabulary, for both questions asked of it.
+ *
+ * bws_markup_has_block_level_tag() asks "is anything outside this list present", and
+ * bws_markup_strip_to_inline() asks "keep what is on this list". A closed list, so an
+ * unknown or custom tag counts as block-level. `img` is inline because wpautop wraps a
+ * bare one in a paragraph.
+ *
+ * @since Unreleased
+ * @return string[] Lowercase tag names.
+ */
+if ( ! function_exists( 'bws_markup_inline_tags' ) ) {
+function bws_markup_inline_tags(): array {
+	return array(
+		'strong', 'em', 'b', 'i', 'span', 'code', 'sub', 'sup', 'mark', 'small',
+		'del', 'ins', 'cite', 'q', 'abbr', 'br', 'a', 'img',
+	);
+}
+}
+
+/**
  * Does a markup string carry any tag that is not inline?
  *
- * THE ONE OWNER of which tags are inline: the `{{content}}` block-level wrap asks it
- * (bws_base_content_resolve_value()), and the inline-only core-block strip (FW-156) is
- * to ask the same question, so the two cannot disagree. A closed list, so an unknown or
- * custom tag counts as block-level and the value is left untouched. Comments and
- * doctypes are not tags. `img` is inline because wpautop wraps a bare one in a paragraph.
- *
- * The strip's own refinement (`a` is dropped inside `core/button`) belongs to the strip.
+ * The `{{content}}` block-level wrap asks it (bws_base_content_resolve_value()); the
+ * inline-only core-block strip asks the same vocabulary (bws_markup_inline_tags()), so the
+ * two cannot disagree. Comments and doctypes are not tags.
  *
  * @since Unreleased
  *
@@ -432,15 +448,69 @@ function bws_safe_content_output( $content, $options, $instance ) {
  */
 if ( ! function_exists( 'bws_markup_has_block_level_tag' ) ) {
 function bws_markup_has_block_level_tag( string $markup ): bool {
-	static $inline = array(
-		'strong', 'em', 'b', 'i', 'span', 'code', 'sub', 'sup', 'mark', 'small',
-		'del', 'ins', 'cite', 'q', 'abbr', 'br', 'a', 'img',
-	);
 	// A name only counts when the tag ends there (`<john@x.com>` is text); comments go first.
 	$markup = preg_replace( '/<!--.*?-->/s', '', $markup );
 	if ( ! preg_match_all( '/<\/?([a-z][a-z0-9-]*)(?=[\s\/>])/i', $markup, $m ) ) {
 		return false;
 	}
-	return (bool) array_diff( array_map( 'strtolower', $m[1] ), $inline );
+	return (bool) array_diff( array_map( 'strtolower', $m[1] ), bws_markup_inline_tags() );
+}
+}
+
+/**
+ * Reduce markup to inline content: inline tags stay, every other tag goes and its text stays.
+ *
+ * Images and figures are dropped whole. A run of block tags (open or close) collapses, with
+ * the whitespace around it, to ONE space, never a `<br>`; the result is trimmed. Text between
+ * tags is otherwise untouched, so a bare run comes out as it went in. `img` is on the inline
+ * list but cannot live in an inline-only host, so it is dropped here as well. The kept `a` is
+ * the one refinement: when $keep_anchors is false (the host is itself the link) it goes too.
+ *
+ * @since Unreleased
+ *
+ * @param string $markup       Value to reduce.
+ * @param bool   $keep_anchors Whether `a` survives.
+ * @return string
+ */
+if ( ! function_exists( 'bws_markup_strip_to_inline' ) ) {
+function bws_markup_strip_to_inline( string $markup, bool $keep_anchors = true ): string {
+	$inline = bws_markup_inline_tags();
+	$gap    = "\x01";
+	$out    = preg_replace( array( '/<!--.*?-->/s', '/<figure(?=[\s\/>]).*?<\/figure\s*>/is' ), '', $markup );
+	$out    = preg_replace_callback(
+		'/<\/?([a-z][a-z0-9-]*)(?=[\s\/>])[^>]*>/i',
+		static function ( $m ) use ( $inline, $keep_anchors, $gap ) {
+			$name = strtolower( $m[1] );
+			if ( 'img' === $name || ( 'a' === $name && ! $keep_anchors ) ) {
+				return '';
+			}
+			return in_array( $name, $inline, true ) ? $m[0] : $gap;
+		},
+		$out
+	);
+	$out = preg_replace( '/\s*' . $gap . '[\s' . $gap . ']*/', ' ', $out );
+	return trim( $out );
+}
+}
+
+/**
+ * The final `{{content}}` value as the host block can hold it.
+ *
+ * Called from the two callback shells that have `$block` (bws_base_content_callback() and the
+ * `try_` content-slot arm), never from the resolve seam. An inline-only core block gets the
+ * value reduced to inline content, lossy by design; any other host gets it back untouched.
+ *
+ * @since Unreleased
+ *
+ * @param string $value Final value.
+ * @param mixed  $block GB block array passed to the tag callback (arg 2).
+ * @return string
+ */
+if ( ! function_exists( 'bws_content_strip_for_host' ) ) {
+function bws_content_strip_for_host( string $value, $block ): string {
+	if ( '' === $value || ! function_exists( 'bws_core_block_is_inline_only' ) || ! bws_core_block_is_inline_only( $block ) ) {
+		return $value;
+	}
+	return bws_markup_strip_to_inline( $value, ! bws_core_block_is_button( $block ) );
 }
 }
