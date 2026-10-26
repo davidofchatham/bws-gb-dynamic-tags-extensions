@@ -504,6 +504,40 @@ GB 2.4 guards dynamic data with a save gate and a render-time post-source taint 
 
 **Field discovery is not sent to a user who cannot use it.** The field-key envelope is inlined on editor load and served by a REST route; both now require the same predicate. This is not a value gate — the envelope carries field definitions and never values, which is already where GB Pro 2.7 landed. It is a reachability one: GB gives a user who fails the predicate no tag builder, and our editor controls mount only inside that builder, so the envelope reaches somebody with no way to use it. An untrusted editor load gets an empty envelope rather than none, because the control treats a missing one as "inline failed" and falls back to fetching the now-gated route.
 
+## Tags in core blocks **[UNRELEASED]**
+
+GenerateBlocks replaces dynamic tags only inside its own allowlisted blocks, so a tag typed into any other block prints literally ([`gb-constraints.md` §Replacement is gated on block NAME](gb-constraints.md#replacement-is-gated-on-block-name--and-the-gate-is-filterable)). The `core_blocks` setting opts other block types in.
+
+**The setting.** `core_blocks` inside `bws_dynamic_tags_settings`: a flat list of block names (`core/paragraph`), edited in the "Tags in Other Blocks" section at the top of the Tag Extensions settings page. Empty is off, and it is empty on install and upgrade (former snippet users included), so with nothing selected every page renders as before. Selection is per block type, never per block instance. The saved list is not checked against the registered blocks and is never pruned, so a deactivated plugin's selection survives a save and comes back with the plugin.
+
+**The enabled set.** The saved list passed through the `bws_dynamic_tags_core_blocks` filter ([`plugin-integration.md` §7](plugin-integration.md#7-enabling-tags-in-a-block-type-unreleased)). Everything below reads that one set. The settings page shows a block the filter adds as selected and locked ("Turned on by code on this site"), and shows a saved block whose type is no longer registered under "Not active on this site now".
+
+**What GenerateBlocks sees.** Only block types that are registered right now are added to GenerateBlocks' allowlist; a saved name with no registered type waits. Blocks GenerateBlocks already allowlists by itself, and blocks that hide themselves from the inserter (child blocks like List Item stay), are left off the list unless already enabled. Inner blocks are not included: GenerateBlocks looks only at a block's own markup, so a tag in a core block inside a GenerateBlocks container is filled in only when that core block's type is selected too. A block registered only in editor JavaScript is not listed.
+
+**Loop context.** An enabled block type receives GenerateBlocks' loop context, so a tag in it inside a query loop or a repeater reads the loop item, not the page ([`gb-constraints.md`](gb-constraints.md#a-late-write-to-a-block-types-uses_context-reaches-the-block-at-render-gb-250-gb-pro-280-wp-713)).
+
+**GenerateBlocks' own rules still apply, and the setting does not work around them.** A tag that resolves empty hides the whole block (unless the tag has `required:false`). A user who may not post unfiltered HTML cannot save content containing `{{` once any block type is selected, because the allowlist GenerateBlocks checks on save is the same list. The settings page says both beside the list.
+
+### Guards by host block
+
+Some core blocks hold text only. Where one does, a few tags adjust to it, and a block the plugin has not classified is left alone and marked "Not tested" on its row. Which blocks are classified, and which kind each is, is decided at `bws_core_block_kind()` (`link-helpers.php`); the table states what an author sees.
+
+| Host block | `{{table}}` | `{{content}}` and `{{try_content}}` | A tag that would print a link (`linkTo`, `{{email}}`, `{{phone}}`) |
+|---|---|---|---|
+| Paragraph, Heading, List Item | Prints nothing, so GenerateBlocks hides the block | Reduced to inline content (below) | Unchanged |
+| Table | Prints nothing, so GenerateBlocks hides the table | Reduced to inline content | Unchanged |
+| Button | Prints nothing, so GenerateBlocks hides the button | Reduced to inline content, links dropped too | Prints the bare value (address, number or text) in the button's text and in its `href`, never empty |
+| List | Unconstrained; the row says to put tags in List Item | Unconstrained | Unchanged |
+| Any other block | Unconstrained | Unconstrained | Unchanged |
+
+`{{call}}` is unconstrained in every block. The link column applies to `{{text}}`, `{{title}}`, the date and time tags, `{{email}}`, `{{phone}}` and their `try_` forms.
+
+**Reduced to inline content is lossy by design.** Bold, italics, links and the other inline tags stay. Any other tag goes and its text stays, images and figures go whole, and a break between blocks becomes one space, trimmed at both ends, with no `<br>`. A value that was already one inline run comes out unchanged. The inline tags are the ones that decide whether `{{content}}` wraps a bare value in paragraphs (see [§`{{content}}` always prints block-level markup](#content-always-prints-block-level-markup-unreleased)), so the two cannot disagree.
+
+### Content survey
+
+The section's "Scan content for tags" button walks the blocks of every post of every type (drafts included, revisions and trash left out, which takes in reusable blocks, templates, template parts and GB Pro patterns) and the block widgets, and counts tag-like `{{…}}` strings per block type: registered tags, which start printing a value once the type is selected, and other text, which stays as typed either way. Each row shows its counts, and saving a newly selected block that holds registered tags asks once first. The scan is advisory, never a gate, and Text and HTML widgets are not covered because they never pass through block rendering. The result is stored under the `bws_dynamic_tags_core_block_survey` option, apart from the settings.
+
 ## Falsy replacement: the `'0'` and empty-`alt` pads
 
 GB kills the containing block when a tag's replacement is falsy, and PHP counts `'0'` as falsy
