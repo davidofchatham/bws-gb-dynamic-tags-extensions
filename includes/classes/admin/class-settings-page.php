@@ -54,6 +54,7 @@ class SettingsPage {
 		add_action( 'wp_ajax_bws_scan_tags', array( TagConverter::class, 'ajax_scan' ) );
 		add_action( 'wp_ajax_bws_migrate_tags', array( TagConverter::class, 'ajax_migrate' ) );
 		add_action( 'wp_ajax_bws_ownership_optin', array( TagConverter::class, 'ajax_ownership_optin' ) );
+		add_action( 'wp_ajax_bws_core_blocks_survey', 'bws_core_blocks_survey_ajax' );
 	}
 
 	public static function add_menu_page(): void {
@@ -143,6 +144,19 @@ class SettingsPage {
 			array(),
 			BWS_DYNAMIC_TAGS_VERSION,
 			true
+		);
+		$picker_text = bws_core_blocks_picker_strings();
+		wp_localize_script(
+			'bws-block-picker',
+			'bwsBlockPickerConfig',
+			array(
+				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+				'nonce'   => wp_create_nonce( 'bws_core_blocks_survey' ),
+				'strings' => array(
+					'running' => $picker_text['survey_running'],
+					'error'   => $picker_text['survey_error'],
+				),
+			)
 		);
 		wp_localize_script(
 			'bws-admin-tag-scanner',
@@ -737,7 +751,8 @@ class SettingsPage {
 		$text    = bws_core_blocks_picker_strings();
 		$saved   = bws_core_blocks_clean( $settings['core_blocks'] ?? array() );
 		list( $entries, $categories ) = bws_core_blocks_picker_registry();
-		$groups  = bws_core_blocks_picker_rows( $entries, $categories, $saved, bws_core_blocks_enabled(), bws_core_blocks_gb_native() );
+		$survey  = bws_core_blocks_survey_last();
+		$groups  = bws_core_blocks_picker_rows( $entries, $categories, $saved, bws_core_blocks_enabled(), bws_core_blocks_gb_native(), $survey['blocks'] ?? null );
 		$field   = self::OPTION_NAME . '[core_blocks][]';
 		$n       = 0;
 		?>
@@ -754,6 +769,21 @@ class SettingsPage {
 							<?php endforeach; ?>
 						</ul>
 						<div class="bws-block-picker" data-count-template="<?php echo esc_attr( $text['count'] ); ?>">
+							<div class="bws-block-picker__survey">
+								<p class="description bws-block-picker__survey-status"><?php echo esc_html( $survey ? bws_core_blocks_survey_status( $survey['time'], $text ) : $text['survey_hint'] ); ?></p>
+								<button type="button" class="gp-button gp-button--secondary gp-button--small bws-block-picker__scan"><?php echo esc_html( $text['survey_scan'] ); ?></button>
+							</div>
+							<div class="gp-notice gp-notice--warn bws-notice bws-block-picker__confirm" role="region" aria-live="polite" hidden>
+								<div class="gp-notice__status"><span class="gp-status-dot gp-status-dot--warn" aria-hidden="true"></span></div>
+								<div class="gp-notice__content">
+									<p><?php echo esc_html( $text['confirm_intro'] ); ?></p>
+									<ul class="bws-block-picker__confirm-list"></ul>
+									<p>
+										<button type="button" class="gp-button gp-button--primary gp-button--small bws-block-picker__confirm-save"><?php echo esc_html( $text['confirm_save'] ); ?></button>
+										<button type="button" class="gp-button gp-button--secondary gp-button--small bws-block-picker__confirm-back"><?php echo esc_html( $text['confirm_back'] ); ?></button>
+									</p>
+								</div>
+							</div>
 							<div class="bws-block-picker__bar">
 								<input type="search" class="gp-text-input bws-block-picker__search"
 									placeholder="<?php echo esc_attr( $text['search_placeholder'] ); ?>"
@@ -768,7 +798,7 @@ class SettingsPage {
 										<ul class="bws-block-picker__items">
 											<?php foreach ( $group['rows'] as $row ) : ?>
 												<?php $id = 'bws-core-block-' . ( ++$n ); ?>
-												<li class="bws-block-picker__item" data-bws-block="<?php echo esc_attr( $row['name'] ); ?>" data-search="<?php echo esc_attr( $row['search'] ); ?>">
+												<li class="bws-block-picker__item" data-bws-block="<?php echo esc_attr( $row['name'] ); ?>" data-bws-title="<?php echo esc_attr( $row['title'] ); ?>" data-bws-registered="<?php echo (int) $row['registered']; ?>" data-search="<?php echo esc_attr( $row['search'] ); ?>">
 													<input type="checkbox" id="<?php echo esc_attr( $id ); ?>"
 														name="<?php echo esc_attr( $field ); ?>"
 														value="<?php echo esc_attr( $row['name'] ); ?>"
@@ -781,6 +811,7 @@ class SettingsPage {
 														<?php if ( $row['variations'] ) : ?>
 															<p class="description"><?php echo esc_html( sprintf( $text['variations'], implode( ', ', array_slice( $row['variations'], 0, 3 ) ) ) ); ?></p>
 														<?php endif; ?>
+														<div class="bws-block-picker__tags"><?php echo bws_core_blocks_survey_row_html( $row, $text ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></div>
 													</div>
 												</li>
 											<?php endforeach; ?>

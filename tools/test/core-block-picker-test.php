@@ -135,6 +135,26 @@ assert_same( 'backticks become code, html is escaped first', 'a <code>x &lt;b&gt
 assert_same( 'asterisks become emphasis', 'set to <em>Link To</em>.', bws_core_blocks_picker_markup( 'set to *Link To*.' ) );
 assert_same( 'plain text is untouched', 'No marks here.', bws_core_blocks_picker_markup( 'No marks here.' ) );
 
+echo "§6b — scan counts ride on the rows\n";
+$survey = array( 'core/paragraph' => array( 'registered' => 3, 'unregistered' => 1 ), 'core/gone' => array( 'registered' => 9, 'unregistered' => 0 ) );
+$rows   = rows_by_name( bws_core_blocks_picker_rows( $entries, $cats, array(), array(), array(), $survey ) );
+assert_same( 'a scanned block carries its counts', array( 3, 1 ), array( $rows['core/paragraph']['registered'], $rows['core/paragraph']['unregistered'] ) );
+assert_same( 'a block the scan found nothing in carries zeros once a scan exists', array( 0, 0 ), array( $rows['core/heading']['registered'], $rows['core/heading']['unregistered'] ) );
+$rows = rows_by_name( bws_core_blocks_picker_rows( $entries, $cats, array(), array() ) );
+assert_same( 'before any scan the counts are null, not zero', array( null, null ), array( $rows['core/paragraph']['registered'], $rows['core/paragraph']['unregistered'] ) );
+$text = bws_core_blocks_picker_strings();
+assert_same( 'no counts: no line', '', bws_core_blocks_survey_row_html( null, $text ) );
+assert_same( 'a scan that found nothing here: no line', '', bws_core_blocks_survey_row_html( array( 'registered' => 0, 'unregistered' => 0 ), $text ) );
+$html = bws_core_blocks_survey_row_html( array( 'registered' => 3, 'unregistered' => 0 ), $text );
+assert_same( 'registered only: one line carrying the number', true, 1 === substr_count( $html, '<p' ) && false !== strpos( $html, '3' ) );
+$html = bws_core_blocks_survey_row_html( array( 'registered' => 3, 'unregistered' => 12 ), $text );
+assert_same( 'both: two lines, both numbers', true, 2 === substr_count( $html, '<p' ) && false !== strpos( $html, '3' ) && false !== strpos( $html, '12' ) );
+assert_same( 'unregistered only: one line', true, 1 === substr_count( bws_core_blocks_survey_row_html( array( 'registered' => 0, 'unregistered' => 2 ), $text ), '<p' ) );
+assert_same( 'the status line names the date it is given', true, false !== strpos( bws_core_blocks_survey_status( 1700000000, $text, static fn( int $t ): string => 'DATE' ), 'DATE' ) );
+foreach ( array( 'survey_hint', 'survey_scan', 'survey_running', 'survey_last', 'survey_error', 'row_registered', 'row_unregistered', 'confirm_intro', 'confirm_save', 'confirm_back' ) as $key ) {
+	assert_same( "string for '{$key}'", true, is_string( $text[ $key ] ?? null ) && '' !== $text[ $key ] );
+}
+
 echo "§7 — GenerateBlocks' own allowlisted blocks are left out\n";
 $gb_entries = array_merge( $entries, array( entry( 'generateblocks/text', 'Text', 'text' ), entry( 'generateblocks-pro/thing', 'Pro Thing', 'text' ) ) );
 $native     = array( 'generateblocks/text', 'generateblocks-pro/thing' );

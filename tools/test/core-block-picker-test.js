@@ -47,5 +47,16 @@ check( 'a different set differs', false, setKey( [ 'a/b' ] ) === setKey( [ 'a/b'
 check( 'empty set has a stable key', setKey( [] ), setKey( [] ) );
 check( 'setKey does not reorder its input', 'z/z,a/a', [ 'z/z', 'a/a' ].join( ',' ) && ( function () { const a = [ 'z/z', 'a/a' ]; setKey( a ); return a.join( ',' ); }() ) );
 
+const { needsConfirm } = global.window.bwsBlockPicker;
+const counts = { 'core/paragraph': 3, 'core/table': 0, 'core/heading': 5 };
+const list = function ( initial, posted ) { return needsConfirm( initial, posted, counts ).join( ',' ); };
+check( 'a newly selected block with counted tags asks', 'core/paragraph', list( [], [ 'core/paragraph' ] ) );
+check( 'a block already saved does not ask again', '', list( [ 'core/paragraph' ], [ 'core/paragraph' ] ) );
+check( 'a newly selected block with a zero count does not ask', '', list( [], [ 'core/table' ] ) );
+check( 'a newly selected block the scan never saw does not ask', '', list( [], [ 'acme/new' ] ) );
+check( 'only the newly selected, counted ones are listed, in selection order', 'core/heading,core/paragraph', list( [ 'core/table' ], [ 'core/table', 'core/heading', 'core/paragraph' ] ) );
+check( 'deselecting never asks', '', list( [ 'core/paragraph' ], [] ) );
+check( 'no scan counts at all: nothing to ask', '', needsConfirm( [], [ 'core/paragraph' ], {} ).join( ',' ) );
+
 console.log( '\n' + count + ' assertions, ' + failures + ' failed' );
 process.exit( failures ? 1 : 0 );

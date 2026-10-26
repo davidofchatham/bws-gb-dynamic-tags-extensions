@@ -116,6 +116,7 @@ function bws_dynamic_tags_init() {
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/gb-trust-boundary.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/core-block-tags.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/core-block-picker.php';
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/core-block-survey.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/diagnostics.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/image-helpers.php';
 	// Traversal pipeline engine + source factory (L1-full) — must load before the

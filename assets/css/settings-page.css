@@ -419,3 +419,17 @@
 	padding: 16px 12px;
 	color: var(--bws-muted);
 }
+.bws-dynamic-tags-settings .bws-block-picker__survey {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 10px 12px;
+	border-bottom: 1px solid var(--bws-line);
+}
+.bws-dynamic-tags-settings .bws-block-picker__survey-status { margin: 0; }
+.bws-dynamic-tags-settings .bws-block-picker__scan { flex: none; }
+.bws-dynamic-tags-settings .bws-block-picker__confirm { margin: 0; border-radius: 0; }
+.bws-dynamic-tags-settings .bws-block-picker__confirm[hidden] { display: none; }
+.bws-dynamic-tags-settings .bws-block-picker__confirm-list { margin: 0 0 8px 18px; list-style: disc; }
+.bws-dynamic-tags-settings .bws-block-picker__tags .description { margin: 4px 0 0; }

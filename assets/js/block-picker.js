@@ -1,9 +1,10 @@
 /**
  * Settings-page block list (FW-156): search, "N selected" counter and unsaved-changes state.
  *
- * Rows and strings are rendered by PHP (includes/helpers/core-block-picker.php); this only
- * filters and counts them. Dirty state looks at this list's own checkboxes, never the rest of
- * the settings form. The two pure helpers are exposed on window.bwsBlockPicker so a node
+ * Rows and strings are rendered by PHP (includes/helpers/core-block-picker.php); this filters and
+ * counts them, runs the on-demand content scan (includes/helpers/core-block-survey.php) and asks
+ * the one in-page Save confirmation. Dirty state looks at this list's own checkboxes, never the
+ * rest of the settings form. The pure helpers are exposed on window.bwsBlockPicker so a node
  * harness (tools/test/core-block-picker-test.js) can reach them.
  *
  * @package BWS_Dynamic_Tags
@@ -25,8 +26,18 @@
 		return names.slice().sort().join( '|' );
 	}
 
+	/**
+	 * The blocks a save should ask about: newly selected (not in the initial posted set) with a
+	 * registered-tag count above zero from the last scan. Advisory only; the caller never blocks.
+	 */
+	function needsConfirm( initial, posted, counts ) {
+		return posted.filter( function ( name ) {
+			return initial.indexOf( name ) === -1 && ( counts[ name ] || 0 ) > 0;
+		} );
+	}
+
 	if ( typeof window !== 'undefined' ) {
-		window.bwsBlockPicker = { matches: matches, setKey: setKey };
+		window.bwsBlockPicker = { matches: matches, setKey: setKey, needsConfirm: needsConfirm };
 	}
 	if ( typeof document === 'undefined' ) {
 		return;
@@ -90,9 +101,107 @@
 			} );
 		} );
 
+		var cfg = window.bwsBlockPickerConfig || {};
+		var initialNames = posted();
+		var confirmBox = picker.querySelector( '.bws-block-picker__confirm' );
+		var confirmList = picker.querySelector( '.bws-block-picker__confirm-list' );
+		var confirmed = false;
+
+		function itemFor( name ) {
+			return items.filter( function ( li ) { return li.getAttribute( 'data-bws-block' ) === name; } )[ 0 ];
+		}
+
+		// Registered-tag counts from the last scan, read off the rows.
+		function counts() {
+			var out = {};
+			items.forEach( function ( li ) {
+				out[ li.getAttribute( 'data-bws-block' ) ] = parseInt( li.getAttribute( 'data-bws-registered' ), 10 ) || 0;
+			} );
+			return out;
+		}
+
+		function hideConfirm() {
+			confirmed = false;
+			if ( confirmBox ) {
+				confirmBox.hidden = true;
+			}
+		}
+
+		// The Save confirmation is an in-page notice, not a blocking dialog: the first Save click
+		// with a counted, newly selected block shows it instead of submitting, and "Save anyway"
+		// (or any Save click after changing nothing) goes through. Advisory, never a gate.
+		function showConfirm( names ) {
+			confirmList.textContent = '';
+			names.forEach( function ( name ) {
+				var li = itemFor( name );
+				var item = document.createElement( 'li' );
+				item.textContent = ( li.getAttribute( 'data-bws-title' ) || name ) + ' (' + counts()[ name ] + ')';
+				confirmList.appendChild( item );
+			} );
+			confirmBox.hidden = false;
+			confirmBox.scrollIntoView( { block: 'nearest' } );
+			confirmBox.querySelector( '.bws-block-picker__confirm-save' ).focus();
+		}
+
 		var form = document.getElementById( 'bws-settings-form' );
 		if ( form ) {
-			form.addEventListener( 'submit', function () { submitting = true; } );
+			form.addEventListener( 'submit', function ( e ) {
+				var pending = confirmBox && ! confirmed ? needsConfirm( initialNames, posted(), counts() ) : [];
+				if ( pending.length ) {
+					e.preventDefault();
+					showConfirm( pending );
+					return;
+				}
+				submitting = true;
+			} );
+		}
+		if ( confirmBox ) {
+			confirmBox.querySelector( '.bws-block-picker__confirm-save' ).addEventListener( 'click', function () {
+				confirmed = true;
+				if ( form.requestSubmit ) {
+					form.requestSubmit();
+				} else {
+					submitting = true;
+					form.submit();
+				}
+			} );
+			confirmBox.querySelector( '.bws-block-picker__confirm-back' ).addEventListener( 'click', function () {
+				hideConfirm();
+				search.focus();
+			} );
+			boxes.forEach( function ( b ) { b.addEventListener( 'change', hideConfirm ); } );
+		}
+
+		// The on-demand scan: runs server-side, then refreshes each row's counts in place so
+		// unsaved selections survive it.
+		var scan = picker.querySelector( '.bws-block-picker__scan' );
+		var status = picker.querySelector( '.bws-block-picker__survey-status' );
+		if ( scan && cfg.ajaxUrl ) {
+			scan.addEventListener( 'click', function () {
+				var idle = scan.textContent;
+				scan.disabled = true;
+				scan.textContent = cfg.strings.running;
+				var body = new URLSearchParams( { action: 'bws_core_blocks_survey', nonce: cfg.nonce } );
+				fetch( cfg.ajaxUrl, { method: 'POST', credentials: 'same-origin', body: body } )
+					.then( function ( r ) { return r.json(); } )
+					.then( function ( res ) {
+						if ( ! res || ! res.success ) {
+							throw new Error( 'scan' );
+						}
+						items.forEach( function ( li ) {
+							var row = res.data.rows[ li.getAttribute( 'data-bws-block' ) ];
+							li.setAttribute( 'data-bws-registered', row ? row.registered : 0 );
+							li.querySelector( '.bws-block-picker__tags' ).innerHTML = row ? row.html : '';
+						} );
+						status.textContent = res.data.status;
+						hideConfirm();
+					} )
+					.catch( function () { status.textContent = cfg.strings.error; } )
+					.then( function () {
+						scan.disabled = false;
+						scan.textContent = idle;
+					} );
+			} );
 		}
 		window.addEventListener( 'beforeunload', function ( e ) {
 			if ( dirty && ! submitting ) {
