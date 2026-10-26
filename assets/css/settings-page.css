@@ -352,3 +352,70 @@
 	vertical-align: -2px;
 	text-decoration: none;
 }
+
+/* ── Tags in Other Blocks: the searchable block list ── */
+.bws-dynamic-tags-settings .bws-block-notes {
+	margin: 0;
+	padding: 12px var(--bws-pad-x) 4px calc(var(--bws-pad-x) + 18px);
+	color: var(--bws-muted);
+	font-size: var(--gp-size-meta, 13px);
+	line-height: var(--gp-lh-meta, 1.5);
+}
+.bws-dynamic-tags-settings .bws-block-notes li { margin: 0 0 6px; }
+.bws-dynamic-tags-settings .bws-block-picker {
+	margin: 16px var(--bws-pad-x) 20px;
+	background: var(--bws-surface);
+	border: 1px solid var(--bws-border);
+	border-radius: var(--bws-radius-field);
+	overflow: hidden;
+}
+.bws-dynamic-tags-settings .bws-block-picker__bar {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 12px;
+	background: var(--bws-fill);
+	border-bottom: 1px solid var(--bws-line);
+}
+.bws-dynamic-tags-settings .bws-block-picker__search { flex: 1 1 auto; min-width: 0; }
+.bws-dynamic-tags-settings .bws-block-picker__count,
+.bws-dynamic-tags-settings .bws-block-picker__dirty {
+	flex: none;
+	color: var(--bws-muted);
+	font-size: var(--gp-size-meta, 13px);
+}
+.bws-dynamic-tags-settings .bws-block-picker__dirty { color: var(--bws-ink); font-weight: var(--gp-weight-medium, 500); }
+.bws-dynamic-tags-settings .bws-block-picker__groups { max-height: 420px; overflow-y: auto; }
+.bws-dynamic-tags-settings .bws-block-picker__group-label {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	margin: 0;
+	padding: 8px 12px;
+	background: var(--bws-surface);
+	border-bottom: 1px solid var(--bws-line);
+	color: var(--bws-muted);
+	font-size: var(--gp-size-eyebrow, 11px);
+	font-weight: var(--gp-weight-medium, 500);
+	letter-spacing: var(--gp-tracking-eyebrow, 0.12em);
+	text-transform: uppercase;
+}
+.bws-dynamic-tags-settings .bws-block-picker__items { margin: 0; padding: 0; list-style: none; }
+.bws-dynamic-tags-settings .bws-block-picker__item {
+	display: flex;
+	gap: 10px;
+	margin: 0;
+	padding: 10px 12px;
+	border-top: 1px solid var(--bws-line);
+}
+.bws-dynamic-tags-settings .bws-block-picker__item:first-child { border-top: 0; }
+.bws-dynamic-tags-settings .bws-block-picker__item[hidden],
+.bws-dynamic-tags-settings .bws-block-picker__group[hidden] { display: none; }
+.bws-dynamic-tags-settings .bws-block-picker__item input[type="checkbox"] { flex: none; margin-top: 2px; }
+.bws-dynamic-tags-settings .bws-block-picker__item .description { margin: 4px 0 0; }
+.bws-dynamic-tags-settings .bws-block-picker__item code { font-size: var(--gp-size-meta, 13px); }
+.bws-dynamic-tags-settings .bws-block-picker__empty {
+	margin: 0;
+	padding: 16px 12px;
+	color: var(--bws-muted);
+}

@@ -137,6 +137,13 @@ class SettingsPage {
 			BWS_DYNAMIC_TAGS_VERSION,
 			true
 		);
+		wp_enqueue_script(
+			'bws-block-picker',
+			BWS_DYNAMIC_TAGS_URL . 'assets/js/block-picker.js',
+			array(),
+			BWS_DYNAMIC_TAGS_VERSION,
+			true
+		);
 		wp_localize_script(
 			'bws-admin-tag-scanner',
 			'bwsTagScanner',
@@ -716,6 +723,78 @@ class SettingsPage {
 		return (string) ob_get_clean();
 	}
 
+	/**
+	 * The "Tags in Other Blocks" section (FW-156): one searchable list of the server-registered
+	 * blocks. Rows come from bws_core_blocks_picker_rows(), words from
+	 * bws_core_blocks_picker_strings(); assets/js/block-picker.js does the search, counter and
+	 * unsaved-changes state. Each row carries `data-bws-block` (the block name) as the hook for
+	 * per-row additions.
+	 *
+	 * @since Unreleased
+	 * @param array $settings Saved settings.
+	 */
+	private static function render_core_blocks_section( array $settings ): void {
+		$text    = bws_core_blocks_picker_strings();
+		$saved   = bws_core_blocks_clean( $settings['core_blocks'] ?? array() );
+		list( $entries, $categories ) = bws_core_blocks_picker_registry();
+		$groups  = bws_core_blocks_picker_rows( $entries, $categories, $saved, bws_core_blocks_enabled() );
+		$field   = self::OPTION_NAME . '[core_blocks][]';
+		$n       = 0;
+		?>
+				<?php /* ── Tags in Other Blocks ── */ ?>
+				<div class="bws-tag-group" id="bws-core-blocks">
+					<h2 class="bws-section-header"><?php echo esc_html( $text['heading'] ); ?></h2>
+					<div class="bws-card">
+						<?php foreach ( $text['intro'] as $paragraph ) : ?>
+							<p class="description bws-section-desc"><?php echo bws_core_blocks_picker_markup( $paragraph ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></p>
+						<?php endforeach; ?>
+						<ul class="bws-block-notes">
+							<?php foreach ( $text['notes'] as $note ) : ?>
+								<li><?php echo bws_core_blocks_picker_markup( $note ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></li>
+							<?php endforeach; ?>
+						</ul>
+						<div class="bws-block-picker" data-count-template="<?php echo esc_attr( $text['count'] ); ?>">
+							<div class="bws-block-picker__bar">
+								<input type="search" class="gp-text-input bws-block-picker__search"
+									placeholder="<?php echo esc_attr( $text['search_placeholder'] ); ?>"
+									aria-label="<?php echo esc_attr( $text['search_placeholder'] ); ?>" autocomplete="off" />
+								<span class="bws-block-picker__count" role="status" aria-live="polite"></span>
+								<span class="bws-block-picker__dirty" hidden><?php echo esc_html( $text['dirty'] ); ?></span>
+							</div>
+							<div class="bws-block-picker__groups">
+								<?php foreach ( $groups as $group ) : ?>
+									<section class="bws-block-picker__group">
+										<h3 class="bws-block-picker__group-label"><?php echo esc_html( $group['inactive'] ? $text['inactive_heading'] : $group['label'] ); ?></h3>
+										<ul class="bws-block-picker__items">
+											<?php foreach ( $group['rows'] as $row ) : ?>
+												<?php $id = 'bws-core-block-' . ( ++$n ); ?>
+												<li class="bws-block-picker__item" data-bws-block="<?php echo esc_attr( $row['name'] ); ?>" data-search="<?php echo esc_attr( $row['search'] ); ?>">
+													<input type="checkbox" id="<?php echo esc_attr( $id ); ?>"
+														name="<?php echo esc_attr( $field ); ?>"
+														value="<?php echo esc_attr( $row['name'] ); ?>"
+														<?php checked( $row['selected'] ); ?> <?php disabled( $row['disabled'] ); ?> />
+													<div>
+														<label for="<?php echo esc_attr( $id ); ?>"><?php echo esc_html( $row['title'] ); ?> <code><?php echo esc_html( $row['name'] ); ?></code></label>
+														<?php foreach ( $row['notes'] as $key ) : ?>
+															<p class="description"><?php echo bws_core_blocks_picker_markup( $text[ $key ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></p>
+														<?php endforeach; ?>
+														<?php if ( $row['variations'] ) : ?>
+															<p class="description"><?php echo esc_html( sprintf( $text['variations'], implode( ', ', array_slice( $row['variations'], 0, 3 ) ) ) ); ?></p>
+														<?php endif; ?>
+													</div>
+												</li>
+											<?php endforeach; ?>
+										</ul>
+									</section>
+								<?php endforeach; ?>
+							</div>
+							<p class="bws-block-picker__empty" hidden><?php echo esc_html( $text['empty'] ); ?></p>
+						</div>
+					</div>
+				</div>
+		<?php
+	}
+
 	public static function render_page(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
@@ -765,6 +844,8 @@ class SettingsPage {
 
 			<form method="post" action="options.php" id="bws-settings-form">
 				<?php settings_fields( 'bws_dynamic_tags_settings_group' ); ?>
+
+				<?php self::render_core_blocks_section( $settings ); ?>
 
 				<?php /* ── Email ── */ ?>
 				<div class="bws-tag-group">
