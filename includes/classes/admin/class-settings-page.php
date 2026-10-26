@@ -1043,7 +1043,7 @@ function my_result( $post_id, $arg = '' ) {
 						),
 						array(
 							'label'   => __( 'Retired tags without a migration path', 'generateblocks' ),
-							'desc'    => __( 'These tags are retired and have no automatic conversion. Manual update required.', 'generateblocks' ),
+							'desc'    => __( 'These tags are no longer supported and have no automatic conversion. Manual update required.', 'generateblocks' ),
 							'summary' => sprintf(
 								/* translators: %d: count of retired tags */
 								_n( '%d retired tag', '%d retired tags', count( $retired_without ), 'generateblocks' ),
