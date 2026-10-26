@@ -104,8 +104,8 @@ foreach ( array( 'core/paragraph', 'core/heading', 'core/list-item' ) as $name )
 }
 assert_same( 'core/table: its own table consequence, not the paragraph one', array( 'kind_table' ), $rows['core/table']['notes'] );
 assert_same( 'core/button: button consequence', array( 'kind_button' ), $rows['core/button']['notes'] );
-assert_same( 'core/list: points at List Item, not "not tested"', array( 'list_hint' ), $rows['core/list']['notes'] );
-assert_same( 'unclassified: not tested', array( 'not_tested' ), $rows['acme/widget']['notes'] );
+assert_same( 'core/list: points at List Item', array( 'list_hint' ), $rows['core/list']['notes'] );
+assert_same( 'unclassified: no note (the intro says once that it is untested)', array(), $rows['acme/widget']['notes'] );
 
 echo "§4 — variations and search text\n";
 assert_same( 'variations carried through', array( 'YouTube', 'Vimeo' ), $rows['core/embed']['variations'] );
@@ -128,7 +128,7 @@ assert_same( 'nothing selected posts nothing (empty = off)', array(), array_keys
 
 echo "§6 — every note has a string, and the text helper\n";
 $strings = bws_core_blocks_picker_strings();
-foreach ( array( 'kind_inline', 'kind_table', 'kind_button', 'list_hint', 'not_tested', 'unregistered', 'code_set' ) as $key ) {
+foreach ( array( 'kind_inline', 'kind_table', 'kind_button', 'list_hint', 'unregistered', 'code_set' ) as $key ) {
 	assert_same( "string for note '{$key}'", true, is_string( $strings[ $key ] ?? null ) && '' !== $strings[ $key ] );
 }
 assert_same( 'backticks become code, html is escaped first', 'a <code>x &lt;b&gt;</code> &amp; b', bws_core_blocks_picker_markup( 'a `x <b>` & b' ) );
@@ -162,7 +162,9 @@ $rows       = rows_by_name( bws_core_blocks_picker_rows( $gb_entries, $cats, arr
 assert_same( 'native blocks are not listed', array( false, false ), array( isset( $rows['generateblocks/text'] ), isset( $rows['generateblocks-pro/thing'] ) ) );
 assert_same( 'other rows are untouched', true, isset( $rows['core/paragraph'] ) && isset( $rows['acme/widget'] ) );
 $rows = rows_by_name( bws_core_blocks_picker_rows( $gb_entries, $cats, array(), array(), array() ) );
-assert_same( 'with no native list given, nothing is hidden', true, isset( $rows['generateblocks/text'] ) );
+assert_same( 'GB and GB Pro blocks are hidden by namespace even with no native list', array( false, false ), array( isset( $rows['generateblocks/text'] ), isset( $rows['generateblocks-pro/thing'] ) ) );
+$rows = rows_by_name( bws_core_blocks_picker_rows( array_merge( $entries, array( entry( 'acme/native', 'Native', 'text' ) ) ), $cats, array(), array(), array( 'acme/native' ) ) );
+assert_same( 'a third-party block on the GB list is hidden through the native list', false, isset( $rows['acme/native'] ) );
 $groups = bws_core_blocks_picker_rows( $gb_entries, $cats, array( 'generateblocks/text' ), array( 'generateblocks/text' ), $native );
 assert_same( 'a native block already saved stays listed so a save never drops it', true, isset( rows_by_name( $groups )['generateblocks/text'] ) );
 

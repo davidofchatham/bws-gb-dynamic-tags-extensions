@@ -29,6 +29,7 @@ function bws_core_blocks_picker_strings(): array {
 		'intro'              => array(
 			__( 'GenerateBlocks only fills in dynamic tags inside its own blocks. Select a block here to have tags typed into it filled in too, such as a `text` tag in a core Paragraph. With nothing selected, this is off, and tags in these blocks show as typed.', 'generateblocks' ),
 			__( 'This applies to whole block types, not single blocks. Blocks added only by a plugin\'s editor script do not appear in this list.', 'generateblocks' ),
+			__( 'Blocks without a note below have not been tested. Tags should work in their text, but we have not checked it.', 'generateblocks' ),
 		),
 		'search_placeholder' => __( 'Search blocks', 'generateblocks' ),
 		/* translators: %d: number of selected blocks. */
@@ -40,7 +41,6 @@ function bws_core_blocks_picker_strings(): array {
 		'unregistered'       => __( 'Saved earlier. Kept so it works again if its plugin comes back.', 'generateblocks' ),
 		'code_set'           => __( 'Turned on by code on this site.', 'generateblocks' ),
 		'dirty'              => __( 'Unsaved changes', 'generateblocks' ),
-		'not_tested'         => __( 'Not tested. Tags should work in this block\'s text, but we have not checked it.', 'generateblocks' ),
 		'list_hint'          => __( 'Put tags in the List Item blocks inside the list, not in the List itself.', 'generateblocks' ),
 		'kind_inline'        => __( 'Holds text only. A `table` tag here prints nothing, which hides the whole block. A `content` tag here keeps its text, bold, italics and links, and drops paragraph breaks, headings, lists and images, so long content runs together.', 'generateblocks' ),
 		'kind_table'         => __( 'Table cells hold text only. A `table` tag here prints nothing, which hides the whole table. A `content` tag here keeps its text, bold, italics and links, and drops paragraph breaks, headings, lists and images.', 'generateblocks' ),
@@ -83,9 +83,10 @@ function bws_core_blocks_picker_markup( string $text ): string {
 /**
  * Build the grouped rows the block list renders. Pure: no WordPress calls.
  *
- * Visible: every entry, except one that hides itself from the inserter (`inserter` false) or
- * that GenerateBlocks already allowlists on its own (`$native`, where selecting changes
- * nothing) and is not in the enabled set. Names in the enabled set that no entry matches (a deactivated
+ * Visible: every entry, except one that hides itself from the inserter (`inserter` false), that
+ * GenerateBlocks already allowlists on its own (`$native`, where selecting changes nothing), or
+ * that is GenerateBlocks' or GB Pro's own block (GB decides where its blocks take tags), and is
+ * not in the enabled set. Names in the enabled set that no entry matches (a deactivated
  * plugin's block) get their own last group, selected, so a save keeps them. A name enabled only
  * by code (in `$enabled`, not in `$saved`) is selected and locked: an unchecked box and a
  * disabled one both post nothing, so the page never writes it into the saved list.
@@ -109,7 +110,8 @@ function bws_core_blocks_picker_rows( array $entries, array $categories, array $
 	$known   = array();
 	foreach ( $entries as $e ) {
 		$known[ $e['name'] ] = true;
-		if ( ( empty( $e['inserter'] ) || in_array( $e['name'], $native, true ) ) && ! in_array( $e['name'], $enabled, true ) ) {
+		$gb_own = 1 === preg_match( '#^generateblocks(-pro)?/#', $e['name'] );
+		if ( ( empty( $e['inserter'] ) || $gb_own || in_array( $e['name'], $native, true ) ) && ! in_array( $e['name'], $enabled, true ) ) {
 			continue;
 		}
 		$slug   = '' !== (string) $e['category'] ? (string) $e['category'] : 'uncategorized';
@@ -149,16 +151,22 @@ function bws_core_blocks_picker_rows( array $entries, array $categories, array $
 	return $groups;
 }
 
-/** One row. The consequence note asks the classification owner by block name. */
+/**
+ * One row. The consequence note asks the classification owner by block name; an unclassified
+ * block gets none (the intro says once that those are untested).
+ */
 function bws_core_blocks_picker_row( string $name, string $title, string $category_label, array $variations, bool $registered, array $saved, array $enabled, ?array $survey = null ): array {
 	$notes = array();
 	if ( $registered ) {
-		$notes[] = array(
+		$note = array(
 			BWS_CORE_BLOCK_KIND_INLINE => 'kind_inline',
 			BWS_CORE_BLOCK_KIND_TABLE  => 'kind_table',
 			BWS_CORE_BLOCK_KIND_BUTTON => 'kind_button',
 			BWS_CORE_BLOCK_KIND_LIST   => 'list_hint',
-		)[ bws_core_block_kind( array( 'blockName' => $name ) ) ] ?? 'not_tested';
+		)[ bws_core_block_kind( array( 'blockName' => $name ) ) ] ?? null;
+		if ( null !== $note ) {
+			$notes[] = $note;
+		}
 	} else {
 		$notes[] = 'unregistered';
 	}

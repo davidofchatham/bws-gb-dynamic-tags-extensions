@@ -512,7 +512,7 @@ GenerateBlocks replaces dynamic tags only inside its own allowlisted blocks, so 
 
 **The enabled set.** The saved list passed through the `bws_dynamic_tags_core_blocks` filter ([`plugin-integration.md` §7](plugin-integration.md#7-enabling-tags-in-a-block-type-unreleased)). Everything below reads that one set. The settings page shows a block the filter adds as selected and locked ("Turned on by code on this site"), and shows a saved block whose type is no longer registered under "Not active on this site now".
 
-**What GenerateBlocks sees.** Only block types that are registered right now are added to GenerateBlocks' allowlist; a saved name with no registered type waits. Blocks GenerateBlocks already allowlists by itself, and blocks that hide themselves from the inserter (child blocks like List Item stay), are left off the list unless already enabled. Inner blocks are not included: GenerateBlocks looks only at a block's own markup, so a tag in a core block inside a GenerateBlocks container is filled in only when that core block's type is selected too. A block registered only in editor JavaScript is not listed.
+**What GenerateBlocks sees.** Only block types that are registered right now are added to GenerateBlocks' allowlist; a saved name with no registered type waits. GenerateBlocks' and GB Pro's own blocks (GenerateBlocks decides where its blocks take tags), other blocks GenerateBlocks already allowlists by itself, and blocks that hide themselves from the inserter (child blocks like List Item stay), are left off the list unless already enabled. Inner blocks are not included: GenerateBlocks looks only at a block's own markup, so a tag in a core block inside a GenerateBlocks container is filled in only when that core block's type is selected too. A block registered only in editor JavaScript is not listed.
 
 **Loop context.** An enabled block type receives GenerateBlocks' loop context, so a tag in it inside a query loop or a repeater reads the loop item, not the page ([`gb-constraints.md`](gb-constraints.md#a-late-write-to-a-block-types-uses_context-reaches-the-block-at-render-gb-250-gb-pro-280-wp-713)).
 
@@ -520,7 +520,7 @@ GenerateBlocks replaces dynamic tags only inside its own allowlisted blocks, so 
 
 ### Guards by host block
 
-Some core blocks hold text only. Where one does, a few tags adjust to it, and a block the plugin has not classified is left alone and marked "Not tested" on its row. Which blocks are classified, and which kind each is, is decided at `bws_core_block_kind()` (`link-helpers.php`); the table states what an author sees.
+Some core blocks hold text only. Where one does, a few tags adjust to it, and a block the plugin has not classified is left alone and carries no note on its row (the section intro says once that such blocks are untested). Which blocks are classified, and which kind each is, is decided at `bws_core_block_kind()` (`link-helpers.php`); the table states what an author sees.
 
 | Host block | `{{table}}` | `{{content}}` and `{{try_content}}` | A tag that would print a link (`linkTo`, `{{email}}`, `{{phone}}`) |
 |---|---|---|---|
