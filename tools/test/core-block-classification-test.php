@@ -39,13 +39,16 @@ function assert_same( $label, $expected, $actual ): void {
 $blk = static fn( $name ) => array( 'blockName' => $name );
 
 echo "§1 — the kind\n";
-foreach ( array( 'core/paragraph', 'core/heading', 'core/list-item', 'core/table' ) as $name ) {
+foreach ( array( 'core/paragraph', 'core/heading', 'core/list-item' ) as $name ) {
 	assert_same( "{$name} is inline text", BWS_CORE_BLOCK_KIND_INLINE, bws_core_block_kind( $blk( $name ) ) );
 }
+assert_same( 'core/table is the table kind', BWS_CORE_BLOCK_KIND_TABLE, bws_core_block_kind( $blk( 'core/table' ) ) );
+assert_same( 'core/list is the list kind', BWS_CORE_BLOCK_KIND_LIST, bws_core_block_kind( $blk( 'core/list' ) ) );
 assert_same( 'core/button is the button kind', BWS_CORE_BLOCK_KIND_BUTTON, bws_core_block_kind( $blk( 'core/button' ) ) );
+assert_same( 'the five kinds are distinct', 5, count( array_unique( array( BWS_CORE_BLOCK_KIND_INLINE, BWS_CORE_BLOCK_KIND_TABLE, BWS_CORE_BLOCK_KIND_LIST, BWS_CORE_BLOCK_KIND_BUTTON, '' ) ) ) );
 
 echo "§2 — unclassified is unconstrained\n";
-foreach ( array( 'core/list', 'core/group', 'core/quote', 'core/image', 'generateblocks/text', 'generateblocks/element', 'acme/thing', '' ) as $name ) {
+foreach ( array( 'core/group', 'core/quote', 'core/image', 'generateblocks/text', 'generateblocks/element', 'acme/thing', '' ) as $name ) {
 	assert_same( "'{$name}' is unclassified", '', bws_core_block_kind( $blk( $name ) ) );
 }
 
@@ -61,10 +64,10 @@ foreach ( array( 'core/paragraph', 'core/heading', 'core/list-item', 'core/table
 	assert_same( "{$name} is inline-only", true, bws_core_block_is_inline_only( $blk( $name ) ) );
 }
 foreach ( array( 'core/list', 'core/group', 'generateblocks/text' ) as $name ) {
-	assert_same( "{$name} is not inline-only", false, bws_core_block_is_inline_only( $blk( $name ) ) );
+	assert_same( "{$name} is not inline-only (the list kind is unconstrained)", false, bws_core_block_is_inline_only( $blk( $name ) ) );
 }
 assert_same( 'core/button is the button host', true, bws_core_block_is_button( $blk( 'core/button' ) ) );
-foreach ( array( 'core/paragraph', 'core/heading', 'core/list-item', 'core/table', 'core/buttons', 'generateblocks/text' ) as $name ) {
+foreach ( array( 'core/paragraph', 'core/heading', 'core/list-item', 'core/table', 'core/list', 'core/buttons', 'generateblocks/text' ) as $name ) {
 	assert_same( "{$name} is not the button host", false, bws_core_block_is_button( $blk( $name ) ) );
 }
 

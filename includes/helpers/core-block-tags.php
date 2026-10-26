@@ -83,6 +83,33 @@ function bws_core_blocks_allow( $allowed ): array {
 }
 
 /**
+ * The block names GB allowlists WITHOUT our addition: its own plus whatever GB Pro and any other
+ * plugin add through the same filter. The settings list leaves these out, since selecting one
+ * changes nothing.
+ *
+ * Asked of GB itself (so no GB block name is stated here), with bws_core_blocks_allow() lifted
+ * off the filter for the call and put back at its own priority. Empty when GB is absent.
+ *
+ * @since Unreleased
+ * @return string[]
+ */
+function bws_core_blocks_gb_native(): array {
+	if ( ! class_exists( 'GenerateBlocks_Dynamic_Tags' ) ) {
+		return array();
+	}
+	$hook     = 'generateblocks_dynamic_tags_allowed_blocks';
+	$priority = has_filter( $hook, 'bws_core_blocks_allow' );
+	if ( false !== $priority ) {
+		remove_filter( $hook, 'bws_core_blocks_allow', $priority );
+	}
+	$list = \GenerateBlocks_Dynamic_Tags::get_instance()->get_allowed_blocks();
+	if ( false !== $priority ) {
+		add_filter( $hook, 'bws_core_blocks_allow', $priority );
+	}
+	return array_values( array_filter( (array) $list, 'is_string' ) );
+}
+
+/**
  * GB's block-context keys a tag reads to see the loop item it sits in. Not a block's to
  * declare for itself: a core block does not use them unless we add them.
  *

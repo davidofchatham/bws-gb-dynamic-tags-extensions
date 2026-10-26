@@ -43,6 +43,7 @@ function bws_core_blocks_picker_strings(): array {
 		'not_tested'         => __( 'Not tested. Tags should work in this block\'s text, but we have not checked it.', 'generateblocks' ),
 		'list_hint'          => __( 'Put tags in the List Item blocks inside the list, not in the List itself.', 'generateblocks' ),
 		'kind_inline'        => __( 'Holds text only. A `table` tag here prints nothing, which hides the whole block. A `content` tag here keeps its text, bold, italics and links, and drops paragraph breaks, headings, lists and images, so long content runs together.', 'generateblocks' ),
+		'kind_table'         => __( 'Table cells hold text only. A `table` tag here prints nothing, which hides the whole table. A `content` tag here keeps its text, bold, italics and links, and drops paragraph breaks, headings, lists and images.', 'generateblocks' ),
 		'kind_button'        => __( 'Holds text only. A `table` tag here prints nothing, which hides the whole button. A `content` tag keeps its text and drops everything else, links included. Tags that normally print a link, such as `email`, `phone`, or any tag set to *Link To*, print just the address, number or text instead, in both the button\'s text and its link.', 'generateblocks' ),
 		'notes'              => array(
 			__( 'If a tag in one of these blocks finds no value, GenerateBlocks hides the whole block, not just the tag. To keep the block, add `required:false` to the tag, as in `{{text key:subtitle|required:false}}`.', 'generateblocks' ),
@@ -67,19 +68,11 @@ function bws_core_blocks_picker_markup( string $text ): string {
 }
 
 /**
- * The one block whose row points somewhere else: a List holds no text itself, its List Item
- * does. The only block name this file states; the content kinds come from the classification
- * owner, never a list here.
- *
- * @since Unreleased
- */
-const BWS_CORE_BLOCKS_PICKER_LIST_BLOCK = 'core/list';
-
-/**
  * Build the grouped rows the block list renders. Pure: no WordPress calls.
  *
- * Visible: every entry, except one that hides itself from the inserter (`inserter` false) and
- * is not in the enabled set. Names in the enabled set that no entry matches (a deactivated
+ * Visible: every entry, except one that hides itself from the inserter (`inserter` false) or
+ * that GenerateBlocks already allowlists on its own (`$native`, where selecting changes
+ * nothing) and is not in the enabled set. Names in the enabled set that no entry matches (a deactivated
  * plugin's block) get their own last group, selected, so a save keeps them. A name enabled only
  * by code (in `$enabled`, not in `$saved`) is selected and locked: an unchecked box and a
  * disabled one both post nothing, so the page never writes it into the saved list.
@@ -93,14 +86,15 @@ const BWS_CORE_BLOCKS_PICKER_LIST_BLOCK = 'core/list';
  * @param string[] $categories Category slug => label, in display order.
  * @param string[] $saved      The saved list.
  * @param string[] $enabled    The enabled set (saved plus filter).
+ * @param string[] $native     Block names GenerateBlocks allowlists without our addition (see bws_core_blocks_gb_native()).
  * @return array[] Groups: slug, label, inactive (bool), rows.
  */
-function bws_core_blocks_picker_rows( array $entries, array $categories, array $saved, array $enabled ): array {
+function bws_core_blocks_picker_rows( array $entries, array $categories, array $saved, array $enabled, array $native = array() ): array {
 	$by_slug = array();
 	$known   = array();
 	foreach ( $entries as $e ) {
 		$known[ $e['name'] ] = true;
-		if ( empty( $e['inserter'] ) && ! in_array( $e['name'], $enabled, true ) ) {
+		if ( ( empty( $e['inserter'] ) || in_array( $e['name'], $native, true ) ) && ! in_array( $e['name'], $enabled, true ) ) {
 			continue;
 		}
 		$slug   = '' !== (string) $e['category'] ? (string) $e['category'] : 'uncategorized';
@@ -144,16 +138,12 @@ function bws_core_blocks_picker_rows( array $entries, array $categories, array $
 function bws_core_blocks_picker_row( string $name, string $title, string $category_label, array $variations, bool $registered, array $saved, array $enabled ): array {
 	$notes = array();
 	if ( $registered ) {
-		$kind = bws_core_block_kind( array( 'blockName' => $name ) );
-		if ( BWS_CORE_BLOCK_KIND_INLINE === $kind ) {
-			$notes[] = 'kind_inline';
-		} elseif ( BWS_CORE_BLOCK_KIND_BUTTON === $kind ) {
-			$notes[] = 'kind_button';
-		} elseif ( BWS_CORE_BLOCKS_PICKER_LIST_BLOCK === $name ) {
-			$notes[] = 'list_hint';
-		} else {
-			$notes[] = 'not_tested';
-		}
+		$notes[] = array(
+			BWS_CORE_BLOCK_KIND_INLINE => 'kind_inline',
+			BWS_CORE_BLOCK_KIND_TABLE  => 'kind_table',
+			BWS_CORE_BLOCK_KIND_BUTTON => 'kind_button',
+			BWS_CORE_BLOCK_KIND_LIST   => 'list_hint',
+		)[ bws_core_block_kind( array( 'blockName' => $name ) ) ] ?? 'not_tested';
 	} else {
 		$notes[] = 'unregistered';
 	}

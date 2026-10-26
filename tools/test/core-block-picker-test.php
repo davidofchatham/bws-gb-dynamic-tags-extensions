@@ -99,9 +99,10 @@ assert_same( 'no empty groups', true, count( array_filter( $groups, fn( $g ) => 
 
 echo "§3 — the consequence note comes from the classification owner\n";
 $rows = rows_by_name( bws_core_blocks_picker_rows( $entries, $cats, array(), array() ) );
-foreach ( array( 'core/paragraph', 'core/heading', 'core/list-item', 'core/table' ) as $name ) {
+foreach ( array( 'core/paragraph', 'core/heading', 'core/list-item' ) as $name ) {
 	assert_same( "{$name}: inline consequence", array( 'kind_inline' ), $rows[ $name ]['notes'] );
 }
+assert_same( 'core/table: its own table consequence, not the paragraph one', array( 'kind_table' ), $rows['core/table']['notes'] );
 assert_same( 'core/button: button consequence', array( 'kind_button' ), $rows['core/button']['notes'] );
 assert_same( 'core/list: points at List Item, not "not tested"', array( 'list_hint' ), $rows['core/list']['notes'] );
 assert_same( 'unclassified: not tested', array( 'not_tested' ), $rows['acme/widget']['notes'] );
@@ -127,12 +128,84 @@ assert_same( 'nothing selected posts nothing (empty = off)', array(), array_keys
 
 echo "§6 — every note has a string, and the text helper\n";
 $strings = bws_core_blocks_picker_strings();
-foreach ( array( 'kind_inline', 'kind_button', 'list_hint', 'not_tested', 'unregistered', 'code_set' ) as $key ) {
+foreach ( array( 'kind_inline', 'kind_table', 'kind_button', 'list_hint', 'not_tested', 'unregistered', 'code_set' ) as $key ) {
 	assert_same( "string for note '{$key}'", true, is_string( $strings[ $key ] ?? null ) && '' !== $strings[ $key ] );
 }
 assert_same( 'backticks become code, html is escaped first', 'a <code>x &lt;b&gt;</code> &amp; b', bws_core_blocks_picker_markup( 'a `x <b>` & b' ) );
 assert_same( 'asterisks become emphasis', 'set to <em>Link To</em>.', bws_core_blocks_picker_markup( 'set to *Link To*.' ) );
 assert_same( 'plain text is untouched', 'No marks here.', bws_core_blocks_picker_markup( 'No marks here.' ) );
+
+echo "§7 — GenerateBlocks' own allowlisted blocks are left out\n";
+$gb_entries = array_merge( $entries, array( entry( 'generateblocks/text', 'Text', 'text' ), entry( 'generateblocks-pro/thing', 'Pro Thing', 'text' ) ) );
+$native     = array( 'generateblocks/text', 'generateblocks-pro/thing' );
+$rows       = rows_by_name( bws_core_blocks_picker_rows( $gb_entries, $cats, array(), array(), $native ) );
+assert_same( 'native blocks are not listed', array( false, false ), array( isset( $rows['generateblocks/text'] ), isset( $rows['generateblocks-pro/thing'] ) ) );
+assert_same( 'other rows are untouched', true, isset( $rows['core/paragraph'] ) && isset( $rows['acme/widget'] ) );
+$rows = rows_by_name( bws_core_blocks_picker_rows( $gb_entries, $cats, array(), array(), array() ) );
+assert_same( 'with no native list given, nothing is hidden', true, isset( $rows['generateblocks/text'] ) );
+$groups = bws_core_blocks_picker_rows( $gb_entries, $cats, array( 'generateblocks/text' ), array( 'generateblocks/text' ), $native );
+assert_same( 'a native block already saved stays listed so a save never drops it', true, isset( rows_by_name( $groups )['generateblocks/text'] ) );
+
+echo "§8 — the reader of GB's own list\n";
+$GLOBALS['__filters'] = array();
+function add_filter( $tag, $fn, $priority = 10 ) {
+	$GLOBALS['__filters'][ $tag ][ $priority ][] = $fn;
+	return true;
+}
+function has_filter( $tag, $fn ) {
+	foreach ( $GLOBALS['__filters'][ $tag ] ?? array() as $priority => $fns ) {
+		if ( in_array( $fn, $fns, true ) ) {
+			return $priority;
+		}
+	}
+	return false;
+}
+function remove_filter( $tag, $fn, $priority = 10 ) {
+	$key = array_search( $fn, $GLOBALS['__filters'][ $tag ][ $priority ] ?? array(), true );
+	if ( false === $key ) {
+		return false;
+	}
+	unset( $GLOBALS['__filters'][ $tag ][ $priority ][ $key ] );
+	return true;
+}
+function apply_filters( $tag, $value ) {
+	$by_priority = $GLOBALS['__filters'][ $tag ] ?? array();
+	ksort( $by_priority );
+	foreach ( $by_priority as $fns ) {
+		foreach ( $fns as $fn ) {
+			$value = $fn( $value );
+		}
+	}
+	return $value;
+}
+assert_same( 'GB absent: nothing is known native, nothing fatals', array(), bws_core_blocks_gb_native() );
+
+class WP_Block_Type_Registry {
+	public static function get_instance() {
+		return new self();
+	}
+	public function is_registered( $name ) {
+		return true;
+	}
+}
+// Declared conditionally so it is not hoisted above the 'GB absent' assertion.
+if ( true ) {
+	class GenerateBlocks_Dynamic_Tags {
+		public static function get_instance() {
+			return new self();
+		}
+		public function get_allowed_blocks() {
+			return apply_filters( 'generateblocks_dynamic_tags_allowed_blocks', array( 'generateblocks/text', 'generateblocks/element' ) );
+		}
+	}
+}
+$gb = 'generateblocks_dynamic_tags_allowed_blocks';
+add_filter( $gb, static fn( $a ) => array_merge( $a, array( 'generateblocks-pro/thing' ) ), 5 );
+add_filter( $gb, 'bws_core_blocks_allow', 20 );
+eval( 'namespace BWS\DynamicTags\Admin; class SettingsPage { public static function get_settings() { return array( "core_blocks" => array( "core/paragraph" ) ); } }' );
+assert_same( 'control: with ours hooked, the live list does carry the enabled block', true, in_array( 'core/paragraph', GenerateBlocks_Dynamic_Tags::get_instance()->get_allowed_blocks(), true ) );
+assert_same( 'GB core plus Pro additions, without ours', array( 'generateblocks/text', 'generateblocks/element', 'generateblocks-pro/thing' ), bws_core_blocks_gb_native() );
+assert_same( 'our callback is back on the filter at its own priority afterwards', 20, has_filter( $gb, 'bws_core_blocks_allow' ) );
 
 echo "\n{$count} assertions, {$failures} failed\n";
 exit( $failures ? 1 : 0 );

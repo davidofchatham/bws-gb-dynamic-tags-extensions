@@ -737,7 +737,7 @@ class SettingsPage {
 		$text    = bws_core_blocks_picker_strings();
 		$saved   = bws_core_blocks_clean( $settings['core_blocks'] ?? array() );
 		list( $entries, $categories ) = bws_core_blocks_picker_registry();
-		$groups  = bws_core_blocks_picker_rows( $entries, $categories, $saved, bws_core_blocks_enabled() );
+		$groups  = bws_core_blocks_picker_rows( $entries, $categories, $saved, bws_core_blocks_enabled(), bws_core_blocks_gb_native() );
 		$field   = self::OPTION_NAME . '[core_blocks][]';
 		$n       = 0;
 		?>
