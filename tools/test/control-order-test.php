@@ -994,7 +994,7 @@ assert_same(
 	array( 'deprecated' ),
 	array_values( array_unique( $term_entry_types ) )
 );
-// The settings page's Removed box: the family is unregistered, so no entry may read live.
+// The settings page's Retired box: the family is unregistered, so no entry may read live.
 // The bootstrap above is a COPY of the shipped call, so the shipped file is checked too.
 $term_live = array();
 foreach ( \BWS\DynamicTags\MigrationRegistry::get_by_type( 'tag' ) as $entry ) {
@@ -1043,6 +1043,41 @@ assert_same(
 	'the record keeps tag, title and return beside hidden',
 	array( 'seam_hidden', 'Seam probe', true ),
 	array( $seam_rec['seam_hidden']['tag'] ?? null, $seam_rec['seam_hidden']['title'] ?? null, isset( $seam_rec['seam_hidden']['return'] ) )
+);
+
+// --- C2. the settings-page marker over that record --------------------------
+
+// bws_gb_registration_marker() is the pure decision the Deprecated/Retired rows print. It is
+// driven here by the real record and GB's real (stub) registry, so the three states a row can
+// show and the collision pointer are each produced, not read off the code.
+$mk_gb = GenerateBlocks_Register_Dynamic_Tag::get_tags();
+assert_same(
+	'a name we registered hidden and still hold reads hidden',
+	'hidden',
+	bws_gb_registration_marker( $seam_rec['seam_hidden'] ?? null, $mk_gb['seam_hidden'] ?? null )
+);
+assert_same(
+	'a name we registered listed and still hold reads listed',
+	'listed',
+	bws_gb_registration_marker( $seam_rec['seam_listed'] ?? null, $mk_gb['seam_listed'] ?? null )
+);
+assert_same(
+	'a name we never registered reads migration-only, whatever GB holds under it',
+	array( 'migration-only', 'migration-only' ),
+	array(
+		bws_gb_registration_marker( null, null ),
+		bws_gb_registration_marker( null, array( 'return' => 'someone_elses' ) ),
+	)
+);
+assert_same(
+	'a name we registered that GB now holds under another callable points at the conflicts block',
+	'other-registrar',
+	bws_gb_registration_marker( $seam_rec['seam_hidden'] ?? null, array( 'return' => static function () { return 'theirs'; } ) )
+);
+assert_same(
+	'a name we registered that GB no longer holds at all counts as lost too',
+	'other-registrar',
+	bws_gb_registration_marker( $seam_rec['seam_listed'] ?? null, null )
 );
 
 // --- D. the late re-read is quiet while every name is still ours ------------
