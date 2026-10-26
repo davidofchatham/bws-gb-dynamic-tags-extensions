@@ -17,6 +17,10 @@ All notable changes to this project are documented in this file. The format is b
 - **The settings page's Removed boxes are now Retired.** The Removed tags and Removed options boxes are renamed Retired, with the same entries in them, and the option boxes follow the same two names. Nothing moves between boxes.
 - **For plugin developers: a tag migration entry now says whether it is Deprecated or Retired with an explicit `lifecycle` key** (`'deprecated'` or `'retired'`, Retired when omitted). One behavior change: an entry passed to `MigrationRegistry::register()` with a `callback` and no `lifecycle` is now Retired, where a `callback` used to make it Deprecated. `callback` and `prefix_removed` are accepted and ignored. See [`docs/plugin-integration.md`](docs/plugin-integration.md) §4.
 
+### Fixed
+
+- **Clearing a custom value with the X button now leaves the field empty.** The `{{table}}` size, width, color and border fields and the field selector put the old text back in as the X cleared it.
+
 ## [1.23.0] — 2026-10-23
 
 ### Highlights

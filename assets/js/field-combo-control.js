@@ -1334,9 +1334,23 @@
 			el( 'div', {
 				key:   'combo',
 				style: { display: 'contents' },
+				// The wrapper holds one button, WP's Reset: flag its click for the focus it triggers.
+				onClickCapture: function ( e ) {
+					var wrap = e.currentTarget;
+					if ( e.target.closest && e.target.closest( 'button' ) ) {
+						wrap.dataset.bwsReset = '1';
+						setTimeout( function () {
+							delete wrap.dataset.bwsReset;
+						}, 0 );
+					}
+				},
 				onFocusCapture: function ( e ) {
 					var input = e.target;
 					if ( ! unknownKey || ! input || input.getAttribute( 'role' ) !== 'combobox' ) {
+						return;
+					}
+					// The Reset (X) button hands focus to the input as it clears; refilling would undo it.
+					if ( e.currentTarget.dataset.bwsReset ) {
 						return;
 					}
 					// WP blanks the input on focus; put the custom key back so it can be edited.
