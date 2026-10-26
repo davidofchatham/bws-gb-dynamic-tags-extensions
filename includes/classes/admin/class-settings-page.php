@@ -1033,7 +1033,7 @@ function my_result( $post_id, $arg = '' ) {
 					$bws_inventory         = array(
 						array(
 							'label'   => __( 'Retired tags with a migration path', 'generateblocks' ),
-							'desc'    => __( 'These tags are retired: they are no longer supported. The scan below can convert them to current equivalents.', 'generateblocks' ),
+							'desc'    => __( 'These tags are no longer supported. The scan below can convert them to current equivalents.', 'generateblocks' ),
 							'summary' => sprintf(
 								/* translators: %d: count of retired tags */
 								_n( '%d retired tag', '%d retired tags', count( $retired_with ), 'generateblocks' ),
