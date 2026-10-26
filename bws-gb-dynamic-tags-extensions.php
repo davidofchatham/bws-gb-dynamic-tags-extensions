@@ -189,7 +189,7 @@ function bws_dynamic_tags_init() {
 	// the reasoning, and what it still cannot see, are at bws_gb_recheck_tag_ownership().
 	add_action( 'wp_loaded', 'bws_gb_recheck_tag_ownership', PHP_INT_MAX );
 
-	// Rebuild the deprecated/removed scan allowlist once per version change (a fresh
+	// Rebuild the deprecated/retired scan allowlist once per version change (a fresh
 	// install has no stored version either, so it falls through this same check on its
 	// first request). Priority 25 — after tag registration (20) so MigrationRegistry is
 	// fully populated before scan().
@@ -331,9 +331,9 @@ function bws_dynamic_tags_register_all() {
 	// and these did not: a `term_*` string already stored in someone's content converts
 	// through here whether or not the tag name still resolves, and it renders its own
 	// braces until it does. They are kept until a major release retires them (FW-150).
-	// `prefix_removed` lists them under Removed on the settings page, since no `term_*` tag
-	// is registered.
-	bws_register_modifier_root_migrations( 'term', 'term', array( 'since' => '1.20.0', 'prefix_removed' => true ) );
+	// `lifecycle => retired` files them under Retired on the settings page, since no `term_*`
+	// tag is registered.
+	bws_register_modifier_root_migrations( 'term', 'term', array( 'since' => '1.20.0', 'lifecycle' => 'retired' ) );
 
 	// Deprecated wrappers registered last (old tag names pointing to new core functions).
 	bws_register_deprecated_tags();

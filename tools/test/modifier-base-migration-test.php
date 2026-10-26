@@ -72,6 +72,12 @@ if ( ! function_exists( 'sanitize_key' ) ) {
 if ( ! function_exists( 'apply_filters' ) ) {
 	function apply_filters( $hook, $value ) { return $value; }
 }
+$GLOBALS['bws_doing_it_wrong'] = array();
+if ( ! function_exists( '_doing_it_wrong' ) ) {
+	function _doing_it_wrong( $fn, $message, $version ) {
+		$GLOBALS['bws_doing_it_wrong'][] = array( $fn, $message, $version );
+	}
+}
 
 require __DIR__ . '/../../includes/helpers/serialization-order.php';
 // bws_root_argument_row() — the normalizer bws_modifier_root_facts() reads a declaration
@@ -538,16 +544,46 @@ assert_eq( 'V5.10 the entry names the BASE tag as its target',
 assert_eq( 'V5.11 the owner\'s `since` reaches the entry (the admin list shows it)',
 	'1.17.0', $fixture_entry['since'] ?? '' );
 
-// LIVENESS. No modifier family is registered, so by default the entries are filed under
-// Removed. An owner still registering its prefixed tags by hand passes `prefix_removed =>
-// false`; is_entry_live() reads callback-presence as its interim proxy (FW-38 replaces it),
-// so the generated entry's marker is what lands that case in Deprecated.
-assert_eq( 'V5.12 by default a generated family is filed under Removed',
+// LIVENESS. The generator's `lifecycle` reaches every entry it makes; the default is
+// `retired`, so a family is filed under Retired unless the caller says `deprecated`.
+assert_eq( 'V5.12 by default a generated family is filed under Retired',
 	false, MigrationRegistry::is_entry_live( $fixture_entry ) );
 
-bws_register_modifier_root_migrations( 'retired', 'fixture', array( 'prefix_removed' => false ) );
-assert_eq( 'V5.13 prefix_removed => false files the family under Deprecated instead',
+bws_register_modifier_root_migrations( 'retired', 'fixture', array( 'lifecycle' => 'deprecated' ) );
+assert_eq( 'V5.13 lifecycle => deprecated files the family under Deprecated instead',
 	true, MigrationRegistry::is_entry_live( $entry_for( 'retired_text' ) ) );
+
+// register() owns the field: absent means retired, the two values are the whole domain, and
+// a `callback` no longer says anything about intent.
+MigrationRegistry::register( array( 'type' => 'tag', 'match_tag' => 'lc_absent', 'new_tag' => 'text' ) );
+MigrationRegistry::register( array( 'type' => 'tag', 'match_tag' => 'lc_callback', 'new_tag' => 'text', 'callback' => 'strlen' ) );
+MigrationRegistry::register( array( 'type' => 'tag', 'match_tag' => 'lc_dep', 'new_tag' => 'text', 'lifecycle' => 'deprecated' ) );
+assert_eq( 'V5.13a a tag entry with no lifecycle is stored as retired',
+	'retired', $entry_for( 'lc_absent' )['lifecycle'] ?? '' );
+assert_eq( 'V5.13b a callable `callback` no longer makes an entry live',
+	false, MigrationRegistry::is_entry_live( $entry_for( 'lc_callback' ) ) );
+assert_eq( 'V5.13c lifecycle => deprecated classifies live, and sits in the live listing',
+	array( true, true ),
+	array(
+		MigrationRegistry::is_entry_live( $entry_for( 'lc_dep' ) ),
+		in_array( 'lc_dep', array_column( MigrationRegistry::get_by_type_and_liveness( 'tag', true ), 'match_tag' ), true ),
+	) );
+$GLOBALS['bws_doing_it_wrong'] = array();
+MigrationRegistry::register( array( 'type' => 'tag', 'match_tag' => 'lc_bad', 'lifecycle' => 'removed' ) );
+assert_eq( 'V5.13d an unknown lifecycle raises a notice and the entry registers as retired',
+	array( 1, 'retired' ),
+	array( count( $GLOBALS['bws_doing_it_wrong'] ), $entry_for( 'lc_bad' )['lifecycle'] ?? '' ) );
+assert_eq( 'V5.13e option entries are untouched: no lifecycle is stamped on them',
+	false,
+	array_key_exists( 'lifecycle', ( static function () {
+		MigrationRegistry::register( array( 'type' => 'option', 'match_tag' => 'lc_opt', 'label' => 'x' ) );
+		foreach ( MigrationRegistry::get_by_type( 'option' ) as $e ) {
+			if ( 'lc_opt' === $e['match_tag'] ) {
+				return $e;
+			}
+		}
+		return array();
+	} )() ) );
 
 // END TO END for a generated family, through BOTH converter steps — the same pin §V4.9
 // makes for the hand-registered one. The `rel` shape strands only BETWEEN the two steps,

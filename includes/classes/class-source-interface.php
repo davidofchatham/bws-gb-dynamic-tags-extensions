@@ -134,8 +134,8 @@ interface SourceInterface {
 	 *                    an author cannot fill is a root that can only refuse.
 	 *   argless  string  ROOT_ARGLESS_REFUSE (the default) or
 	 *                    ROOT_ARGLESS_OWNER_RESOLVES. STATED rather than inferred from
-	 *                    whether some method exists — callback-presence as a proxy is the
-	 *                    pattern FW-38 is retiring.
+	 *                    whether some method exists, since a presence check says nothing
+	 *                    about intent.
 	 *
 	 * @since 1.20.0
 	 * @return array Empty when this root takes no argument (the default).

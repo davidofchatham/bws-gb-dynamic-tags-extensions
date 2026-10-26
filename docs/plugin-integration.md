@@ -263,7 +263,7 @@ add_action( 'bws_dynamic_tags_register_sources', function () {
         'since'          => '2.0.0',
         'source_inject'  => 'oldname',                       // src value to add; '' adds none
         'option_renames' => array( 'field_key' => 'key' ),
-        'callback'       => 'oldname_post_meta_callback',    // never called; see below
+        'lifecycle'      => 'deprecated',                    // a replacement exists; see below
     ) );
 } );
 ```
@@ -283,10 +283,9 @@ add_action( 'bws_dynamic_tags_register_sources', function () {
 | `combine_options` | New key to `array( 'when_present' => $flag_key, 'value_from' => $value_key )`: folds a presence flag and a value into one key. Applied before `option_renames`. |
 | `fixed_options` | Key/value pairs always added on migration. |
 | `transform_callback` | `fn( string $tag_string ): string` that replaces all of the above, for a reshape the declarative keys cannot express. Return the string unchanged when there is nothing to do. |
-| `callback` | Never called. Its presence files the entry under **Deprecated Tags** on the settings page; without it, the entry is filed under **Removed Tags**. |
-| `prefix_removed` | `true` files the entry under **Removed Tags** even with a `callback`. Set it once you consider that generation of names retired. |
+| `lifecycle` | `'deprecated'` or `'retired'`; any other value raises a `_doing_it_wrong()` notice and is filed as Retired. Files the entry under **Deprecated Tags** or **Retired Tags** on the settings page. `'deprecated'`: a replacement exists and the old tag still works as before. `'retired'`: unsupported. Defaults to `'retired'`, so an entry that does not say is filed as Retired. |
 
-`title`, `supports`, `options`, `description` and `gb_type` are accepted for compatibility and unused.
+`callback`, `prefix_removed`, `title`, `supports`, `options`, `description` and `gb_type` are accepted for compatibility and unused. In particular a `callback` no longer files an entry under Deprecated; set `lifecycle` instead.
 
 The Migration Tool on the settings page scans every non-revision post, lists the tags each would migrate, and rewrites per post or in bulk. A post whose content would not change is not rewritten, and a revision is saved first where the post type supports revisions. `DeprecatedTagRegistry::has_migration_path( $old_tag )` is `true` for any entry with a non-empty `new_tag`: a pure rename, with every option carried over unchanged, is a complete migration.
 
@@ -327,7 +326,7 @@ add_filter( 'bws_dynamic_tags_benchmark_logging', '__return_true' );
 |---|---|
 | `bws_dynamic_tags_benchmark_logging` | Post content processing logs its time and memory use to the PHP error log, prefixed `[BWS Content]`. Covers post content only, not tag resolution. |
 | `bws_dynamic_tags_registration_logging` | Source registration and the `bws_dynamic_tags_register_sources` action log to the PHP error log. |
-| `bws_dynamic_tags_show_all_deprecated` | The settings page lists every registered deprecated or removed tag and option, not only those the last scan found in site content. |
+| `bws_dynamic_tags_show_all_deprecated` | The settings page lists every registered deprecated or retired tag and option, not only those the last scan found in site content. |
 
 ---
 

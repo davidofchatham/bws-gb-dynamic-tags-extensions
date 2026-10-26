@@ -83,10 +83,24 @@ if ( ! defined( 'ABSPATH' ) ) {
  * case is caught by bws_gb_recheck_tag_ownership() on `wp_loaded` — the reverse arm, and
  * the more dangerous of the two.
  *
+ * `hidden => true` is the registration form "registered but not in the picker": it becomes
+ * `visibility => false` (replacing any context gate, moot for a tag nobody can pick) and the
+ * key is stripped so it never reaches GB's localized args. The record bws_gb_tags_we_registered()
+ * keeps carries `hidden` either way. A bare `visibility => false` is NOT the declaration:
+ * `email`, `phone` and the `try_` templates already pass `visibility` as a context-gate array.
+ * Nothing here reads MigrationRegistry; what a tag registers as and what its entry says are
+ * independent axes.
+ *
  * @since 1.19.0
- * @param array $args Registration arguments, exactly as GB's constructor takes them.
+ * @param array $args Registration arguments as GB's constructor takes them, plus optional `hidden`.
  */
 function bws_gb_register_tag( array $args ): void {
+	$hidden = ! empty( $args['hidden'] );
+	unset( $args['hidden'] );
+	if ( $hidden ) {
+		$args['visibility'] = false;
+	}
+
 	$tag = isset( $args['tag'] ) ? (string) $args['tag'] : '';
 
 	// GB's constructor drops an incomplete registration on the floor -- its first statement
@@ -119,6 +133,7 @@ function bws_gb_register_tag( array $args ): void {
 		'tag'    => $tag,
 		'title'  => (string) $args['title'],
 		'return' => $args['return'],
+		'hidden' => $hidden,
 	) );
 }
 
@@ -136,7 +151,7 @@ function bws_gb_register_tag( array $args ): void {
  * @since 1.19.0
  * @internal
  * @param array $record A registration to record. Omit to read.
- * @return array<string,array{tag:string,title:string,return:mixed}>
+ * @return array<string,array{tag:string,title:string,return:mixed,hidden:bool}>
  */
 function bws_gb_tags_we_registered( array $record = array() ): array {
 	static $ours = array();
@@ -158,16 +173,8 @@ function bws_gb_tags_we_registered( array $record = array() ): array {
  * worse one: `{{text}}` keeps rendering, on every page that already used it, through
  * somebody else's callback.
  *
- * AXIS — A TAG IS STILL OURS IFF THE CALLABLE GB HOLDS FOR IT IS IDENTICALLY THE ONE WE
- * HANDED OVER. Not the title, not the option array: the callable is what runs at render, so
- * it is the thing whose replacement changes what a page outputs, and it is the only field
- * of the registration a stranger cannot coincidentally match. Identity is `===` against the
- * value recorded at registration, which is exact for every shape we pass — our tags
- * register either a function-name string (`'bws_base_text_callback'`) or a Closure built
- * once during the pass, and `===` compares a string by value and a Closure by object
- * identity. Nothing mutates GB's entries in place: its registry is a private static array
- * written only by the constructor, so a differing callable means a re-registration and
- * nothing else. A name that has vanished from the registry entirely counts as lost too.
+ * What counts as "no longer ours" is decided in bws_gb_tag_is_still_ours(); a name that has
+ * vanished from GB's registry entirely counts as lost too.
  *
  * ONE PASS OVER WHAT WE REGISTERED, on `wp_loaded` at PHP_INT_MAX. No transient: the
  * finding is about the plugin set live in THIS request, and a stored copy would outlive the
@@ -198,7 +205,7 @@ function bws_gb_recheck_tag_ownership(): void {
 	foreach ( $ours as $tag => $mine ) {
 		$now = isset( $live[ $tag ] ) && is_array( $live[ $tag ] ) ? $live[ $tag ] : null;
 
-		if ( null !== $now && array_key_exists( 'return', $now ) && $now['return'] === $mine['return'] ) {
+		if ( bws_gb_tag_is_still_ours( $mine, $now ) ) {
 			continue;
 		}
 
@@ -213,6 +220,66 @@ function bws_gb_recheck_tag_ownership(): void {
 
 		bws_gb_report_tag_collision( (string) $tag );
 	}
+}
+
+/**
+ * Whether GB's current entry for a name is still the registration we handed it.
+ *
+ * AXIS — A TAG IS STILL OURS IFF THE CALLABLE GB HOLDS FOR IT IS IDENTICALLY THE ONE WE
+ * HANDED OVER. Not the title, not the option array: the callable is what runs at render, so
+ * it is the thing whose replacement changes what a page outputs, and it is the only field
+ * of the registration a stranger cannot coincidentally match. Identity is `===` against the
+ * value recorded at registration, which is exact for every shape we pass — our tags
+ * register either a function-name string (`'bws_base_text_callback'`) or a Closure built
+ * once during the pass, and `===` compares a string by value and a Closure by object
+ * identity. Nothing mutates GB's entries in place: its registry is a private static array
+ * written only by the constructor, so a differing callable means a re-registration and
+ * nothing else.
+ *
+ * This is the one comparison, shared by the late pass in bws_gb_recheck_tag_ownership() and
+ * the settings-page marker so the two cannot disagree.
+ *
+ * @since Unreleased
+ * @internal
+ * @param array      $mine Our record for the name, from bws_gb_tags_we_registered().
+ * @param array|null $now  GB's entry for the name, or null when it holds none.
+ * @return bool
+ */
+function bws_gb_tag_is_still_ours( array $mine, ?array $now ): bool {
+	return null !== $now && array_key_exists( 'return', $now ) && $now['return'] === $mine['return'];
+}
+
+/**
+ * The registration state a settings-page row shows for one tag name.
+ *
+ * DISPLAY ONLY. The answer is never an input to classification: it does not decide which box a
+ * row sits in, what the scan hides or what the allowlist holds, and this function is not called
+ * from, and must not be called by, any of that code (what does decide is
+ * MigrationRegistry::register()'s PHPDoc). It reads two things the caller hands in -- our own
+ * record and GB's current entry -- and reads nothing else, so it carries no load-order or
+ * toggle dependence of its own. Whether the name is still ours is bws_gb_tag_is_still_ours().
+ *
+ * Returns one of:
+ *   'hidden'          -- we registered it with `hidden => true` and GB still holds ours.
+ *   'listed'          -- we registered it without, and GB still holds ours.
+ *   'other-registrar' -- we registered it and GB now holds another callable, or none; the Tag
+ *                        Name Conflicts block says who.
+ *   'migration-only'  -- we never registered it; the entry exists for the converter alone.
+ *
+ * @since Unreleased
+ * @internal
+ * @param array|null $ours Our record for the name, or null when we never registered it.
+ * @param array|null $now  GB's entry for the name, or null when it holds none.
+ * @return string
+ */
+function bws_gb_registration_marker( ?array $ours, ?array $now ): string {
+	if ( null === $ours ) {
+		return 'migration-only';
+	}
+	if ( ! bws_gb_tag_is_still_ours( $ours, $now ) ) {
+		return 'other-registrar';
+	}
+	return ! empty( $ours['hidden'] ) ? 'hidden' : 'listed';
 }
 
 /**

@@ -164,7 +164,7 @@ bws_register_phone_tag();
 // The `term_` family's converter ENTRIES, which the plugin still registers (FW-129 removed
 // the tags, not the migration path). No constructor follows them any more — that is the
 // subject of §C3 below, and running the generator here is what gives it something to read.
-bws_register_modifier_root_migrations( 'term', 'term', array( 'since' => '1.20.0', 'prefix_removed' => true ) );
+bws_register_modifier_root_migrations( 'term', 'term', array( 'since' => '1.20.0', 'lifecycle' => 'retired' ) );
 
 $registered = GenerateBlocks_Register_Dynamic_Tag::get_tags();
 
@@ -994,7 +994,7 @@ assert_same(
 	array( 'deprecated' ),
 	array_values( array_unique( $term_entry_types ) )
 );
-// The settings page's Removed box: the family is unregistered, so no entry may read live.
+// The settings page's Retired box: the family is unregistered, so no entry may read live.
 // The bootstrap above is a COPY of the shipped call, so the shipped file is checked too.
 $term_live = array();
 foreach ( \BWS\DynamicTags\MigrationRegistry::get_by_type( 'tag' ) as $entry ) {
@@ -1002,14 +1002,82 @@ foreach ( \BWS\DynamicTags\MigrationRegistry::get_by_type( 'tag' ) as $entry ) {
 		$term_live[] = $entry['match_tag'];
 	}
 }
-assert_same( 'no term_ entry reads live (settings page lists them under Removed)', array(), $term_live );
+assert_same( 'no term_ entry reads live (settings page lists them under Retired)', array(), $term_live );
 assert_same(
-	'the shipped term_ migrations call passes prefix_removed',
+	'the shipped term_ migrations call passes lifecycle retired',
 	1,
 	preg_match(
-		"~bws_register_modifier_root_migrations\(\s*'term',\s*'term',\s*array\([^)]*'prefix_removed'\s*=>\s*true~",
+		"~bws_register_modifier_root_migrations\(\s*'term',\s*'term',\s*array\([^)]*'lifecycle'\s*=>\s*'retired'~",
 		(string) file_get_contents( $root . '/bws-gb-dynamic-tags-extensions.php' )
 	)
+);
+
+// --- C4. the `hidden` seam on the registration boundary ---------------------
+
+// `hidden => true` is the declaration; a bare `visibility => false` is not (email, phone and
+// the try_ templates already pass visibility as a context-gate array). The boundary hands GB
+// `visibility => false` with no `hidden` key, and the record carries the flag either way.
+$seam_base = array(
+	'title'    => 'Seam probe',
+	'type'     => 'post',
+	'supports' => array(),
+	'options'  => array(),
+	'return'   => static function () { return 'x'; },
+);
+bws_gb_register_tag( $seam_base + array( 'tag' => 'seam_hidden', 'hidden' => true ) );
+bws_gb_register_tag( $seam_base + array( 'tag' => 'seam_listed' ) );
+bws_gb_register_tag( $seam_base + array( 'tag' => 'seam_gated', 'visibility' => array( 'context' => 'x' ) ) );
+$seam_gb  = GenerateBlocks_Register_Dynamic_Tag::get_tags();
+$seam_rec = bws_gb_tags_we_registered();
+assert_same( 'hidden => true hands GB visibility false', false, $seam_gb['seam_hidden']['visibility'] ?? null );
+assert_same( 'and strips the hidden key from the args GB stores', false, array_key_exists( 'hidden', $seam_gb['seam_hidden'] ) );
+assert_same( 'the record carries hidden true', true, $seam_rec['seam_hidden']['hidden'] ?? null );
+assert_same( 'a call without it records hidden false', false, $seam_rec['seam_listed']['hidden'] ?? null );
+assert_same( 'and passes no visibility of its own', false, array_key_exists( 'visibility', $seam_gb['seam_listed'] ) );
+assert_same(
+	'a context-gate visibility array is not the declaration: kept as given, recorded not hidden',
+	array( array( 'context' => 'x' ), false ),
+	array( $seam_gb['seam_gated']['visibility'] ?? null, $seam_rec['seam_gated']['hidden'] ?? null )
+);
+assert_same(
+	'the record keeps tag, title and return beside hidden',
+	array( 'seam_hidden', 'Seam probe', true ),
+	array( $seam_rec['seam_hidden']['tag'] ?? null, $seam_rec['seam_hidden']['title'] ?? null, isset( $seam_rec['seam_hidden']['return'] ) )
+);
+
+// --- C5. the settings-page marker over that record --------------------------
+
+// bws_gb_registration_marker() is the pure decision the Deprecated/Retired rows print. It is
+// driven here by the real record and GB's real (stub) registry, so the three states a row can
+// show and the collision pointer are each produced, not read off the code.
+$mk_gb = GenerateBlocks_Register_Dynamic_Tag::get_tags();
+assert_same(
+	'a name we registered hidden and still hold reads hidden',
+	'hidden',
+	bws_gb_registration_marker( $seam_rec['seam_hidden'] ?? null, $mk_gb['seam_hidden'] ?? null )
+);
+assert_same(
+	'a name we registered listed and still hold reads listed',
+	'listed',
+	bws_gb_registration_marker( $seam_rec['seam_listed'] ?? null, $mk_gb['seam_listed'] ?? null )
+);
+assert_same(
+	'a name we never registered reads migration-only, whatever GB holds under it',
+	array( 'migration-only', 'migration-only' ),
+	array(
+		bws_gb_registration_marker( null, null ),
+		bws_gb_registration_marker( null, array( 'return' => 'someone_elses' ) ),
+	)
+);
+assert_same(
+	'a name we registered that GB now holds under another callable points at the conflicts block',
+	'other-registrar',
+	bws_gb_registration_marker( $seam_rec['seam_hidden'] ?? null, array( 'return' => static function () { return 'theirs'; } ) )
+);
+assert_same(
+	'a name we registered that GB no longer holds at all counts as lost too',
+	'other-registrar',
+	bws_gb_registration_marker( $seam_rec['seam_listed'] ?? null, null )
 );
 
 // --- D. the late re-read is quiet while every name is still ours ------------

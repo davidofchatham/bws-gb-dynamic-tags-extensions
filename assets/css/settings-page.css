@@ -251,7 +251,7 @@
 .bws-dynamic-tags-settings .bws-conflict-legend h4 { margin: 12px 0 4px; color: var(--bws-ink); font-size: var(--gp-size-meta, 13px); }
 .bws-dynamic-tags-settings .bws-conflict-legend p { margin: 0 0 6px; }
 
-/* ── Deprecated and removed groups ── */
+/* ── Deprecated and retired groups ── */
 .bws-dynamic-tags-settings .bws-dep-group { padding: 20px var(--bws-pad-x); }
 .bws-dynamic-tags-settings .bws-dep-group + .bws-dep-group { border-top: 1px solid var(--bws-line); }
 .bws-dynamic-tags-settings .bws-dep-group-header { margin: 0 0 4px; color: var(--bws-ink); font-size: var(--gp-size-control, 14px); font-weight: var(--gp-weight-medium, 500); }

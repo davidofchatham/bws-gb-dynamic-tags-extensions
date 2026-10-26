@@ -26,7 +26,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @invariant Body stays empty. Any future deprecated-tag family is registered
  *            here ONLY if it needs live GB rendering again — otherwise its
  *            data belongs solely in bws_register_nxm_tag_migrations()
- *            and bws_register_early_deprecated_tag_migrations().
+ *            and bws_register_early_deprecated_tag_migrations(). A tag kept out
+ *            of the picker passes `hidden => true` to bws_gb_register_tag().
  */
 function bws_register_deprecated_tags() {
 	// Deprecated tags are no longer registered with GenerateBlocks.
@@ -1864,22 +1865,6 @@ function bws_modifier_root_transform( string $prefix, string $root ): callable {
 }
 
 /**
- * Liveness marker for a generated modifier→base entry.
- *
- * NEVER DISPATCHED, and it is not dead code. MigrationRegistry::is_entry_live() reads
- * callback-presence as the interim proxy (until FW-38's `lifecycle` field) for "the owning
- * plugin still registers these tag names", so an entry registered with
- * `prefix_removed => false` lands in the settings page's **Deprecated** box. Only an owner
- * still registering its prefixed tags by hand needs that; the default files under Removed.
- *
- * @since 1.17.0
- * @return string Always ''.
- */
-function bws_modifier_migration_live_marker(): string {
-	return '';
-}
-
-/**
  * Generate one migration entry per REGISTERED MODIFIER TEMPLATE, for a retired prefix.
  *
  * Rewrites a retired prefix's stored tags into base tags rooted at a registered source. One
@@ -1922,10 +1907,11 @@ function bws_modifier_migration_live_marker(): string {
  * @param array  $args {
  *     Optional. Per-family entry fields.
  *
- *     @type string   $since          Version the prefix was deprecated in. Shown in admin.
- *     @type bool     $prefix_removed Files the entries in the Removed box. Default true:
- *                                    no modifier family is registered. False files them
- *                                    under Deprecated instead.
+ *     @type string   $since     Version the prefix was deprecated in. Shown in admin.
+ *     @type string   $lifecycle Each entry's `lifecycle` (see MigrationRegistry::register()).
+ *                               Default 'retired': no modifier family is registered.
+ *                               'deprecated' for an owner still registering its prefixed
+ *                               tags by hand.
  * }
  * @return string[] The modifier tag names entries were generated for, in template order.
  */
@@ -1981,8 +1967,7 @@ function bws_register_modifier_root_migrations( string $prefix, string $root, ar
 			// bws_modifier_entry_root() is the single reader; this the single writer.
 			'modifier_root'      => $root,
 			'since'              => (string) ( $args['since'] ?? '' ),
-			'callback'           => 'bws_modifier_migration_live_marker',
-			'prefix_removed'     => (bool) ( $args['prefix_removed'] ?? true ),
+			'lifecycle'          => (string) ( $args['lifecycle'] ?? 'retired' ),
 		) );
 
 		$generated[] = $old_tag;
