@@ -538,6 +538,8 @@ Some core blocks hold text only. Where one does, a few tags adjust to it, and a 
 
 The section's "Scan content for tags" button walks the blocks of every post of every type (drafts included, revisions and trash left out, which takes in reusable blocks, templates, template parts and GB Pro patterns) and the block widgets, and counts tag-like `{{…}}` strings per block type: registered tags, which start printing a value once the type is selected, and other text, which stays as typed either way. Each row shows its counts, and saving a newly selected block that holds registered tags asks once first. The scan is advisory, never a gate, and Text and HTML widgets are not covered because they never pass through block rendering. The result is stored under the `bws_dynamic_tags_core_block_survey` option, apart from the settings.
 
+**Tests.** Pure harnesses are named in the update-trigger rows for the classification, the enabled set and the survey; the rendered half is [`core-block-test-matrix.md`](../tools/test/core-block-test-matrix.md), visible on the testbed's `/matrix-core-blocks/` page.
+
 ## Falsy replacement: the `'0'` and empty-`alt` pads
 
 GB kills the containing block when a tag's replacement is falsy, and PHP counts `'0'` as falsy

@@ -15,7 +15,7 @@
 
 return array(
 	'blueprint' => 'core-structures',
-	'version'   => 33, // 33: BLOCK-LEVEL {{content}} corpus (FW-144) — `department-annex` (a term whose description is two paragraphs with inline markup, assigned to no post), a manual `post_excerpt` on `page-matrix-content` (seed.php now passes it), and two plain-meta values on that page, one bare and one already formatted, so every {{content}} read path that arrives unwrapped has a row (matrix-content CT9). Additive; the new term joins the term loops that run with hide_empty off. 32: PARENT-STEP corpus (FW-169) — a three-level page chain (`matrix-parent` > `-mid` > `-leaf`), a hierarchical-term chain in a NEW `kb_topic` taxonomy (Regions > East > Coastal; schema.php says why it is not `department`), an attachment attached to the middle page, a published page under a DRAFT page (the gate row), and the plain-meta relationship `related_page` on the leaf pointing at the middle page. The leaf's `main_line` is EMPTY and the middle page's is set; fold matrix §F25 owns what that buys. Seeder gains `post_parent` (posts, attachments) and term `parent`, and `post_terms` now follows each term's own taxonomy. Additive; no existing row names any of it, and `main_line` on the new pages is the only existing field key written. 31: TABLE PRESENTATION page — `matrix-table` (blocks.php 'matrix_table'), `{{table}}` presentation rows over the repeater matrix-post-meta owns; additive, no seeded data. 30: TERM SCALAR READ corpus (#143) — on the `sales` department term, three ACF image fields (`dept_logo_array`/`_url`/`_id`, one per return format, all the seeded `fixture-photo`) and a single `post_object` returning Post ID (`dept_liaison` → staff-jane-partner), the scalar twin of the relationship `dept_lead`. A term read that asks array-preserving alone drops the URL, the ID and the bare post id, so these are the rows that tell the two-pass read from it. Visible on the term-archive context element and on /matrix-pinned-roots/ (§F20). Additive; no existing row names any of the four keys. 29: AUTHOR IMAGE corpus (#144) — an ACF `Author Details` group on users (`author_photo_array`/`_url`/`_id`, one per ACF image return format) plus a plain-meta `author_photo_plain`, all on `fixture-author` pointing at the seeded `fixture-photo`; and the visible C-rows that read them on the author archive. ACF stores the attachment ID in user meta whichever format a field returns, so the trio buys a pin on "the stored value, not the formatted one" rather than three different shapes. Additive; no existing row names any of the four keys. 28: EMAIL OBFUSCATION seeded OFF (FW-137) — one key in the `bws_dynamic_tags_settings` baseline, sitting beside the phone pair that was already there. `antispambot()` flips a coin per CHARACTER, so an obfuscated `{{email}}` differs from ITSELF between two renders of one build, and a before/after `render-tag` sweep reports one address under two encodings as confidently as a regression — measured during FW-136 ticket 02, where the first parity sweep returned 83 such phantom cells. Seeds NO new entity and moves NO baseline: all 23 snapshot pages pass with the toggle in either position, because the snapshot normalizer decodes ASCII numeric references once (page-snapshot-normalize-test.php §P9) and OFF is the degenerate encoding. A FIXTURE default only — the plugin still ships obfuscation ON. The rows whose expectation text named the encoding (src-site §R6.1/§R6.9, fold §F7c.5/§F9.5f) are reworded in the same commit, and §R6.9 reverses direction: it is now the row that turns the toggle ON and back.
+	'version'   => 34, // 34: CORE-BLOCK TAGS corpus (FW-156) — a new `matrix-core-blocks` page (blocks.php 'matrix_core_blocks'), the visible half of core-block-test-matrix.md, plus the state its rows read: `role` / `main_line` / `contact_email` and a two-row `team_members` on the page itself (row roles differ from the page's, so a loop row that read the page prints the wrong word), three plain-meta {{content}} values (a two-line bare one, a formatted one, one carrying inline tags), and an unassigned `widget_block` row (the survey's block-widget arm; no sidebar holds it, so nothing renders it). The settings baseline now selects five core block types in `core_blocks` (paragraph, heading, list item, table, button). Every other fixture page holds no tag in any of them (measured by building each builder's content and scanning its core blocks; the one hit is the `wp_block` pattern, which no page renders), so no existing snapshot should move. Additive. 33: BLOCK-LEVEL {{content}} corpus (FW-144) — `department-annex` (a term whose description is two paragraphs with inline markup, assigned to no post), a manual `post_excerpt` on `page-matrix-content` (seed.php now passes it), and two plain-meta values on that page, one bare and one already formatted, so every {{content}} read path that arrives unwrapped has a row (matrix-content CT9). Additive; the new term joins the term loops that run with hide_empty off. 32: PARENT-STEP corpus (FW-169) — a three-level page chain (`matrix-parent` > `-mid` > `-leaf`), a hierarchical-term chain in a NEW `kb_topic` taxonomy (Regions > East > Coastal; schema.php says why it is not `department`), an attachment attached to the middle page, a published page under a DRAFT page (the gate row), and the plain-meta relationship `related_page` on the leaf pointing at the middle page. The leaf's `main_line` is EMPTY and the middle page's is set; fold matrix §F25 owns what that buys. Seeder gains `post_parent` (posts, attachments) and term `parent`, and `post_terms` now follows each term's own taxonomy. Additive; no existing row names any of it, and `main_line` on the new pages is the only existing field key written. 31: TABLE PRESENTATION page — `matrix-table` (blocks.php 'matrix_table'), `{{table}}` presentation rows over the repeater matrix-post-meta owns; additive, no seeded data. 30: TERM SCALAR READ corpus (#143) — on the `sales` department term, three ACF image fields (`dept_logo_array`/`_url`/`_id`, one per return format, all the seeded `fixture-photo`) and a single `post_object` returning Post ID (`dept_liaison` → staff-jane-partner), the scalar twin of the relationship `dept_lead`. A term read that asks array-preserving alone drops the URL, the ID and the bare post id, so these are the rows that tell the two-pass read from it. Visible on the term-archive context element and on /matrix-pinned-roots/ (§F20). Additive; no existing row names any of the four keys. 29: AUTHOR IMAGE corpus (#144) — an ACF `Author Details` group on users (`author_photo_array`/`_url`/`_id`, one per ACF image return format) plus a plain-meta `author_photo_plain`, all on `fixture-author` pointing at the seeded `fixture-photo`; and the visible C-rows that read them on the author archive. ACF stores the attachment ID in user meta whichever format a field returns, so the trio buys a pin on "the stored value, not the formatted one" rather than three different shapes. Additive; no existing row names any of the four keys. 28: EMAIL OBFUSCATION seeded OFF (FW-137) — one key in the `bws_dynamic_tags_settings` baseline, sitting beside the phone pair that was already there. `antispambot()` flips a coin per CHARACTER, so an obfuscated `{{email}}` differs from ITSELF between two renders of one build, and a before/after `render-tag` sweep reports one address under two encodings as confidently as a regression — measured during FW-136 ticket 02, where the first parity sweep returned 83 such phantom cells. Seeds NO new entity and moves NO baseline: all 23 snapshot pages pass with the toggle in either position, because the snapshot normalizer decodes ASCII numeric references once (page-snapshot-normalize-test.php §P9) and OFF is the degenerate encoding. A FIXTURE default only — the plugin still ships obfuscation ON. The rows whose expectation text named the encoding (src-site §R6.1/§R6.9, fold §F7c.5/§F9.5f) are reworded in the same commit, and §R6.9 reverses direction: it is now the row that turns the toggle ON and back.
 	                   // 27: PER-ITEM LINK corpus (FW-85 ticket 03) — a new `matrix-links` page (blocks.php 'matrix_links') plus the state its rows read: three plain-meta reference lists on the page (`link_term_host`, `link_staff`, `link_staff_gap`) and a `profile_url` plain meta on three staff singles, with `staff-fixture-root` deliberately carrying none. Per-item link wrapping shipped with no rendered page at all: the harness pins the markup, but "each value is an anchor to its OWN entity" is a claim about hrefs, and a link pointing at the wrong sibling reads identically to a correct one unless every entity in the list has a DISTINCT destination — which is what this corpus buys and what no existing page could supply. Its own page rather than more rows on matrix-post-meta, because that page already carries ~380 blocks and every family's rows, and this concern needs the term, post-permalink and URL-field arms side by side. `profile_url` deliberately is NOT a permalink, so a key-mode read that fell back to the permalink route prints a different href rather than the same one. The page is assigned NO department term and its term arm hops to /matrix-terms-mixed/ instead: every department term's count is printed on /matrix-loops/ (QL3.2), so a direct assignment moves a baseline this change has nothing to do with — measured, not assumed. Additive; no existing row names any of the three reference lists, `profile_url` or the new page, and no existing row's VALUE is produced by anything this version seeds (the two QL3.2 term counts the baseline re-records moved because their cached counts were stale, which the commit states).
 	                   // 26: NESTED REPEATER corpus (FW-74 ticket 08) — the `duty_roster` repeater whose rows each carry a `shifts` repeater, on a NEW `matrix-repeaters` page (blocks.php 'matrix_repeaters'), the visible half of fold-test-matrix.md §F23. The engine has admitted `meta_row` as a `rows` input since 1.17.0 and the arm has read rows since 1.21.0, but NO blueprint post carried a repeater inside a repeater, so the nested case was reachable only as a MISS: F9c.4 states a nested source and passes by finding nothing, which reads the same whether the nested read works or is broken. Its own page rather than more rows on matrix-post-meta, because that page already carries ~380 blocks and every family's rows, and a nested repeater needs its own field group anyway (a sub-repeater on `team_members` would become a {{table}} column and move the TB rows). Four shifts across two members, interleaved, so the fan-out ORDER is readable off the rendered string. Additive; no existing row names `duty_roster`, `shifts` or the new page.
 	                   // 25: DATETIME row targets (FW-74 ticket 06) — `contract_start`/`contract_end`/`review_dmy` sub-fields on the matrix-post-meta `team_members` rows. A PAIR, because `{{datetime_range}}` is a separate family with its own refusal call site and one date field cannot exercise it. `review_dmy` is the FORMAT BOUNDARY probe: a row reaches no sub-field config, so every row date parses format-agnostically, and its two values are chosen so row 1 is ambiguous under that walk and row 2 is not — the boundary is READABLE off the page instead of asserted. Additive; no {{table}} column, no F9c row and no loop row names any of the three.
@@ -587,6 +587,18 @@ return array(
 			'content_builder' => 'matrix_links',
 		),
 
+		// CORE-BLOCK TAGS page (v34, FW-156, core-block-test-matrix.md). Its own page: the rows
+		// are about WHICH BLOCK a tag sits in, an axis no existing page splits on, and
+		// matrix-post-meta is saturated. The page holds the core blocks the settings
+		// baseline selects beside two it does not, so the unselected arm is visible next to
+		// the selected one. See bws_fixture_page_content_matrix_core_blocks().
+		'page-matrix-core-blocks' => array(
+			'post_type'       => 'page',
+			'post_name'       => 'matrix-core-blocks',
+			'post_title'      => 'Matrix: Core Blocks',
+			'content_builder' => 'matrix_core_blocks',
+		),
+
 		// Editor-side discovery post: Event Details + repeater values live here.
 		// ALSO the date-archive context fixture (context-test-matrix C-rows):
 		// seed keeps it categoryless + visibility-tagged so the archive has results
@@ -1037,6 +1049,22 @@ return array(
 			'feature_image' => 'fixture-photo',
 		),
 
+		// CORE-BLOCK TAGS page (v34). The page's OWN values are the contrast every loop row
+		// is read against: `role` is Director on the page and Design / Platform on the two
+		// rows, and `main_line` is the page's number against the two staff singles' own, so
+		// a core block that read the page instead of the loop item prints a different word
+		// rather than the right one. Plain values: the email and phone rows need a
+		// deliverable-looking address and a number the phone normalizer accepts.
+		'page-matrix-core-blocks' => array(
+			'role'          => 'Director',
+			'main_line'     => '(919) 555-0134',
+			'contact_email' => 'blocks@example.test',
+			'team_members'  => array(
+				array( 'name' => 'Carla Diaz', 'description' => 'Design lead', 'role' => 'Design' ),
+				array( 'name' => 'Dev Patel', 'description' => 'Platform engineer', 'role' => 'Platform' ),
+			),
+		),
+
 		'post-sample-event' => array(
 			'event_date'    => '20260901',
 			'Event_Date'    => 'September 2026',
@@ -1078,6 +1106,15 @@ return array(
 			// source is dropped for BOTH viewers and spends no limit budget, so a
 			// `limit:1` still reaches Grace.
 			'trash_ref' => array( 'staff-gate-trashed', 'staff-gate-public' ),
+		),
+		// v34 (FW-156): the three {{content}} values the core-block strip rows read. The plain
+		// and formatted pair mirror matrix-content's CT9.4 / CT9.5 under the same keys; the
+		// third carries inline tags (bold, italic, a link), the ones the strip keeps in a
+		// paragraph and drops the link from in a button.
+		'page-matrix-core-blocks' => array(
+			'bws_block_plain'     => "Plain line one.\n\nPlain line two.",
+			'bws_block_formatted' => "<p>Formatted one,\nwith a soft line break.</p>\n<p>Formatted two.</p>",
+			'bws_block_inline'    => 'Open <strong>weekdays</strong> and <em>holidays</em>, see <a href="https://example.test/hours/">our hours</a>.',
 		),
 		// v33 (FW-144): CT9.4 / CT9.5 — the same {{content}} read, one value bare and one already formatted.
 		'page-matrix-content' => array(
@@ -1157,6 +1194,17 @@ return array(
 		'woocommerce_coming_soon'      => 'no',
 		'woocommerce_store_pages_only' => 'yes',
 		'bws_dynamic_tags_settings' => array(
+			// CORE BLOCKS selected (v34, FW-156): the five block types the plugin classifies.
+			// The product ships this EMPTY (off); this is the testbed's state, and
+			// core-block-test-matrix.md's rows are written against it. `core/verse` and
+			// `core/preformatted` are deliberately NOT here: the page's unselected arm.
+			'core_blocks' => array(
+				'core/paragraph',
+				'core/heading',
+				'core/list-item',
+				'core/table',
+				'core/button',
+			),
 			'phone' => array(
 				'country_code'     => '1',
 				'strip_leading_cc' => false,
@@ -1183,6 +1231,17 @@ return array(
 			'email' => array(
 				'obfuscate' => false,
 			),
+		),
+		// A BLOCK WIDGET holding a tag (v34, FW-156): the survey's block-widget arm
+		// (core-block-test-matrix.md §CB6). In no sidebar, so nothing renders it and no page
+		// moves; it exists so a scan can be asked "does it reach widget_block at all". The key
+		// is high so it never collides with an id WordPress hands out (they count up from 2),
+		// and `_multiwidget` is what WordPress writes beside every widget option.
+		'widget_block' => array(
+			9001           => array(
+				'content' => "<!-- wp:paragraph -->\n<p>Questions? Call {{phone key:main_line}} or write {{email key:contact_email}}.</p>\n<!-- /wp:paragraph -->",
+			),
+			'_multiwidget' => 1,
 		),
 	),
 

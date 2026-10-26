@@ -2422,6 +2422,146 @@ function bws_fixture_page_content_matrix_links() {
 	return implode( "\n\n", $sections );
 }
 
+/**
+ * matrix-core-blocks — tags inside CORE blocks (FW-156; blueprint v34).
+ *
+ * The page's axis is WHICH BLOCK a tag sits in, which no other page splits on. Rows are
+ * written against the testbed's settings baseline (manifest `wp_options`): core/paragraph,
+ * core/heading, core/list-item, core/table and core/button are SELECTED, core/verse and
+ * core/preformatted are not. A row is a label block (GB text, so it never carries a
+ * literal tag) followed by the core block under test: when the tag blanks the block, as
+ * `{{table}}` does in an inline-only block, the label stands alone, which is the
+ * expectation and not missing fixture (bws_fixture_gb_empty_row() has the same reason).
+ *
+ * THE PAGE'S OWN VALUES ARE THE CONTRAST (manifest `post_fields`): `role` Director against
+ * the two repeater rows' Design / Platform, `main_line` (919) 555-0134 against the two
+ * staff singles' own. A loop row that read the page prints Director, not a row's word.
+ *
+ * SURVEY (§CB6) has no page row of its own beyond the core/table cells here: the block
+ * widget it must also reach is seeded in `wp_options` and held by no sidebar, so nothing
+ * can render it. The matrix states that exception.
+ *
+ * @since Unreleased
+ * @return string
+ */
+function bws_fixture_page_content_matrix_core_blocks() {
+	$meta_id = function_exists( 'bws_fixture_seeded_post_id' ) ? bws_fixture_seeded_post_id( 'matrix-post-meta', 'page' ) : false;
+	$jane_id = function_exists( 'bws_fixture_seeded_post_id' ) ? bws_fixture_seeded_post_id( 'jane-partner', 'staff' ) : false;
+	$tom_id  = function_exists( 'bws_fixture_seeded_post_id' ) ? bws_fixture_seeded_post_id( 'tom-associate', 'staff' ) : false;
+	if ( ! $meta_id || ! $jane_id || ! $tom_id ) {
+		return bws_fixture_gb_text_block(
+			'MATRIX-CORE-BLOCKS FIXTURE ERROR: the "matrix-post-meta" page or the two staff singles were not found. Reseed them before this page.',
+			'matrix-core-blocks-missing-source'
+		);
+	}
+
+	// Core block markup, as the editor saves it. $inner is the tag string or the text around one.
+	$paragraph = static function ( $inner ) {
+		return "<!-- wp:paragraph -->\n<p>{$inner}</p>\n<!-- /wp:paragraph -->";
+	};
+	$heading   = static function ( $inner ) {
+		return "<!-- wp:heading {\"level\":3} -->\n<h3 class=\"wp-block-heading\">{$inner}</h3>\n<!-- /wp:heading -->";
+	};
+	$list      = static function ( $inner ) {
+		return "<!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li>{$inner}</li>\n<!-- /wp:list-item --></ul>\n<!-- /wp:list -->";
+	};
+	$table     = static function ( $inner ) {
+		return "<!-- wp:table -->\n<figure class=\"wp-block-table\"><table class=\"has-fixed-layout\"><tbody><tr><td>{$inner}</td></tr></tbody></table></figure>\n<!-- /wp:table -->";
+	};
+	$button    = static function ( $text, $href ) {
+		return "<!-- wp:buttons -->\n<div class=\"wp-block-buttons\"><!-- wp:button -->\n<div class=\"wp-block-button\"><a class=\"wp-block-button__link wp-element-button\" href=\"{$href}\">{$text}</a></div>\n<!-- /wp:button --></div>\n<!-- /wp:buttons -->";
+	};
+	$verse     = static function ( $inner ) {
+		return "<!-- wp:verse -->\n<pre class=\"wp-block-verse\">{$inner}</pre>\n<!-- /wp:verse -->";
+	};
+	$preformat = static function ( $inner ) {
+		return "<!-- wp:preformatted -->\n<pre class=\"wp-block-preformatted\">{$inner}</pre>\n<!-- /wp:preformatted -->";
+	};
+	// A label block, then the core block under test.
+	$row       = static function ( $label, $core ) {
+		return bws_fixture_gb_text_block( $label . ':', 'cb-label:' . $label ) . "\n\n" . $core;
+	};
+
+	$role  = '{{text key:role}}';
+	$plain = '{{content use:key|key:bws_block_plain}}';
+	$inl   = '{{content use:key|key:bws_block_inline}}';
+	$tbl   = "{{table src:post,{$meta_id};rows,team_members|A:header(Name);key(name)|B:header(Role);key(role)}}";
+
+	$sections = array();
+
+	// CB1 - text: a selected block renders, an unselected one prints as typed.
+	$sections[] = bws_fixture_gb_section( 'Text CB1 - a tag in a SELECTED core block renders; in an unselected one it prints as typed (FW-156)', array(
+		$row( 'CB1.1 core/paragraph, selected (-> Director)', $paragraph( $role ) ),
+		$row( 'CB1.2 core/heading, selected (-> Director, as a level 3 heading)', $heading( $role ) ),
+		$row( 'CB1.3 core/list-item, selected (-> Director, as the one bullet)', $list( $role ) ),
+		$row( 'CB1.4 core/table cell, selected (-> Director, in the one cell)', $table( $role ) ),
+		bws_fixture_gb_row( 'CB1.5 the GB text block control (-> Director)', $role ),
+		$row( 'CB1.6 core/verse, NOT selected (-> the tag printed literally, as typed)', $verse( $role ) ),
+		$row( 'CB1.7 core/preformatted, NOT selected (-> the tag printed literally, as typed)', $preformat( $role ) ),
+	) );
+
+	// CB2 - loop context: a selected core block inside a loop reads the loop item.
+	$staff_query = array(
+		'post_type'      => 'staff',
+		'post__in'       => array( (int) $jane_id, (int) $tom_id ),
+		'orderby'        => 'post__in',
+		'posts_per_page' => 2,
+	);
+	$loop_item   = static function ( $tag ) use ( $paragraph ) {
+		return bws_fixture_gb_text_block( 'GB text: ' . $tag, 'cb-loop-gb:' . $tag ) . "\n\n" . $paragraph( 'core/paragraph: ' . $tag );
+	};
+	$sections[]  = bws_fixture_gb_section( 'Text CB2 - inside a loop a selected core block reads the LOOP ITEM, never the page (FW-156 Invariant 2)', array(
+		bws_fixture_gb_text_block( 'CB2.1 repeater rows, a GB Pro post_meta loop over this page team_members (-> per row the GB text block and core/paragraph agree: Design and Design, then Platform and Platform; Director would be the page leaking in):', 'cb-label:CB2.1' ),
+		bws_fixture_gb_query_loop_blocks(
+			array( 'meta_key' => 'team_members', 'meta_key_id' => '', 'posts_per_page' => '-1' ),
+			$loop_item( $role ),
+			'cb-loop-repeater',
+			'post_meta'
+		),
+		bws_fixture_gb_text_block( 'CB2.2 WP_Query loop over Jane Partner then Tom Associate (-> per post both agree: (555) 200-3000, then (555) 200-4000; (919) 555-0134 would be the page leaking in):', 'cb-label:CB2.2' ),
+		bws_fixture_gb_query_loop_blocks(
+			$staff_query,
+			$loop_item( '{{text use:key|key:main_line}}' ),
+			'cb-loop-staff'
+		),
+	) );
+
+	// CB3 - content: block markup is reduced to inline text in an inline-only block.
+	$sections[] = bws_fixture_gb_section( 'Content CB3 - the content tag in an inline-only core block is reduced to inline text; a GB container is untouched (FW-156)', array(
+		$row( 'CB3.1 core/paragraph, two-paragraph value (-> ONE paragraph: Plain line one. Plain line two. with one space between, no nested paragraph)', $paragraph( $plain ) ),
+		$row( 'CB3.2 core/heading, the same value (-> Plain line one. Plain line two. inside the one heading)', $heading( $plain ) ),
+		$row( 'CB3.3 core/paragraph, a formatted value (-> Formatted one, with a soft line break. Formatted two. in one paragraph)', $paragraph( '{{content use:key|key:bws_block_formatted}}' ) ),
+		$row( 'CB3.4 core/paragraph, a bare run from a stated fallback (-> Nothing stored. unchanged)', $paragraph( '{{content use:key|key:bws_missing_key|fallback:Nothing stored.}}' ) ),
+		$row( 'CB3.5 core/paragraph, a value carrying inline tags (-> Open weekdays in bold and holidays in italics, then our hours as a LINK to example.test/hours/: all three kept)', $paragraph( $inl ) ),
+		$row( 'CB3.6 core/button, the same value (-> bold and italics kept, our hours as plain text: a link is dropped inside a button, because the button is the link)', $button( $inl, '#' ) ),
+		bws_fixture_gb_block_host_row( 'CB3.7 GB text block control (-> TWO separate paragraphs: Plain line one. / Plain line two.)', $plain ),
+	) );
+
+	// CB4 - the link wrap: a core/button gets the bare value, a GB block still wraps.
+	$link_tag   = '{{text key:role|linkTo:permalink}}';
+	$mail_tag   = '{{email key:contact_email}}';
+	$phone_tag  = '{{phone key:main_line}}';
+	$sections[] = bws_fixture_gb_section( 'Link wrap CB4 - in core/button a tag that would print a link prints the BARE value, in the text and in the href; a GB block still wraps (FW-156)', array(
+		$row( 'CB4.1 core/button, a text tag with Link To (-> button text Director with no anchor inside the button; the href carries the bare value too, which GB then turns into http://Director - matrix finding F1)', $button( $link_tag, $link_tag ) ),
+		$row( 'CB4.2 core/button, email (-> button text blocks@example.test with no mailto; the href carries the bare value too, which GB then turns into http://blocks@example.test - matrix finding F1)', $button( $mail_tag, $mail_tag ) ),
+		$row( 'CB4.3 core/button, phone (-> button text (919) 555-0134 with no tel; the href carries the bare value too, which GB then turns into http://(919)%20555-0134 - matrix finding F1)', $button( $phone_tag, $phone_tag ) ),
+		bws_fixture_gb_row( 'CB4.4 GB text block, the same Link To (-> Director as a link to /matrix-core-blocks/)', $link_tag ),
+		bws_fixture_gb_row( 'CB4.5 GB text block, email (-> blocks@example.test as a mailto link)', $mail_tag ),
+		bws_fixture_gb_row( 'CB4.6 GB text block, phone (-> (919) 555-0134 as a tel link)', $phone_tag ),
+	) );
+
+	// CB5 - table: refused in an inline-only block, which blanks the block; a GB block renders it.
+	$sections[] = bws_fixture_gb_section( 'Table CB5 - the table tag in an inline-only core block prints nothing, so the block is hidden; a GB block renders it (FW-156)', array(
+		$row( 'CB5.1 core/paragraph (-> EMPTY: nothing follows this label)', $paragraph( $tbl ) ),
+		$row( 'CB5.2 core/heading (-> EMPTY: nothing follows this label)', $heading( $tbl ) ),
+		$row( 'CB5.3 core/table cell (-> EMPTY: the whole table block is hidden, nothing follows this label)', $table( $tbl ) ),
+		$row( 'CB5.4 core/button (-> the button is hidden; only the empty buttons wrapper around it remains, matrix note N1)', $button( $tbl, '#' ) ),
+		bws_fixture_gb_block_host_row( 'CB5.5 GB text block control (-> a 2-row table: Alice Adams / Engineering, Bob Brown / Operations, read off matrix-post-meta)', $tbl ),
+	) );
+
+	return implode( "\n\n", $sections );
+}
+
 /** Dispatcher: manifest content_builder name → page content. */
 /**
  * matrix-products — the PRODUCT LOOP corpus (FW-100; blueprint v21, flipped in v22).
@@ -2684,6 +2824,7 @@ function bws_fixture_build_page_content( $builder ) {
 		'matrix_repeaters'     => 'bws_fixture_page_content_matrix_repeaters',
 		'matrix_links'         => 'bws_fixture_page_content_matrix_links',
 		'matrix_table'         => 'bws_fixture_page_content_matrix_table',
+		'matrix_core_blocks'   => 'bws_fixture_page_content_matrix_core_blocks',
 		'pattern_legacy_wire'  => 'bws_fixture_pattern_content_legacy_wire',
 		'context_header'       => 'bws_fixture_element_content_context_header',
 		'home_lead'            => 'bws_fixture_page_content_home_lead',

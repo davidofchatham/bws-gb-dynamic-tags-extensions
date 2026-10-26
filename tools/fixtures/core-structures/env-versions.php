@@ -61,6 +61,12 @@ return array(
 	// The date the baseline under `tools/test/snapshots/` was captured. Prose only —
 	// nothing compares it; it is here so a reader can place the record in time.
 	//
+	// 2026-10-26: a NEW PAGE, `page-matrix-core-blocks` (FW-156, core-block-test-matrix.md), and the
+	// testbed settings baseline now selects five core block types. Pure addition: all 27 existing
+	// pages passed byte-identical with the five selected, before the new page was captured, which is
+	// the measurement that selecting them moves nothing that holds no tag in a core block.
+	// Dependency versions and the active set unchanged (re-read from the site's plugin list).
+	//
 	// 2026-10-22: QL6.1 added to `page-matrix-loops` (a `src:site` datetime in a staff post
 	// loop, the option date on both items); nothing else moved, including after the
 	// term-archive read left `bws_read_field()`, measured against the old baseline before
@@ -132,7 +138,7 @@ return array(
 	// The 2026-09-14 capture is WooCommerce joining the fixture site (chrome only, no
 	// rendered tag moved); the 2026-09-03 one is where the head-deletion rule arrived — a
 	// reader hitting an ~800-line deletion further back in `git log` is looking at that.
-	'captured' => '2026-10-22',
+	'captured' => '2026-10-26',
 
 	// WordPress core, as `get_bloginfo( 'version' )` reports it. A change is a WARNING like a
 	// plugin version change, never a failure. First recorded 2026-09-25, read off the site
