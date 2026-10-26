@@ -49,6 +49,9 @@ class WP_Block_Type_Registry {
 	public static function get_instance() {
 		return new self();
 	}
+	public function is_registered( $name ) {
+		return isset( self::$types[ $name ] );
+	}
 	public function get_registered( $name ) {
 		return self::$types[ $name ] ?? null;
 	}
@@ -148,6 +151,8 @@ echo "§3 — GB allowlist hook\n";
 $gb = 'generateblocks_dynamic_tags_allowed_blocks';
 assert_same( 'hooks.php registers the GB allowlist filter', true, ! empty( $GLOBALS['__filters'][ $gb ] ) );
 
+WP_Block_Type_Registry::$types = array( 'core/paragraph' => (object) array(), 'core/heading' => (object) array(), 'generateblocks/text' => (object) array() );
+
 with_saved( null );
 assert_same( 'empty set leaves GB list byte-identical', array( 'generateblocks/text' ), apply_filters( $gb, array( 'generateblocks/text' ) ) );
 
@@ -156,6 +161,13 @@ assert_same( 'set is appended; GB entries not duplicated', array( 'generateblock
 
 with_saved( array( 'core/paragraph' ) );
 assert_same( 'a non-array GB value is treated as empty list', array( 'core/paragraph' ), apply_filters( $gb, null ) );
+
+with_saved( array( 'core/paragraph', 'acme/deactivated-block' ) );
+assert_same( 'an unregistered name is withheld from GB (it would get no loop keys)', array( 'core/paragraph' ), apply_filters( $gb, array() ) );
+assert_same( 'the same name stays in the enabled set, so the selection survives', array( 'core/paragraph', 'acme/deactivated-block' ), bws_core_blocks_enabled() );
+
+WP_Block_Type_Registry::$types['acme/deactivated-block'] = (object) array();
+assert_same( 'once the plugin is back and the block registers, it is allowed again', array( 'core/paragraph', 'acme/deactivated-block' ), apply_filters( $gb, array() ) );
 
 echo "§4 — the loop-key pass\n";
 $loop_keys = array( 'generateblocks/loopItem', 'generateblocks/loopIndex', 'generateblocks/queryType', 'generateblocks/queryId', 'generateblocks/queryData', 'postId', 'postType' );

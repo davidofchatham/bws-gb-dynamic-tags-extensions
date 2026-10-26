@@ -67,14 +67,19 @@ function bws_core_blocks_enabled(): array {
 /**
  * `generateblocks_dynamic_tags_allowed_blocks` callback: append the enabled set to GB's list.
  *
- * Also widens GB's restricted-user save gate, which reads the same list.
+ * Also widens GB's restricted-user save gate, which reads the same list. Only names with a
+ * REGISTERED block type go through: an unregistered block gets no loop keys from
+ * bws_core_blocks_add_loop_context(), so a tag in it inside a loop would read the page. The
+ * enabled set itself stays unpruned, so a deactivated plugin's selection comes back with it.
  *
  * @since Unreleased
  * @param mixed $allowed GB's allowlisted block names.
  * @return string[]
  */
 function bws_core_blocks_allow( $allowed ): array {
-	return array_values( array_unique( array_merge( is_array( $allowed ) ? $allowed : array(), bws_core_blocks_enabled() ) ) );
+	$registry = \WP_Block_Type_Registry::get_instance();
+	$enabled  = array_filter( bws_core_blocks_enabled(), array( $registry, 'is_registered' ) );
+	return array_values( array_unique( array_merge( is_array( $allowed ) ? $allowed : array(), $enabled ) ) );
 }
 
 /**
