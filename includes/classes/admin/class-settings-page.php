@@ -12,6 +12,7 @@
  *     email:       { obfuscate: bool },
  *     phone:       { country_code: string, strip_leading_cc: bool },
  *     table:       { stripe_color: string, stripe_opacity: string },
+ *     core_blocks: string[],  // block names, e.g. core/paragraph; empty = off
  *   }
  *
  * Deprecated tag mode semantics:
@@ -186,6 +187,7 @@ class SettingsPage {
 			'email'      => array(),
 			'phone'      => array(),
 			'table'      => array(),
+			'core_blocks' => array(),
 		);
 
 		// Modifier toggles. An orphaned `modifiers.term` key on an existing row is simply
@@ -217,6 +219,10 @@ class SettingsPage {
 		$stripe_opacity = bws_table_stripe_opacity_setting( (string) ( $input['table']['stripe_opacity'] ?? '' ) );
 		$sanitized['table']['stripe_color']   = $stripe_color ?? '';
 		$sanitized['table']['stripe_opacity'] = null === $stripe_opacity ? '' : bws_table_css_number( $stripe_opacity );
+
+		// Core blocks that get dynamic tags (FW-156). Flat list of `namespace/name`; the key MUST
+		// be rebuilt here or every save drops it.
+		$sanitized['core_blocks'] = bws_core_blocks_clean( $input['core_blocks'] ?? array() );
 
 		return $sanitized;
 	}
