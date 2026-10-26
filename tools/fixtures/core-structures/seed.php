@@ -391,6 +391,9 @@ foreach ( $manifest['posts'] as $slug => $def ) {
 		// `fixed` row carries, text matrix §T12.7) would be eaten on the way in.
 		'post_content' => wp_slash( $content ),
 	);
+	if ( isset( $def['post_excerpt'] ) ) {
+		$args['post_excerpt'] = $def['post_excerpt'];
+	}
 	if ( isset( $def['post_author'], $user_ids[ $def['post_author'] ] ) ) {
 		$args['post_author'] = $user_ids[ $def['post_author'] ];
 	}

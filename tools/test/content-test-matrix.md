@@ -87,3 +87,31 @@ An absent `use` beside a field token reads through that token's mode, so `key` a
 | CT8.3 | `{{content src:ref\|ref:related_staff\|use:excerpt\|key:main_line}}` | Byte-identical to CT3: the explicit `use` wins, the stale `key` is ignored |
 | CT8.4 | `{{text src:ref\|ref:related_staff\|use:title\|key:main_line}}` | `Jane Partner`: explicit wins on `{{text}}` too |
 | CT8.5 | `{{image src:post,<tom>\|use:featured\|key:feature_image\|as:id}}` | Empty (no featured image seeded), where `{{image src:post,<tom>\|key:feature_image\|as:id}}` reads the attachment id. Pinned at Tom, the one staff single carrying `feature_image`; `<tom>` is his seeded post id |
+
+## §CT9 — always block-level (FW-144)
+
+`{{content}}` always prints block-level markup: a non-empty value with no block-level tag is wrapped in paragraphs (`wpautop`), a value with any block-level tag is left exactly as the source gave it. The wrap sits at the exit of `bws_base_content_resolve_value()`, so every row above that prints a bare value (CT3, CT4, CT5, CT8.1–CT8.3) now prints it inside `<p>`; the strings quoted there are the text inside. What counts as block-level is `bws_markup_has_block_level_tag()`, harnessed by `php tools/test/content-block-markup-test.php`.
+
+Fixture (blueprint v33): the `department-annex` term (two-paragraph description with `<strong>`), a manual excerpt on this page, and `bws_block_plain` / `bws_block_formatted` post meta on this page. Visible on `/matrix-content/` (CT9 section); ids are resolved at build time, so the tag strings below carry `<annex>` / `<this page>`.
+
+| # | Tag | Expected |
+|---|---|---|
+| CT9.1 | `{{content src:term,<annex>}}` | `<p>The Annex handles overflow orders.</p>` newline `<p>It shares the <strong>Warehouse</strong> dock and is open on weekdays.</p>`; the unwrapped build printed one run of text |
+| CT9.2 | `{{try_content src:term,<annex>}}` | Byte-identical to CT9.1: the `try_` family resolves through the same seam |
+| CT9.3 | `{{content src:post,<this page>\|use:excerpt}}` | `<p>A hand-written excerpt.</p>` |
+| CT9.4 | `{{content use:key\|key:bws_block_plain}}` | `<p>Plain line one.</p>` newline `<p>Plain line two.</p>` |
+| CT9.5 | `{{content use:key\|key:bws_block_formatted}}` | Exactly as stored, `<p>Formatted one,` newline `with a soft line break.</p>` newline `<p>Formatted two.</p>`. **No `<br />` inserted**: measured 2026-10-26, `wpautop` over this value adds one, which is why a value carrying a block tag is skipped rather than passed through it |
+| CT9.6 | `{{content use:key\|key:bws_missing_key\|fallback:Nothing stored.}}` | `<p>Nothing stored.</p>`: the stated fallback is part of the seam's value |
+| CT9.7 | `{{content use:key\|key:bws_missing_key}}` | Empty, never an empty paragraph |
+
+**Render-tag only (ambient context, measured 2026-10-26 before and after):**
+
+| Context | Tag | Before | After |
+|---|---|---|---|
+| `/department/sales/` | `{{content}}`, `{{try_content}}` | the description, bare | the description in `<p>` |
+| `/author/fixture-author/` | `{{content}}` | the bio, bare | the bio in `<p>` |
+| `/staff/` (post type archive) | `{{content}}` | `<p>…</p>` | unchanged |
+| any | `{{content src:site\|use:key\|key:organization_address}}` | `<p>…<br />…</p>` | unchanged |
+| any | `{{content src:ref\|ref:related_staff}}` (post content) | blocks | unchanged |
+
+The author bio arrived bare before this change, contrary to the FW-144 spec's reading of the code; it is wrapped now by the same rule.

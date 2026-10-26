@@ -370,18 +370,18 @@ if ( $gate_page instanceof WP_Post ) {
 		setup_postdata( $prev_post );
 	}
 
-	$check( 'F17.1 anonymous reads the first VISIBLE source, past the draft and the private one', 'Grace' === $anon_first, 'out=' . var_export( $anon_first, true ) );
-	$check( 'F17.2 an administrator reads the DRAFT — the visible level is viewer-relative', 'Dana' === $admin_first, 'out=' . var_export( $admin_first, true ) );
+	$check( 'F17.1 anonymous reads the first VISIBLE source, past the draft and the private one', '<p>Grace</p>' === $anon_first, 'out=' . var_export( $anon_first, true ) );
+	$check( 'F17.2 an administrator reads the DRAFT — the visible level is viewer-relative', '<p>Dana</p>' === $admin_first, 'out=' . var_export( $admin_first, true ) );
 	$check( 'F17.4 the chain through the draft is CUT for a visitor', '' === $anon_hop, 'out=' . var_export( $anon_hop, true ) );
-	$check( 'F17.5 the same chain resolves for a viewer who may read the stone (so F17.4 is not a missing hop)', 'Grace' === $admin_hop, 'out=' . var_export( $admin_hop, true ) );
+	$check( 'F17.5 the same chain resolves for a viewer who may read the stone (so F17.4 is not a missing hop)', '<p>Grace</p>' === $admin_hop, 'out=' . var_export( $admin_hop, true ) );
 	// EXISTS is not viewer-relative, so this pair must AGREE. A divergence here means
 	// the deleted id started being answered by a capability check.
 	$check( 'F17.3 a deleted id fails for BOTH viewers and spends no limit budget', 'Grace' === $anon_stale && $anon_stale === $admin_stale, 'anon=' . var_export( $anon_stale, true ) . ' admin=' . var_export( $admin_stale, true ) );
-	$check( 'F17.6 the draft OWNER reads their own draft', 'Dana' === $owner_first, 'out=' . var_export( $owner_first, true ) );
+	$check( 'F17.6 the draft OWNER reads their own draft', '<p>Dana</p>' === $owner_first, 'out=' . var_export( $owner_first, true ) );
 	// The pair is the assertion, not either half: 'Grace' alone would also be
 	// printed by a gate that refused every logged-in non-admin, and 'Dana' alone by
 	// one that resolved any draft for anyone signed in.
-	$check( 'F17.7 a DIFFERENT author, equally logged in, does not', 'Grace' === $other_first, 'out=' . var_export( $other_first, true ) );
+	$check( 'F17.7 a DIFFERENT author, equally logged in, does not', '<p>Grace</p>' === $other_first, 'out=' . var_export( $other_first, true ) );
 	// Trash is the one status where EXISTS passes and VISIBLE fails for everyone, so
 	// this pair must AGREE while F17.1/F17.2 diverge on the same page.
 	$check( 'F17.8 a TRASHED source is refused for both viewers and spends no limit budget', 'Grace' === $anon_trash && $anon_trash === $admin_trash, 'anon=' . var_export( $anon_trash, true ) . ' admin=' . var_export( $admin_trash, true ) );
@@ -446,7 +446,7 @@ if ( $gate_page instanceof WP_Post ) {
 	}
 
 	$check( 'FW-89.1 a filter refusing the only visible source leaves the tag EMPTY for a visitor', '' === $anon_filtered, 'out=' . var_export( $anon_filtered, true ) );
-	$check( 'FW-89.2 a filter-refused source is passed over: the next usable one is read', 'Paul' === $admin_filtered, 'out=' . var_export( $admin_filtered, true ) );
+	$check( 'FW-89.2 a filter-refused source is passed over: the next usable one is read', '<p>Paul</p>' === $admin_filtered, 'out=' . var_export( $admin_filtered, true ) );
 	$check( 'FW-89.2b a filter-refused source spends no limit slot (limit:2 still reads two)', 'Paul, Grace' === $admin_limited, 'out=' . var_export( $admin_limited, true ) );
 	// Both halves: absent ids prove restrict-only; Grace present proves the stub ran at all.
 	$check(

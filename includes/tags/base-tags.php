@@ -850,8 +850,8 @@ function bws_join_callback( $options, $block, $instance ): string {
  * rows    + use unset   → '' (analogs refuse on a row — it is not an entity)
  * rows    + use:excerpt → '' (same)
  *
- * THE FAMILY'S RESOLVE SEAM: `{{try_content}}` attempts run through it too
- * (`resolve_fn`); the shells on both sides own what the seam leaves out.
+ * The READ half of bws_base_content_resolve_value(), which adds the block-level wrap
+ * over every arm's value.
  *
  * Reads no `limit`: the one-result rule (`takes_first_usable`, ADR 0007) is enforced
  * above this function.
@@ -875,7 +875,7 @@ function bws_join_callback( $options, $block, $instance ): string {
  * @param mixed $instance GB tag instance.
  * @return array{value:string, link_id:int, link_type:string}
  */
-function bws_base_content_resolve_value( array $options, $instance ): array {
+function bws_base_content_read_value( array $options, $instance ): array {
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
 	$use  = bws_use_effective( 'content', $options );
@@ -957,6 +957,33 @@ function bws_base_content_resolve_value( array $options, $instance ): array {
 		}
 		return bws_post_content_core( $post_id, $opts, $instance );
 	} );
+	return $out;
+}
+
+/**
+ * Resolve the `content` base tag's VALUE — the full read path minus the preview label.
+ *
+ * THE FAMILY'S RESOLVE SEAM: `{{try_content}}` attempts run through it too
+ * (`resolve_fn`); the shells on both sides own what the seam leaves out.
+ *
+ * `{{content}}` ALWAYS PRINTS BLOCK-LEVEL MARKUP. Every arm's value (site, refusal
+ * fallback, ambient, rows, term, post) leaves through this one exit: a non-empty value
+ * carrying no block-level tag is run through wpautop, one that carries any is left as
+ * the source gave it (see bws_markup_has_block_level_tag() for the rule). The wrap needs
+ * no knowledge of the source, so a new source kind gets it without a change here.
+ *
+ * @since 1.21.0
+ * @since Unreleased Wraps a bare value in paragraphs.
+ *
+ * @param array $options  Tag options.
+ * @param mixed $instance GB tag instance.
+ * @return array{value:string, link_id:int, link_type:string}
+ */
+function bws_base_content_resolve_value( array $options, $instance ): array {
+	$out = bws_base_content_read_value( $options, $instance );
+	if ( '' !== $out['value'] && ! bws_markup_has_block_level_tag( $out['value'] ) ) {
+		$out['value'] = trim( wpautop( $out['value'] ) );
+	}
 	return $out;
 }
 
