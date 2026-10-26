@@ -644,6 +644,7 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
  * @since 1.16.0 All-empty fallback path.
  */
 function bws_base_text_callback( $options, $block, $instance ): string {
+	$options    = bws_host_unlinked_options( $options, $block );
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
 	$resolved = bws_base_text_resolve_value( $options, $instance );
@@ -1121,6 +1122,7 @@ function bws_base_title_resolve_value( array $options, $instance ): array {
  * @since 1.21.0 Value resolution extracted to bws_base_title_resolve_value().
  */
 function bws_base_title_callback( $options, $block, $instance ): string {
+	$options    = bws_host_unlinked_options( $options, $block );
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
 	$resolved = bws_base_title_resolve_value( (array) $options, $instance );

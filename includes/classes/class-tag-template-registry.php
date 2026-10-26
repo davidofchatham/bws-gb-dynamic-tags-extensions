@@ -467,6 +467,7 @@ class TagTemplateRegistry {
 				if ( $media_guard && function_exists( 'bws_tag_blocked_on_media_block' ) && bws_tag_blocked_on_media_block( $b ) ) {
 					return '';
 				}
+				$opts = bws_host_unlinked_options( $opts, $b );
 
 				// THE WALK (includes/helpers/try-slot-loop.php). Null = every attempt read
 				// nothing; the tail below is this shell's, exactly as a base tag's callback

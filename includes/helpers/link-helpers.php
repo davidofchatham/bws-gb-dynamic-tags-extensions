@@ -195,6 +195,37 @@ function bws_core_block_is_button( $block ): bool {
 }
 
 /**
+ * Tag options as the host block lets a tag read them: no link wrap on a button host.
+ *
+ * A button host is itself the link, so a tag that would wrap its output in `<a>` (the
+ * `linkTo` wrap, or the default-on mailto:/tel: wrap of `{{email}}` / `{{phone}}`) prints the
+ * bare value instead, in the button text and in its `href` alike (the callback cannot tell
+ * which slot it renders in, so one rule serves both). The value is never emptied: GB blanks a
+ * whole block whose required tag resolves empty. Any other host gets `$options` back unchanged.
+ *
+ * Called once at the top of each shell that can wrap (text, title, the two datetime shells,
+ * email, phone, the `try_` closure) and nowhere below it: the rewritten options carry the
+ * answer to every downstream wrap, including the per-item wrap in `bws_collect_value_list()`.
+ * Not `{{call}}`, which is unconstrained here.
+ *
+ * @since Unreleased
+ * @param array $options Tag options.
+ * @param mixed $block   GB block array passed to the tag callback (arg 2).
+ * @return array The options, with the wrap controls forced off on a button host.
+ */
+if ( ! function_exists( 'bws_host_unlinked_options' ) ) {
+function bws_host_unlinked_options( $options, $block ) {
+	if ( ! bws_core_block_is_button( $block ) ) {
+		return $options;
+	}
+	$options           = (array) $options;
+	$options['linkTo'] = 'none';
+	$options['noLink'] = true;
+	return $options;
+}
+}
+
+/**
  * Wrap output string in an anchor element when a link URL resolves.
  *
  * Invariants enforced here:

@@ -946,6 +946,7 @@ function bws_base_datetime_single_resolve_value( array $options, $instance ): ar
  * @since 1.21.0 Value resolution extracted to bws_base_datetime_single_resolve_value().
  */
 function bws_base_datetime_single_callback( $options, $block, $instance ): string {
+	$options    = bws_host_unlinked_options( $options, $block );
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
 	$resolved = bws_base_datetime_single_resolve_value( (array) $options, $instance );
@@ -1150,6 +1151,7 @@ function bws_base_datetime_range_resolve_value( array $options, $instance ): arr
  * @since 1.21.0 Value resolution extracted to bws_base_datetime_range_resolve_value().
  */
 function bws_base_datetime_range_callback( $options, $block, $instance ): string {
+	$options    = bws_host_unlinked_options( $options, $block );
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
 	$resolved = bws_base_datetime_range_resolve_value( (array) $options, $instance );
