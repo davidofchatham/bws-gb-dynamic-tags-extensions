@@ -65,6 +65,8 @@ return array(
 	// testbed settings baseline now selects five core block types. Pure addition: all 27 existing
 	// pages passed byte-identical with the five selected, before the new page was captured, which is
 	// the measurement that selecting them moves nothing that holds no tag in a core block.
+	// Same day, second capture: three more CB4 rows on that page (a scheme typed before the tag in a
+	// button link) and a `sms_number` on it; only that page moved.
 	// Dependency versions and the active set unchanged (re-read from the site's plugin list).
 	//
 	// 2026-10-22: QL6.1 added to `page-matrix-loops` (a `src:site` datetime in a staff post

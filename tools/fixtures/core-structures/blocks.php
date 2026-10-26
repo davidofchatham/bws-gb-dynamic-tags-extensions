@@ -2542,9 +2542,12 @@ function bws_fixture_page_content_matrix_core_blocks() {
 	$mail_tag   = '{{email key:contact_email}}';
 	$phone_tag  = '{{phone key:main_line}}';
 	$sections[] = bws_fixture_gb_section( 'Link wrap CB4 - in core/button a tag that would print a link prints the BARE value, in the text and in the href; a GB block still wraps (FW-156)', array(
-		$row( 'CB4.1 core/button, a text tag with Link To (-> button text Director with no anchor inside the button; the href carries the bare value too, which GB then turns into http://Director - matrix finding F1)', $button( $link_tag, $link_tag ) ),
-		$row( 'CB4.2 core/button, email (-> button text blocks@example.test with no mailto; the href carries the bare value too, which GB then turns into http://blocks@example.test - matrix finding F1)', $button( $mail_tag, $mail_tag ) ),
-		$row( 'CB4.3 core/button, phone (-> button text (919) 555-0134 with no tel; the href carries the bare value too, which GB then turns into http://(919)%20555-0134 - matrix finding F1)', $button( $phone_tag, $phone_tag ) ),
+		$row( 'CB4.1 core/button, a text tag with Link To (-> button text Director with no anchor inside the button; the link holds the same bare value, which GB makes http://Director because a link with no scheme gets one)', $button( $link_tag, $link_tag ) ),
+		$row( 'CB4.2 core/button, email (-> button text blocks@example.test with no mailto; the link holds the same bare value, which GB makes http://blocks@example.test because a link with no scheme gets one)', $button( $mail_tag, $mail_tag ) ),
+		$row( 'CB4.3 core/button, phone (-> button text (919) 555-0134 with no tel; the link holds the same bare value, which GB makes http://(919)%20555-0134 because a link with no scheme gets one)', $button( $phone_tag, $phone_tag ) ),
+		$row( 'CB4.7 core/button, the author types the scheme: mailto: before the email tag in the link (-> button text blocks@example.test; href mailto:blocks@example.test, a working mail link)', $button( $mail_tag, 'mailto:' . $mail_tag ) ),
+		$row( 'CB4.8 core/button, tel: before the phone tag, the stored (919) 555-0134 (-> button text (919) 555-0134; href tel:(919)%20555-0134, spaces percent-encoded by GB)', $button( $phone_tag, 'tel:' . $phone_tag ) ),
+		$row( 'CB4.9 core/button, tel: before the phone tag, a field stored as +19195550134 (-> button text +19195550134; href tel:+19195550134, digits only)', $button( '{{phone key:sms_number}}', 'tel:{{phone key:sms_number}}' ) ),
 		bws_fixture_gb_row( 'CB4.4 GB text block, the same Link To (-> Director as a link to /matrix-core-blocks/)', $link_tag ),
 		bws_fixture_gb_row( 'CB4.5 GB text block, email (-> blocks@example.test as a mailto link)', $mail_tag ),
 		bws_fixture_gb_row( 'CB4.6 GB text block, phone (-> (919) 555-0134 as a tel link)', $phone_tag ),

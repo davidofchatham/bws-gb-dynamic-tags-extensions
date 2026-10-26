@@ -13,7 +13,7 @@ Operating the testbed, and why every row must also be a visible block: [`docs/te
 | Entity | Carries |
 |---|---|
 | settings `core_blocks` | `core/paragraph`, `core/heading`, `core/list-item`, `core/table`, `core/button` SELECTED (the testbed's baseline; the product ships it empty). `core/verse` and `core/preformatted` are deliberately not |
-| page `matrix-core-blocks` | `role` **Director**, `main_line` **(919) 555-0134**, `contact_email` **blocks@example.test**, and its own two-row `team_members`: **Carla Diaz** / `Design`, **Dev Patel** / `Platform`. The page's values differ from every row's, so a block that read the page prints the wrong word |
+| page `matrix-core-blocks` | `role` **Director**, `main_line` **(919) 555-0134**, `sms_number` **+19195550134**, `contact_email` **blocks@example.test**, and its own two-row `team_members`: **Carla Diaz** / `Design`, **Dev Patel** / `Platform`. The page's values differ from every row's, so a block that read the page prints the wrong word |
 | plain meta on that page | `bws_block_plain` (two paragraphs of bare text), `bws_block_formatted` (already `<p>`-wrapped, with a soft break), `bws_block_inline` (bold, italic and a link, no block tag) |
 | staff `jane-partner`, `tom-associate` | `main_line` `(555) 200-3000` and `(555) 200-4000`, the WP_Query loop's items |
 | page `matrix-post-meta` | the `team_members` repeater (**Alice Adams** / `Engineering`, **Bob Brown** / `Operations`) CB5.5 reads |
@@ -62,18 +62,21 @@ Block-level markup is reduced to inline text; a GB container is untouched. Lossy
 
 ## CB4: link-wrapping tags in `core/button`
 
-The same tag sits in the button's text and in its `href`. In a GB block each still wraps.
+The same tag sits in the button's text and, in CB4.1 to 4.3, in its `href`. In a GB block each still wraps. The button's own link is not wrapped, and GenerateBlocks then runs `esc_url()` over it ([`gb-constraints.md`](../../docs/gb-constraints.md#generateblocks-runs-esc_url-over-a-url-attribute-after-replacement-gb-250-gb-pro-280-wp-713)), so a link with no scheme gains `http://`. An author who wants a mail or phone link types the scheme before the tag (CB4.7 to 4.9); the button note on the settings page says so.
 
-| # | Host | Tag | Expected text | Expected href | Status |
+| # | Host | Tag (text, and link where noted) | Expected text | Expected rendered `href` | Status |
 |---|---|---|---|---|---|
-| CB4.1 | `core/button` | `{{text key:role\|linkTo:permalink}}` | `Director`, no anchor inside the button | the bare value | text PASS, href FINDING F1 |
-| CB4.2 | `core/button` | `{{email key:contact_email}}` | `blocks@example.test`, no `mailto:` | the bare value | text PASS, href FINDING F1 |
-| CB4.3 | `core/button` | `{{phone key:main_line}}` | `(919) 555-0134`, no `tel:` | the bare value | text PASS, href FINDING F1 |
+| CB4.1 | `core/button` | `{{text key:role\|linkTo:permalink}}` in both | `Director`, no anchor inside the button | `http://Director` | PASS 2026-10-26 |
+| CB4.2 | `core/button` | `{{email key:contact_email}}` in both | `blocks@example.test`, no `mailto:` | `http://blocks@example.test` | PASS 2026-10-26 |
+| CB4.3 | `core/button` | `{{phone key:main_line}}` in both | `(919) 555-0134`, no `tel:` | `http://(919)%20555-0134` | PASS 2026-10-26 |
 | CB4.4 | GB text (control) | same Link To | `Director` linked to `/matrix-core-blocks/` | | PASS 2026-10-26 |
 | CB4.5 | GB text (control) | email | `blocks@example.test` as a `mailto:` link | | PASS 2026-10-26 |
 | CB4.6 | GB text (control) | phone | `(919) 555-0134` as a `tel:` link | | PASS 2026-10-26 |
+| CB4.7 | `core/button` | email in the text, `mailto:` + email in the link | `blocks@example.test` | `mailto:blocks@example.test` | PASS 2026-10-26 |
+| CB4.8 | `core/button` | phone in the text, `tel:` + phone in the link, stored `(919) 555-0134` | `(919) 555-0134` | `tel:(919)%20555-0134` | PASS 2026-10-26 (href measured, not tried on a device) |
+| CB4.9 | `core/button` | `{{phone key:sms_number}}` in the text, `tel:` + the same in the link, stored `+19195550134` | `+19195550134` | `tel:+19195550134` | PASS 2026-10-26 |
 
-**F1, measured 2026-10-26: the `href` is not the bare value.** The plugin hands back the bare value, and GenerateBlocks then runs `esc_url()` over every URL attribute after replacement (its `class-register-dynamic-tag.php` says so at the attribute-handling comment), and `esc_url()` prefixes `http://` to a value with no scheme. Rendered: `href="http://Director"`, `href="http://blocks@example.test"`, `href="http://(919)%20555-0134"`. WordPress leaves the same literal untouched (measured: a core button with `href="Director"` renders `Director`), so the prefix is GB's, not the block's. The rule's intent (no anchor nested in an anchor, never empty) holds; the exact `href` the ticket text asks for does not. Surfaced for a decision, not worked around: either the spec's "bare value in the href" is restated as "no wrapped anchor in the href", or the rule hands back something a URL attribute survives.
+**Which phone form works.** The phone tag has no option that prints digits or E.164: its display is the stored value verbatim (`bws_phone_render_one()`), so the form a button link gets is whatever the field stores. A stored `+19195550134` gives a clean `tel:+19195550134` (CB4.9). The default formatted value gives `tel:(919)%20555-0134` (CB4.8), valid to GenerateBlocks and WordPress but dependent on the phone app decoding the `%20`. A site that needs the clean form stores the digits.
 
 **N1: a hidden button leaves its wrapper.** CB5.4 hides the `core/button`; the unselected `core/buttons` block around it still prints its empty `<div class="wp-block-buttons ...">`. GenerateBlocks blanks the block whose tag resolved empty and nothing else.
 

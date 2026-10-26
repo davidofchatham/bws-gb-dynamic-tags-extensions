@@ -261,6 +261,12 @@ Measured 2026-10-26 on the fixture site (versions as recorded in `tools/fixtures
 
 What the plugin does with it is stated in [`tag-reference.md` §Tags in core blocks](tag-reference.md#tags-in-core-blocks-unreleased).
 
+## GenerateBlocks runs `esc_url()` over a URL attribute after replacement (GB 2.5.0, GB Pro 2.8.0, WP 7.1.3)
+
+Measured 2026-10-26 on the fixture site (versions as recorded in `tools/fixtures/core-structures/env-versions.php`), on a `core/button` whose link held a tag. After a tag in a URL attribute such as `href` is replaced, GenerateBlocks passes the whole value through `esc_url()`. A value with no scheme comes back prefixed `http://` (`Director` became `http://Director`), spaces become `%20`, and a scheme already in the value survives: `mailto:` before an email tag rendered `mailto:blocks@example.test`, and `tel:` before a phone tag rendered `tel:(919)%20555-0134` for a stored `(919) 555-0134` and `tel:+19195550134` for a stored `+19195550134`. WordPress itself leaves the same literal `href` untouched, so the prefix is GenerateBlocks'. Not measured: how a phone dialer treats the percent-encoded spaces.
+
+What the plugin does with it is stated in [`tag-reference.md` §Guards by host block](tag-reference.md#guards-by-host-block).
+
 ## Dynamic data is suppressed by POST SOURCE, not by tag name (GB 2.4.0+)
 
 GB 2.4.0 added a second gate under the block-name one above, and it is the reason this plugin's tags are covered by GB's newest security work without registering anything. Where the 2.2.0 per-key rules it REPLACED singled out `{{post_meta}}` / `{{term_meta}}` / `{{user_meta}}` **by name** (the last three blocks of this section, which is also where 2.4.0's removal of them is recorded), this model asks only who last saved the post the markup came from. Every registered dynamic tag is in scope, GB's and ours alike.

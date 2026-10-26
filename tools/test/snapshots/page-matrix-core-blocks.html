@@ -164,22 +164,40 @@ with a soft line break. Formatted two.</p>
 <div>
 <h2 class="wp-block-heading">Link wrap CB4 &#8211; in core/button a tag that would print a link prints the BARE value, in the text and in the href; a GB block still wraps (FW-156)</h2>
 
-<p class="gb-text">CB4.1 core/button, a text tag with Link To (-> button text Director with no anchor inside the button; the href carries the bare value too, which GB then turns into http://Director &#8211; matrix finding F1):</p>
+<p class="gb-text">CB4.1 core/button, a text tag with Link To (-> button text Director with no anchor inside the button; the link holds the same bare value, which GB makes http://Director because a link with no scheme gets one):</p>
 
 <div class="wp-block-buttons is-layout-flex wp-block-buttons-is-layout-flex">
 <div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="http://Director">Director</a></div>
 </div>
 
-<p class="gb-text">CB4.2 core/button, email (-> button text blocks@example.test with no mailto; the href carries the bare value too, which GB then turns into http://blocks@example.test &#8211; matrix finding F1):</p>
+<p class="gb-text">CB4.2 core/button, email (-> button text blocks@example.test with no mailto; the link holds the same bare value, which GB makes http://blocks@example.test because a link with no scheme gets one):</p>
 
 <div class="wp-block-buttons is-layout-flex wp-block-buttons-is-layout-flex">
 <div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="http://blocks@example.test">blocks@example.test</a></div>
 </div>
 
-<p class="gb-text">CB4.3 core/button, phone (-> button text (919) 555-0134 with no tel; the href carries the bare value too, which GB then turns into http://(919)%20555-0134 &#8211; matrix finding F1):</p>
+<p class="gb-text">CB4.3 core/button, phone (-> button text (919) 555-0134 with no tel; the link holds the same bare value, which GB makes http://(919)%20555-0134 because a link with no scheme gets one):</p>
 
 <div class="wp-block-buttons is-layout-flex wp-block-buttons-is-layout-flex">
 <div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="http://(919)%20555-0134">(919) 555-0134</a></div>
+</div>
+
+<p class="gb-text">CB4.7 core/button, the author types the scheme: mailto: before the email tag in the link (-> button text blocks@example.test; href mailto:blocks@example.test, a working mail link):</p>
+
+<div class="wp-block-buttons is-layout-flex wp-block-buttons-is-layout-flex">
+<div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="mailto:blocks@example.test">blocks@example.test</a></div>
+</div>
+
+<p class="gb-text">CB4.8 core/button, tel: before the phone tag, the stored (919) 555-0134 (-> button text (919) 555-0134; href tel:(919)%20555-0134, spaces percent-encoded by GB):</p>
+
+<div class="wp-block-buttons is-layout-flex wp-block-buttons-is-layout-flex">
+<div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="tel:(919)%20555-0134">(919) 555-0134</a></div>
+</div>
+
+<p class="gb-text">CB4.9 core/button, tel: before the phone tag, a field stored as +19195550134 (-> button text +19195550134; href tel:+19195550134, digits only):</p>
+
+<div class="wp-block-buttons is-layout-flex wp-block-buttons-is-layout-flex">
+<div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="tel:+19195550134">+19195550134</a></div>
 </div>
 
 <p class="gb-text">CB4.4 GB text block, the same Link To (-> Director as a link to /matrix-core-blocks/): <a href="/matrix-core-blocks/">Director</a></p>
