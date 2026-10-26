@@ -308,7 +308,7 @@ function bws_dynamic_tags_register_all() {
 	\BWS\DynamicTags\TagTemplateRegistry::generate_base_try_tags();
 
 	// Populate DeprecatedTagRegistry with N×M wrappers (must run before bws_register_deprecated_tags).
-	bws_register_v1_deprecated_tag_wrappers();
+	bws_register_nxm_tag_migrations();
 
 	// Register migration entries for the eight pre-v1.6 hardcoded deprecated tags.
 	bws_register_early_deprecated_tag_migrations();

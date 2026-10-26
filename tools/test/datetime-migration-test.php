@@ -112,7 +112,7 @@ function assert_eq( string $label, $expected, $actual ): void {
 	echo "       actual:   " . var_export( $actual, true ) . "\n";
 }
 
-bws_register_v1_deprecated_tag_wrappers();
+bws_register_nxm_tag_migrations();
 bws_register_option_migrations();
 
 /** Run the TAG-name door (a pre-1.6 tag name is rewritten whole). */

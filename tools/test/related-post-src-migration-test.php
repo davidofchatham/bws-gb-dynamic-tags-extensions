@@ -226,7 +226,7 @@ bws_register_option_migrations();
 // The 25 N×M families are TAG-type entries, registered by the v1 wrapper pass. The
 // harness ran only the option pass until 1.17.0, because those entries had no target
 // and therefore nothing to assert.
-bws_register_v1_deprecated_tag_wrappers();
+bws_register_nxm_tag_migrations();
 
 $migrate = static function ( string $tag_string ): string {
 	[ $tag_name ] = MigrationRegistry::parse_tag_string( $tag_string );

@@ -25,12 +25,12 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @since 1.0.0
  * @invariant Body stays empty. Any future deprecated-tag family is registered
  *            here ONLY if it needs live GB rendering again — otherwise its
- *            data belongs solely in bws_register_v1_deprecated_tag_wrappers()
+ *            data belongs solely in bws_register_nxm_tag_migrations()
  *            and bws_register_early_deprecated_tag_migrations().
  */
 function bws_register_deprecated_tags() {
 	// Deprecated tags are no longer registered with GenerateBlocks.
-	// Migration data is preserved in MigrationRegistry via bws_register_v1_deprecated_tag_wrappers()
+	// Migration data is preserved in MigrationRegistry via bws_register_nxm_tag_migrations()
 	// and bws_register_early_deprecated_tag_migrations() for the Tag Converter tool.
 }
 // Registration is called directly from bws_dynamic_tags_register_all() in the main plugin file.
@@ -145,7 +145,7 @@ function bws_build_deprecation_preview_label( string $old_tag, array $old_option
  *
  * @since 1.6.0
  */
-function bws_register_v1_deprecated_tag_wrappers() {
+function bws_register_nxm_tag_migrations() {
 	$since = '1.6.0';
 	$reg   = 'BWS\DynamicTags\DeprecatedTagRegistry';
 
@@ -857,7 +857,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 /**
  * Register MigrationRegistry entries for the eight early deprecated tags.
  *
- * Pre-1.6 tags, older than bws_register_v1_deprecated_tag_wrappers(). Called from
+ * Pre-1.6 tags, older than bws_register_nxm_tag_migrations(). Called from
  * bws_dynamic_tags_register_all() after it.
  *
  * @since 1.6.0
@@ -2104,7 +2104,7 @@ function bws_migrate_rel_to_ref( string $tag_string ): string {
  * Unlike type:'tag' entries, these match on a live base tag name + presence of specific
  * option keys. The tag name is unchanged; only options are transformed.
  *
- * Called from bws_dynamic_tags_register_all() after bws_register_v1_deprecated_tag_wrappers().
+ * Called from bws_dynamic_tags_register_all() after bws_register_nxm_tag_migrations().
  *
  * The comments beside the blocks below state which entries must register before which.
  * tools/test/migration-order-test.php fails by pair when one of them is broken.
