@@ -55,17 +55,17 @@ Open: Full seam routing (datetime VALUE reads going through `bws_resolve_field_v
 
 Blocked by: decision:field-object formats through the seam  •  Interacts with: FW-43, FW-35, FW-146 (a shared home for the facts and rules they each state)
 
-#### FW-38 — Explicit registered_by + lifecycle entry fields (retire the callback proxy)
+#### FW-38 — The migration entry record: `lifecycle` is built, narrowing the shape remains
 
-Replace the callback-presence proxy that box-placement leans on today (plus its `prefix_removed` bolt-on) with explicit `registered_by` (internal vs external plugin id) and `lifecycle` (`active` | `deprecated` | `removed`) fields recorded at `register()` time, and narrow the wide `MigrationRegistry::register()` entry shape in the same pass (absorbed from FW-108 (c)).
+A tag migration entry's intent is an explicit hand-set `lifecycle` (`deprecated` | `retired`), in place of the callback-presence proxy that box placement used to lean on. What is left is narrowing the wide `MigrationRegistry::register()` entry shape (absorbed from FW-108 (c)) and the registration forms beyond `hidden`.
 
-Detail home: `.scratch/plans/fw-38-entry-record.md`; CONTEXT.md I10 (interim state it replaces)
+Detail home: `.scratch/plans/fw-38-entry-record.md`; CONTEXT.md I10 (the invariant), `MigrationRegistry::register()` PHPDoc (what the two values mean)
 
-Progress: Not started. The integrator coordination this was scoped to feed is moot — the one integrating plugin deleted its modifier family and its aliases outright on 2026-09-08 instead of declaring a lifecycle for them, and the handoff plan it was tracked in went with them. That leaves the `callback`-presence proxy with only one population to classify (ours), so the "two populations a global default would split wrong" argument no longer holds up the bolt-on — see `CONTEXT.md` I10.
+Progress: Part 1 built 2026-10-26, merged on its integration branch and unreleased. `lifecycle` is stamped by `register()` (Retired when absent), the `callback` and `prefix_removed` rules are gone, and the settings page's boxes are Deprecated and Retired. The planned `registered_by` field was dropped: the one integrating plugin deleted its aliases on 2026-09-08 and FW-129 withdrew the API that minted them, so it would have had one population and no consumer. `bws_gb_register_tag()` takes a `hidden` argument and records it, the seam FW-81 consumes; `bws_register_deprecated_tags()` is its declaration site and stays empty until then. `tools/test/entry-lifecycle-test.php` holds the two axes in agreement, including that a tag with an entry is never listed (decided 2026-10-26).
 
-Open: Whether `removed` keeps meaning unregistered, or splits into a hidden and suppressed state (still registered, returning a space so blocks survive) that tags with no migration keep indefinitely, then a last unregistered state; and whether `deprecated` is the hidden state. Our `deprecated` tag type is our own string, not a GB state. See [`visibility: false`](gb-constraints.md#visibility-false-hides-a-tag-from-the-picker-only); Whether a hidden tag with a replacement forwards to it through its migration entry (one generic stub, so the old code can go at deprecation rather than at removal), and what the entries that cannot convert do instead. FW-104, FW-153 and FW-178 hold the same question.
+Open: Part 2, narrowing the wide entry shape: one record with a validator against per-type shapes. Whether option entries get a `lifecycle` (the measured population is empty, 0 of 74 retired, and `legacy_fallback_removed` already maps to the two box names). The `stub` registration form (registered, returns a space, so stored blocks survive) and a generic forwarder for tags whose migration is a pure rename, so the old code can go at deprecation rather than at removal; FW-104, FW-153 and FW-178 hold the same question. See [`visibility: false`](gb-constraints.md#visibility-false-hides-a-tag-from-the-picker-only).
 
-Blocked by: —  •  Interacts with: FW-108 (closed; (c) moved here, and its order harness reads entries by `transform_callback`), FW-153 (the `gb_type` stamp), FW-129 (closed; deleted the API that minted external families, the proxy's last remaining reason to exist), FW-174 (whether the generator whose `prefix_removed => false` arm the proxy serves survives at all), FW-150 (`lifecycle` replaces the `prefix_removed` stand-in the `term_*` entries ride), FW-175 (the entry record being registered)
+Blocked by: —  •  Interacts with: FW-81 (the first consumer of `deprecated` and of the `hidden` argument), FW-175 (every entry is now migration data, so none has to stay eager), FW-108 (closed; (c) moved here, and its order harness reads entries by `transform_callback`), FW-153 (the `gb_type` stamp), FW-129 (closed; deleted the API that minted external families), FW-174 (the generator takes `lifecycle`; whether it survives at all), FW-150 (the `term_*` entries carry `lifecycle: retired`), FW-178 (hidden `try_` tags)
 
 #### FW-43 — Selecting half of the shared value fold
 
@@ -121,7 +121,7 @@ Progress: Not wired. The external-family trap that made finishing it dangerous i
 
 Open: Whether the radio goes entirely, with the window state set per tag by FW-38's `lifecycle` instead of by the site owner (which reverses the 2026-10-12 decision to keep it).
 
-Blocked by: — (reviewed when a deprecation window opens)  •  Interacts with: FW-153 (the same deprecation-window affordance class), FW-81 (the likely first window), FW-38 (`registered_by` / `lifecycle`), FW-33 (closed)
+Blocked by: — (reviewed when a deprecation window opens)  •  Interacts with: FW-153 (the same deprecation-window affordance class), FW-81 (the likely first window), FW-38 (`lifecycle`), FW-33 (closed)
 
 #### FW-106 — The chain parse is passed in some places and re-read in others
 
@@ -283,11 +283,11 @@ The `term_*` GB tags were removed in 1.21.0 (FW-129), but their converter entrie
 
 Detail home: this row
 
-Progress: Not started, and deliberately not scheduled: the entries are kept indefinitely, with no target release. They are listed in the Migration Tool's "Deprecated and removed entries" block on the settings page (`prefix_removed`), and `tools/test/control-order-test.php` §C3 pins that every modifier template still has one. `docs/deprecated-tags-options.md` §The `term_` modifier family states the promise to authors.
+Progress: Not started, and deliberately not scheduled: the entries are kept indefinitely, with no target release. They are listed in the Migration Tool's "Deprecated and retired entries" block on the settings page (each carries `lifecycle: retired`), and `tools/test/control-order-test.php` §C3 pins that every modifier template still has one. `docs/deprecated-tags-options.md` §The `term_` modifier family states the promise to authors.
 
 **The versioning axis.** A MAJOR is warranted when stored content stops rendering and no migration reaches it. Nothing in the repo stated a rule before 1.21.0, and the one precedent cut the other way: `has_related_variant()` plus five related-variant methods were removed from `SourceInterface`/`AbstractSource` and flagged in the entry itself as a "breaking change for external sources", and it shipped as a MINOR ([`CHANGELOG.md`](../CHANGELOG.md) 1.5.0). The axis is chosen because wire lives in other people's databases past the point where anyone can fix it by editing our code, and an unregistered tag renders its own braces on a published page; every other break this repo can ship has an upgrade path or an empty population. Under it FW-129's 1.21.0 removal was a MINOR, because the entries are kept and unconverted content is still convertible, and retiring them is the major.
 
-Blocked by: —  •  Interacts with: FW-128 (a tags-in-use report would make the retirement gate checkable rather than hand-run per site), FW-38 (`lifecycle` replaces the `prefix_removed` stand-in these entries ride), FW-129 (closed; the removal this row finishes), FW-174 (these entries are the generator's last production caller), FW-152 (retiring the entries leaves one consumer of the template list), FW-153 (the deprecation-window warning), FW-175 (the entries ride the same registration pass)
+Blocked by: —  •  Interacts with: FW-128 (a tags-in-use report would make the retirement gate checkable rather than hand-run per site), FW-38 (these entries carry `lifecycle: retired`), FW-129 (closed; the removal this row finishes), FW-174 (these entries are the generator's last production caller), FW-152 (retiring the entries leaves one consumer of the template list), FW-153 (the deprecation-window warning), FW-175 (the entries ride the same registration pass)
 
 #### FW-152 — Rename the "modifier template" surface
 
@@ -345,13 +345,13 @@ Detail home: this row
 
 Progress: Not started. The function is kept because the bootstrap registers the `term_*` entries through it (kept until FW-150), `tools/test/modifier-base-migration-test.php` exercises it with fixture families, and the core-structures blueprint calls it for a `fixture` family.
 
-Open: When it retires: with FW-150, when its last production caller goes, or earlier by registering the `term_*` entries as plain data and keeping only the transform (`bws_migrate_modifier_root_chain()` and the helpers beneath it). Earlier retirement would delete the template enumeration, the `_doing_it_wrong()` branch, the `prefix_removed => false` arm and `bws_modifier_migration_live_marker()`, and would need the harness and the fixture family to exercise the transform some other way.
+Open: When it retires: with FW-150, when its last production caller goes, or earlier by registering the `term_*` entries as plain data and keeping only the transform (`bws_migrate_modifier_root_chain()` and the helpers beneath it). Earlier retirement would delete the template enumeration, the `_doing_it_wrong()` branch and the generator's `lifecycle` argument, and would need the harness and the fixture family to exercise the transform some other way.
 
-Blocked by: —  •  Interacts with: FW-150 (its last production caller), FW-38 (the callback-presence proxy the live marker feeds), FW-108 (closed; the public-contract withdrawal this follows), FW-175 (the `term` call rides the same pass)
+Blocked by: —  •  Interacts with: FW-150 (its last production caller), FW-38 (the `lifecycle` argument the generator now takes), FW-108 (closed; the public-contract withdrawal this follows), FW-175 (the `term` call rides the same pass)
 
 #### FW-175 — Register the option-migration entries only where something reads them
 
-`bws_register_option_migrations()` registers about 115 entries in the init:20 pass on every request, front end included, beside the deprecated-tag wrappers, which must stay because old tags still have to render. This item asks whether the option-migration entries, which a converter or editor reads, can be registered lazily.
+`bws_register_option_migrations()` registers about 115 entries in the init:20 pass on every request, front end included, in the same pass as `bws_register_nxm_tag_migrations()`, which only fills `MigrationRegistry` with the N-by-M tag entries and registers nothing with GenerateBlocks (`bws_register_deprecated_tags()` has been empty on purpose since `636ab18`). This item asks whether the option-migration entries, which a converter or editor reads, can be registered lazily.
 
 Detail home: `.scratch/plans/architecture-review-2026-08.md` §FW-108 (a)
 
@@ -1281,7 +1281,7 @@ Progress: Design converged 2026-08-18; nothing committed, no ticket. No brackets
 
 Open: Precedence and emission between `key:x` and a folded `use:key,…` (leaning `key` wins, and `{{datetime}}` writes `key:x` for a single field); whether `{{text}}` and its family gain datetime reads (`published`/`modified`/`now`, combined date+time) and in what format; whether a merged `datetime` slot type token belongs here or with FW-24.
 
-Blocked by: —  •  Interacts with: FW-60, FW-13, FW-14 (FU-3, pulled into this item's scope), FW-20, FW-24 (slot type tokens; datetime reads on text slots are a partial answer), FW-27 (shares the read form), FW-3 (same cores; this lands first), FW-64, FW-35, FW-73 (the widget converter extension the hidden old tags wait on), FW-128 (the retiring-name report they also wait on), FW-104 (no deprecation window opens while the old tags render), FW-110 (its datetime preview duplicate is pulled in), FW-116 (its seam-tail fixes carry into the merged seam), FW-134 (its injected keys land on the key controls this collapses), FW-113 (its site 2 seam-join should land on the merged callback, not before), FW-136 (closed; it extracted a resolve seam from each datetime callback, so this collapses two seams and two shells rather than two callbacks), FW-146 (a shared home for the facts and rules they each state), FW-154 (general mount-migration coverage)
+Blocked by: —  •  Interacts with: FW-38 (the `deprecated` state and the `hidden` registration argument this is the first consumer of), FW-60, FW-13, FW-14 (FU-3, pulled into this item's scope), FW-20, FW-24 (slot type tokens; datetime reads on text slots are a partial answer), FW-27 (shares the read form), FW-3 (same cores; this lands first), FW-64, FW-35, FW-73 (the widget converter extension the hidden old tags wait on), FW-128 (the retiring-name report they also wait on), FW-104 (no deprecation window opens while the old tags render), FW-110 (its datetime preview duplicate is pulled in), FW-116 (its seam-tail fixes carry into the merged seam), FW-134 (its injected keys land on the key controls this collapses), FW-113 (its site 2 seam-join should land on the merged callback, not before), FW-136 (closed; it extracted a resolve seam from each datetime callback, so this collapses two seams and two shells rather than two callbacks), FW-146 (a shared home for the facts and rules they each state), FW-154 (general mount-migration coverage)
 
 #### FW-134 — Pie Calendar event meta is invisible to the field picker
 

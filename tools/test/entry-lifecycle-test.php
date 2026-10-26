@@ -214,9 +214,9 @@ function check_agreement( array $entries, array $registered, array $sources ): a
 		if ( ! isset( $registered[ $name ] ) ) {
 			continue;
 		}
-		// Any entry at all means the tag is not active. A tag in the picker must be active.
-		// (Whether `deprecated` + listed should be allowed is an open reading: the spec's
-		// Invariants allow it and its Agreement-pin bullet does not. This follows the bullet.)
+		// Any entry at all means the tag is not active, and a tag in the picker must be active:
+		// `deprecated` + listed is forbidden (decided 2026-10-26), so deprecating a tag means
+		// hiding it in the same change. §3's first listed fixture is a `deprecated` entry.
 		if ( empty( $registered[ $name ]['hidden'] ) ) {
 			$bad[] = "listed-tag-has-no-entry: {$name}";
 		}

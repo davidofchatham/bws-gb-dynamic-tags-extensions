@@ -326,7 +326,7 @@ add_filter( 'bws_dynamic_tags_benchmark_logging', '__return_true' );
 |---|---|
 | `bws_dynamic_tags_benchmark_logging` | Post content processing logs its time and memory use to the PHP error log, prefixed `[BWS Content]`. Covers post content only, not tag resolution. |
 | `bws_dynamic_tags_registration_logging` | Source registration and the `bws_dynamic_tags_register_sources` action log to the PHP error log. |
-| `bws_dynamic_tags_show_all_deprecated` | The settings page lists every registered deprecated or removed tag and option, not only those the last scan found in site content. |
+| `bws_dynamic_tags_show_all_deprecated` | The settings page lists every registered deprecated or retired tag and option, not only those the last scan found in site content. |
 
 ---
 

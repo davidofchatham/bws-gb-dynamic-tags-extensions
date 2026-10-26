@@ -4,6 +4,19 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Highlights
+
+- The settings page now sorts old tags and options into Deprecated and Retired boxes (they were Deprecated and Removed), and each tag row shows whether the tag is still registered. *(Changed)*
+
+### Added
+
+- **Each old tag on the settings page shows its current registration.** A row now ends with "registered, hidden", "registered, listed" or "migration only" (the tag is not registered and its entry exists only so the Migration Tool can convert it), or points to the Tag Name Conflicts block when another plugin holds the name. The label is display only and never moves a tag between boxes.
+
+### Changed
+
+- **The settings page's Removed boxes are now Retired.** The Removed tags and Removed options boxes are renamed Retired, with the same entries in them, and the option boxes follow the same two names. Nothing moves between boxes.
+- **For plugin developers: a tag migration entry now says whether it is Deprecated or Retired with an explicit `lifecycle` key** (`'deprecated'` or `'retired'`, Retired when omitted). One behavior change: an entry passed to `MigrationRegistry::register()` with a `callback` and no `lifecycle` is now Retired, where a `callback` used to make it Deprecated. `callback` and `prefix_removed` are accepted and ignored. See [`docs/plugin-integration.md`](docs/plugin-integration.md) §4.
+
 ## [1.23.0] — 2026-10-23
 
 ### Highlights
