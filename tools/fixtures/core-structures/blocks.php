@@ -44,10 +44,14 @@ function bws_fixture_gb_text_block( $body, $seed = '' ) {
 	// valid literal text in HTML and the committed baseline carries it raw. NOT esc_html()
 	// either, which would additionally entity-encode every label's quotes.
 	$body = str_replace( '<', '&lt;', $body );
+	// A {{content}} row prints block-level markup (FW-144), so it is hosted in a div: a <p>
+	// around it would nest paragraphs and the browser would split the row.
+	$el = preg_match( '/\{\{(?:try_)?content[ }]/', $body ) ? 'div' : 'p';
 	return sprintf(
-		"<!-- wp:generateblocks/text {\"uniqueId\":\"%s\",\"tagName\":\"p\",\"className\":\"\"} -->\n<p class=\"gb-text\">%s</p>\n<!-- /wp:generateblocks/text -->",
+		"<!-- wp:generateblocks/text {\"uniqueId\":\"%1\$s\",\"tagName\":\"%3\$s\",\"className\":\"\"} -->\n<%3\$s class=\"gb-text\">%2\$s</%3\$s>\n<!-- /wp:generateblocks/text -->",
 		$uid,
-		$body
+		$body,
+		$el
 	);
 }
 
@@ -1455,6 +1459,23 @@ function bws_fixture_page_content_matrix_content() {
 		bws_fixture_gb_row( "CT4 post arm, use:key (-> jane's main line, (555) 200-3000)", '{{content src:ref|ref:related_staff|use:key|key:main_line}}' ),
 		bws_fixture_gb_row( 'CT5 term arm, use:key - the FIRST usable source is Sales (WP hands terms back by name), and Sales is the one carrying a blurb (-> the Sales blurb). Support has none, so a read in ASSIGNMENT order would print nothing: this row pins the order, not a search', '{{content srcTermIn:department|use:key|key:blurb}}' ),
 	) );
+
+	// CT9 — {{content}} always prints block-level markup (FW-144). Each row is a read whose
+	// value carries no block tag, except CT9.5, which already has them and must come back
+	// exactly as stored. The ids are resolved, never hand-typed (see the pinned-roots page).
+	$annex_id = function_exists( 'bws_fixture_seeded_term_id' ) ? bws_fixture_seeded_term_id( 'annex', 'department' ) : false;
+	$self_id  = function_exists( 'bws_fixture_seeded_post_id' ) ? bws_fixture_seeded_post_id( 'matrix-content', 'page' ) : false;
+	if ( $annex_id && $self_id ) {
+		$sections[] = bws_fixture_gb_section( 'Content CT9 - always block-level (FW-144): a bare value is wrapped in paragraphs, a formatted one is left alone', array(
+			bws_fixture_gb_row( 'CT9.1 term description, pinned term (-> TWO paragraphs: The Annex handles overflow orders. / It shares the bold Warehouse dock and is open on weekdays.)', "{{content src:term,{$annex_id}}}" ),
+			bws_fixture_gb_row( 'CT9.2 the try_ twin of CT9.1 (-> byte-identical to CT9.1)', "{{try_content src:term,{$annex_id}}}" ),
+			bws_fixture_gb_row( 'CT9.3 manual excerpt (-> ONE paragraph: A hand-written excerpt.)', "{{content src:post,{$self_id}|use:excerpt}}" ),
+			bws_fixture_gb_row( 'CT9.4 plain-text field (-> TWO paragraphs: Plain line one. / Plain line two.)', '{{content use:key|key:bws_block_plain}}' ),
+			bws_fixture_gb_row( 'CT9.5 already-formatted field (-> exactly as stored: two paragraphs, a soft line break after Formatted one, and NO br tag added)', '{{content use:key|key:bws_block_formatted}}' ),
+			bws_fixture_gb_row( 'CT9.6 stated fallback on a missing field (-> ONE paragraph: Nothing stored.)', '{{content use:key|key:bws_missing_key|fallback:Nothing stored.}}' ),
+			bws_fixture_gb_empty_row( 'CT9.7 missing field, no fallback (-> EMPTY, never an empty paragraph)', '{{content use:key|key:bws_missing_key}}' ),
+		) );
+	}
 
 	// CT6 — the ambient read is the contrast that makes CT1 non-vacuous: same tag,
 	// no hop, so it must show THIS page's own values.

@@ -530,9 +530,23 @@
 		// display:contents keeps the wrapper out of layout; it only listens, for focus, Enter and blur.
 		return el( 'div', {
 			style: { display: 'contents' },
+			// The wrapper holds one button, WP's Reset: flag its click for the focus it triggers.
+			onClickCapture: function ( e ) {
+				var wrap = e.currentTarget;
+				if ( e.target.closest && e.target.closest( 'button' ) ) {
+					wrap.dataset.bwsReset = '1';
+					setTimeout( function () {
+						delete wrap.dataset.bwsReset;
+					}, 0 );
+				}
+			},
 			onFocusCapture: function ( e ) {
 				var input = e.target;
 				if ( ! isCustom || ! input || input.getAttribute( 'role' ) !== 'combobox' ) {
+					return;
+				}
+				// The Reset (X) button hands focus to the input as it clears; refilling would undo it.
+				if ( e.currentTarget.dataset.bwsReset ) {
 					return;
 				}
 				// After WP's own render has blanked the input; the native setter keeps React's

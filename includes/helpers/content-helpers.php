@@ -414,3 +414,33 @@ function bws_safe_content_output( $content, $options, $instance ) {
 }
 }
 
+/**
+ * Does a markup string carry any tag that is not inline?
+ *
+ * THE ONE OWNER of which tags are inline: the `{{content}}` block-level wrap asks it
+ * (bws_base_content_resolve_value()), and the inline-only core-block strip (FW-156) is
+ * to ask the same question, so the two cannot disagree. A closed list, so an unknown or
+ * custom tag counts as block-level and the value is left untouched. Comments and
+ * doctypes are not tags. `img` is inline because wpautop wraps a bare one in a paragraph.
+ *
+ * The strip's own refinement (`a` is dropped inside `core/button`) belongs to the strip.
+ *
+ * @since Unreleased
+ *
+ * @param string $markup Value to inspect.
+ * @return bool True when any tag outside the inline list is present.
+ */
+if ( ! function_exists( 'bws_markup_has_block_level_tag' ) ) {
+function bws_markup_has_block_level_tag( string $markup ): bool {
+	static $inline = array(
+		'strong', 'em', 'b', 'i', 'span', 'code', 'sub', 'sup', 'mark', 'small',
+		'del', 'ins', 'cite', 'q', 'abbr', 'br', 'a', 'img',
+	);
+	// A name only counts when the tag ends there (`<john@x.com>` is text); comments go first.
+	$markup = preg_replace( '/<!--.*?-->/s', '', $markup );
+	if ( ! preg_match_all( '/<\/?([a-z][a-z0-9-]*)(?=[\s\/>])/i', $markup, $m ) ) {
+		return false;
+	}
+	return (bool) array_diff( array_map( 'strtolower', $m[1] ), $inline );
+}
+}

@@ -891,7 +891,7 @@
 
 <p class="gb-text">F11b.1 text: the fallback fires, not empty (-> No source): No source</p>
 
-<p class="gb-text">F11b.2 content: its fallback lives INSIDE the core a refusal must not run (-> No source): No source</p>
+<div class="gb-text">F11b.2 content: its fallback lives INSIDE the core a refusal must not run (-> No source): <p>No source</p></div>
 
 <p class="gb-text">F11b.3b image, a fallback that CANNOT fire: expects EMPTY &#8211; a broken fallback attachment must not print its raw id (no feature_image_missing on this page, no attachment 999999):</p>
 
@@ -927,7 +927,7 @@
 
 <p class="gb-text">F9.5c an ANALOG refuses on a row (-> empty; a row has no title, and a wrong entity read would print one):</p>
 
-<p class="gb-text">F9.5d a COLLAPSING family reads the FIRST row only (-> Founding partner, not both rows; rendered EMPTY before): Founding partner</p>
+<div class="gb-text">F9.5d a COLLAPSING family reads the FIRST row only (-> Founding partner, not both rows; rendered EMPTY before): <p>Founding partner</p></div>
 
 <p class="gb-text">F9.5e content analog refuses on a row (-> empty; printed the WHOLE PAGE CONTENT before FW-74):</p>
 
@@ -937,13 +937,13 @@
 
 <p class="gb-text">F9.5g the phone tag on rows, needed no arm (-> (617) 555-0142, (617) 555-0187 as tel links): <a href="tel:+1-617-555-0142">(617) 555-0142</a>, <a href="tel:+1-617-555-0187">(617) 555-0187</a></p>
 
-<p class="gb-text">F9.5h try_content on a row slot (-> Founding partner; rendered EMPTY before FW-74): Founding partner</p>
+<div class="gb-text">F9.5h try_content on a row slot (-> Founding partner; rendered EMPTY before FW-74): <p>Founding partner</p></div>
 
 <p class="gb-text">F9.5h try_email on a row slot (-> both addresses as mailto links; rendered EMPTY before FW-74): <a href="mailto:alice@example.test">alice@example.test</a>, <a href="mailto:bob@example.test">bob@example.test</a></p>
 
 <p class="gb-text">F9.5h try_phone on a row slot, limit(1) slices (-> (617) 555-0142 alone; rendered EMPTY before FW-74): <a href="tel:+1-617-555-0142">(617) 555-0142</a></p>
 
-<p class="gb-text">F9.5i a refusing row slot ADVANCES the attempt chain (-> (987) 654-3210 from slot B, the ambient page field): (987) 654-3210</p>
+<div class="gb-text">F9.5i a refusing row slot ADVANCES the attempt chain (-> (987) 654-3210 from slot B, the ambient page field): <p>(987) 654-3210</p></div>
 
 <p class="gb-text">F9.5j title has NO row arm and REFUSES (-> empty; printed &#8220;Matrix: Post Meta&#8221; before FW-74):</p>
 
@@ -983,9 +983,9 @@
 
 <p class="gb-text">F9.5n2 try_datetime_range on a row slot (-> the same two ranges as F9.5n; rendered EMPTY before FW-74): March 4, 2029–March 3, 2031, June 10, 2030–June 9, 2032</p>
 
-<p class="gb-text">F9a.3 legacy content ref (-> jane&#8217;s excerpt, HER values: Jane, Johnson &#8211; the pair must MATCH; entity correctness is CT1-CT3 on /matrix-content/): Join &#8211; separator mode (name) J1: Jane, Johnson J1b: Jane Johnson J2: Jane, Johnson J3 (jane: both slots empty -> em dash fallback; tom: Jr., PhD): — Fold F1 &#8211; join folded == legacy (name rows) F1.1 legacy (jane: Jane, Johnson / tom: Tom, Smith): Jane, Johnson F1.1 folded (-> same): Jane, Johnson F1.8 legacy &#8230; <a title="Jane Partner" class="read-more" href="/staff/jane-partner/" aria-label="Read more about Jane Partner">Read more</a></p>
+<div class="gb-text">F9a.3 legacy content ref (-> jane&#8217;s excerpt, HER values: Jane, Johnson &#8211; the pair must MATCH; entity correctness is CT1-CT3 on /matrix-content/): <p>Join &#8211; separator mode (name) J1: Jane, Johnson J1b: Jane Johnson J2: Jane, Johnson J3 (jane: both slots empty -> em dash fallback; tom: Jr., PhD): — Fold F1 &#8211; join folded == legacy (name rows) F1.1 legacy (jane: Jane, Johnson / tom: Tom, Smith): Jane, Johnson F1.1 folded (-> same): Jane, Johnson F1.8 legacy &#8230; <a title="Jane Partner" class="read-more" href="/staff/jane-partner/" aria-label="Read more about Jane Partner">Read more</a></p></div>
 
-<p class="gb-text">F9a.3 chain content ref (-> same as the legacy row above): Join &#8211; separator mode (name) J1: Jane, Johnson J1b: Jane Johnson J2: Jane, Johnson J3 (jane: both slots empty -> em dash fallback; tom: Jr., PhD): — Fold F1 &#8211; join folded == legacy (name rows) F1.1 legacy (jane: Jane, Johnson / tom: Tom, Smith): Jane, Johnson F1.1 folded (-> same): Jane, Johnson F1.8 legacy &#8230; <a title="Jane Partner" class="read-more" href="/staff/jane-partner/" aria-label="Read more about Jane Partner">Read more</a></p>
+<div class="gb-text">F9a.3 chain content ref (-> same as the legacy row above): <p>Join &#8211; separator mode (name) J1: Jane, Johnson J1b: Jane Johnson J2: Jane, Johnson J3 (jane: both slots empty -> em dash fallback; tom: Jr., PhD): — Fold F1 &#8211; join folded == legacy (name rows) F1.1 legacy (jane: Jane, Johnson / tom: Tom, Smith): Jane, Johnson F1.1 folded (-> same): Jane, Johnson F1.8 legacy &#8230; <a title="Jane Partner" class="read-more" href="/staff/jane-partner/" aria-label="Read more about Jane Partner">Read more</a></p></div>
 </div>
 
 <div>
@@ -1175,7 +1175,7 @@
 
 <p class="gb-text">F15.4 same path, different field: Jane has no feature_image, and the tag reads HER, not whichever post has a photo (-> EMPTY; the search survives only as FW-88&#8217;s dormant opt-in):</p>
 
-<p class="gb-text">F15.5 the same source, a field she DOES carry &#8211; selection never depended on the field, so this row is unchanged (-> Jane): Jane</p>
+<div class="gb-text">F15.5 the same source, a field she DOES carry &#8211; selection never depended on the field, so this row is unchanged (-> Jane): <p>Jane</p></div>
 
 <p class="gb-text">F15.6 try_ inherits the base rule WITHIN a slot: the attempt reads Jane, gets nothing, and there is no attempt B (-> EMPTY; across-slot fallback is §F13&#8217;s):</p>
 

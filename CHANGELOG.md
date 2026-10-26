@@ -12,10 +12,17 @@ All notable changes to this project are documented in this file. The format is b
 
 - **Each old tag on the settings page shows its current registration.** A row now ends with "registered, hidden", "registered, listed" or "migration only" (the tag is not registered and its entry exists only so the Migration Tool can convert it), or points to the Tag Name Conflicts block when another plugin holds the name. The label is display only and never moves a tag between boxes.
 
+- **`{{content}}` now has a tag description with a placement warning.** The tag selector lists what it can output (post content or excerpt, term description, a rich-text meta field, user bio, post type description, GeneratePress's 404 text) and says it is block-level markup, so it belongs in a `<div>` or other block container and not inside a `<p>` or `<span>`, as `{{table}}` already says.
+
 ### Changed
 
+- **`{{content}}` now always prints block-level markup.** A value with no block-level tag (a term description, an excerpt, a plain-text custom field, the user bio, the stated fallback) is wrapped in paragraphs, so a multi-paragraph term description no longer prints as one run of text, and `{{try_content}}` does the same. A value that already has block tags (post content, a rich-text field, the post type archive description, a site option) is left exactly as it was. If you put one of the changed values in a `<p>`, switch that container to a `<div>`, or you get a paragraph inside a paragraph. There is no option to turn the wrap off.
 - **The settings page's Removed boxes are now Retired.** The Removed tags and Removed options boxes are renamed Retired, with the same entries in them, and the option boxes follow the same two names. Nothing moves between boxes.
 - **For plugin developers: a tag migration entry now says whether it is Deprecated or Retired with an explicit `lifecycle` key** (`'deprecated'` or `'retired'`, Retired when omitted). One behavior change: an entry passed to `MigrationRegistry::register()` with a `callback` and no `lifecycle` is now Retired, where a `callback` used to make it Deprecated. `callback` and `prefix_removed` are accepted and ignored. See [`docs/plugin-integration.md`](docs/plugin-integration.md) §4.
+
+### Fixed
+
+- **Clearing a custom value with the X button now leaves the field empty.** The `{{table}}` size, width, color and border fields and the field selector put the old text back in as the X cleared it.
 
 ## [1.23.0] — 2026-10-23
 

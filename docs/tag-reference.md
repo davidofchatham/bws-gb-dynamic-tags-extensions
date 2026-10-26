@@ -40,6 +40,10 @@ reasons for crossing that border, and the second is the durable one:
 
 A **single-result** output can be a **composite string** (`datetime_range` is both: one result, built from start+end fields). These are independent axes — composite-vs-not describes *how the one string is built*; list-mode-vs-not describes *how many strings are joined*. `try_` is transparent to both (see [CONTEXT.md](../CONTEXT.md) I6); query loop is out of dynamic-tag scope entirely.
 
+### `{{content}}` always prints block-level markup **[UNRELEASED]**
+
+Whatever source produced the value, `{{content}}` (and `{{try_content}}`) prints block-level markup, so one block container suits every source. A non-empty value that carries no block-level tag (a term description, an excerpt, a plain-text `use:key` field, the stated fallback) is run through `wpautop`, so blank-line-separated text becomes paragraphs and inline tags survive. A value that already carries any block-level tag is left exactly as the source gave it, because `wpautop` over formatted markup can insert line breaks into it (measured). An empty value stays empty. The wrap happens once, at the exit of `bws_base_content_resolve_value()`; which tags count as inline is owned by `bws_markup_has_block_level_tag()` in `content-helpers.php`. Rows: [`content-test-matrix.md`](../tools/test/content-test-matrix.md) §CT9.
+
 ---
 
 ## Sources (v1.6.0+ architecture)
