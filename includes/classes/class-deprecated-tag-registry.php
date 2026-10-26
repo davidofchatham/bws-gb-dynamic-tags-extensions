@@ -15,7 +15,7 @@
  *             'title'          => 'Legacy Post Meta',
  *             'supports'       => array( 'source' ),
  *             'options'        => acme_get_text_options(),
- *             'callback'       => 'acme_deprecated_post_meta_callback',
+ *             'lifecycle'      => 'deprecated',
  *             'since'          => '2.0.0',
  *             'source_inject'  => '',
  *             'option_renames' => array( 'field_key' => 'key' ),

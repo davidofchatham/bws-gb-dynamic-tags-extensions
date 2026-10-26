@@ -83,10 +83,24 @@ if ( ! defined( 'ABSPATH' ) ) {
  * case is caught by bws_gb_recheck_tag_ownership() on `wp_loaded` — the reverse arm, and
  * the more dangerous of the two.
  *
+ * `hidden => true` is the registration form "registered but not in the picker": it becomes
+ * `visibility => false` (replacing any context gate, moot for a tag nobody can pick) and the
+ * key is stripped so it never reaches GB's localized args. The record bws_gb_tags_we_registered()
+ * keeps carries `hidden` either way. A bare `visibility => false` is NOT the declaration:
+ * `email`, `phone` and the `try_` templates already pass `visibility` as a context-gate array.
+ * Nothing here reads MigrationRegistry; what a tag registers as and what its entry says are
+ * independent axes.
+ *
  * @since 1.19.0
- * @param array $args Registration arguments, exactly as GB's constructor takes them.
+ * @param array $args Registration arguments as GB's constructor takes them, plus optional `hidden`.
  */
 function bws_gb_register_tag( array $args ): void {
+	$hidden = ! empty( $args['hidden'] );
+	unset( $args['hidden'] );
+	if ( $hidden ) {
+		$args['visibility'] = false;
+	}
+
 	$tag = isset( $args['tag'] ) ? (string) $args['tag'] : '';
 
 	// GB's constructor drops an incomplete registration on the floor -- its first statement
@@ -119,6 +133,7 @@ function bws_gb_register_tag( array $args ): void {
 		'tag'    => $tag,
 		'title'  => (string) $args['title'],
 		'return' => $args['return'],
+		'hidden' => $hidden,
 	) );
 }
 
@@ -136,7 +151,7 @@ function bws_gb_register_tag( array $args ): void {
  * @since 1.19.0
  * @internal
  * @param array $record A registration to record. Omit to read.
- * @return array<string,array{tag:string,title:string,return:mixed}>
+ * @return array<string,array{tag:string,title:string,return:mixed,hidden:bool}>
  */
 function bws_gb_tags_we_registered( array $record = array() ): array {
 	static $ours = array();

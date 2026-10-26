@@ -71,16 +71,22 @@ class MigrationRegistry {
 	 *   @type string  $title           GB tag title shown in editor.
 	 *   @type array   $supports        GB supports array.
 	 *   @type array   $options         GB options array.
-	 *   @type callable $callback       PHP callback for GB tag execution.
 	 *   @type string  $since           Plugin version when tag was deprecated.
 	 *   @type string  $description     GB tag description (auto-generated if omitted).
 	 *   @type string  $gb_type         Always overwritten to 'deprecated' for 'tag' entries.
-	 *   @type bool    $prefix_removed  Hand-set. True once the external plugin that owns this
-	 *                                   alias retires its prefix generation — moves the entry
-	 *                                   from the Deprecated Tags box to Removed Tags (V9/V10).
-	 *                                   Never inferred; the owning plugin sets it. Default
-	 *                                   absent (still Deprecated). Interim mechanism pending
-	 *                                   the explicit `lifecycle` field (V11 / FW-38).
+	 *   @type string  $lifecycle       Hand-set intent, 'deprecated' or 'retired'; anything else
+	 *                                   throws InvalidArgumentException. THE OWNER of what the two
+	 *                                   mean; the settings page and CONTEXT.md state consequences.
+	 *                                   'deprecated': a replacement exists and the tag still works
+	 *                                   as before, so the converter offers the migration.
+	 *                                   'retired': unsupported; whatever registration remains
+	 *                                   exists only so stored content does not print literal
+	 *                                   braces. Default 'retired' when absent. Never inferred
+	 *                                   from registration state, and independent of whether the
+	 *                                   tag is registered, hidden or migration-only.
+	 *
+	 *   `callback` and `prefix_removed` are accepted and ignored; neither says anything about
+	 *   intent.
 	 *
 	 *   'option' type only:
 	 *   @type array   $match_options       Option keys that must ALL be present in the tag string to trigger.
@@ -106,7 +112,13 @@ class MigrationRegistry {
 		}
 
 		if ( 'tag' === $type ) {
-			$args['gb_type'] = 'deprecated';
+			$args['gb_type']   = 'deprecated';
+			$args['lifecycle'] = $args['lifecycle'] ?? 'retired';
+			if ( ! in_array( $args['lifecycle'], array( 'deprecated', 'retired' ), true ) ) {
+				throw new \InvalidArgumentException(
+					'MigrationRegistry::register(): lifecycle must be "deprecated" or "retired".'
+				);
+			}
 		}
 
 		$args['type']     = $type;
@@ -139,27 +151,14 @@ class MigrationRegistry {
 	}
 
 	/**
-	 * Whether an entry is still "live" (Deprecated) vs "removed" (inert, migration-data-only).
+	 * Whether an entry sits in the settings page's Deprecated box (live) or its Retired box.
 	 *
-	 * Hand-set per entry, never inferred (SPEC B1/V9):
-	 *   'tag'    — Removed iff a hand-set `prefix_removed` flag is true; otherwise falls back
-	 *              to the callback-presence default. The `prefix_removed` override exists
-	 *              because the two tag populations have OPPOSITE natural defaults: our own
-	 *              N×M entries are Removed (FW-1 stripped their `callback`) while external
-	 *              context-modifier aliases are Deprecated (they carry a `callback`). A
-	 *              single flag with one global default would split them wrong. So today the
-	 *              callback-presence test remains the default "internal-removed vs
-	 *              external-still-registered" marker, and `prefix_removed` is the retirement
-	 *              axis an external plugin sets to push a specific alias generation to
-	 *              Removed (V10). NOTE: callback-presence here is an interim proxy, NOT a
-	 *              render guarantee — post-FW-1 nothing dispatches these callbacks to GB.
-	 *              A future release (V11 / FW-38) replaces it with explicit `registered_by`
-	 *              + `lifecycle` fields.
+	 * Hand-set per entry, never inferred:
+	 *   'tag'    — live iff `lifecycle` is 'deprecated' (see register() for what it means).
 	 *   'option' — live when `legacy_fallback_removed` is NOT true (the runtime code still
 	 *              accepts the old option key as a fallback; false/absent = still live).
 	 *
 	 * @since 1.14.0
-	 * @since 1.14.0 B1: tag branch adds a `prefix_removed` override above the callback default.
 	 * @param array $entry Registry entry.
 	 * @return bool
 	 */
@@ -167,10 +166,7 @@ class MigrationRegistry {
 		if ( 'option' === ( $entry['type'] ?? 'tag' ) ) {
 			return empty( $entry['legacy_fallback_removed'] );
 		}
-		if ( ! empty( $entry['prefix_removed'] ) ) {
-			return false;
-		}
-		return isset( $entry['callback'] ) && is_callable( $entry['callback'] );
+		return 'deprecated' === ( $entry['lifecycle'] ?? 'retired' );
 	}
 
 	/**
@@ -178,7 +174,7 @@ class MigrationRegistry {
 	 *
 	 * @since 1.14.0
 	 * @param string $type  'tag' or 'option'.
-	 * @param bool   $live  True for Deprecated (still live), false for Removed (inert).
+	 * @param bool   $live  True for Deprecated (live), false for Retired.
 	 * @return array[]
 	 */
 	public static function get_by_type_and_liveness( string $type, bool $live ): array {

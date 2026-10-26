@@ -331,9 +331,9 @@ function bws_dynamic_tags_register_all() {
 	// and these did not: a `term_*` string already stored in someone's content converts
 	// through here whether or not the tag name still resolves, and it renders its own
 	// braces until it does. They are kept until a major release retires them (FW-150).
-	// `prefix_removed` lists them under Removed on the settings page, since no `term_*` tag
-	// is registered.
-	bws_register_modifier_root_migrations( 'term', 'term', array( 'since' => '1.20.0', 'prefix_removed' => true ) );
+	// `lifecycle => retired` files them under Retired on the settings page, since no `term_*`
+	// tag is registered.
+	bws_register_modifier_root_migrations( 'term', 'term', array( 'since' => '1.20.0', 'lifecycle' => 'retired' ) );
 
 	// Deprecated wrappers registered last (old tag names pointing to new core functions).
 	bws_register_deprecated_tags();
