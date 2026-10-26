@@ -213,7 +213,7 @@ function bws_gb_recheck_tag_ownership(): void {
 	foreach ( $ours as $tag => $mine ) {
 		$now = isset( $live[ $tag ] ) && is_array( $live[ $tag ] ) ? $live[ $tag ] : null;
 
-		if ( null !== $now && array_key_exists( 'return', $now ) && $now['return'] === $mine['return'] ) {
+		if ( bws_gb_tag_is_still_ours( $mine, $now ) ) {
 			continue;
 		}
 
@@ -228,6 +228,54 @@ function bws_gb_recheck_tag_ownership(): void {
 
 		bws_gb_report_tag_collision( (string) $tag );
 	}
+}
+
+/**
+ * Whether GB's current entry for a name is still the registration we handed it.
+ *
+ * The ownership rule itself is stated at bws_gb_recheck_tag_ownership(); this is its one
+ * comparison, shared by the late pass and the settings-page marker so the two cannot disagree.
+ *
+ * @since Unreleased
+ * @internal
+ * @param array      $mine Our record for the name, from bws_gb_tags_we_registered().
+ * @param array|null $now  GB's entry for the name, or null when it holds none.
+ * @return bool
+ */
+function bws_gb_tag_is_still_ours( array $mine, ?array $now ): bool {
+	return null !== $now && array_key_exists( 'return', $now ) && $now['return'] === $mine['return'];
+}
+
+/**
+ * The registration state a settings-page row shows for one tag name.
+ *
+ * DISPLAY ONLY. The answer never decides which box a row sits in, what the scan hides or what
+ * the allowlist holds: those follow the entry's `lifecycle`, and this function is not called
+ * from, and must not be called by, any of that code. It reads two things the caller hands in --
+ * our own record and GB's current entry -- and reads nothing else, so it carries no load-order
+ * or toggle dependence of its own. Whether the name is still ours is bws_gb_tag_is_still_ours().
+ *
+ * Returns one of:
+ *   'hidden'          -- we registered it with `hidden => true` and GB still holds ours.
+ *   'listed'          -- we registered it without, and GB still holds ours.
+ *   'other-registrar' -- we registered it and GB now holds another callable, or none; the Tag
+ *                        Name Conflicts block says who.
+ *   'migration-only'  -- we never registered it; the entry exists for the converter alone.
+ *
+ * @since Unreleased
+ * @internal
+ * @param array|null $ours Our record for the name, or null when we never registered it.
+ * @param array|null $now  GB's entry for the name, or null when it holds none.
+ * @return string
+ */
+function bws_gb_registration_marker( ?array $ours, ?array $now ): string {
+	if ( null === $ours ) {
+		return 'migration-only';
+	}
+	if ( ! bws_gb_tag_is_still_ours( $ours, $now ) ) {
+		return 'other-registrar';
+	}
+	return ! empty( $ours['hidden'] ) ? 'hidden' : 'listed';
 }
 
 /**

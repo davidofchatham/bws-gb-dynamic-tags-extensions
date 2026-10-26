@@ -581,18 +581,19 @@ class SettingsPage {
 	/**
 	 * Render the settings page.
 	 *
-	 * Deprecated/Removed box structural rules (were SPEC §V5/§V6; migrated here on ship):
+	 * Deprecated/Retired box structural rules (were SPEC §V5/§V6; migrated here on ship):
 	 * - **Empty-cascade is structural, not per-row.** A bucket (a K/S/D with-path/without-path
-	 *   subgroup, or a Removed tag-list/option-list) with zero entries after the allowlist
+	 *   subgroup, or a Retired tag-list/option-list) with zero entries after the allowlist
 	 *   filter hides its ENTIRE heading + description + control block, not just an empty
-	 *   disclosure. If all four boxes (Deprecated/Removed × Tags/Options) end up empty, the
+	 *   disclosure. If all four boxes (Deprecated/Retired × Tags/Options) end up empty, the
 	 *   whole group renders nothing.
 	 * - **The Migration Tool box has NO hide condition** — it always renders regardless of every
 	 *   other box's item count, so an admin whose boxes all hid (e.g. after migrating the last
 	 *   matching post) still has the scan/migrate entry point.
 	 *
-	 * Entry classification (Deprecated vs Removed) is MigrationRegistry::is_entry_live()
-	 * (CONTEXT.md I10). The allowlist hide-filter (positive list) and the "show all" bypass are
+	 * Entry classification (Deprecated vs Retired) is MigrationRegistry::is_entry_live()
+	 * (CONTEXT.md I10). A tag row's registration marker is display only and is never an input
+	 * to classification, the scan-aware hiding or the allowlist. The allowlist hide-filter (positive list) and the "show all" bypass are
 	 * TagConverter::get_allowlist() / the `bws_dynamic_tags_show_all_deprecated` filter (V7/V8, PHPDoc there).
 	 */
 	/**
@@ -613,9 +614,20 @@ class SettingsPage {
 	}
 
 	/**
-	 * Rows for a list of deprecated or removed tags.
+	 * Rows for a list of deprecated or retired tags.
+	 *
+	 * Each row ends with the tag's CURRENT registration (bws_gb_registration_marker()). GB's
+	 * registry is read once per list, and only when we registered something, since a name we
+	 * never registered needs no read to be "migration only".
 	 */
 	private static function tag_rows_html( array $entries ): string {
+		$ours = function_exists( 'bws_gb_tags_we_registered' ) ? bws_gb_tags_we_registered() : array();
+		$live = $ours && class_exists( 'GenerateBlocks_Register_Dynamic_Tag' ) ? \GenerateBlocks_Register_Dynamic_Tag::get_tags() : array();
+		$marker_text = array(
+			'hidden'         => __( 'registered, hidden', 'generateblocks' ),
+			'listed'         => __( 'registered, listed', 'generateblocks' ),
+			'migration-only' => __( 'migration only', 'generateblocks' ),
+		);
 		ob_start();
 		foreach ( $entries as $entry ) :
 			$old_tag = $entry['old_tag'] ?? $entry['match_tag'] ?? '';
@@ -639,6 +651,14 @@ class SettingsPage {
 						__( '(since %s)', 'generateblocks' ), $since
 					) ); ?></span>
 					<?php endif; ?>
+						<?php $state = bws_gb_registration_marker( $ours[ $old_tag ] ?? null, $live[ $old_tag ] ?? null ); ?>
+						<span class="bws-dep-since bws-dep-registration">
+							<?php if ( 'other-registrar' === $state ) : ?>
+							(<?php esc_html_e( 'another plugin holds this name, see', 'generateblocks' ); ?> <a href="#bws-tag-name-conflicts"><?php esc_html_e( 'Tag Name Conflicts', 'generateblocks' ); ?></a>)
+							<?php else : ?>
+							<?php echo esc_html( '(' . $marker_text[ $state ] . ')' ); ?>
+							<?php endif; ?>
+						</span>
 				</td>
 			</tr>
 			<?php
@@ -703,25 +723,25 @@ class SettingsPage {
 		$tag_in_allowlist = fn( array $e ) => in_array( $e['old_tag'] ?? $e['match_tag'] ?? '', $allowlist['tags'], true );
 		$option_in_allowlist = fn( array $e ) => in_array( $e['label'] ?? '', $allowlist['option_labels'], true );
 
-		// Split tag-type entries by liveness first (still GB-registered vs removed/inert),
-		// then by migration path within each liveness bucket.
+		// Split tag-type entries by lifecycle first (deprecated vs retired),
+		// then by migration path within each bucket.
 		$live_entries       = MigrationRegistry::get_by_type_and_liveness( 'tag', true );
-		$removed_entries    = MigrationRegistry::get_by_type_and_liveness( 'tag', false );
+		$retired_entries    = MigrationRegistry::get_by_type_and_liveness( 'tag', false );
 		if ( ! $show_all ) {
 			$live_entries    = array_values( array_filter( $live_entries, $tag_in_allowlist ) );
-			$removed_entries = array_values( array_filter( $removed_entries, $tag_in_allowlist ) );
+			$retired_entries = array_values( array_filter( $retired_entries, $tag_in_allowlist ) );
 		}
 		$live_with          = array_values( array_filter( $live_entries, fn( $e ) => ! empty( $e['new_tag'] ) ) );
 		$live_without       = array_values( array_filter( $live_entries, fn( $e ) => empty( $e['new_tag'] ) ) );
-		$removed_with       = array_values( array_filter( $removed_entries, fn( $e ) => ! empty( $e['new_tag'] ) ) );
-		$removed_without    = array_values( array_filter( $removed_entries, fn( $e ) => empty( $e['new_tag'] ) ) );
+		$retired_with       = array_values( array_filter( $retired_entries, fn( $e ) => ! empty( $e['new_tag'] ) ) );
+		$retired_without    = array_values( array_filter( $retired_entries, fn( $e ) => empty( $e['new_tag'] ) ) );
 
 		// Deprecated option-key entries (separate registry type).
 		$live_option_entries    = MigrationRegistry::get_by_type_and_liveness( 'option', true );
-		$removed_option_entries = MigrationRegistry::get_by_type_and_liveness( 'option', false );
+		$retired_option_entries = MigrationRegistry::get_by_type_and_liveness( 'option', false );
 		if ( ! $show_all ) {
 			$live_option_entries    = array_values( array_filter( $live_option_entries, $option_in_allowlist ) );
-			$removed_option_entries = array_values( array_filter( $removed_option_entries, $option_in_allowlist ) );
+			$retired_option_entries = array_values( array_filter( $retired_option_entries, $option_in_allowlist ) );
 		}
 
 		$mode_options = array(
@@ -1006,27 +1026,27 @@ function my_result( $post_id, $arg = '' ) {
 
 					<?php
 					$live_option_groups    = self::group_option_entries_by_transform( $live_option_entries );
-					$removed_option_groups = self::group_option_entries_by_transform( $removed_option_entries );
+					$retired_option_groups = self::group_option_entries_by_transform( $retired_option_entries );
 					$bws_inventory         = array(
 						array(
-							'label'   => __( 'Removed tags with a migration path', 'generateblocks' ),
-							'desc'    => __( 'These tag names no longer register with GenerateBlocks. The scan below can convert them to current equivalents.', 'generateblocks' ),
+							'label'   => __( 'Retired tags with a migration path', 'generateblocks' ),
+							'desc'    => __( 'These tags are retired: they are no longer supported. The scan below can convert them to current equivalents.', 'generateblocks' ),
 							'summary' => sprintf(
-								/* translators: %d: count of removed tags */
-								_n( '%d removed tag', '%d removed tags', count( $removed_with ), 'generateblocks' ),
-								count( $removed_with )
+								/* translators: %d: count of retired tags */
+								_n( '%d retired tag', '%d retired tags', count( $retired_with ), 'generateblocks' ),
+								count( $retired_with )
 							),
-							'rows'    => $removed_with ? self::tag_rows_html( $removed_with ) : '',
+							'rows'    => $retired_with ? self::tag_rows_html( $retired_with ) : '',
 						),
 						array(
-							'label'   => __( 'Removed tags without a migration path', 'generateblocks' ),
-							'desc'    => __( 'These tag names no longer register with GenerateBlocks and have no automatic conversion. Manual update required.', 'generateblocks' ),
+							'label'   => __( 'Retired tags without a migration path', 'generateblocks' ),
+							'desc'    => __( 'These tags are retired and have no automatic conversion. Manual update required.', 'generateblocks' ),
 							'summary' => sprintf(
-								/* translators: %d: count of removed tags */
-								_n( '%d removed tag', '%d removed tags', count( $removed_without ), 'generateblocks' ),
-								count( $removed_without )
+								/* translators: %d: count of retired tags */
+								_n( '%d retired tag', '%d retired tags', count( $retired_without ), 'generateblocks' ),
+								count( $retired_without )
 							),
-							'rows'    => $removed_without ? self::tag_rows_html( $removed_without ) : '',
+							'rows'    => $retired_without ? self::tag_rows_html( $retired_without ) : '',
 						),
 						array(
 							'label'   => __( 'Deprecated options', 'generateblocks' ),
@@ -1039,18 +1059,18 @@ function my_result( $post_id, $arg = '' ) {
 							'rows'    => $live_option_groups ? self::option_rows_html( $live_option_groups ) : '',
 						),
 						array(
-							'label'   => __( 'Removed options', 'generateblocks' ),
+							'label'   => __( 'Retired options', 'generateblocks' ),
 							'desc'    => __( 'The old option name is no longer accepted at all. The scan below still finds and fixes stored content that uses it.', 'generateblocks' ),
 							'summary' => sprintf(
-								/* translators: %d: count of removed option migrations */
-								_n( '%d removed option migration', '%d removed option migrations', count( $removed_option_groups ), 'generateblocks' ),
-								count( $removed_option_groups )
+								/* translators: %d: count of retired option migrations */
+								_n( '%d retired option migration', '%d retired option migrations', count( $retired_option_groups ), 'generateblocks' ),
+								count( $retired_option_groups )
 							),
-							'rows'    => $removed_option_groups ? self::option_rows_html( $removed_option_groups ) : '',
+							'rows'    => $retired_option_groups ? self::option_rows_html( $retired_option_groups ) : '',
 						),
 					);
 					?>
-					<h3 class="bws-subhead"><?php esc_html_e( 'Deprecated and removed entries', 'generateblocks' ); ?></h3>
+					<h3 class="bws-subhead"><?php esc_html_e( 'Deprecated and retired entries', 'generateblocks' ); ?></h3>
 					<?php foreach ( $bws_inventory as $bws_list ) : ?>
 						<?php if ( '' === $bws_list['rows'] ) { continue; } ?>
 					<div class="bws-dep-group">
