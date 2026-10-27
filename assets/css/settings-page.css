@@ -428,7 +428,11 @@
 	border-bottom: 1px solid var(--bws-line);
 }
 .bws-dynamic-tags-settings .bws-block-picker__survey-status { margin: 0; }
-.bws-dynamic-tags-settings .bws-block-picker__scan { flex: none; }
+.bws-dynamic-tags-settings .bws-block-picker__survey-totals { display: block; }
+.bws-dynamic-tags-settings .bws-block-picker__survey-totals:empty { display: none; }
+.bws-dynamic-tags-settings .bws-block-picker__scan,
+.bws-dynamic-tags-settings .bws-block-picker__filter { flex: none; }
+.bws-dynamic-tags-settings .bws-block-picker__filter[aria-pressed="true"] { background: var(--bws-ink); border-color: var(--bws-ink); color: var(--bws-surface); }
 .bws-dynamic-tags-settings .bws-block-picker__confirm { margin: 0; border-radius: 0; }
 .bws-dynamic-tags-settings .bws-block-picker__confirm[hidden] { display: none; }
 .bws-dynamic-tags-settings .bws-block-picker__confirm-list { margin: 0 0 8px 18px; list-style: disc; }

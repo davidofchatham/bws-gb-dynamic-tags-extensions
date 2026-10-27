@@ -45,16 +45,20 @@ function bws_core_blocks_picker_strings(): array {
 		'kind_inline'        => __( 'Holds text only. A `table` tag here prints nothing, which hides the whole block. A `content` tag here keeps its text, bold, italics and links, and drops paragraph breaks, headings, lists and images, so long content runs together.', 'generateblocks' ),
 		'kind_table'         => __( 'Table cells hold text only. A `table` tag here prints nothing, which hides the whole table. A `content` tag here keeps its text, bold, italics and links, and drops paragraph breaks, headings, lists and images.', 'generateblocks' ),
 		'kind_button'        => __( 'Holds text only. A `table` tag here prints nothing, which hides the whole button. A `content` tag keeps its text and drops everything else, links included. Tags that normally print a link, such as `email`, `phone`, or any tag set to *Link To*, print just the address, number or text instead, in both the button\'s text and its link. In the button\'s link, type `mailto:` or `tel:` before the tag yourself.', 'generateblocks' ),
-		'survey_hint'        => __( 'No scan has been run yet. Run one to see which of these blocks already hold tags.', 'generateblocks' ),
+		'survey_hint'        => __( 'No scan has been run yet. A scan checks all of your content (posts, pages, templates, patterns and block widgets) for `{{…}}` tags in every block in this list, selected or not, and shows how many each block holds, whether or not GenerateBlocks can fill them in. It changes nothing, and it does not need Save.', 'generateblocks' ),
 		'survey_scan'        => __( 'Scan content for tags', 'generateblocks' ),
-		'survey_running'     => __( 'Scanning…', 'generateblocks' ),
+		/* translators: 1: tags GenerateBlocks can fill in, 2: other tags. */
+		'survey_totals'      => __( 'In the blocks below: %1$d tags GenerateBlocks can fill in, %2$d others.', 'generateblocks' ),
+		'survey_none'        => __( 'No tags found in the blocks below.', 'generateblocks' ),
+		'filter_tags'        => __( 'Only blocks with tags', 'generateblocks' ),
+		'survey_running'     =>__( 'Scanning…', 'generateblocks' ),
 		/* translators: %s: date and time of the last scan. */
-		'survey_last'        => __( 'Last scan: %s.', 'generateblocks' ),
+		'survey_last'        => __( 'Last scan: %s. It checked all content, selected blocks or not, and changed nothing.', 'generateblocks' ),
 		'survey_error'       => __( 'The scan could not finish. Try again.', 'generateblocks' ),
 		/* translators: %d: number of tags. */
-		'row_registered'     => __( 'Registered tags found here by the last scan: %d.', 'generateblocks' ),
+		'row_registered'     => __( 'Tags found here by the last scan that GenerateBlocks can fill in: %d.', 'generateblocks' ),
 		/* translators: %d: number of strings. */
-		'row_unregistered'   => __( 'Other `{{…}}` text found here, which is not a registered tag and stays as typed: %d.', 'generateblocks' ),
+		'row_unregistered'   => __( 'Other `{{…}}` tags found here, which GenerateBlocks does not fill in (a snippet or other code may): %d.', 'generateblocks' ),
 		'confirm_intro'      => __( 'These newly selected blocks already hold registered tags. Once you save, those tags are filled in on the site instead of showing as typed.', 'generateblocks' ),
 		'confirm_save'       => __( 'Save anyway', 'generateblocks' ),
 		'confirm_back'       => __( 'Go back', 'generateblocks' ),

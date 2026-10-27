@@ -55,7 +55,7 @@ function bws_core_blocks_survey_walk_blocks( array $blocks, callable $is_registe
 		$name = $block['blockName'] ?? null;
 		if ( is_string( $name ) && '' !== $name ) {
 			$own = implode( '', array_filter( (array) ( $block['innerContent'] ?? array() ), 'is_string' ) );
-			if ( false !== strpos( $own, '{{' ) && preg_match_all( '/\{\{\s*([A-Za-z0-9_\-]+)(?:\s[^}]*)?\}\}/', $own, $found ) ) {
+			if ( false !== strpos( $own, '{{' ) && preg_match_all( '/\{\{\s*([A-Za-z0-9_\-.]+)(?:\s[^}]*)?\}\}/', $own, $found ) ) {
 				foreach ( $found[1] as $tag ) {
 					$out[ $name ] = $out[ $name ] ?? array( 'registered' => 0, 'unregistered' => 0 );
 					++$out[ $name ][ $is_registered( $tag ) ? 'registered' : 'unregistered' ];
@@ -184,7 +184,7 @@ function bws_core_blocks_survey_run(): array {
 /**
  * AJAX: run the scan, store it, hand back what the page needs to update itself.
  *
- * Response: `status` (the "Last scan" line), `rows` (block name => { registered, html }, only
+ * Response: `status` (the "Last scan" line), `rows` (block name => { registered, unregistered, html }, only
  * blocks with a count; the page clears every other row's line).
  *
  * @since Unreleased
@@ -203,7 +203,8 @@ function bws_core_blocks_survey_ajax(): void {
 	$rows = array();
 	foreach ( $result['blocks'] as $name => $cell ) {
 		$rows[ $name ] = array(
-			'registered' => $cell['registered'],
+			'registered'   => $cell['registered'],
+				'unregistered' => $cell['unregistered'],
 			'html'       => bws_core_blocks_survey_row_html( $cell, $text ),
 		);
 	}

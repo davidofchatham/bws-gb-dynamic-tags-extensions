@@ -107,6 +107,7 @@ assert_same( 'a tag in a block comment\'s attributes is not markup', array(), $w
 assert_same( 'text outside any block has no block type and is left out', array(), $walk( 'Classic {{text}} content' ) );
 
 echo "§6 — malformed markup never fatals\n";
+assert_same( 'a dotted name is counted, and is unregistered', array( 'core/table' => $cell( 0, 2 ) ), $walk( '<!-- wp:table --><figure class="wp-block-table"><table><tbody><tr><td>{{field.a_b}}</td><td>{{field.c}}</td></tr></tbody></table></figure><!-- /wp:table -->' ) );
 assert_same( 'an unterminated brace pair is not a tag', array(), $walk( '<!-- wp:paragraph --><p>{{text key:a</p><!-- /wp:paragraph -->' ) );
 assert_same( 'empty and nameless braces are not tags', array(), $walk( '<!-- wp:paragraph --><p>{{}} {{ }} {{!}} {{ key:a }}</p><!-- /wp:paragraph -->' ) );
 assert_same( 'an unclosed block still reports its tag', array( 'core/paragraph' => $cell( 1, 0 ) ), $walk( '<!-- wp:paragraph --><p>{{text}}</p>' ) );

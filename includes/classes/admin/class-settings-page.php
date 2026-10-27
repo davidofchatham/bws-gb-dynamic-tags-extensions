@@ -155,6 +155,8 @@ class SettingsPage {
 				'strings' => array(
 					'running' => $picker_text['survey_running'],
 					'error'   => $picker_text['survey_error'],
+						'totals'  => $picker_text['survey_totals'],
+						'none'    => $picker_text['survey_none'],
 				),
 			)
 		);
@@ -768,9 +770,9 @@ class SettingsPage {
 								<li><?php echo bws_core_blocks_picker_markup( $note ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></li>
 							<?php endforeach; ?>
 						</ul>
-						<div class="bws-block-picker" data-count-template="<?php echo esc_attr( $text['count'] ); ?>">
+						<div class="bws-block-picker" data-count-template="<?php echo esc_attr( $text['count'] ); ?>" data-scanned="<?php echo $survey ? '1' : '0'; ?>">
 							<div class="bws-block-picker__survey">
-								<p class="description bws-block-picker__survey-status"><?php echo esc_html( $survey ? bws_core_blocks_survey_status( $survey['time'], $text ) : $text['survey_hint'] ); ?></p>
+								<p class="description bws-block-picker__survey-status"><span class="bws-block-picker__survey-when"><?php echo bws_core_blocks_picker_markup( $survey ? bws_core_blocks_survey_status( $survey['time'], $text ) : $text['survey_hint'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></span><span class="bws-block-picker__survey-totals"></span></p>
 								<button type="button" class="gp-button gp-button--secondary gp-button--small bws-block-picker__scan"><?php echo esc_html( $text['survey_scan'] ); ?></button>
 							</div>
 							<div class="gp-notice gp-notice--warn bws-notice bws-block-picker__confirm" role="region" aria-live="polite" hidden>
@@ -788,7 +790,8 @@ class SettingsPage {
 								<input type="search" class="gp-text-input bws-block-picker__search"
 									placeholder="<?php echo esc_attr( $text['search_placeholder'] ); ?>"
 									aria-label="<?php echo esc_attr( $text['search_placeholder'] ); ?>" autocomplete="off" />
-								<span class="bws-block-picker__count" role="status" aria-live="polite"></span>
+								<button type="button" class="gp-button gp-button--secondary gp-button--small bws-block-picker__filter" aria-pressed="false"<?php disabled( ! $survey ); ?>><?php echo esc_html( $text['filter_tags'] ); ?></button>
+									<span class="bws-block-picker__count" role="status" aria-live="polite"></span>
 								<span class="bws-block-picker__dirty" hidden><?php echo esc_html( $text['dirty'] ); ?></span>
 							</div>
 							<div class="bws-block-picker__groups">
@@ -798,7 +801,7 @@ class SettingsPage {
 										<ul class="bws-block-picker__items">
 											<?php foreach ( $group['rows'] as $row ) : ?>
 												<?php $id = 'bws-core-block-' . ( ++$n ); ?>
-												<li class="bws-block-picker__item" data-bws-block="<?php echo esc_attr( $row['name'] ); ?>" data-bws-title="<?php echo esc_attr( $row['title'] ); ?>" data-bws-registered="<?php echo (int) $row['registered']; ?>" data-search="<?php echo esc_attr( $row['search'] ); ?>">
+												<li class="bws-block-picker__item" data-bws-block="<?php echo esc_attr( $row['name'] ); ?>" data-bws-title="<?php echo esc_attr( $row['title'] ); ?>" data-bws-registered="<?php echo (int) $row['registered']; ?>" data-bws-other="<?php echo (int) $row['unregistered']; ?>" data-search="<?php echo esc_attr( $row['search'] ); ?>">
 													<input type="checkbox" id="<?php echo esc_attr( $id ); ?>"
 														name="<?php echo esc_attr( $field ); ?>"
 														value="<?php echo esc_attr( $row['name'] ); ?>"

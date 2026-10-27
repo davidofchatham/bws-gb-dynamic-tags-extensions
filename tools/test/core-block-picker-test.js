@@ -58,5 +58,11 @@ check( 'only the newly selected, counted ones are listed, in selection order', '
 check( 'deselecting never asks', '', list( [ 'core/paragraph' ], [] ) );
 check( 'no scan counts at all: nothing to ask', '', needsConfirm( [], [ 'core/paragraph' ], {} ).join( ',' ) );
 
+const { totalsText } = global.window.bwsBlockPicker;
+const words = { totals: 'In the blocks below: %1$d fill, %2$d others.', none: 'None.' };
+check( 'totals name both counts', 'In the blocks below: 5 fill, 2 others.', totalsText( 5, 2, words ) );
+check( 'only the second kind still reads as totals', 'In the blocks below: 0 fill, 3 others.', totalsText( 0, 3, words ) );
+check( 'both zero says none', 'None.', totalsText( 0, 0, words ) );
+
 console.log( '\n' + count + ' assertions, ' + failures + ' failed' );
 process.exit( failures ? 1 : 0 );

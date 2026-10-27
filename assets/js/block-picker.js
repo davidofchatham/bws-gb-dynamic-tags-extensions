@@ -36,8 +36,16 @@
 		} );
 	}
 
+	/** The scan-totals sentence; the "none" string when both are zero. */
+	function totalsText( registered, other, strings ) {
+		if ( ! registered && ! other ) {
+			return strings.none;
+		}
+		return strings.totals.replace( '%1$d', registered ).replace( '%2$d', other );
+	}
+
 	if ( typeof window !== 'undefined' ) {
-		window.bwsBlockPicker = { matches: matches, setKey: setKey, needsConfirm: needsConfirm };
+		window.bwsBlockPicker = { matches: matches, setKey: setKey, needsConfirm: needsConfirm, totalsText: totalsText };
 	}
 	if ( typeof document === 'undefined' ) {
 		return;
@@ -55,6 +63,15 @@
 		var items = Array.prototype.slice.call( picker.querySelectorAll( '.bws-block-picker__item' ) );
 		var groups = Array.prototype.slice.call( picker.querySelectorAll( '.bws-block-picker__group' ) );
 		var boxes = Array.prototype.slice.call( picker.querySelectorAll( 'input[type="checkbox"]' ) );
+		var filterBtn = picker.querySelector( '.bws-block-picker__filter' );
+		var when = picker.querySelector( '.bws-block-picker__survey-when' );
+		var totals = picker.querySelector( '.bws-block-picker__survey-totals' );
+		var filterOn = false;
+
+		// Tags the last scan found in a row, of either kind.
+		function found( li ) {
+			return ( parseInt( li.getAttribute( 'data-bws-registered' ), 10 ) || 0 ) + ( parseInt( li.getAttribute( 'data-bws-other' ), 10 ) || 0 );
+		}
 
 		// What a save would send: checked and not locked. Locked rows post nothing.
 		function posted() {
@@ -77,7 +94,7 @@
 		function refreshSearch() {
 			var shown = 0;
 			items.forEach( function ( li ) {
-				var show = matches( li.getAttribute( 'data-search' ), search.value );
+				var show = matches( li.getAttribute( 'data-search' ), search.value ) && ( ! filterOn || found( li ) > 0 );
 				li.hidden = ! show;
 				shown += show ? 1 : 0;
 			} );
@@ -87,7 +104,29 @@
 			empty.hidden = shown > 0;
 		}
 
+		// The scan-totals line counts the rows below it, so it reads off the same attributes the filter does.
+		function refreshTotals() {
+			if ( '1' !== picker.getAttribute( 'data-scanned' ) ) {
+				totals.textContent = '';
+				return;
+			}
+			var registered = 0;
+			var other = 0;
+			items.forEach( function ( li ) {
+				registered += parseInt( li.getAttribute( 'data-bws-registered' ), 10 ) || 0;
+				other += parseInt( li.getAttribute( 'data-bws-other' ), 10 ) || 0;
+			} );
+			totals.textContent = totalsText( registered, other, cfg.strings );
+		}
+
 		search.addEventListener( 'input', refreshSearch );
+		if ( filterBtn ) {
+			filterBtn.addEventListener( 'click', function () {
+				filterOn = ! filterOn;
+				filterBtn.setAttribute( 'aria-pressed', filterOn ? 'true' : 'false' );
+				refreshSearch();
+			} );
+		}
 		// Enter in the search box must filter, not submit the whole settings form.
 		search.addEventListener( 'keydown', function ( e ) {
 			if ( 'Enter' === e.key ) {
@@ -175,7 +214,6 @@
 		// The on-demand scan: runs server-side, then refreshes each row's counts in place so
 		// unsaved selections survive it.
 		var scan = picker.querySelector( '.bws-block-picker__scan' );
-		var status = picker.querySelector( '.bws-block-picker__survey-status' );
 		if ( scan && cfg.ajaxUrl ) {
 			scan.addEventListener( 'click', function () {
 				var idle = scan.textContent;
@@ -191,12 +229,22 @@
 						items.forEach( function ( li ) {
 							var row = res.data.rows[ li.getAttribute( 'data-bws-block' ) ];
 							li.setAttribute( 'data-bws-registered', row ? row.registered : 0 );
+							li.setAttribute( 'data-bws-other', row ? row.unregistered : 0 );
 							li.querySelector( '.bws-block-picker__tags' ).innerHTML = row ? row.html : '';
 						} );
-						status.textContent = res.data.status;
+						when.textContent = res.data.status;
+						picker.setAttribute( 'data-scanned', '1' );
+						if ( filterBtn ) {
+							filterBtn.disabled = false;
+						}
+						refreshTotals();
+						refreshSearch();
 						hideConfirm();
 					} )
-					.catch( function () { status.textContent = cfg.strings.error; } )
+					.catch( function () {
+						when.textContent = cfg.strings.error;
+						totals.textContent = '';
+					} )
 					.then( function () {
 						scan.disabled = false;
 						scan.textContent = idle;
@@ -211,6 +259,7 @@
 		} );
 
 		refreshCount();
+		refreshTotals();
 		refreshSearch();
 	}
 
