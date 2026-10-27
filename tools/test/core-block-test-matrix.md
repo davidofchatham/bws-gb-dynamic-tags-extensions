@@ -92,6 +92,14 @@ Tag: `{{table src:post,<MID>;rows,team_members|A:header(Name);key(name)|B:header
 | CB5.4 | `core/button` | the button is hidden (note N1: its empty wrapper remains) | PASS 2026-10-26 |
 | CB5.5 | GB text block (control) | a 2-row table: Alice Adams / Engineering, Bob Brown / Operations | PASS 2026-10-26 |
 
+The same tag with GenerateBlocks' **Required to render** turned off (`{{table required:false|src:post,<MID>;rows,team_members|…}}`, `required:false` first as the editor writes it). With the removal switched off the block stays, and the refused tag leaves it empty:
+
+| # | Host block | Expected | Status |
+|---|---|---|---|
+| CB5.6 | `core/paragraph` | the block stays, as an empty paragraph element (`<p class="wp-block-paragraph"></p>`) | PASS 2026-10-27 |
+| CB5.7 | `core/table` cell | the table block stays, its one cell empty | PASS 2026-10-27 |
+| CB5.8 | `core/button` | the button stays with no text: an empty link inside the buttons wrapper | PASS 2026-10-27 |
+
 ## CB6: survey
 
 `bws_core_blocks_survey_run()` counts tag-like strings per block type and reaches `widget_block`. **No page row, by construction**: the seeded block widget is in no sidebar, and the survey is read off the database rather than a render. Run it through the testbed:

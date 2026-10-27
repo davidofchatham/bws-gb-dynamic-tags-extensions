@@ -2486,6 +2486,8 @@ function bws_fixture_page_content_matrix_core_blocks() {
 	$plain = '{{content use:key|key:bws_block_plain}}';
 	$inl   = '{{content use:key|key:bws_block_inline}}';
 	$tbl   = "{{table src:post,{$meta_id};rows,team_members|A:header(Name);key(name)|B:header(Role);key(role)}}";
+	// The same tag with GB's Required to render turned off (the editor writes `required:false` first).
+	$tbl_optional = "{{table required:false|src:post,{$meta_id};rows,team_members|A:header(Name);key(name)|B:header(Role);key(role)}}";
 
 	$sections = array();
 
@@ -2560,6 +2562,9 @@ function bws_fixture_page_content_matrix_core_blocks() {
 		$row( 'CB5.3 core/table cell (-> EMPTY: the whole table block is hidden, nothing follows this label)', $table( $tbl ) ),
 		$row( 'CB5.4 core/button (-> the button is hidden; only the empty buttons wrapper around it remains, matrix note N1)', $button( $tbl, '#' ) ),
 		bws_fixture_gb_block_host_row( 'CB5.5 GB text block control (-> a 2-row table: Alice Adams / Engineering, Bob Brown / Operations, read off matrix-post-meta)', $tbl ),
+		$row( 'CB5.6 core/paragraph, Required to render OFF (-> the block stays, as an EMPTY paragraph: an empty line follows this label)', $paragraph( $tbl_optional ) ),
+		$row( 'CB5.7 core/table cell, Required to render OFF (-> the table block stays, its one cell EMPTY)', $table( $tbl_optional ) ),
+		$row( 'CB5.8 core/button, Required to render OFF (-> the button stays with NO TEXT: an empty link inside the buttons wrapper)', $button( $tbl_optional, '#' ) ),
 	) );
 
 	return implode( "\n\n", $sections );

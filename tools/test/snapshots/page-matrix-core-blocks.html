@@ -223,6 +223,20 @@ with a soft line break. Formatted two.</p>
 <p class="gb-text">CB5.5 GB text block control (-> a 2-row table: Alice Adams / Engineering, Bob Brown / Operations, read off matrix-post-meta):</p>
 
 <div class="gb-text"><table><thead><tr><th>Name</th><th>Role</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td></tr><tr><td>Bob Brown</td><td>Operations</td></tr></tbody></table></div>
+
+<p class="gb-text">CB5.6 core/paragraph, Required to render OFF (-> the block stays, as an EMPTY paragraph: an empty line follows this label):</p>
+
+<p class="wp-block-paragraph"></p>
+
+<p class="gb-text">CB5.7 core/table cell, Required to render OFF (-> the table block stays, its one cell EMPTY):</p>
+
+<figure class="wp-block-table"><table class="has-fixed-layout"><tbody><tr><td></td></tr></tbody></table></figure>
+
+<p class="gb-text">CB5.8 core/button, Required to render OFF (-> the button stays with NO TEXT: an empty link inside the buttons wrapper):</p>
+
+<div class="wp-block-buttons is-layout-flex wp-block-buttons-is-layout-flex">
+<div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="#"></a></div>
+</div>
 </div>
 		</div>
 
