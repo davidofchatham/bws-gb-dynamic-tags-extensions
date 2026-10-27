@@ -41,10 +41,38 @@ function bws_core_blocks_picker_strings(): array {
 		'unregistered'       => __( 'Saved earlier. Kept so it works again if its plugin comes back.', 'generateblocks' ),
 		'code_set'           => __( 'Turned on by code on this site.', 'generateblocks' ),
 		'dirty'              => __( 'Unsaved changes', 'generateblocks' ),
-		'list_hint'          => __( 'Put tags in the List Item blocks inside the list, not in the List itself.', 'generateblocks' ),
-		'kind_inline'        => __( 'Holds text only. A `table` tag here prints nothing, which hides the whole block. A `content` tag here keeps its text, bold, italics and links, and drops paragraph breaks, headings, lists and images, so long content runs together.', 'generateblocks' ),
-		'kind_table'         => __( 'Table cells hold text only. A `table` tag here prints nothing, which hides the whole table. A `content` tag here keeps its text, bold, italics and links, and drops paragraph breaks, headings, lists and images.', 'generateblocks' ),
-		'kind_button'        => __( 'Holds text only. A `table` tag here prints nothing, which hides the whole button. A `content` tag keeps its text and drops everything else, links included. Tags that normally print a link, such as `email`, `phone`, or any tag set to *Link To*, print just the address, number or text instead, in both the button\'s text and its link. In the button\'s link, type `mailto:` or `tel:` before the tag yourself.', 'generateblocks' ),
+		'contents_inline'    => __( 'Inline text', 'generateblocks' ),
+		'contents_button'    => __( 'Inline text; the block is the link', 'generateblocks' ),
+		'contents_list'      => __( 'No text of its own', 'generateblocks' ),
+		'contents_untested'  => __( 'Not tested', 'generateblocks' ),
+		'limits_inline'      => __( '`content` keeps inline formatting only; `table` returns empty', 'generateblocks' ),
+		'limits_button'      => __( '`content` keeps text only; `table` returns empty; link tags return plain text', 'generateblocks' ),
+		'limits_none'        => __( '–', 'generateblocks' ),
+		'limits_none_sr'     => __( 'No limit', 'generateblocks' ),
+		'count_unscanned'    => __( 'Not scanned', 'generateblocks' ),
+		'caption_before'     => __( 'Blocks, and what a tag can do in each', 'generateblocks' ),
+		'caption_after'      => __( 'Blocks, with the tags the last scan found in each and what a tag can do there', 'generateblocks' ),
+		'col_block'          => __( 'Block', 'generateblocks' ),
+		'col_contents'       => __( 'Contents', 'generateblocks' ),
+		'col_limits'         => __( 'Limits', 'generateblocks' ),
+		'col_known'          => __( 'Known', 'generateblocks' ),
+		'col_unknown'        => __( 'Unknown', 'generateblocks' ),
+		/* translators: 1: column name, 2: ascending or descending. */
+		'sorted'             => __( 'Sorted by %1$s, %2$s.', 'generateblocks' ),
+		'ascending'          => __( 'ascending', 'generateblocks' ),
+		'descending'         => __( 'descending', 'generateblocks' ),
+		'key_summary'        => __( 'Key to the counts, symbols and limits', 'generateblocks' ),
+		// Term, then explanation. A limit's term is the Limits cell's own phrase (Invariant 6).
+		'key'                => array(
+			array( __( 'Known', 'generateblocks' ), __( 'Tags registered with GenerateBlocks, including those of GenerateBlocks Pro, this plugin, and any other extension.', 'generateblocks' ) ),
+			array( __( 'Unknown', 'generateblocks' ), __( '`{{…}}` tags not registered with GenerateBlocks, which may belong to the theme, a plugin or a code snippet.', 'generateblocks' ) ),
+			array( __( '–', 'generateblocks' ), __( 'No limits. This plugin changes nothing about how a tag renders in this block.', 'generateblocks' ) ),
+			array( __( 'No text of its own', 'generateblocks' ), __( 'The block holds other blocks, not text. Enabling it does not cover the blocks inside it: enable those, and put tags in them.', 'generateblocks' ) ),
+			array( __( '`content` keeps inline formatting only', 'generateblocks' ), __( 'Text, bold, italics and links stay. Paragraph breaks, headings, lists and images are dropped, so long content runs together.', 'generateblocks' ) ),
+			array( __( '`content` keeps text only', 'generateblocks' ), __( 'Only the text stays. Links are dropped too.', 'generateblocks' ) ),
+			array( __( '`table` returns empty', 'generateblocks' ), __( 'Unless *Required to render* is disabled, GenerateBlocks removes the block, like a tag that returns no value.', 'generateblocks' ) ),
+			array( __( 'link tags return plain text', 'generateblocks' ), __( '`email`, `phone` and any tag set to *Link To* print just the address, number or text, not a link. In a Button\'s link, type `mailto:` or `tel:` before the tag yourself.', 'generateblocks' ) ),
+		),
 		'survey_hint'        => __( 'No scan has been run yet. A scan checks all of your content (posts, pages, templates, patterns and block widgets) for `{{…}}` tags in every block in this list, selected or not, and shows how many each block holds, whether or not GenerateBlocks can fill them in. It changes nothing, and it does not need Save.', 'generateblocks' ),
 		'survey_scan'        => __( 'Scan content for tags', 'generateblocks' ),
 		/* translators: 1: tags GenerateBlocks can fill in, 2: other tags. */
@@ -55,10 +83,6 @@ function bws_core_blocks_picker_strings(): array {
 		/* translators: %s: date and time of the last scan. */
 		'survey_last'        => __( 'Last scan: %s. It checked all content, selected blocks or not, and changed nothing.', 'generateblocks' ),
 		'survey_error'       => __( 'The scan could not finish. Try again.', 'generateblocks' ),
-		/* translators: %d: number of tags. */
-		'row_registered'     => __( 'Tags found here by the last scan that GenerateBlocks can fill in: %d.', 'generateblocks' ),
-		/* translators: %d: number of strings. */
-		'row_unregistered'   => __( 'Other `{{…}}` tags found here, which GenerateBlocks does not fill in (a snippet or other code may): %d.', 'generateblocks' ),
 		'confirm_intro'      => __( 'These newly selected blocks already hold registered tags. Once you save, those tags are filled in on the site instead of showing as typed.', 'generateblocks' ),
 		'confirm_save'       => __( 'Save anyway', 'generateblocks' ),
 		'confirm_back'       => __( 'Go back', 'generateblocks' ),
@@ -97,8 +121,8 @@ function bws_core_blocks_picker_markup( string $text ): string {
  *
  * Row keys: name, title, selected, disabled, variations (titles), registered and unregistered
  * (the last scan's tag counts for the block: ints once a scan exists, null before), search (lowercase haystack),
- * notes (keys into bws_core_blocks_picker_strings(): one consequence note, then `unregistered`
- * and `code_set` when they apply).
+ * contents and limits (string keys, see bws_core_blocks_picker_cells()), untested (bool), notes
+ * (keys into bws_core_blocks_picker_strings(): `unregistered` and `code_set` when they apply).
  *
  * @since Unreleased
  * @param array[]  $entries    Each: name, title, category (slug), inserter (bool), variations (string[]).
@@ -156,22 +180,33 @@ function bws_core_blocks_picker_rows( array $entries, array $categories, array $
 }
 
 /**
- * One row. The consequence note asks the classification owner by block name; an unclassified
- * block gets none (the intro says once that those are untested).
+ * The Contents and Limits cells of a block, as keys into bws_core_blocks_picker_strings(). Asks
+ * the classification owner by block name and states only the consequence, never its map. A block
+ * not registered right now is unclassified whatever its name says. Limits is what THIS plugin
+ * enforces, so an unclassified block's Limits is "none", never "not tested".
+ *
+ * @since Unreleased
+ * @param string $name       Block name.
+ * @param bool   $registered Whether the block is registered on this site now.
+ * @return array{contents: string, limits: string, untested: bool}
  */
+function bws_core_blocks_picker_cells( string $name, bool $registered = true ): array {
+	switch ( $registered ? bws_core_block_kind( array( 'blockName' => $name ) ) : '' ) {
+		case BWS_CORE_BLOCK_KIND_INLINE:
+		case BWS_CORE_BLOCK_KIND_TABLE:
+			return array( 'contents' => 'contents_inline', 'limits' => 'limits_inline', 'untested' => false );
+		case BWS_CORE_BLOCK_KIND_BUTTON:
+			return array( 'contents' => 'contents_button', 'limits' => 'limits_button', 'untested' => false );
+		case BWS_CORE_BLOCK_KIND_LIST:
+			return array( 'contents' => 'contents_list', 'limits' => 'limits_none', 'untested' => false );
+	}
+	return array( 'contents' => 'contents_untested', 'limits' => 'limits_none', 'untested' => true );
+}
+
+/** One row. */
 function bws_core_blocks_picker_row( string $name, string $title, string $category_label, array $variations, bool $registered, array $saved, array $enabled, ?array $survey = null ): array {
 	$notes = array();
-	if ( $registered ) {
-		$note = array(
-			BWS_CORE_BLOCK_KIND_INLINE => 'kind_inline',
-			BWS_CORE_BLOCK_KIND_TABLE  => 'kind_table',
-			BWS_CORE_BLOCK_KIND_BUTTON => 'kind_button',
-			BWS_CORE_BLOCK_KIND_LIST   => 'list_hint',
-		)[ bws_core_block_kind( array( 'blockName' => $name ) ) ] ?? null;
-		if ( null !== $note ) {
-			$notes[] = $note;
-		}
-	} else {
+	if ( ! $registered ) {
 		$notes[] = 'unregistered';
 	}
 	$selected = in_array( $name, $enabled, true );
@@ -179,37 +214,37 @@ function bws_core_blocks_picker_row( string $name, string $title, string $catego
 	if ( $code_set ) {
 		$notes[] = 'code_set';
 	}
-	return array(
-		'name'       => $name,
-		'title'      => $title,
-		'selected'   => $selected,
-		'disabled'   => $code_set,
-		'variations' => array_values( array_map( 'strval', $variations ) ),
-		'registered'   => null === $survey ? null : (int) ( $survey[ $name ]['registered'] ?? 0 ),
-		'unregistered' => null === $survey ? null : (int) ( $survey[ $name ]['unregistered'] ?? 0 ),
-		'search'     => strtolower( implode( ' ', array_merge( array( $title, $name, $category_label ), $variations ) ) ),
-		'notes'      => $notes,
+	return array_merge(
+		bws_core_blocks_picker_cells( $name, $registered ),
+		array(
+			'name'         => $name,
+			'title'        => $title,
+			'selected'     => $selected,
+			'disabled'     => $code_set,
+			'variations'   => array_values( array_map( 'strval', $variations ) ),
+			'registered'   => null === $survey ? null : (int) ( $survey[ $name ]['registered'] ?? 0 ),
+			'unregistered' => null === $survey ? null : (int) ( $survey[ $name ]['unregistered'] ?? 0 ),
+			'search'       => strtolower( implode( ' ', array_merge( array( $title, $name, $category_label ), $variations ) ) ),
+			'notes'        => $notes,
+		)
 	);
 }
 
 /**
- * The scan-count lines of one row, as HTML (empty when there is nothing to say). Single source
- * for both the first render and the AJAX reply that refreshes a row.
+ * One Known or Unknown cell's content, as HTML. Before any scan it is a dash with screen reader
+ * text, never 0 (a 0 would claim a scan found nothing). block-picker.js writes the same shape
+ * after a scan so a row refreshes without a reload.
  *
  * @since Unreleased
- * @param array|null $counts `registered` / `unregistered` ints, or null before any scan.
- * @param array      $text   bws_core_blocks_picker_strings().
+ * @param int|null $count The last scan's count for this block and kind, or null before any scan.
+ * @param array    $text  bws_core_blocks_picker_strings().
  * @return string HTML.
  */
-function bws_core_blocks_survey_row_html( ?array $counts, array $text ): string {
-	$html = '';
-	foreach ( array( 'registered' => 'row_registered', 'unregistered' => 'row_unregistered' ) as $key => $string ) {
-		$n = (int) ( $counts[ $key ] ?? 0 );
-		if ( $n > 0 ) {
-			$html .= '<p class="description">' . bws_core_blocks_picker_markup( sprintf( $text[ $string ], $n ) ) . '</p>';
-		}
+function bws_core_blocks_survey_count_html( ?int $count, array $text ): string {
+	if ( null === $count ) {
+		return '<span aria-hidden="true">–</span><span class="screen-reader-text">' . esc_html( $text['count_unscanned'] ) . '</span>';
 	}
-	return $html;
+	return 0 === $count ? '<span class="bws-block-picker__zero">0</span>' : (string) $count;
 }
 
 /**

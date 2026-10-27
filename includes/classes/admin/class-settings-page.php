@@ -155,8 +155,14 @@ class SettingsPage {
 				'strings' => array(
 					'running' => $picker_text['survey_running'],
 					'error'   => $picker_text['survey_error'],
-						'totals'  => $picker_text['survey_totals'],
-						'none'    => $picker_text['survey_none'],
+					'totals'  => $picker_text['survey_totals'],
+					'none'    => $picker_text['survey_none'],
+					'caption' => $picker_text['caption_after'],
+					'sorted'  => $picker_text['sorted'],
+					'order'   => array(
+						'ascending'  => $picker_text['ascending'],
+						'descending' => $picker_text['descending'],
+					),
 				),
 			)
 		);
@@ -740,11 +746,11 @@ class SettingsPage {
 	}
 
 	/**
-	 * The "Tags in Other Blocks" section (FW-156): one searchable list of the server-registered
-	 * blocks. Rows come from bws_core_blocks_picker_rows(), words from
-	 * bws_core_blocks_picker_strings(); assets/js/block-picker.js does the search, counter and
-	 * unsaved-changes state. Each row carries `data-bws-block` (the block name) as the hook for
-	 * per-row additions.
+	 * The "Tags in Other Blocks" section (FW-156): one searchable, sortable table of the
+	 * server-registered blocks. Rows come from bws_core_blocks_picker_rows(), words from
+	 * bws_core_blocks_picker_strings(); assets/js/block-picker.js does the search, sort, counter
+	 * and unsaved-changes state. Each row carries `data-bws-block` (the block name) as the hook
+	 * for per-row additions.
 	 *
 	 * @since Unreleased
 	 * @param array $settings Saved settings.
@@ -794,34 +800,63 @@ class SettingsPage {
 									<span class="bws-block-picker__count" role="status" aria-live="polite"></span>
 								<span class="bws-block-picker__dirty" hidden><?php echo esc_html( $text['dirty'] ); ?></span>
 							</div>
-							<div class="bws-block-picker__groups">
-								<?php foreach ( $groups as $group ) : ?>
-									<section class="bws-block-picker__group">
-										<h3 class="bws-block-picker__group-label"><?php echo esc_html( $group['inactive'] ? $text['inactive_heading'] : $group['label'] ); ?></h3>
-										<ul class="bws-block-picker__items">
+							<details class="bws-block-picker__key">
+								<summary><?php echo esc_html( $text['key_summary'] ); ?></summary>
+								<dl>
+									<?php foreach ( $text['key'] as $entry ) : ?>
+										<dt><?php echo bws_core_blocks_picker_markup( $entry[0] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></dt>
+										<dd><?php echo bws_core_blocks_picker_markup( $entry[1] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></dd>
+									<?php endforeach; ?>
+								</dl>
+							</details>
+							<div class="bws-block-picker__region" role="region" aria-labelledby="bws-block-picker-caption" tabindex="0">
+								<table class="bws-block-picker__table">
+									<caption id="bws-block-picker-caption"><?php echo esc_html( $survey ? $text['caption_after'] : $text['caption_before'] ); ?></caption>
+									<thead>
+										<tr>
+											<?php foreach ( array( 'block' => 'col_block', 'contents' => 'col_contents' ) as $col => $label ) : ?>
+												<th scope="col"><button type="button" class="bws-block-picker__sort" data-col="<?php echo esc_attr( $col ); ?>"><?php echo esc_html( $text[ $label ] ); ?></button></th>
+											<?php endforeach; ?>
+											<th scope="col"><?php echo esc_html( $text['col_limits'] ); ?></th>
+											<?php foreach ( array( 'registered' => 'col_known', 'unregistered' => 'col_unknown' ) as $col => $label ) : ?>
+												<th scope="col" class="bws-block-picker__num"><button type="button" class="bws-block-picker__sort" data-col="<?php echo esc_attr( $col ); ?>"><?php echo esc_html( $text[ $label ] ); ?></button></th>
+											<?php endforeach; ?>
+										</tr>
+									</thead>
+									<?php foreach ( $groups as $group ) : ?>
+										<tbody class="bws-block-picker__group">
+											<tr><th scope="rowgroup" colspan="5" class="bws-block-picker__group-label"><?php echo esc_html( $group['inactive'] ? $text['inactive_heading'] : $group['label'] ); ?></th></tr>
 											<?php foreach ( $group['rows'] as $row ) : ?>
 												<?php $id = 'bws-core-block-' . ( ++$n ); ?>
-												<li class="bws-block-picker__item" data-bws-block="<?php echo esc_attr( $row['name'] ); ?>" data-bws-title="<?php echo esc_attr( $row['title'] ); ?>" data-bws-registered="<?php echo (int) $row['registered']; ?>" data-bws-other="<?php echo (int) $row['unregistered']; ?>" data-search="<?php echo esc_attr( $row['search'] ); ?>">
-													<input type="checkbox" id="<?php echo esc_attr( $id ); ?>"
-														name="<?php echo esc_attr( $field ); ?>"
-														value="<?php echo esc_attr( $row['name'] ); ?>"
-														<?php checked( $row['selected'] ); ?> <?php disabled( $row['disabled'] ); ?> />
-													<div>
-														<label for="<?php echo esc_attr( $id ); ?>"><?php echo esc_html( $row['title'] ); ?> <code><?php echo esc_html( $row['name'] ); ?></code></label>
-														<?php foreach ( $row['notes'] as $key ) : ?>
-															<p class="description"><?php echo bws_core_blocks_picker_markup( $text[ $key ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></p>
-														<?php endforeach; ?>
-														<?php if ( $row['variations'] ) : ?>
-															<p class="description"><?php echo esc_html( sprintf( $text['variations'], implode( ', ', array_slice( $row['variations'], 0, 3 ) ) ) ); ?></p>
-														<?php endif; ?>
-														<div class="bws-block-picker__tags"><?php echo bws_core_blocks_survey_row_html( $row, $text ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></div>
-													</div>
-												</li>
+												<tr class="bws-block-picker__item" data-bws-block="<?php echo esc_attr( $row['name'] ); ?>" data-bws-title="<?php echo esc_attr( $row['title'] ); ?>" data-bws-registered="<?php echo (int) $row['registered']; ?>" data-bws-other="<?php echo (int) $row['unregistered']; ?>" data-bws-contents="<?php echo $row['untested'] ? '' : esc_attr( strtolower( $text[ $row['contents'] ] ) ); ?>" data-search="<?php echo esc_attr( $row['search'] ); ?>">
+													<th scope="row">
+														<div class="bws-block-picker__rowhead">
+															<input type="checkbox" id="<?php echo esc_attr( $id ); ?>"
+																name="<?php echo esc_attr( $field ); ?>"
+																value="<?php echo esc_attr( $row['name'] ); ?>"
+																<?php checked( $row['selected'] ); ?> <?php disabled( $row['disabled'] ); ?> />
+															<div>
+																<label for="<?php echo esc_attr( $id ); ?>"><?php echo esc_html( $row['title'] ); ?> <code><?php echo esc_html( $row['name'] ); ?></code></label>
+																<?php foreach ( $row['notes'] as $key ) : ?>
+																	<span class="bws-block-picker__sub"><?php echo bws_core_blocks_picker_markup( $text[ $key ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></span>
+																<?php endforeach; ?>
+																<?php if ( $row['variations'] ) : ?>
+																	<span class="bws-block-picker__sub"><?php echo esc_html( sprintf( $text['variations'], implode( ', ', array_slice( $row['variations'], 0, 3 ) ) ) ); ?></span>
+																<?php endif; ?>
+															</div>
+														</div>
+													</th>
+													<td class="bws-block-picker__cell<?php echo $row['untested'] ? ' bws-block-picker__cell--muted' : ''; ?>"><?php echo esc_html( $text[ $row['contents'] ] ); ?></td>
+													<td class="bws-block-picker__cell<?php echo 'limits_none' === $row['limits'] ? ' bws-block-picker__cell--muted' : ''; ?>"><?php echo 'limits_none' === $row['limits'] ? '<span aria-hidden="true">' . esc_html( $text['limits_none'] ) . '</span><span class="screen-reader-text">' . esc_html( $text['limits_none_sr'] ) . '</span>' : bws_core_blocks_picker_markup( $text[ $row['limits'] ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></td>
+													<td class="bws-block-picker__num" data-bws-count="registered"><?php echo bws_core_blocks_survey_count_html( $row['registered'], $text ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></td>
+													<td class="bws-block-picker__num" data-bws-count="unregistered"><?php echo bws_core_blocks_survey_count_html( $row['unregistered'], $text ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></td>
+												</tr>
 											<?php endforeach; ?>
-										</ul>
-									</section>
-								<?php endforeach; ?>
+										</tbody>
+									<?php endforeach; ?>
+								</table>
 							</div>
+							<p class="screen-reader-text bws-block-picker__sorted" role="status" aria-live="polite"></p>
 							<p class="bws-block-picker__empty" hidden><?php echo esc_html( $text['empty'] ); ?></p>
 						</div>
 					</div>

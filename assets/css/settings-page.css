@@ -385,35 +385,88 @@
 	font-size: var(--gp-size-meta, 13px);
 }
 .bws-dynamic-tags-settings .bws-block-picker__dirty { color: var(--bws-ink); font-weight: var(--gp-weight-medium, 500); }
-.bws-dynamic-tags-settings .bws-block-picker__groups { max-height: 420px; overflow-y: auto; }
-.bws-dynamic-tags-settings .bws-block-picker__group-label {
-	position: sticky;
-	top: 0;
-	z-index: 1;
+.bws-dynamic-tags-settings .bws-block-picker__key {
 	margin: 0;
+	padding: 10px 12px;
+	background: var(--bws-fill);
+	border-bottom: 1px solid var(--bws-line);
+	font-size: var(--gp-size-meta, 13px);
+}
+.bws-dynamic-tags-settings .bws-block-picker__key summary { cursor: pointer; color: var(--bws-ink); font-weight: var(--gp-weight-medium, 500); }
+.bws-dynamic-tags-settings .bws-block-picker__key summary:focus-visible { outline: 2px solid var(--bws-accent); outline-offset: 2px; }
+.bws-dynamic-tags-settings .bws-block-picker__key[open] summary { margin-bottom: 8px; }
+.bws-dynamic-tags-settings .bws-block-picker__key dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0; }
+.bws-dynamic-tags-settings .bws-block-picker__key dt { color: var(--bws-ink); font-weight: var(--gp-weight-medium, 500); }
+.bws-dynamic-tags-settings .bws-block-picker__key dd { margin: 0; }
+/* The band's own fill swallows the default code background, so give it a box. */
+.bws-dynamic-tags-settings .bws-block-picker__key code { background: var(--bws-surface); border: 1px solid var(--bws-line); }
+/* The table scrolls sideways inside its region; it never reflows and never caps its height. */
+.bws-dynamic-tags-settings .bws-block-picker__region { overflow: auto; }
+.bws-dynamic-tags-settings .bws-block-picker__region:focus-visible { outline: 2px solid var(--bws-accent); outline-offset: -2px; }
+.bws-dynamic-tags-settings .bws-block-picker__table { width: 100%; min-width: 620px; border-collapse: collapse; }
+.bws-dynamic-tags-settings .bws-block-picker__table caption {
 	padding: 8px 12px;
-	background: var(--bws-surface);
+	color: var(--bws-muted);
+	font-size: var(--gp-size-meta, 13px);
+	text-align: start;
+}
+.bws-dynamic-tags-settings .bws-block-picker__table thead th {
+	padding: 8px 12px;
+	border-bottom: 2px solid var(--bws-border);
+	color: var(--bws-ink);
+	font-weight: var(--gp-weight-medium, 500);
+	text-align: start;
+	vertical-align: bottom;
+	white-space: nowrap;
+}
+.bws-dynamic-tags-settings .bws-block-picker__table thead th[aria-sort] { background: var(--bws-fill); }
+.bws-dynamic-tags-settings .bws-block-picker__sort {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+}
+.bws-dynamic-tags-settings .bws-block-picker__sort:focus-visible { outline: 2px solid var(--bws-accent); outline-offset: 2px; }
+/* The arrow has a fixed slot, so its glyph never shifts the label. */
+.bws-dynamic-tags-settings .bws-block-picker__sort::after { content: "\2195"; display: inline-block; width: var(--bws-sort-arrow, 14px); color: var(--bws-muted); font-weight: 400; text-align: center; }
+.bws-dynamic-tags-settings th[aria-sort="ascending"] .bws-block-picker__sort::after { content: "\2191"; color: var(--bws-ink); }
+.bws-dynamic-tags-settings th[aria-sort="descending"] .bws-block-picker__sort::after { content: "\2193"; color: var(--bws-ink); }
+.bws-dynamic-tags-settings .bws-block-picker__group-label {
+	padding: 8px 12px;
+	background: var(--bws-fill);
 	border-bottom: 1px solid var(--bws-line);
 	color: var(--bws-muted);
 	font-size: var(--gp-size-eyebrow, 11px);
 	font-weight: var(--gp-weight-medium, 500);
 	letter-spacing: var(--gp-tracking-eyebrow, 0.12em);
+	text-align: start;
 	text-transform: uppercase;
 }
-.bws-dynamic-tags-settings .bws-block-picker__items { margin: 0; padding: 0; list-style: none; }
-.bws-dynamic-tags-settings .bws-block-picker__item {
-	display: flex;
-	gap: 10px;
-	margin: 0;
-	padding: 10px 12px;
-	border-top: 1px solid var(--bws-line);
-}
-.bws-dynamic-tags-settings .bws-block-picker__item:first-child { border-top: 0; }
+.bws-dynamic-tags-settings .bws-block-picker__item > * { padding: 8px 12px; border-top: 1px solid var(--bws-line); vertical-align: top; }
+.bws-dynamic-tags-settings .bws-block-picker__item th { min-width: 230px; font-weight: 400; text-align: start; }
 .bws-dynamic-tags-settings .bws-block-picker__item[hidden],
 .bws-dynamic-tags-settings .bws-block-picker__group[hidden] { display: none; }
-.bws-dynamic-tags-settings .bws-block-picker__item input[type="checkbox"] { flex: none; margin-top: 2px; }
-.bws-dynamic-tags-settings .bws-block-picker__item .description { margin: 4px 0 0; }
+.bws-dynamic-tags-settings .bws-block-picker__rowhead { display: flex; gap: 10px; }
+.bws-dynamic-tags-settings .bws-block-picker__rowhead input[type="checkbox"] { flex: none; margin-top: 3px; }
+.bws-dynamic-tags-settings .bws-block-picker__sub { display: block; margin-top: 2px; color: var(--bws-muted); font-size: var(--gp-size-meta, 13px); }
 .bws-dynamic-tags-settings .bws-block-picker__item code { font-size: var(--gp-size-meta, 13px); }
+/* Contents and Limits share one text size. */
+.bws-dynamic-tags-settings .bws-block-picker__cell { font-size: var(--gp-size-meta, 13px); }
+.bws-dynamic-tags-settings .bws-block-picker__cell--muted,
+.bws-dynamic-tags-settings .bws-block-picker__zero { color: var(--bws-muted); }
+/* Number columns: right-aligned, tabular figures, and the cell reserves the sort arrow's fixed width plus the 6px gap so digits line up under the header label. */
+.bws-dynamic-tags-settings .bws-block-picker__table th.bws-block-picker__num { text-align: end; }
+.bws-dynamic-tags-settings .bws-block-picker__table td.bws-block-picker__num {
+	padding-inline-end: calc(12px + var(--bws-sort-arrow, 14px) + 6px);
+	font-variant-numeric: tabular-nums;
+	text-align: end;
+	white-space: nowrap;
+}
 .bws-dynamic-tags-settings .bws-block-picker__empty {
 	margin: 0;
 	padding: 16px 12px;
@@ -436,4 +489,3 @@
 .bws-dynamic-tags-settings .bws-block-picker__confirm { margin: 0; border-radius: 0; }
 .bws-dynamic-tags-settings .bws-block-picker__confirm[hidden] { display: none; }
 .bws-dynamic-tags-settings .bws-block-picker__confirm-list { margin: 0 0 8px 18px; list-style: disc; }
-.bws-dynamic-tags-settings .bws-block-picker__tags .description { margin: 4px 0 0; }

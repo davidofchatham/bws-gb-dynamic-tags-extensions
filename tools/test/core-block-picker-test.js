@@ -64,5 +64,22 @@ check( 'totals name both counts', 'In the blocks below: 5 fill, 2 others.', tota
 check( 'only the second kind still reads as totals', 'In the blocks below: 0 fill, 3 others.', totalsText( 0, 3, words ) );
 check( 'both zero says none', 'None.', totalsText( 0, 0, words ) );
 
+const { sortRows } = global.window.bwsBlockPicker;
+const rowsIn = [
+	{ id: 'a', block: 'paragraph', contents: 'inline text', registered: 12 },
+	{ id: 'b', block: 'columns', contents: null, registered: 0 },
+	{ id: 'c', block: 'heading', contents: 'inline text', registered: 4 },
+	{ id: 'd', block: 'button', contents: 'inline text; the block is the link', registered: 4 },
+	{ id: 'e', block: 'list', contents: 'no text of its own', registered: 0 },
+];
+const order = function ( key, dir ) { return sortRows( rowsIn, key, dir ).map( function ( r ) { return r.id; } ).join( '' ); };
+check( 'Block ascending is alphabetical', 'dbcea', order( 'block', 'ascending' ) );
+check( 'Block descending reverses it', 'aecbd', order( 'block', 'descending' ) );
+check( 'Contents ascending is by label, Not tested (null) last, ties keep their order', 'acdeb', order( 'contents', 'ascending' ) );
+check( 'Contents descending puts Not tested first; tied rows keep original order, not reversed', 'bedac', order( 'contents', 'descending' ) );
+check( 'numbers sort numerically, not as text (12 after 4); ties keep order', 'becda', order( 'registered', 'ascending' ) );
+check( 'numbers descending; ties keep order', 'acdbe', order( 'registered', 'descending' ) );
+check( 'sortRows does not touch its input', 'abcde', rowsIn.map( function ( r ) { return r.id; } ).join( '' ) );
+
 console.log( '\n' + count + ' assertions, ' + failures + ' failed' );
 process.exit( failures ? 1 : 0 );

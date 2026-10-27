@@ -1,8 +1,8 @@
 /**
- * Settings-page block list (FW-156): search, "N selected" counter and unsaved-changes state.
+ * Settings-page block table (FW-156): search, column sort, "N selected" counter and unsaved-changes state.
  *
- * Rows and strings are rendered by PHP (includes/helpers/core-block-picker.php); this filters and
- * counts them, runs the on-demand content scan (includes/helpers/core-block-survey.php) and asks
+ * Rows and strings are rendered by PHP (includes/helpers/core-block-picker.php); this filters,
+ * sorts and counts them, runs the on-demand content scan (includes/helpers/core-block-survey.php) and asks
  * the one in-page Save confirmation. Dirty state looks at this list's own checkboxes, never the
  * rest of the settings form. The pure helpers are exposed on window.bwsBlockPicker so a node
  * harness (tools/test/core-block-picker-test.js) can reach them.
@@ -44,8 +44,30 @@
 		return strings.totals.replace( '%1$d', registered ).replace( '%2$d', other );
 	}
 
+	/**
+	 * Rows ordered by one key, as a new array. A null value sorts after every other value
+	 * ascending (the Contents column's "Not tested"), so first descending. Ties keep their input
+	 * order in both directions, never reversed.
+	 */
+	function sortRows( rows, key, dir ) {
+		var sign = 'descending' === dir ? -1 : 1;
+		function order( x, y ) {
+			if ( x === y ) {
+				return 0;
+			}
+			if ( null === x || null === y ) {
+				return null === x ? 1 : -1;
+			}
+			return 'string' === typeof x ? x.localeCompare( y ) : x - y;
+		}
+		return rows
+			.map( function ( row, index ) { return { row: row, index: index }; } )
+			.sort( function ( a, b ) { return order( a.row[ key ], b.row[ key ] ) * sign || a.index - b.index; } )
+			.map( function ( entry ) { return entry.row; } );
+	}
+
 	if ( typeof window !== 'undefined' ) {
-		window.bwsBlockPicker = { matches: matches, setKey: setKey, needsConfirm: needsConfirm, totalsText: totalsText };
+		window.bwsBlockPicker = { matches: matches, setKey: setKey, needsConfirm: needsConfirm, totalsText: totalsText, sortRows: sortRows };
 	}
 	if ( typeof document === 'undefined' ) {
 		return;
@@ -56,6 +78,7 @@
 		if ( ! picker ) {
 			return;
 		}
+		var cfg = window.bwsBlockPickerConfig || {};
 		var search = picker.querySelector( '.bws-block-picker__search' );
 		var count = picker.querySelector( '.bws-block-picker__count' );
 		var dirtyNote = picker.querySelector( '.bws-block-picker__dirty' );
@@ -66,6 +89,10 @@
 		var filterBtn = picker.querySelector( '.bws-block-picker__filter' );
 		var when = picker.querySelector( '.bws-block-picker__survey-when' );
 		var totals = picker.querySelector( '.bws-block-picker__survey-totals' );
+		var caption = picker.querySelector( 'caption' );
+		var announce = picker.querySelector( '.bws-block-picker__sorted' );
+		var sortButtons = Array.prototype.slice.call( picker.querySelectorAll( '.bws-block-picker__sort' ) );
+		var sorted = null;
 		var filterOn = false;
 
 		// Tags the last scan found in a row, of either kind.
@@ -119,6 +146,45 @@
 			totals.textContent = totalsText( registered, other, cfg.strings );
 		}
 
+		function rowOf( li ) {
+			return {
+				el: li,
+				block: ( li.getAttribute( 'data-bws-title' ) || '' ).toLowerCase(),
+				contents: li.getAttribute( 'data-bws-contents' ) || null,
+				registered: parseInt( li.getAttribute( 'data-bws-registered' ), 10 ) || 0,
+				unregistered: parseInt( li.getAttribute( 'data-bws-other' ), 10 ) || 0
+			};
+		}
+
+		// Sort within each category (a tbody), leaving hidden rows in the DOM so their checkboxes still post.
+		function applySort() {
+			if ( ! sorted ) {
+				return;
+			}
+			groups.forEach( function ( g ) {
+				var rows = Array.prototype.slice.call( g.querySelectorAll( '.bws-block-picker__item' ) ).map( rowOf );
+				sortRows( rows, sorted.col, sorted.dir ).forEach( function ( row ) { g.appendChild( row.el ); } );
+			} );
+		}
+
+		sortButtons.forEach( function ( btn ) {
+			btn.addEventListener( 'click', function () {
+				var col = btn.getAttribute( 'data-col' );
+				var dir = sorted && sorted.col === col && 'ascending' === sorted.dir ? 'descending' : 'ascending';
+				sorted = { col: col, dir: dir };
+				sortButtons.forEach( function ( other ) {
+					var th = other.parentNode;
+					if ( other === btn ) {
+						th.setAttribute( 'aria-sort', dir );
+					} else {
+						th.removeAttribute( 'aria-sort' );
+					}
+				} );
+				applySort();
+				announce.textContent = cfg.strings.sorted.replace( '%1$s', btn.textContent ).replace( '%2$s', cfg.strings.order[ dir ] );
+			} );
+		} );
+
 		search.addEventListener( 'input', refreshSearch );
 		if ( filterBtn ) {
 			filterBtn.addEventListener( 'click', function () {
@@ -140,7 +206,19 @@
 			} );
 		} );
 
-		var cfg = window.bwsBlockPickerConfig || {};
+		// A Known or Unknown cell after a scan; the same shape bws_core_blocks_survey_count_html() renders.
+		function setCount( cell, n ) {
+			cell.textContent = '';
+			if ( n ) {
+				cell.textContent = n;
+				return;
+			}
+			var zero = document.createElement( 'span' );
+			zero.className = 'bws-block-picker__zero';
+			zero.textContent = '0';
+			cell.appendChild( zero );
+		}
+
 		var initialNames = posted();
 		var confirmBox = picker.querySelector( '.bws-block-picker__confirm' );
 		var confirmList = picker.querySelector( '.bws-block-picker__confirm-list' );
@@ -230,8 +308,12 @@
 							var row = res.data.rows[ li.getAttribute( 'data-bws-block' ) ];
 							li.setAttribute( 'data-bws-registered', row ? row.registered : 0 );
 							li.setAttribute( 'data-bws-other', row ? row.unregistered : 0 );
-							li.querySelector( '.bws-block-picker__tags' ).innerHTML = row ? row.html : '';
+							[ 'registered', 'unregistered' ].forEach( function ( kind ) {
+								setCount( li.querySelector( '[data-bws-count="' + kind + '"]' ), row ? row[ kind ] : 0 );
+							} );
 						} );
+						caption.textContent = cfg.strings.caption;
+						applySort();
 						when.textContent = res.data.status;
 						picker.setAttribute( 'data-scanned', '1' );
 						if ( filterBtn ) {

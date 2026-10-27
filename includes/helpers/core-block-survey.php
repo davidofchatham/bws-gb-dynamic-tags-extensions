@@ -184,8 +184,8 @@ function bws_core_blocks_survey_run(): array {
 /**
  * AJAX: run the scan, store it, hand back what the page needs to update itself.
  *
- * Response: `status` (the "Last scan" line), `rows` (block name => { registered, unregistered, html }, only
- * blocks with a count; the page clears every other row's line).
+ * Response: `status` (the "Last scan" line), `rows` (block name => { registered, unregistered }, only
+ * blocks with a count; the page shows 0 in every other row).
  *
  * @since Unreleased
  */
@@ -204,8 +204,7 @@ function bws_core_blocks_survey_ajax(): void {
 	foreach ( $result['blocks'] as $name => $cell ) {
 		$rows[ $name ] = array(
 			'registered'   => $cell['registered'],
-				'unregistered' => $cell['unregistered'],
-			'html'       => bws_core_blocks_survey_row_html( $cell, $text ),
+			'unregistered' => $cell['unregistered'],
 		);
 	}
 	wp_send_json_success(

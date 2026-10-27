@@ -97,15 +97,18 @@ assert_same( 'unregistered row says so', true, in_array( 'unregistered', $rows['
 assert_same( 'unregistered filter-added row is locked and says both', array( true, array( 'unregistered', 'code_set' ) ), array( $rows['core/zzz-gone']['disabled'], $rows['core/zzz-gone']['notes'] ) );
 assert_same( 'no empty groups', true, count( array_filter( $groups, fn( $g ) => array() === $g['rows'] ) ) === 0 );
 
-echo "§3 — the consequence note comes from the classification owner\n";
+echo "§3 — the Contents and Limits cells come from the classification owner\n";
 $rows = rows_by_name( bws_core_blocks_picker_rows( $entries, $cats, array(), array() ) );
-foreach ( array( 'core/paragraph', 'core/heading', 'core/list-item' ) as $name ) {
-	assert_same( "{$name}: inline consequence", array( 'kind_inline' ), $rows[ $name ]['notes'] );
+$cell = static fn( string $name ): array => array( $rows[ $name ]['contents'], $rows[ $name ]['limits'], $rows[ $name ]['untested'] );
+foreach ( array( 'core/paragraph', 'core/heading', 'core/list-item', 'core/table' ) as $name ) {
+	assert_same( "{$name}: inline text, inline limits", array( 'contents_inline', 'limits_inline', false ), $cell( $name ) );
 }
-assert_same( 'core/table: its own table consequence, not the paragraph one', array( 'kind_table' ), $rows['core/table']['notes'] );
-assert_same( 'core/button: button consequence', array( 'kind_button' ), $rows['core/button']['notes'] );
-assert_same( 'core/list: points at List Item', array( 'list_hint' ), $rows['core/list']['notes'] );
-assert_same( 'unclassified: no note (the intro says once that it is untested)', array(), $rows['acme/widget']['notes'] );
+assert_same( 'core/button: the block is the link, text-only limits', array( 'contents_button', 'limits_button', false ), $cell( 'core/button' ) );
+assert_same( 'core/list: no text of its own, no limit', array( 'contents_list', 'limits_none', false ), $cell( 'core/list' ) );
+assert_same( 'unclassified: Not tested in Contents, Limits is a dash (this plugin applies no limit)', array( 'contents_untested', 'limits_none', true ), $cell( 'acme/widget' ) );
+assert_same( 'a classified row carries no note (the cells say it)', array(), $rows['core/paragraph']['notes'] );
+$gone = rows_by_name( bws_core_blocks_picker_rows( $entries, $cats, array( 'acme/gone' ), array( 'acme/gone' ) ) );
+assert_same( 'an unregistered name is unclassified and carries only its saved-earlier note', array( 'contents_untested', 'limits_none', array( 'unregistered' ) ), array( $gone['acme/gone']['contents'], $gone['acme/gone']['limits'], $gone['acme/gone']['notes'] ) );
 
 echo "§4 — variations and search text\n";
 assert_same( 'variations carried through', array( 'YouTube', 'Vimeo' ), $rows['core/embed']['variations'] );
@@ -128,8 +131,8 @@ assert_same( 'nothing selected posts nothing (empty = off)', array(), array_keys
 
 echo "§6 — every note has a string, and the text helper\n";
 $strings = bws_core_blocks_picker_strings();
-foreach ( array( 'kind_inline', 'kind_table', 'kind_button', 'list_hint', 'unregistered', 'code_set' ) as $key ) {
-	assert_same( "string for note '{$key}'", true, is_string( $strings[ $key ] ?? null ) && '' !== $strings[ $key ] );
+foreach ( array( 'unregistered', 'code_set', 'contents_inline', 'contents_button', 'contents_list', 'contents_untested', 'limits_inline', 'limits_button', 'limits_none', 'limits_none_sr', 'sorted', 'ascending', 'descending', 'col_block', 'col_contents', 'col_limits', 'col_known', 'col_unknown', 'caption_before', 'caption_after', 'key_summary', 'count_unscanned' ) as $key ) {
+	assert_same( "string for '{$key}'", true, is_string( $strings[ $key ] ?? null ) && '' !== $strings[ $key ] );
 }
 assert_same( 'backticks become code, html is escaped first', 'a <code>x &lt;b&gt;</code> &amp; b', bws_core_blocks_picker_markup( 'a `x <b>` & b' ) );
 assert_same( 'asterisks become emphasis', 'set to <em>Link To</em>.', bws_core_blocks_picker_markup( 'set to *Link To*.' ) );
@@ -143,17 +146,25 @@ assert_same( 'a block the scan found nothing in carries zeros once a scan exists
 $rows = rows_by_name( bws_core_blocks_picker_rows( $entries, $cats, array(), array() ) );
 assert_same( 'before any scan the counts are null, not zero', array( null, null ), array( $rows['core/paragraph']['registered'], $rows['core/paragraph']['unregistered'] ) );
 $text = bws_core_blocks_picker_strings();
-assert_same( 'no counts: no line', '', bws_core_blocks_survey_row_html( null, $text ) );
-assert_same( 'a scan that found nothing here: no line', '', bws_core_blocks_survey_row_html( array( 'registered' => 0, 'unregistered' => 0 ), $text ) );
-$html = bws_core_blocks_survey_row_html( array( 'registered' => 3, 'unregistered' => 0 ), $text );
-assert_same( 'registered only: one line carrying the number', true, 1 === substr_count( $html, '<p' ) && false !== strpos( $html, '3' ) );
-$html = bws_core_blocks_survey_row_html( array( 'registered' => 3, 'unregistered' => 12 ), $text );
-assert_same( 'both: two lines, both numbers', true, 2 === substr_count( $html, '<p' ) && false !== strpos( $html, '3' ) && false !== strpos( $html, '12' ) );
-assert_same( 'unregistered only: one line', true, 1 === substr_count( bws_core_blocks_survey_row_html( array( 'registered' => 0, 'unregistered' => 2 ), $text ), '<p' ) );
+$cell = bws_core_blocks_survey_count_html( null, $text );
+assert_same( 'before any scan the count cell is a dash with screen reader text, never 0', true, false !== strpos( $cell, '–' ) && false !== strpos( $cell, $text['count_unscanned'] ) && false === strpos( $cell, '0' ) );
+assert_same( 'a scan that found nothing here shows a muted 0', true, false !== strpos( bws_core_blocks_survey_count_html( 0, $text ), '>0<' ) && false !== strpos( bws_core_blocks_survey_count_html( 0, $text ), 'bws-block-picker__zero' ) );
+assert_same( 'a count shows the number, unmuted', array( true, false ), array( false !== strpos( bws_core_blocks_survey_count_html( 12, $text ), '12' ), false !== strpos( bws_core_blocks_survey_count_html( 12, $text ), 'zero' ) ) );
 assert_same( 'the status line names the date it is given', true, false !== strpos( bws_core_blocks_survey_status( 1700000000, $text, static fn( int $t ): string => 'DATE' ), 'DATE' ) );
-foreach ( array( 'survey_hint', 'survey_scan', 'survey_running', 'survey_last', 'survey_error', 'row_registered', 'row_unregistered', 'confirm_intro', 'confirm_save', 'confirm_back' ) as $key ) {
+foreach ( array( 'survey_hint', 'survey_scan', 'survey_running', 'survey_last', 'survey_error', 'confirm_intro', 'confirm_save', 'confirm_back' ) as $key ) {
 	assert_same( "string for '{$key}'", true, is_string( $text[ $key ] ?? null ) && '' !== $text[ $key ] );
 }
+
+echo "§6c — the key restates the Limits cells (Invariant 6)\n";
+$terms = array_column( $text['key'], 0 );
+foreach ( array( 'limits_inline', 'limits_button', 'limits_none' ) as $key ) {
+	foreach ( explode( '; ', $text[ $key ] ) as $phrase ) {
+		assert_same( "key has an entry opening with the {$key} phrase '{$phrase}'", true, in_array( $phrase, $terms, true ) );
+	}
+}
+assert_same( 'key has an entry for Contents "No text of its own"', true, in_array( $text['contents_list'], $terms, true ) );
+assert_same( 'key entries come in the order a reader meets the values', array( 'Known', 'Unknown', '–', 'No text of its own' ), array_slice( $terms, 0, 4 ) );
+assert_same( 'every key entry has a term and an explanation', true, array() === array_filter( $text['key'], static fn( $e ) => 2 !== count( $e ) || '' === $e[0] || '' === $e[1] ) );
 
 echo "§7 — GenerateBlocks' own allowlisted blocks are left out\n";
 $gb_entries = array_merge( $entries, array( entry( 'generateblocks/text', 'Text', 'text' ), entry( 'generateblocks-pro/thing', 'Pro Thing', 'text' ) ) );
