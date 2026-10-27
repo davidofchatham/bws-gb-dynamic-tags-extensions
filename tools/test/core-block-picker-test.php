@@ -151,7 +151,7 @@ assert_same( 'before any scan the count cell is a dash with screen reader text, 
 assert_same( 'a scan that found nothing here shows a muted 0', true, false !== strpos( bws_core_blocks_survey_count_html( 0, $text ), '>0<' ) && false !== strpos( bws_core_blocks_survey_count_html( 0, $text ), 'bws-block-picker__zero' ) );
 assert_same( 'a count shows the number, unmuted', array( true, false ), array( false !== strpos( bws_core_blocks_survey_count_html( 12, $text ), '12' ), false !== strpos( bws_core_blocks_survey_count_html( 12, $text ), 'zero' ) ) );
 assert_same( 'the status line names the date it is given', true, false !== strpos( bws_core_blocks_survey_status( 1700000000, $text, static fn( int $t ): string => 'DATE' ), 'DATE' ) );
-foreach ( array( 'survey_hint', 'survey_scan', 'survey_running', 'survey_last', 'survey_error', 'confirm_intro', 'confirm_save', 'confirm_back' ) as $key ) {
+foreach ( array( 'survey_hint', 'survey_scan', 'survey_running', 'survey_last', 'survey_error', 'confirm_intro', 'confirm_save', 'confirm_back', 'show_legend', 'show_default', 'show_default_unscanned', 'show_enabled', 'show_tags', 'show_all', 'cat_label', 'cat_all', 'reset', 'showing', 'showing_hint', 'empty_filtered', 'empty_default', 'empty_default_unscanned', 'show_all_button' ) as $key ) {
 	assert_same( "string for '{$key}'", true, is_string( $text[ $key ] ?? null ) && '' !== $text[ $key ] );
 }
 

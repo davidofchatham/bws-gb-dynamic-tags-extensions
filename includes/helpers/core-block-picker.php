@@ -32,9 +32,22 @@ function bws_core_blocks_picker_strings(): array {
 			__( 'Blocks without a note below have not been tested. Tags should work in their text, but we have not checked it.', 'generateblocks' ),
 		),
 		'search_placeholder' => __( 'Search blocks', 'generateblocks' ),
-		/* translators: %d: number of selected blocks. */
-		'count'              => __( '%d selected', 'generateblocks' ),
-		'empty'              => __( 'No blocks match your search.', 'generateblocks' ),
+		'show_legend'        => __( 'Show', 'generateblocks' ),
+		'show_default'       => __( 'Enabled or with tags', 'generateblocks' ),
+		'show_default_unscanned' => __( 'Enabled', 'generateblocks' ),
+		'show_enabled'       => __( 'Enabled', 'generateblocks' ),
+		'show_tags'          => __( 'With tags', 'generateblocks' ),
+		'show_all'           => __( 'All blocks', 'generateblocks' ),
+		'cat_label'          => __( 'Category', 'generateblocks' ),
+		'cat_all'            => __( 'All categories', 'generateblocks' ),
+		'reset'              => __( 'Reset filters', 'generateblocks' ),
+		/* translators: 1: blocks shown, 2: blocks in the list. */
+		'showing'            => __( 'Showing %1$d of %2$d blocks.', 'generateblocks' ),
+		'showing_hint'       => __( 'Run a scan to find the blocks that already hold tags.', 'generateblocks' ),
+		'empty_filtered'     => __( 'No blocks match these filters.', 'generateblocks' ),
+		'empty_default'      => __( 'No block is enabled and the last scan found no tags. Search for a block, or show all blocks.', 'generateblocks' ),
+		'empty_default_unscanned' => __( 'No block is enabled yet. Search for a block, or show all blocks.', 'generateblocks' ),
+		'show_all_button'    => __( 'Show all blocks', 'generateblocks' ),
 		/* translators: %s: a short list of variation names. */
 		'variations'         => __( 'Includes its variations, such as %s.', 'generateblocks' ),
 		'inactive_heading'   => __( 'Not active on this site now', 'generateblocks' ),
@@ -78,7 +91,6 @@ function bws_core_blocks_picker_strings(): array {
 		/* translators: 1: tags GenerateBlocks can fill in, 2: other tags. */
 		'survey_totals'      => __( 'In the blocks below: %1$d tags GenerateBlocks can fill in, %2$d others.', 'generateblocks' ),
 		'survey_none'        => __( 'No tags found in the blocks below.', 'generateblocks' ),
-		'filter_tags'        => __( 'Only blocks with tags', 'generateblocks' ),
 		'survey_running'     =>__( 'Scanning…', 'generateblocks' ),
 		/* translators: %s: date and time of the last scan. */
 		'survey_last'        => __( 'Last scan: %s. It checked all content, selected blocks or not, and changed nothing.', 'generateblocks' ),

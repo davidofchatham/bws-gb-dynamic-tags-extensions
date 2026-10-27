@@ -156,6 +156,10 @@ class SettingsPage {
 					'running' => $picker_text['survey_running'],
 					'error'   => $picker_text['survey_error'],
 					'totals'  => $picker_text['survey_totals'],
+					'show_default'           => $picker_text['show_default'],
+					'show_default_unscanned' => $picker_text['show_default_unscanned'],
+					'showing'                => $picker_text['showing'],
+					'showing_hint'           => $picker_text['showing_hint'],
 					'none'    => $picker_text['survey_none'],
 					'caption' => $picker_text['caption_after'],
 					'sorted'  => $picker_text['sorted'],
@@ -776,7 +780,7 @@ class SettingsPage {
 								<li><?php echo bws_core_blocks_picker_markup( $note ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></li>
 							<?php endforeach; ?>
 						</ul>
-						<div class="bws-block-picker" data-count-template="<?php echo esc_attr( $text['count'] ); ?>" data-scanned="<?php echo $survey ? '1' : '0'; ?>">
+						<div class="bws-block-picker" data-scanned="<?php echo $survey ? '1' : '0'; ?>">
 							<div class="bws-block-picker__survey">
 								<p class="description bws-block-picker__survey-status"><span class="bws-block-picker__survey-when"><?php echo bws_core_blocks_picker_markup( $survey ? bws_core_blocks_survey_status( $survey['time'], $text ) : $text['survey_hint'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></span><span class="bws-block-picker__survey-totals"></span></p>
 								<button type="button" class="gp-button gp-button--secondary gp-button--small bws-block-picker__scan"><?php echo esc_html( $text['survey_scan'] ); ?></button>
@@ -792,14 +796,36 @@ class SettingsPage {
 									</p>
 								</div>
 							</div>
+							<div class="bws-block-picker__strips">
+								<?php // The radios belong to no form (a nonexistent form id), so the Save post carries none of them; the shared name still groups them for the arrow keys. ?>
+								<fieldset class="bws-block-picker__show">
+									<legend><?php echo esc_html( $text['show_legend'] ); ?></legend>
+									<?php foreach ( array( 'default', 'enabled', 'tags', 'all' ) as $value ) : ?>
+										<label<?php echo ! $survey && in_array( $value, array( 'enabled', 'tags' ), true ) ? ' hidden' : ''; ?>>
+											<input type="radio" name="bws_block_show" value="<?php echo esc_attr( $value ); ?>" form="bws-block-picker-no-form"<?php checked( 'default', $value ); ?> />
+											<span>
+												<span class="bws-block-picker__show-label<?php echo 'default' === $value ? ' bws-block-picker__show-label--default' : ''; ?>"><?php echo esc_html( 'default' === $value && ! $survey ? $text['show_default_unscanned'] : $text[ 'show_' . $value ] ); ?></span>
+												<span class="bws-block-picker__show-n"></span>
+											</span>
+										</label>
+									<?php endforeach; ?>
+								</fieldset>
+								<button type="button" class="bws-block-picker__reset" hidden><?php echo esc_html( $text['reset'] ); ?></button>
+							</div>
 							<div class="bws-block-picker__bar">
+								<label class="screen-reader-text" for="bws-block-picker-cat"><?php echo esc_html( $text['cat_label'] ); ?></label>
+								<select id="bws-block-picker-cat" class="bws-block-picker__cat">
+									<option value=""><?php echo esc_html( $text['cat_all'] ); ?></option>
+									<?php foreach ( $groups as $group ) : ?>
+										<option value="<?php echo esc_attr( $group['slug'] ); ?>"><?php echo esc_html( $group['inactive'] ? $text['inactive_heading'] : $group['label'] ); ?></option>
+									<?php endforeach; ?>
+								</select>
 								<input type="search" class="gp-text-input bws-block-picker__search"
 									placeholder="<?php echo esc_attr( $text['search_placeholder'] ); ?>"
 									aria-label="<?php echo esc_attr( $text['search_placeholder'] ); ?>" autocomplete="off" />
-								<button type="button" class="gp-button gp-button--secondary gp-button--small bws-block-picker__filter" aria-pressed="false"<?php disabled( ! $survey ); ?>><?php echo esc_html( $text['filter_tags'] ); ?></button>
-									<span class="bws-block-picker__count" role="status" aria-live="polite"></span>
 								<span class="bws-block-picker__dirty" hidden><?php echo esc_html( $text['dirty'] ); ?></span>
 							</div>
+							<p class="bws-block-picker__showing" role="status" aria-live="polite"></p>
 							<details class="bws-block-picker__key">
 								<summary><?php echo esc_html( $text['key_summary'] ); ?></summary>
 								<dl>
@@ -824,7 +850,7 @@ class SettingsPage {
 										</tr>
 									</thead>
 									<?php foreach ( $groups as $group ) : ?>
-										<tbody class="bws-block-picker__group">
+										<tbody class="bws-block-picker__group" data-bws-cat="<?php echo esc_attr( $group['slug'] ); ?>">
 											<tr><th scope="rowgroup" colspan="5" class="bws-block-picker__group-label"><?php echo esc_html( $group['inactive'] ? $text['inactive_heading'] : $group['label'] ); ?></th></tr>
 											<?php foreach ( $group['rows'] as $row ) : ?>
 												<?php $id = 'bws-core-block-' . ( ++$n ); ?>
@@ -857,8 +883,12 @@ class SettingsPage {
 								</table>
 							</div>
 							<p class="screen-reader-text bws-block-picker__sorted" role="status" aria-live="polite"></p>
-							<p class="bws-block-picker__empty" hidden><?php echo esc_html( $text['empty'] ); ?></p>
-						</div>
+							<div class="bws-block-picker__empty" role="status" hidden>
+								<p data-kind="filtered" hidden><?php echo esc_html( $text['empty_filtered'] ); ?> <button type="button" class="bws-block-picker__reset" data-reset="1"><?php echo esc_html( $text['reset'] ); ?></button></p>
+								<p data-kind="default" hidden><?php echo esc_html( $text['empty_default'] ); ?> <button type="button" class="gp-button gp-button--secondary gp-button--small"><?php echo esc_html( $text['show_all_button'] ); ?></button></p>
+								<p data-kind="default-unscanned" hidden><?php echo esc_html( $text['empty_default_unscanned'] ); ?> <button type="button" class="gp-button gp-button--secondary gp-button--small"><?php echo esc_html( $text['show_all_button'] ); ?></button></p>
+							</div>
+					</div>
 					</div>
 				</div>
 		<?php

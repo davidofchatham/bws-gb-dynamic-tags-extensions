@@ -1,8 +1,8 @@
 /**
- * Settings-page block table (FW-156): search, column sort, "N selected" counter and unsaved-changes state.
+ * Settings-page block table (FW-156): the Show, Category and search filters, column sort and unsaved-changes state.
  *
- * Rows and strings are rendered by PHP (includes/helpers/core-block-picker.php); this filters,
- * sorts and counts them, runs the on-demand content scan (includes/helpers/core-block-survey.php) and asks
+ * Rows and strings are rendered by PHP (includes/helpers/core-block-picker.php); this filters
+ * and sorts them, runs the on-demand content scan (includes/helpers/core-block-survey.php) and asks
  * the one in-page Save confirmation. Dirty state looks at this list's own checkboxes, never the
  * rest of the settings form. The pure helpers are exposed on window.bwsBlockPicker so a node
  * harness (tools/test/core-block-picker-test.js) can reach them.
@@ -66,8 +66,90 @@
 			.map( function ( entry ) { return entry.row; } );
 	}
 
+	/*
+	 * The filter bar's rule. A view is { show, cat, query, scanned }; a row is { enabled, tags,
+	 * cat, search, touched }. Show is one of default (enabled, or with tags once a scan exists),
+	 * enabled, tags, all. Category narrows within Show; a non-empty search ignores Show but
+	 * respects Category; a row ticked or unticked this visit stays until reload.
+	 */
+	function showValues( scanned ) {
+		return scanned ? [ 'default', 'enabled', 'tags', 'all' ] : [ 'default', 'all' ];
+	}
+
+	/** A Show value the current scan state no longer offers falls back to default. */
+	function normalizeShow( show, scanned ) {
+		return showValues( scanned ).indexOf( show ) === -1 ? 'default' : show;
+	}
+
+	function hasQuery( view ) {
+		return String( view.query ).trim() !== '';
+	}
+
+	// The default view: enabled, or (once a scan exists) with tags. The Show count and the row test share it.
+	function inDefault( scanned, row ) {
+		return row.enabled || ( scanned && row.tags );
+	}
+
+	function inShow( view, row ) {
+		switch ( view.show ) {
+			case 'all':
+				return true;
+			case 'enabled':
+				return row.enabled;
+			case 'tags':
+				return row.tags;
+		}
+		return inDefault( view.scanned, row );
+	}
+
+	function isVisible( view, row ) {
+		if ( view.cat && row.cat !== view.cat ) {
+			return false;
+		}
+		if ( hasQuery( view ) ) {
+			return matches( row.search, view.query );
+		}
+		return row.touched || inShow( view, row );
+	}
+
+	/** Site-wide Show counts: not narrowed by Category or search. */
+	function showCounts( rows, scanned ) {
+		var out = { default: 0, enabled: 0, tags: 0, all: rows.length };
+		rows.forEach( function ( row ) {
+			out.enabled += row.enabled ? 1 : 0;
+			out.tags += row.tags ? 1 : 0;
+			out.default += inDefault( scanned, row ) ? 1 : 0;
+		} );
+		return out;
+	}
+
+	function filtersActive( view ) {
+		return 'default' !== view.show || '' !== view.cat || hasQuery( view );
+	}
+
+	/** Which empty state applies: '' (rows shown), 'filtered', or 'default' / 'default-unscanned' (the default view itself is empty). */
+	function emptyKind( view, shown ) {
+		if ( shown > 0 ) {
+			return '';
+		}
+		if ( filtersActive( view ) ) {
+			return 'filtered';
+		}
+		return view.scanned ? 'default' : 'default-unscanned';
+	}
+
+	/** "Showing N of M blocks.", plus the scan hint on the default, un-searched, un-scanned view. */
+	function showingText( view, shown, total, strings ) {
+		var text = strings.showing.replace( '%1$d', shown ).replace( '%2$d', total );
+		return ! view.scanned && 'default' === view.show && ! hasQuery( view ) ? text + ' ' + strings.showing_hint : text;
+	}
+
 	if ( typeof window !== 'undefined' ) {
-		window.bwsBlockPicker = { matches: matches, setKey: setKey, needsConfirm: needsConfirm, totalsText: totalsText, sortRows: sortRows };
+		window.bwsBlockPicker = {
+			matches: matches, setKey: setKey, needsConfirm: needsConfirm, totalsText: totalsText, sortRows: sortRows,
+			showValues: showValues, normalizeShow: normalizeShow, isVisible: isVisible, showCounts: showCounts,
+			filtersActive: filtersActive, emptyKind: emptyKind, showingText: showingText
+		};
 	}
 	if ( typeof document === 'undefined' ) {
 		return;
@@ -80,20 +162,24 @@
 		}
 		var cfg = window.bwsBlockPickerConfig || {};
 		var search = picker.querySelector( '.bws-block-picker__search' );
-		var count = picker.querySelector( '.bws-block-picker__count' );
+		var catSelect = picker.querySelector( '.bws-block-picker__cat' );
+		var showing = picker.querySelector( '.bws-block-picker__showing' );
+		var resetBtn = picker.querySelector( '.bws-block-picker__reset' );
+		var showRadios = Array.prototype.slice.call( picker.querySelectorAll( '.bws-block-picker__show input' ) );
 		var dirtyNote = picker.querySelector( '.bws-block-picker__dirty' );
 		var empty = picker.querySelector( '.bws-block-picker__empty' );
 		var items = Array.prototype.slice.call( picker.querySelectorAll( '.bws-block-picker__item' ) );
 		var groups = Array.prototype.slice.call( picker.querySelectorAll( '.bws-block-picker__group' ) );
 		var boxes = Array.prototype.slice.call( picker.querySelectorAll( 'input[type="checkbox"]' ) );
-		var filterBtn = picker.querySelector( '.bws-block-picker__filter' );
 		var when = picker.querySelector( '.bws-block-picker__survey-when' );
 		var totals = picker.querySelector( '.bws-block-picker__survey-totals' );
 		var caption = picker.querySelector( 'caption' );
 		var announce = picker.querySelector( '.bws-block-picker__sorted' );
 		var sortButtons = Array.prototype.slice.call( picker.querySelectorAll( '.bws-block-picker__sort' ) );
 		var sorted = null;
-		var filterOn = false;
+		var view = { show: 'default', cat: '', query: '', scanned: '1' === picker.getAttribute( 'data-scanned' ) };
+		// Block names ticked or unticked this visit: their rows stay put until reload.
+		var touched = {};
 
 		// Tags the last scan found in a row, of either kind.
 		function found( li ) {
@@ -108,27 +194,70 @@
 		var dirty = false;
 		var submitting = false;
 
-		function refreshCount() {
-			var n = boxes.filter( function ( b ) { return b.checked; } ).length;
-			count.textContent = ( picker.getAttribute( 'data-count-template' ) || '%d' ).replace( '%d', n );
-		}
-
 		function refreshDirty() {
 			dirty = setKey( posted() ) !== initial;
 			dirtyNote.hidden = ! dirty;
 		}
 
-		function refreshSearch() {
+		function rowState( li ) {
+			return {
+				enabled: li.querySelector( 'input[type="checkbox"]' ).checked,
+				tags: found( li ) > 0,
+				cat: li.parentNode.getAttribute( 'data-bws-cat' ),
+				search: li.getAttribute( 'data-search' ),
+				touched: !! touched[ li.getAttribute( 'data-bws-block' ) ]
+			};
+		}
+
+		// Everything the filter bar shows, recomputed from the rows' own state: Show values and counts,
+		// row and group visibility, "Showing N of M", Reset, the empty state.
+		function refreshFilters() {
+			view.scanned = '1' === picker.getAttribute( 'data-scanned' );
+			view.show = normalizeShow( view.show, view.scanned );
+			view.cat = catSelect.value;
+			view.query = search.value;
+			var rows = items.map( rowState );
 			var shown = 0;
-			items.forEach( function ( li ) {
-				var show = matches( li.getAttribute( 'data-search' ), search.value ) && ( ! filterOn || found( li ) > 0 );
+			items.forEach( function ( li, i ) {
+				var show = isVisible( view, rows[ i ] );
 				li.hidden = ! show;
 				shown += show ? 1 : 0;
 			} );
 			groups.forEach( function ( g ) {
 				g.hidden = ! g.querySelector( '.bws-block-picker__item:not([hidden])' );
 			} );
-			empty.hidden = shown > 0;
+			var offered = showValues( view.scanned );
+			var counted = showCounts( rows, view.scanned );
+			showRadios.forEach( function ( radio ) {
+				var label = radio.parentNode;
+				label.hidden = offered.indexOf( radio.value ) === -1;
+				radio.checked = radio.value === view.show;
+				label.querySelector( '.bws-block-picker__show-n' ).textContent = counted[ radio.value ];
+			} );
+			picker.querySelector( '.bws-block-picker__show-label--default' ).textContent = view.scanned ? cfg.strings.show_default : cfg.strings.show_default_unscanned;
+			showing.textContent = showingText( view, shown, items.length, cfg.strings );
+			resetBtn.hidden = ! filtersActive( view );
+			var kind = emptyKind( view, shown );
+			empty.hidden = '' === kind;
+			Array.prototype.forEach.call( empty.children, function ( p ) {
+				p.hidden = p.getAttribute( 'data-kind' ) !== kind;
+			} );
+		}
+
+		// Where focus lands when the control that was pressed goes away: the checked Show radio.
+		function focusShow() {
+			var on = showRadios.filter( function ( r ) { return r.checked; } )[ 0 ];
+			if ( on ) {
+				on.focus();
+			}
+		}
+
+		function resetFilters() {
+			view.show = 'default';
+			catSelect.value = '';
+			search.value = '';
+			refreshFilters();
+			focusShow();
 		}
 
 		// The scan-totals line counts the rows below it, so it reads off the same attributes the filter does.
@@ -185,14 +314,26 @@
 			} );
 		} );
 
-		search.addEventListener( 'input', refreshSearch );
-		if ( filterBtn ) {
-			filterBtn.addEventListener( 'click', function () {
-				filterOn = ! filterOn;
-				filterBtn.setAttribute( 'aria-pressed', filterOn ? 'true' : 'false' );
-				refreshSearch();
+		search.addEventListener( 'input', refreshFilters );
+		catSelect.addEventListener( 'change', refreshFilters );
+		showRadios.forEach( function ( radio ) {
+			radio.addEventListener( 'change', function () {
+				view.show = radio.value;
+				refreshFilters();
 			} );
-		}
+		} );
+		resetBtn.addEventListener( 'click', resetFilters );
+		Array.prototype.forEach.call( empty.querySelectorAll( 'button' ), function ( btn ) {
+			btn.addEventListener( 'click', function () {
+				if ( btn.hasAttribute( 'data-reset' ) ) {
+					resetFilters();
+					return;
+				}
+				view.show = 'all';
+				refreshFilters();
+				focusShow();
+			} );
+		} );
 		// Enter in the search box must filter, not submit the whole settings form.
 		search.addEventListener( 'keydown', function ( e ) {
 			if ( 'Enter' === e.key ) {
@@ -201,7 +342,8 @@
 		} );
 		boxes.forEach( function ( b ) {
 			b.addEventListener( 'change', function () {
-				refreshCount();
+				touched[ b.value ] = true;
+				refreshFilters();
 				refreshDirty();
 			} );
 		} );
@@ -316,11 +458,8 @@
 						applySort();
 						when.textContent = res.data.status;
 						picker.setAttribute( 'data-scanned', '1' );
-						if ( filterBtn ) {
-							filterBtn.disabled = false;
-						}
 						refreshTotals();
-						refreshSearch();
+						refreshFilters();
 						hideConfirm();
 					} )
 					.catch( function () {
@@ -330,6 +469,7 @@
 					.then( function () {
 						scan.disabled = false;
 						scan.textContent = idle;
+						scan.focus();
 					} );
 			} );
 		}
@@ -340,9 +480,8 @@
 			}
 		} );
 
-		refreshCount();
 		refreshTotals();
-		refreshSearch();
+		refreshFilters();
 	}
 
 	if ( 'loading' === document.readyState ) {

@@ -378,13 +378,74 @@
 	border-bottom: 1px solid var(--bws-line);
 }
 .bws-dynamic-tags-settings .bws-block-picker__search { flex: 1 1 auto; min-width: 0; }
-.bws-dynamic-tags-settings .bws-block-picker__count,
+.bws-dynamic-tags-settings .bws-block-picker__cat { flex: none; max-width: 190px; }
 .bws-dynamic-tags-settings .bws-block-picker__dirty {
 	flex: none;
+	color: var(--bws-ink);
+	font-size: var(--gp-size-meta, 13px);
+	font-weight: var(--gp-weight-medium, 500);
+}
+.bws-dynamic-tags-settings .bws-block-picker__dirty[hidden] { display: none; }
+.bws-dynamic-tags-settings .bws-block-picker__strips {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 6px 32px;
+	padding: 10px 12px 0;
+	border-bottom: 1px solid var(--bws-line);
+}
+.bws-dynamic-tags-settings .bws-block-picker__show {
+	display: flex;
+	align-items: baseline;
+	gap: 24px;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+.bws-dynamic-tags-settings .bws-block-picker__show legend {
+	float: left;
+	margin: 0 12px 0 0;
+	padding: 0;
+	color: var(--bws-muted);
+	font-size: 11px;
+	font-weight: var(--gp-weight-medium, 500);
+	letter-spacing: .12em;
+	text-transform: uppercase;
+}
+.bws-dynamic-tags-settings .bws-block-picker__show label { position: relative; cursor: pointer; }
+.bws-dynamic-tags-settings .bws-block-picker__show label[hidden] { display: none; }
+.bws-dynamic-tags-settings .bws-block-picker__show input { position: absolute; opacity: 0; }
+.bws-dynamic-tags-settings .bws-block-picker__show label > span {
+	display: inline-flex;
+	gap: 6px;
+	align-items: baseline;
+	margin-bottom: -1px;
+	padding: 0 0 10px;
+	border-bottom: 2px solid transparent;
+	color: var(--bws-text, inherit);
+}
+.bws-dynamic-tags-settings .bws-block-picker__show-n { color: var(--bws-muted); font-variant-numeric: tabular-nums; }
+.bws-dynamic-tags-settings .bws-block-picker__show input:checked + span { border-bottom-color: var(--bws-ink); color: var(--bws-ink); font-weight: var(--gp-weight-medium, 500); }
+.bws-dynamic-tags-settings .bws-block-picker__show input:focus-visible + span { outline: 2px solid var(--bws-accent); outline-offset: 2px; }
+.bws-dynamic-tags-settings .bws-block-picker__reset {
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--bws-accent);
+	font: inherit;
+	text-decoration: underline;
+	cursor: pointer;
+}
+.bws-dynamic-tags-settings .bws-block-picker__reset[hidden] { display: none; }
+.bws-dynamic-tags-settings .bws-block-picker__reset:focus-visible { outline: 2px solid var(--bws-accent); outline-offset: 2px; }
+.bws-dynamic-tags-settings .bws-block-picker__showing {
+	margin: 0;
+	padding: 6px 12px;
+	border-bottom: 1px solid var(--bws-line);
 	color: var(--bws-muted);
 	font-size: var(--gp-size-meta, 13px);
 }
-.bws-dynamic-tags-settings .bws-block-picker__dirty { color: var(--bws-ink); font-weight: var(--gp-weight-medium, 500); }
 .bws-dynamic-tags-settings .bws-block-picker__key {
 	margin: 0;
 	padding: 10px 12px;
@@ -468,10 +529,12 @@
 	white-space: nowrap;
 }
 .bws-dynamic-tags-settings .bws-block-picker__empty {
-	margin: 0;
 	padding: 16px 12px;
 	color: var(--bws-muted);
 }
+.bws-dynamic-tags-settings .bws-block-picker__empty[hidden], .bws-dynamic-tags-settings .bws-block-picker__empty p[hidden] { display: none; }
+.bws-dynamic-tags-settings .bws-block-picker__empty p { margin: 0; }
+.bws-dynamic-tags-settings .bws-block-picker__empty button:not(.bws-block-picker__reset) { margin-inline-start: 8px; }
 .bws-dynamic-tags-settings .bws-block-picker__survey {
 	display: flex;
 	align-items: center;
@@ -483,9 +546,7 @@
 .bws-dynamic-tags-settings .bws-block-picker__survey-status { margin: 0; }
 .bws-dynamic-tags-settings .bws-block-picker__survey-totals { display: block; }
 .bws-dynamic-tags-settings .bws-block-picker__survey-totals:empty { display: none; }
-.bws-dynamic-tags-settings .bws-block-picker__scan,
-.bws-dynamic-tags-settings .bws-block-picker__filter { flex: none; }
-.bws-dynamic-tags-settings .bws-block-picker__filter[aria-pressed="true"] { background: var(--bws-ink); border-color: var(--bws-ink); color: var(--bws-surface); }
+.bws-dynamic-tags-settings .bws-block-picker__scan { flex: none; }
 .bws-dynamic-tags-settings .bws-block-picker__confirm { margin: 0; border-radius: 0; }
 .bws-dynamic-tags-settings .bws-block-picker__confirm[hidden] { display: none; }
 .bws-dynamic-tags-settings .bws-block-picker__confirm-list { margin: 0 0 8px 18px; list-style: disc; }

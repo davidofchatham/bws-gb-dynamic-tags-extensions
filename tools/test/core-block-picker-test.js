@@ -81,5 +81,56 @@ check( 'numbers sort numerically, not as text (12 after 4); ties keep order', 'b
 check( 'numbers descending; ties keep order', 'acdbe', order( 'registered', 'descending' ) );
 check( 'sortRows does not touch its input', 'abcde', rowsIn.map( function ( r ) { return r.id; } ).join( '' ) );
 
+const { showValues, normalizeShow, isVisible, showCounts, filtersActive, emptyKind, showingText } = global.window.bwsBlockPicker;
+const view = function ( over ) { return Object.assign( { show: 'default', cat: '', query: '', scanned: true }, over ); };
+const row = function ( over ) { return Object.assign( { enabled: false, tags: false, cat: 'text', search: 'paragraph core/paragraph text', touched: false }, over ); };
+const seen = function ( v, r ) { return isVisible( view( v ), row( r ) ); };
+
+check( 'a scan offers all four Show values', 'default,enabled,tags,all', showValues( true ).join( ',' ) );
+check( 'no scan offers only default and all', 'default,all', showValues( false ).join( ',' ) );
+check( 'a stored With tags falls back to default when the scan is gone', 'default', normalizeShow( 'tags', false ) );
+check( 'a stored Enabled falls back to default when the scan is gone', 'default', normalizeShow( 'enabled', false ) );
+check( 'All blocks survives the missing scan', 'all', normalizeShow( 'all', false ) );
+check( 'every value survives with a scan', 'tags', normalizeShow( 'tags', true ) );
+
+check( 'default view, scanned: a plain row is out', false, seen( {}, {} ) );
+check( 'default view, scanned: an enabled row is in', true, seen( {}, { enabled: true } ) );
+check( 'default view, scanned: a row with tags is in', true, seen( {}, { tags: true } ) );
+check( 'default view, no scan: tags never count', false, seen( { scanned: false }, { tags: true } ) );
+check( 'default view, no scan: an enabled row is in', true, seen( { scanned: false }, { enabled: true } ) );
+check( 'Enabled shows enabled rows only', [ true, false ].join(), [ seen( { show: 'enabled' }, { enabled: true } ), seen( { show: 'enabled' }, { tags: true } ) ].join() );
+check( 'With tags shows rows with tags only', [ true, false ].join(), [ seen( { show: 'tags' }, { tags: true } ), seen( { show: 'tags' }, { enabled: true } ) ].join() );
+check( 'All blocks shows everything', true, seen( { show: 'all' }, {} ) );
+check( 'Category narrows within Show', [ true, false, false ].join(), [ seen( { cat: 'text' }, { enabled: true } ), seen( { cat: 'media' }, { enabled: true } ), seen( { cat: 'text' }, {} ) ].join() );
+check( 'a search finds a row outside the Show view', true, seen( { query: 'parag' }, {} ) );
+check( 'a search still respects Category', false, seen( { query: 'parag', cat: 'media' }, {} ) );
+check( 'a search that misses hides even an enabled row', false, seen( { query: 'zzz' }, { enabled: true } ) );
+check( 'a whitespace-only search is no search', false, seen( { query: '   ' }, {} ) );
+check( 'a row touched this visit stays visible', true, seen( {}, { touched: true } ) );
+check( 'a touched row still respects Category', false, seen( { cat: 'media' }, { touched: true } ) );
+check( 'a touched row does not outlive a search that misses', false, seen( { query: 'zzz' }, { touched: true } ) );
+
+const sample = [ row( { enabled: true } ), row( { tags: true } ), row( { enabled: true, tags: true } ), row() ];
+check( 'counts are site-wide, scanned', '3,2,2,4', [ 'default', 'enabled', 'tags', 'all' ].map( function ( k ) { return showCounts( sample, true )[ k ]; } ).join() );
+check( 'counts before a scan: default is just the enabled ones', 2, showCounts( sample, false ).default );
+check( 'unticking moves the Enabled count live', 1, showCounts( [ row( { enabled: true } ), row( { enabled: false } ) ], true ).enabled );
+
+check( 'default view is not filtered', false, filtersActive( view() ) );
+check( 'another Show value is filtered', true, filtersActive( view( { show: 'all' } ) ) );
+check( 'a category is filtered', true, filtersActive( view( { cat: 'text' } ) ) );
+check( 'a search is filtered', true, filtersActive( view( { query: 'x' } ) ) );
+check( 'a whitespace search is not', false, filtersActive( view( { query: ' ' } ) ) );
+
+check( 'rows shown: no empty state', '', emptyKind( view(), 3 ) );
+check( 'nothing shown on the default view: default empty state', 'default', emptyKind( view(), 0 ) );
+check( 'same before a scan: its own wording', 'default-unscanned', emptyKind( view( { scanned: false } ), 0 ) );
+check( 'nothing shown with filters on: filtered empty state', 'filtered', emptyKind( view( { cat: 'text' } ), 0 ) );
+
+const sw = { showing: 'Showing %1$d of %2$d blocks.', showing_hint: 'Run a scan.' };
+check( 'status line counts shown of total', 'Showing 4 of 110 blocks.', showingText( view(), 4, 110, sw ) );
+check( 'before a scan on the default view it adds the hint', 'Showing 4 of 110 blocks. Run a scan.', showingText( view( { scanned: false } ), 4, 110, sw ) );
+check( 'before a scan with a search it does not', 'Showing 4 of 110 blocks.', showingText( view( { scanned: false, query: 'a' } ), 4, 110, sw ) );
+check( 'before a scan on All blocks it does not', 'Showing 4 of 110 blocks.', showingText( view( { scanned: false, show: 'all' } ), 4, 110, sw ) );
+
 console.log( '\n' + count + ' assertions, ' + failures + ' failed' );
 process.exit( failures ? 1 : 0 );
