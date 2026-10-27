@@ -3,7 +3,7 @@
  * Dynamic tags in core blocks (FW-156) — the content survey behind the settings-page block list.
  *
  * An on-demand, advisory scan: which block types already hold tag-like `{{...}}` strings, split
- * into REGISTERED tags (the ones that start printing a value once their block type is selected)
+ * into REGISTERED tags (the ones that start printing a value once their block type is enabled)
  * and unregistered ones (which stay literal regardless). Never a gate.
  *
  * Three parts: the pure WALK over one post-content string (the unit FW-128's shared scanner and
@@ -184,7 +184,7 @@ function bws_core_blocks_survey_run(): array {
 /**
  * AJAX: run the scan, store it, hand back what the page needs to update itself.
  *
- * Response: `status` (the "Last scan" line), `rows` (block name => { registered, unregistered }, only
+ * Response: `status` (the scan status line, totals included), `rows` (block name => { registered, unregistered }, only
  * blocks with a count; the page shows 0 in every other row).
  *
  * @since Unreleased
@@ -209,7 +209,7 @@ function bws_core_blocks_survey_ajax(): void {
 	}
 	wp_send_json_success(
 		array(
-			'status' => bws_core_blocks_survey_status( $result['time'], $text ),
+			'status' => bws_core_blocks_survey_status( $result, bws_core_blocks_picker_groups( $result ), $text ),
 			'rows'   => $rows,
 		)
 	);

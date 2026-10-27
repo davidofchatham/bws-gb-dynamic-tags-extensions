@@ -155,12 +155,10 @@ class SettingsPage {
 				'strings' => array(
 					'running' => $picker_text['survey_running'],
 					'error'   => $picker_text['survey_error'],
-					'totals'  => $picker_text['survey_totals'],
 					'show_default'           => $picker_text['show_default'],
 					'show_default_unscanned' => $picker_text['show_default_unscanned'],
 					'showing'                => $picker_text['showing'],
 					'showing_hint'           => $picker_text['showing_hint'],
-					'none'    => $picker_text['survey_none'],
 					'caption' => $picker_text['caption_after'],
 					'sorted'  => $picker_text['sorted'],
 					'order'   => array(
@@ -750,40 +748,38 @@ class SettingsPage {
 	}
 
 	/**
-	 * The "Tags in Other Blocks" section (FW-156): one searchable, sortable table of the
+	 * The "Enable Tags in Other Blocks" section (FW-156): one searchable, sortable table of the
 	 * server-registered blocks. Rows come from bws_core_blocks_picker_rows(), words from
 	 * bws_core_blocks_picker_strings(); assets/js/block-picker.js does the search, sort, counter
 	 * and unsaved-changes state. Each row carries `data-bws-block` (the block name) as the hook
 	 * for per-row additions.
 	 *
 	 * @since Unreleased
-	 * @param array $settings Saved settings.
 	 */
-	private static function render_core_blocks_section( array $settings ): void {
+	private static function render_core_blocks_section(): void {
 		$text    = bws_core_blocks_picker_strings();
-		$saved   = bws_core_blocks_clean( $settings['core_blocks'] ?? array() );
-		list( $entries, $categories ) = bws_core_blocks_picker_registry();
 		$survey  = bws_core_blocks_survey_last();
-		$groups  = bws_core_blocks_picker_rows( $entries, $categories, $saved, bws_core_blocks_enabled(), bws_core_blocks_gb_native(), $survey['blocks'] ?? null );
+		$groups  = bws_core_blocks_picker_groups( $survey );
 		$field   = self::OPTION_NAME . '[core_blocks][]';
 		$n       = 0;
 		?>
-				<?php /* ── Tags in Other Blocks ── */ ?>
+				<?php /* ── Enable Tags in Other Blocks ── */ ?>
 				<div class="bws-tag-group" id="bws-core-blocks">
 					<h2 class="bws-section-header"><?php echo esc_html( $text['heading'] ); ?></h2>
 					<div class="bws-card">
-						<?php foreach ( $text['intro'] as $paragraph ) : ?>
-							<p class="description bws-section-desc"><?php echo bws_core_blocks_picker_markup( $paragraph ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></p>
-						<?php endforeach; ?>
+						<p class="description bws-section-desc"><?php echo esc_html( $text['intro'] ); ?></p>
 						<ul class="bws-block-notes">
 							<?php foreach ( $text['notes'] as $note ) : ?>
-								<li><?php echo bws_core_blocks_picker_markup( $note ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></li>
+								<li><span class="gp-status-dot gp-status-dot--<?php echo esc_attr( $note['tone'] ); ?>" aria-hidden="true"></span><span class="screen-reader-text"><?php echo esc_html( $text[ 'warn' === $note['tone'] ? 'note_warn' : 'note_info' ] ); ?></span><span><?php echo bws_core_blocks_picker_markup( $note['text'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></span></li>
 							<?php endforeach; ?>
 						</ul>
 						<div class="bws-block-picker" data-scanned="<?php echo $survey ? '1' : '0'; ?>">
 							<div class="bws-block-picker__survey">
-								<p class="description bws-block-picker__survey-status"><span class="bws-block-picker__survey-when"><?php echo bws_core_blocks_picker_markup( $survey ? bws_core_blocks_survey_status( $survey['time'], $text ) : $text['survey_hint'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></span><span class="bws-block-picker__survey-totals"></span></p>
-								<button type="button" class="gp-button gp-button--secondary gp-button--small bws-block-picker__scan"><?php echo esc_html( $text['survey_scan'] ); ?></button>
+								<div>
+									<p class="description bws-block-picker__survey-status" role="status"><?php echo esc_html( bws_core_blocks_survey_status( $survey, $groups, $text ) ); ?></p>
+									<p class="description"><?php echo bws_core_blocks_picker_markup( $text['survey_desc'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></p>
+								</div>
+								<button type="button" class="gp-button gp-button--<?php echo $survey ? 'secondary' : 'primary'; ?> gp-button--small bws-block-picker__scan"><?php echo esc_html( $text['survey_scan'] ); ?></button>
 							</div>
 							<div class="gp-notice gp-notice--warn bws-notice bws-block-picker__confirm" role="region" aria-live="polite" hidden>
 								<div class="gp-notice__status"><span class="gp-status-dot gp-status-dot--warn" aria-hidden="true"></span></div>
@@ -944,7 +940,7 @@ class SettingsPage {
 			<form method="post" action="options.php" id="bws-settings-form">
 				<?php settings_fields( 'bws_dynamic_tags_settings_group' ); ?>
 
-				<?php self::render_core_blocks_section( $settings ); ?>
+				<?php self::render_core_blocks_section(); ?>
 
 				<?php /* ── Email ── */ ?>
 				<div class="bws-tag-group">

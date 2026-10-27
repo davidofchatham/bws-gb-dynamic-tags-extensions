@@ -27,21 +27,13 @@
 	}
 
 	/**
-	 * The blocks a save should ask about: newly selected (not in the initial posted set) with a
-	 * registered-tag count above zero from the last scan. Advisory only; the caller never blocks.
+	 * The blocks a save should ask about: newly enabled (not in the initial posted set) with a
+	 * known-tag count above zero from the last scan. Advisory only; the caller never blocks.
 	 */
 	function needsConfirm( initial, posted, counts ) {
 		return posted.filter( function ( name ) {
 			return initial.indexOf( name ) === -1 && ( counts[ name ] || 0 ) > 0;
 		} );
-	}
-
-	/** The scan-totals sentence; the "none" string when both are zero. */
-	function totalsText( registered, other, strings ) {
-		if ( ! registered && ! other ) {
-			return strings.none;
-		}
-		return strings.totals.replace( '%1$d', registered ).replace( '%2$d', other );
 	}
 
 	/**
@@ -146,7 +138,7 @@
 
 	if ( typeof window !== 'undefined' ) {
 		window.bwsBlockPicker = {
-			matches: matches, setKey: setKey, needsConfirm: needsConfirm, totalsText: totalsText, sortRows: sortRows,
+			matches: matches, setKey: setKey, needsConfirm: needsConfirm, sortRows: sortRows,
 			showValues: showValues, normalizeShow: normalizeShow, isVisible: isVisible, showCounts: showCounts,
 			filtersActive: filtersActive, emptyKind: emptyKind, showingText: showingText
 		};
@@ -171,8 +163,7 @@
 		var items = Array.prototype.slice.call( picker.querySelectorAll( '.bws-block-picker__item' ) );
 		var groups = Array.prototype.slice.call( picker.querySelectorAll( '.bws-block-picker__group' ) );
 		var boxes = Array.prototype.slice.call( picker.querySelectorAll( 'input[type="checkbox"]' ) );
-		var when = picker.querySelector( '.bws-block-picker__survey-when' );
-		var totals = picker.querySelector( '.bws-block-picker__survey-totals' );
+		var status = picker.querySelector( '.bws-block-picker__survey-status' );
 		var caption = picker.querySelector( 'caption' );
 		var announce = picker.querySelector( '.bws-block-picker__sorted' );
 		var sortButtons = Array.prototype.slice.call( picker.querySelectorAll( '.bws-block-picker__sort' ) );
@@ -258,21 +249,6 @@
 			search.value = '';
 			refreshFilters();
 			focusShow();
-		}
-
-		// The scan-totals line counts the rows below it, so it reads off the same attributes the filter does.
-		function refreshTotals() {
-			if ( '1' !== picker.getAttribute( 'data-scanned' ) ) {
-				totals.textContent = '';
-				return;
-			}
-			var registered = 0;
-			var other = 0;
-			items.forEach( function ( li ) {
-				registered += parseInt( li.getAttribute( 'data-bws-registered' ), 10 ) || 0;
-				other += parseInt( li.getAttribute( 'data-bws-other' ), 10 ) || 0;
-			} );
-			totals.textContent = totalsText( registered, other, cfg.strings );
 		}
 
 		function rowOf( li ) {
@@ -370,7 +346,7 @@
 			return items.filter( function ( li ) { return li.getAttribute( 'data-bws-block' ) === name; } )[ 0 ];
 		}
 
-		// Registered-tag counts from the last scan, read off the rows.
+		// Known-tag counts from the last scan, read off the rows.
 		function counts() {
 			var out = {};
 			items.forEach( function ( li ) {
@@ -387,7 +363,7 @@
 		}
 
 		// The Save confirmation is an in-page notice, not a blocking dialog: the first Save click
-		// with a counted, newly selected block shows it instead of submitting, and "Save anyway"
+		// with a counted, newly enabled block shows it instead of submitting, and "Save anyway"
 		// (or any Save click after changing nothing) goes through. Advisory, never a gate.
 		function showConfirm( names ) {
 			confirmList.textContent = '';
@@ -456,15 +432,14 @@
 						} );
 						caption.textContent = cfg.strings.caption;
 						applySort();
-						when.textContent = res.data.status;
+						status.textContent = res.data.status;
+						scan.classList.replace( 'gp-button--primary', 'gp-button--secondary' );
 						picker.setAttribute( 'data-scanned', '1' );
-						refreshTotals();
 						refreshFilters();
 						hideConfirm();
 					} )
 					.catch( function () {
-						when.textContent = cfg.strings.error;
-						totals.textContent = '';
+						status.textContent = cfg.strings.error;
 					} )
 					.then( function () {
 						scan.disabled = false;
@@ -480,7 +455,6 @@
 			}
 		} );
 
-		refreshTotals();
 		refreshFilters();
 	}
 

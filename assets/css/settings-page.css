@@ -17,6 +17,7 @@
 	--bws-ok: var(--gp-status-ok, #00a32a);
 	--bws-warn: var(--gp-status-warn, #dba617);
 	--bws-error: var(--gp-status-error, #d63638);
+	--bws-info: var(--gp-status-info, #2271b1);
 	/* Status colors are lines and dots at their token value; as text they are darkened to
 	   stay readable on the white card. */
 	--bws-ok-text: color-mix(in srgb, var(--bws-ok) 78%, #000);
@@ -233,6 +234,7 @@
 .bws-dynamic-tags-settings .gp-status-dot--idle { background: var(--gp-status-idle, #d2d2d7); }
 .bws-dynamic-tags-settings .gp-status-dot--warn { background: var(--bws-warn); }
 .bws-dynamic-tags-settings .gp-status-dot--error { background: var(--bws-error); }
+.bws-dynamic-tags-settings .gp-status-dot--info { background: var(--bws-info); }
 .bws-dynamic-tags-settings td > .gp-status-dot { margin-inline-end: 0; }
 .bws-dynamic-tags-settings .bws-row-status.ok::before,
 .bws-dynamic-tags-settings .bws-row-status.err::before {
@@ -353,15 +355,17 @@
 	text-decoration: none;
 }
 
-/* ── Tags in Other Blocks: the searchable block list ── */
+/* ── Enable Tags in Other Blocks: the searchable block list ── */
 .bws-dynamic-tags-settings .bws-block-notes {
 	margin: 0;
-	padding: 12px var(--bws-pad-x) 4px calc(var(--bws-pad-x) + 18px);
+	padding: 12px var(--bws-pad-x) 4px;
+	list-style: none;
 	color: var(--bws-muted);
 	font-size: var(--gp-size-meta, 13px);
 	line-height: var(--gp-lh-meta, 1.5);
 }
-.bws-dynamic-tags-settings .bws-block-notes li { margin: 0 0 6px; }
+.bws-dynamic-tags-settings .bws-block-notes li { display: flex; align-items: baseline; margin: 0 0 6px; }
+.bws-dynamic-tags-settings .bws-block-notes .gp-status-dot { flex: none; }
 .bws-dynamic-tags-settings .bws-block-picker {
 	margin: 16px var(--bws-pad-x) 20px;
 	background: var(--bws-surface);
@@ -543,9 +547,8 @@
 	padding: 10px 12px;
 	border-bottom: 1px solid var(--bws-line);
 }
-.bws-dynamic-tags-settings .bws-block-picker__survey-status { margin: 0; }
-.bws-dynamic-tags-settings .bws-block-picker__survey-totals { display: block; }
-.bws-dynamic-tags-settings .bws-block-picker__survey-totals:empty { display: none; }
+.bws-dynamic-tags-settings .bws-block-picker__survey p { margin: 0; }
+.bws-dynamic-tags-settings .bws-block-picker__survey-status { margin-bottom: 4px; font-weight: 600; }
 .bws-dynamic-tags-settings .bws-block-picker__scan { flex: none; }
 .bws-dynamic-tags-settings .bws-block-picker__confirm { margin: 0; border-radius: 0; }
 .bws-dynamic-tags-settings .bws-block-picker__confirm[hidden] { display: none; }

@@ -6,7 +6,9 @@
  * Asserts what the page shows and what a save sends back: which rows exist and in what groups,
  * which are selected or locked, which note each row carries, and that the checkboxes the page
  * posts, run through the real sanitizer (bws_core_blocks_clean), keep every saved name. The
- * wording itself is not asserted; every note is checked only to have a string.
+ * wording itself is not asserted beyond the status line's two states and the vocabulary rules
+ * (no em dash, no "selected", "registered" only in the Known and Unknown definitions); every
+ * note is checked only to have a string.
  *
  * Loads the real picker, enabled-set and classification files. Fabricated: __ / esc_html.
  *
@@ -150,10 +152,34 @@ $cell = bws_core_blocks_survey_count_html( null, $text );
 assert_same( 'before any scan the count cell is a dash with screen reader text, never 0', true, false !== strpos( $cell, '–' ) && false !== strpos( $cell, $text['count_unscanned'] ) && false === strpos( $cell, '0' ) );
 assert_same( 'a scan that found nothing here shows a muted 0', true, false !== strpos( bws_core_blocks_survey_count_html( 0, $text ), '>0<' ) && false !== strpos( bws_core_blocks_survey_count_html( 0, $text ), 'bws-block-picker__zero' ) );
 assert_same( 'a count shows the number, unmuted', array( true, false ), array( false !== strpos( bws_core_blocks_survey_count_html( 12, $text ), '12' ), false !== strpos( bws_core_blocks_survey_count_html( 12, $text ), 'zero' ) ) );
-assert_same( 'the status line names the date it is given', true, false !== strpos( bws_core_blocks_survey_status( 1700000000, $text, static fn( int $t ): string => 'DATE' ), 'DATE' ) );
-foreach ( array( 'survey_hint', 'survey_scan', 'survey_running', 'survey_last', 'survey_error', 'confirm_intro', 'confirm_save', 'confirm_back', 'show_legend', 'show_default', 'show_default_unscanned', 'show_enabled', 'show_tags', 'show_all', 'cat_label', 'cat_all', 'reset', 'showing', 'showing_hint', 'empty_filtered', 'empty_default', 'empty_default_unscanned', 'show_all_button' ) as $key ) {
+foreach ( array( 'heading', 'intro', 'survey_none_yet', 'survey_status', 'survey_desc', 'survey_scan', 'survey_running', 'survey_error', 'confirm_intro', 'note_warn', 'note_info', 'confirm_save', 'confirm_back', 'show_legend', 'show_default', 'show_default_unscanned', 'show_enabled', 'show_tags', 'show_all', 'cat_label', 'cat_all', 'reset', 'showing', 'showing_hint', 'empty_filtered', 'empty_default', 'empty_default_unscanned', 'show_all_button' ) as $key ) {
 	assert_same( "string for '{$key}'", true, is_string( $text[ $key ] ?? null ) && '' !== $text[ $key ] );
 }
+
+echo "§6d — scan status line and vocabulary\n";
+$when   = static fn( int $t ): string => 'WHEN';
+$groups = bws_core_blocks_picker_rows( array_merge( $entries, array( entry( 'generateblocks/text', 'Text' ) ) ), $cats, array(), array(), array(), array(
+	'core/paragraph'      => array( 'registered' => 3, 'unregistered' => 1 ),
+	'core/heading'        => array( 'registered' => 2, 'unregistered' => 0 ),
+	'core/gone'           => array( 'registered' => 9, 'unregistered' => 9 ),
+	'generateblocks/text' => array( 'registered' => 162, 'unregistered' => 50 ),
+) );
+assert_same( 'before any scan: the no-scan sentence alone', 'No scan has been run yet.', bws_core_blocks_survey_status( null, $groups, $text ) );
+assert_same( 'after a scan: known and unknown sums over the listed rows, with the date', '5 known tags and 1 unknown tags found in the blocks below as of WHEN.', bws_core_blocks_survey_status( array( 'time' => 1700000000 ), $groups, $text, $when ) );
+assert_same( 'a scan that found nothing in the listed blocks reads as zeros', '0 known tags and 0 unknown tags found in the blocks below as of WHEN.', bws_core_blocks_survey_status( array( 'time' => 1700000000 ), bws_core_blocks_picker_rows( $entries, $cats, array(), array(), array(), array() ), $text, $when ) );
+assert_same( 'notes run warning, then advisory, in that order', array( 'warn', 'info' ), array_column( $text['notes'], 'tone' ) );
+$flat = array();
+array_walk_recursive( $text, static function ( $s ) use ( &$flat ) { $flat[] = $s; } );
+assert_same( 'no string holds an em dash', array(), array_values( array_filter( $flat, static fn( $s ) => false !== strpos( $s, "\u{2014}" ) ) ) );
+assert_same( 'no string says "selected" (the word is "enabled")', array(), array_values( array_filter( $flat, static fn( $s ) => false !== stripos( $s, 'selected' ) ) ) );
+$says_registered = array();
+foreach ( $text as $key => $value ) {
+	$joined = is_array( $value ) ? json_encode( $value, JSON_UNESCAPED_UNICODE ) : $value;
+	if ( false !== stripos( $joined, 'registered' ) ) {
+		$says_registered[] = $key;
+	}
+}
+assert_same( '"registered" appears only where Known and Unknown are defined', array( 'key', 'survey_desc' ), $says_registered );
 
 echo "§6c — the key restates the Limits cells (Invariant 6)\n";
 $terms = array_column( $text['key'], 0 );

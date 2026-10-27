@@ -25,12 +25,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function bws_core_blocks_picker_strings(): array {
 	return array(
-		'heading'            => __( 'Tags in Other Blocks', 'generateblocks' ),
-		'intro'              => array(
-			__( 'GenerateBlocks only fills in dynamic tags inside its own blocks. Select a block here to have tags typed into it filled in too, such as a `text` tag in a core Paragraph. With nothing selected, this is off, and tags in these blocks show as typed.', 'generateblocks' ),
-			__( 'This applies to whole block types, not single blocks. Blocks added only by a plugin\'s editor script do not appear in this list.', 'generateblocks' ),
-			__( 'Blocks without a note below have not been tested. Tags should work in their text, but we have not checked it.', 'generateblocks' ),
-		),
+		'heading'            => __( 'Enable Tags in Other Blocks', 'generateblocks' ),
+		'intro'              => __( 'GenerateBlocks normally parses dynamic tags only in its own blocks. Allow processing tags within other block types by enabling them below. Tags must be manually inserted.', 'generateblocks' ),
 		'search_placeholder' => __( 'Search blocks', 'generateblocks' ),
 		'show_legend'        => __( 'Show', 'generateblocks' ),
 		'show_default'       => __( 'Enabled or with tags', 'generateblocks' ),
@@ -86,22 +82,22 @@ function bws_core_blocks_picker_strings(): array {
 			array( __( '`table` returns empty', 'generateblocks' ), __( 'Unless *Required to render* is disabled, GenerateBlocks removes the block, like a tag that returns no value.', 'generateblocks' ) ),
 			array( __( 'link tags return plain text', 'generateblocks' ), __( '`email`, `phone` and any tag set to *Link To* print just the address, number or text, not a link. In a Button\'s link, type `mailto:` or `tel:` before the tag yourself.', 'generateblocks' ) ),
 		),
-		'survey_hint'        => __( 'No scan has been run yet. A scan checks all of your content (posts, pages, templates, patterns and block widgets) for `{{…}}` tags in every block in this list, selected or not, and shows how many each block holds, whether or not GenerateBlocks can fill them in. It changes nothing, and it does not need Save.', 'generateblocks' ),
+		'survey_none_yet'    => __( 'No scan has been run yet.', 'generateblocks' ),
+		/* translators: 1: known tags in the blocks listed below, 2: unknown tags in them, 3: date and time of the scan. */
+		'survey_status'      => __( '%1$d known tags and %2$d unknown tags found in the blocks below as of %3$s.', 'generateblocks' ),
+		'survey_desc'        => __( 'A scan checks all of your content (posts, pages, templates, patterns and block widgets) for `{{…}}` tags in every block in this list, enabled or not, and shows how many each block holds, whether or not they are registered with GenerateBlocks. Blocks added only by a plugin\'s editor script are not listed.', 'generateblocks' ),
 		'survey_scan'        => __( 'Scan content for tags', 'generateblocks' ),
-		/* translators: 1: tags GenerateBlocks can fill in, 2: other tags. */
-		'survey_totals'      => __( 'In the blocks below: %1$d tags GenerateBlocks can fill in, %2$d others.', 'generateblocks' ),
-		'survey_none'        => __( 'No tags found in the blocks below.', 'generateblocks' ),
-		'survey_running'     =>__( 'Scanning…', 'generateblocks' ),
-		/* translators: %s: date and time of the last scan. */
-		'survey_last'        => __( 'Last scan: %s. It checked all content, selected blocks or not, and changed nothing.', 'generateblocks' ),
+		'survey_running'     => __( 'Scanning…', 'generateblocks' ),
 		'survey_error'       => __( 'The scan could not finish. Try again.', 'generateblocks' ),
-		'confirm_intro'      => __( 'These newly selected blocks already hold registered tags. Once you save, those tags are filled in on the site instead of showing as typed.', 'generateblocks' ),
+		'confirm_intro'      => __( 'These newly enabled blocks already hold known tags. Once you save, those tags are filled in on the site instead of showing as typed.', 'generateblocks' ),
 		'confirm_save'       => __( 'Save anyway', 'generateblocks' ),
 		'confirm_back'       => __( 'Go back', 'generateblocks' ),
+		'note_warn'          => __( 'Warning:', 'generateblocks' ),
+		'note_info'          => __( 'Note:', 'generateblocks' ),
+		// In display order; `tone` is warn or info.
 		'notes'              => array(
-			__( 'If a tag in one of these blocks finds no value, GenerateBlocks hides the whole block, not just the tag. To keep the block, add `required:false` to the tag, as in `{{text key:subtitle|required:false}}`.', 'generateblocks' ),
-			__( 'People who are not allowed to post unfiltered HTML (on most single sites, anyone below Editor) cannot save a post that contains `{{` once it has any block type selected here. GenerateBlocks refuses the save. Selecting Paragraph therefore affects nearly every post they edit.', 'generateblocks' ),
-			__( 'Each block type has to be selected on its own. Selecting a Group, Columns or List block does not include the blocks inside it, and tags in a core block inside a GenerateBlocks container are not filled in unless that core block is selected here.', 'generateblocks' ),
+			array( 'tone' => 'warn', 'text' => __( 'Disabling a block type that contains tags processed by GenerateBlocks will cause the raw tag strings to be shown on the front end.', 'generateblocks' ) ),
+			array( 'tone' => 'info', 'text' => __( 'By default, a tag that returns no value removes its entire block. To keep the block, disable *Required to render*, as in `{{text required:false|key:subtitle}}`.', 'generateblocks' ) ),
 		),
 	);
 }
@@ -260,17 +256,43 @@ function bws_core_blocks_survey_count_html( ?int $count, array $text ): string {
 }
 
 /**
- * The "Last scan" line.
+ * The scan status line: the totals and when they were found, or "No scan has been run yet."
  *
  * @since Unreleased
- * @param int           $time   Unix time of the scan.
+ * @param array|null    $survey The last scan (bws_core_blocks_survey_last()), or null before the first.
+ * @param array[]       $groups bws_core_blocks_picker_rows(); the totals are the sums over the rows in them.
  * @param array         $text   bws_core_blocks_picker_strings().
  * @param callable|null $format Time formatter (tests); defaults to the site's date and time format.
  * @return string Plain text.
  */
-function bws_core_blocks_survey_status( int $time, array $text, ?callable $format = null ): string {
-	$when = $format ? $format( $time ) : wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $time );
-	return sprintf( $text['survey_last'], $when );
+function bws_core_blocks_survey_status( ?array $survey, array $groups, array $text, ?callable $format = null ): string {
+	if ( null === $survey ) {
+		return $text['survey_none_yet'];
+	}
+	$known   = 0;
+	$unknown = 0;
+	foreach ( $groups as $group ) {
+		foreach ( $group['rows'] as $row ) {
+			$known   += (int) $row['registered'];
+			$unknown += (int) $row['unregistered'];
+		}
+	}
+	$when = $format ? $format( $survey['time'] ) : wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $survey['time'] );
+	return sprintf( $text['survey_status'], $known, $unknown, $when );
+}
+
+/**
+ * The rows the page lists, built from the saved settings, the server registry and the last scan.
+ * The page and the scan's reply both ask it, so the status line's totals are over the same rows.
+ *
+ * @since Unreleased
+ * @param array|null $survey The last scan, or null before the first.
+ * @return array[] See bws_core_blocks_picker_rows().
+ */
+function bws_core_blocks_picker_groups( ?array $survey ): array {
+	$saved = bws_core_blocks_clean( \BWS\DynamicTags\Admin\SettingsPage::get_settings()['core_blocks'] ?? array() );
+	list( $entries, $categories ) = bws_core_blocks_picker_registry();
+	return bws_core_blocks_picker_rows( $entries, $categories, $saved, bws_core_blocks_enabled(), bws_core_blocks_gb_native(), $survey['blocks'] ?? null );
 }
 
 /** Title fallback for a block with none: the slug after the namespace, capitalized. */
