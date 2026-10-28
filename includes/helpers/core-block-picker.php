@@ -102,6 +102,7 @@ function bws_core_blocks_picker_strings(): array {
 		'note_info'          => __( 'Note:', 'generateblocks' ),
 		// In display order; `tone` is warn or info.
 		'notes'              => array(
+			array( 'tone' => 'warn', 'text' => __( 'A user without the `unfiltered_html` capability (anyone below Editor, on most sites) cannot save changes to a post that has `{{` anywhere in its content along with any block of a type enabled below. Enabling Paragraph, the default text block, would prevent their changing nearly every post that contains a dynamic tag.', 'generateblocks' ) ),
 			array( 'tone' => 'warn', 'text' => __( 'Disabling a block type that contains tags processed by GenerateBlocks will cause the raw tag strings to be shown on the front end.', 'generateblocks' ) ),
 			array( 'tone' => 'info', 'text' => __( 'By default, a tag that returns no value removes its entire block. To keep the block, disable *Required to render*, as in `{{text required:false|key:subtitle}}`.', 'generateblocks' ) ),
 		),

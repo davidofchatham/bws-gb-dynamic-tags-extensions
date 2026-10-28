@@ -182,7 +182,8 @@ $groups = bws_core_blocks_picker_rows( array_merge( $entries, array( entry( 'gen
 assert_same( 'before any scan: the no-scan sentence alone', 'No scan has been run yet.', bws_core_blocks_survey_status( null, $groups, $text ) );
 assert_same( 'after a scan: handled and not-handled sums over the listed rows, with the date', 'Found in the blocks below as of WHEN: 5 tags handled by GenerateBlocks and 1 tags it does not handle.', bws_core_blocks_survey_status( array( 'time' => 1700000000 ), $groups, $text, $when ) );
 assert_same( 'a scan that found nothing in the listed blocks reads as zeros', 'Found in the blocks below as of WHEN: 0 tags handled by GenerateBlocks and 0 tags it does not handle.', bws_core_blocks_survey_status( array( 'time' => 1700000000 ), bws_core_blocks_picker_rows( $entries, $cats, array(), array(), array(), array() ), $text, $when ) );
-assert_same( 'notes run warning, then advisory, in that order', array( 'warn', 'info' ), array_column( $text['notes'], 'tone' ) );
+assert_same( 'notes run the two warnings, then the advisory, in that order', array( 'warn', 'warn', 'info' ), array_column( $text['notes'], 'tone' ) );
+assert_same( 'the first note is the unfiltered_html one', true, false !== strpos( $text['notes'][0]['text'], 'unfiltered_html' ) );
 $flat = array();
 array_walk_recursive( $text, static function ( $s ) use ( &$flat ) { $flat[] = $s; } );
 assert_same( 'no string holds an em dash', array(), array_values( array_filter( $flat, static fn( $s ) => false !== strpos( $s, "\u{2014}" ) ) ) );
