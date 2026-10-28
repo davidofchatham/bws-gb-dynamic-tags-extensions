@@ -923,6 +923,18 @@ Open: Which screen readers and browsers (NVDA with Chrome and Firefox on Windows
 
 Blocked by: —  •  Interacts with: FW-53 (closed; the controls that prompted it), FW-147 (the entity picker's caution and loading state are announcement surfaces too), FW-173 (a toggle switch would be a control this pass covers)
 
+#### FW-179 — Pin the `matrix-products` page against other fixture sets' products
+
+The `matrix-products` page lists products through a query loop, and the testbed is shared, so another fixture set's products enter the loop and move the page away from its committed snapshot while nothing of ours has changed.
+
+Detail home: this row
+
+Progress: Measured 2026-10-27 (FW-156 ticket 13). Another fixture set created `cof-*` products on the shared testbed that day; `page-matrix-products` then differed from its baseline by 603 lines in `page-snapshots.php` and `verify.php`, and every other snapshot page matched. The baseline was deliberately not re-captured, since that would bake the other set's products in. The page fails every snapshot run until this is resolved. The post-type archive snapshot had the same cause and is already scoped to the blueprint's own posts by `?bwsfx_scope=core` (`docs/testbed.md` §Page snapshots).
+
+Open: Whether to restrict the product loop to the manifest's products the way the archive is restricted, or to keep the other fixture set off this testbed, or to accept a re-capture each time the shared set changes. Whether the query-loop rows (`QLP1`, `QLP2`) can be scoped without changing what they measure.
+
+Blocked by: `decision:` how the products loop is pinned  •  Interacts with: FW-97 (fixture reorganization; a fixture page change shares its re-capture rule)
+
 ### Docs & vocabulary
 
 Repairs to the documentation corpus itself: prose that has outgrown its reader, pointers that no longer resolve, and vocabulary the docs use inconsistently. Split out of §Testing & infrastructure 2026-08-28 — those items had nothing in common with a fixture site beyond "not a feature and not a bug".
