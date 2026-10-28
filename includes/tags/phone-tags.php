@@ -496,6 +496,7 @@ function bws_phone_callback( $options, $block, $instance ): string {
 	if ( bws_tag_blocked_on_media_block( $block ) ) {
 		return '';
 	}
+	$options = bws_host_unlinked_options( $options, $block );
 
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 	$sep        = $options['sep'] ?? ', ';

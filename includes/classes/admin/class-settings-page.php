@@ -12,6 +12,7 @@
  *     email:       { obfuscate: bool },
  *     phone:       { country_code: string, strip_leading_cc: bool },
  *     table:       { stripe_color: string, stripe_opacity: string },
+ *     core_blocks: string[],  // block names, e.g. core/paragraph; empty = off
  *   }
  *
  * Deprecated tag mode semantics:
@@ -53,6 +54,7 @@ class SettingsPage {
 		add_action( 'wp_ajax_bws_scan_tags', array( TagConverter::class, 'ajax_scan' ) );
 		add_action( 'wp_ajax_bws_migrate_tags', array( TagConverter::class, 'ajax_migrate' ) );
 		add_action( 'wp_ajax_bws_ownership_optin', array( TagConverter::class, 'ajax_ownership_optin' ) );
+		add_action( 'wp_ajax_bws_core_blocks_survey', 'bws_core_blocks_survey_ajax' );
 	}
 
 	public static function add_menu_page(): void {
@@ -136,6 +138,36 @@ class SettingsPage {
 			BWS_DYNAMIC_TAGS_VERSION,
 			true
 		);
+		wp_enqueue_script(
+			'bws-block-picker',
+			BWS_DYNAMIC_TAGS_URL . 'assets/js/block-picker.js',
+			array(),
+			BWS_DYNAMIC_TAGS_VERSION,
+			true
+		);
+		$picker_text = bws_core_blocks_picker_strings();
+		wp_localize_script(
+			'bws-block-picker',
+			'bwsBlockPickerConfig',
+			array(
+				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+				'nonce'   => wp_create_nonce( 'bws_core_blocks_survey' ),
+				'strings' => array(
+					'running' => $picker_text['survey_running'],
+					'error'   => $picker_text['survey_error'],
+					'show_default'           => $picker_text['show_default'],
+					'show_default_unscanned' => $picker_text['show_default_unscanned'],
+					'showing'                => $picker_text['showing'],
+					'showing_hint'           => $picker_text['showing_hint'],
+					'caption' => $picker_text['caption_after'],
+					'sorted'  => $picker_text['sorted'],
+					'order'   => array(
+						'ascending'  => $picker_text['ascending'],
+						'descending' => $picker_text['descending'],
+					),
+				),
+			)
+		);
 		wp_localize_script(
 			'bws-admin-tag-scanner',
 			'bwsTagScanner',
@@ -186,6 +218,7 @@ class SettingsPage {
 			'email'      => array(),
 			'phone'      => array(),
 			'table'      => array(),
+			'core_blocks' => array(),
 		);
 
 		// Modifier toggles. An orphaned `modifiers.term` key on an existing row is simply
@@ -217,6 +250,10 @@ class SettingsPage {
 		$stripe_opacity = bws_table_stripe_opacity_setting( (string) ( $input['table']['stripe_opacity'] ?? '' ) );
 		$sanitized['table']['stripe_color']   = $stripe_color ?? '';
 		$sanitized['table']['stripe_opacity'] = null === $stripe_opacity ? '' : bws_table_css_number( $stripe_opacity );
+
+		// Core blocks that get dynamic tags (FW-156). Flat list of `namespace/name`; the key MUST
+		// be rebuilt here or every save drops it.
+		$sanitized['core_blocks'] = bws_core_blocks_clean( $input['core_blocks'] ?? array() );
 
 		return $sanitized;
 	}
@@ -710,6 +747,158 @@ class SettingsPage {
 		return (string) ob_get_clean();
 	}
 
+	/**
+	 * The "Enable Tags in Other Blocks" section (FW-156): one searchable, sortable table of the
+	 * server-registered blocks. Rows come from bws_core_blocks_picker_rows(), words from
+	 * bws_core_blocks_picker_strings(); assets/js/block-picker.js does the search, sort, counter
+	 * and unsaved-changes state. Each row carries `data-bws-block` (the block name) as the hook
+	 * for per-row additions.
+	 *
+	 * @since Unreleased
+	 */
+	private static function render_core_blocks_section(): void {
+		$text    = bws_core_blocks_picker_strings();
+		$survey  = bws_core_blocks_survey_last();
+		$groups  = bws_core_blocks_picker_groups( $survey );
+		$field   = self::OPTION_NAME . '[core_blocks][]';
+		$n       = 0;
+		?>
+				<?php /* ── Enable Tags in Other Blocks ── */ ?>
+				<div class="bws-tag-group" id="bws-core-blocks">
+					<h2 class="bws-section-header"><?php echo esc_html( $text['heading'] ); ?></h2>
+					<div class="bws-card">
+						<p class="description bws-section-desc"><?php echo esc_html( $text['intro'] ); ?></p>
+						<ul class="bws-block-notes">
+							<?php foreach ( $text['notes'] as $note ) : ?>
+								<li><span class="gp-status-dot gp-status-dot--<?php echo esc_attr( $note['tone'] ); ?>" aria-hidden="true"></span><span class="screen-reader-text"><?php echo esc_html( $text[ 'warn' === $note['tone'] ? 'note_warn' : 'note_info' ] ); ?></span><span><?php echo bws_core_blocks_picker_markup( $note['text'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></span></li>
+							<?php endforeach; ?>
+						</ul>
+						<div class="bws-block-picker" data-scanned="<?php echo $survey ? '1' : '0'; ?>">
+							<div class="bws-block-picker__survey">
+								<div>
+									<p class="description bws-block-picker__survey-status" role="status"><?php echo esc_html( bws_core_blocks_survey_status( $survey, $groups, $text ) ); ?></p>
+									<p class="description"><?php echo bws_core_blocks_picker_markup( $text['survey_desc'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></p>
+								</div>
+								<button type="button" class="gp-button gp-button--<?php echo $survey ? 'quiet' : 'primary'; ?> gp-button--small bws-block-picker__scan"><?php echo esc_html( $text['survey_scan'] ); ?></button>
+							</div>
+							<div class="gp-notice gp-notice--warn bws-notice bws-block-picker__confirm" role="region" aria-live="polite" hidden>
+								<div class="gp-notice__status"><span class="gp-status-dot gp-status-dot--warn" aria-hidden="true"></span></div>
+								<div class="gp-notice__content">
+									<p><?php echo esc_html( $text['confirm_intro'] ); ?></p>
+									<ul class="bws-block-picker__confirm-list"></ul>
+									<p>
+										<button type="button" class="gp-button gp-button--primary gp-button--small bws-block-picker__confirm-save"><?php echo esc_html( $text['confirm_save'] ); ?></button>
+										<button type="button" class="gp-button gp-button--quiet gp-button--small bws-block-picker__confirm-back"><?php echo esc_html( $text['confirm_back'] ); ?></button>
+									</p>
+								</div>
+							</div>
+							<div class="bws-block-picker__strips">
+								<?php // The radios belong to no form (a nonexistent form id), so the Save post carries none of them; the shared name still groups them for the arrow keys. ?>
+								<fieldset class="bws-block-picker__show">
+									<legend><?php echo esc_html( $text['show_legend'] ); ?></legend>
+									<?php foreach ( array( 'default', 'enabled', 'tags', 'all' ) as $value ) : ?>
+										<label<?php echo ! $survey && in_array( $value, array( 'enabled', 'tags' ), true ) ? ' hidden' : ''; ?>>
+											<input type="radio" name="bws_block_show" value="<?php echo esc_attr( $value ); ?>" form="bws-block-picker-no-form"<?php checked( 'default', $value ); ?> />
+											<span>
+												<span class="bws-block-picker__show-label<?php echo 'default' === $value ? ' bws-block-picker__show-label--default' : ''; ?>"><?php echo esc_html( 'default' === $value && ! $survey ? $text['show_default_unscanned'] : $text[ 'show_' . $value ] ); ?></span>
+												<span class="bws-block-picker__show-n"></span>
+											</span>
+										</label>
+									<?php endforeach; ?>
+								</fieldset>
+								<button type="button" class="bws-block-picker__reset" hidden><?php echo esc_html( $text['reset'] ); ?></button>
+							</div>
+							<div class="bws-block-picker__bar">
+								<label class="screen-reader-text" for="bws-block-picker-cat"><?php echo esc_html( $text['cat_label'] ); ?></label>
+								<select id="bws-block-picker-cat" class="bws-block-picker__cat">
+									<option value=""><?php echo esc_html( $text['cat_all'] ); ?></option>
+									<?php foreach ( $groups as $group ) : ?>
+										<option value="<?php echo esc_attr( $group['slug'] ); ?>"><?php echo esc_html( $group['inactive'] ? $text['inactive_heading'] : $group['label'] ); ?></option>
+									<?php endforeach; ?>
+								</select>
+								<input type="search" class="gp-text-input bws-block-picker__search"
+									placeholder="<?php echo esc_attr( $text['search_placeholder'] ); ?>"
+									aria-label="<?php echo esc_attr( $text['search_placeholder'] ); ?>" autocomplete="off" />
+								<span class="bws-block-picker__dirty" hidden><?php echo esc_html( $text['dirty'] ); ?></span>
+							</div>
+							<p class="bws-block-picker__showing" role="status" aria-live="polite"></p>
+							<details class="bws-block-picker__key">
+								<summary><?php echo esc_html( $text['key_summary'] ); ?></summary>
+								<div class="bws-block-picker__key-body">
+									<dl>
+										<?php foreach ( $text['key'] as $entry ) : ?>
+											<dt><?php echo bws_core_blocks_picker_markup( $entry[0] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></dt>
+											<dd><?php echo bws_core_blocks_picker_markup( $entry[1] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></dd>
+										<?php endforeach; ?>
+									</dl>
+									<h3 class="bws-block-picker__key-heading"><?php echo esc_html( $text['key_limits_heading'] ); ?></h3>
+									<dl>
+										<?php foreach ( $text['key_limits'] as $entry ) : ?>
+											<dt><?php echo bws_core_blocks_picker_markup( $entry[0] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></dt>
+											<dd><?php echo bws_core_blocks_picker_markup( $entry[1] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></dd>
+										<?php endforeach; ?>
+									</dl>
+								</div>
+							</details>
+							<div class="bws-block-picker__region" role="region" aria-labelledby="bws-block-picker-caption" tabindex="0">
+								<table class="bws-block-picker__table">
+									<caption id="bws-block-picker-caption"><?php echo esc_html( $survey ? $text['caption_after'] : $text['caption_before'] ); ?></caption>
+									<thead>
+										<tr>
+											<?php foreach ( array( 'block' => 'col_block', 'contents' => 'col_contents' ) as $col => $label ) : ?>
+												<th scope="col"><button type="button" class="bws-block-picker__sort" data-col="<?php echo esc_attr( $col ); ?>"><?php echo esc_html( $text[ $label ] ); ?></button></th>
+											<?php endforeach; ?>
+											<th scope="col"><?php echo esc_html( $text['col_limits'] ); ?></th>
+											<?php foreach ( array( 'registered' => 'col_known', 'unregistered' => 'col_unknown' ) as $col => $label ) : ?>
+												<th scope="col" class="bws-block-picker__num"><button type="button" class="bws-block-picker__sort" data-col="<?php echo esc_attr( $col ); ?>"><?php echo esc_html( $text[ $label ] ); ?></button></th>
+											<?php endforeach; ?>
+										</tr>
+									</thead>
+									<?php foreach ( $groups as $group ) : ?>
+										<tbody class="bws-block-picker__group" data-bws-cat="<?php echo esc_attr( $group['slug'] ); ?>">
+											<tr><th scope="rowgroup" colspan="5" class="bws-block-picker__group-label"><?php echo esc_html( $group['inactive'] ? $text['inactive_heading'] : $group['label'] ); ?></th></tr>
+											<?php foreach ( $group['rows'] as $row ) : ?>
+												<?php $id = 'bws-core-block-' . ( ++$n ); ?>
+												<tr class="bws-block-picker__item" data-bws-block="<?php echo esc_attr( $row['name'] ); ?>" data-bws-title="<?php echo esc_attr( $row['title'] ); ?>" data-bws-registered="<?php echo (int) $row['registered']; ?>" data-bws-other="<?php echo (int) $row['unregistered']; ?>" data-bws-contents="<?php echo $row['untested'] ? '' : esc_attr( strtolower( $text[ $row['contents'] ] ) ); ?>" data-search="<?php echo esc_attr( $row['search'] ); ?>">
+													<th scope="row">
+														<div class="bws-block-picker__rowhead">
+															<input type="checkbox" id="<?php echo esc_attr( $id ); ?>"
+																name="<?php echo esc_attr( $field ); ?>"
+																value="<?php echo esc_attr( $row['name'] ); ?>"
+																<?php checked( $row['selected'] ); ?> <?php disabled( $row['disabled'] ); ?> />
+															<div>
+																<label for="<?php echo esc_attr( $id ); ?>"><?php echo esc_html( $row['title'] ); ?> <code><?php echo esc_html( $row['name'] ); ?></code></label>
+																<?php foreach ( $row['notes'] as $key ) : ?>
+																	<span class="bws-block-picker__sub"><?php echo bws_core_blocks_picker_markup( $text[ $key ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></span>
+																<?php endforeach; ?>
+																<?php if ( $row['variations'] ) : ?>
+																	<span class="bws-block-picker__sub"><?php echo esc_html( sprintf( $text['variations'], implode( ', ', array_slice( $row['variations'], 0, 3 ) ) ) ); ?></span>
+																<?php endif; ?>
+															</div>
+														</div>
+													</th>
+													<td class="bws-block-picker__cell<?php echo $row['untested'] ? ' bws-block-picker__cell--muted' : ''; ?>"><?php echo esc_html( $text[ $row['contents'] ] ); ?></td>
+													<td class="bws-block-picker__cell<?php echo 'limits_none' === $row['limits'] ? ' bws-block-picker__cell--muted' : ''; ?>"><?php echo 'limits_none' === $row['limits'] ? '<span aria-hidden="true">' . esc_html( $text['limits_none'] ) . '</span><span class="screen-reader-text">' . esc_html( $text['limits_none_sr'] ) . '</span>' : bws_core_blocks_picker_markup( $text[ $row['limits'] ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></td>
+													<td class="bws-block-picker__num" data-bws-count="registered"><?php echo bws_core_blocks_survey_count_html( $row['registered'], $text, $row['registered_tags'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></td>
+													<td class="bws-block-picker__num" data-bws-count="unregistered"><?php echo bws_core_blocks_survey_count_html( $row['unregistered'], $text, $row['unregistered_tags'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></td>
+												</tr>
+											<?php endforeach; ?>
+										</tbody>
+									<?php endforeach; ?>
+								</table>
+							</div>
+							<p class="screen-reader-text bws-block-picker__sorted" role="status" aria-live="polite"></p>
+							<div class="bws-block-picker__empty" role="status" hidden>
+								<p data-kind="filtered" hidden><?php echo esc_html( $text['empty_filtered'] ); ?> <button type="button" class="bws-block-picker__reset" data-reset="1"><?php echo esc_html( $text['reset'] ); ?></button></p>
+								<p data-kind="default" hidden><?php echo esc_html( $text['empty_default'] ); ?> <button type="button" class="gp-button gp-button--quiet gp-button--small"><?php echo esc_html( $text['show_all_button'] ); ?></button></p>
+								<p data-kind="default-unscanned" hidden><?php echo esc_html( $text['empty_default_unscanned'] ); ?> <button type="button" class="gp-button gp-button--quiet gp-button--small"><?php echo esc_html( $text['show_all_button'] ); ?></button></p>
+							</div>
+					</div>
+					</div>
+				</div>
+		<?php
+	}
+
 	public static function render_page(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
@@ -945,6 +1134,8 @@ function my_result( $post_id, $arg = '' ) {
 					</table>
 					</div>
 				</div>
+
+				<?php self::render_core_blocks_section(); ?>
 
 				<?php /* ── Deprecated Tags (lifecycle 'deprecated'; registered hidden or migration-only, never listed; the K/S/D controls are FW-81's to rewire) ── */ ?>
 				<?php if ( ! empty( $live_with ) || ! empty( $live_without ) ) : ?>

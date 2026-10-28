@@ -467,6 +467,11 @@ class TagTemplateRegistry {
 				if ( $media_guard && function_exists( 'bws_tag_blocked_on_media_block' ) && bws_tag_blocked_on_media_block( $b ) ) {
 					return '';
 				}
+				// A button host holds link text, never content: nothing, so GB blanks the block (FW-156).
+				if ( 'content' === $tpl_key && bws_core_block_is_button( $b ) ) {
+					return '';
+				}
+				$opts = bws_host_unlinked_options( $opts, $b );
 
 				// THE WALK (includes/helpers/try-slot-loop.php). Null = every attempt read
 				// nothing; the tail below is this shell's, exactly as a base tag's callback
@@ -488,7 +493,8 @@ class TagTemplateRegistry {
 							$won['link_type']
 						);
 					}
-					return $value;
+					// The content slot's final value, reduced for an inline-only core host (FW-156).
+					return 'content' === $tpl_key ? bws_content_strip_for_host( $value, $b ) : $value;
 				}
 
 				$is_preview = ! empty( $inst->context['bwsEditorPreview'] );

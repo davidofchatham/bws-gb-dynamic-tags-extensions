@@ -17,6 +17,7 @@
 	--bws-ok: var(--gp-status-ok, #00a32a);
 	--bws-warn: var(--gp-status-warn, #dba617);
 	--bws-error: var(--gp-status-error, #d63638);
+	--bws-info: var(--gp-status-info, #2271b1);
 	/* Status colors are lines and dots at their token value; as text they are darkened to
 	   stay readable on the white card. */
 	--bws-ok-text: color-mix(in srgb, var(--bws-ok) 78%, #000);
@@ -233,6 +234,7 @@
 .bws-dynamic-tags-settings .gp-status-dot--idle { background: var(--gp-status-idle, #d2d2d7); }
 .bws-dynamic-tags-settings .gp-status-dot--warn { background: var(--bws-warn); }
 .bws-dynamic-tags-settings .gp-status-dot--error { background: var(--bws-error); }
+.bws-dynamic-tags-settings .gp-status-dot--info { background: var(--bws-info); }
 .bws-dynamic-tags-settings td > .gp-status-dot { margin-inline-end: 0; }
 .bws-dynamic-tags-settings .bws-row-status.ok::before,
 .bws-dynamic-tags-settings .bws-row-status.err::before {
@@ -352,3 +354,223 @@
 	vertical-align: -2px;
 	text-decoration: none;
 }
+
+/* ── Enable Tags in Other Blocks: the searchable block list ── */
+.bws-dynamic-tags-settings .bws-block-notes {
+	margin: 0;
+	padding: 12px var(--bws-pad-x) 4px;
+	list-style: none;
+	color: var(--bws-muted);
+	font-size: var(--gp-size-meta, 13px);
+	line-height: var(--gp-lh-meta, 1.5);
+}
+.bws-dynamic-tags-settings .bws-block-notes li { display: flex; align-items: baseline; margin: 0 0 6px; }
+.bws-dynamic-tags-settings .bws-block-notes .gp-status-dot { flex: none; }
+.bws-dynamic-tags-settings .bws-block-picker {
+	margin: 16px var(--bws-pad-x) 20px;
+	background: var(--bws-surface);
+	border: 1px solid var(--bws-border);
+	border-radius: var(--bws-radius-field);
+	overflow: hidden;
+}
+.bws-dynamic-tags-settings .bws-block-picker__bar {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 12px;
+	background: var(--bws-fill);
+	border-bottom: 1px solid var(--bws-line);
+}
+.bws-dynamic-tags-settings .bws-block-picker__search { flex: 1 1 auto; min-width: 0; }
+.bws-dynamic-tags-settings .bws-block-picker__cat { flex: none; max-width: 190px; }
+.bws-dynamic-tags-settings .bws-block-picker__dirty {
+	flex: none;
+	color: var(--bws-ink);
+	font-size: var(--gp-size-meta, 13px);
+	font-weight: var(--gp-weight-medium, 500);
+}
+.bws-dynamic-tags-settings .bws-block-picker__dirty[hidden] { display: none; }
+.bws-dynamic-tags-settings .bws-block-picker__strips {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 6px 32px;
+	padding: 10px 12px 0;
+	border-bottom: 1px solid var(--bws-line);
+}
+.bws-dynamic-tags-settings .bws-block-picker__show {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 10px 24px;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+.bws-dynamic-tags-settings .bws-block-picker__show legend {
+	float: left;
+	margin: 0 12px 0 0;
+	padding: 0;
+	color: var(--bws-muted);
+	font-size: 11px;
+	font-weight: var(--gp-weight-medium, 500);
+	letter-spacing: .12em;
+	text-transform: uppercase;
+}
+.bws-dynamic-tags-settings .bws-block-picker__show label { position: relative; cursor: pointer; }
+.bws-dynamic-tags-settings .bws-block-picker__show label[hidden] { display: none; }
+.bws-dynamic-tags-settings .bws-block-picker__show input { position: absolute; opacity: 0; }
+.bws-dynamic-tags-settings .bws-block-picker__show label > span {
+	display: inline-flex;
+	gap: 6px;
+	align-items: baseline;
+	margin-bottom: -1px;
+	padding: 0 0 10px;
+	white-space: nowrap;
+	border-bottom: 2px solid transparent;
+	color: var(--bws-text, inherit);
+}
+.bws-dynamic-tags-settings .bws-block-picker__show-n { color: var(--bws-muted); font-variant-numeric: tabular-nums; }
+.bws-dynamic-tags-settings .bws-block-picker__show input:checked + span { border-bottom-color: var(--bws-ink); color: var(--bws-ink); font-weight: var(--gp-weight-medium, 500); }
+.bws-dynamic-tags-settings .bws-block-picker__show input:focus-visible + span { outline: 2px solid var(--bws-accent); outline-offset: 2px; }
+.bws-dynamic-tags-settings .bws-block-picker__reset {
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--bws-accent);
+	font: inherit;
+	text-decoration: underline;
+	cursor: pointer;
+}
+.bws-dynamic-tags-settings .bws-block-picker__reset[hidden] { display: none; }
+.bws-dynamic-tags-settings .bws-block-picker__reset:focus-visible { outline: 2px solid var(--bws-accent); outline-offset: 2px; }
+.bws-dynamic-tags-settings .bws-block-picker__showing {
+	margin: 0;
+	padding: 6px 12px;
+	border-bottom: 1px solid var(--bws-line);
+	color: var(--bws-muted);
+	font-size: var(--gp-size-meta, 13px);
+}
+.bws-dynamic-tags-settings .bws-block-picker__key {
+	margin: 0;
+	padding: 10px 12px;
+	background: var(--bws-fill);
+	border-bottom: 1px solid var(--bws-line);
+	font-size: var(--gp-size-meta, 13px);
+}
+.bws-dynamic-tags-settings .bws-block-picker__key summary { cursor: pointer; color: var(--bws-ink); font-weight: var(--gp-weight-medium, 500); }
+.bws-dynamic-tags-settings .bws-block-picker__key summary:focus-visible { outline: 2px solid var(--bws-accent); outline-offset: 2px; }
+.bws-dynamic-tags-settings .bws-block-picker__key[open] summary { margin-bottom: 8px; }
+/* Both groups share one term column (subgrid); the heading spans it. Terms stay regular weight, as
+   their phrases read in the cells, so the summary and the group heading outrank them. */
+.bws-dynamic-tags-settings .bws-block-picker__key-body { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; }
+.bws-dynamic-tags-settings .bws-block-picker__key dl { display: grid; grid-column: 1 / -1; grid-template-columns: max-content 1fr; grid-template-columns: subgrid; gap: 6px 14px; margin: 0; }
+.bws-dynamic-tags-settings .bws-block-picker__key dt { color: var(--bws-ink); }
+.bws-dynamic-tags-settings .bws-block-picker__key dd { margin: 0; }
+@media (max-width: 600px) {
+	.bws-dynamic-tags-settings .bws-block-picker__key-body,
+	.bws-dynamic-tags-settings .bws-block-picker__key dl { grid-template-columns: 1fr; }
+}
+.bws-dynamic-tags-settings .bws-block-picker__key-heading { grid-column: 1 / -1; margin: 8px 0 0; font-size: inherit; color: var(--bws-ink); font-weight: var(--gp-weight-medium, 500); }
+/* The band's own fill swallows the default code background, so give it a box. */
+.bws-dynamic-tags-settings .bws-block-picker__key code { background: var(--bws-surface); border: 1px solid var(--bws-line); }
+/* The table scrolls sideways inside its region; it never reflows and never caps its height. */
+.bws-dynamic-tags-settings .bws-block-picker__region { overflow: auto; }
+.bws-dynamic-tags-settings .bws-block-picker__region:focus-visible { outline: 2px solid var(--bws-accent); outline-offset: -2px; }
+.bws-dynamic-tags-settings .bws-block-picker__table { width: 100%; min-width: 520px; border-collapse: collapse; }
+.bws-dynamic-tags-settings .bws-block-picker__table caption {
+	padding: 8px 12px;
+	color: var(--bws-muted);
+	font-size: var(--gp-size-meta, 13px);
+	text-align: start;
+}
+.bws-dynamic-tags-settings .bws-block-picker__table thead th {
+	padding: 8px 12px;
+	border-bottom: 2px solid var(--bws-border);
+	color: var(--bws-ink);
+	font-weight: var(--gp-weight-medium, 500);
+	text-align: start;
+	vertical-align: bottom;
+	white-space: nowrap;
+}
+.bws-dynamic-tags-settings .bws-block-picker__table thead th[aria-sort] { background: var(--bws-fill); }
+.bws-dynamic-tags-settings .bws-block-picker__sort {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+}
+.bws-dynamic-tags-settings .bws-block-picker__sort:focus-visible { outline: 2px solid var(--bws-accent); outline-offset: 2px; }
+/* The arrow has a fixed slot, so its glyph never shifts the label. */
+.bws-dynamic-tags-settings .bws-block-picker__sort::after { content: "\2195"; display: inline-block; width: var(--bws-sort-arrow, 14px); color: var(--bws-muted); font-weight: 400; text-align: center; }
+.bws-dynamic-tags-settings th[aria-sort="ascending"] .bws-block-picker__sort::after { content: "\2191"; color: var(--bws-ink); }
+.bws-dynamic-tags-settings th[aria-sort="descending"] .bws-block-picker__sort::after { content: "\2193"; color: var(--bws-ink); }
+.bws-dynamic-tags-settings .bws-block-picker__group-label {
+	padding: 8px 12px;
+	background: var(--bws-fill);
+	border-bottom: 1px solid var(--bws-line);
+	color: var(--bws-muted);
+	font-size: var(--gp-size-eyebrow, 11px);
+	font-weight: var(--gp-weight-medium, 500);
+	letter-spacing: var(--gp-tracking-eyebrow, 0.12em);
+	text-align: start;
+	text-transform: uppercase;
+}
+.bws-dynamic-tags-settings .bws-block-picker__item > * { padding: 8px 12px; border-top: 1px solid var(--bws-line); vertical-align: top; }
+.bws-dynamic-tags-settings .bws-block-picker__item th { min-width: 150px; font-weight: 400; text-align: start; }
+.bws-dynamic-tags-settings .bws-block-picker__item[hidden],
+.bws-dynamic-tags-settings .bws-block-picker__group[hidden] { display: none; }
+.bws-dynamic-tags-settings .bws-block-picker__rowhead { display: flex; gap: 10px; }
+.bws-dynamic-tags-settings .bws-block-picker__rowhead input[type="checkbox"] { flex: none; margin-top: 3px; }
+.bws-dynamic-tags-settings .bws-block-picker__sub { display: block; margin-top: 2px; color: var(--bws-muted); font-size: var(--gp-size-meta, 13px); }
+/* The count is the disclosure's summary: its chevron sits before the digits, so right-aligned digits stay lined up under the header. */
+.bws-dynamic-tags-settings .bws-block-picker__tagged > summary { display: block; cursor: pointer; list-style: none; }
+.bws-dynamic-tags-settings .bws-block-picker__tagged > summary::-webkit-details-marker { display: none; }
+.bws-dynamic-tags-settings .bws-block-picker__tagged > summary::before { content: "\25B8"; margin-inline-end: 4px; color: var(--bws-muted); }
+.bws-dynamic-tags-settings .bws-block-picker__tagged[open] > summary::before { content: "\25BE"; }
+/* The tag list under a count: left-aligned, wrapping, and no wider than the digits column can stand. */
+.bws-dynamic-tags-settings .bws-block-picker__tags { display: block; max-width: 18em; margin-top: 4px; font-size: var(--gp-size-meta, 13px); text-align: start; white-space: normal; overflow-wrap: anywhere; }
+/* The id wraps whole, so at a narrow width it drops under the block name instead of splitting. */
+.bws-dynamic-tags-settings .bws-block-picker__item code { display: inline-block; font-size: var(--gp-size-meta, 13px); }
+/* Holds and Tag limits share one text size. */
+.bws-dynamic-tags-settings .bws-block-picker__cell { font-size: var(--gp-size-meta, 13px); }
+.bws-dynamic-tags-settings .bws-block-picker__cell--muted,
+.bws-dynamic-tags-settings .bws-block-picker__zero { color: var(--bws-muted); }
+/* Number columns: right-aligned, tabular figures, and the cell reserves the sort arrow's fixed width plus the 6px gap so digits line up under the header label. */
+.bws-dynamic-tags-settings .bws-block-picker__table th.bws-block-picker__num { text-align: end; }
+.bws-dynamic-tags-settings .bws-block-picker__table td.bws-block-picker__num {
+	padding-inline-end: calc(12px + var(--bws-sort-arrow, 14px) + 6px);
+	font-variant-numeric: tabular-nums;
+	text-align: end;
+	white-space: nowrap;
+}
+.bws-dynamic-tags-settings .bws-block-picker__empty {
+	padding: 16px 12px;
+	color: var(--bws-muted);
+}
+.bws-dynamic-tags-settings .bws-block-picker__empty[hidden], .bws-dynamic-tags-settings .bws-block-picker__empty p[hidden] { display: none; }
+.bws-dynamic-tags-settings .bws-block-picker__empty p { margin: 0; }
+.bws-dynamic-tags-settings .bws-block-picker__empty button:not(.bws-block-picker__reset) { margin-inline-start: 8px; }
+.bws-dynamic-tags-settings .bws-block-picker__survey {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	align-items: start;
+	gap: 4px 12px;
+	padding: 10px 12px;
+	border-bottom: 1px solid var(--bws-line);
+}
+/* The wrapper dissolves so the status and the button share the top row and the description takes the full width under both. */
+.bws-dynamic-tags-settings .bws-block-picker__survey > div { display: contents; }
+.bws-dynamic-tags-settings .bws-block-picker__survey p { margin: 0; }
+.bws-dynamic-tags-settings .bws-block-picker__survey-status { grid-area: 1 / 1; align-self: center; font-weight: 600; }
+.bws-dynamic-tags-settings .bws-block-picker__survey-status + p { grid-area: 2 / 1 / 3 / -1; }
+.bws-dynamic-tags-settings .bws-block-picker__scan { grid-area: 1 / 2; align-self: center; }
+.bws-dynamic-tags-settings .bws-block-picker__confirm { margin: 0; border-radius: 0; }
+.bws-dynamic-tags-settings .bws-block-picker__confirm[hidden] { display: none; }
+.bws-dynamic-tags-settings .bws-block-picker__confirm-list { margin: 0 0 8px 18px; list-style: disc; }

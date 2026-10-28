@@ -85,6 +85,12 @@ Yes! Why?
 
 Available in `text`/`try_text`, `email`/`try_email`, `phone`/`try_phone`, `join` and `table` via the *Fixed* option (*Fixed Text*, *Fixed Email* or *Fixed Phone Number*). It shows once for each source the tag reaches, so a list of posts repeats it and a limit of 1 gives a single result, and it still needs a source to render against: if that source finds nothing, the tag shows its fallback as usual, and a `join` slot or `try_` attempt drops out.
 
+### Tags in core blocks **[UNRELEASED]**
+
+GenerateBlocks fills in dynamic tags only inside its own blocks, so a tag typed into a core Paragraph, Heading, List Item, Table or Button normally shows as typed. A new *Enable Tags in Other Blocks* section on the settings page lists every block type on the site in a table you can filter and search, and the ones you enable get their tags filled in too. Nothing is enabled by default, and you enable a block type, not a single block. Inside a query loop or repeater, a tag in an enabled block reads the row it sits in, not the page.
+
+Core blocks that hold text only get a few adjustments: a `table` tag prints nothing, a `content` tag keeps its text, bold, italics and links and drops paragraph breaks, headings, lists and images (in a Button it prints nothing), and in a Button any tag that would print a link prints just the address, number or text instead. A scan on the same section shows how many tags each block already holds, split by whether GenerateBlocks handles them, and asks once before you save a newly enabled block that holds tags GenerateBlocks handles. GenerateBlocks' own rules still apply: a tag that finds no value hides the whole block, and people who can't post unfiltered HTML can't save changes to a post that has `{{` in it along with a block of an enabled type. Details are in [`docs/tag-reference.md`](docs/tag-reference.md#tags-in-core-blocks-unreleased).
+
 ### Special handling
 
 #### Zero values
@@ -165,6 +171,8 @@ A security gate blocks adding PHP built-ins (`system`, `unlink`, `eval`, and the
 Another plugin can add its own starting point to our source path options, and that starting point can take an argument of its own, so it can name a specific entity rather than only something available from the context. See [`docs/plugin-integration.md` §1](docs/plugin-integration.md#1-offering-your-source-as-a-chain-root).
 
 A plugin that decides who may see a post, such as a membership or audience plugin, can hide that post from our tags too, and its own tags can apply the same visibility check ours do. It can only hide content, never reveal what the built-in check refuses. See [`docs/plugin-integration.md` §3](docs/plugin-integration.md#narrowing-who-may-see-an-entity).
+
+**[UNRELEASED]** A plugin that ships its own block can turn tags on for it with a filter, so site owners don't have to find it on the settings page. See [`docs/plugin-integration.md` §7](docs/plugin-integration.md#7-enabling-tags-in-a-block-type-unreleased).
 
 ## Requirements
 

@@ -578,6 +578,7 @@ function bws_table_skeleton( array $options, array $columns, array $dropped = ar
  * 4. Assemble the <table> string, wrapped in the W3C responsive scroll region
  *    (+ <caption> when set), in the text-as-div host.
  *
+ * An inline-only host block (bws_core_block_is_inline_only()) gets '' before anything else.
  * Front end: refused root, no rows or no columns → '' (nothing to build).
  * Editor preview (`bwsEditorPreview`): no rows → the real table with an empty body; refused
  * root or no columns → bws_table_skeleton().
@@ -587,11 +588,15 @@ function bws_table_skeleton( array $options, array $columns, array $dropped = ar
  * @since 1.17.0
  * @since 1.22.0 The editor preview: the real table, or a skeleton.
  * @param array  $options  Tag options.
- * @param object $block    GB block (unused; signature parity).
+ * @param mixed  $block    GB block array; only its kind is asked (see bws_core_block_kind()).
  * @param object $instance GB tag instance.
  * @return string
  */
 function bws_table_callback( $options, $block, $instance ): string {
+	// An inline-only host (bws_core_block_is_inline_only()) cannot hold a table: nothing, so GB blanks the block.
+	if ( bws_core_block_is_inline_only( $block ) ) {
+		return '';
+	}
 	$options    = (array) $options;
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 	$dropped    = array();

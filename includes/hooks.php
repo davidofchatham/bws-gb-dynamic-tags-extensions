@@ -61,3 +61,15 @@ add_filter( 'generateblocks_dynamic_tag_replacement', function ( $replacement, $
 
 	return $replacement;
 }, 10, 2 );
+
+/**
+ * Let GenerateBlocks replace dynamic tags in the core blocks the site opted in to.
+ * The set and its owner: bws_core_blocks_enabled() in helpers/core-block-tags.php.
+ */
+add_filter( 'generateblocks_dynamic_tags_allowed_blocks', 'bws_core_blocks_allow' );
+
+/**
+ * Hand the enabled core blocks GB's loop context. Priority 99: after every block type has
+ * registered (core and plugins register on init at 10).
+ */
+add_action( 'init', 'bws_core_blocks_add_loop_context', 99 );

@@ -131,6 +131,108 @@ function bws_tag_blocked_on_media_block( $block ): bool {
 }
 }
 
+const BWS_CORE_BLOCK_KIND_INLINE = 'inline';
+const BWS_CORE_BLOCK_KIND_BUTTON = 'button';
+const BWS_CORE_BLOCK_KIND_TABLE  = 'table';
+const BWS_CORE_BLOCK_KIND_LIST   = 'list';
+
+/**
+ * Content kind of a core block host, for the render guards that constrain inline-only blocks.
+ *
+ * THE one owner of the block-name to content-kind map (FW-156). Every other site asks this
+ * (or the two yes/no questions below) and states only the consequence; none names a block.
+ * Classified: `core/paragraph`, `core/heading` and `core/list-item` are
+ * BWS_CORE_BLOCK_KIND_INLINE (inline-only text); `core/table` is BWS_CORE_BLOCK_KIND_TABLE
+ * (inline-only, because its cells are); `core/button` is BWS_CORE_BLOCK_KIND_BUTTON
+ * (inline-only, and the host is itself the link); `core/list` is BWS_CORE_BLOCK_KIND_LIST
+ * (UNCONSTRAINED: it holds no text itself, the tag goes in its List Item, and the kind exists
+ * only so the settings page can say so). Anything else, including every GenerateBlocks block,
+ * is '' and unconstrained.
+ *
+ * Takes `$block` the way the media guard does: the array a tag callback receives as arg 2.
+ * Anything else classifies as '' (never a fatal).
+ *
+ * @since Unreleased
+ * @param mixed $block GB block array passed to the tag callback (arg 2).
+ * @return string A BWS_CORE_BLOCK_KIND_* constant, or '' when unclassified.
+ */
+if ( ! function_exists( 'bws_core_block_kind' ) ) {
+function bws_core_block_kind( $block ): string {
+	$name = is_array( $block ) ? ( $block['blockName'] ?? '' ) : '';
+	switch ( is_string( $name ) ? $name : '' ) {
+		case 'core/paragraph':
+		case 'core/heading':
+		case 'core/list-item':
+			return BWS_CORE_BLOCK_KIND_INLINE;
+		case 'core/table':
+			return BWS_CORE_BLOCK_KIND_TABLE;
+		case 'core/list':
+			return BWS_CORE_BLOCK_KIND_LIST;
+		case 'core/button':
+			return BWS_CORE_BLOCK_KIND_BUTTON;
+	}
+	return '';
+}
+}
+
+/**
+ * Whether the host block takes inline content only (every classified kind except the list).
+ *
+ * @since Unreleased
+ * @param mixed $block GB block array passed to the tag callback (arg 2).
+ * @return bool
+ */
+if ( ! function_exists( 'bws_core_block_is_inline_only' ) ) {
+function bws_core_block_is_inline_only( $block ): bool {
+	$kind = bws_core_block_kind( $block );
+	return '' !== $kind && BWS_CORE_BLOCK_KIND_LIST !== $kind;
+}
+}
+
+/**
+ * Whether the host block is the button kind (the host is itself the link).
+ *
+ * @since Unreleased
+ * @param mixed $block GB block array passed to the tag callback (arg 2).
+ * @return bool
+ */
+if ( ! function_exists( 'bws_core_block_is_button' ) ) {
+function bws_core_block_is_button( $block ): bool {
+	return BWS_CORE_BLOCK_KIND_BUTTON === bws_core_block_kind( $block );
+}
+}
+
+/**
+ * Tag options as the host block lets a tag read them: no link wrap on a button host.
+ *
+ * A button host is itself the link, so a tag that would wrap its output in `<a>` (the
+ * `linkTo` wrap, or the default-on mailto:/tel: wrap of `{{email}}` / `{{phone}}`) prints the
+ * bare value instead, in the button text and in its `href` alike (the callback cannot tell
+ * which slot it renders in, so one rule serves both). The value is never emptied: GB blanks a
+ * whole block whose required tag resolves empty. Any other host gets `$options` back unchanged.
+ *
+ * Called once at the top of each shell that can wrap (text, title, the two datetime shells,
+ * email, phone, the `try_` closure) and nowhere below it: the rewritten options carry the
+ * answer to every downstream wrap, including the per-item wrap in `bws_collect_value_list()`.
+ * Not `{{call}}`, which is unconstrained here.
+ *
+ * @since Unreleased
+ * @param array $options Tag options.
+ * @param mixed $block   GB block array passed to the tag callback (arg 2).
+ * @return array The options, with the wrap controls forced off on a button host.
+ */
+if ( ! function_exists( 'bws_host_unlinked_options' ) ) {
+function bws_host_unlinked_options( $options, $block ) {
+	if ( ! bws_core_block_is_button( $block ) ) {
+		return $options;
+	}
+	$options           = (array) $options;
+	$options['linkTo'] = 'none';
+	$options['noLink'] = true;
+	return $options;
+}
+}
+
 /**
  * Wrap output string in an anchor element when a link URL resolves.
  *

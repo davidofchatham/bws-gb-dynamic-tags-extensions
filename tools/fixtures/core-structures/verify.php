@@ -735,6 +735,130 @@ if ( $trust_ready ) {
 
 			wp_delete_post( $p2b_id, true );
 		}
+
+		// P2c — THE SCOPE of what the picker's first note tells an author: a user without
+		// `unfiltered_html` cannot save a change to a post that has `{{` ANYWHERE and a
+		// block of any ENABLED type. P1 and P2 only drive our tag inside a GB block, which
+		// is always enabled, so they cannot see that enabling a CORE type widens the gate to
+		// a `{{` sitting in a block that is NOT enabled. GB's `applies` ties the two
+		// conditions to the post, not to each other; this pins that reading (GB 2.5.0) so a
+		// future GB that ties them together fails here by name instead of leaving the note
+		// overstating. A FAILURE MEANS GB MOVED, or `bws_core_blocks_allow()` stopped
+		// admitting core/paragraph: read both before the note's copy (core-block-tags/11, note 1).
+		//
+		// The tag sits in a core/verse (never enabled here); core/paragraph is the enabled
+		// type and carries no tag at all. Tags avoid quotes and backslashes so a stored copy
+		// is byte-identical to what was written.
+		// Each arm REPLACES the saved set through the filter (`bws_core_blocks_enabled()` hands the
+		// saved list to it), so what the testbed's own settings enable cannot move a result.
+		$gate_on     = static function () {
+			return array( 'core/paragraph' );
+		};
+		$gate_off    = static function () {
+			return array();
+		};
+		$gate_verse  = '<!-- wp:verse -->' . "\n" . '<pre>{{text key:x}}</pre>' . "\n" . '<!-- /wp:verse -->';
+		$gate_para   = '<!-- wp:paragraph -->' . "\n" . '<p>no tag</p>' . "\n" . '<!-- /wp:paragraph -->';
+		$gate_a      = $gate_verse . "\n\n" . $gate_para;
+		$gate_edited = $gate_a . "\n\n" . $gate_para;
+		$gate_rest   = static function ( $post_id, $content ) {
+			$request = new WP_REST_Request( 'POST', '/wp/v2/posts/' . $post_id );
+			$request->set_param( 'content', $content );
+			return rest_do_request( $request )->as_error();
+		};
+		$gate_sec    = 'GenerateBlocks_Dynamic_Tag_Security';
+
+		// A SUCCESSFUL REST save sets the global `$post` to the saved post while it builds the
+		// response, and the scratch post is deleted after. P3 below reads its ambient post from
+		// that global, so left alone it would render against a deleted, author-stamped post.
+		$gate_prev_post = $GLOBALS['post'] ?? null;
+
+		// Nothing enabled but GB's own blocks: (a) holds no enabled block, so it does not apply.
+		add_filter( 'bws_dynamic_tags_core_blocks', $gate_off );
+		$check(
+			'P2c control: `{{` in an unenabled core/verse beside an unenabled core/paragraph does not apply',
+			false === $gate_sec::should_validate_content( $gate_a, false )
+				&& false === $gate_sec::save_is_restricted( $gate_a, 0, 'post' )
+		);
+		remove_filter( 'bws_dynamic_tags_core_blocks', $gate_off );
+
+		add_filter( 'bws_dynamic_tags_core_blocks', $gate_on );
+
+		$check(
+			'P2c applies: `{{` only in an unenabled core/verse, plus an enabled core/paragraph with no tag',
+			true === $gate_sec::should_validate_content( $gate_a, false )
+		);
+		$check(
+			'P2c (a) the new-post save is refused for the real Author role',
+			true === $gate_sec::save_is_restricted( $gate_a, 0, 'post' )
+		);
+		$check(
+			'P2c control: the same `{{` with NO enabled block in the post saves',
+			false === $gate_sec::should_validate_content( $gate_verse, false )
+				&& false === $gate_sec::save_is_restricted( $gate_verse, 0, 'post' )
+		);
+		$check(
+			'P2c control: an enabled core/paragraph and no `{{` saves',
+			false === $gate_sec::should_validate_content( $gate_para, false )
+				&& false === $gate_sec::save_is_restricted( $gate_para, 0, 'post' )
+		);
+
+		wp_set_current_user( $trust_admin_id );
+		$check(
+			'P2c control: a trusted user saves (a)',
+			false === $gate_sec::save_is_restricted( $gate_a, 0, 'post' )
+		);
+
+		// (c) A stored post already holding (a), written by the trusted user and owned by the
+		// Author. The byte-identical exemption lives in GB's REST path, not in the
+		// `save_is_restricted()` helper, so it is driven through REST as P2b does: a changed
+		// save is refused by the dynamic-data rule, the same bytes with the status unchanged pass.
+		$gate_stored_id = wp_insert_post(
+			array(
+				'post_type'    => 'post',
+				'post_status'  => 'draft',
+				'post_title'   => 'bws-verify save-gate scope scratch',
+				'post_content' => $gate_a,
+				'post_author'  => (int) $trust_author->ID,
+			)
+		);
+		$gate_stored_id = is_wp_error( $gate_stored_id ) ? 0 : (int) $gate_stored_id;
+		$check( 'P2c scratch post holding (a) created by the trusted user, owned by the Author', $gate_stored_id > 0 );
+
+		wp_set_current_user( (int) $trust_author->ID );
+
+		if ( $gate_stored_id > 0 ) {
+			$gate_changed_error = $gate_rest( $gate_stored_id, $gate_edited );
+			$check(
+				'P2c (d) entry point: a REST save changing the stored post is refused by the dynamic-data rule',
+				$gate_changed_error instanceof WP_Error && 'generateblocks_restricted_dynamic_content' === $gate_changed_error->get_error_code(),
+				'code=' . ( $gate_changed_error instanceof WP_Error ? $gate_changed_error->get_error_code() : 'none' )
+			);
+			$gate_same_error = $gate_rest( $gate_stored_id, $gate_a );
+			$check(
+				'P2c (c) a byte-identical REST re-save of the stored post by the Author passes',
+				! ( $gate_same_error instanceof WP_Error ),
+				'code=' . ( $gate_same_error instanceof WP_Error ? $gate_same_error->get_error_code() : 'none' )
+			);
+
+			wp_delete_post( $gate_stored_id, true );
+		}
+
+		// Filter off again: the enabled paragraph is what makes (a) apply, so the refusal above
+		// must not recur. This is the control that proves the pin measures the enabled set and
+		// not a gate that refuses anything carrying `{{`.
+		remove_filter( 'bws_dynamic_tags_core_blocks', $gate_on );
+		add_filter( 'bws_dynamic_tags_core_blocks', $gate_off );
+		$check(
+			'P2c control: with core/paragraph no longer enabled, (a) saves again',
+			false === $gate_sec::save_is_restricted( $gate_a, 0, 'post' )
+		);
+		remove_filter( 'bws_dynamic_tags_core_blocks', $gate_off );
+
+		$GLOBALS['post'] = $gate_prev_post;
+		if ( $gate_prev_post instanceof WP_Post ) {
+			setup_postdata( $gate_prev_post );
+		}
 	}
 
 	wp_set_current_user( $prev_trust_user );

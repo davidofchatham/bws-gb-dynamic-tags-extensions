@@ -7,7 +7,7 @@ There are two jobs, and most integrations need only the first:
 - **Let authors read your entity with the built-in tags.** Offer it as a [chain root](#1-offering-your-source-as-a-chain-root). Your entity then appears in the Source control of every base tag and every folded slot, and gets everything those tags do: further steps, per-step limits, field pickers and editor previews.
 - **Ship a tag no built-in tag covers.** Register it with GenerateBlocks yourself ([§3](#3-registering-your-own-tag)).
 
-The rest is housekeeping: [migrating your own old tag names](#4-migrating-your-own-old-tag-names), [hearing about direct content writes](#5-reacting-to-a-direct-content-write) and [diagnostic filters](#6-diagnostic-filters).
+The rest is housekeeping: [migrating your own old tag names](#4-migrating-your-own-old-tag-names), [hearing about direct content writes](#5-reacting-to-a-direct-content-write), [diagnostic filters](#6-diagnostic-filters) and [enabling tags in a block type](#7-enabling-tags-in-a-block-type-unreleased).
 
 ---
 
@@ -327,6 +327,30 @@ add_filter( 'bws_dynamic_tags_benchmark_logging', '__return_true' );
 | `bws_dynamic_tags_benchmark_logging` | Post content processing logs its time and memory use to the PHP error log, prefixed `[BWS Content]`. Covers post content only, not tag resolution. |
 | `bws_dynamic_tags_registration_logging` | Source registration and the `bws_dynamic_tags_register_sources` action log to the PHP error log. |
 | `bws_dynamic_tags_show_all_deprecated` | The settings page lists every registered deprecated or retired tag and option, not only those the last scan found in site content. |
+
+---
+
+## 7. Enabling tags in a block type **[UNRELEASED]**
+
+GenerateBlocks fills in dynamic tags only inside its own blocks. Site owners opt other block types in from the Tag Extensions settings page; the choice is saved as `core_blocks` in the plugin's settings ([`tag-reference.md` §Tags in core blocks](tag-reference.md#tags-in-core-blocks-unreleased)). Your plugin can switch a block type on itself, for a block it ships, with a filter over that list.
+
+```php
+add_filter( 'bws_dynamic_tags_core_blocks', function ( $blocks ) {
+    $blocks[] = 'my-plugin/callout';
+    return $blocks;
+} );
+```
+
+| Arg | Type | Meaning |
+|---|---|---|
+| `$blocks` | `string[]` | The block names the site saved on the settings page (empty by default). Return the list you want enabled. |
+
+- **It runs after the saved list, and its result is what every consumer reads.** You can add a name or remove one the site saved.
+- **Names are cleaned, not checked.** Anything that is not a `namespace/name` slug is dropped, and duplicates are merged.
+- **Only block types registered in time reach GenerateBlocks.** A name with no registered block type stays in the enabled set but is left out of GenerateBlocks' allowlist, and gets no loop context, until the type registers. A type that registers after the loop-context pass (`init`, priority 99) is also left out, so its tags print literally rather than reading the page. The saved list is never pruned.
+- **A block you add shows as enabled and locked on the settings page** ("Turned on by code on this site"), so the site owner cannot untick it there.
+- **It widens GenerateBlocks' save check too.** GenerateBlocks reads the same allowlist to decide whose `{{` content it refuses to save, so a user who may not post unfiltered HTML cannot save changes to a post that has `{{` anywhere in its content along with your block (the check is post-wide, not per block).
+- **Nothing is promised about a block the plugin has not classified.** Its tags are filled in and given loop context, but the plugin has not tested them in that block, and the guards that adjust a few tags for text-only core blocks do not apply to it.
 
 ---
 
