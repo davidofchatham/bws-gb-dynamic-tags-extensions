@@ -824,12 +824,21 @@ class SettingsPage {
 							<p class="bws-block-picker__showing" role="status" aria-live="polite"></p>
 							<details class="bws-block-picker__key">
 								<summary><?php echo esc_html( $text['key_summary'] ); ?></summary>
-								<dl>
-									<?php foreach ( $text['key'] as $entry ) : ?>
-										<dt><?php echo bws_core_blocks_picker_markup( $entry[0] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></dt>
-										<dd><?php echo bws_core_blocks_picker_markup( $entry[1] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></dd>
-									<?php endforeach; ?>
-								</dl>
+								<div class="bws-block-picker__key-body">
+									<dl>
+										<?php foreach ( $text['key'] as $entry ) : ?>
+											<dt><?php echo bws_core_blocks_picker_markup( $entry[0] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></dt>
+											<dd><?php echo bws_core_blocks_picker_markup( $entry[1] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></dd>
+										<?php endforeach; ?>
+									</dl>
+									<h3 class="bws-block-picker__key-heading"><?php echo esc_html( $text['key_limits_heading'] ); ?></h3>
+									<dl>
+										<?php foreach ( $text['key_limits'] as $entry ) : ?>
+											<dt><?php echo bws_core_blocks_picker_markup( $entry[0] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></dt>
+											<dd><?php echo bws_core_blocks_picker_markup( $entry[1] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></dd>
+										<?php endforeach; ?>
+									</dl>
+								</div>
 							</details>
 							<div class="bws-block-picker__region" role="region" aria-labelledby="bws-block-picker-caption" tabindex="0">
 								<table class="bws-block-picker__table">

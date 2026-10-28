@@ -216,7 +216,7 @@ function bws_core_blocks_survey_run(): array {
  * AJAX: run the scan, store it, hand back what the page needs to update itself.
  *
  * Response: `status` (the scan status line, totals included), `rows` (block name => { registered, unregistered,
- * registered_html, unregistered_html }, the last two being each Known or Unknown cell's content: count and tag list;
+ * registered_html, unregistered_html }, the last two being each Handled by GB or Not handled by GB cell's content: count and tag list;
  * only blocks with a count; the page shows 0 and no tag list in every other row).
  *
  * @since Unreleased

@@ -51,7 +51,7 @@ function bws_core_blocks_picker_strings(): array {
 		'code_set'           => __( 'Turned on by code on this site.', 'generateblocks' ),
 		'dirty'              => __( 'Unsaved changes', 'generateblocks' ),
 		'contents_inline'    => __( 'Inline text', 'generateblocks' ),
-		'contents_button'    => __( 'Inline text; the block is the link', 'generateblocks' ),
+		'contents_button'    => __( 'Link text', 'generateblocks' ),
 		'contents_list'      => __( 'No text of its own', 'generateblocks' ),
 		'contents_untested'  => __( 'Not tested', 'generateblocks' ),
 		'limits_inline'      => __( '`content` keeps inline formatting only; `table` returns empty', 'generateblocks' ),
@@ -62,36 +62,40 @@ function bws_core_blocks_picker_strings(): array {
 		'caption_before'     => __( 'Blocks, and what a tag can do in each', 'generateblocks' ),
 		'caption_after'      => __( 'Blocks, with the tags the last scan found in each and what a tag can do there', 'generateblocks' ),
 		'col_block'          => __( 'Block', 'generateblocks' ),
-		'col_contents'       => __( 'Contents', 'generateblocks' ),
-		'col_limits'         => __( 'Limits', 'generateblocks' ),
-		'col_known'          => __( 'Known', 'generateblocks' ),
-		'col_unknown'        => __( 'Unknown', 'generateblocks' ),
+		'col_contents'       => __( 'Holds', 'generateblocks' ),
+		'col_limits'         => __( 'Tag limits', 'generateblocks' ),
+		'col_known'          => __( 'Handled by GB', 'generateblocks' ),
+		'col_unknown'        => __( 'Not handled by GB', 'generateblocks' ),
 		/* translators: 1: column name, 2: ascending or descending. */
 		'sorted'             => __( 'Sorted by %1$s, %2$s.', 'generateblocks' ),
 		'ascending'          => __( 'ascending', 'generateblocks' ),
 		'descending'         => __( 'descending', 'generateblocks' ),
 		'key_summary'        => __( 'Key to the counts, symbols and limits', 'generateblocks' ),
-		// Term, then explanation. A limit's term is the Limits cell's own phrase (Invariant 6).
+		// Term, then explanation. The counts and Holds first, then the Tag limits cells under their
+		// own heading, so "–" reads in context. A limit's term is the cell's own phrase (Invariant 6).
 		'key'                => array(
-			array( __( 'Known', 'generateblocks' ), __( 'Tags registered with GenerateBlocks, including those of GenerateBlocks Pro, this plugin, and any other extension.', 'generateblocks' ) ),
-			array( __( 'Unknown', 'generateblocks' ), __( '`{{…}}` tags not registered with GenerateBlocks, which may belong to the theme, a plugin or a code snippet.', 'generateblocks' ) ),
-			array( __( '–', 'generateblocks' ), __( 'No limits. This plugin changes nothing about how a tag renders in this block.', 'generateblocks' ) ),
+			array( __( 'Handled by GB', 'generateblocks' ), __( 'Tags registered with GenerateBlocks, including those of GenerateBlocks Pro, this plugin, and any other extension. GenerateBlocks fills them in within its own blocks and the blocks enabled here.', 'generateblocks' ) ),
+			array( __( 'Not handled by GB', 'generateblocks' ), __( '`{{…}}` tags not registered with GenerateBlocks, which may belong to the theme, a plugin or a code snippet.', 'generateblocks' ) ),
 			array( __( 'No text of its own', 'generateblocks' ), __( 'The block holds other blocks, not text. Enabling it does not cover the blocks inside it: enable those, and put tags in them.', 'generateblocks' ) ),
+		),
+		'key_limits_heading' => __( 'Tag limits', 'generateblocks' ),
+		'key_limits'         => array(
+			array( __( '–', 'generateblocks' ), __( 'No limits. This plugin changes nothing about how a tag renders in this block.', 'generateblocks' ) ),
 			array( __( '`content` keeps inline formatting only', 'generateblocks' ), __( 'Text, bold, italics and links stay. Paragraph breaks, headings, lists and images are dropped, so long content runs together.', 'generateblocks' ) ),
 			array( __( '`content` keeps text only', 'generateblocks' ), __( 'Only the text stays. Links are dropped too.', 'generateblocks' ) ),
 			array( __( '`table` returns empty', 'generateblocks' ), __( 'Unless *Required to render* is disabled, GenerateBlocks removes the block, like a tag that returns no value.', 'generateblocks' ) ),
 			array( __( 'link tags return plain text', 'generateblocks' ), __( '`email`, `phone` and any tag set to *Link To* print just the address, number or text, not a link. In a Button\'s link, type `mailto:` or `tel:` before the tag yourself.', 'generateblocks' ) ),
 		),
 		'survey_none_yet'    => __( 'No scan has been run yet.', 'generateblocks' ),
-		/* translators: 1: known tags in the blocks listed below, 2: unknown tags in them, 3: date and time of the scan. */
-		'survey_status'      => __( '%1$d known tags and %2$d unknown tags found in the blocks below as of %3$s.', 'generateblocks' ),
-		'survey_desc'        => __( 'A scan checks all of your content (posts, pages, templates, patterns and block widgets) for `{{…}}` tags in every block in this list, enabled or not, and lists the tags each block holds, with how many of each, in the Known and Unknown columns, whether or not they are registered with GenerateBlocks. Blocks added only by a plugin\'s editor script are not listed.', 'generateblocks' ),
+		/* translators: 1: tags GenerateBlocks handles in the blocks listed below, 2: tags it does not handle in them, 3: date and time of the scan. */
+		'survey_status'      => __( 'Found in the blocks below as of %3$s: %1$d tags handled by GenerateBlocks and %2$d tags it does not handle.', 'generateblocks' ),
+		'survey_desc'        => __( 'A scan checks all of your content (posts, pages, templates, patterns and block widgets) for `{{…}}` tags in every block in this list, enabled or not, and lists the tags each block holds, with how many of each, split by whether they are registered with GenerateBlocks. Blocks added only by a plugin\'s editor script are not listed.', 'generateblocks' ),
 		// Read after a count, as screen reader text: "5 tag names", then the details control's own "collapsed".
 		'tags_toggle'        => __( 'tag names', 'generateblocks' ),
 		'survey_scan'        => __( 'Scan content for tags', 'generateblocks' ),
 		'survey_running'     => __( 'Scanning…', 'generateblocks' ),
 		'survey_error'       => __( 'The scan could not finish. Try again.', 'generateblocks' ),
-		'confirm_intro'      => __( 'These newly enabled blocks already hold known tags. Once you save, those tags are filled in on the site instead of showing as typed.', 'generateblocks' ),
+		'confirm_intro'      => __( 'These newly enabled blocks already hold tags GenerateBlocks handles. Once you save, those tags are filled in on the site instead of showing as typed.', 'generateblocks' ),
 		'confirm_save'       => __( 'Save anyway', 'generateblocks' ),
 		'confirm_back'       => __( 'Go back', 'generateblocks' ),
 		'note_warn'          => __( 'Warning:', 'generateblocks' ),
@@ -192,10 +196,10 @@ function bws_core_blocks_picker_rows( array $entries, array $categories, array $
 }
 
 /**
- * The Contents and Limits cells of a block, as keys into bws_core_blocks_picker_strings(). Asks
+ * The Holds and Tag limits cells of a block, as keys into bws_core_blocks_picker_strings(). Asks
  * the classification owner by block name and states only the consequence, never its map. A block
- * not registered right now is unclassified whatever its name says. Limits is what THIS plugin
- * enforces, so an unclassified block's Limits is "none", never "not tested".
+ * not registered right now is unclassified whatever its name says. Tag limits is what THIS plugin
+ * enforces, so an unclassified block's Tag limits is "none", never "not tested".
  *
  * @since Unreleased
  * @param string $name       Block name.
@@ -245,7 +249,7 @@ function bws_core_blocks_picker_row( string $name, string $title, string $catego
 }
 
 /**
- * One Known or Unknown cell's content, as HTML: the count, then the tags behind it. Before any
+ * One Handled by GB or Not handled by GB cell's content, as HTML: the count, then the tags behind it. Before any
  * scan the count is a dash with screen reader text, never 0 (a 0 would claim a scan found
  * nothing). The scan's reply carries this same string per cell, so a row refreshes without a reload.
  *

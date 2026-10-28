@@ -28,7 +28,7 @@
 
 	/**
 	 * The blocks a save should ask about: newly enabled (not in the initial posted set) with a
-	 * known-tag count above zero from the last scan. Advisory only; the caller never blocks.
+	 * handled-by-GB tag count above zero from the last scan. Advisory only; the caller never blocks.
 	 */
 	function needsConfirm( initial, posted, counts ) {
 		return posted.filter( function ( name ) {
@@ -38,7 +38,7 @@
 
 	/**
 	 * Rows ordered by one key, as a new array. A null value sorts after every other value
-	 * ascending (the Contents column's "Not tested"), so first descending. Ties keep their input
+	 * ascending (the Holds column's "Not tested"), so first descending. Ties keep their input
 	 * order in both directions, never reversed.
 	 */
 	function sortRows( rows, key, dir ) {
@@ -324,7 +324,7 @@
 			} );
 		} );
 
-		// A Known or Unknown cell for a block the scan found nothing in: the zero bws_core_blocks_survey_count_html() renders. A block it did find tags in arrives as server-built HTML instead.
+		// A Handled by GB or Not handled by GB cell for a block the scan found nothing in: the zero bws_core_blocks_survey_count_html() renders. A block it did find tags in arrives as server-built HTML instead.
 		function setZero( cell ) {
 			cell.textContent = '';
 			var zero = document.createElement( 'span' );
@@ -342,7 +342,7 @@
 			return items.filter( function ( li ) { return li.getAttribute( 'data-bws-block' ) === name; } )[ 0 ];
 		}
 
-		// Known-tag counts from the last scan, read off the rows.
+		// Handled-by-GB tag counts from the last scan, read off the rows.
 		function counts() {
 			var out = {};
 			items.forEach( function ( li ) {

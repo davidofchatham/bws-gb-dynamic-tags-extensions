@@ -7,7 +7,7 @@
  * which are selected or locked, which note each row carries, and that the checkboxes the page
  * posts, run through the real sanitizer (bws_core_blocks_clean), keep every saved name. The
  * wording itself is not asserted beyond the status line's two states and the vocabulary rules
- * (no em dash, no "selected", "registered" only in the Known and Unknown definitions); every
+ * (no em dash, no "selected", "registered" only in the Handled by GB and Not handled by GB definitions); every
  * note is checked only to have a string.
  *
  * Loads the real picker, enabled-set and classification files. Fabricated: __ / esc_html.
@@ -99,15 +99,15 @@ assert_same( 'unregistered row says so', true, in_array( 'unregistered', $rows['
 assert_same( 'unregistered filter-added row is locked and says both', array( true, array( 'unregistered', 'code_set' ) ), array( $rows['core/zzz-gone']['disabled'], $rows['core/zzz-gone']['notes'] ) );
 assert_same( 'no empty groups', true, count( array_filter( $groups, fn( $g ) => array() === $g['rows'] ) ) === 0 );
 
-echo "§3 — the Contents and Limits cells come from the classification owner\n";
+echo "§3 — the Holds and Tag limits cells come from the classification owner\n";
 $rows = rows_by_name( bws_core_blocks_picker_rows( $entries, $cats, array(), array() ) );
 $cell = static fn( string $name ): array => array( $rows[ $name ]['contents'], $rows[ $name ]['limits'], $rows[ $name ]['untested'] );
 foreach ( array( 'core/paragraph', 'core/heading', 'core/list-item', 'core/table' ) as $name ) {
 	assert_same( "{$name}: inline text, inline limits", array( 'contents_inline', 'limits_inline', false ), $cell( $name ) );
 }
-assert_same( 'core/button: the block is the link, text-only limits', array( 'contents_button', 'limits_button', false ), $cell( 'core/button' ) );
+assert_same( 'core/button: link text, text-only limits', array( 'contents_button', 'limits_button', false ), $cell( 'core/button' ) );
 assert_same( 'core/list: no text of its own, no limit', array( 'contents_list', 'limits_none', false ), $cell( 'core/list' ) );
-assert_same( 'unclassified: Not tested in Contents, Limits is a dash (this plugin applies no limit)', array( 'contents_untested', 'limits_none', true ), $cell( 'acme/widget' ) );
+assert_same( 'unclassified: Not tested in Holds, Tag limits is a dash (this plugin applies no limit)', array( 'contents_untested', 'limits_none', true ), $cell( 'acme/widget' ) );
 assert_same( 'a classified row carries no note (the cells say it)', array(), $rows['core/paragraph']['notes'] );
 $gone = rows_by_name( bws_core_blocks_picker_rows( $entries, $cats, array( 'acme/gone' ), array( 'acme/gone' ) ) );
 assert_same( 'an unregistered name is unclassified and carries only its saved-earlier note', array( 'contents_untested', 'limits_none', array( 'unregistered' ) ), array( $gone['acme/gone']['contents'], $gone['acme/gone']['limits'], $gone['acme/gone']['notes'] ) );
@@ -180,8 +180,8 @@ $groups = bws_core_blocks_picker_rows( array_merge( $entries, array( entry( 'gen
 	'generateblocks/text' => array( 'registered' => 162, 'unregistered' => 50 ),
 ) );
 assert_same( 'before any scan: the no-scan sentence alone', 'No scan has been run yet.', bws_core_blocks_survey_status( null, $groups, $text ) );
-assert_same( 'after a scan: known and unknown sums over the listed rows, with the date', '5 known tags and 1 unknown tags found in the blocks below as of WHEN.', bws_core_blocks_survey_status( array( 'time' => 1700000000 ), $groups, $text, $when ) );
-assert_same( 'a scan that found nothing in the listed blocks reads as zeros', '0 known tags and 0 unknown tags found in the blocks below as of WHEN.', bws_core_blocks_survey_status( array( 'time' => 1700000000 ), bws_core_blocks_picker_rows( $entries, $cats, array(), array(), array(), array() ), $text, $when ) );
+assert_same( 'after a scan: handled and not-handled sums over the listed rows, with the date', 'Found in the blocks below as of WHEN: 5 tags handled by GenerateBlocks and 1 tags it does not handle.', bws_core_blocks_survey_status( array( 'time' => 1700000000 ), $groups, $text, $when ) );
+assert_same( 'a scan that found nothing in the listed blocks reads as zeros', 'Found in the blocks below as of WHEN: 0 tags handled by GenerateBlocks and 0 tags it does not handle.', bws_core_blocks_survey_status( array( 'time' => 1700000000 ), bws_core_blocks_picker_rows( $entries, $cats, array(), array(), array(), array() ), $text, $when ) );
 assert_same( 'notes run warning, then advisory, in that order', array( 'warn', 'info' ), array_column( $text['notes'], 'tone' ) );
 $flat = array();
 array_walk_recursive( $text, static function ( $s ) use ( &$flat ) { $flat[] = $s; } );
@@ -194,18 +194,19 @@ foreach ( $text as $key => $value ) {
 		$says_registered[] = $key;
 	}
 }
-assert_same( '"registered" appears only where Known and Unknown are defined', array( 'key', 'survey_desc' ), $says_registered );
+assert_same( '"registered" appears only where Handled by GB and Not handled by GB are defined', array( 'key', 'survey_desc' ), $says_registered );
 
-echo "§6c — the key restates the Limits cells (Invariant 6)\n";
-$terms = array_column( $text['key'], 0 );
+echo "§6c — the key restates the Tag limits cells (Invariant 6)\n";
+$terms       = array_column( $text['key'], 0 );
+$limit_terms = array_column( $text['key_limits'], 0 );
 foreach ( array( 'limits_inline', 'limits_button', 'limits_none' ) as $key ) {
 	foreach ( explode( '; ', $text[ $key ] ) as $phrase ) {
-		assert_same( "key has an entry opening with the {$key} phrase '{$phrase}'", true, in_array( $phrase, $terms, true ) );
+		assert_same( "the Tag limits group has an entry opening with the {$key} phrase '{$phrase}'", true, in_array( $phrase, $limit_terms, true ) );
 	}
 }
-assert_same( 'key has an entry for Contents "No text of its own"', true, in_array( $text['contents_list'], $terms, true ) );
-assert_same( 'key entries come in the order a reader meets the values', array( 'Known', 'Unknown', '–', 'No text of its own' ), array_slice( $terms, 0, 4 ) );
-assert_same( 'every key entry has a term and an explanation', true, array() === array_filter( $text['key'], static fn( $e ) => 2 !== count( $e ) || '' === $e[0] || '' === $e[1] ) );
+assert_same( 'the first group is the counts, then Holds "No text of its own"', array( 'Handled by GB', 'Not handled by GB', $text['contents_list'] ), $terms );
+assert_same( 'the Tag limits group opens with "–", under its own heading', array( '–', 'Tag limits' ), array( $limit_terms[0], $text['key_limits_heading'] ) );
+assert_same( 'every key entry has a term and an explanation', true, array() === array_filter( array_merge( $text['key'], $text['key_limits'] ), static fn( $e ) => 2 !== count( $e ) || '' === $e[0] || '' === $e[1] ) );
 
 echo "§7 — GenerateBlocks' own allowlisted blocks are left out\n";
 $gb_entries = array_merge( $entries, array( entry( 'generateblocks/text', 'Text', 'text' ), entry( 'generateblocks-pro/thing', 'Pro Thing', 'text' ) ) );
