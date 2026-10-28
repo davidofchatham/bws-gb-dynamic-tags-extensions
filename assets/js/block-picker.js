@@ -324,13 +324,9 @@
 			} );
 		} );
 
-		// A Known or Unknown cell after a scan; the same shape bws_core_blocks_survey_count_html() renders.
-		function setCount( cell, n ) {
+		// A Known or Unknown cell for a block the scan found nothing in: the zero bws_core_blocks_survey_count_html() renders. A block it did find tags in arrives as server-built HTML instead.
+		function setZero( cell ) {
 			cell.textContent = '';
-			if ( n ) {
-				cell.textContent = n;
-				return;
-			}
 			var zero = document.createElement( 'span' );
 			zero.className = 'bws-block-picker__zero';
 			zero.textContent = '0';
@@ -427,7 +423,13 @@
 							li.setAttribute( 'data-bws-registered', row ? row.registered : 0 );
 							li.setAttribute( 'data-bws-other', row ? row.unregistered : 0 );
 							[ 'registered', 'unregistered' ].forEach( function ( kind ) {
-								setCount( li.querySelector( '[data-bws-count="' + kind + '"]' ), row ? row[ kind ] : 0 );
+								var cell = li.querySelector( '[data-bws-count="' + kind + '"]' );
+								if ( row ) {
+									// Server-built and escaped: the markup the page loads with (bws_core_blocks_survey_count_html()).
+									cell.innerHTML = row[ kind + '_html' ];
+								} else {
+									setZero( cell );
+								}
 							} );
 						} );
 						caption.textContent = cfg.strings.caption;

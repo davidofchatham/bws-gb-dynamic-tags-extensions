@@ -85,7 +85,9 @@ function bws_core_blocks_picker_strings(): array {
 		'survey_none_yet'    => __( 'No scan has been run yet.', 'generateblocks' ),
 		/* translators: 1: known tags in the blocks listed below, 2: unknown tags in them, 3: date and time of the scan. */
 		'survey_status'      => __( '%1$d known tags and %2$d unknown tags found in the blocks below as of %3$s.', 'generateblocks' ),
-		'survey_desc'        => __( 'A scan checks all of your content (posts, pages, templates, patterns and block widgets) for `{{…}}` tags in every block in this list, enabled or not, and shows how many each block holds, whether or not they are registered with GenerateBlocks. Blocks added only by a plugin\'s editor script are not listed.', 'generateblocks' ),
+		'survey_desc'        => __( 'A scan checks all of your content (posts, pages, templates, patterns and block widgets) for `{{…}}` tags in every block in this list, enabled or not, and lists the tags each block holds, with how many of each, in the Known and Unknown columns, whether or not they are registered with GenerateBlocks. Blocks added only by a plugin\'s editor script are not listed.', 'generateblocks' ),
+		// Read after a count, as screen reader text: "5 tag names", then the details control's own "collapsed".
+		'tags_toggle'        => __( 'tag names', 'generateblocks' ),
 		'survey_scan'        => __( 'Scan content for tags', 'generateblocks' ),
 		'survey_running'     => __( 'Scanning…', 'generateblocks' ),
 		'survey_error'       => __( 'The scan could not finish. Try again.', 'generateblocks' ),
@@ -128,7 +130,9 @@ function bws_core_blocks_picker_markup( string $text ): string {
  * disabled one both post nothing, so the page never writes it into the saved list.
  *
  * Row keys: name, title, selected, disabled, variations (titles), registered and unregistered
- * (the last scan's tag counts for the block: ints once a scan exists, null before), search (lowercase haystack),
+ * (the last scan's tag counts for the block: ints once a scan exists, null before),
+ * registered_tags and unregistered_tags (the tag names behind those counts, name => times found; empty before a scan),
+ * search (lowercase haystack),
  * contents and limits (string keys, see bws_core_blocks_picker_cells()), untested (bool), notes
  * (keys into bws_core_blocks_picker_strings(): `unregistered` and `code_set` when they apply).
  *
@@ -225,34 +229,50 @@ function bws_core_blocks_picker_row( string $name, string $title, string $catego
 	return array_merge(
 		bws_core_blocks_picker_cells( $name, $registered ),
 		array(
-			'name'         => $name,
-			'title'        => $title,
-			'selected'     => $selected,
-			'disabled'     => $code_set,
-			'variations'   => array_values( array_map( 'strval', $variations ) ),
-			'registered'   => null === $survey ? null : (int) ( $survey[ $name ]['registered'] ?? 0 ),
-			'unregistered' => null === $survey ? null : (int) ( $survey[ $name ]['unregistered'] ?? 0 ),
-			'search'       => strtolower( implode( ' ', array_merge( array( $title, $name, $category_label ), $variations ) ) ),
-			'notes'        => $notes,
+			'name'              => $name,
+			'title'             => $title,
+			'selected'          => $selected,
+			'disabled'          => $code_set,
+			'variations'        => array_values( array_map( 'strval', $variations ) ),
+			'registered'        => null === $survey ? null : (int) ( $survey[ $name ]['registered'] ?? 0 ),
+			'unregistered'      => null === $survey ? null : (int) ( $survey[ $name ]['unregistered'] ?? 0 ),
+			'registered_tags'   => (array) ( $survey[ $name ]['registered_tags'] ?? array() ),
+			'unregistered_tags' => (array) ( $survey[ $name ]['unregistered_tags'] ?? array() ),
+			'search'            => strtolower( implode( ' ', array_merge( array( $title, $name, $category_label ), $variations ) ) ),
+			'notes'             => $notes,
 		)
 	);
 }
 
 /**
- * One Known or Unknown cell's content, as HTML. Before any scan it is a dash with screen reader
- * text, never 0 (a 0 would claim a scan found nothing). block-picker.js writes the same shape
- * after a scan so a row refreshes without a reload.
+ * One Known or Unknown cell's content, as HTML: the count, then the tags behind it. Before any
+ * scan the count is a dash with screen reader text, never 0 (a 0 would claim a scan found
+ * nothing). The scan's reply carries this same string per cell, so a row refreshes without a reload.
+ *
+ * The tags are a mid-dot list of `tag (n)`, most-found first then by name, so the order does not
+ * depend on the order the scan met them in. They sit behind a disclosure on the count (closed by
+ * default; a native details element, so no script is involved). No tags, no disclosure.
  *
  * @since Unreleased
- * @param int|null $count The last scan's count for this block and kind, or null before any scan.
- * @param array    $text  bws_core_blocks_picker_strings().
+ * @param int|null           $count The last scan's count for this block and kind, or null before any scan.
+ * @param array              $text  bws_core_blocks_picker_strings().
+ * @param array<string, int> $tags  Tag name => times found, for this block and kind.
  * @return string HTML.
  */
-function bws_core_blocks_survey_count_html( ?int $count, array $text ): string {
+function bws_core_blocks_survey_count_html( ?int $count, array $text, array $tags = array() ): string {
 	if ( null === $count ) {
 		return '<span aria-hidden="true">–</span><span class="screen-reader-text">' . esc_html( $text['count_unscanned'] ) . '</span>';
 	}
-	return 0 === $count ? '<span class="bws-block-picker__zero">0</span>' : (string) $count;
+	if ( 0 === $count || ! $tags ) {
+		return 0 === $count ? '<span class="bws-block-picker__zero">0</span>' : (string) $count;
+	}
+	uksort( $tags, static fn( $a, $b ): int => $tags[ $b ] <=> $tags[ $a ] ?: strcmp( (string) $a, (string) $b ) );
+	$items = array();
+	foreach ( $tags as $name => $n ) {
+		$items[] = '<code>' . esc_html( (string) $name ) . '</code> (' . (int) $n . ')';
+	}
+	return '<details class="bws-block-picker__tagged"><summary>' . $count . '<span class="screen-reader-text"> ' . esc_html( $text['tags_toggle'] ) . '</span></summary>'
+		. '<span class="bws-block-picker__tags">' . implode( ' · ', $items ) . '</span></details>';
 }
 
 /**

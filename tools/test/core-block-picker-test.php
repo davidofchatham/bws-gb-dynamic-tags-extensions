@@ -152,7 +152,22 @@ $cell = bws_core_blocks_survey_count_html( null, $text );
 assert_same( 'before any scan the count cell is a dash with screen reader text, never 0', true, false !== strpos( $cell, '–' ) && false !== strpos( $cell, $text['count_unscanned'] ) && false === strpos( $cell, '0' ) );
 assert_same( 'a scan that found nothing here shows a muted 0', true, false !== strpos( bws_core_blocks_survey_count_html( 0, $text ), '>0<' ) && false !== strpos( bws_core_blocks_survey_count_html( 0, $text ), 'bws-block-picker__zero' ) );
 assert_same( 'a count shows the number, unmuted', array( true, false ), array( false !== strpos( bws_core_blocks_survey_count_html( 12, $text ), '12' ), false !== strpos( bws_core_blocks_survey_count_html( 12, $text ), 'zero' ) ) );
-foreach ( array( 'heading', 'intro', 'survey_none_yet', 'survey_status', 'survey_desc', 'survey_scan', 'survey_running', 'survey_error', 'confirm_intro', 'note_warn', 'note_info', 'confirm_save', 'confirm_back', 'show_legend', 'show_default', 'show_default_unscanned', 'show_enabled', 'show_tags', 'show_all', 'cat_label', 'cat_all', 'reset', 'showing', 'showing_hint', 'empty_filtered', 'empty_default', 'empty_default_unscanned', 'show_all_button' ) as $key ) {
+$survey = array( 'core/paragraph' => array( 'registered' => 4, 'unregistered' => 1, 'registered_tags' => array( 'join' => 1, 'text' => 3 ), 'unregistered_tags' => array( 'a<b' => 1 ) ) );
+$rows   = rows_by_name( bws_core_blocks_picker_rows( $entries, $cats, array(), array(), array(), $survey ) );
+assert_same( 'a scanned block carries the tag names behind its counts', array( array( 'join' => 1, 'text' => 3 ), array( 'a<b' => 1 ) ), array( $rows['core/paragraph']['registered_tags'], $rows['core/paragraph']['unregistered_tags'] ) );
+assert_same( 'a block with no tags carries empty lists', array( array(), array() ), array( $rows['core/heading']['registered_tags'], $rows['core/heading']['unregistered_tags'] ) );
+$open = static fn( string $inner, string $n = '4' ): string => '<details class="bws-block-picker__tagged"><summary>' . $n . '<span class="screen-reader-text"> tag names</span></summary><span class="bws-block-picker__tags">' . $inner . '</span></details>';
+assert_same(
+	'a count with tags is a closed disclosure: the count, then the tags most-found first',
+	$open( '<code>text</code> (3) · <code>join</code> (1)' ),
+	bws_core_blocks_survey_count_html( 4, $text, array( 'join' => 1, 'text' => 3 ) )
+);
+assert_same( 'a name with markup is escaped', true, false !== strpos( bws_core_blocks_survey_count_html( 1, $text, array( 'a<b' => 1 ) ), '<code>a&lt;b</code> (1)' ) );
+assert_same( 'equal counts fall back to name order', $open( '<code>a</code> (2) · <code>b</code> (2)' ), bws_core_blocks_survey_count_html( 4, $text, array( 'b' => 2, 'a' => 2 ) ) );
+assert_same( 'no tags, no disclosure: the bare count', '4', bws_core_blocks_survey_count_html( 4, $text ) );
+assert_same( 'a zero stays the muted zero, with no disclosure', false, strpos( bws_core_blocks_survey_count_html( 0, $text ), 'details' ) );
+assert_same( 'before any scan there is no disclosure even if tags were passed', false, strpos( bws_core_blocks_survey_count_html( null, $text, array( 'x' => 1 ) ), 'details' ) );
+foreach ( array( 'tags_toggle', 'heading', 'intro', 'survey_none_yet', 'survey_status', 'survey_desc', 'survey_scan', 'survey_running', 'survey_error', 'confirm_intro', 'note_warn', 'note_info', 'confirm_save', 'confirm_back', 'show_legend', 'show_default', 'show_default_unscanned', 'show_enabled', 'show_tags', 'show_all', 'cat_label', 'cat_all', 'reset', 'showing', 'showing_hint', 'empty_filtered', 'empty_default', 'empty_default_unscanned', 'show_all_button' ) as $key ) {
 	assert_same( "string for '{$key}'", true, is_string( $text[ $key ] ?? null ) && '' !== $text[ $key ] );
 }
 

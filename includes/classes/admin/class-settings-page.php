@@ -870,8 +870,8 @@ class SettingsPage {
 													</th>
 													<td class="bws-block-picker__cell<?php echo $row['untested'] ? ' bws-block-picker__cell--muted' : ''; ?>"><?php echo esc_html( $text[ $row['contents'] ] ); ?></td>
 													<td class="bws-block-picker__cell<?php echo 'limits_none' === $row['limits'] ? ' bws-block-picker__cell--muted' : ''; ?>"><?php echo 'limits_none' === $row['limits'] ? '<span aria-hidden="true">' . esc_html( $text['limits_none'] ) . '</span><span class="screen-reader-text">' . esc_html( $text['limits_none_sr'] ) . '</span>' : bws_core_blocks_picker_markup( $text[ $row['limits'] ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></td>
-													<td class="bws-block-picker__num" data-bws-count="registered"><?php echo bws_core_blocks_survey_count_html( $row['registered'], $text ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></td>
-													<td class="bws-block-picker__num" data-bws-count="unregistered"><?php echo bws_core_blocks_survey_count_html( $row['unregistered'], $text ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></td>
+													<td class="bws-block-picker__num" data-bws-count="registered"><?php echo bws_core_blocks_survey_count_html( $row['registered'], $text, $row['registered_tags'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></td>
+													<td class="bws-block-picker__num" data-bws-count="unregistered"><?php echo bws_core_blocks_survey_count_html( $row['unregistered'], $text, $row['unregistered_tags'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></td>
 												</tr>
 											<?php endforeach; ?>
 										</tbody>

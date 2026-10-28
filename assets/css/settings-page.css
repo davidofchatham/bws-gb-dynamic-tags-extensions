@@ -519,6 +519,13 @@
 .bws-dynamic-tags-settings .bws-block-picker__rowhead { display: flex; gap: 10px; }
 .bws-dynamic-tags-settings .bws-block-picker__rowhead input[type="checkbox"] { flex: none; margin-top: 3px; }
 .bws-dynamic-tags-settings .bws-block-picker__sub { display: block; margin-top: 2px; color: var(--bws-muted); font-size: var(--gp-size-meta, 13px); }
+/* The count is the disclosure's summary: its chevron sits before the digits, so right-aligned digits stay lined up under the header. */
+.bws-dynamic-tags-settings .bws-block-picker__tagged > summary { display: block; cursor: pointer; list-style: none; }
+.bws-dynamic-tags-settings .bws-block-picker__tagged > summary::-webkit-details-marker { display: none; }
+.bws-dynamic-tags-settings .bws-block-picker__tagged > summary::before { content: "\25B8"; margin-inline-end: 4px; color: var(--bws-muted); }
+.bws-dynamic-tags-settings .bws-block-picker__tagged[open] > summary::before { content: "\25BE"; }
+/* The tag list under a count: left-aligned, wrapping, and no wider than the digits column can stand. */
+.bws-dynamic-tags-settings .bws-block-picker__tags { display: block; max-width: 18em; margin-top: 4px; font-size: var(--gp-size-meta, 13px); text-align: start; white-space: normal; overflow-wrap: anywhere; }
 .bws-dynamic-tags-settings .bws-block-picker__item code { font-size: var(--gp-size-meta, 13px); }
 /* Contents and Limits share one text size. */
 .bws-dynamic-tags-settings .bws-block-picker__cell { font-size: var(--gp-size-meta, 13px); }

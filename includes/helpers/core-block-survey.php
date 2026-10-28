@@ -6,10 +6,12 @@
  * into REGISTERED tags (the ones that start printing a value once their block type is enabled)
  * and unregistered ones (which stay literal regardless). Never a gate.
  *
- * Three parts: the pure WALK over one post-content string (the unit FW-128's shared scanner and
- * FW-155's converter are meant to adopt; it takes the string and a registered-name test and
- * knows nothing of WordPress storage), the pure helpers around its result, and the
- * WordPress-side RUNNER that feeds it every post and block widget and answers the AJAX call.
+ * Three parts: the pure WALK over one post-content string (it takes the string and a
+ * registered-name test and knows nothing of WordPress storage), the pure helpers around its
+ * result, and the WordPress-side RUNNER that feeds it every post and block widget and answers
+ * the AJAX call. FW-155's converter is meant to read block types through the same walk; FW-73
+ * reaches the same two sources the runner enumerates (every post, then every block widget), and
+ * whether they share that enumeration is decided when FW-73 is built.
  *
  * @package BWS_Dynamic_Tags
  * @since Unreleased
@@ -35,7 +37,7 @@ const BWS_CORE_BLOCKS_SURVEY_OPTION = 'bws_dynamic_tags_core_block_survey';
  * @since Unreleased
  * @param string   $content       Post content (block markup).
  * @param callable $is_registered Given a tag name, whether GB has it registered.
- * @return array<string, array{registered: int, unregistered: int}> Block name => counts; blocks with no tag are absent.
+ * @return array<string, array{registered: int, unregistered: int, registered_tags: array<string, int>, unregistered_tags: array<string, int>}> Block name => counts and, per kind, tag name => times found; blocks with no tag are absent.
  */
 function bws_core_blocks_survey_walk( string $content, callable $is_registered ): array {
 	if ( false === strpos( $content, '{{' ) ) {
@@ -57,8 +59,10 @@ function bws_core_blocks_survey_walk_blocks( array $blocks, callable $is_registe
 			$own = implode( '', array_filter( (array) ( $block['innerContent'] ?? array() ), 'is_string' ) );
 			if ( false !== strpos( $own, '{{' ) && preg_match_all( '/\{\{\s*([A-Za-z0-9_\-.]+)(?:\s[^}]*)?\}\}/', $own, $found ) ) {
 				foreach ( $found[1] as $tag ) {
-					$out[ $name ] = $out[ $name ] ?? array( 'registered' => 0, 'unregistered' => 0 );
-					++$out[ $name ][ $is_registered( $tag ) ? 'registered' : 'unregistered' ];
+					$out[ $name ] = $out[ $name ] ?? bws_core_blocks_survey_cell();
+					$kind         = $is_registered( $tag ) ? 'registered' : 'unregistered';
+					++$out[ $name ][ $kind ];
+					$out[ $name ][ $kind . '_tags' ][ $tag ] = 1 + ( $out[ $name ][ $kind . '_tags' ][ $tag ] ?? 0 );
 				}
 			}
 		}
@@ -66,6 +70,21 @@ function bws_core_blocks_survey_walk_blocks( array $blocks, callable $is_registe
 			bws_core_blocks_survey_walk_blocks( (array) $block['innerBlocks'], $is_registered, $out );
 		}
 	}
+}
+
+/**
+ * An empty per-block cell: the two counts and, per kind, the tag names behind them.
+ *
+ * @since Unreleased
+ * @return array
+ */
+function bws_core_blocks_survey_cell(): array {
+	return array(
+		'registered'        => 0,
+		'unregistered'      => 0,
+		'registered_tags'   => array(),
+		'unregistered_tags' => array(),
+	);
 }
 
 /**
@@ -78,9 +97,13 @@ function bws_core_blocks_survey_walk_blocks( array $blocks, callable $is_registe
  */
 function bws_core_blocks_survey_merge( array $total, array $part ): array {
 	foreach ( $part as $name => $cell ) {
-		$total[ $name ] = $total[ $name ] ?? array( 'registered' => 0, 'unregistered' => 0 );
-		$total[ $name ]['registered']   += (int) $cell['registered'];
-		$total[ $name ]['unregistered'] += (int) $cell['unregistered'];
+		$total[ $name ] = $total[ $name ] ?? bws_core_blocks_survey_cell();
+		foreach ( array( 'registered', 'unregistered' ) as $kind ) {
+			$total[ $name ][ $kind ] += (int) $cell[ $kind ];
+			foreach ( (array) ( $cell[ $kind . '_tags' ] ?? array() ) as $tag => $n ) {
+				$total[ $name ][ $kind . '_tags' ][ $tag ] = (int) $n + ( $total[ $name ][ $kind . '_tags' ][ $tag ] ?? 0 );
+			}
+		}
 	}
 	return $total;
 }
@@ -104,6 +127,14 @@ function bws_core_blocks_survey_clean( $raw ): ?array {
 				'registered'   => (int) ( $cell['registered'] ?? 0 ),
 				'unregistered' => (int) ( $cell['unregistered'] ?? 0 ),
 			);
+			foreach ( array( 'registered', 'unregistered' ) as $kind ) {
+				$blocks[ $name ][ $kind . '_tags' ] = array();
+				foreach ( (array) ( $cell[ $kind . '_tags' ] ?? array() ) as $tag => $n ) {
+					if ( (int) $n > 0 && preg_match( '/^[A-Za-z0-9_\-.]+$/', (string) $tag ) ) {
+						$blocks[ $name ][ $kind . '_tags' ][ $tag ] = (int) $n;
+					}
+				}
+			}
 		}
 	}
 	$widgets = is_array( $raw['widgets'] ?? null ) ? $raw['widgets'] : array();
@@ -184,8 +215,9 @@ function bws_core_blocks_survey_run(): array {
 /**
  * AJAX: run the scan, store it, hand back what the page needs to update itself.
  *
- * Response: `status` (the scan status line, totals included), `rows` (block name => { registered, unregistered }, only
- * blocks with a count; the page shows 0 in every other row).
+ * Response: `status` (the scan status line, totals included), `rows` (block name => { registered, unregistered,
+ * registered_html, unregistered_html }, the last two being each Known or Unknown cell's content: count and tag list;
+ * only blocks with a count; the page shows 0 and no tag list in every other row).
  *
  * @since Unreleased
  */
@@ -203,8 +235,10 @@ function bws_core_blocks_survey_ajax(): void {
 	$rows = array();
 	foreach ( $result['blocks'] as $name => $cell ) {
 		$rows[ $name ] = array(
-			'registered'   => $cell['registered'],
-			'unregistered' => $cell['unregistered'],
+			'registered'        => $cell['registered'],
+			'unregistered'      => $cell['unregistered'],
+			'registered_html'   => bws_core_blocks_survey_count_html( $cell['registered'], $text, $cell['registered_tags'] ),
+			'unregistered_html' => bws_core_blocks_survey_count_html( $cell['unregistered'], $text, $cell['unregistered_tags'] ),
 		);
 	}
 	wp_send_json_success(
