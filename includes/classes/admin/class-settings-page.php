@@ -949,8 +949,6 @@ class SettingsPage {
 			<form method="post" action="options.php" id="bws-settings-form">
 				<?php settings_fields( 'bws_dynamic_tags_settings_group' ); ?>
 
-				<?php self::render_core_blocks_section(); ?>
-
 				<?php /* ── Email ── */ ?>
 				<div class="bws-tag-group">
 					<h2 class="bws-section-header"><?php esc_html_e( 'Email', 'generateblocks' ); ?></h2>
@@ -1136,6 +1134,8 @@ function my_result( $post_id, $arg = '' ) {
 					</table>
 					</div>
 				</div>
+
+				<?php self::render_core_blocks_section(); ?>
 
 				<?php /* ── Deprecated Tags (lifecycle 'deprecated'; registered hidden or migration-only, never listed; the K/S/D controls are FW-81's to rewire) ── */ ?>
 				<?php if ( ! empty( $live_with ) || ! empty( $live_without ) ) : ?>
