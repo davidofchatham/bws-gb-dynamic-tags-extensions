@@ -467,6 +467,10 @@ class TagTemplateRegistry {
 				if ( $media_guard && function_exists( 'bws_tag_blocked_on_media_block' ) && bws_tag_blocked_on_media_block( $b ) ) {
 					return '';
 				}
+				// A button host holds link text, never content: nothing, so GB blanks the block (FW-156).
+				if ( 'content' === $tpl_key && bws_core_block_is_button( $b ) ) {
+					return '';
+				}
 				$opts = bws_host_unlinked_options( $opts, $b );
 
 				// THE WALK (includes/helpers/try-slot-loop.php). Null = every attempt read

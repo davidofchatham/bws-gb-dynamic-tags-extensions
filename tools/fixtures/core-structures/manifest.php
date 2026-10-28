@@ -1111,7 +1111,7 @@ return array(
 		// v34 (FW-156): the three {{content}} values the core-block strip rows read. The plain
 		// and formatted pair mirror matrix-content's CT9.4 / CT9.5 under the same keys; the
 		// third carries inline tags (bold, italic, a link), the ones the strip keeps in a
-		// paragraph and drops the link from in a button.
+		// paragraph; in a button the same value prints nothing.
 		'page-matrix-core-blocks' => array(
 			'bws_block_plain'     => "Plain line one.\n\nPlain line two.",
 			'bws_block_formatted' => "<p>Formatted one,\nwith a soft line break.</p>\n<p>Formatted two.</p>",

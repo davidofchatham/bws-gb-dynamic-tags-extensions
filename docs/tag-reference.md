@@ -536,7 +536,7 @@ Some core blocks hold text only. Where one does, a few tags adjust to it, and a 
 |---|---|---|---|
 | Paragraph, Heading, List Item | Prints nothing, so GenerateBlocks hides the block | Reduced to inline content (below) | Unchanged |
 | Table | Prints nothing, so GenerateBlocks hides the table | Reduced to inline content | Unchanged |
-| Button | Prints nothing, so GenerateBlocks hides the button | Reduced to inline content, links dropped too | Prints the bare value (address, number or text) in the button's text and in its `href`, never empty. For a mail or phone link, type `mailto:` or `tel:` before the tag in the button's link yourself; GenerateBlocks adds `http://` to a link with no scheme ([`gb-constraints.md`](gb-constraints.md#generateblocks-runs-esc_url-over-a-url-attribute-after-replacement-gb-250-wp-713)) |
+| Button | Prints nothing, so GenerateBlocks hides the button | Prints nothing, so GenerateBlocks hides the button | Prints the bare value (address, number or text) in the button's text and in its `href`, never empty. For a mail or phone link, type `mailto:` or `tel:` before the tag in the button's link yourself; GenerateBlocks adds `http://` to a link with no scheme ([`gb-constraints.md`](gb-constraints.md#generateblocks-runs-esc_url-over-a-url-attribute-after-replacement-gb-250-wp-713)) |
 | List | Unconstrained; the row says to put tags in List Item | Unconstrained | Unchanged |
 | Any other block | Unconstrained | Unconstrained | Unchanged |
 

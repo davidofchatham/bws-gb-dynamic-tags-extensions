@@ -105,7 +105,7 @@ $cell = static fn( string $name ): array => array( $rows[ $name ]['contents'], $
 foreach ( array( 'core/paragraph', 'core/heading', 'core/list-item', 'core/table' ) as $name ) {
 	assert_same( "{$name}: inline text, inline limits", array( 'contents_inline', 'limits_inline', false ), $cell( $name ) );
 }
-assert_same( 'core/button: link text, text-only limits', array( 'contents_button', 'limits_button', false ), $cell( 'core/button' ) );
+assert_same( 'core/button: link text, button limits', array( 'contents_button', 'limits_button', false ), $cell( 'core/button' ) );
 assert_same( 'core/list: no text of its own, no limit', array( 'contents_list', 'limits_none', false ), $cell( 'core/list' ) );
 assert_same( 'unclassified: Not tested in Holds, Tag limits is a dash (this plugin applies no limit)', array( 'contents_untested', 'limits_none', true ), $cell( 'acme/widget' ) );
 assert_same( 'a classified row carries no note (the cells say it)', array(), $rows['core/paragraph']['notes'] );

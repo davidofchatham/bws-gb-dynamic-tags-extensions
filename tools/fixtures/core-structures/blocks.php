@@ -2535,7 +2535,7 @@ function bws_fixture_page_content_matrix_core_blocks() {
 		$row( 'CB3.3 core/paragraph, a formatted value (-> Formatted one, with a soft line break. Formatted two. in one paragraph)', $paragraph( '{{content use:key|key:bws_block_formatted}}' ) ),
 		$row( 'CB3.4 core/paragraph, a bare run from a stated fallback (-> Nothing stored. unchanged)', $paragraph( '{{content use:key|key:bws_missing_key|fallback:Nothing stored.}}' ) ),
 		$row( 'CB3.5 core/paragraph, a value carrying inline tags (-> Open weekdays in bold and holidays in italics, then our hours as a LINK to example.test/hours/: all three kept)', $paragraph( $inl ) ),
-		$row( 'CB3.6 core/button, the same value (-> bold and italics kept, our hours as plain text: a link is dropped inside a button, because the button is the link)', $button( $inl, '#' ) ),
+		$row( 'CB3.6 core/button, the same value (-> the button is hidden: content is refused in a button; only the empty buttons wrapper remains, matrix note N1)', $button( $inl, '#' ) ),
 		bws_fixture_gb_block_host_row( 'CB3.7 GB text block control (-> TWO separate paragraphs: Plain line one. / Plain line two.)', $plain ),
 	) );
 

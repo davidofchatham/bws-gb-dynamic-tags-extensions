@@ -55,7 +55,7 @@ function bws_core_blocks_picker_strings(): array {
 		'contents_list'      => __( 'No text of its own', 'generateblocks' ),
 		'contents_untested'  => __( 'Not tested', 'generateblocks' ),
 		'limits_inline'      => __( '`content` keeps inline formatting only; `table` returns empty', 'generateblocks' ),
-		'limits_button'      => __( '`content` keeps text only; `table` returns empty; link tags return plain text', 'generateblocks' ),
+		'limits_button'      => __( '`content` and `table` return empty; link tags return plain text', 'generateblocks' ),
 		'limits_none'        => __( '–', 'generateblocks' ),
 		'limits_none_sr'     => __( 'No limit', 'generateblocks' ),
 		'count_unscanned'    => __( 'Not scanned', 'generateblocks' ),
@@ -82,8 +82,8 @@ function bws_core_blocks_picker_strings(): array {
 		'key_limits'         => array(
 			array( __( '–', 'generateblocks' ), __( 'No limits. This plugin changes nothing about how a tag renders in this block.', 'generateblocks' ) ),
 			array( __( '`content` keeps inline formatting only', 'generateblocks' ), __( 'Text, bold, italics and links stay. Paragraph breaks, headings, lists and images are dropped, so long content runs together.', 'generateblocks' ) ),
-			array( __( '`content` keeps text only', 'generateblocks' ), __( 'Only the text stays. Links are dropped too.', 'generateblocks' ) ),
 			array( __( '`table` returns empty', 'generateblocks' ), __( 'Unless *Required to render* is disabled, GenerateBlocks removes the block, like a tag that returns no value.', 'generateblocks' ) ),
+			array( __( '`content` and `table` return empty', 'generateblocks' ), __( 'Neither belongs in a button. Unless *Required to render* is disabled, GenerateBlocks removes the button, like a tag that returns no value.', 'generateblocks' ) ),
 			array( __( 'link tags return plain text', 'generateblocks' ), __( '`email`, `phone` and any tag set to *Link To* print just the address, number or text, not a link. In a Button\'s link, type `mailto:` or `tel:` before the tag yourself.', 'generateblocks' ) ),
 		),
 		'survey_none_yet'    => __( 'No scan has been run yet.', 'generateblocks' ),

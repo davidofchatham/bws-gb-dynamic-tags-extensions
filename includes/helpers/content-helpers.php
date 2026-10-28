@@ -463,25 +463,23 @@ function bws_markup_has_block_level_tag( string $markup ): bool {
  * Images and figures are dropped whole. A run of block tags (open or close) collapses, with
  * the whitespace around it, to ONE space, never a `<br>`; the result is trimmed. Text between
  * tags is otherwise untouched, so a bare run comes out as it went in. `img` is on the inline
- * list but cannot live in an inline-only host, so it is dropped here as well. The kept `a` is
- * the one refinement: when $keep_anchors is false (the host is itself the link) it goes too.
+ * list but cannot live in an inline-only host, so it is dropped here as well.
  *
  * @since Unreleased
  *
- * @param string $markup       Value to reduce.
- * @param bool   $keep_anchors Whether `a` survives.
+ * @param string $markup Value to reduce.
  * @return string
  */
 if ( ! function_exists( 'bws_markup_strip_to_inline' ) ) {
-function bws_markup_strip_to_inline( string $markup, bool $keep_anchors = true ): string {
+function bws_markup_strip_to_inline( string $markup ): string {
 	$inline = bws_markup_inline_tags();
 	$gap    = "\x01";
 	$out    = preg_replace( array( '/<!--.*?-->/s', '/<figure(?=[\s\/>]).*?<\/figure\s*>/is' ), '', $markup );
 	$out    = preg_replace_callback(
 		'/<\/?([a-z][a-z0-9-]*)(?=[\s\/>])[^>]*>/i',
-		static function ( $m ) use ( $inline, $keep_anchors, $gap ) {
+		static function ( $m ) use ( $inline, $gap ) {
 			$name = strtolower( $m[1] );
-			if ( 'img' === $name || ( 'a' === $name && ! $keep_anchors ) ) {
+			if ( 'img' === $name ) {
 				return '';
 			}
 			return in_array( $name, $inline, true ) ? $m[0] : $gap;
@@ -499,6 +497,7 @@ function bws_markup_strip_to_inline( string $markup, bool $keep_anchors = true )
  * Called from the two callback shells that have `$block` (bws_base_content_callback() and the
  * `try_` content-slot arm), never from the resolve seam. An inline-only core block gets the
  * value reduced to inline content, lossy by design; any other host gets it back untouched.
+ * A button host never reaches here: both shells refuse it first (nothing, so GB blanks the block).
  *
  * @since Unreleased
  *
@@ -511,6 +510,6 @@ function bws_content_strip_for_host( string $value, $block ): string {
 	if ( '' === $value || ! function_exists( 'bws_core_block_is_inline_only' ) || ! bws_core_block_is_inline_only( $block ) ) {
 		return $value;
 	}
-	return bws_markup_strip_to_inline( $value, ! bws_core_block_is_button( $block ) );
+	return bws_markup_strip_to_inline( $value );
 }
 }

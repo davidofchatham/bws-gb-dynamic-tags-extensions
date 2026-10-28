@@ -1002,6 +1002,10 @@ function bws_base_content_resolve_value( array $options, $instance ): array {
  * @since 1.21.0 Value resolution extracted to bws_base_content_resolve_value().
  */
 function bws_base_content_callback( $options, $block, $instance ): string {
+	// A button host holds link text, never content: nothing, so GB blanks the block (FW-156).
+	if ( bws_core_block_is_button( $block ) ) {
+		return '';
+	}
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
 	$value = bws_base_content_resolve_value( (array) $options, $instance )['value'];

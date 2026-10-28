@@ -17,7 +17,6 @@ require __DIR__ . '/../../includes/helpers/link-helpers.php';
 require __DIR__ . '/../../includes/helpers/content-helpers.php';
 
 $para   = array( 'blockName' => 'core/paragraph' );
-$button = array( 'blockName' => 'core/button' );
 $group  = array( 'blockName' => 'generateblocks/element' );
 
 $failures = 0;
@@ -35,8 +34,6 @@ $cases    = array(
 	array( 'image dropped',      '<p>t <img src="x.png" alt="y"> u</p>',      $para,   't  u' ),
 	array( 'figure dropped whole',                 '<p>a</p><figure><img src="x.png"><figcaption>cap</figcaption></figure><p>b</p>', $para, 'a b' ),
 	array( 'a kept in paragraph',                  '<p>go <a href="/x">there</a></p>',          $para,   'go <a href="/x">there</a>' ),
-	array( 'a dropped in button, text kept',       '<p>go <a href="/x">there</a></p>',          $button, 'go there' ),
-	array( 'strong kept in button',                '<p><strong>go</strong></p>',                $button, '<strong>go</strong>' ),
 	array( 'unknown tag dropped, text kept',       '<my-widget>x</my-widget>',                  $para,   'x' ),
 	array( 'comment removed',                      '<!-- c --><p>x</p>',                        $para,   'x' ),
 	array( 'angle-bracket text survives',          '<p>Write to <john@example.com> if 3 < 4</p>', $para, 'Write to <john@example.com> if 3 < 4' ),

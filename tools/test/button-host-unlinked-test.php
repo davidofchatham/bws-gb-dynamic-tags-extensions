@@ -9,6 +9,8 @@
  * email/phone mailto:/tel: wrap both skip), every other option is untouched, and any other host
  * (a GB block, a paragraph, malformed input) gets its options back unchanged. §4 pins that each
  * shell that can wrap its output asks the helper, because a shell that forgot would still wrap.
+ * §5 pins the `{{content}}` refusal on a button host: both shells ask before anything is read,
+ * so neither a value nor a `try_` fallback reaches the button.
  *
  * Loads the real helper file; it needs no WordPress symbol beyond ABSPATH.
  *
@@ -90,6 +92,14 @@ $registry = (string) file_get_contents( $root . '/includes/classes/class-tag-tem
 $start    = strpos( $registry, '= bws_try_run_attempts(' );
 $head     = false === $start ? '' : substr( $registry, max( 0, $start - 1500 ), 1500 );
 assert_same( 'try_ closure rewrites options before bws_try_run_attempts()', true, str_contains( $head, 'bws_host_unlinked_options(' ) );
+
+echo "§5 — both {{content}} shells refuse a button host before they read\n";
+$base  = (string) file_get_contents( $root . '/includes/tags/base-tags.php' );
+$start = strpos( $base, 'function bws_base_content_callback(' );
+$read  = false === $start ? false : strpos( $base, 'bws_base_content_resolve_value(', $start );
+$body  = false === $read ? '' : substr( $base, $start, $read - $start );
+assert_same( 'bws_base_content_callback asks bws_core_block_is_button() before the read', true, str_contains( $body, 'bws_core_block_is_button(' ) );
+assert_same( 'try_ closure refuses a content slot on a button before bws_try_run_attempts()', true, str_contains( $head, "'content' === \$tpl_key && bws_core_block_is_button(" ) );
 
 echo "\n{$count} assertions, {$failures} failed\n";
 exit( $failures ? 1 : 0 );

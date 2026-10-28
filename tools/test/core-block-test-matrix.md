@@ -57,7 +57,7 @@ Block-level markup is reduced to inline text; a GB container is untouched. Lossy
 | CB3.3 | `core/paragraph` | `{{content use:key\|key:bws_block_formatted}}` | `Formatted one,` newline `with a soft line break. Formatted two.` in one paragraph | PASS 2026-10-26 |
 | CB3.4 | `core/paragraph` | `{{content use:key\|key:bws_missing_key\|fallback:Nothing stored.}}` | `Nothing stored.`, a bare run unchanged | PASS 2026-10-26 |
 | CB3.5 | `core/paragraph` | `{{content use:key\|key:bws_block_inline}}` | bold, italic and the link all kept | PASS 2026-10-26 |
-| CB3.6 | `core/button` | same | bold and italic kept, the link dropped to plain text (the button is the link) | PASS 2026-10-26 |
+| CB3.6 | `core/button` | same | the button is hidden: `{{content}}` prints nothing in a button (note N1: its empty wrapper remains) | PASS 2026-10-28 |
 | CB3.7 | GB text block (control) | `bws_block_plain` | TWO separate paragraphs, untouched | PASS 2026-10-26 |
 
 ## CB4: link-wrapping tags in `core/button`
