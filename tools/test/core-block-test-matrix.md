@@ -12,7 +12,7 @@ Operating the testbed, and why every row must also be a visible block: [`docs/te
 
 | Entity | Carries |
 |---|---|
-| settings `core_blocks` | `core/paragraph`, `core/heading`, `core/list-item`, `core/table`, `core/button` SELECTED (the testbed's baseline; the product ships it empty). `core/verse` and `core/preformatted` are deliberately not |
+| settings `core_blocks` | `core/paragraph`, `core/heading`, `core/list-item`, `core/table`, `core/button` ENABLED (the testbed's baseline; the product ships it empty). `core/verse` and `core/preformatted` are deliberately not |
 | page `matrix-core-blocks` | `role` **Director**, `main_line` **(919) 555-0134**, `sms_number` **+19195550134**, `contact_email` **blocks@example.test**, and its own two-row `team_members`: **Carla Diaz** / `Design`, **Dev Patel** / `Platform`. The page's values differ from every row's, so a block that read the page prints the wrong word |
 | plain meta on that page | `bws_block_plain` (two paragraphs of bare text), `bws_block_formatted` (already `<p>`-wrapped, with a soft break), `bws_block_inline` (bold, italic and a link, no block tag) |
 | staff `jane-partner`, `tom-associate` | `main_line` `(555) 200-3000` and `(555) 200-4000`, the WP_Query loop's items |
@@ -23,17 +23,17 @@ Every row's label block is GenerateBlocks text and never carries a literal tag. 
 
 ## CB1: text in each block
 
-A selected core block fills in a tag; an unselected one prints it as typed. Tag: `{{text key:role}}` unless noted.
+An enabled core block fills in a tag; one that is not enabled prints it as typed. Tag: `{{text key:role}}` unless noted.
 
 | # | Host block | Expected | Status |
 |---|---|---|---|
-| CB1.1 | `core/paragraph`, selected | `Director` | PASS 2026-10-26 |
-| CB1.2 | `core/heading`, selected | `Director` as a level 3 heading | PASS 2026-10-26 |
-| CB1.3 | `core/list-item`, selected | `Director` as the one bullet | PASS 2026-10-26 |
-| CB1.4 | `core/table` cell, selected | `Director` in the one cell | PASS 2026-10-26 |
+| CB1.1 | `core/paragraph`, enabled | `Director` | PASS 2026-10-26 |
+| CB1.2 | `core/heading`, enabled | `Director` as a level 3 heading | PASS 2026-10-26 |
+| CB1.3 | `core/list-item`, enabled | `Director` as the one bullet | PASS 2026-10-26 |
+| CB1.4 | `core/table` cell, enabled | `Director` in the one cell | PASS 2026-10-26 |
 | CB1.5 | GB text block (control) | `Director` | PASS 2026-10-26 |
-| CB1.6 | `core/verse`, NOT selected | the tag printed literally, `{{text key:role}}` | PASS 2026-10-26 |
-| CB1.7 | `core/preformatted`, NOT selected | the tag printed literally | PASS 2026-10-26 |
+| CB1.6 | `core/verse`, NOT enabled | the tag printed literally, `{{text key:role}}` | PASS 2026-10-26 |
+| CB1.7 | `core/preformatted`, NOT enabled | the tag printed literally | PASS 2026-10-26 |
 
 ## CB2: loop context
 
@@ -78,7 +78,7 @@ The same tag sits in the button's text and, in CB4.1 to 4.3, in its `href`. In a
 
 **Which phone form works.** The phone tag has no option that prints digits or E.164: its display is the stored value verbatim (`bws_phone_render_one()`), so the form a button link gets is whatever the field stores. A stored `+19195550134` gives a clean `tel:+19195550134` (CB4.9). The default formatted value gives `tel:(919)%20555-0134` (CB4.8), valid to GenerateBlocks and WordPress but dependent on the phone app decoding the `%20`. A site that needs the clean form stores the digits.
 
-**N1: a hidden button leaves its wrapper.** CB5.4 hides the `core/button`; the unselected `core/buttons` block around it still prints its empty `<div class="wp-block-buttons ...">`. GenerateBlocks blanks the block whose tag resolved empty and nothing else.
+**N1: a hidden button leaves its wrapper.** CB5.4 hides the `core/button`; the `core/buttons` block around it still prints its empty `<div class="wp-block-buttons ...">`. GenerateBlocks blanks the block whose tag resolved empty and nothing else.
 
 ## CB5: `{{table}}` in an inline-only block
 
@@ -113,7 +113,7 @@ wsl.exe -d Ubuntu -- bash -lc 'cd ~/wp-litespeed && bin/wp.sh testbed eval "echo
 | CB6.1 | `widgets` reports `registered: 2, unregistered: 0` (the phone and the email tag in the seeded widget) | PASS 2026-10-26 |
 | CB6.2 | `core/table` is counted: `registered: 2` (the cells of CB1.4 and CB5.3) | PASS 2026-10-26 |
 | CB6.3 | The widget's tags are also counted under `core/paragraph`, merged with the page and pattern rows | PASS 2026-10-26 |
-| CB6.4 | The unselected blocks are counted too: `core/verse` 1 and `core/preformatted` 1 (CB1.6, CB1.7), which is what the Save prompt needs to warn about | PASS 2026-10-26 |
+| CB6.4 | Blocks that are not enabled are counted too: `core/verse` 1 and `core/preformatted` 1 (CB1.6, CB1.7), which is what the Save prompt needs to warn about | PASS 2026-10-26 |
 | CB6.5 | Each cell names its tags with how many times each was found, split into `registered_tags` and `unregistered_tags`: `core/table` is `{"text":1,"table":2}` and none unregistered; `core/paragraph` lists `post_custom_datetime_single` (the pattern's legacy tag) under `unregistered_tags`; the two counts equal the sums of their tag lists | PASS 2026-10-27 (JSON from the command above; the settings-page rendering, wrapping and chevron were looked at in a browser on hargrave.test 2026-10-27, and `core-block-picker-test.php` pins the markup) |
 
 Measured 2026-10-26 on the seeded testbed: `core/paragraph` 12 registered and 1 unregistered (the `wp_block` pattern's legacy tag), `core/heading` 3, `core/button` 8 (a tag in the text and in the `href` count separately), `core/list-item` 1, `core/table` 2, `generateblocks/text` 847 and 13, `generateblocks/media` 5. The counts move whenever any fixture page does; the rows above assert reach, not the totals.

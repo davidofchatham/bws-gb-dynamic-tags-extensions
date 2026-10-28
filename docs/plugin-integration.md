@@ -348,8 +348,8 @@ add_filter( 'bws_dynamic_tags_core_blocks', function ( $blocks ) {
 - **It runs after the saved list, and its result is what every consumer reads.** You can add a name or remove one the site saved.
 - **Names are cleaned, not checked.** Anything that is not a `namespace/name` slug is dropped, and duplicates are merged.
 - **Only block types registered in time reach GenerateBlocks.** A name with no registered block type stays in the enabled set but is left out of GenerateBlocks' allowlist, and gets no loop context, until the type registers. A type that registers after the loop-context pass (`init`, priority 99) is also left out, so its tags print literally rather than reading the page. The saved list is never pruned.
-- **A block you add shows as selected and locked on the settings page** ("Turned on by code on this site"), so the site owner cannot untick it there.
-- **It widens GenerateBlocks' save check too.** GenerateBlocks reads the same allowlist to decide whose `{{` content it refuses to save, so a user who may not post unfiltered HTML cannot save content containing `{{` in your block.
+- **A block you add shows as enabled and locked on the settings page** ("Turned on by code on this site"), so the site owner cannot untick it there.
+- **It widens GenerateBlocks' save check too.** GenerateBlocks reads the same allowlist to decide whose `{{` content it refuses to save, so a user who may not post unfiltered HTML cannot save changes to a post that has `{{` anywhere in its content along with your block (the check is post-wide, not per block).
 - **Nothing is promised about a block the plugin has not classified.** Its tags are filled in and given loop context, but the plugin has not tested them in that block, and the guards that adjust a few tags for text-only core blocks do not apply to it.
 
 ---
