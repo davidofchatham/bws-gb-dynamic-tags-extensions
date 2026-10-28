@@ -435,7 +435,7 @@
 						caption.textContent = cfg.strings.caption;
 						applySort();
 						status.textContent = res.data.status;
-						scan.classList.replace( 'gp-button--primary', 'gp-button--secondary' );
+						scan.classList.replace( 'gp-button--primary', 'gp-button--quiet' );
 						picker.setAttribute( 'data-scanned', '1' );
 						refreshFilters();
 						hideConfirm();

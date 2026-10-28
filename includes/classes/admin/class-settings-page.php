@@ -779,7 +779,7 @@ class SettingsPage {
 									<p class="description bws-block-picker__survey-status" role="status"><?php echo esc_html( bws_core_blocks_survey_status( $survey, $groups, $text ) ); ?></p>
 									<p class="description"><?php echo bws_core_blocks_picker_markup( $text['survey_desc'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></p>
 								</div>
-								<button type="button" class="gp-button gp-button--<?php echo $survey ? 'secondary' : 'primary'; ?> gp-button--small bws-block-picker__scan"><?php echo esc_html( $text['survey_scan'] ); ?></button>
+								<button type="button" class="gp-button gp-button--<?php echo $survey ? 'quiet' : 'primary'; ?> gp-button--small bws-block-picker__scan"><?php echo esc_html( $text['survey_scan'] ); ?></button>
 							</div>
 							<div class="gp-notice gp-notice--warn bws-notice bws-block-picker__confirm" role="region" aria-live="polite" hidden>
 								<div class="gp-notice__status"><span class="gp-status-dot gp-status-dot--warn" aria-hidden="true"></span></div>
@@ -788,7 +788,7 @@ class SettingsPage {
 									<ul class="bws-block-picker__confirm-list"></ul>
 									<p>
 										<button type="button" class="gp-button gp-button--primary gp-button--small bws-block-picker__confirm-save"><?php echo esc_html( $text['confirm_save'] ); ?></button>
-										<button type="button" class="gp-button gp-button--secondary gp-button--small bws-block-picker__confirm-back"><?php echo esc_html( $text['confirm_back'] ); ?></button>
+										<button type="button" class="gp-button gp-button--quiet gp-button--small bws-block-picker__confirm-back"><?php echo esc_html( $text['confirm_back'] ); ?></button>
 									</p>
 								</div>
 							</div>
@@ -890,8 +890,8 @@ class SettingsPage {
 							<p class="screen-reader-text bws-block-picker__sorted" role="status" aria-live="polite"></p>
 							<div class="bws-block-picker__empty" role="status" hidden>
 								<p data-kind="filtered" hidden><?php echo esc_html( $text['empty_filtered'] ); ?> <button type="button" class="bws-block-picker__reset" data-reset="1"><?php echo esc_html( $text['reset'] ); ?></button></p>
-								<p data-kind="default" hidden><?php echo esc_html( $text['empty_default'] ); ?> <button type="button" class="gp-button gp-button--secondary gp-button--small"><?php echo esc_html( $text['show_all_button'] ); ?></button></p>
-								<p data-kind="default-unscanned" hidden><?php echo esc_html( $text['empty_default_unscanned'] ); ?> <button type="button" class="gp-button gp-button--secondary gp-button--small"><?php echo esc_html( $text['show_all_button'] ); ?></button></p>
+								<p data-kind="default" hidden><?php echo esc_html( $text['empty_default'] ); ?> <button type="button" class="gp-button gp-button--quiet gp-button--small"><?php echo esc_html( $text['show_all_button'] ); ?></button></p>
+								<p data-kind="default-unscanned" hidden><?php echo esc_html( $text['empty_default_unscanned'] ); ?> <button type="button" class="gp-button gp-button--quiet gp-button--small"><?php echo esc_html( $text['show_all_button'] ); ?></button></p>
 							</div>
 					</div>
 					</div>

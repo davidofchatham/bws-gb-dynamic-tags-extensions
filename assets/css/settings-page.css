@@ -568,9 +568,9 @@
 /* The wrapper dissolves so the status and the button share the top row and the description takes the full width under both. */
 .bws-dynamic-tags-settings .bws-block-picker__survey > div { display: contents; }
 .bws-dynamic-tags-settings .bws-block-picker__survey p { margin: 0; }
-.bws-dynamic-tags-settings .bws-block-picker__survey-status { grid-area: 1 / 1; font-weight: 600; }
+.bws-dynamic-tags-settings .bws-block-picker__survey-status { grid-area: 1 / 1; align-self: center; font-weight: 600; }
 .bws-dynamic-tags-settings .bws-block-picker__survey-status + p { grid-area: 2 / 1 / 3 / -1; }
-.bws-dynamic-tags-settings .bws-block-picker__scan { grid-area: 1 / 2; }
+.bws-dynamic-tags-settings .bws-block-picker__scan { grid-area: 1 / 2; align-self: center; }
 .bws-dynamic-tags-settings .bws-block-picker__confirm { margin: 0; border-radius: 0; }
 .bws-dynamic-tags-settings .bws-block-picker__confirm[hidden] { display: none; }
 .bws-dynamic-tags-settings .bws-block-picker__confirm-list { margin: 0 0 8px 18px; list-style: disc; }
