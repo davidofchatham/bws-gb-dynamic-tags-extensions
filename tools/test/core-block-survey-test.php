@@ -1,6 +1,6 @@
 <?php
 /**
- * Standalone harness for the core-block survey walk (FW-156, core-block-tags/07) in
+ * Standalone harness for the core-block survey walk (FW-156) in
  * includes/helpers/core-block-survey.php: a post-content string in, per-block-type counts of
  * tag-like `{{...}}` strings out, split registered vs unregistered.
  *
