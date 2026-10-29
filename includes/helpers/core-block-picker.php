@@ -87,12 +87,11 @@ function bws_core_blocks_picker_strings(): array {
 			array( __( 'link tags return plain text', 'generateblocks' ), __( '`email`, `phone` and any tag set to *Link To* print just the address, number or text, not a link. In a Button\'s link, type `mailto:` or `tel:` before the tag yourself.', 'generateblocks' ) ),
 		),
 		'survey_none_yet'    => __( 'No scan has been run yet.', 'generateblocks' ),
-		/* translators: 1: tags GenerateBlocks handles in the blocks listed below, 2: tags it does not handle in them, 3: date and time of the scan. */
-		'survey_status'      => __( 'Found in the blocks below as of %3$s: %1$d tags handled by GenerateBlocks and %2$d tags it does not handle.', 'generateblocks' ),
+		// The frame; each count's phrase is pluralized in bws_core_blocks_survey_status().
+		/* translators: 1: "N tags handled by GenerateBlocks", 2: "M tags it does not handle", 3: date and time of the scan. */
+		'survey_status'      => __( 'Found in the blocks below as of %3$s: %1$s and %2$s.', 'generateblocks' ),
 		/* translators: %d: how many tag occurrences the Migration Tool would convert, found by the scan. */
-		'survey_convertible' => __( '%d convertible', 'generateblocks' ),
-		// Read after the count, as screen reader text, so the link says where it goes.
-		'survey_convertible_jump' => __( 'jump to the Migration Tool', 'generateblocks' ),
+		'survey_convertible' => __( '%d convertible in the Migration Tool', 'generateblocks' ),
 		'survey_desc'        => __( 'A scan checks all of your content (posts, pages, templates, patterns and block widgets) for `{{…}}` tags in every block in this list, enabled or not, and lists the tags each block holds, with how many of each, split by whether they are registered with GenerateBlocks. Blocks added only by a plugin\'s editor script are not listed.', 'generateblocks' ),
 		// Read after a count, as screen reader text: "5 tag names", then the details control's own "collapsed".
 		'tags_toggle'        => __( 'tag names', 'generateblocks' ),
@@ -307,7 +306,14 @@ function bws_core_blocks_survey_status( ?array $survey, array $groups, array $te
 		}
 	}
 	$when = $format ? $format( $survey['time'] ) : wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $survey['time'] );
-	return sprintf( $text['survey_status'], $known, $unknown, $when );
+	return sprintf(
+		$text['survey_status'],
+		/* translators: %d: number of tags. */
+		sprintf( _n( '%d tag handled by GenerateBlocks', '%d tags handled by GenerateBlocks', $known, 'generateblocks' ), $known ),
+		/* translators: %d: number of tags. */
+		sprintf( _n( '%d tag it does not handle', '%d tags it does not handle', $unknown, 'generateblocks' ), $unknown ),
+		$when
+	);
 }
 
 /**
@@ -328,8 +334,7 @@ function bws_core_blocks_survey_status_html( ?array $survey, array $groups, arra
 	$html = esc_html( bws_core_blocks_survey_status( $survey, $groups, $text, $format ) );
 	$k    = (int) ( $survey['convertible'] ?? 0 );
 	if ( $k > 0 ) {
-		$html .= ' <a class="bws-block-picker__convertible" href="#bws-migration-tool">' . esc_html( sprintf( $text['survey_convertible'], $k ) )
-			. '<span class="screen-reader-text"> (' . esc_html( $text['survey_convertible_jump'] ) . ')</span></a>';
+		$html .= ' <a class="bws-block-picker__convertible" href="#bws-migration-tool">' . esc_html( sprintf( $text['survey_convertible'], $k ) ) . '</a>';
 	}
 	return $html;
 }
