@@ -54,6 +54,22 @@ function bws_fixture_core_structures_register_types() {
 		)
 	);
 
+	// The blueprint's OWN access taxonomy, for the rows that hop `terms` off a ref'd post and need
+	// a taxonomy other than `department` (jane and tom carry no department terms). Owned here, with
+	// its terms seeded from the manifest, because the first one these rows borrowed belonged to a
+	// co-resident plugin and vanished with it (FW-145). Not public: nothing queries it by URL.
+	register_taxonomy(
+		'access_tier',
+		array( 'page', 'staff' ),
+		array(
+			'label'        => 'Access tiers',
+			'public'       => false,
+			'show_in_rest' => true,
+			'hierarchical' => true,
+			'rewrite'      => false,
+		)
+	);
+
 	// A SECOND hierarchical taxonomy, on pages only, so a term can have a parent (FW-169, the
 	// `parent` step's term arm). Not more `department` terms: every department term is counted
 	// and printed on /matrix-loops/, so adding one moves that page's baseline for nothing.

@@ -1679,7 +1679,7 @@ eq(
 		array( array( 'kind' => 'term', 'id' => 68 ) ),
 		array(
 			array( 'type' => 'refs', 'field' => 'dept_lead' ),
-			array( 'type' => 'terms', 'slug' => 'portal_visibility' ),
+			array( 'type' => 'terms', 'slug' => 'access_tier' ),
 		),
 		function ( $step, $source ) {
 			return 'refs' === ( $step['type'] ?? '' ) ? array( 5 ) : array( new WP_Term( 9 ) );

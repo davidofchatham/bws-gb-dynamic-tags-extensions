@@ -451,27 +451,17 @@ foreach ( $manifest['post_terms'] as $slug => $terms ) {
 }
 $log( 'post→term assignments applied' );
 
-// sample-event doubles as the date-archive context fixture (context-test-matrix
-// C-rows): an integrating plugin's front-end query filter drops anonymous-invisible
-// posts (must carry an all-users visibility term AND no
-// category), so a default 'uncategorized' assignment 404s /2026/07/. Keep it
-// categoryless + all-users-visible. That taxonomy belongs to
-// the integrating plugin — guard on taxonomy existence so this blueprint stays
-// loadable without it.
-// Both posts need it for the same reason: the integrator's filter empties an anonymous
-// query of anything not marked visible, which would take sample-event out of its date
-// archive and home-lead out of the latest-posts home it exists to lead. Measured rather
-// than assumed the second time — home-lead was seeded without it and simply did not
-// appear in the front end's post list at all.
+// sample-event doubles as the date-archive context fixture (context-test-matrix C-rows), and
+// home-lead leads the latest-posts home: both are kept categoryless so a default
+// 'uncategorized' assignment does not change what they render. (They once also carried a
+// visibility term from a co-resident plugin's taxonomy, for that plugin's anonymous query
+// filter; that taxonomy is gone and the snapshots hold without it.)
 foreach ( array( 'post-sample-event', 'post-home-lead' ) as $ctx_slug ) {
 	if ( ! isset( $post_ids[ $ctx_slug ] ) ) {
 		continue;
 	}
 	wp_set_object_terms( $post_ids[ $ctx_slug ], array(), 'category' );
-	if ( taxonomy_exists( 'portal_visibility' ) ) {
-		wp_set_object_terms( $post_ids[ $ctx_slug ], array( 'all-users' ), 'portal_visibility' );
-	}
-	$log( $ctx_slug . ': context visibility ensured (no category, all-users)' );
+	$log( $ctx_slug . ': context categories cleared' );
 }
 
 // ---------------------------------------------------------------------------

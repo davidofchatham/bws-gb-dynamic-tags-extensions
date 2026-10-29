@@ -167,17 +167,17 @@ assert_same(
 	'D3: two hops compile off a pinned term root — the root is consumed, not stepped',
 	array(
 		array( 'type' => 'refs', 'field' => 'dept_lead' ),
-		array( 'type' => 'terms', 'slug' => 'portal_visibility' ),
+		array( 'type' => 'terms', 'slug' => 'access_tier' ),
 	),
-	bws_fold_chain_to_steps( chain_of( 'term,34;refs,dept_lead;terms,portal_visibility' ) )
+	bws_fold_chain_to_steps( chain_of( 'term,34;refs,dept_lead;terms,access_tier' ) )
 );
 assert_same(
 	'...and the same chain through the base arms assembler, unchanged',
 	array(
 		array( 'type' => 'refs', 'field' => 'dept_lead' ),
-		array( 'type' => 'terms', 'slug' => 'portal_visibility' ),
+		array( 'type' => 'terms', 'slug' => 'access_tier' ),
 	),
-	bws_field_values_assemble_steps( array( 'src' => 'term,34;refs,dept_lead;terms,portal_visibility' ) )
+	bws_field_values_assemble_steps( array( 'src' => 'term,34;refs,dept_lead;terms,access_tier' ) )
 );
 assert_same(
 	'D3: a `rows` hop compiles off a pinned POST root the same way',
