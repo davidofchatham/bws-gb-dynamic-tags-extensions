@@ -54,6 +54,7 @@ class SettingsPage {
 		add_action( 'wp_ajax_bws_scan_tags', array( TagConverter::class, 'ajax_scan' ) );
 		add_action( 'wp_ajax_bws_migrate_tags', array( TagConverter::class, 'ajax_migrate' ) );
 		add_action( 'wp_ajax_bws_ownership_optin', array( TagConverter::class, 'ajax_ownership_optin' ) );
+		add_action( 'wp_ajax_bws_restore_widgets', array( TagConverter::class, 'ajax_restore_widgets' ) );
 		add_action( 'wp_ajax_bws_core_blocks_survey', 'bws_core_blocks_survey_ajax' );
 	}
 
@@ -202,6 +203,16 @@ class SettingsPage {
 					'claimLabel'       => __( 'These tags are mine, convert them', 'generateblocks' ),
 					'claimSaved'       => __( 'Saved. Scan again to pick up the change.', 'generateblocks' ),
 					'saving'           => __( 'Saving…', 'generateblocks' ),
+					// Restore block widgets (FW-73).
+					'restoring'        => __( 'Restoring…', 'generateblocks' ),
+					'restored'         => __( '%d block widgets restored.', 'generateblocks' ),
+					'restoreSkipped'   => __( 'Left as they are:', 'generateblocks' ),
+					'reasonEdited'     => __( 'edited since the migration', 'generateblocks' ),
+					'reasonMissing'    => __( 'no longer exists', 'generateblocks' ),
+					// Where in a result to look (FW-73): the lead-in, and the count past the first ten.
+					'locationsLead'    => __( 'Found in:', 'generateblocks' ),
+					/* translators: %d: how many more locations are not listed. */
+					'locationsMore'    => __( 'and %d more', 'generateblocks' ),
 				),
 			)
 		);
@@ -776,7 +787,7 @@ class SettingsPage {
 						<div class="bws-block-picker" data-scanned="<?php echo $survey ? '1' : '0'; ?>">
 							<div class="bws-block-picker__survey">
 								<div>
-									<p class="description bws-block-picker__survey-status" role="status"><?php echo esc_html( bws_core_blocks_survey_status( $survey, $groups, $text ) ); ?></p>
+									<p class="description bws-block-picker__survey-status" role="status"><?php echo bws_core_blocks_survey_status_html( $survey, $groups, $text ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></p>
 									<p class="description"><?php echo bws_core_blocks_picker_markup( $text['survey_desc'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></p>
 								</div>
 								<button type="button" class="gp-button gp-button--<?php echo $survey ? 'quiet' : 'primary'; ?> gp-button--small bws-block-picker__scan"><?php echo esc_html( $text['survey_scan'] ); ?></button>
@@ -1203,7 +1214,7 @@ function my_result( $post_id, $arg = '' ) {
 					<h2 class="bws-section-header"><?php esc_html_e( 'Migration Tool', 'generateblocks' ); ?></h2>
 					<div class="bws-card">
 					<p class="description bws-section-desc">
-						<?php esc_html_e( 'Scan all post content for deprecated tags and option issues, then migrate per post or in bulk. A revision is created before each migration when the post type supports it.', 'generateblocks' ); ?>
+						<?php esc_html_e( 'Scan for deprecated tags and option issues, then migrate per post or widget, or in bulk. A revision is created before each migration when the post type supports it; block widgets are backed up instead and can be restored.', 'generateblocks' ); ?>
 					</p>
 					<?php /* US 26 — DISCLOSURE, not enumeration. A reported count with no stated
 					        boundary reads as a completeness claim it cannot back; an inventory
@@ -1213,7 +1224,7 @@ function my_result( $post_id, $arg = '' ) {
 							<span class="gp-notice__status"><span class="gp-status-dot" aria-hidden="true"></span></span>
 							<div class="gp-notice__content">
 								<span class="screen-reader-text"><?php esc_html_e( 'Note:', 'generateblocks' ); ?></span>
-								<?php esc_html_e( 'Covers post content and the block pattern cache. Tag strings stored elsewhere, such as in custom field values or another plugin\'s cache, are not reached by this tool.', 'generateblocks' ); ?>
+								<?php esc_html_e( 'Covers post content, block widgets and the block pattern cache, which is reconciled automatically on every scan and migration. Tag strings stored elsewhere, such as in custom field values or another plugin\'s cache, are not reached by this tool.', 'generateblocks' ); ?>
 							</div>
 						</div>
 					</div>
@@ -1281,13 +1292,28 @@ function my_result( $post_id, $arg = '' ) {
 						<span id="bws-scan-status" class="bws-scan-status" aria-live="polite"></span>
 					</div>
 
-					<?php /* The pattern-cache result, PERSISTED rather than a transient status
+					<?php /* Restore block widgets (FW-73): shown only while a backup exists. The line
+						        is composed in PHP (TagConverter::widget_backup_line()) and refreshed by
+						        the migrate response; the result span sits outside the wrapper so it
+						        survives the wrapper hiding itself after a restore. */ ?>
+						<?php $bws_widget_backup_line = TagConverter::widget_backup_line(); ?>
+						<div id="bws-widget-restore" class="bws-widget-restore"<?php echo '' === $bws_widget_backup_line ? ' hidden' : ''; ?>>
+							<p class="description">
+								<span id="bws-widget-restore-line"><?php echo esc_html( $bws_widget_backup_line ); ?></span>
+								<?php esc_html_e( 'A widget edited since is left as it is.', 'generateblocks' ); ?>
+							</p>
+							<button type="button" id="bws-widget-restore-btn" class="gp-button gp-button--secondary gp-button--small">
+								<?php esc_html_e( 'Restore block widgets', 'generateblocks' ); ?>
+							</button>
+						</div>
+						<p id="bws-widget-restore-result" class="description" aria-live="polite"></p>
+
+						<?php /* The pattern-cache result, PERSISTED rather than a transient status
 					        line: the on-upgrade trigger has no interface at all and is the one
 					        actually repairing already-converted sites. The element is rendered
 					        even when empty so the AJAX handlers can fill it without a reload. */ ?>
 					<div class="bws-pattern-cache">
 						<p class="description bws-pattern-cache-status" aria-live="polite">
-							<?php esc_html_e( 'Block pattern caches are automatically reconciled on every scan and migration.', 'generateblocks' ); ?>
 							<span id="bws-pattern-cache-status"><?php echo esc_html( PatternCache::format_status( PatternCache::get_status() ) ); ?></span>
 						</p>
 					</div>

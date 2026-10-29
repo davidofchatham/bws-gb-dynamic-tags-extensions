@@ -21,6 +21,9 @@ error_reporting( E_ALL & ~E_DEPRECATED );
 
 define( 'ABSPATH', __DIR__ );
 
+function _n( $single, $plural, $number ) {
+	return 1 === $number ? $single : $plural;
+}
 function __( $text ) {
 	return $text;
 }
@@ -167,7 +170,7 @@ assert_same( 'equal counts fall back to name order', $open( '<code>a</code> (2) 
 assert_same( 'no tags, no disclosure: the bare count', '4', bws_core_blocks_survey_count_html( 4, $text ) );
 assert_same( 'a zero stays the muted zero, with no disclosure', false, strpos( bws_core_blocks_survey_count_html( 0, $text ), 'details' ) );
 assert_same( 'before any scan there is no disclosure even if tags were passed', false, strpos( bws_core_blocks_survey_count_html( null, $text, array( 'x' => 1 ) ), 'details' ) );
-foreach ( array( 'tags_toggle', 'heading', 'intro', 'survey_none_yet', 'survey_status', 'survey_desc', 'survey_scan', 'survey_running', 'survey_error', 'confirm_intro', 'note_warn', 'note_info', 'confirm_save', 'confirm_back', 'show_legend', 'show_default', 'show_default_unscanned', 'show_enabled', 'show_tags', 'show_all', 'cat_label', 'cat_all', 'reset', 'showing', 'showing_hint', 'empty_filtered', 'empty_default', 'empty_default_unscanned', 'show_all_button' ) as $key ) {
+foreach ( array( 'tags_toggle', 'heading', 'intro', 'survey_none_yet', 'survey_status', 'survey_desc', 'survey_scan', 'survey_running', 'survey_error', 'confirm_intro', 'note_warn', 'note_info', 'confirm_save', 'confirm_back', 'show_legend', 'show_default', 'show_default_unscanned', 'show_enabled', 'show_tags', 'show_all', 'cat_label', 'cat_all', 'reset', 'showing', 'showing_hint', 'empty_filtered', 'empty_default', 'empty_default_unscanned', 'show_all_button', 'survey_status_migratable' ) as $key ) {
 	assert_same( "string for '{$key}'", true, is_string( $text[ $key ] ?? null ) && '' !== $text[ $key ] );
 }
 
@@ -180,8 +183,38 @@ $groups = bws_core_blocks_picker_rows( array_merge( $entries, array( entry( 'gen
 	'generateblocks/text' => array( 'registered' => 162, 'unregistered' => 50 ),
 ) );
 assert_same( 'before any scan: the no-scan sentence alone', 'No scan has been run yet.', bws_core_blocks_survey_status( null, $groups, $text ) );
-assert_same( 'after a scan: handled and not-handled sums over the listed rows, with the date', 'Found in the blocks below as of WHEN: 5 tags handled by GenerateBlocks and 1 tags it does not handle.', bws_core_blocks_survey_status( array( 'time' => 1700000000 ), $groups, $text, $when ) );
+assert_same( 'after a scan: handled and not-handled sums over the listed rows, with the date', 'Found in the blocks below as of WHEN: 5 tags handled by GenerateBlocks and 1 tag it does not handle.', bws_core_blocks_survey_status( array( 'time' => 1700000000 ), $groups, $text, $when ) );
 assert_same( 'a scan that found nothing in the listed blocks reads as zeros', 'Found in the blocks below as of WHEN: 0 tags handled by GenerateBlocks and 0 tags it does not handle.', bws_core_blocks_survey_status( array( 'time' => 1700000000 ), bws_core_blocks_picker_rows( $entries, $cats, array(), array(), array(), array() ), $text, $when ) );
+// K is summed over the same rows as the two totals: a migratable tag in a block the page does not list (core/gone is not
+// registered here, generateblocks/text is GB's own) is in neither, so K <= the two totals together.
+$kGroups  = static fn( int $paragraph, int $heading = 0, int $unlisted = 0 ): array => bws_core_blocks_picker_rows( array_merge( $entries, array( entry( 'generateblocks/text', 'Text' ) ) ), $cats, array(), array(), array(), array(
+	'core/paragraph'      => array( 'registered' => 3, 'unregistered' => 1, 'migratable' => $paragraph ),
+	'core/heading'        => array( 'registered' => 2, 'unregistered' => 0, 'migratable' => $heading ),
+	'core/gone'           => array( 'registered' => 9, 'unregistered' => 9, 'migratable' => $unlisted ),
+	'generateblocks/text' => array( 'registered' => 162, 'unregistered' => 50, 'migratable' => $unlisted ),
+) );
+$at       = array( 'time' => 1700000000 );
+$sentence = 'Found in the blocks below as of WHEN: 5 tags handled by GenerateBlocks and 1 tag it does not handle.';
+assert_same( 'a count of exactly one reads singular on both sides', 'Found in the blocks below as of WHEN: 1 tag handled by GenerateBlocks and 1 tag it does not handle.', bws_core_blocks_survey_status( array( 'time' => 1700000000 ), bws_core_blocks_picker_rows( $entries, $cats, array(), array(), array(), array( 'core/paragraph' => array( 'registered' => 1, 'unregistered' => 1 ) ) ), $text, $when ) );
+$withk    = 'Found in the blocks below as of WHEN: 5 tags handled by GenerateBlocks and 1 tag it does not handle; ';
+assert_same( 'plain status, K > 0 (the listed rows\' counts added): the clause rides the sentence', $withk . '3 need updating with the Migration Tool.', bws_core_blocks_survey_status( $at, $kGroups( 2, 1 ), $text, $when ) );
+assert_same( 'plain status, K = 1: singular', $withk . '1 needs updating with the Migration Tool.', bws_core_blocks_survey_status( $at, $kGroups( 1 ), $text, $when ) );
+assert_same( 'a migratable tag in a block the page does not list is left out of K', $withk . '3 need updating with the Migration Tool.', bws_core_blocks_survey_status( $at, $kGroups( 2, 1, 40 ), $text, $when ) );
+assert_same( 'migratable tags only in unlisted blocks: K = 0, the sentence alone', $sentence, bws_core_blocks_survey_status( $at, $kGroups( 0, 0, 40 ), $text, $when ) );
+assert_same(
+	'K > 0: a link to the Migration Tool section wraps the clause, and the sentence ends after it',
+	$withk . '<a class="bws-block-picker__migratable" href="#bws-migration-tool">3 need updating with the Migration Tool</a>.',
+	bws_core_blocks_survey_status_html( $at, $kGroups( 2, 1 ), $text, $when )
+);
+assert_same( 'K = 1 in the link reads singular', $withk . '<a class="bws-block-picker__migratable" href="#bws-migration-tool">1 needs updating with the Migration Tool</a>.', bws_core_blocks_survey_status_html( $at, $kGroups( 1 ), $text, $when ) );
+assert_same( 'K = 0: the sentence alone, ending after the second count, no "0 need" clause', $sentence, bws_core_blocks_survey_status_html( $at, $kGroups( 0 ), $text, $when ) );
+assert_same( 'K = 0: the plain sentence is the same', $sentence, bws_core_blocks_survey_status( $at, $kGroups( 0 ), $text, $when ) );
+assert_same( 'a scan stored before the count existed (rows carry none): the sentence alone', $sentence, bws_core_blocks_survey_status_html( $at, $groups, $text, $when ) );
+$by_name = static fn( array $gs ): array => array_column( array_merge( ...array_column( $gs, 'rows' ) ), null, 'name' );
+assert_same( 'a row carries its block\'s migratable count, 0 when the scan has none or there is no scan', array( 2, 0, 0 ), array( $by_name( $kGroups( 2 ) )['core/paragraph']['migratable'], $by_name( $groups )['core/paragraph']['migratable'], $by_name( bws_core_blocks_picker_rows( $entries, $cats, array(), array() ) )['core/paragraph']['migratable'] ) );
+assert_same( 'before any scan: the no-scan sentence alone', 'No scan has been run yet.', bws_core_blocks_survey_status_html( null, $groups, $text ) );
+assert_same( 'the sentence is escaped', 'a &amp; 0 tags handled by GenerateBlocks0 tags it does not handleWHEN', bws_core_blocks_survey_status_html( array( 'time' => 1 ), array(), array( 'survey_status' => 'a & %1$s%2$s%3$s', 'survey_status_migratable' => 'b & %1$s%2$s%3$s%4$s' ), $when ) );
+assert_same( 'the sentence with a clause is escaped too, the link stays markup', 'b &amp; 0 tags handled by GenerateBlocks0 tags it does not handleWHEN<a class="bws-block-picker__migratable" href="#bws-migration-tool">2 need updating with the Migration Tool</a>', bws_core_blocks_survey_status_html( array( 'time' => 1 ), bws_core_blocks_picker_rows( $entries, $cats, array(), array(), array(), array( 'core/paragraph' => array( 'registered' => 0, 'unregistered' => 0, 'migratable' => 2 ) ) ), array( 'survey_status' => 'a & %1$s%2$s%3$s', 'survey_status_migratable' => 'b & %1$s%2$s%3$s%4$s' ), $when ) );
 assert_same( 'notes run the two warnings, then the advisory, in that order', array( 'warn', 'warn', 'info' ), array_column( $text['notes'], 'tone' ) );
 assert_same( 'the first note is the unfiltered_html one', true, false !== strpos( $text['notes'][0]['text'], 'unfiltered_html' ) );
 $flat = array();

@@ -2437,9 +2437,11 @@ function bws_fixture_page_content_matrix_links() {
  * the two repeater rows' Design / Platform, `main_line` (919) 555-0134 against the two
  * staff singles' own. A loop row that read the page prints Director, not a row's word.
  *
- * SURVEY (§CB6) has no page row of its own beyond the core/table cells here: the block
- * widget it must also reach is seeded in `wp_options` and held by no sidebar, so nothing
- * can render it. The matrix states that exception.
+ * SURVEY (§CB6) has no page row of its own beyond the core/table cells here and CB6.6/CB6.7:
+ * the block widget it must also reach is seeded in `wp_options` and held by no sidebar, so
+ * nothing can render it. CB6.6 and CB6.7 are the visible twins of the two strings (a
+ * deprecated name, an unregistered one) the widget holds beside its registered pair. The
+ * matrix states that exception.
  *
  * @since Unreleased
  * @return string
@@ -2565,6 +2567,16 @@ function bws_fixture_page_content_matrix_core_blocks() {
 		$row( 'CB5.6 core/paragraph, Required to render OFF (-> the block stays, as an EMPTY paragraph: an empty line follows this label)', $paragraph( $tbl_optional ) ),
 		$row( 'CB5.7 core/table cell, Required to render OFF (-> the table block stays, its one cell EMPTY)', $table( $tbl_optional ) ),
 		$row( 'CB5.8 core/button, Required to render OFF (-> the button stays with NO TEXT: an empty link inside the buttons wrapper)', $button( $tbl_optional, '#' ) ),
+	) );
+
+	// CB6 - the three strings the seeded block widget also holds (manifest `widget_block`, FW-73):
+	// the widget itself renders nowhere, so these are its visible twins. The first two names are
+	// not registered, so a selected block prints each as typed; the third is a registered tag
+	// carrying a legacy option, so it prints its value.
+	$sections[] = bws_fixture_gb_section( 'Survey CB6 - the three tags the seeded block widget holds, in a SELECTED core block: the deprecated and the unregistered name print as typed, the registered tag with a legacy option prints its value (FW-73)', array(
+		$row( 'CB6.6 core/paragraph, a deprecated tag name (-> the tag printed literally, as typed)', $paragraph( '{{post_custom_datetime_single date_time_field:event_midnight}}' ) ),
+		$row( 'CB6.7 core/paragraph, an unregistered tag name (-> the tag printed literally, as typed)', $paragraph( '{{bws_fixture_unregistered key:role}}' ) ),
+		$row( 'CB6.16 core/paragraph, a registered tag carrying the legacy option fallback_text (-> Varsity; the legacy option changes nothing here, so a migrate must not change this line)', $paragraph( 'Team: {{text src:site|fixed:Varsity|fallback_text:none}}' ) ),
 	) );
 
 	return implode( "\n\n", $sections );

@@ -181,11 +181,17 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 .dummy-item input:focus { outline: none; border-color: var(--accent); }
 
 .perm-group { margin-bottom: 22px; }
-.perm-group-title {
-  font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px;
-  color: var(--muted); font-weight: 700;
-  padding-bottom: 6px; border-bottom: 1px solid var(--border); margin-bottom: 10px;
-}
+/* Heading levels: 1 = tag family, 2 = concept, 3 = in-group. Sentence case, no tracking. */
+.perm-h { color: var(--text); font-weight: 600; margin: 0 0 8px; }
+.perm-h1 { font-size: 19px; margin-top: 34px; padding-bottom: 6px; border-bottom: 2px solid var(--border2); }
+.perm-h2 { font-size: 15px; margin-top: 24px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+.perm-h3 { font-size: 13px; margin-top: 16px; color: var(--muted); }
+.perm-h4 { font-size: 12px; margin-top: 12px; color: var(--muted); font-weight: 500; }
+.perm-h:first-child { margin-top: 0; }
+.perm-sec-note { font-size: 12px; color: #55555a; margin: -2px 0 10px; }
+.perm-legend { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 12px; color: var(--muted); margin: -8px 0 14px; }
+.perm-legend b { color: var(--text); font-weight: 600; letter-spacing: 0.4px; font-size: 11px; text-transform: uppercase; }
+.perm-subrow { margin: 14px 0 -2px; }
 .perm-tags { display: flex; flex-direction: column; gap: 7px; }
 .perm-row { display: flex; align-items: center; gap: 10px; }
 .perm-lbl {
@@ -315,18 +321,30 @@ button:hover { border-color: var(--accent); color: var(--accent); }
       <input type="checkbox" id="cb-fw81">
       <span class="toggle-desc">collapse datetime keys → <code>{{datetime key:a,b;c}}</code>, <code>use:</code> only for published/modified/now (FW-81, unshipped)</span>
     </label>
-    <div class="sb-h">when encoding (FW-27, unbuilt)</div>
+    <div class="toggle-desc" style="margin-top:4px">FW-81 fields inside one <code>key:</code> read (date, time)</div>
+    <select id="sel-fw81-inner" style="width:100%">
+      <option value=",">, (comma): key:a,b;c,d</option>
+      <option value="+">+ (plus): key:a+b;c+d</option>
+      <option value="/">/ (slash): key:a/b;c/d</option>
+    </select>
+    <div class="toggle-desc" style="margin-top:4px">FW-81 verbs in <code>use:</code></div>
+    <select id="sel-fw81-usesep" style="width:100%">
+      <option value=";">; (semicolon): use:published;key</option>
+      <option value=",">, (comma): use:published,key</option>
+    </select>
+    <div class="sb-h">when syntax (FW-27, not built)</div>
+    <div class="toggle-desc" style="margin-bottom:4px">No encoding is chosen. Each option is a candidate spelling of the same conditions.</div>
     <select id="sel-when" style="width:100%">
-      <option value="w1">W1 — decided: key(x),test + has(…) relations</option>
-      <option value="w2">W2 (open) — key,x[,test], negation not(…)</option>
-      <option value="w2br">W2 (open) — as W2, reads bracketed: key(x), use(content)</option>
-      <option value="w2nv">W2 — ADOPTED: reads bracketed, key(x),noValue; not(…) on relations + lists only</option>
+      <option value="w1">W1 — key(x),test + has(…) relations</option>
+      <option value="w2">W2 — key,x[,test], negation not(…)</option>
+      <option value="w2br">W2 bracketed — as W2, reads bracketed: key(x), use(content)</option>
+      <option value="w2nv">W2 bracketed, noValue — reads bracketed, key(x),noValue; not(…) on relations + lists only</option>
       <option value="m">Merged — one key, head-led conditions, mode slug leads: any;term,34;key,x,noValue</option>
     </select>
-    <div class="sb-h">Styling encodings (table v1)</div>
+    <div class="sb-h">Table text styling</div>
     <label class="toggle-row">
-      <input type="checkbox" id="cb-stylebg" checked>
-      <span class="toggle-desc">include <code>background</code> (may be deferred past v1); off drops it from every line</span>
+      <input type="checkbox" id="cb-stylebg">
+      <span class="toggle-desc">include <code>background</code> (deferred past v1, not shipped); on turns the lines it appears in to Preview</span>
     </label>  </div>
 
   <!-- Permutations (the only view — the Configure tab was removed 2026-09-01, FW-79: it built
@@ -348,6 +366,7 @@ button:hover { border-color: var(--accent); color: var(--accent); }
       <div class="dummy-item"><label>rangeSep</label><input id="d-rangeSep" value=" – "></div>
       <div class="dummy-item"><label>format</label><input id="d-format" value="F j, Y"></div>
     </div>
+    <div class="perm-legend"><span><b>Current</b> ships today</span><span><b>Preview</b> not shipped, or a syntax change</span><span><b>Legacy</b> the pre-fold flat wire, still read</span></div>
     <div id="perm-issue-summary" class="perm-summary ok"></div>
     <div id="perm-output"></div>
   </div>
@@ -363,23 +382,22 @@ const PRESETS = {
   // BWS_FOLD_FREEFORM). Nothing renders this id any more; it stays only so old respell candidates resolve.
   label:           ['label','head','col'],
   caption:         ['caption'],
-  // {{table}} v1 naming pass (FW-53 ticket 00). `header` is the shipped column-header token (ticket 04);
-  // `align` and the rest are still unshipped. Respell them in the sidebar to judge a candidate on real wire.
+  // {{table}} names (shipped 1.22.0). Respell them in the sidebar to compare a candidate against what ships.
   header:          ['header','label','head','th'],
   align:           ['textAlign','align','justify'],   // `textAlign` decided 2026-10-14 (plan Settled #61); the id stays `align`
-  // {{table}} v1 presentation, target-list shape (user 2026-10-05, leaning). `layout` is a valued key
-  // (value id `layoutFixed` in VALUE_PRESETS; `fixed` there clashes with the fixed-text read, so the
-  // value can be respelled to judge it). `width` and `fill` are ONE id each: the column token and the
-  // tag-level key share a name, split by form (bracket vs key).
+  // {{table}} presentation keys. `layout` is a valued key (value id `layoutFixed` in VALUE_PRESETS; its
+  // `fixed` shares a word with the fixed-text read, so the value can be respelled to compare). `width`
+  // and `fill` are ONE id each: the column token and the tag-level key share a name, split by form
+  // (bracket vs key). `fill` (background) is deferred past v1 and not shipped.
   layout:          ['layout'],
   width:           ['width'],
   stripe:          ['stripe'],
   fill:            ['background','fill'],   // `background` is the likelier word (user 2026-10-13); the id stays `fill`
   border:          ['border'],
-  // {{table}} v1 text styling, UNSHIPPED — rendered only by the 'styling encodings' group. `color` is
-  // the text colour's key; `size` is GB-reserved as a top-level key, hence fontSize. The header
+  // {{table}} text styling (shipped), rendered only by the 'Text styling' group. `color` is
+  // the text color's key; `size` is GB-reserved as a top-level key, hence fontSize. The header
   // CONTEXT word is its own id, headerContext, so it respells without touching the `header(…)`
-  // label token: it is the Merged `header,x` head.
+  // label token: it is the `header,x` head.
   headerContext:   ['header','th','head'],
   color:           ['color','textColor'],
   fontWeight:      ['fontWeight','weight'],
@@ -433,15 +451,14 @@ const VALUE_PRESETS = {
   rows:     ['rows','repeater','list'],
   post:     ['post','post_id'],
   term:     ['term','term_id'],
-  // FW-141 fixed-text read — UNSHIPPED, the one exception to "shipped slugs only". Named `fixed`
-  // (if-option.md Q9b, decided 2026-09-25). The extra candidates are for the Q3 disambiguation test
-  // against the layout value below.
+  // FW-141 fixed-text read (shipped 1.21.0). The extra candidates are for comparing it against the
+  // layout value below.
   fixed:    ['fixed','text','literal','static'],
-  // {{table}} valued layout shape (`layout:fixed`) — UNSHIPPED; the VALUE, distinct from the
-  // fixed-text option name above. Rendered only when the layout shape select is "valued".
+  // {{table}} valued layout shape (`layout:fixed`), shipped; the VALUE, distinct from the
+  // fixed-text option name above.
   layoutFixed: ['fixed','equal','even'],
-  // {{table}} bare-column root (FW-53 ticket 00/02) — UNSHIPPED. `parent` is deliberately NOT a
-  // candidate: it is reserved for the real hierarchical relation (table-tag.md Settled #46).
+  // {{table}} bare-column root (shipped 1.22.0). `parent` is deliberately NOT a candidate: it names
+  // the hierarchical chain step.
   inherit:  ['inherit','row','here'],
   // FW-27 `when` list operators — UNSHIPPED. Rename ids for the words that join conditions or tests;
   // they apply in W1 (`any(…)` / `all(…)`), W2 (`any[…]` / `all[…]`, and `not(…)` = `not`) and
@@ -514,16 +531,16 @@ const SCENARIO_GROUPS = [
   // source hop at all (meta key, title, link folds) carry no `chain` — Preview then renders the
   // same options as Legacy (still live to non-chain toggles), not a "no equivalent" line; that
   // line is reserved for a genuine wire gap (see the pinned-term row below, FW-39).
-  { tmpl:'text', title:'text — options + built src chain (current, 1.17.0) ⟷ flat (legacy, FW-56)', isContrast:true, scenarios:[
+  { tmpl:'text', path:['Text','Options and sources'], isContrast:true, scenarios:[
     {label:'Meta key',              parts:[['key','$key1']],
       rest:[['key','$key1']]},
     {label:'`title`',                 parts:[['use','title']],
       rest:[['use','title']]},
     {label:'Meta key + `fallback`',   parts:[['key','$key1'],['fallback','$fallback']],
       rest:[['key','$key1'],['fallback','$fallback']]},
-    {label:'`parent` → `key`',          parts:[['source','parent'],['key','$key1']],
-      previewOnly:true, previewHow:'parts',
-      note:'`src:parent` is Planned, not implemented in either wire yet (tag-reference.md §src option values) — shown for shape only'},
+    {label:'`parent` → `key`', parts:null,
+      chain:[{slug:'parent'}], rest:[['key','$key1']],
+      note:'No flat/legacy form: `parent` is a chain step'},
     {label:'`key` + link permalink',  parts:[['key','$key1'],['_link',{to:'permalink'}]],
       rest:[['key','$key1'],['_link',{to:'permalink'}]]},
     {label:'`key` + link permalink, new tab', parts:[['key','$key1'],['_link',{to:'permalink',newTab:true}]],
@@ -613,15 +630,26 @@ const SCENARIO_GROUPS = [
     {label:'Pinned `term` start → `key`',
       parts:null,
       chain:[{slug:'term',arg:'42'}], rest:[['key','$key1']],
-      previewOnly:true, previewHow:'chain',
-      note:'No flat/legacy form, and still no chain form either: a pinned-entity chain root is unbuilt — tracked as FW-39, shown for shape only'},
+      note:'No flat/legacy form: a root naming one entity is a chain root'},
   ]},
   // _asSize part = {mode,size}; folded at render via foldAsSize so the value separator drives
   // the comma (as:url<sep>medium). Nullary modes (alt/id/caption) drop size.
   // Gets the same Legacy/Current/Preview treatment as `text` (2026-09-02): `parts` is the flat/
   // legacy wire, `chain`+`rest` is the current 1.17.0 chain wire. Rows with no source hop carry
   // no `chain` — Current then renders `rest` (identical to `parts`), same convention as text.
-  { tmpl:'image', title:'image — options + built src chain (current, 1.17.0) ⟷ flat (legacy, FW-56)', isContrast:true, scenarios:[
+  // FIXED TEXT — shipped 1.21.0 (FW-141). The token name implies the read, so no `use` is written.
+  // The text prints once per resolved source, so a list repeats it. Same read in a join slot, a
+  // `try_text` attempt and a table column (see those groups).
+  { tmpl:'text', path:['Text','Fixed text'], isContrast:true, variants:['chainCurrent','chain'], scenarios:[
+    {label:'Fixed text',               rest:[['_fixed',{text:'Varsity'}]]},
+    {label:'Text with a colon',        rest:[['_fixed',{text:'Note: varsity'}]],
+      note:'The control escapes `:` and `|` in the text'},
+    {label:'With `fallback',          rest:[['_fixed',{text:'Varsity'}],['fallback','$fallback']],
+      note:'Empty when the source resolves nothing, so the fallback fires'},
+    {label:'Once per resolved source', chain:[{slug:'terms',arg:'$tax'}], rest:[['sep',', '],['_fixed',{text:'Sponsor'}]],
+      note:'List mode repeats the text; `sep` and step limits apply'},
+  ]},
+  { tmpl:'image', path:['Image'], isContrast:true, scenarios:[
     {label:'`url`, meta key',           parts:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']],
       rest:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']]},
     {label:'`url`, meta key, `medium`',   parts:[['_asSize',{mode:'url',size:'medium'}],['key','$imgKey']],
@@ -641,7 +669,7 @@ const SCENARIO_GROUPS = [
     {label:'`url`, `key` + `fallback`',     parts:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey'],['fallback','$fallback']],
       rest:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey'],['fallback','$fallback']]},
   ]},
-  { tmpl:'content', title:'content — options + built src chain (current, 1.17.0) ⟷ flat (legacy, FW-56)', isContrast:true, scenarios:[
+  { tmpl:'content', path:['Content'], isContrast:true, scenarios:[
     {label:'Post content',          parts:[], rest:[]},
     {label:'`excerpt`',               parts:[['use','excerpt']], rest:[['use','excerpt']]},
     {label:'ACF field',             parts:[['_content_key','$key1']], rest:[['_content_key','$key1']]},
@@ -659,7 +687,7 @@ const SCENARIO_GROUPS = [
   // (S1 settled — one tag, mode = read count), not this group's own `tmpl` — see buildOneVariant's
   // dtCollapse branch. `tmpl` stays `datetime_single`/`datetime_range` because that is still the
   // real, only-shipped name for the six-key variant on this row.
-  { tmpl:'datetime_single', title:'datetime_single ⟷ merged {{datetime}} (FW-81, parked/unshipped)',
+  { tmpl:'datetime_single', path:['Datetime','Single date'],
     isContrast:true, variants:['sixKey','collapsed'], scenarios:[
     {label:'Date',                  parts:[['as','date'],['key','$dateKey']]},
     {label:'Datetime',              parts:[['key','$dateKey'],['timeKey','$timeKey']]},
@@ -675,7 +703,7 @@ const SCENARIO_GROUPS = [
     {label:'Modified date',         parts:null, collapsed:[{verb:'modified'}], previewOnly:true,
       note:'Verb read, no fields: `use:` only, no `key:`'},
   ]},
-  { tmpl:'datetime_range', title:'datetime_range ⟷ merged {{datetime}} (FW-81, parked/unshipped)',
+  { tmpl:'datetime_range', path:['Datetime','Date ranges'],
     isContrast:true, variants:['sixKey','collapsed'], scenarios:[
     {label:'Date range',            parts:[['as','date'],['startKey','$startKey'],['endKey','$endKey']]},
     {label:'Date range + `sep`',      parts:[['as','date'],['rangeSep','$rangeSep'],['startKey','$startKey'],['endKey','$endKey']]},
@@ -707,7 +735,7 @@ const SCENARIO_GROUPS = [
   // so these get folded counterparts rather than staying shipped-only). try_ is a format-FIXED
   // container, so no type token in the folded value; `content`'s analog reads are content/excerpt,
   // `image`'s are featured + the as/size format options, which stay slot options under the fold.
-  { tmpl:'content', title:'try_content — folded (current, 1.17.0) ⟷ flat (legacy, FW-57)', isContrast:true,
+  { tmpl:'content', path:['Try tags','try_content'], isContrast:true,
     variants:['shipped','foldedCurrent','folded'], foldClass:'try', scenarios:[
     {label:'2: `content`, ACF',
       shippedSlots:[[],[['_content_key','$key1']]],
@@ -722,7 +750,7 @@ const SCENARIO_GROUPS = [
       shippedSlots:[[['_content_key','$key1']],[['use','excerpt']]],
       slots:[{read:{kind:'key',field:'$key1'}},{read:{kind:'analog',slug:'excerpt'}}]},
   ]},
-  { tmpl:'image', title:'try_image — folded (current, 1.17.0) ⟷ flat (legacy, FW-57)', isContrast:true,
+  { tmpl:'image', path:['Try tags','try_image'], isContrast:true,
     variants:['shipped','foldedCurrent','folded'], foldClass:'try', scenarios:[
     {label:'2: `key`, `featured`',
       shippedSlots:[[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']],[['_asSize',{mode:'url',size:'full'}],['use','featured']]],
@@ -754,7 +782,7 @@ const SCENARIO_GROUPS = [
   // multi-hop chains, entity-start roots, per-step limits, all of which the shipped wire simply
   // cannot spell — render an explicit "no shipped equivalent" line. That absence IS the argument
   // for the fold, so it is shown rather than hidden.
-  { tmpl:'text', title:'try_text — folded (current, 1.17.0) ⟷ flat (legacy, FW-57)', isContrast:true,
+  { tmpl:'text', path:['Try tags','try_text'], isContrast:true,
     variants:['shipped','foldedCurrent','folded'], foldClass:'try', scenarios:[
     {label:'2: `key`, `key`',
       shippedSlots:[[['key','$key1']],[['key','$key2']]],
@@ -777,6 +805,8 @@ const SCENARIO_GROUPS = [
     {label:'3: `key`, `ref`→`key`, in `term`',
       shippedSlots:[[['key','$key1']],[['source','ref'],['ref','$ref'],['key','$key1']],[['_inTerm','$tax']]],
       slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref'}],read:{kind:'key',field:'$key1'}},{chain:[{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'title'}}]},
+    {label:'2: `key`, then a `fixed` attempt',
+      slots:[{read:{kind:'key',field:'$key1'}},{read:{kind:'fixed',text:'TBD'}}]},
     // try_ link is CHAIN-LEVEL (one unprefixed linkTo for the winning slot's entity —
     // link-helpers.php:184), NOT per-slot. Modeled via scenario.chainLink, format-agnostic.
     {label:'2: `key`, `key` + chain link',
@@ -830,13 +860,16 @@ const SCENARIO_GROUPS = [
   // `{{join key:name_first|2-key:name_last}}`, slot 1 bare). Rows whose slots are HETEROGENEOUS
   // (a phone slot beside a title slot) have no shipped equivalent — join is text-only today, which
   // is exactly what Option R's per-slot type token buys, so those render "no shipped equivalent".
-  { title:'join — folded (current, 1.17.0), heterogeneous ⟷ flat (legacy, FW-57 Option R)', isContrast:true,
+  { path:['Join','Slots'], isContrast:true,
     variants:['shipped','foldedCurrent','folded'], foldClass:'join', tmpl:'text', scenarios:[
     {label:'Name + phone',           slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'phone',read:{kind:'key',field:'mobile'}}]},
     {label:'`title` + `email` + `text`',   slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'email',read:{kind:'key',field:'contact_email'}},{tag:'text',read:{kind:'key',field:'note'}}]},
     {label:'Plain field (`text`, no tag token)',
       shippedSlots:[[['key','$key1']],[['key','$key2']]],
       slots:[{tag:'text',read:{kind:'key',field:'$key1'}},{tag:'text',read:{kind:'key',field:'$key2'}}]},
+    {label:'Name + `fixed` text',
+      slots:[{tag:'text',read:{kind:'key',field:'team_name'}},{tag:'text',read:{kind:'fixed',text:'Varsity'}}],
+      note:'The token implies the read, as `key(x)` does, so there is no `use(fixed)`'},
     {label:'Two titles (homogeneous)',
       shippedSlots:[[['use','title']],[['source','ref'],['ref','office'],['use','title']]],
       slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'title',chain:[{slug:'refs',arg:'office'}],read:{kind:'analog',slug:'title'}}]},
@@ -872,7 +905,7 @@ const SCENARIO_GROUPS = [
   // Digit tokens stay readable as a FALLBACK, which is what makes the token move migration-free —
   // bws_join_wire_format() maps both alphabets onto the same internal {N}, so every stored
   // `format:%1 (%2)` keeps rendering with no converter entry. The `%%` row is what that costs.
-  { title:'join — TEMPLATE MODE, format tokens (%N follows the key spelling)', isContrast:true,
+  { path:['Join','Template mode'], isContrast:true,
     variants:['shipped','foldedCurrent','folded'], foldClass:'join', tmpl:'text', scenarios:[
     {label:'Name (nickname) — 2 slots', format:'%1 (%2)',
       shippedSlots:[[['key','name_first']],[['key','nickname']]],
@@ -908,21 +941,15 @@ const SCENARIO_GROUPS = [
     {label:'`title` + `phone` in a format', format:'%1 - %2',
       slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'phone',read:{kind:'key',field:'mobile'}}]},
   ]},
-  // TABLE — folded-only (re-based 2026-09-01, FW-79, per table-tag.md's REOPENED 2026-08-30
-  // pass, decisions D1-D4 + GRILLED Q1-Q8). {{table}} ships FOLDED-ONLY with no back-compat at
-  // either level (D1) — there is no flat wire to contrast against, so this group's `variants`
-  // omits 'shipped' entirely ('foldedCurrent' sits alongside 'folded' — current
-  // shows what 1.17.0's fold grammar actually spells, pinned regardless of the sidebar; 'folded'
-  // is the live preview, following whatever the reader has toggled).
-  // Row chain = the tag's own src chain, now offering `rows` in its step set (D2/Q6); there is
-  // NO tag-level `key`/repeater-field option any more (D2 retires it) and NO enumerated set of
-  // "valid" row kinds — ANY resolved kind is a row (D2a): term, site, single post, or repeater,
-  // all alike. Each column is a folded slot exactly like a join/try_ slot (letter-ordinal key,
-  // its own chain+read folded into one value) — Option R's per-slot type token applies the same
-  // way. The column HEADER text folds in under the shipped freeform token `header`
-  // (BWS_FOLD_FREEFORM; renamed from `label` in table-tag ticket 04).
-  { title:'table — folded, unreleased (REOPENED 2026-08-30)', isContrast:true,
+  // TABLE — shipped in 1.22.0, folded-only: there is no flat wire to contrast against, so each group
+  // lists 'foldedCurrent' (what ships, pinned regardless of the sidebar) beside 'folded' (the live
+  // line, which shows once a toggle differs). The row set is the tag's own `src` chain and ANY
+  // resolved kind is a row. Each column is a folded slot (letter key, chain and read in one value,
+  // `header(…)` first). `tableV1` writes columns and presentation as the control does: a lone
+  // `inherit` root strips, and a chain with steps always writes its root.
+  { path:['Table','Rows and columns'], isContrast:true, tableV1:true,
     variants:['foldedCurrent','folded'], foldClass:'table', scenarios:[
+    {heading:'Row sources'},
     {label:'Staff rows: name→link + office',
       rowChain:[{slug:'refs',arg:'related_staff'}],
       slots:[{label:'Name',tag:'title',read:{kind:'analog',slug:'title'},link:{to:'permalink'}},
@@ -940,17 +967,10 @@ const SCENARIO_GROUPS = [
       rowChain:[{slug:'post',arg:'9999'},{slug:'refs',arg:'related_staff',limit:'5'}],
       slots:[{label:'Name',tag:'title',read:{kind:'analog',slug:'title'}},
              {label:'Phone',tag:'phone',read:{kind:'key',field:'mobile'}}]},
-    // D2a (table-tag.md, 2026-08-30): a resolved source is a row, WHATEVER kind it is — three
-    // shapes is not the rule. This row is the plainest instance: a chain that resolves to exactly
-    // ONE post, with no fan-out step at all, still makes a valid (one-row) table. Not a special
-    // case — cardinality just falls out of the chain the way it always does.
-    {label:'Single post, no fan-out (one-row table, D2a)',
+    {label:'Single post, no fan-out (one row)',
       rowChain:[{slug:'post',arg:'9999'}],
       slots:[{label:'Title',tag:'title',read:{kind:'analog',slug:'title'}},
              {label:'Note',tag:'text',read:{kind:'key',field:'internal_note'}}]},
-    // BUILT-SRC in table (user 2026-07-31): rows and COLUMNS each carry their own refs/terms
-    // chain. Terms as the ROW SET is the srcTermIn replacement at tag level; a column chain is
-    // the per-cell hop the shipped wire has no form for at all.
     {label:'`terms` rows, limited + per-col `refs`',
       rowChain:[{slug:'terms',arg:'$tax',limit:'10'}],
       slots:[{label:'Term',tag:'title',read:{kind:'analog',slug:'title'}},
@@ -963,27 +983,7 @@ const SCENARIO_GROUPS = [
       rowChain:[{slug:'refs',arg:'$ref'},{slug:'terms',arg:'$tax'}],
       slots:[{label:'Term',tag:'title',read:{kind:'analog',slug:'title'}},
              {label:'Count',tag:'text',read:{kind:'key',field:'post_count'}}]},
-    // D4 decision (a) (table-tag.md, 2026-08-30): analog dispatch is SPECIFIED to refuse on a
-    // repeater row — `use(title)` and its siblings get no row read there by design, because
-    // (b)'s alternative would smuggle a source hop into `use`, the exact overload the fold
-    // removed everywhere else. This page only assembles wire strings and never executes PHP, so
-    // this is NOT a claim about what the tag renders (FW-74/{{table}} aren't built) — it is a
-    // note that the wire below is syntactically valid but targets a read the design does not
-    // wire up. The hop must be spelled explicitly instead: `rows,team_members;refs,lead_ref`
-    // then `use(title)` on THAT slot reads the linked post's title, per D4's own worked example.
-    {label:'Analog on a repeater row (D4 decision a — see note)',
-      rowChain:[{slug:'rows',arg:'team_members'}],
-      slots:[{label:'Name',tag:'text',read:{kind:'key',field:'name'}},
-             {label:'Lead title',tag:'title',read:{kind:'analog',slug:'title'}}],
-      note:'Per table-tag.md §D4 decision (a), analog dispatch is specified to refuse on a repeater row — hop explicitly (`rows,team_members;refs,lead_ref`) before `use(title)` instead'},
-  ]},
-  // TABLE v1 — the naming pass (FW-53 spec ticket 00, unbuilt). Every provisional name is a
-  // PRESETS / VALUE_PRESETS id (header, align, stripe, layout, inherit), so the rename
-  // sidebar respells it here; the column NOUN is editor copy, not wire, and has nothing to show on
-  // this page. Columns render in the decided shape (tableColumnChain). The row chain is the
-  // tag-level src, as above.
-  { title: 'table v1 — naming pass (FW-53 ticket 00, unbuilt)',
-    isContrast:true, variants:['folded'], foldClass:'table', tableV1:true, scenarios:[
+    {heading:'Columns'},
     {label:'Bare column beside a chained one',
       rowChain:[{slug:'refs',arg:'related_staff'}],
       slots:[{label:'Name',tag:'title',read:{kind:'analog',slug:'title'}},
@@ -992,67 +992,88 @@ const SCENARIO_GROUPS = [
       rowChain:[{slug:'refs',arg:'related_staff'}],
       slots:[{label:'Office',tag:'text',chain:[{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}},
              {label:'Notes'}],
-      note:'A header-only column is valid and renders empty cells (table-tag.md Settled #25)'},
+      note:'A header-only column is kept and renders empty cells'},
     {label:'Column carrying `align`',
       rowChain:[{slug:'rows',arg:'products'}],
       slots:[{label:'Product',tag:'text',read:{kind:'key',field:'name'}},
              {label:'Price',tag:'text',read:{kind:'key',field:'price'},align:'right'}]},
-    {label:'`fixed`-text columns, bare + hopping, beside the fixed-layout token',
-      rowChain:[{slug:'rows',arg:'teams'}], layout:'fixed',
-      slots:[{label:'Team',tag:'text',read:{kind:'key',field:'team_name'}},
-             {label:'Level',tag:'text',read:{kind:'fixed',text:'Varsity'}},
-             {label:'Sponsor',tag:'text',chain:[{slug:'refs',arg:'sponsor_ref'}],read:{kind:'fixed',text:'Sponsored'}}],
-      note:'The slot read `fixed(…)` and the layout token in one tag (set the `fixed` and `layoutFixed` rename rows equal here to judge the clash); the hopping column shows only where the `ref` resolves'},
     {label:'Column widths — same name as the tag-level `width`',
       rowChain:[{slug:'rows',arg:'products'}], layout:'fixed', width:'100%',
       slots:[{label:'Product',tag:'text',read:{kind:'key',field:'name'}},
              {label:'SKU',tag:'text',read:{kind:'key',field:'sku'},width:'8rem'},
-             {label:'Price',tag:'text',read:{kind:'key',field:'price'},align:'right',width:'15%',fill:'#fff8e1'}],
-      note:'Columns without a `width` split what is left equally; a column `width` needs fixed layout to be honored exactly (auto layout treats it as a hint)'},
-    // Presentation scenarios, target-list shape (the only shape left). One per question.
-    ...[
-      {label:'Row stripes only', stripe:{rows:{}}},
-      {label:'Fixed layout only', layout:'fixed',
-        note:'Leaning: `layout:fixed` also emits `width:100%` when no `width` key is set (reopen note, item 13)'},
-      {label:'`width` auto', width:'auto'},
-      {label:'`width` as a length', width:'600px'},
-      {label:'Stripes, fixed layout and a length width', stripe:{rows:{}}, layout:'fixed', width:'40rem'},
-      {label:'Fixed layout + `width` auto — conflict', layout:'fixed', width:'auto',
-        note:'Rendered as written (fixed layout does nothing at auto width) and flagged in the editor, like `when:all(before,after)`'},
-      {label:'Row stripes with a per-tag color', stripe:{rows:{color:'#eee'}}, layout:'fixed',
-        note:'In v1 (reopen note, item 11); #30\'s allowlist gates the value'},
-      {label:'Row + column stripes, parity + color (round 3)', stripe:{rows:{parity:'even',color:'#eee'}, cols:{parity:'odd'}}},
-      {label:'Row stripes, defaults (round 3 minimum)', stripe:{rows:{}},
-        note:'No bare `stripe` key: `stripe:rows` is the least that serializes'},
-      {label:'`rgba` stripe — commas at two depths (round 3)', stripe:{rows:{color:'rgba(0,0,0,.04)'}}},
-      {label:'`table` + `header` fill, `rows(even)` to keep bands apart (round 3)', fill:{table:{color:'#fafafa'}, header:{color:'#333'}}, stripe:{rows:{parity:'even'}},
-        note:'`header` filled + row 1 filled-plus-stripe would be two shaded bands in contact (C5 tripwire); `even` moves the first stripe to row 2'},
-      {label:'Border targets — DEFERRED, shape only (round 3)', border:{rows:{color:'#ccc'}, outer:{}}, layout:'fixed', width:'100%'},
-      {label:'No presentation'},
-    ].map(p => ({ rowChain:[{slug:'terms',arg:'$tax'}], caption:'Categories',
-      slots:[{label:'Term',tag:'title',read:{kind:'analog',slug:'title'}},
-             {label:'Count',tag:'text',read:{kind:'key',field:'post_count'}}], ...p })),
+             {label:'Price',tag:'text',read:{kind:'key',field:'price'},align:'right',width:'15%'}],
+      note:'Columns without a `width` split what is left equally'},
     {label:'`current`-context columns, root-only and with a path',
       rowChain:[{slug:'refs',arg:'related_staff'}],
       slots:[{label:'Name',tag:'title',read:{kind:'analog',slug:'title'}},
              {label:'Page',tag:'title',chain:[{slug:'current'}],read:{kind:'analog',slug:'title'}},
              {label:'Page office',tag:'text',chain:[{slug:'current'},{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}}],
-      note:'`current` is not the default, so it is written even root-only (table-tag.md Settled #55)'},
+      note:'`current` is never a column\'s default root, so it is written even on its own'},
     {label:'Copied chain beside its source column',
       rowChain:[{slug:'refs',arg:'related_staff'}],
       slots:[{label:'Office',tag:'text',chain:[{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}},
              {label:'Office phone',tag:'phone',chain:[{slug:'refs',arg:'office'}],read:{kind:'key',field:'phone'}}],
-      note:'"Copy Previous Column’s Source" writes the chain itself, never `same` (table-tag.md Settled #50)'},
+      note:'"Copy Previous Column’s Source" writes the chain itself, never `same`'},
     {label:'Ten columns (wire bulk)',
       rowChain:[{slug:'rows',arg:'staff_members'}],
       slots:['name','role','email','phone','office','department','start_date','extension','room','status']
         .map(f=>({label:f.replace(/_/g,' ').replace(/^./,ch=>ch.toUpperCase()),tag:'text',read:{kind:'key',field:f}}))},
-  ].map(sc => ({previewOnly:true, ...sc}))},
+    {heading:'Reads on a repeater row'},
+    {label:'Analog read on a repeater row',
+      rowChain:[{slug:'rows',arg:'team_members'}],
+      slots:[{label:'Name',tag:'text',read:{kind:'key',field:'name'}},
+             {label:'Lead title',tag:'title',read:{kind:'analog',slug:'title'}}],
+      note:'A repeater row is not an entity, so `use(title)` on it is an empty cell'},
+    {label:'Hop off the row first, then the analog read',
+      rowChain:[{slug:'rows',arg:'team_members'}],
+      slots:[{label:'Name',tag:'text',read:{kind:'key',field:'name'}},
+             {label:'Lead title',tag:'title',chain:[{slug:'refs',arg:'lead_ref'}],read:{kind:'analog',slug:'title'}}]},
+    {heading:'Fixed text'},
+    {label:'`fixed` text columns, bare + hopping, beside the fixed layout',
+      rowChain:[{slug:'rows',arg:'teams'}], layout:'fixed',
+      slots:[{label:'Team',tag:'text',read:{kind:'key',field:'team_name'}},
+             {label:'Level',tag:'text',read:{kind:'fixed',text:'Varsity'}},
+             {label:'Sponsor',tag:'text',chain:[{slug:'refs',arg:'sponsor_ref'}],read:{kind:'fixed',text:'Sponsored'}}],
+      note:'The `fixed(…)` read and the `layout:fixed` value share a word; the hopping column shows only where its `ref` resolves'},
+  ]},
+  // {{table}} presentation: layout and width, stripes, borders. Text styling is its own group below.
+  // Target-list shape (`head,args` items joined by `;`), args typed by value so their order is free.
+  { path:['Table','Sizing, stripes and borders'], isContrast:true, tableV1:true,
+    variants:['foldedCurrent','folded'], foldClass:'table', scenarios:[
+    ...[
+      {label:'No presentation'},
+      {heading:'Layout and width'},
+      {label:'Fixed layout only', layout:'fixed',
+        note:'`layout:fixed` with no `width` renders `width:100%`'},
+      {label:'`width` auto', width:'auto'},
+      {label:'`width` as a length', width:'600px'},
+      {label:'Fixed layout and a length width', layout:'fixed', width:'40rem'},
+      {label:'Fixed layout + `width` auto', layout:'fixed', width:'auto',
+        note:'Fixed layout is inert without a table width'},
+      {heading:'Stripes'},
+      {label:'Row stripes only', stripe:{rows:{}},
+        note:'A bare target means `even`'},
+      {label:'Row stripes with a color', stripe:{rows:{color:'#eee'}}},
+      {label:'Row + column stripes, parity + color', stripe:{rows:{parity:'even',color:'#eee'}, cols:{parity:'odd'}}},
+      {label:'Stripe with an opacity', stripe:{rows:{parity:'odd',color:'#eee',opacity:'40%'}, cols:{}}},
+      {label:'`rgba` stripe — commas at two depths', stripe:{rows:{color:'rgba(0,0,0,.04)'}}},
+      {label:'Stripes, fixed layout and a length width', stripe:{rows:{}}, layout:'fixed', width:'40rem'},
+      {heading:'Borders'},
+      {label:'Border: base width, style and color, one line overridden', border:'2px,solid,#ccc;rows,dotted',
+        note:'A head-less base, then per-line overrides (`outer`, `header`, `rows`, `cols`) that take a width and a style'},
+      {label:'Border: gray lines, thicker under the header, rounded corners', border:'1px,#888;header,3px', borderRadius:'outer,8px'},
+      {label:'Border: base `none`, one line drawn again', border:'none;rows,2px'},
+      {label:'Border: color only', border:'#ccc',
+        note:'A base that is only a color recolors the theme\'s lines and draws nothing new'},
+    ].map(p => p.heading ? p : ({ rowChain:[{slug:'terms',arg:'$tax'}], caption:'Categories',
+      slots:[{label:'Term',tag:'title',read:{kind:'analog',slug:'title'}},
+             {label:'Count',tag:'text',read:{kind:'key',field:'post_count'}}], ...p })),
+  ]},
 
   // DATETIME folded slots — the multi-key pivot (user 2026-07-29). rule2 can only carry ONE
   // terminal key → these BREAK/lose keys in rule2, resolve fully in respell. dtKeys = the flat
   // option set (as/format + 1-4 keys). Shown in join (agnostic → type leads) + table columns.
-  { title:'join — FOLDED datetime (multi-key pivot)', isContrast:true, variants:['foldedCurrent','folded'], foldClass:'join', scenarios:[
+  { path:['Join','Datetime slots'], isContrast:true, variants:['foldedCurrent','folded'], foldClass:'join', scenarios:[
     {label:'Name + 1 key single date',   slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_date'},dtKeys:{as:'date',key:'event_date',format:'F j, Y'}}]},
     {label:'Name + 2 key single datetime',slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_date'},dtKeys:{key:'event_date',timeKey:'event_time'}}]},
     {label:'Name + 2 key date range',    slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_range',read:{kind:'key',field:'start_date'},dtKeys:{as:'date',startKey:'start_date',endKey:'end_date'}}]},
@@ -1065,7 +1086,7 @@ const SCENARIO_GROUPS = [
     {label:'Template `format` + datetime slot `format`', format:'%1 - %2',
       slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_date'},dtKeys:{as:'date',key:'event_date',format:'F j, Y'}}]},
   ]},
-  { title:'table — FOLDED datetime cols (multi-key)', isContrast:true, variants:['foldedCurrent','folded'], foldClass:'table', scenarios:[
+  { path:['Table','Datetime columns'], isContrast:true, tableV1:true, variants:['foldedCurrent','folded'], foldClass:'table', scenarios:[
     {label:'Event rows: name + date range',
       rowChain:[{slug:'refs',arg:'events'}],
       slots:[{label:'Event',tag:'title',read:{kind:'analog',slug:'title'}},
@@ -1081,7 +1102,7 @@ const SCENARIO_GROUPS = [
   // verbatim); balanced inner brackets survive our own balance-aware sub-parser. `{ }` are hard-
   // unsafe but ~never in these values. Eyeball: the `:` in `g:i A` / `Price: $5` must appear as `\:`,
   // and the balanced `(cm)` / `[TBD]` must survive; an UNBALANCED bracket is flagged in the label.
-  { title:'escape hazards — free-form values (\\: \\| + brackets)', isContrast:true, variants:['foldedCurrent','folded'], foldClass:'join', scenarios:[
+  { path:['Join','Escape hazards'], isContrast:true, variants:['foldedCurrent','folded'], foldClass:'join', scenarios:[
     {label:'Time `format` `g:i A` + name', slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_time'},dtKeys:{as:'time',key:'event_time',format:'g:i A'}}]},
     {label:'Datetime `l, F jS g:i A`',   slots:[{tag:'datetime_single',read:{kind:'key',field:'event'},dtKeys:{key:'event',format:'l, F jS \\a\\t g:i A'}},{tag:'title',read:{kind:'analog',slug:'title'}}]},
     {label:'`fallback` with colon + name',slots:[{tag:'text',read:{kind:'key',field:'note'},dtKeys:null,fallback:'Status: (pending)'},{tag:'title',read:{kind:'analog',slug:'title'}}]},
@@ -1091,7 +1112,7 @@ const SCENARIO_GROUPS = [
     {label:'`format` with a colon (`Price: …`)', format:'Price: %1 (%2)',
       slots:[{tag:'text',read:{kind:'key',field:'price'}},{tag:'text',read:{kind:'key',field:'unit'}}]},
   ]},
-  { title:'escape hazards — table labels (brackets + colon)', isContrast:true, variants:['foldedCurrent','folded'], foldClass:'table', scenarios:[
+  { path:['Table','Escape hazards'], isContrast:true, tableV1:true, variants:['foldedCurrent','folded'], foldClass:'table', scenarios:[
     {label:'Balanced brackets + colon in labels',
       rowChain:[{slug:'rows',arg:'products'}],
       slots:[{label:'Size (cm)',tag:'text',read:{kind:'key',field:'size'}},
@@ -1102,17 +1123,19 @@ const SCENARIO_GROUPS = [
              {label:'OK [done]',tag:'text',read:{kind:'key',field:'status'}}]},
   ]},
 
-  // ── FW-27 `when` + FW-141 fixed text — UNBUILT, PREVIEW ONLY ────────────────
+  // ── FW-27 `when` — UNBUILT, PREVIEW ONLY ────────────────────────────────────────
   // Encoding per .scratch/plans/if-option.md (decided through the 2026-09-25 grill). The option is
   // named `when`; its internal id stays `if` / `_if` so the rename repeater can still show other
-  // spellings. Neither `when` nor a fixed read exists on ANY wire, so every row below is
-  // `previewOnly`: one Preview line, never a Legacy or Current one. Deliberately NO Current line
-  // showing the same tag minus its `when` — that string renders UNGATED, so labelling it the
-  // current form of this row would claim a behavior nothing ships. Cond shape: see serializeIf;
-  // `subject` is REQUIRED (own-read testing cut 2026-09-24), an array = two reads (G6, later).
-  // `fixed` is its own token (Q9a (B), decided). A row carrying NEITHER (a baseline beside a gated
-  // twin) sets `previewOnly:false` and renders as Current, because that string does ship.
-  { tmpl:'text', title:'when: + fixed text on BASE tags (FW-27 / FW-141, unbuilt)', isContrast:true, scenarios:[
+  // spellings. `when` exists on no wire, so every row below is `previewOnly`: one Preview line, never
+  // a Legacy or Current one. Deliberately NO Current line showing the same tag minus its `when` —
+  // that string renders UNGATED, so labelling it the current form of this row would claim a behavior
+  // nothing ships. Cond shape: see serializeIf; `subject` is REQUIRED (own-read testing cut
+  // 2026-09-24), an array = two reads (G6, later). A row with no `when` (a baseline beside a gated
+  // twin) sets `previewOnly:false` and renders as Current, because that string does ship. The
+  // shipped fixed read has its own Current rows under Text > Fixed text; the `fixed` rows here are
+  // the gated ones.
+  { tmpl:'text', path:['When','Base tags'], isContrast:true, scenarios:[
+    {heading:'Lists and picking a source'},
     {label:'List: skip empties (FW-88), field named',
       chain:[{slug:'refs',arg:'related_staff',limit:'3'}], rest:[['sep',', '],['key','phone'],['_if',{test:'hasValue',subject:{kind:'key',field:'phone'}}]],
       note:'`when` filters BEFORE `limit` (G1): first 3 staff that HAVE a phone. No own-read form: the tested field is named even when it is the shown one'},
@@ -1121,6 +1144,14 @@ const SCENARIO_GROUPS = [
     {tmpl:'image', label:'First related item with an image',
       chain:[{slug:'refs',arg:'$ref'}], rest:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey'],['_if',{test:'hasValue',subject:{kind:'key',field:'$imgKey'}}]],
       note:'On a collapsing tag, `when` picks the first source that PASSES (G1)'},
+    {label:'`ref` chain then other field', chain:[{slug:'refs',arg:'$ref'},{slug:'terms',arg:'$tax'}], rest:[['use','title'],['_if',{test:'true',subject:{kind:'key',field:'is_featured'}}]],
+      note:'Tested on the FINAL sources (the terms), never the `ref` post in between'},
+    {label:'Term list, featured terms only',
+      chain:[{slug:'terms',arg:'$tax'}], rest:[['use','title'],['_if',{test:'true',subject:{kind:'key',field:'is_featured'}}]],
+      note:'Tested field is read from each term, the same location as the displayed field (decision 3)'},
+    {tmpl:'content', label:'`content`: public refs only',
+      chain:[{slug:'refs',arg:'$ref'}], rest:[['_if',{test:'true',subject:{kind:'key',field:'is_public'}}]]},
+    {heading:'Presence and either-or'},
     {label:'Linked title if it has content, 1 of 2',
       rest:[['use','title'],['_if',{test:'hasValue',subject:{kind:'analog',slug:'content'}}],['_link',{to:'permalink'}]],
       note:'The `use(content)` case: link only to pages with something on them'},
@@ -1129,6 +1160,13 @@ const SCENARIO_GROUPS = [
       note:'Adjacency-exclusion: `when` cannot gate the link alone, so the either-or is two tags'},
     {label:'`price` if `sale_price` set',   rest:[['key','price'],['_if',{test:'hasValue',subject:{kind:'key',field:'sale_price'}}]]},
     {label:'`price` if NO `sale_price`',    rest:[['key','price'],['_if',{test:'noValue',subject:{kind:'key',field:'sale_price'}}]]},
+    {label:'Subject = built-in field: `use(excerpt)`', rest:[['key','$key1'],['_if',{test:'hasValue',subject:{kind:'analog',slug:'excerpt'}}]]},
+    {label:'Abbr-else-name, tag 1 of 2', rest:[['key','abbr']], previewOnly:false,
+      note:'No `when` needed: an empty abbr already renders nothing'},
+    {label:'Abbr-else-name, tag 2 of 2', rest:[['key','name'],['_if',{test:'noValue',subject:{kind:'key',field:'abbr'}}]]},
+    {label:'With link + `fallback`',      rest:[['key','price'],['_if',{test:'hasValue',subject:{kind:'key',field:'sale_price'}}],['_link',{to:'permalink'}],['fallback','$fallback']],
+      note:'`when` serializes at the tail of the source group, ahead of link + `fallback` (decided 2026-09-25)'},
+    {heading:'Booleans and text'},
     {label:'Boolean true',              rest:[['use','title'],['_if',{test:'true',subject:{kind:'key',field:'is_varsity'}}]]},
     {label:'Boolean false (unset = false, G13)', rest:[['use','title'],['_if',{test:'false',subject:{kind:'key',field:'is_varsity'}}]]},
     {label:'Text `is`',                   rest:[['use','title'],['_if',{test:'is',arg:'Yes',subject:{kind:'key',field:'featured'}}]]},
@@ -1137,7 +1175,12 @@ const SCENARIO_GROUPS = [
       note:'Operand is author text: GB-structural `:` escaped, same as `fallback`'},
     {label:'`is` operand with `;` and (…)', rest:[['use','title'],['_if',{test:'is',arg:'Red (dark); matte',subject:{kind:'key',field:'finish'}}]],
       note:'The bracket is what keeps the operand\'s `;` and `,` from reading as a separator'},
-    {label:'Subject = built-in field: `use(excerpt)`', rest:[['key','$key1'],['_if',{test:'hasValue',subject:{kind:'analog',slug:'excerpt'}}]]},
+    {heading:'Combined tests'},
+    {label:'Has a real value (C1)',     rest:[['key','status'],['_if',{all:['hasValue',{test:'isNot',arg:'TBD'}],subject:{kind:'key',field:'status'}}]],
+      note:'`all()` pairs a positive with a negative; the operand drops one bracket level inside the list'},
+    {label:'Neither of two values (C1)', rest:[['use','title'],['_if',{all:[{test:'isNot',arg:'Archived'},{test:'isNot',arg:'Draft'}],subject:{kind:'key',field:'status'}}]],
+      note:'The comparison any-of G4d parked: `isNot` pairs under `all()`, never `any()`'},
+    {heading:'Dates'},
     {label:'Upcoming incl. today, next 3',
       chain:[{slug:'refs',arg:'related_events',limit:'3'}], rest:[['sep',', '],['use','title'],['_if',{any:['before','during'],subject:{kind:'key',field:'$dateKey'}}]],
       note:'Date-only field = the whole day (G4b), so today counts as `during`'},
@@ -1145,10 +1188,8 @@ const SCENARIO_GROUPS = [
     {label:'Today only (date-only field)', rest:[['use','title'],['_if',{test:'during',subject:{kind:'key',field:'$dateKey'}}]]},
     {label:'Upcoming or no date yet (C1)', rest:[['use','title'],['_if',{any:['before','noValue'],subject:{kind:'key',field:'$dateKey'}}]],
       note:'`any()` mixes families: a missing date is in no phase, so `noValue` has to be listed'},
-    {label:'Has a real value (C1)',     rest:[['key','status'],['_if',{all:['hasValue',{test:'isNot',arg:'TBD'}],subject:{kind:'key',field:'status'}}]],
-      note:'`all()` pairs a positive with a negative; the operand drops one bracket level inside the list'},
-    {label:'Neither of two values (C1)', rest:[['use','title'],['_if',{all:[{test:'isNot',arg:'Archived'},{test:'isNot',arg:'Draft'}],subject:{kind:'key',field:'status'}}]],
-      note:'The comparison any-of G4d parked: `isNot` pairs under `all()`, never `any()`'},
+    {label:'Not upcoming, INCLUDING no date (W2 gain)', rest:[['use','title'],['_if',{any:['during','after','noValue'],subject:{kind:'key',field:'$dateKey'}}]],
+      note:'W2 spells it as the negation of "upcoming"; W1 has to list `noValue` beside the phases'},
     {label:'All three phases (flagged)', rest:[['use','title'],['_if',{any:['before','during','after'],subject:{kind:'key',field:'$dateKey'}}]],
       note:'Parses; always passes for a set date, so the editor warns (C3b)'},
     {label:'Contradiction (flagged)',   rest:[['use','title'],['_if',{all:['before','after'],subject:{kind:'key',field:'$dateKey'}}]],
@@ -1161,23 +1202,7 @@ const SCENARIO_GROUPS = [
       note:'FW-81\'s `key,date,time` read (G7 widening): a time makes the value an instant (G4b)'},
     {label:'Range, time-only end (LATER, G6)',  rest:[['use','title'],['_if',{test:'during',subject:[{kind:'key',field:'$dateKey',time:'start_time'},{kind:'key',field:'end_time'}]}]],
       note:'FW-81: a time-only end INHERITS the start date; the reads\' `;` sits inside `use()`, so the top level is still subject,test (W1) / property,test (W2)'},
-    {label:'`ref` chain then other field', chain:[{slug:'refs',arg:'$ref'},{slug:'terms',arg:'$tax'}], rest:[['use','title'],['_if',{test:'true',subject:{kind:'key',field:'is_featured'}}]],
-      note:'Tested on the FINAL sources (the terms), never the `ref` post in between'},
-    {label:'Term list, featured terms only',
-      chain:[{slug:'terms',arg:'$tax'}], rest:[['use','title'],['_if',{test:'true',subject:{kind:'key',field:'is_featured'}}]],
-      note:'Tested field is read from each term, the same location as the displayed field (decision 3)'},
-    {label:'Abbr-else-name, tag 1 of 2', rest:[['key','abbr']], previewOnly:false,
-      note:'No `when` needed: an empty abbr already renders nothing'},
-    {label:'Abbr-else-name, tag 2 of 2', rest:[['key','name'],['_if',{test:'noValue',subject:{kind:'key',field:'abbr'}}]]},
-    {label:'With link + `fallback`',      rest:[['key','price'],['_if',{test:'hasValue',subject:{kind:'key',field:'sale_price'}}],['_link',{to:'permalink'}],['fallback','$fallback']],
-      note:'`when` serializes at the tail of the source group, ahead of link + `fallback` (decided 2026-09-25)'},
-    {label:'`fixed` text, gated',         rest:[['_fixed',{text:'Varsity'}],['_if',{test:'true',subject:{kind:'key',field:'is_varsity'}}]],
-      note:'No `use:fixed`: the token implies the read (FW-142\'s map gains a `fixed` row)'},
-    {label:'`fixed` text with a colon',   rest:[['_fixed',{text:'Note: varsity'}],['_if',{test:'true',subject:{kind:'key',field:'is_varsity'}}]]},
-    {tmpl:'content', label:'`content`: public refs only',
-      chain:[{slug:'refs',arg:'$ref'}], rest:[['_if',{test:'true',subject:{kind:'key',field:'is_public'}}]]},
-    {label:'Not upcoming, INCLUDING no date (W2 gain)', rest:[['use','title'],['_if',{any:['during','after','noValue'],subject:{kind:'key',field:'$dateKey'}}]],
-      note:'W2 spells it as the negation of "upcoming"; W1 has to list `noValue` beside the phases'},
+    {heading:'Relations and `src`'},
     // Property tests (P1–P9 + the 2026-09-27 property list): a step-shaped subject, no read.
     {label:'Filed under term 34 (P1)',        rest:[['use','title'],['_if',{test:'hasValue',subject:{kind:'step',slug:'term',arg:'34'}}]]},
     {label:'NOT filed under term 34',         rest:[['use','title'],['_if',{test:'noValue',subject:{kind:'step',slug:'term',arg:'34'}}]]},
@@ -1193,9 +1218,13 @@ const SCENARIO_GROUPS = [
       note:'The driving case: the test reads the current context, not the provider; one answer gates the whole list (Q2)'},
     {label:'Related titles if THIS post has a category (`src`)',
       chain:[{slug:'refs',arg:'$ref'}], rest:[['sep',', '],['use','title'],['_if',{src:[{slug:'current'}],test:'hasValue',subject:{kind:'step',slug:'terms',arg:'$tax'}}]]},
+    {heading:'With fixed text'},
+    {label:'`fixed` text, gated',         rest:[['_fixed',{text:'Varsity'}],['_if',{test:'true',subject:{kind:'key',field:'is_varsity'}}]],
+      note:'No `use:fixed`: the token implies the read (FW-142\'s map gains a `fixed` row)'},
+    {label:'`fixed` text with a colon',   rest:[['_fixed',{text:'Note: varsity'}],['_if',{test:'true',subject:{kind:'key',field:'is_varsity'}}]]},
   ].map(sc => ({previewOnly:true, previewHow:'chain', ...sc}))},
 
-  { title:'join — when: + fixed text per slot (FW-27 / FW-141, unbuilt)', isContrast:true,
+  { path:['When','Join slots'], isContrast:true,
     variants:['foldedCurrent','folded'], foldClass:'join', tmpl:'text', scenarios:[
     {label:'Team + `fixed` "Varsity"',
       slots:[{tag:'text',read:{kind:'key',field:'team_name'}},
@@ -1251,7 +1280,7 @@ const SCENARIO_GROUPS = [
       note:'`src(current)` resets to where the tag sits, not the slot\'s `ref`; deepest `when` bracket in a slot'},
   ].map(sc => ({previewOnly:true, ...sc}))},
 
-  { tmpl:'text', title:'try_text — when: per attempt (FW-27, unbuilt)', isContrast:true,
+  { tmpl:'text', path:['When','Try attempts'], isContrast:true,
     variants:['foldedCurrent','folded'], foldClass:'try', scenarios:[
     {label:'Sale price while the sale runs, else price',
       slots:[{read:{kind:'key',field:'sale_price'},if:{any:['before','during'],subject:{kind:'key',field:'sale_end'}}},
@@ -1265,7 +1294,7 @@ const SCENARIO_GROUPS = [
       note:'No `when`: `try_` already covers either-or on emptiness. `when` earns its place only when the TEST field differs from the SHOWN one'},
   ].map(sc => ({previewOnly:true, ...sc}))},
 
-  { title:'table — when: on rows vs cells (FW-27, unbuilt)', isContrast:true,
+  { path:['When','Table'], isContrast:true,
     variants:['foldedCurrent','folded'], foldClass:'table', scenarios:[
     {label:'Column `when`: empty the cell, keep the row',
       rowChain:[{slug:'refs',arg:'related_staff'}],
@@ -1282,14 +1311,13 @@ const SCENARIO_GROUPS = [
              {label:'Level',tag:'text',read:{kind:'fixed',text:'Varsity'},if:{test:'true',subject:{kind:'key',field:'is_varsity'}}}]},
   ].map(sc => ({previewOnly:true, ...sc}))},
 
-  // TABLE v1 STYLING ENCODINGS (user 2026-10-13) — the same settings spelled four ways, line by line,
-  // so a spelling is judged on real wire across many uses, in particular the words that mean two
-  // things (`text`, `size`, `header`, `rows`, `normal`, `inherit`, `fixed`). Rendered by the
-  // `styleEnc` branch of renderPerms(); the encoders are STYLE_ENCS / styleTokens() below. The model
-  // is neutral: a property is [base, header] ('' = unset); a table's base is the whole table, a
-  // column's base is its body cells. Fill/colour values are the arg string as typed (`#333,50%`).
-  { title: 'table v1 — styling encodings (FW-53 / FW-27 syntax review, unbuilt)', styleEnc:true, foldClass:'table', tableV1:true,
-    intro: 'The decided wire (plan Settled #61): one key per property, the header override a second `;` segment of its value. Keys serialize in control order, which follows the GB Typography sidebar (colour, size, weight, style, textAlign, transform, then background, stripe). The figure beside each line is the deepest bracket nesting in the whole tag, and its length. Respell `headerContext` in the sidebar to move the header word without touching the `header(…)` label token.',
+  // TABLE TEXT STYLING — shipped 1.22.0. The words that mean two things (`text`, `size`, `header`,
+  // `rows`, `normal`, `inherit`, `fixed`) are the reason the rows below mix them in one tag. Rendered by
+  // the `styleEnc` branch of renderPerms(); the encoder is styleTokens() below. A property is
+  // [base, header] ('' = unset); a table's base is the whole table, a column's base is its body cells.
+  // Color values are the arg string as typed (`#333,50%`).
+  { path:['Table','Text styling'], styleEnc:true, foldClass:'table', tableV1:true,
+    intro: 'One key per property, the header override a second `;` segment of its value. Keys serialize in control order, which follows the GB Typography sidebar (color, size, weight, style, textAlign, transform). The figure beside each line is the deepest bracket nesting in the whole tag, and its length. Respell `headerContext` in the sidebar to move the header word without touching the `header(…)` label token.',
     scenarios:[
     {label:'Alignment and weight, table and header',
       rowChain:[{slug:'rows',arg:'products'}], caption:'Products',
@@ -1302,7 +1330,7 @@ const SCENARIO_GROUPS = [
       tag:{weight:['','bold'], transform:['','uppercase'], fill:['','#333,50%'], color:['','#fff']},
       slots:[{label:'Product',tag:'text',read:{kind:'key',field:'name'}},
              {label:'Price',tag:'text',read:{kind:'key',field:'price'}}],
-      note:'Merged leads with the `header` head when the base is unset (`fontWeight:header,bold`)'},
+      note:'The `header` head leads when the base is unset (`fontWeight:header,bold`)'},
     {label:'`normal` as a weight and as a style in one tag',
       rowChain:[{slug:'rows',arg:'products'}],
       tag:{weight:['normal','bold'], style:['normal','italic']},
@@ -1317,11 +1345,11 @@ const SCENARIO_GROUPS = [
       slots:[{label:'Price',tag:'text',read:{kind:'key',field:'price'},width:'10rem',
               st:{align:['right','center'], fill:['#fff8e1','#333'], color:['#222','#fff'], weight:['normal','bold'], size:['14px','12px'], style:['','italic'], transform:['','uppercase']}}],
       note:'The worst case for the slot: every setting on both the body and the header cells of one column'},
-    {label:'Colour functions with commas, and a `var()` size with a fallback',
+    {label:'Color functions with commas, and a `var()` size with a fallback',
       rowChain:[{slug:'rows',arg:'products'}],
-      tag:{fill:['rgba(250,250,250,.5)','var(--accent, #333),50%'], size:['var(--fs, 16px)','']},
-      slots:[{label:'Price',tag:'text',read:{kind:'key',field:'price'},st:{fill:['hsl(48,100%,94%)','']}}],
-      note:'Commas and spaces inside a value\'s own brackets; masked from the nesting check the way the older stripe rows are'},
+      tag:{color:['rgba(20,20,20,.9)','var(--accent, #fff)'], fill:['rgba(250,250,250,.5)','var(--accent, #333),50%'], size:['var(--fs, 16px)','']},
+      slots:[{label:'Price',tag:'text',read:{kind:'key',field:'price'},st:{color:['hsl(48,100%,30%)',''], fill:['hsl(48,100%,94%)','']}}],
+      note:'Commas and spaces inside a value\'s own brackets; the nesting check masks them'},
     {label:'A header-only column beside the `header` label token',
       rowChain:[{slug:'rows',arg:'products'}],
       slots:[{label:'Price',tag:'text',read:{kind:'key',field:'price'},st:{align:['','center'], fill:['','#333'], color:['','#fff']}}],
@@ -1332,7 +1360,7 @@ const SCENARIO_GROUPS = [
       tag:{fill:['#fafafa','#333']},
       slots:[{label:'Price',tag:'text',read:{kind:'key',field:'price'}}],
       note:'`src:rows,products` and `stripe:rows…` in one tag; the stripe target and the chain step are the same word'},
-    {label:'Text colour beside `text` columns and a `fixed` read, in a fixed layout',
+    {label:'Text color beside `text` columns and a `fixed` read, in a fixed layout',
       rowChain:[{slug:'rows',arg:'teams'}], layout:'fixed', width:'100%',
       slots:[{label:'Team',tag:'title',read:{kind:'analog',slug:'title'},st:{color:['#333','']}},
              {label:'Level',tag:'text',read:{kind:'fixed',text:'Varsity'},st:{color:['#666','#fff']}},
@@ -1342,8 +1370,8 @@ const SCENARIO_GROUPS = [
       rowChain:[{slug:'rows',arg:'staff_members'}],
       slots:[{label:'Photo',tag:'image',read:{kind:'analog',slug:'featured'},dtKeys:{as:'url,thumbnail',key:'photo'},st:{align:['center','']}},
              {label:'Name',tag:'title',read:{kind:'analog',slug:'title'},st:{size:['18px',''], weight:['bold','']}}],
-      note:'The image `as:url,thumbnail` carries a size; Merged writes `fontSize(18px)` for text'},
-    {label:'A column `when` gating a styled cell',
+      note:'The image `as:url,thumbnail` carries a size; text writes `fontSize(18px)`'},
+    {label:'A column `when` gating a styled cell', previewOnly:true,
       rowChain:[{slug:'refs',arg:'related_staff'}],
       slots:[{label:'Name',tag:'title',read:{kind:'analog',slug:'title'}},
              {label:'Phone',tag:'phone',read:{kind:'key',field:'mobile'},if:{test:'true',subject:{kind:'key',field:'phone_public'}},st:{align:['right','center'], weight:['bold','']}}],
@@ -1357,14 +1385,14 @@ const SCENARIO_GROUPS = [
       rowChain:[{slug:'rows',arg:'products'}],
       tag:{weight:['600','700'], size:['120%','14px'], fill:['#eee,50%','#333,50%']},
       slots:[{label:'Price',tag:'text',read:{kind:'key',field:'price'}}],
-      note:'`600`, `120%` and `50%` are three kinds of number; typed-by-value args in one list cannot tell weight from opacity from size by shape'},
+      note:'A weight and a size that are both plain numbers, each in its own key'},
     {label:'A datetime column whose format carries commas',
       rowChain:[{slug:'refs',arg:'related_events'}],
       slots:[{label:'Event',tag:'title',read:{kind:'analog',slug:'title'}},
              {label:'Date',tag:'datetime_single',read:{kind:'key',field:'event_date'},dtKeys:{as:'date',key:'event_date',format:'l, F j, Y'},
               st:{align:['right','center'], weight:['','bold'], size:['14px','']}}],
       note:'`format(l, F j, Y)` is free text with commas and spaces beside the styling tokens'},
-    {label:'Whole tag: layout, width, stripes, backgrounds, text, six columns',
+    {label:'Whole tag: layout, width, stripes, text, six columns',
       rowChain:[{slug:'refs',arg:'related_staff'}], caption:'Staff', layout:'fixed', width:'100%',
       stripe:{rows:{parity:'odd',color:'#eee'}, cols:{}},
       tag:{align:['left','center'], fill:['#fafafa','#333'], color:['#333','#fff'], weight:['normal','bold'], size:['16px','14px'], style:['normal',''], transform:['none','uppercase']},
@@ -1377,7 +1405,7 @@ const SCENARIO_GROUPS = [
       note:'Wire bulk with every concern at once; read the depth figure and the length'},
   ]},
 
-  // FW-27 `when` ENCODINGS side by side (user 2026-10-14): W1 and W2 as already modelled, plus the two
+  // FW-27 `when` ENCODINGS side by side (user 2026-10-14): W1 and W2, plus the two
   // newer ones derived from the styling spellings (Merged). Rendered by the `whenEnc` branch of
   // renderPerms(); the encoders are whenMergedStr(). A cond is the usual shape, or
   // {conds:'all'|'any'|'none'|'notAll', items:[cond…]} for a list of conditions (groups nest).
@@ -1385,9 +1413,10 @@ const SCENARIO_GROUPS = [
     const K = f => ({kind:'key', field:f}), U = s => ({kind:'analog', slug:s}), T = (slug, arg) => ({kind:'step', slug, arg});
     const has = f => ({test:'hasValue', subject:K(f)}), no = f => ({test:'noValue', subject:K(f)}), yes = f => ({test:'true', subject:K(f)});
     const row = (label, cond, extra) => ({label, rest:[['use','title'], ['_if', cond]], ...extra});
-    return [{ title:'when — encodings side by side (FW-27, unbuilt)', whenEnc:true, tmpl:'text',
-      intro:'W1 and W2 are the encodings already modelled. Merged writes one `when` key as head-led conditions (`key,x` / `term,34`), tests after commas, `;` between conditions, a mode slug leading a list, and a bracketed group. The list words (`any`, `all`, `none`, `notAll`, and the `not` of W2) are rename ids in the sidebar and apply in all three. A dash means W1 never modelled the row.',
+    return [{ path:['When','Encodings side by side'], whenEnc:true, tmpl:'text',
+      intro:'Three candidate encodings, none chosen: W1, W2 and Merged. Merged writes one `when` key as head-led conditions (`key,x` / `term,34`), tests after commas, `;` between conditions, a mode slug leading a list, and a bracketed group. The list words (`any`, `all`, `none`, `notAll`, and the `not` of W2) are rename ids in the sidebar and apply in all three. A W1 line reading "Not modelled in W1" means W1 never modelled the row.',
       scenarios:[
+        {heading:'Tests on a read'},
         row('Has a value', has('sale_price')),
         row('No value', no('sale_price')),
         row('Boolean true', yes('is_varsity')),
@@ -1401,15 +1430,18 @@ const SCENARIO_GROUPS = [
           {note:'No all-of test list in Merged: it becomes two conditions in an `all` list'}),
         row('Neither of two values', {all:[{test:'isNot', arg:'Archived'}, {test:'isNot', arg:'Draft'}], subject:K('status')}),
         row('Built-in field', {test:'hasValue', subject:U('excerpt')}),
+        {heading:'Relations'},
         row('Filed under term 34', {test:'hasValue', subject:T('term','34')}),
         row('NOT filed under term 34', {test:'noValue', subject:T('term','34')},
           {note:'Merged: `none;term,34`; W2: `not(term,34)`'}),
         row('Either of two terms', {props:'any', items:[T('term','34'), T('term','35')]}),
         row('Neither of two terms', {props:'any', neg:true, items:[T('term','34'), T('term','35')]}),
+        {heading:'Reads that arrive later'},
         row('Range, two reads (LATER)', {test:'during', subject:[K('start_date'), K('end_date')]},
           {note:'Two reads need `use(…)` around them in every encoding; the only bracket a subject takes'}),
         row('Date plus time read (FW-81)', {test:'before', subject:{kind:'key', field:'event_date', time:'start_time'}},
           {note:'Merged writes it flat, `key,event_date,start_time,before`: the test words are reserved, so a field named `before` as the second field would misparse'}),
+        {heading:'Lists and groups'},
         row('A taxonomy test and a date test in one list', {conds:'all', items:[T('terms','event-type'), {any:['before','during'], subject:K('event_date')}]}),
         row('Either a term or an empty field', {conds:'any', items:[T('term','34'), no('promo')]}),
         row('A and (B or C)', {conds:'all', items:[has('price'), {conds:'any', items:[T('term','34'), has('badge')]}]},
@@ -1421,6 +1453,7 @@ const SCENARIO_GROUPS = [
         row('Not all of two', {conds:'notAll', items:[has('price'), yes('in_stock')]},
           {note:'Merged: `notAll;…`; W2 needs `not(all[…])`'}),
         row('Operand with brackets inside a group', {conds:'any', items:[{test:'is', arg:'Red (dark); matte', subject:K('finish')}, T('term','34')]}),
+        {heading:'Inside `src`, tables and joins'},
         row('Provider phone if THIS post uses a 3rd party (`src`)', {src:[{slug:'current'}], test:'is', arg:'3rd-party', subject:K('support_source')},
           {chain:[{slug:'refs', arg:'support_provider'}], rest:[['key','support_phone'], ['_if', {src:[{slug:'current'}], test:'is', arg:'3rd-party', subject:K('support_source')}]],
            note:'`src` inside `when` is held out of v1 (R3); the leading `src(…);` is the one depth-0 `;`'}),
@@ -1451,41 +1484,46 @@ const SCENARIO_GROUPS = [
     const K = f => ({kind:'key', field:f}), T = (slug, arg) => ({kind:'step', slug, arg});
     const has = f => ({test:'hasValue', subject:K(f)}), no = f => ({test:'noValue', subject:K(f)});
     const row = (label, cond, extra) => ({label, rest:[['use','title'], ['_if', cond]], ...extra});
-    return [{ title:'when — negatives beside their positives (FW-27, unbuilt)', whenEnc:true, tmpl:'text',
+    return [{ path:['When','Negatives beside positives'], whenEnc:true, tmpl:'text',
       intro:'Three levels of negative. ON A READ, a test word: `noValue`, `false`, `isNot(x)`; each flips one positive and PASSES on an empty field. ON A RELATION, there is no negative test, so absence is a `none` list of one (W1: `hasNot`, W2: `not(…)`). ON A LIST, `none` (no item passes) and `notAll` (not every item passes). The last block puts each list negative beside the list of negated items that means the same. Rename the list words in the sidebar (`none`, `notAll`, `not`).',
       scenarios:[
         // 1. tests on a read
-        row('Read: has a value', has('sale_price')),
-        row('Read: has NO value', no('sale_price'), {note:'`noValue` is the one negative a read gets for presence'}),
-        row('Read: true', {test:'true', subject:K('is_varsity')}),
-        row('Read: false', {test:'false', subject:K('is_varsity')}, {note:'Unset counts as false (G13), so `false` passes on an empty field'}),
-        row('Read: is Archived', {test:'is', arg:'Archived', subject:K('status')}),
-        row('Read: is NOT Archived', {test:'isNot', arg:'Archived', subject:K('status')},
+        {heading:'On a read'},
+        row('Has a value', has('sale_price')),
+        row('Has NO value', no('sale_price'), {note:'`noValue` is the one negative a read gets for presence'}),
+        row('True', {test:'true', subject:K('is_varsity')}),
+        row('False', {test:'false', subject:K('is_varsity')}, {note:'Unset counts as false (G13), so `false` passes on an empty field'}),
+        row('Is Archived', {test:'is', arg:'Archived', subject:K('status')}),
+        row('Is NOT Archived', {test:'isNot', arg:'Archived', subject:K('status')},
           {note:'Passes on an empty field (the complement rule, Q7): posts with no status show'}),
-        row('Read: has a value AND is not Archived', {all:['hasValue', {test:'isNot', arg:'Archived'}], subject:K('status')},
+        row('Has a value AND is not Archived', {all:['hasValue', {test:'isNot', arg:'Archived'}], subject:K('status')},
           {note:'To exclude empties, presence is its own condition'}),
         // 2. relations
-        row('Relation: filed under term 34', {test:'hasValue', subject:T('term','34')}),
-        row('Relation: NOT filed under term 34', {test:'noValue', subject:T('term','34')}, {note:'No negative test on a relation: a `none` list of one'}),
-        row('Relation: has a category', {test:'hasValue', subject:T('terms','category')}),
-        row('Relation: has NO category', {test:'noValue', subject:T('terms','category')}),
-        row('Relation: has related posts', {test:'hasValue', subject:T('refs','related_staff')}),
-        row('Relation: has NO related posts', {test:'noValue', subject:T('refs','related_staff')}),
+        {heading:'On a relation'},
+        row('Filed under term 34', {test:'hasValue', subject:T('term','34')}),
+        row('NOT filed under term 34', {test:'noValue', subject:T('term','34')}, {note:'No negative test on a relation: a `none` list of one'}),
+        row('Has a category', {test:'hasValue', subject:T('terms','category')}),
+        row('Has NO category', {test:'noValue', subject:T('terms','category')}),
+        row('Has related posts', {test:'hasValue', subject:T('refs','related_staff')}),
+        row('Has NO related posts', {test:'noValue', subject:T('refs','related_staff')}),
         // 3. lists of relations
-        row('List: either of two terms', {props:'any', items:[T('term','34'), T('term','35')]}),
-        row('List: NEITHER of two terms', {props:'any', neg:true, items:[T('term','34'), T('term','35')]}, {note:'`none`: no item passes'}),
-        row('List: both terms', {props:'all', items:[T('term','34'), T('term','35')]}),
-        row('List: NOT both terms', {props:'all', neg:true, items:[T('term','34'), T('term','35')]}, {note:'`notAll`: true unless every item passes. No real fixture needs it yet'}),
+        {heading:'On a list of relations'},
+        row('Either of two terms', {props:'any', items:[T('term','34'), T('term','35')]}),
+        row('NEITHER of two terms', {props:'any', neg:true, items:[T('term','34'), T('term','35')]}, {note:'`none`: no item passes'}),
+        row('Both terms', {props:'all', items:[T('term','34'), T('term','35')]}),
+        row('NOT both terms', {props:'all', neg:true, items:[T('term','34'), T('term','35')]}, {note:'`notAll`: true unless every item passes. No real fixture needs it yet'}),
         // 4. the same meaning, two spellings
-        row('Same: NEITHER field has a value', {conds:'none', items:[has('price'), has('badge')]}, {note:'`none` of two presences...'}),
-        row('Same: BOTH fields are empty', {conds:'all', items:[no('price'), no('badge')]}, {note:'...is `all` of two `noValue`s'}),
-        row('Same: NOT both fields set', {conds:'notAll', items:[has('price'), has('badge')]}, {note:'`notAll` of two presences...'}),
-        row('Same: AT LEAST ONE field is empty', {conds:'any', items:[no('price'), no('badge')]}, {note:'...is `any` of two `noValue`s'}),
-        row('Same: NOT upcoming, including no date', {conds:'none', items:[{any:['before','during'], subject:K('event_date')}]},
+        {heading:'Same meaning, two spellings'},
+        row('NEITHER field has a value', {conds:'none', items:[has('price'), has('badge')]}, {note:'`none` of two presences...'}),
+        row('BOTH fields are empty', {conds:'all', items:[no('price'), no('badge')]}, {note:'...is `all` of two `noValue`s'}),
+        row('NOT both fields set', {conds:'notAll', items:[has('price'), has('badge')]}, {note:'`notAll` of two presences...'}),
+        row('AT LEAST ONE field is empty', {conds:'any', items:[no('price'), no('badge')]}, {note:'...is `any` of two `noValue`s'}),
+        row('NOT upcoming, including no date', {conds:'none', items:[{any:['before','during'], subject:K('event_date')}]},
           {note:'`none` of the upcoming test...'}),
-        row('Same: during, after, or no date', {any:['during','after','noValue'], subject:K('event_date')},
+        row('During, after, or no date', {any:['during','after','noValue'], subject:K('event_date')},
           {note:'...is the other three outcomes on one read, `noValue` listed'}),
-        row('Mixed: no term and no value', {conds:'none', items:[T('term','34'), has('badge')]}, {note:'`none` mixes a relation and a read in one list'}),
+        {heading:'Mixing a relation and a read'},
+        row('No term and no value', {conds:'none', items:[T('term','34'), has('badge')]}, {note:'`none` mixes a relation and a read in one list'}),
       ]}];
   })(),
 ];
@@ -1561,8 +1599,9 @@ const S = {
                         // use:key,field / linkTo:key,field, no bracket. (Radio dropped; 'off' is
                         // the decision — mirrors chainPair.)
   linkCombined: false,  // fold linkKey into linkTo value → linkTo:key,<field> (else separate keys)
-  fw81DtCollapse: false, // FW-81 (parked): show the collapsed use: reading beside today's six-key wire.
-  styleBackground: true, // styling-encodings group: include the background property (it may be deferred past v1).  whenMode: 'w1',       // FW-27 `when` encoding: 'w1' decided wire | 'w2' / 'w2br' / 'w2nv' the OPEN W2 proposal (serializeIf).
+  fw81DtCollapse: false, fw81Inner: ',', fw81UseSep: ';', // FW-81 (parked): show the collapsed use: reading beside today's six-key wire; the two seps are sidebar-picked (inner = fields inside one `key:` read, useSep = verbs in `use:`).
+  styleBackground: false, // text-styling group: include the background property (deferred past v1, not shipped; on makes each line it appears in a Preview).
+  whenMode: 'w1',       // FW-27 `when` encoding: 'w1' decided wire | 'w2' / 'w2br' / 'w2nv' the OPEN W2 proposal (serializeIf).
   dummies: {key1:'custom_field',key2:'other_field',imgKey:'image_field',dateKey:'event_date',timeKey:'event_time',startKey:'start_date',endKey:'end_date',ref:'rel_post',tax:'category',urlKey:'url_field',fallback:'N/A',rangeSep:' – ',format:'F j, Y'},
 };
 
@@ -1906,9 +1945,9 @@ function respellEntries(chain, read, link, dtKeys, typeTag, fallback, ifCond, al
     else push('linkTo',link.to,false);
     if (link.newTab) E.push({name:'newTab', flag:true, rank:RESPELL_KEY_MAP.newTab});
   }
-  if (align) push('align', align, false);   // {{table}} v1 column token, unshipped (ticket 05 owns the real rank)
-  if (colWidth) push('width', colWidth, false);   // {{table}} column width, unshipped; same id as the tag-level key
-  if (colFill) push('fill', colFill, false);   // {{table}} column fill, unshipped
+  if (align) push('align', align, false);   // {{table}} column token
+  if (colWidth) push('width', colWidth, false);   // {{table}} column width; same id as the tag-level key
+  if (colFill) push('fill', colFill, false);   // {{table}} column fill (background): deferred past v1, not shipped
   if (fallback!==undefined && fallback!=='') push('fallback', fallback, false);   // free-form → escaped in emit
   if (ifCond) serializeIfEntries(ifCond, 1).forEach(([id, val]) => E.push({name:id, val, rank:RESPELL_KEY_MAP[id]}));   // FW-27, unshipped
   return E;
@@ -1926,7 +1965,7 @@ const RESPELL_FREEFORM = new Set(['format','fallback','sep','valueSep','rangeSep
 function escFreeform(v) { return String(v).replace(/([:|])/g, '\\$1'); }
 // FW-27 `when` VALUE (unshipped; if-option.md). `depth` = the level of the bracket ENCLOSING the
 // value, as serializeStep: 0 on the `when:` colon form, 1 inside a slot's `when(…)`. S.whenMode
-// picks the encoding (sidebar): 'w1' = the decided wire through W1, 'w2' = the OPEN W2 proposal
+// picks the encoding (sidebar; none is chosen): 'w1' = W1, 'w2' = the W2 proposal
 // (one condition shape, property[,test], `not(…)` negates), 'w2br' = W2 with reads kept
 // BRACKETED as the slot read spells them (`key(x)`, `use(content)`, FW-81's `use(key,date,time)`);
 // relations stay step-shaped (`term,34`). Unlike W1 it still cuts hasValue / noValue / has / hasNot.
@@ -1949,7 +1988,7 @@ function serializeIf(c, depth) {
   const src = whenSrcPrefix(c, depth);
   // A list of CONDITIONS (reads and relations mixed, groups) is only modelled by W2 and the two newer
   // encodings; W1's scenario model never spelled one.
-  if (c.conds) return S.whenMode === 'w1' ? '— not modelled in W1' : src + w2Cond(w2FromNorm(whenNorm(c)), depth, wrap);
+  if (c.conds) return S.whenMode === 'w1' ? WHEN_UNMODELLED : src + w2Cond(w2FromNorm(whenNorm(c)), depth, wrap);
   return src + (S.whenMode === 'w1' ? whenW1(c, depth, wrap) : w2Cond(w2Tree(c), depth, wrap));
 }
 // The `when` entries a cond writes: [[option id, value], …]. One entry in every encoding.
@@ -2011,7 +2050,7 @@ function w2FromNorm(n) {
   return {list: neg ? (n.mode === 'none' ? 'any' : 'all') : n.mode, neg, items:n.items.map(w2FromNorm)};
 }
 const stepProp = s => vn(s.slug) + ',' + resolveVal(s.arg);
-// W1 (decided through 2026-09-28): SLOT-SHAPED read — `key(x)` meta, `use(content)` built-in,
+// W1: SLOT-SHAPED read — `key(x)` meta, `use(content)` built-in,
 // `use(key,a,b;key,c)` FW-81's read list — then `,` then the TEST (W1). A single test is bare
 // (`hasValue`, `before`) or takes a bracketed operand (`is(Yes)`); several combine under
 // `any(…)` / `all(…)` (C1), operands one bracket level down. A step subject is a relation test,
@@ -2080,7 +2119,7 @@ function w2Cond(n, d, wrap) {
     : w2Prop(n.prop, inner, wrap) + (n.test ? ',' + w2Test(n.test, inner, wrap) : '');
   return word ? wrap(word, body, d + 1) : body;
 }
-// FW-141 fixed-text read (unshipped; Q9a decided 2026-09-25: its own token). The token name
+// FW-141 fixed-text read (shipped 1.21.0). The token name
 // implies the read (a `BWS_USE_IMPLIED_BY_TOKEN` row, FW-142), so no `use` at any depth. Returns
 // [name, value] pairs.
 function fixedReadPairs(r) {
@@ -2321,31 +2360,22 @@ function groupOrder(group) {
 // (`slots:[{read:…},{read:…}]`). A contrast scenario needs both at once, so the shipped side of a
 // multi-slot row lives on `shippedSlots` and the folded side keeps `slots`. {{table}} has no
 // shipped/flat side at all (folded-only per D1) — its scenarios carry only `rowChain` + `slots`.
-// Re-based 2026-09-01 (FW-79) — THREE lines, not two, and only one of them moves:
-//   'shipped'      — the pre-1.17 flat sibling wire. Its own emitter (`how:'parts'`) never reads
-//                     any sidebar toggle, so it was already fixed; kept the key name, relabelled
-//                     'legacy' since it's real but READ-ONLY (`src-chain-control.js` converts it
-//                     to chain wire on first touch and never writes it fresh — confirmed against
-//                     the tree).
-//   '*Current'     — what 1.17.0 actually ships, pinned to the SHIPPED grammar defaults via
-//                     `withShippedGrammar()` regardless of live sidebar state. A reader flipping a
-//                     look-back toggle (e.g. digit keys) must NOT change what this line
-//                     shows — that was the bug in the first cut of this rebase (user caught it):
-//                     relabelling the toggle-driven line 'current' left it still toggle-driven, so
-//                     the accented default of e.g. the digit-key radio then MISLABELLED a rejected
-//                     spelling as shipped.
-//   'chain'/'folded' — the SAME toggle-driven line as before, now labelled 'Preview': this is the
-//                     tool's whole exploration surface (candidate spellings, look-backs), and nothing
-//                     about that changes — it just isn't 'current' by itself any more.
-// Order (user, 2026-09-01): Legacy → Current → Preview, applied via each group's `variants:[…]`.
-// Labels are one word each (user 2026-09-02) — the row's own scenario label + the group title
-// already say what's being compared; the variant column only needs to say WHICH line it is.
-// The OLD {{table}} flat-numeric prototype (`how:'table'`, `needs: sc=>!!sc.cols`) stays retired —
-// table-tag.md's REOPENED D1 ships {{table}} folded-only, so 'shipped' never applies to it.
-// FW-81 pair: no shipped/legacy split (nothing has shipped) — just today's six-key wire beside the
-// PARKED-but-SETTLED (S6/S1) collapsed, MERGED reading. Gating moved 2026-09-02 from its own
-// cb-fw81-only function to the single shared `previewActive()` (see variantsFor()); the collapsed
-// line renders under a placeholder tag name (O5 open); the merge itself is not the open part (S1).
+// Three kinds of line per row, in the order Legacy → Current → Preview (a group lists its own in
+// `variants:[…]`; the labels are one word because the row label and the section heading already say
+// what is compared):
+//   shipped        — Legacy: the pre-fold flat sibling wire. Its emitter (`how:'parts'`) reads no
+//                       sidebar toggle. Read-only today: `src-chain-control.js` converts it to chain wire on
+//                       first touch and never writes it fresh.
+//   *Current       — Current: what ships, pinned to SHIPPED_GRAMMAR via `withShippedGrammar()`
+//                       regardless of live sidebar state, so flipping a look-back toggle (digit keys, say)
+//                       never relabels a rejected spelling as shipped.
+//   'chain'/'folded' — Preview: the toggle-driven line, the tool's exploration surface (candidate
+//                       spellings, look-backs); it shows only while some toggle differs from what ships.
+// A row that is Preview alone (`previewOnly`) is a shape that ships on no wire yet. A shipped feature
+// belongs on a Current line; Preview is for unshipped features and syntax changes.
+// {{table}} has no flat side (folded-only), so its groups list only the folded lines. The FW-81 pair
+// (datetime) puts today's six-key wire beside the merged `{{datetime}}` reading; the merged line renders
+// under a placeholder tag name (the name is open), and shows through the shared `previewActive()`.
 const DT_KEY_IDS = new Set(['key','timeKey','startKey','startTimeKey','endKey','endTimeKey']);
 // Derive the FW-81 read-list from today's six flat keys — mechanical, mirrors the plan's own
 // migration mapping (§Migration): key[,timeKey] → one read; start*/end* → two reads. Returns null
@@ -2365,13 +2395,14 @@ function datetimeCollapseFromParts(parts) {
 // FW-81 wire shape for a collapsed read-list (grilling 2026-10-24): fields ALWAYS ride `key:`, reads
 // `;`-joined, each read's fields `,`-joined (primary, then optional time field). `use:` is written
 // only when a read is a non-`key` verb (published/modified/now): it lists the reads in order as bare
-// verbs, `,`-joined, and each `key` there takes the next `;`-group from `key:`. No folded
+// verbs joined by S.fw81UseSep (default `;`; 2026-10-26), and each `key` there takes the next `;`-group from `key:`
+// (non-positional; a read's fields join on S.fw81Inner, default `,`, `+` under trial). No folded
 // `use:key,field` form exists. ONE site so the standalone tag's dtCollapse variant and a folded
 // slot's dtKeys collapse (respellEntries) can't drift apart on how a merge renders.
 function fw81CollapsedPairs(reads) {
-  const groups = reads.filter(r => r.verb === 'key').map(r => (r.args||[]).map(a=>String(resolveVal(a))).join(','));
+  const groups = reads.filter(r => r.verb === 'key').map(r => (r.args||[]).map(a=>String(resolveVal(a))).join(S.fw81Inner));
   const pairs = [];
-  if (reads.some(r => r.verb !== 'key')) pairs.push(['use', reads.map(r => r.verb).join(',')]);
+  if (reads.some(r => r.verb !== 'key')) pairs.push(['use', reads.map(r => r.verb).join(S.fw81UseSep)]);
   if (groups.length) pairs.push(['key', groups.join(';')]);
   return pairs;
 }
@@ -2392,10 +2423,8 @@ const CONTRAST_VARIANTS = {
 };
 // ONE shared Preview state (user 2026-09-02), not a per-group flag: every variant marked
 // cls:'perm-chain' is a Preview column, and Preview columns exist only while some toggle differs
-// from what 1.17.0 shipped. Flipping ANY toggle below reveals every group's Preview line at once —
-// there is no per-feature "this group's preview is on" concept any more (the FW-81 pair used to be
-// the only group with an appears-only-when-active line; that pattern is now the rule, not FW-81's
-// exception, so `group.variants` is always a plain array again).
+// from what ships. Flipping ANY toggle below reveals every group's Preview line at once; there is no
+// per-feature "this group's preview is on" concept, so `group.variants` is always a plain array.
 function previewActive() {
   return S.fromKeyCombined || S.linkCombined || S.fw81DtCollapse;
 }
@@ -2406,8 +2435,8 @@ function allVariantsFor(group) {
 function variantsFor(group) {
   return allVariantsFor(group).filter(v => v.cls !== 'perm-chain' || previewActive());
 }
-// Render a frozen variant's string with the grammar toggles pinned to what 1.17.0 actually
-// shipped, independent of whatever the sidebar is currently set to. Restores every pinned key
+// Render a frozen variant's string with the grammar toggles pinned to what ships,
+// independent of whatever the sidebar is currently set to. Restores every pinned key
 // afterward (finally), including nested `chainSep`, so the live 'preview' variant computed right
 // after in the same `.map()` pass still reflects the reader's real toggle state.
 const SHIPPED_GRAMMAR = {
@@ -2430,8 +2459,8 @@ function withShippedGrammar(fn) {
 // an explicit "no equivalent" line, which is itself information (e.g. join has no shipped
 // unfolded form for a heterogeneous slot).
 //
-// `sc.previewOnly` is the opposite case: a shape neither wire actually ships (a Planned `src`
-// value, an unbuilt FW-39 chain root), included so the tool can show its intended spelling.
+// `sc.previewOnly` is the opposite case: a shape neither wire actually ships (a `when` token, a
+// merged-datetime verb), included so the tool can show its intended spelling.
 // Rendering it as Legacy or Current would claim it works today; rendering it as a "missing" line
 // on the side that DOES exist would bury the one thing worth showing under filler about the side
 // that doesn't. So a previewOnly scenario skips straight to a single Preview line, always shown
@@ -2483,7 +2512,7 @@ function buildOneVariant(v, group, sc, sortParts, wrap) {
   }
   if (v.how === 'chain') {
     // src: leads the source group; the rest sort canonically behind it.
-    const chainVal = serializeChain((sc.chain||[]).map(s=>({...s, arg:String(resolveVal(s.arg))})));
+    const chainVal = serializeChain(resolveChainArgs(sc.chain));
     const parts = [];
     if (chainVal) parts.push(`${kn('src')}:${chainVal}`);
     parts.push(...renderSlotParts(sortParts(sc.rest||[]),'',false));
@@ -2696,44 +2725,41 @@ function buildFoldedSlot(i, slot, containerClass) {
   const val = slotValueFor(s, typeTag, undefined, forceSrc);
   return [`${foldedSlotKey(i)}${val}`];
 }
-// {{table}} v1 presentation (unshipped). Each skin is its own key; `layout` and `width` are plain
-// valued keys. Scenario keys stripe/fill/border = {target: {parity, color}}; layout ('fixed'),
-// width ('auto' | a length). Wire (plan Settled #61, 2026-10-14): `stripe` is `head,args` items joined
-// by `;` (stripe:rows,odd,#eee;cols) and `fill` is the Merged `base;header,x` of the property
-// (background, deferred); `border` is deferred and shown in the stripe's `head,args` shape only.
-// Order: the control order within the group, so fill, stripe, border after layout and width.
+// {{table}} presentation (shipped 1.22.0): layout, width, stripe, border and borderRadius. `layout` and
+// `width` are plain valued keys: layout ('fixed'), width ('auto' | a length). `stripe` is {target:
+// {parity, color, opacity}}, written as `head,args` items joined by `;` (stripe:rows,odd,#eee;cols);
+// `border` and `borderRadius` are the value as typed (a head-less base, then `head,args` overrides).
+// Order follows tag-reference §Presentation: layout, width, the text keys, stripe, border, borderRadius.
 // The valued layout token as [key id, value]; the caller spells the key through kn(). The value
 // renames via vn('layoutFixed'), apart from the fixed-text option's vn('fixed').
 function tableLayoutTok(sc) {
   return ['layout', sc.layout === 'fixed' ? vn('layoutFixed') : sc.layout];
 }
 function tablePresentationParts(sc) { return tableTargetParts(sc); }
-// A target's args are typed by value (parity keyword vs color), so their order is free; emitted as
-// the scenario lists them. A target with no args is bare: `cols`.
+// A target's args are typed by value (parity keyword, color, opacity), so their order is free; emitted
+// as the scenario lists them. A target with no args is bare: `cols`.
 function tableTargetParts(sc) {
   const items = targets => Object.entries(targets)
-    .map(([t, a]) => [t, ...[a.parity, a.color].filter(Boolean)].join(',')).join(';');
+    .map(([t, a]) => [t, ...[a.parity, a.color, a.opacity].filter(Boolean)].join(',')).join(';');
   const out = [];
   if (sc.layout) { const [n, v] = tableLayoutTok(sc); out.push(`${kn(n)}:${v}`); }
   if (sc.width) out.push(`${kn('width')}:${sc.width}`);
-  if (sc.fill) {   // base = the whole table, then the header override, as every Merged property
-    const t = sc.fill.table && sc.fill.table.color, h = sc.fill.header && sc.fill.header.color;
-    out.push(`${kn('fill')}:` + [t, h && `${kn('headerContext')},${h}`].filter(Boolean).join(';'));
-  }
   if (sc.stripe) out.push(`${kn('stripe')}:${items(sc.stripe)}`);
-  if (sc.border) out.push(`${kn('border')}:${items(sc.border)}`);
+  if (sc.border) out.push(`${kn('border')}:${sc.border}`);
+  if (sc.borderRadius) out.push(`${kn('borderRadius')}:${sc.borderRadius}`);
   return out;
 }
-// ── {{table}} v1 STYLING ENCODINGS (user 2026-10-13; the 'styling encodings' group) ─────────────────
-// The decided wire (plan Settled #61, 2026-10-14): plain Merged. A property is [base, header] with ''
-// = unset: at tag level the base is the whole table, in a column it is the body cells (`align` is the
-// exception: a column's base covers its header cell too). One key per property, the header as a second
-// segment of the value: fontWeight:normal;header,bold. Values are the arg strings as typed. Targets,
-// Pairs and M+head were cut 2026-10-14, so this group shows one line per scenario. All key names go
-// through kn().
-const STYLE_ENCS = [
-  { id:'M', label:'Merged', cls:'perm-chain' },
-];
+// ── {{table}} TEXT STYLING (the 'Text styling' group) ─────────────────────────────────────────────
+// Shipped wire: a property is [base, header] with '' = unset. At tag level the base is the whole
+// table, in a column it is the body cells (`align` is the exception: a column's base covers its header
+// cell too). One key per property, the header as a second segment of the value:
+// fontWeight:normal;header,bold. Values are the arg strings as typed. All key names go through kn().
+// One line per scenario: Current, unless the row carries unshipped syntax: the deferred `background`
+// (sidebar toggle on and the row sets one) or a row flagged `previewOnly` (a `when(…)` token).
+function styleEncsFor(sc) {
+  const preview = sc.previewOnly || (S.styleBackground && JSON.stringify(sc).includes('"fill"'));
+  return [preview ? { id:'M', label:'Preview', cls:'perm-chain' } : { id:'M', label:'Current', cls:'perm-current' }];
+}
 // The keys serialize in the order of their CONTROLS within the group (user 2026-10-14, leaning; the
 // groups themselves may still be reordered), and the controls follow GB's Typography sidebar: color,
 // size, weight, style, textAlign, transform, then the Backgrounds panel. The stripe key follows the
@@ -2786,11 +2812,18 @@ function buildStyleEncTag(enc, group, sc) {
 // `slots` (a slot's `if` and a table's `rowIf` ride the same serializer). S.whenMode is set for the
 // build and restored.
 const WHEN_ENCS = [
-  { mode:'w1',   label:'W1',      cls:'' },            // decided through 2026-09-28
-  { mode:'w2nv', label:'W2',      cls:'perm-chain' },  // adopted 2026-09-30
+  { mode:'w1',   label:'W1',      cls:'perm-chain' },
+  { mode:'w2nv', label:'W2',      cls:'perm-chain' },
   { mode:'m',    label:'Merged',  cls:'perm-chain' },
 ];
+// A condition W1 has no spelling for yields this marker in place of its text; buildWhenEncTag then
+// returns null for the WHOLE tag, so the notice never sits inside a tag string.
+const WHEN_UNMODELLED = 'Not modelled in W1';
 function buildWhenEncTag(group, sc, mode) {
+  const str = buildWhenEncTagRaw(group, sc, mode);
+  return str.includes(WHEN_UNMODELLED) ? null : str;
+}
+function buildWhenEncTagRaw(group, sc, mode) {
   const prev = S.whenMode;
   S.whenMode = mode;
   try {
@@ -2801,7 +2834,7 @@ function buildWhenEncTag(group, sc, mode) {
       return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
     });
     const parts = [];
-    const chainVal = serializeChain((sc.chain || []).map(s => ({ ...s, arg: String(resolveVal(s.arg)) })));
+    const chainVal = serializeChain(resolveChainArgs(sc.chain));
     if (chainVal) parts.push(`${kn('src')}:${chainVal}`);
     parts.push(...renderSlotParts(sortParts(sc.rest || []), '', false));
     return `{{${tmplName(group.tmpl)}${parts.length ? ' ' + parts.join('|') : ''}}}`;
@@ -3000,16 +3033,52 @@ function appendMarkup(el, text) {
     else el.appendChild(document.createTextNode(seg));
   });
 }
+// The page outline: section order, and the order of concepts inside each. A group names its place
+// with `path: [section, concept]`; the render sorts by this table (stable, so a group keeps its
+// array position among siblings) and prints a heading wherever the path changes. A heading row
+// inside a group's scenarios is `{heading:'…'}`, one level below the group's own path.
+const OUTLINE = {
+  'Text':     { subs:['Options and sources', 'Fixed text'] },
+  'Image':    { subs:[] },
+  'Content':  { subs:[] },
+  'Try tags': { subs:['try_text', 'try_image', 'try_content'] },
+  'Join':     { subs:['Slots', 'Template mode', 'Datetime slots', 'Escape hazards'] },
+  'Table':    { subs:['Rows and columns', 'Sizing, stripes and borders', 'Text styling', 'Datetime columns', 'Escape hazards'] },
+  'Datetime': { subs:['Single date', 'Date ranges'],
+    note:'Today\'s six-key `{{datetime_single}}` and `{{datetime_range}}` beside the merged `{{datetime}}` (FW-81). The merge is not shipped, so its lines are Preview.' },
+  'When':     { subs:['Base tags', 'Join slots', 'Try attempts', 'Table', 'Encodings side by side', 'Negatives beside positives'],
+    note:'The `when` option (FW-27) is not built. Every line is Preview, except a baseline written beside its gated twin, which ships.' },
+};
+function orderedGroups() {
+  const names = Object.keys(OUTLINE);
+  const rank = g => [names.indexOf(g.path[0]), Math.max(0, (OUTLINE[g.path[0]] || { subs:[] }).subs.indexOf(g.path[1]))];
+  return SCENARIO_GROUPS.map((g, i) => ({ g, i, r: rank(g) }))
+    .sort((a, b) => a.r[0] - b.r[0] || a.r[1] - b.r[1] || a.i - b.i).map(x => x.g);
+}
+function permHeading(level, text, extra) {
+  const h = document.createElement('h' + Math.min(level + 1, 6));
+  h.className = 'perm-h perm-h' + Math.min(level, 4) + (extra ? ' ' + extra : '');
+  h.textContent = text;
+  return h;
+}
 function renderPerms() {
   const el=document.getElementById('perm-output'); el.innerHTML='';
   let totalIssues = 0;
-  SCENARIO_GROUPS.forEach(group=>{
+  let prevPath=[];
+  orderedGroups().forEach(group=>{
+    const path=group.path;
+    path.forEach((name,i)=>{
+      if (prevPath[i]===name && prevPath.slice(0,i).join('/')===path.slice(0,i).join('/')) return;
+      el.appendChild(permHeading(i+1,name));
+      const note = i===0 && OUTLINE[name] && OUTLINE[name].note;
+      if (note) { const n=document.createElement('div'); n.className='perm-sec-note'; appendMarkup(n, note); el.appendChild(n); }
+    });
+    prevPath=path;
     const div=document.createElement('div'); div.className='perm-group';
-    const title=document.createElement('div'); title.className='perm-group-title'; title.textContent=group.title;
-    div.appendChild(title);
     if (group.intro) { const n=document.createElement('div'); n.className='perm-note'; n.style.paddingLeft='0'; appendMarkup(n, group.intro); div.appendChild(n); }
     const tags=document.createElement('div'); tags.className='perm-tags';
     group.scenarios.forEach(sc=>{
+      if (sc.heading) { tags.appendChild(permHeading(path.length+1, sc.heading, 'perm-subrow')); return; }
       const row=document.createElement('div'); row.className='perm-row';
       // A label with " — " splits there: the head is the row label, the tail a quieter description.
       // A dash inside parentheses is part of the label, not a split point.
@@ -3018,12 +3087,12 @@ function renderPerms() {
       if (tail.length) { const d=document.createElement('span'); d.className='perm-lbl-desc'; appendMarkup(d, tail.join(' — ').replace(/^[a-z]/, c=>c.toUpperCase())); lbl.appendChild(d); }
       row.appendChild(lbl);
       if (group.styleEnc) {
-        // One line per candidate spelling of the same settings (STYLE_ENCS); every line is checked,
-        // the baseline included, and carries its deepest bracket nesting and length.
+        // One line per row (styleEncsFor); every line is checked and carries its deepest bracket
+        // nesting and length. A Current line is built on the shipped grammar, whatever the sidebar says.
         const stack=document.createElement('div'); stack.className='perm-stack';
         const ff=scenarioFreeform(sc);
-        STYLE_ENCS.forEach(enc=>{
-          const str=buildStyleEncTag(enc, group, sc);
+        styleEncsFor(sc).forEach(enc=>{
+          const str=enc.cls==='perm-current' ? withShippedGrammar(()=>buildStyleEncTag(enc, group, sc)) : buildStyleEncTag(enc, group, sc);
           const line=document.createElement('div'); line.className='perm-line'+(enc.cls?' '+enc.cls:'');
           const t=document.createElement('span'); t.className='perm-tagname'; t.textContent=enc.label;
           const s=document.createElement('div'); s.className='perm-str'; s.textContent=str;
@@ -3038,9 +3107,10 @@ function renderPerms() {
         const ff=scenarioFreeform(sc);
         WHEN_ENCS.forEach(enc=>{
           const str=buildWhenEncTag(group, sc, enc.mode);
-          const line=document.createElement('div'); line.className='perm-line'+(enc.cls?' '+enc.cls:'');
+          const line=document.createElement('div'); line.className='perm-line'+(str===null?' perm-none':enc.cls?' '+enc.cls:'');
           const t=document.createElement('span'); t.className='perm-tagname'; t.textContent=enc.label;
-          const s=document.createElement('div'); s.className='perm-str'; s.textContent=str;
+          const s=document.createElement('div'); s.className='perm-str'; s.textContent=str===null?WHEN_UNMODELLED:str;
+          if (str===null) { line.appendChild(t); line.appendChild(s); stack.appendChild(line); return; }
           const m=document.createElement('span'); m.className='perm-meta'; m.textContent=`depth ${maxBracketDepth(str, ff)} · ${str.length} ch`;
           line.appendChild(t); line.appendChild(s); line.appendChild(m); stack.appendChild(line);
           totalIssues += flagIssues(stack, str, ff);
@@ -3132,6 +3202,12 @@ document.getElementById('cb-stylebg').addEventListener('change',e=>{
 });
 document.getElementById('sel-when').addEventListener('change',e=>{
   S.whenMode=e.target.value; renderPerms();
+});
+document.getElementById('sel-fw81-inner').addEventListener('change',e=>{
+  S.fw81Inner=e.target.value; renderPerms();
+});
+document.getElementById('sel-fw81-usesep').addEventListener('change',e=>{
+  S.fw81UseSep=e.target.value; renderPerms();
 });
 document.getElementById('add-name-row').addEventListener('click', addNameRow);
 

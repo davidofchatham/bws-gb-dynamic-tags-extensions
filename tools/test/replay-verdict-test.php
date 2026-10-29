@@ -557,5 +557,19 @@ $check(
 	'diff-replays.php must count mapping rows that fell back to the old wire'
 );
 
+// A LOST-BACKSLASH CLASS NAME IS A SILENT FATAL: the run's catch( Throwable ) swallowed the "class not found" for the
+// widget write, every widget stayed unmigrated and the run still looked clean. Read off source because the script cannot
+// be loaded; the second check pins that a failure the run catches is spoken, not only collected.
+$check(
+	'R7.13 every TagConverter call in the driver is fully qualified',
+	0 === preg_match( '/(?<!\\\\Admin)(?<!\\\\)TagConverter::/', $conv_src ) && 1 === preg_match( '/\\\\BWS\\\\DynamicTags\\\\Admin\\\\TagConverter::migrate_widgets\(/', $conv_src ),
+	'run-converter.php names the class without its namespace separators'
+);
+$check(
+	'R7.14 a failure the run catches is warned about, not only collected',
+	1 === preg_match( '/foreach \(\s*\$failed as \$\w+\s*\)\s*\{\s*WP_CLI::warning\(/', $conv_src ),
+	'run-converter.php must WP_CLI::warning each entry of $failed'
+);
+
 echo $fail ? "\nREPLAY VERDICT TEST FAILED ({$fail})\n" : "\nREPLAY VERDICT TEST PASSED\n";
 exit( $fail ? 1 : 0 );

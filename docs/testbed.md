@@ -136,6 +136,8 @@ check reveal rows. Do NOT leave rows as `render-tag`-only. Reseed + curl the fro
 
 Exceptions (render-tag/harness-only): a bare tag needing a term ARCHIVE as ambient context (text T4), synthetic per-field blanking with no fixture (join J23/J24), or a tag string carrying literal HTML, which the fixture text block's own markup would parse before the tag ever sees it (text T12.8) — state the exception in the matrix.
 
+A row that exercises an admin screen only (the Migration Tool, a settings page) has no front-end render to make visible: it is exempt, and says "admin-only, no visible block".
+
 NB the visible rows are a bug surface `render-tag` cannot reach, and `wptexturize` is only part
 of it. A front-end request renders each tag inside a real block, on a real query, through
 `the_content` — `$block` is empty under `render-tag`, term and user loops cannot be faked at any

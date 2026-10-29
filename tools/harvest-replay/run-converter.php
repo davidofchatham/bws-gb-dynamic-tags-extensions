@@ -11,8 +11,9 @@
  * version-gated upgrade routine and nothing fires on a page load. Swapping in a newer build
  * and loading a page migrates NOTHING here, which is the opposite of the integrating plugin's
  * behaviour that `dev-plugin.sh`'s header describes. So the migration step is an explicit
- * invocation, and this is it: `scan()` then `migrate_post()` over everything reported, then the
- * pattern-cache reconcile the batch ends with — exactly what the admin button does.
+ * invocation, and this is it: `scan()` then `migrate_post()` over every post reported and
+ * `migrate_widgets()` over every block widget reported (FW-73), then the pattern-cache reconcile
+ * the batch ends with — exactly what the admin button does.
  *
  * IT ALSO EMITS THE OLD → NEW MAPPING, WHICH IS WHAT MAKES A DIFF POSSIBLE AT ALL.
  * Migration rewrites the wire, so `A-render` and `C-render` hold DIFFERENT tag strings and
@@ -35,9 +36,9 @@
  * replay-verdict.php owns which of the four outcomes a derived row lands in and why the
  * guard's refusals are separated from the rest.
  *
- * WHAT THE CONVERTER CANNOT REACH IS PART OF THE RESULT. `scan()` is a wp_posts query, so wire
- * living in options, postmeta or termmeta is neither reported nor rewritten and keeps
- * rendering the old way indefinitely. The census already counted that; this records which
+ * WHAT THE CONVERTER CANNOT REACH IS PART OF THE RESULT. `scan()` is a wp_posts query plus the
+ * block widgets (`widget_block`), so wire living in any other option, postmeta or termmeta is
+ * neither reported nor rewritten and keeps rendering the old way indefinitely. The census already counted that; this records which
  * mapped tags therefore still exist in their OLD form after the run, because a mapping applied
  * blindly would expect them to have changed.
  *
@@ -156,18 +157,23 @@ WP_CLI::log( sprintf( '%d distinct tag strings, %d derive a rewrite', count( $ta
 $scan       = \BWS\DynamicTags\Admin\TagConverter::scan();
 $reported   = count( $scan );
 $reported_tags = array();
+$widget_numbers = array();
 foreach ( $scan as $row ) {
 	foreach ( $row['deprecated_tags'] as $d ) {
 		$reported_tags[ $d['tag'] ] = ( $reported_tags[ $d['tag'] ] ?? 0 ) + 1;
 	}
+	if ( 'widget' === ( $row['kind'] ?? 'post' ) ) {
+		$widget_numbers[] = (int) $row['widget_number'];
+	}
 }
-WP_CLI::log( sprintf( 'scan reports %d posts, %d distinct deprecated tag NAMES', $reported, count( $reported_tags ) ) );
+WP_CLI::log( sprintf( 'scan reports %d rows (%d block widgets), %d distinct deprecated tag NAMES', $reported, count( $widget_numbers ), count( $reported_tags ) ) );
 
 // ---------------------------------------------------------------------------
 // 3. RUN.
 // ---------------------------------------------------------------------------
 $migrated = 0;
 $tag_count = 0;
+$widgets_migrated = 0;
 $failed    = array();
 
 // WHAT THE GUARD REFUSED, AS THE RUN REPORTED IT. Collected outside the `changed` branch
@@ -178,6 +184,10 @@ $failed    = array();
 $declined_names = array();
 
 foreach ( $scan as $row ) {
+	// Block widget rows have no post id; they are written together below, by migrate_widgets().
+	if ( 'widget' === ( $row['kind'] ?? 'post' ) ) {
+		continue;
+	}
 	$id = (int) $row['post_id'];
 	try {
 		$result = \BWS\DynamicTags\Admin\TagConverter::migrate_post( $id );
@@ -194,7 +204,32 @@ foreach ( $scan as $row ) {
 	}
 }
 
-WP_CLI::log( sprintf( 'migrated %d posts, %d tag rewrites', $migrated, $tag_count ) );
+// BLOCK WIDGETS, as the admin button does them: every reported instance in one read and one
+// write, under one run id so a backup (the Restore button's) is stored. A widget the guard
+// refused is collected with the posts' refusals, because the mapping check reads one set.
+if ( $widget_numbers ) {
+	try {
+		$widget_results = \BWS\DynamicTags\Admin\TagConverter::migrate_widgets( $widget_numbers, 'harvest-replay-' . gmdate( 'YmdHis' ) );
+	} catch ( Throwable $e ) {
+		$widget_results = array();
+		$failed[]       = array( 'widgets' => $widget_numbers, 'error' => $e->getMessage() );
+	}
+	foreach ( $widget_results as $result ) {
+		foreach ( (array) ( $result['declined'] ?? array() ) as $declined_tag => $reason ) {
+			$declined_names[ (string) $declined_tag ] = (string) $reason;
+		}
+		if ( ! empty( $result['changed'] ) ) {
+			$widgets_migrated++;
+			$tag_count += (int) ( $result['tag_count'] ?? 0 );
+		}
+	}
+}
+
+WP_CLI::log( sprintf( 'migrated %d posts and %d block widgets, %d tag rewrites', $migrated, $widgets_migrated, $tag_count ) );
+// A THROWN MIGRATION IS SPOKEN, NOT ONLY RECORDED in the report's migrate_failures: a swallowed failure reads as a clean run with nothing migrated.
+foreach ( $failed as $f ) {
+	WP_CLI::warning( 'migration threw for ' . ( isset( $f['post_id'] ) ? 'post ' . $f['post_id'] : 'block widgets ' . implode( ',', $f['widgets'] ) ) . ': ' . $f['error'] );
+}
 if ( $declined_names ) {
 	WP_CLI::log( sprintf(
 		'ownership guard declined %d tag name(s): %s',
@@ -254,7 +289,7 @@ if ( class_exists( '\BWS\DynamicTags\Admin\PatternCache' ) ) {
 // REPORT/RUN AGREEMENT — a report that outlives its run means the two halves disagree about
 // what a migration is.
 //
-// CONVERTIBLE WORK ONLY. `scan()` classifies every stored string into convert / declined /
+// MIGRATABLE WORK ONLY. `scan()` classifies every stored string into convert / declined /
 // skipped, and the last two are reported BECAUSE they survive — a declined tag still being
 // there after the run is the guard working, not the two halves disagreeing. Counting any
 // non-empty `deprecated_tags` would fire this warning on every default-guard run from now on,
@@ -270,7 +305,7 @@ foreach ( $rescan as $row ) {
 	}
 }
 if ( $remaining ) {
-	WP_CLI::warning( "a second scan still reports {$remaining} convertible post(s) — report and run disagree" );
+	WP_CLI::warning( "a second scan still reports {$remaining} migratable row(s) — report and run disagree" );
 }
 
 // ---------------------------------------------------------------------------
@@ -280,6 +315,14 @@ if ( $remaining ) {
 //    have moved.
 // ---------------------------------------------------------------------------
 global $wpdb;
+
+// HOW MANY BLOCK WIDGETS HOLD A STRING. The mapping check below asks "is the old wire still
+// stored, is the new wire stored" of wp_posts, and the converter now rewrites widget_block too,
+// so a tag only a widget used would otherwise read as unreached wire (neither form in wp_posts)
+// when it moved. Read through the one enumeration the scan uses.
+$widget_has = static function ( string $needle ): int {
+	return count( array_filter( bws_block_widget_rows(), static fn( $content ) => false !== strpos( $content, $needle ) ) );
+};
 
 $unreached  = array();
 $unverified = array();
@@ -291,13 +334,13 @@ foreach ( $mapping as $old => $new ) {
 		  WHERE post_content LIKE %s AND post_type != 'revision'
 		    AND post_status NOT IN ('auto-draft','trash')",
 		'%' . $wpdb->esc_like( $old ) . '%'
-	) );
+	) ) + $widget_has( $old );
 	$has_new = (int) $wpdb->get_var( $wpdb->prepare(
 		"SELECT COUNT(*) FROM {$wpdb->posts}
 		  WHERE post_content LIKE %s AND post_type != 'revision'
 		    AND post_status NOT IN ('auto-draft','trash')",
 		'%' . $wpdb->esc_like( $new ) . '%'
-	) );
+	) ) + $widget_has( $new );
 
 	list( $name ) = \BWS\DynamicTags\MigrationRegistry::parse_tag_string( $old );
 
@@ -321,7 +364,7 @@ foreach ( $mapping as $old => $new ) {
 			break;
 
 		case 'unreached':
-			// Neither form is in wp_posts — the tag lived only in options/postmeta/termmeta,
+			// Neither form is in wp_posts or a block widget — the tag lived only in other options/postmeta/termmeta,
 			// which the converter cannot reach. Expected, and recorded.
 			$unreached[] = array( 'old' => $old, 'new' => $new );
 			break;
@@ -401,8 +444,10 @@ $report = array(
 	'distinct_tags'     => count( $tags ),
 	'derived_rewrites'  => count( $moved ) + count( $unreached ) + count( $declined ) + count( $unverified ),
 	'mapped_tags'       => count( $mapping ),
-	'posts_reported'    => $reported,
+	'posts_reported'    => $reported - count( $widget_numbers ),
 	'posts_migrated'    => $migrated,
+	'widgets_reported'  => count( $widget_numbers ),
+	'widgets_migrated'  => $widgets_migrated,
 	'tag_rewrites'      => $tag_count,
 	'posts_still_reported_after' => $remaining,
 	'migrate_failures'  => $failed,

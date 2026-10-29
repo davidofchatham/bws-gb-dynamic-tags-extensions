@@ -1,6 +1,6 @@
 <?php
 /**
- * Standalone harness for the core-block survey walk (FW-156, core-block-tags/07) in
+ * Standalone harness for the core-block survey walk (FW-156) in
  * includes/helpers/core-block-survey.php: a post-content string in, per-block-type counts of
  * tag-like `{{...}}` strings out, split registered vs unregistered.
  *
@@ -63,8 +63,8 @@ require dirname( __DIR__, 2 ) . '/includes/helpers/core-block-survey.php';
 
 $known = array( 'text' => true, 'phone' => true, 'table' => true, 'content' => true );
 $reg   = static fn( string $name ): bool => isset( $known[ $name ] );
-$walk  = static fn( string $c ): array => bws_core_blocks_survey_walk( $c, $reg );
-$cell  = static fn( int $r, int $u, array $rt = array(), array $ut = array() ): array => array( 'registered' => $r, 'unregistered' => $u, 'registered_tags' => $rt, 'unregistered_tags' => $ut );
+$walk  = static fn( string $c ): array => bws_core_blocks_survey_count( bws_core_blocks_survey_walk( $c, $reg, array( 'kind' => 'post', 'id' => 1 ) ) );
+$cell  = static fn( int $r, int $u, array $rt = array(), array $ut = array(), int $m = 0 ): array => array( 'registered' => $r, 'unregistered' => $u, 'registered_tags' => $rt, 'unregistered_tags' => $ut, 'migratable' => $m );
 
 echo "§1 — a flat block\n";
 assert_same(
@@ -134,6 +134,7 @@ assert_same(
 	bws_core_blocks_survey_merge( $a, $b )
 );
 assert_same( 'merging into nothing returns the addition', $b, bws_core_blocks_survey_merge( array(), $b ) );
+assert_same( 'the migratable counts add per block type', array( 'core/paragraph' => 5 ), array_map( static fn( $c ) => $c['migratable'], bws_core_blocks_survey_merge( array( 'core/paragraph' => $cell( 1, 0, array(), array(), 2 ) ), array( 'core/paragraph' => $cell( 1, 0, array(), array(), 3 ) ) ) ) );
 
 echo "§8 — the stored result is read back defensively\n";
 assert_same( 'garbage is no result', null, bws_core_blocks_survey_clean( 'x' ) );
@@ -143,6 +144,9 @@ assert_same(
 	array( 'time' => 5, 'blocks' => array( 'core/table' => $cell( 2, 0, array( 'text' => 2 ) ) ), 'widgets' => array( 'registered' => 1, 'unregistered' => 0 ) ),
 	bws_core_blocks_survey_clean( array( 'time' => '5', 'blocks' => array( 'core/table' => array( 'registered' => '2', 'unregistered' => 0, 'registered_tags' => array( 'text' => '2', 'bad tag' => 1, 'a}}' => 3 ) ), 'bad name' => $cell( 1, 1 ), 'core/x' => 'no' ), 'widgets' => $cell( 1, 0 ) ) )
 );
+// The stored scan is what the status line reads after a reload, so the clean must not rebuild the cell without the count.
+assert_same( 'the stored migratable count survives the clean (and a negative or text one is bounded)', array( 4, 0, 0 ), array_map( static fn( $n ) => bws_core_blocks_survey_clean( array( 'time' => 1, 'blocks' => array( 'core/table' => array( 'registered' => 1, 'unregistered' => 0, 'migratable' => $n ) ) ) )['blocks']['core/table']['migratable'], array( '4', -3, 'x' ) ) );
+assert_same( 'a result stored before the count existed reads 0', 0, bws_core_blocks_survey_clean( array( 'time' => 1, 'blocks' => array( 'core/table' => array( 'registered' => 2, 'unregistered' => 0 ) ) ) )['blocks']['core/table']['migratable'] );
 assert_same( 'a zero or negative per-tag count is dropped', array( 'text' => 2 ), bws_core_blocks_survey_clean( array( 'time' => 1, 'blocks' => array( 'core/table' => array( 'registered' => 2, 'unregistered' => 0, 'registered_tags' => array( 'text' => 2, 'zero' => 0, 'neg' => -1 ) ) ) ) )['blocks']['core/table']['registered_tags'] );
 assert_same( 'a result stored before tag names were kept reads back with empty lists', array(), bws_core_blocks_survey_clean( array( 'time' => 1, 'blocks' => array( 'core/table' => array( 'registered' => 2, 'unregistered' => 0 ) ) ) )['blocks']['core/table']['registered_tags'] );
 assert_same( 'a result with no widgets reports zeros', array( 'registered' => 0, 'unregistered' => 0 ), bws_core_blocks_survey_clean( array( 'time' => 1, 'blocks' => array() ) )['widgets'] );

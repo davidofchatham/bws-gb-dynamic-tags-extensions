@@ -87,8 +87,12 @@ function bws_core_blocks_picker_strings(): array {
 			array( __( 'link tags return plain text', 'generateblocks' ), __( '`email`, `phone` and any tag set to *Link To* print just the address, number or text, not a link. In a Button\'s link, type `mailto:` or `tel:` before the tag yourself.', 'generateblocks' ) ),
 		),
 		'survey_none_yet'    => __( 'No scan has been run yet.', 'generateblocks' ),
-		/* translators: 1: tags GenerateBlocks handles in the blocks listed below, 2: tags it does not handle in them, 3: date and time of the scan. */
-		'survey_status'      => __( 'Found in the blocks below as of %3$s: %1$d tags handled by GenerateBlocks and %2$d tags it does not handle.', 'generateblocks' ),
+		// The frame; each count's phrase is pluralized in bws_core_blocks_survey_status().
+		/* translators: 1: "N tags handled by GenerateBlocks", 2: "M tags it does not handle", 3: date and time of the scan. */
+		'survey_status'      => __( 'Found in the blocks below as of %3$s: %1$s and %2$s.', 'generateblocks' ),
+		// The frame when the scan found tags the Migration Tool would update; the clause is pluralized in bws_core_blocks_survey_status().
+		/* translators: 1: "N tags handled by GenerateBlocks", 2: "M tags it does not handle", 3: date and time of the scan, 4: "K need updating with the Migration Tool". */
+		'survey_status_migratable' => __( 'Found in the blocks below as of %3$s: %1$s and %2$s; %4$s.', 'generateblocks' ),
 		'survey_desc'        => __( 'A scan checks all of your content (posts, pages, templates, patterns and block widgets) for `{{…}}` tags in every block in this list, enabled or not, and lists the tags each block holds, with how many of each, split by whether they are registered with GenerateBlocks. Blocks added only by a plugin\'s editor script are not listed.', 'generateblocks' ),
 		// Read after a count, as screen reader text: "5 tag names", then the details control's own "collapsed".
 		'tags_toggle'        => __( 'tag names', 'generateblocks' ),
@@ -137,6 +141,7 @@ function bws_core_blocks_picker_markup( string $text ): string {
  * Row keys: name, title, selected, disabled, variations (titles), registered and unregistered
  * (the last scan's tag counts for the block: ints once a scan exists, null before),
  * registered_tags and unregistered_tags (the tag names behind those counts, name => times found; empty before a scan),
+ * migratable (how many of the block's occurrences the Migration Tool would update; 0 before a scan),
  * search (lowercase haystack),
  * contents and limits (string keys, see bws_core_blocks_picker_cells()), untested (bool), notes
  * (keys into bws_core_blocks_picker_strings(): `unregistered` and `code_set` when they apply).
@@ -243,6 +248,7 @@ function bws_core_blocks_picker_row( string $name, string $title, string $catego
 			'unregistered'      => null === $survey ? null : (int) ( $survey[ $name ]['unregistered'] ?? 0 ),
 			'registered_tags'   => (array) ( $survey[ $name ]['registered_tags'] ?? array() ),
 			'unregistered_tags' => (array) ( $survey[ $name ]['unregistered_tags'] ?? array() ),
+			'migratable'        => (int) ( $survey[ $name ]['migratable'] ?? 0 ),
 			'search'            => strtolower( implode( ' ', array_merge( array( $title, $name, $category_label ), $variations ) ) ),
 			'notes'             => $notes,
 		)
@@ -281,29 +287,69 @@ function bws_core_blocks_survey_count_html( ?int $count, array $text, array $tag
 }
 
 /**
- * The scan status line: the totals and when they were found, or "No scan has been run yet."
+ * The scan status line: the totals, when they were found and, when the scan found tags the
+ * Migration Tool would update, how many; or "No scan has been run yet."
+ *
+ * The clause ("3 need updating with the Migration Tool") counts only the occurrences in the listed
+ * rows, summed like the two totals, so it never exceeds them together; the Migration Tool's own
+ * list is site-wide and can hold more. It is left out when the count is 0, which includes a stored
+ * scan that predates the count.
  *
  * @since Unreleased
  * @param array|null    $survey The last scan (bws_core_blocks_survey_last()), or null before the first.
  * @param array[]       $groups bws_core_blocks_picker_rows(); the totals are the sums over the rows in them.
  * @param array         $text   bws_core_blocks_picker_strings().
  * @param callable|null $format Time formatter (tests); defaults to the site's date and time format.
- * @return string Plain text.
+ * @param bool          $html   Return escaped markup with the clause as a link to the Migration Tool section, not plain text. The link is a plain anchor so it works without script; block-picker.js refines where it scrolls.
+ * @return string
  */
-function bws_core_blocks_survey_status( ?array $survey, array $groups, array $text, ?callable $format = null ): string {
+function bws_core_blocks_survey_status( ?array $survey, array $groups, array $text, ?callable $format = null, bool $html = false ): string {
+	$esc = $html ? 'esc_html' : static fn( string $s ): string => $s;
 	if ( null === $survey ) {
-		return $text['survey_none_yet'];
+		return $esc( $text['survey_none_yet'] );
 	}
 	$known   = 0;
 	$unknown = 0;
+	$k       = 0;
 	foreach ( $groups as $group ) {
 		foreach ( $group['rows'] as $row ) {
 			$known   += (int) $row['registered'];
 			$unknown += (int) $row['unregistered'];
+			$k       += (int) $row['migratable'];
 		}
 	}
 	$when = $format ? $format( $survey['time'] ) : wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $survey['time'] );
-	return sprintf( $text['survey_status'], $known, $unknown, $when );
+	$args = array(
+		/* translators: %d: number of tags. */
+		$esc( sprintf( _n( '%d tag handled by GenerateBlocks', '%d tags handled by GenerateBlocks', $known, 'generateblocks' ), $known ) ),
+		/* translators: %d: number of tags. */
+		$esc( sprintf( _n( '%d tag it does not handle', '%d tags it does not handle', $unknown, 'generateblocks' ), $unknown ) ),
+		$esc( $when ),
+	);
+	if ( $k < 1 ) {
+		return sprintf( $esc( $text['survey_status'] ), ...$args );
+	}
+	/* translators: %d: how many tag occurrences the Migration Tool would update, found by the scan. */
+	$clause = $esc( sprintf( _n( '%d needs updating with the Migration Tool', '%d need updating with the Migration Tool', $k, 'generateblocks' ), $k ) );
+	if ( $html ) {
+		$clause = '<a class="bws-block-picker__migratable" href="#bws-migration-tool">' . $clause . '</a>';
+	}
+	$args[] = $clause;
+	return sprintf( $esc( $text['survey_status_migratable'] ), ...$args );
+}
+
+/**
+ * The status line as escaped markup (see bws_core_blocks_survey_status()).
+ *
+ * @since Unreleased
+ * @param array|null    $survey The last scan, or null before the first.
+ * @param array[]       $groups bws_core_blocks_picker_rows().
+ * @param array         $text   bws_core_blocks_picker_strings().
+ * @param callable|null $format Time formatter (tests).
+ * @return string HTML.
+ */
+function bws_core_blocks_survey_status_html( ?array $survey, array $groups, array $text, ?callable $format = null ): string {
+	return bws_core_blocks_survey_status( $survey, $groups, $text, $format, true );
 }
 
 /**

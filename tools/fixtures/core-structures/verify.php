@@ -744,7 +744,7 @@ if ( $trust_ready ) {
 		// conditions to the post, not to each other; this pins that reading (GB 2.5.0) so a
 		// future GB that ties them together fails here by name instead of leaving the note
 		// overstating. A FAILURE MEANS GB MOVED, or `bws_core_blocks_allow()` stopped
-		// admitting core/paragraph: read both before the note's copy (core-block-tags/11, note 1).
+		// admitting core/paragraph: read both before the note's copy.
 		//
 		// The tag sits in a core/verse (never enabled here); core/paragraph is the enabled
 		// type and carries no tag at all. Tags avoid quotes and backslashes so a stored copy

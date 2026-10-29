@@ -1,6 +1,6 @@
 <?php
 /**
- * Standalone harness for the button-host link rule (FW-156, core-block-tags/05):
+ * Standalone harness for the button-host link rule (FW-156):
  * `bws_host_unlinked_options()` in includes/helpers/link-helpers.php, plus the census of
  * the shells that must route their options through it.
  *
