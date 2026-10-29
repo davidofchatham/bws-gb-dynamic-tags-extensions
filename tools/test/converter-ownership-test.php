@@ -347,7 +347,7 @@ echo "\n§O7 — no rewrite path in the converter bypasses the guard\n";
 //
 // THE ONE JOB, checked structurally. Every assertion above holds what the guard ANSWERS; a
 // loop that never asks it passes all of them, and that loop is the whole failure. So this
-// counts rewrite loops in migrate_post() against calls to the method that asks, the same
+// counts rewrite loops in migrate_string() against calls to the method that asks, the same
 // shape gb-output-boundary-test.php §B6 uses on GB's output call — a zero re-checked on
 // every run rather than a zero someone read once.
 //
@@ -379,10 +379,16 @@ $code_only = implode(
 preg_match( '/public static function migrate_post\(.*?\n\t\}/s', $code_only, $mp_m );
 $migrate = $mp_m[0] ?? '';
 
-check( 'O7.1 the scan reached migrate_post()', '' !== $migrate && false !== strpos( $migrate, 'wpdb->update' ) );
+// The loops live in migrate_string() since FW-73 ticket 01; migrate_post() reaches them through
+// it. So the loop count is taken from the rewriter, and O7.1 holds that the only caller
+// of the rewriter that writes a post still routes through it.
+preg_match( '/public static function migrate_string\(.*?\n\t\}/s', $code_only, $ms_m );
+$rewriter = $ms_m[0] ?? '';
 
-$loops  = preg_match_all( '/preg_replace_callback\(/', $migrate );
-$gated  = preg_match_all( '/self::apply_if_owned\(/', $migrate );
+check( 'O7.1 the scan reached migrate_post(), which writes and rewrites only through migrate_string()', '' !== $migrate && false !== strpos( $migrate, 'wpdb->update' ) && false !== strpos( $migrate, 'self::migrate_string(' ) && 0 === preg_match( '/preg_replace_callback\(/', $migrate ) );
+
+$loops  = preg_match_all( '/preg_replace_callback\(/', $rewriter );
+$gated  = preg_match_all( '/self::apply_if_owned\(/', $rewriter );
 
 check( 'O7.2 every content-rewriting loop routes through the guard', $loops > 0 && $loops === $gated, "rewrite loops: {$loops}, gated: {$gated}" );
 

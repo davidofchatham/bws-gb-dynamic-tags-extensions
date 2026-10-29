@@ -498,53 +498,37 @@ class TagConverter {
 	// ===============================================
 
 	/**
-	 * Migrate all deprecated tags and option migrations in a single post.
+	 * Rewrite every deprecated tag and option migration in a content string.
 	 *
-	 * 1. Reads current post content.
-	 * 2. Calls wp_save_post_revision() — creates pre-migration snapshot when supported;
-	 *    deduped by WP if content matches last revision.
-	 * 3. Applies all deprecated tag transforms (full chain per match).
-	 * 4. Applies all option migrations.
-	 * 5. Writes directly to wp_posts if content changed (avoids hook side-effects and
-	 *    duplicate revision from wp_update_post).
-	 * 6. Fires bws_dynamic_tags_content_written so downstream caches over post content can
-	 *    refresh — step 5 fires no save hooks, so nothing else is told (#99).
+	 * THE SHARED REWRITER: migrate_post() runs it over post content, and anything else that
+	 * holds tag strings (a widget's stored block, FW-155's gated walk) calls the same
+	 * function, so the two loops and the ownership guard have exactly one home. Nothing is
+	 * read from or written to a post here — string in, string out — though the guard itself
+	 * reads site state (the collision record and the per-name opt-in).
 	 *
-	 * STEPS 3 AND 4 ARE BOTH GATED, and that is not belt-and-braces. Step 4 rewrites BASE
-	 * tag names, and a base name is as takeable as a deprecated one — whichever loop the
-	 * next rewrite is added to, it goes through the guard, because the thing being protected
-	 * is somebody's post content and not one migration entry.
+	 * 1. Deprecated tag transforms (full chain per match).
+	 * 2. Option migrations.
 	 *
-	 * @since 1.6.0
-	 * @since 1.20.0 Every rewrite passes bws_converter_rewrite_allowed() (FW-39).
-	 * @param int $post_id Post ID to migrate.
+	 * BOTH LOOPS ARE GATED, and that is not belt-and-braces. The second rewrites BASE tag
+	 * names, and a base name is as takeable as a deprecated one — whichever loop the next
+	 * rewrite is added to, it goes through the guard, because the thing being protected is
+	 * somebody's content and not one migration entry. Both hand their rewrite to
+	 * apply_if_owned(), which is where the guard is asked — see
+	 * bws_converter_tag_ownership() for the invariant.
+	 *
+	 * @since Unreleased
+	 * @param string $content Content holding tag strings.
 	 * @return array {
-	 *   @type bool      $changed       Whether post content was modified.
-	 *   @type int       $tag_count     Deprecated tag replacements made.
-	 *   @type int       $option_count  Option migration replacements made.
-	 *   @type int|false $revision_id   Revision ID, or false if unsupported / not needed.
-	 *   @type array     $declined      Tag name → ownership reason, for tags left alone. ONE
-	 *                                  ENTRY PER NAME, not per match: the reason is a property
-	 *                                  of the name on this site, so a post using a contested
-	 *                                  tag forty times has one thing to say about it.
+	 *   @type string $content      The rewritten content (the input, when nothing applied).
+	 *   @type int    $tag_count    Deprecated tag replacements made.
+	 *   @type int    $option_count Option migration replacements made.
+	 *   @type array  $declined     Tag name → ownership reason, for tags left alone. ONE
+	 *                              ENTRY PER NAME, not per match: the reason is a property
+	 *                              of the name on this site, so a string using a contested
+	 *                              tag forty times has one thing to say about it.
 	 * }
 	 */
-	public static function migrate_post( int $post_id ): array {
-		global $wpdb;
-
-		$post = get_post( $post_id );
-		if ( ! $post ) {
-			return array( 'changed' => false, 'tag_count' => 0, 'option_count' => 0, 'revision_id' => false, 'declined' => array() );
-		}
-
-		$content = $post->post_content;
-
-		// Step 2: Pre-migration snapshot.
-		$revision_id = wp_save_post_revision( $post_id );
-
-		// Both loops below hand their rewrite to apply_if_owned(), which is where the
-		// ownership guard is asked — see bws_converter_tag_ownership() for the invariant,
-		// and the $declined note on this method's return for why a name is reported once.
+	public static function migrate_string( string $content ): array {
 		$declined = array();
 
 		// Step 3: Deprecated tag transforms.
@@ -584,6 +568,64 @@ class TagConverter {
 				$content
 			) ?? $content;
 		}
+
+		return array(
+			'content'      => $content,
+			'tag_count'    => $tag_count,
+			'option_count' => $option_count,
+			'declined'     => $declined,
+		);
+	}
+
+	/**
+	 * Migrate all deprecated tags and option migrations in a single post.
+	 *
+	 * 1. Reads current post content.
+	 * 2. Calls wp_save_post_revision() — creates pre-migration snapshot when supported;
+	 *    deduped by WP if content matches last revision.
+	 * 3. Applies all deprecated tag transforms (full chain per match).
+	 * 4. Applies all option migrations.
+	 * 5. Writes directly to wp_posts if content changed (avoids hook side-effects and
+	 *    duplicate revision from wp_update_post).
+	 * 6. Fires bws_dynamic_tags_content_written so downstream caches over post content can
+	 *    refresh — step 5 fires no save hooks, so nothing else is told (#99).
+	 *
+	 * Steps 3 and 4 are migrate_string(); the ownership guard lives there.
+	 *
+	 * @since 1.6.0
+	 * @since 1.20.0 Every rewrite passes bws_converter_rewrite_allowed() (FW-39).
+	 * @since Unreleased Steps 3 and 4 are migrate_string() (FW-73).
+	 * @param int $post_id Post ID to migrate.
+	 * @return array {
+	 *   @type bool      $changed       Whether post content was modified.
+	 *   @type int       $tag_count     Deprecated tag replacements made.
+	 *   @type int       $option_count  Option migration replacements made.
+	 *   @type int|false $revision_id   Revision ID, or false if unsupported / not needed.
+	 *   @type array     $declined      Tag name → ownership reason, for tags left alone. ONE
+	 *                                  ENTRY PER NAME, not per match: the reason is a property
+	 *                                  of the name on this site, so a post using a contested
+	 *                                  tag forty times has one thing to say about it.
+	 * }
+	 */
+	public static function migrate_post( int $post_id ): array {
+		global $wpdb;
+
+		$post = get_post( $post_id );
+		if ( ! $post ) {
+			return array( 'changed' => false, 'tag_count' => 0, 'option_count' => 0, 'revision_id' => false, 'declined' => array() );
+		}
+
+		$content = $post->post_content;
+
+		// Step 2: Pre-migration snapshot.
+		$revision_id = wp_save_post_revision( $post_id );
+
+		// Steps 3 and 4: both rewrite loops, behind the ownership guard — see migrate_string().
+		$rewrite      = self::migrate_string( $content );
+		$content      = $rewrite['content'];
+		$tag_count    = $rewrite['tag_count'];
+		$option_count = $rewrite['option_count'];
+		$declined     = $rewrite['declined'];
 
 		// Step 5: Write if changed.
 		$changed = ( $content !== $post->post_content );
