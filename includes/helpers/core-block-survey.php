@@ -126,7 +126,7 @@ function bws_core_blocks_survey_count( array $records ): array {
  * count and the Migration Tool's "Found in:" list both read it, so they cannot disagree.
  *
  * A stored tag is migratable when the Migration Tool would update it, and a tag its ownership
- * guard declines is not (spec decision 9). Deprecated tag name: TagConverter::classify_tag()
+ * guard declines is not. Deprecated tag name: TagConverter::classify_tag()
  * answers `convert`. Option migration: TagConverter::migrate_string(), the rewrite itself, reports
  * an applied option rewrite (`option_count`); asking it, not re-deriving the match and the guard
  * here, is what keeps this and the write one decision.

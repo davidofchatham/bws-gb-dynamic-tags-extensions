@@ -551,7 +551,7 @@
 	function setWidgetBackup( line ) {
 		if ( ! restoreWrap || typeof line !== 'string' ) { return; }
 		if ( line !== '' ) { restoreLine.textContent = line; }
-		restoreWrap.style.display = line !== '' ? 'block' : 'none';
+		restoreWrap.hidden = line === '';
 	}
 
 	if ( restoreBtn ) {

@@ -403,7 +403,7 @@
 			boxes.forEach( function ( b ) { b.addEventListener( 'change', hideConfirm ); } );
 		}
 
-		// The "K need updating with the Migration Tool" link in the status line (spec decision 10): the Migration Tool's scan is
+		// The "K need updating with the Migration Tool" link in the status line: the Migration Tool's scan is
 		// its own on-demand run, so there is no filtered view to open. Scroll to its loaded results,
 		// else to its Scan button. Delegated, because a scan replaces the status line's markup.
 		status.addEventListener( 'click', function ( e ) {

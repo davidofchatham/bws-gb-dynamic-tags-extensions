@@ -1,6 +1,6 @@
 <?php
 /**
- * Standalone harness for the located walk (FW-73, ticket 04, spec decisions 8 and 9) in
+ * Standalone harness for the located walk (FW-73) in
  * includes/helpers/core-block-survey.php: one record per tag occurrence, carrying its base
  * category, its migratable flag, its block type, its container, its ordinal and the stored string.
  *
@@ -166,7 +166,7 @@ $optional = bws_core_blocks_survey_walk( '<!-- wp:paragraph --><p>{{ws_base lega
 assert_same( 'LW5b.3 only the matching occurrence is flagged', array( true, false ), array_column( $optional, 'migratable' ) );
 assert_same( 'LW5b.4 and the block\'s migratable count has it', 1, bws_core_blocks_survey_count( $optional )['core/paragraph']['migratable'] );
 
-echo "\nLW5c - an option migration whose rewrite the ownership guard would decline carries no flag (spec decision 9)\n";
+echo "\nLW5c - an option migration whose rewrite the ownership guard would decline carries no flag\n";
 MigrationRegistry::register( array(
 	'type'               => 'option',
 	'label'              => 'ws foreign option',

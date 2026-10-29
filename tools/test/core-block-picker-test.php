@@ -186,7 +186,7 @@ assert_same( 'before any scan: the no-scan sentence alone', 'No scan has been ru
 assert_same( 'after a scan: handled and not-handled sums over the listed rows, with the date', 'Found in the blocks below as of WHEN: 5 tags handled by GenerateBlocks and 1 tag it does not handle.', bws_core_blocks_survey_status( array( 'time' => 1700000000 ), $groups, $text, $when ) );
 assert_same( 'a scan that found nothing in the listed blocks reads as zeros', 'Found in the blocks below as of WHEN: 0 tags handled by GenerateBlocks and 0 tags it does not handle.', bws_core_blocks_survey_status( array( 'time' => 1700000000 ), bws_core_blocks_picker_rows( $entries, $cats, array(), array(), array(), array() ), $text, $when ) );
 // K is summed over the same rows as the two totals: a migratable tag in a block the page does not list (core/gone is not
-// registered here, generateblocks/text is GB's own) is in neither, so K <= the two totals together (user decision Q13, 2026-10-29).
+// registered here, generateblocks/text is GB's own) is in neither, so K <= the two totals together.
 $kGroups  = static fn( int $paragraph, int $heading = 0, int $unlisted = 0 ): array => bws_core_blocks_picker_rows( array_merge( $entries, array( entry( 'generateblocks/text', 'Text' ) ) ), $cats, array(), array(), array(), array(
 	'core/paragraph'      => array( 'registered' => 3, 'unregistered' => 1, 'migratable' => $paragraph ),
 	'core/heading'        => array( 'registered' => 2, 'unregistered' => 0, 'migratable' => $heading ),

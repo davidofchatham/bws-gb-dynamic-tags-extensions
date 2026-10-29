@@ -1,6 +1,6 @@
 <?php
 /**
- * Standalone unit harness for TagConverter::migrate_string() (FW-73, ticket 01).
+ * Standalone unit harness for TagConverter::migrate_string() (FW-73).
  *
  * migrate_string() is the shared rewriter: the two loops that used to sit inside
  * migrate_post() (deprecated tag renames, then option migrations, both passing the

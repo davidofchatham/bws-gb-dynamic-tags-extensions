@@ -906,7 +906,7 @@ class TagConverter {
 	}
 
 	/**
-	 * Migrate block widget instances: one fresh read, one write (spec decision 5).
+	 * Migrate block widget instances: one fresh read, one write.
 	 *
 	 * When anything changed, the backup is stored first and the widget option second, so a failure
 	 * between the two leaves a backup of a write that did not happen rather than a write with no

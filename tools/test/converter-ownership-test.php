@@ -379,7 +379,7 @@ $code_only = implode(
 preg_match( '/public static function migrate_post\(.*?\n\t\}/s', $code_only, $mp_m );
 $migrate = $mp_m[0] ?? '';
 
-// The loops live in migrate_string() since FW-73 ticket 01; migrate_post() reaches them through
+// The loops live in migrate_string() since FW-73; migrate_post() reaches them through
 // it. So the loop count is taken from the rewriter, and O7.1 holds that the only caller
 // of the rewriter that writes a post still routes through it.
 preg_match( '/public static function migrate_string\(.*?\n\t\}/s', $code_only, $ms_m );

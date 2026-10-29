@@ -1,6 +1,6 @@
 <?php
 /**
- * Standalone unit harness for the block-widget scan rows (FW-73, ticket 02).
+ * Standalone unit harness for the block-widget scan rows (FW-73).
  *
  * Three seams, all pure once WordPress's option reads are stubbed:
  *   - bws_block_widget_rows()          the ONE enumeration of block widget instances (number =>
@@ -8,7 +8,7 @@
  *   - bws_block_widget_placements()    which active sidebar holds each instance.
  *   - TagConverter::scan_widgets()     one scan row per instance that holds a migratable tag.
  * Plus the allowlist rebuild, which must take a widget row unchanged, and the LOCATIONS a scan row
- * carries (FW-73 ticket 05): block type and position, read off the located walk.
+ * carries (FW-73): block type and position, read off the located walk.
  *
  * REQUIRES THE REAL WORDPRESS BLOCK PARSER, because scan rows now ask the located walk (see
  * located-walk-test.php for the $BWS_WP_CORE_DIR rule); it FAILS rather than skips when it is missing.

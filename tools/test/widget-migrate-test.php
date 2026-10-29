@@ -1,6 +1,6 @@
 <?php
 /**
- * Standalone unit harness for the block-widget migrate, backup and restore (FW-73, ticket 03).
+ * Standalone unit harness for the block-widget migrate, backup and restore (FW-73).
  *
  * Four seams, all pure once WordPress's option calls are stubbed:
  *   - TagConverter::parse_row_ids()           `widget:N` beside integer post ids.

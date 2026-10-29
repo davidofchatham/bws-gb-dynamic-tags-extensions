@@ -1297,7 +1297,7 @@ function my_result( $post_id, $arg = '' ) {
 						        the migrate response; the result span sits outside the wrapper so it
 						        survives the wrapper hiding itself after a restore. */ ?>
 						<?php $bws_widget_backup_line = TagConverter::widget_backup_line(); ?>
-						<div id="bws-widget-restore" class="bws-widget-restore" style="<?php echo '' === $bws_widget_backup_line ? 'display:none;' : ''; ?>">
+						<div id="bws-widget-restore" class="bws-widget-restore"<?php echo '' === $bws_widget_backup_line ? ' hidden' : ''; ?>>
 							<p class="description">
 								<span id="bws-widget-restore-line"><?php echo esc_html( $bws_widget_backup_line ); ?></span>
 								<?php esc_html_e( 'A widget edited since is left as it is.', 'generateblocks' ); ?>

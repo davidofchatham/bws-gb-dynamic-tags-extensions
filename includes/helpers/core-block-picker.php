@@ -293,7 +293,7 @@ function bws_core_blocks_survey_count_html( ?int $count, array $text, array $tag
  * The clause ("3 need updating with the Migration Tool") counts only the occurrences in the listed
  * rows, summed like the two totals, so it never exceeds them together; the Migration Tool's own
  * list is site-wide and can hold more. It is left out when the count is 0, which includes a stored
- * scan that predates the count (spec decision 10, Q13).
+ * scan that predates the count.
  *
  * @since Unreleased
  * @param array|null    $survey The last scan (bws_core_blocks_survey_last()), or null before the first.
