@@ -406,7 +406,7 @@ $askers = preg_match_all( '/bws_converter_rewrite_allowed\(/', $code_only );
 check( 'O7.3 the class asks the guard from exactly two places — the rewrite and the report', 2 === $askers, 'found: ' . $askers );
 
 preg_match( '/private static function apply_if_owned\(.*?\n\t\}/s', $code_only, $gate_m );
-preg_match( '/private static function classify_tag\(.*?\n\t\}/s', $code_only, $classify_m );
+preg_match( '/public static function classify_tag\(.*?\n\t\}/s', $code_only, $classify_m );
 
 check( 'O7.3a the REWRITE asker is apply_if_owned()', false !== strpos( $gate_m[0] ?? '', 'bws_converter_rewrite_allowed(' ) );
 check( 'O7.3b the REPORT asker is classify_tag()', false !== strpos( $classify_m[0] ?? '', 'bws_converter_rewrite_allowed(' ) );

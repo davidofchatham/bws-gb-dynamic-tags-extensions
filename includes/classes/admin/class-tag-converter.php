@@ -296,6 +296,11 @@ class TagConverter {
 	 * output-neutral (D40), which the report states as a line beside the conversion preview
 	 * and not as a second gate. bws_modifier_argless_rewrite() owns the population.
 	 *
+	 * PUBLIC SO THE LOCATED WALK CAN ASK IT (FW-73): the walk's Convertible flag is this
+	 * method's `convert`, read through bws_core_blocks_survey_classifier(); nothing else
+	 * decides it. Ask it only of a deprecated tag name, since a name no entry transforms
+	 * also comes back `convert` (the no-op case above).
+	 *
 	 * @since 1.20.0
 	 * @param string $tag    Tag name as stored in post content.
 	 * @param string $stored The matched tag string, exactly as content holds it.
@@ -303,7 +308,7 @@ class TagConverter {
 	 *         'convert', 'declined' or 'skipped'; `reason` is a member of
 	 *         BWS_MODIFIER_SKIP_REASONS or BWS_CONVERTER_OWNERSHIP_REASONS, or ''.
 	 */
-	private static function classify_tag( string $tag, string $stored ): array {
+	public static function classify_tag( string $tag, string $stored ): array {
 		$skip = function_exists( 'bws_modifier_skip_reason_for_tag' )
 			? bws_modifier_skip_reason_for_tag( $stored )
 			: '';
