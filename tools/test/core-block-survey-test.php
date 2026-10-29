@@ -63,7 +63,7 @@ require dirname( __DIR__, 2 ) . '/includes/helpers/core-block-survey.php';
 
 $known = array( 'text' => true, 'phone' => true, 'table' => true, 'content' => true );
 $reg   = static fn( string $name ): bool => isset( $known[ $name ] );
-$walk  = static fn( string $c ): array => bws_core_blocks_survey_walk( $c, $reg );
+$walk  = static fn( string $c ): array => bws_core_blocks_survey_count( bws_core_blocks_survey_walk( $c, $reg, array( 'kind' => 'post', 'id' => 1 ) ) );
 $cell  = static fn( int $r, int $u, array $rt = array(), array $ut = array() ): array => array( 'registered' => $r, 'unregistered' => $u, 'registered_tags' => $rt, 'unregistered_tags' => $ut );
 
 echo "§1 — a flat block\n";

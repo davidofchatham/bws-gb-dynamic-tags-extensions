@@ -6,12 +6,18 @@
  * into REGISTERED tags (the ones that start printing a value once their block type is enabled)
  * and unregistered ones (which stay literal regardless). Never a gate.
  *
- * Three parts: the pure WALK over one post-content string (it takes the string and a
- * registered-name test and knows nothing of WordPress storage), the pure helpers around its
- * result, and the WordPress-side RUNNER that feeds it every post and block widget and answers
- * the AJAX call. FW-155's converter is meant to read block types through the same walk. The
- * block widgets are enumerated by bws_block_widget_rows(), which the Migration Tool's scan
- * shares (FW-73); the post enumeration is the runner's own, because it batches by ID cursor.
+ * Three parts: the pure LOCATED WALK over one content string (it takes the string, a
+ * registered-name test, the container it came from and a classifier, and knows nothing of
+ * WordPress storage; it yields one record per tag occurrence, FW-73), the pure helpers around
+ * it (the survey is a count over those records), and the WordPress-side RUNNER that feeds it
+ * every post and block widget and answers the AJAX call. FW-155's converter is meant to read
+ * block types from the same records.
+ *
+ * WHICH ENUMERATION IS SHARED. Only the widgets: bws_block_widget_rows() is read by this runner
+ * and by the Migration Tool's scan, so what counts as a widget instance is stated once. The
+ * post enumeration stays the runner's own and is NOT shared with TagConverter::scan(), because
+ * the survey batches 200 posts by ID cursor on a bare `{{` LIKE while scan() runs one query
+ * with a LIKE per deprecated name.
  *
  * @package BWS_Dynamic_Tags
  * @since Unreleased
@@ -25,51 +31,111 @@ if ( ! defined( 'ABSPATH' ) ) {
 const BWS_CORE_BLOCKS_SURVEY_OPTION = 'bws_dynamic_tags_core_block_survey';
 
 /**
- * Count the tag-like strings in one post-content string, per block type.
+ * The located walk: one record per tag-like string in one content string.
  *
- * A tag is counted against the block whose OWN markup holds it (its `innerContent` strings,
+ * A tag is attributed to the block whose OWN markup holds it (its `innerContent` strings,
  * never its inner blocks' and never its comment attributes), because that is the markup GB
  * would replace tags in once the block's type is allowlisted. Text outside any block has no
  * block type and is left out, as is a block that only references other content (a reusable
  * block or template part): the referenced post is scanned as a post of its own. Malformed
  * markup is whatever WordPress's parser makes of it.
  *
+ * `category` is the BASE category the survey counts: `registered` (Handled by GB) or
+ * `unregistered` (Not handled by GB). `convertible` is independent of it: true only when
+ * `$classify` answers `convert`, so a deprecated name still registered and the same name after
+ * an unregister are both flagged and sit in different categories. The walk holds no rule of its
+ * own for the flag; see bws_core_blocks_survey_classifier(). A declined or skipped occurrence
+ * is `false`, like one the classifier is not asked about.
+ *
+ * `ordinal` is the block's 1-based position among blocks of its type in this container, in
+ * document order with a parent before its children, counting blocks that hold no tag, because
+ * it is what an author counts in the editor's List View.
+ *
  * @since Unreleased
- * @param string   $content       Post content (block markup).
- * @param callable $is_registered Given a tag name, whether GB has it registered.
- * @return array<string, array{registered: int, unregistered: int, registered_tags: array<string, int>, unregistered_tags: array<string, int>}> Block name => counts and, per kind, tag name => times found; blocks with no tag are absent.
+ * @param string        $content       Post content or a widget's block markup.
+ * @param callable      $is_registered Given a tag name, whether GB has it registered.
+ * @param array         $container     `{kind: post|widget, id: int}`, stamped on every record.
+ * @param callable|null $classify      Given (tag name, stored string), the classifier's status string or null when the name is not its business.
+ * @return array<int, array{tag: string, category: string, convertible: bool, block_name: string, container: array, ordinal: int, stored: string}>
  */
-function bws_core_blocks_survey_walk( string $content, callable $is_registered ): array {
+function bws_core_blocks_survey_walk( string $content, callable $is_registered, array $container, ?callable $classify = null ): array {
 	if ( false === strpos( $content, '{{' ) ) {
 		return array();
 	}
-	$out = array();
-	bws_core_blocks_survey_walk_blocks( parse_blocks( $content ), $is_registered, $out );
+	$out  = array();
+	$seen = array();
+	bws_core_blocks_survey_walk_blocks( parse_blocks( $content ), $is_registered, $container, $classify, $seen, $out );
 	return $out;
 }
 
-/** Recursive half of the walk: add each block's own-markup counts to `$out`. */
-function bws_core_blocks_survey_walk_blocks( array $blocks, callable $is_registered, array &$out ): void {
+/** Recursive half of the walk: append each block's own-markup records to `$out`. */
+function bws_core_blocks_survey_walk_blocks( array $blocks, callable $is_registered, array $container, ?callable $classify, array &$seen, array &$out ): void {
 	foreach ( $blocks as $block ) {
 		if ( ! is_array( $block ) ) {
 			continue;
 		}
 		$name = $block['blockName'] ?? null;
 		if ( is_string( $name ) && '' !== $name ) {
-			$own = implode( '', array_filter( (array) ( $block['innerContent'] ?? array() ), 'is_string' ) );
-			if ( false !== strpos( $own, '{{' ) && preg_match_all( '/\{\{\s*([A-Za-z0-9_\-.]+)(?:\s[^}]*)?\}\}/', $own, $found ) ) {
-				foreach ( $found[1] as $tag ) {
-					$out[ $name ] = $out[ $name ] ?? bws_core_blocks_survey_cell();
-					$kind         = $is_registered( $tag ) ? 'registered' : 'unregistered';
-					++$out[ $name ][ $kind ];
-					$out[ $name ][ $kind . '_tags' ][ $tag ] = 1 + ( $out[ $name ][ $kind . '_tags' ][ $tag ] ?? 0 );
+			$seen[ $name ] = 1 + ( $seen[ $name ] ?? 0 );
+			$own           = implode( '', array_filter( (array) ( $block['innerContent'] ?? array() ), 'is_string' ) );
+			if ( false !== strpos( $own, '{{' ) && preg_match_all( '/\{\{\s*([A-Za-z0-9_\-.]+)(?:\s[^}]*)?\}\}/', $own, $found, PREG_SET_ORDER ) ) {
+				foreach ( $found as $m ) {
+					$out[] = array(
+						'tag'         => $m[1],
+						'category'    => $is_registered( $m[1] ) ? 'registered' : 'unregistered',
+						'convertible' => null !== $classify && 'convert' === $classify( $m[1], $m[0] ),
+						'block_name'  => $name,
+						'container'   => $container,
+						'ordinal'     => $seen[ $name ],
+						'stored'      => $m[0],
+					);
 				}
 			}
 		}
 		if ( ! empty( $block['innerBlocks'] ) ) {
-			bws_core_blocks_survey_walk_blocks( (array) $block['innerBlocks'], $is_registered, $out );
+			bws_core_blocks_survey_walk_blocks( (array) $block['innerBlocks'], $is_registered, $container, $classify, $seen, $out );
 		}
 	}
+}
+
+/**
+ * Count walk records per block type: the survey's per-block cells.
+ *
+ * @since Unreleased
+ * @param array $records bws_core_blocks_survey_walk() records.
+ * @return array<string, array{registered: int, unregistered: int, registered_tags: array<string, int>, unregistered_tags: array<string, int>}> Block name => counts and, per category, tag name => times found; blocks with no record are absent.
+ */
+function bws_core_blocks_survey_count( array $records ): array {
+	$out = array();
+	foreach ( $records as $r ) {
+		$name         = $r['block_name'];
+		$kind         = $r['category'];
+		$out[ $name ] = $out[ $name ] ?? bws_core_blocks_survey_cell();
+		++$out[ $name ][ $kind ];
+		$out[ $name ][ $kind . '_tags' ][ $r['tag'] ] = 1 + ( $out[ $name ][ $kind . '_tags' ][ $r['tag'] ] ?? 0 );
+	}
+	return $out;
+}
+
+/**
+ * The walk's `$classify` callable: TagConverter::classify_tag()'s status for a deprecated tag name.
+ *
+ * classify_tag() is THE owner of what the Migration Tool would convert, and it answers
+ * `convert` for any name whose transform changes nothing, so it is asked only of the names the
+ * converter loops over (MigrationRegistry::get_deprecated_tag_names()); every other name gets
+ * null. Null as well when the converter is not loadable.
+ *
+ * @since Unreleased
+ * @return callable|null (string $tag, string $stored): ?string
+ */
+function bws_core_blocks_survey_classifier(): ?callable {
+	$registry  = '\BWS\DynamicTags\MigrationRegistry';
+	$converter = '\BWS\DynamicTags\Admin\TagConverter';
+	if ( ! class_exists( $registry ) || ! class_exists( $converter ) ) {
+		return null;
+	}
+	$deprecated = array_flip( $registry::get_deprecated_tag_names() );
+	return static fn( string $tag, string $stored ): ?string => isset( $deprecated[ $tag ] ) ? $converter::classify_tag( $tag, $stored )['status'] : null;
 }
 
 /**
@@ -225,6 +291,7 @@ function bws_core_blocks_survey_run(): array {
 
 	$tags       = class_exists( 'GenerateBlocks_Register_Dynamic_Tag' ) ? \GenerateBlocks_Register_Dynamic_Tag::get_tags() : array();
 	$registered = static fn( string $name ): bool => isset( $tags[ $name ] );
+	$classify   = bws_core_blocks_survey_classifier();
 	$total      = array();
 	$last_id    = 0;
 	$like       = '%' . $wpdb->esc_like( '{{' ) . '%';
@@ -242,13 +309,13 @@ function bws_core_blocks_survey_run(): array {
 		);
 		foreach ( (array) $rows as $row ) {
 			$last_id = (int) $row->ID;
-			$total   = bws_core_blocks_survey_merge( $total, bws_core_blocks_survey_walk( (string) $row->post_content, $registered ) );
+			$total   = bws_core_blocks_survey_merge( $total, bws_core_blocks_survey_count( bws_core_blocks_survey_walk( (string) $row->post_content, $registered, array( 'kind' => 'post', 'id' => $last_id ), $classify ) ) );
 		}
 	} while ( count( (array) $rows ) === 200 );
 
 	$widgets = array();
-	foreach ( bws_block_widget_rows() as $content ) {
-		$widgets = bws_core_blocks_survey_merge( $widgets, bws_core_blocks_survey_walk( $content, $registered ) );
+	foreach ( bws_block_widget_rows() as $number => $content ) {
+		$widgets = bws_core_blocks_survey_merge( $widgets, bws_core_blocks_survey_count( bws_core_blocks_survey_walk( $content, $registered, array( 'kind' => 'widget', 'id' => $number ), $classify ) ) );
 	}
 	$widget_sum = array( 'registered' => 0, 'unregistered' => 0 );
 	foreach ( $widgets as $cell ) {
