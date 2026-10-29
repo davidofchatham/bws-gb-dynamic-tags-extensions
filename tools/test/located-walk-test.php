@@ -164,26 +164,43 @@ assert_same( 'LW5b.1 a stored tag an option migration matches is migratable', 'c
 assert_same( 'LW5b.2 the same tag without the matched option is not', null, $real( 'ws_base', '{{ws_base key:v}}' ) );
 $optional = bws_core_blocks_survey_walk( '<!-- wp:paragraph --><p>{{ws_base legacy:v}} {{ws_base key:v}}</p><!-- /wp:paragraph -->', $reg, $post, $real );
 assert_same( 'LW5b.3 only the matching occurrence is flagged', array( true, false ), array_column( $optional, 'migratable' ) );
-assert_same( 'LW5b.4 and the total counts it', 1, bws_core_blocks_survey_migratable_count( $optional ) );
+assert_same( 'LW5b.4 and the block\'s migratable count has it', 1, bws_core_blocks_survey_count( $optional )['core/paragraph']['migratable'] );
+
+echo "\nLW5c - an option migration whose rewrite the ownership guard would decline carries no flag (spec decision 9)\n";
+MigrationRegistry::register( array(
+	'type'               => 'option',
+	'label'              => 'ws foreign option',
+	'match_tag'          => 'ws_other',
+	'match_options'      => array( 'legacy' ),
+	'transform_callback' => static fn ( string $s ): string => str_replace( 'legacy:', 'zz_foreign_key:', $s ),
+) );
+$real = bws_core_blocks_survey_classifier();
+$ours = \BWS\DynamicTags\Admin\TagConverter::migrate_string( '{{ws_other legacy:v}}' );
+assert_same( 'LW5c.1 premise: the rewrite takes the guard\'s decline (unknown option key) and changes nothing', array( 0, array( 'ws_other' => 'unknown_options' ) ), array( $ours['option_count'], $ours['declined'] ) );
+assert_same( 'LW5c.2 the classifier agrees with the rewrite: no verdict, though the option migration matches', null, $real( 'ws_other', '{{ws_other legacy:v}}' ) );
+$declined = bws_core_blocks_survey_walk( '<!-- wp:paragraph --><p>{{ws_other legacy:v}}</p><!-- /wp:paragraph -->', $reg, $post, $real );
+assert_same( 'LW5c.3 the located record is not migratable', array( false ), array_column( $declined, 'migratable' ) );
 
 echo "\nLW6 - the survey is a count over the records\n";
-$cell = static fn( int $r, int $u, array $rt = array(), array $ut = array() ): array => array( 'registered' => $r, 'unregistered' => $u, 'registered_tags' => $rt, 'unregistered_tags' => $ut );
+$cell = static fn( int $r, int $u, array $rt = array(), array $ut = array(), int $m = 0 ): array => array( 'registered' => $r, 'unregistered' => $u, 'registered_tags' => $rt, 'unregistered_tags' => $ut, 'migratable' => $m );
 assert_same(
 	'LW6.1 per block type, registered and unregistered apart with their tag lists',
 	array(
-		'core/paragraph' => $cell( 3, 1, array( 'ws_old' => 1, 'text' => 2 ), array( 'ws_gone' => 1 ) ),
+		'core/paragraph' => $cell( 3, 1, array( 'ws_old' => 1, 'text' => 2 ), array( 'ws_gone' => 1 ), 2 ),
 		'core/heading'   => $cell( 0, 1, array(), array( 'nope' => 1 ) ),
 	),
 	bws_core_blocks_survey_count( $records )
 );
 assert_same( 'LW6.2 no records, no cells', array(), bws_core_blocks_survey_count( array() ) );
-assert_same( 'LW6.3 the flag moves nothing between categories: counts are the same with and without a classifier', bws_core_blocks_survey_count( $records ), bws_core_blocks_survey_count( bws_core_blocks_survey_walk( $blocks, $reg, $post ) ) );
+$no_m = static fn( array $cells ): array => array_map( static fn( array $c ): array => array_diff_key( $c, array( 'migratable' => 1 ) ), $cells );
+assert_same( 'LW6.3 the flag moves nothing between categories: counts are the same with and without a classifier', $no_m( bws_core_blocks_survey_count( $records ) ), $no_m( bws_core_blocks_survey_count( bws_core_blocks_survey_walk( $blocks, $reg, $post ) ) ) );
 
-echo "\nLW7 - the migratable total is a count over the records\n";
-assert_same( 'LW7.1 the two flagged occurrences (a registered and an unregistered one) are the total', 2, bws_core_blocks_survey_migratable_count( $records ) );
-assert_same( 'LW7.2 no classifier, no total', 0, bws_core_blocks_survey_migratable_count( bws_core_blocks_survey_walk( $blocks, $reg, $post ) ) );
-assert_same( 'LW7.3 declined and skipped occurrences are not counted', 0, bws_core_blocks_survey_migratable_count( $stubbed ) );
-assert_same( 'LW7.4 no records, none', 0, bws_core_blocks_survey_migratable_count( array() ) );
+echo "\nLW7 - the migratable count is per block type, over the records\n";
+$m = static fn( array $recs ): array => array_map( static fn( array $c ): int => $c['migratable'], bws_core_blocks_survey_count( $recs ) );
+assert_same( 'LW7.1 the two flagged occurrences (a registered and an unregistered one) are both in the paragraph cell, the heading has none', array( 'core/paragraph' => 2, 'core/heading' => 0 ), $m( $records ) );
+assert_same( 'LW7.2 no classifier, no counts', array( 'core/paragraph' => 0, 'core/heading' => 0 ), $m( bws_core_blocks_survey_walk( $blocks, $reg, $post ) ) );
+assert_same( 'LW7.3 declined and skipped occurrences are not counted', array( 'core/paragraph' => 0, 'core/heading' => 0 ), $m( $stubbed ) );
+assert_same( 'LW7.4 no records, none', array(), $m( array() ) );
 
 echo "\n{$count} assertions, {$failures} failed\n";
 exit( $failures ? 1 : 0 );

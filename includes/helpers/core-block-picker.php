@@ -141,6 +141,7 @@ function bws_core_blocks_picker_markup( string $text ): string {
  * Row keys: name, title, selected, disabled, variations (titles), registered and unregistered
  * (the last scan's tag counts for the block: ints once a scan exists, null before),
  * registered_tags and unregistered_tags (the tag names behind those counts, name => times found; empty before a scan),
+ * migratable (how many of the block's occurrences the Migration Tool would update; 0 before a scan),
  * search (lowercase haystack),
  * contents and limits (string keys, see bws_core_blocks_picker_cells()), untested (bool), notes
  * (keys into bws_core_blocks_picker_strings(): `unregistered` and `code_set` when they apply).
@@ -247,6 +248,7 @@ function bws_core_blocks_picker_row( string $name, string $title, string $catego
 			'unregistered'      => null === $survey ? null : (int) ( $survey[ $name ]['unregistered'] ?? 0 ),
 			'registered_tags'   => (array) ( $survey[ $name ]['registered_tags'] ?? array() ),
 			'unregistered_tags' => (array) ( $survey[ $name ]['unregistered_tags'] ?? array() ),
+			'migratable'        => (int) ( $survey[ $name ]['migratable'] ?? 0 ),
 			'search'            => strtolower( implode( ' ', array_merge( array( $title, $name, $category_label ), $variations ) ) ),
 			'notes'             => $notes,
 		)
@@ -288,8 +290,10 @@ function bws_core_blocks_survey_count_html( ?int $count, array $text, array $tag
  * The scan status line: the totals, when they were found and, when the scan found tags the
  * Migration Tool would update, how many; or "No scan has been run yet."
  *
- * The clause ("3 need updating with the Migration Tool") is left out when the count is 0 or the
- * stored scan predates the count (spec decision 10).
+ * The clause ("3 need updating with the Migration Tool") counts only the occurrences in the listed
+ * rows, summed like the two totals, so it never exceeds them together; the Migration Tool's own
+ * list is site-wide and can hold more. It is left out when the count is 0, which includes a stored
+ * scan that predates the count (spec decision 10, Q13).
  *
  * @since Unreleased
  * @param array|null    $survey The last scan (bws_core_blocks_survey_last()), or null before the first.
@@ -306,10 +310,12 @@ function bws_core_blocks_survey_status( ?array $survey, array $groups, array $te
 	}
 	$known   = 0;
 	$unknown = 0;
+	$k       = 0;
 	foreach ( $groups as $group ) {
 		foreach ( $group['rows'] as $row ) {
 			$known   += (int) $row['registered'];
 			$unknown += (int) $row['unregistered'];
+			$k       += (int) $row['migratable'];
 		}
 	}
 	$when = $format ? $format( $survey['time'] ) : wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $survey['time'] );
@@ -320,7 +326,6 @@ function bws_core_blocks_survey_status( ?array $survey, array $groups, array $te
 		$esc( sprintf( _n( '%d tag it does not handle', '%d tags it does not handle', $unknown, 'generateblocks' ), $unknown ) ),
 		$esc( $when ),
 	);
-	$k = (int) ( $survey['migratable'] ?? 0 );
 	if ( $k < 1 ) {
 		return sprintf( $esc( $text['survey_status'] ), ...$args );
 	}

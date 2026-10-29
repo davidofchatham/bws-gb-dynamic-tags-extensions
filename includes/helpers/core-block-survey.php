@@ -101,9 +101,12 @@ function bws_core_blocks_survey_walk_blocks( array $blocks, callable $is_registe
 /**
  * Count walk records per block type: the survey's per-block cells.
  *
+ * `migratable` is the number of that block's records the Migration Tool would update; the status
+ * line's "K need updating" sums it over the rows the picker lists (bws_core_blocks_survey_status()).
+ *
  * @since Unreleased
  * @param array $records bws_core_blocks_survey_walk() records.
- * @return array<string, array{registered: int, unregistered: int, registered_tags: array<string, int>, unregistered_tags: array<string, int>}> Block name => counts and, per category, tag name => times found; blocks with no record are absent.
+ * @return array<string, array{registered: int, unregistered: int, registered_tags: array<string, int>, unregistered_tags: array<string, int>, migratable: int}> Block name => counts and, per category, tag name => times found; blocks with no record are absent.
  */
 function bws_core_blocks_survey_count( array $records ): array {
 	$out = array();
@@ -112,28 +115,21 @@ function bws_core_blocks_survey_count( array $records ): array {
 		$kind         = $r['category'];
 		$out[ $name ] = $out[ $name ] ?? bws_core_blocks_survey_cell();
 		++$out[ $name ][ $kind ];
+		$out[ $name ]['migratable']                  += (int) $r['migratable'];
 		$out[ $name ][ $kind . '_tags' ][ $r['tag'] ] = 1 + ( $out[ $name ][ $kind . '_tags' ][ $r['tag'] ] ?? 0 );
 	}
 	return $out;
 }
 
 /**
- * How many walk records the Migration Tool would update: the migratable total on the scan status line.
- *
- * @since Unreleased
- * @param array $records bws_core_blocks_survey_walk() records.
- */
-function bws_core_blocks_survey_migratable_count( array $records ): int {
-	return count( array_filter( array_column( $records, 'migratable' ) ) );
-}
-
-/**
  * The walk's `$classify` callable, and THE one source of `migratable`: the scan status line's
- * total and the Migration Tool's "Found in:" list both read it, so they cannot disagree.
+ * count and the Migration Tool's "Found in:" list both read it, so they cannot disagree.
  *
- * A stored tag is migratable when the Migration Tool would update it: TagConverter::classify_tag()
- * answers `convert` for a deprecated tag name, or an option migration matches the stored string
- * (TagConverter::first_matching_option_entry(), over MigrationRegistry's match rule).
+ * A stored tag is migratable when the Migration Tool would update it, and a tag its ownership
+ * guard declines is not (spec decision 9). Deprecated tag name: TagConverter::classify_tag()
+ * answers `convert`. Option migration: TagConverter::migrate_string(), the rewrite itself, reports
+ * an applied option rewrite (`option_count`); asking it, not re-deriving the match and the guard
+ * here, is what keeps this and the write one decision.
  * classify_tag() answers `convert` for any name whose transform changes nothing, so it is asked
  * only of the names the converter loops over (MigrationRegistry::get_deprecated_tag_names());
  * the option check is asked only of a name an option migration is registered for. Every other
@@ -155,7 +151,7 @@ function bws_core_blocks_survey_classifier(): ?callable {
 	$by_tag     = $registry::get_option_migrations_by_tag();
 	return static function ( string $tag, string $stored ) use ( $deprecated, $by_tag, $converter ): ?string {
 		$status = isset( $deprecated[ $tag ] ) ? $converter::classify_tag( $tag, $stored )['status'] : null;
-		if ( 'convert' !== $status && isset( $by_tag[ $tag ] ) && null !== $converter::first_matching_option_entry( $stored, $by_tag[ $tag ] ) ) {
+		if ( 'convert' !== $status && isset( $by_tag[ $tag ] ) && $converter::migrate_string( $stored )['option_count'] > 0 ) {
 			return 'convert';
 		}
 		return $status;
@@ -174,6 +170,7 @@ function bws_core_blocks_survey_cell(): array {
 		'unregistered'      => 0,
 		'registered_tags'   => array(),
 		'unregistered_tags' => array(),
+		'migratable'        => 0,
 	);
 }
 
@@ -187,7 +184,8 @@ function bws_core_blocks_survey_cell(): array {
  */
 function bws_core_blocks_survey_merge( array $total, array $part ): array {
 	foreach ( $part as $name => $cell ) {
-		$total[ $name ] = $total[ $name ] ?? bws_core_blocks_survey_cell();
+		$total[ $name ]                = $total[ $name ] ?? bws_core_blocks_survey_cell();
+		$total[ $name ]['migratable'] += (int) ( $cell['migratable'] ?? 0 );
 		foreach ( array( 'registered', 'unregistered' ) as $kind ) {
 			$total[ $name ][ $kind ] += (int) $cell[ $kind ];
 			foreach ( (array) ( $cell[ $kind . '_tags' ] ?? array() ) as $tag => $n ) {
@@ -204,7 +202,7 @@ function bws_core_blocks_survey_merge( array $total, array $part ): array {
  *
  * @since Unreleased
  * @param mixed $raw The stored value.
- * @return array{time: int, blocks: array, widgets: array{registered: int, unregistered: int}}|null
+ * @return array{time: int, blocks: array, widgets: array{registered: int, unregistered: int}}|null Each block cell keeps its `migratable` count; a result stored before the count existed reads 0.
  */
 function bws_core_blocks_survey_clean( $raw ): ?array {
 	if ( ! is_array( $raw ) || ! isset( $raw['time'], $raw['blocks'] ) || ! is_array( $raw['blocks'] ) ) {
@@ -225,6 +223,7 @@ function bws_core_blocks_survey_clean( $raw ): ?array {
 					}
 				}
 			}
+			$blocks[ $name ]['migratable'] = max( 0, (int) ( $cell['migratable'] ?? 0 ) );
 		}
 	}
 	$widgets = is_array( $raw['widgets'] ?? null ) ? $raw['widgets'] : array();
@@ -322,7 +321,7 @@ function bws_block_widget_placements( array $sidebars_widgets ): array {
  * Reads posts in ID-ordered batches, so memory stays flat on a large site.
  *
  * @since Unreleased
- * @return array{blocks: array, widgets: array{registered: int, unregistered: int}, migratable: int} `migratable` is the number of occurrences the Migration Tool would update (the status line's "K need updating").
+ * @return array{blocks: array, widgets: array{registered: int, unregistered: int}} Each block cell carries its `migratable` count (see bws_core_blocks_survey_count()).
  */
 function bws_core_blocks_survey_run(): array {
 	global $wpdb;
@@ -331,7 +330,6 @@ function bws_core_blocks_survey_run(): array {
 	$registered = static fn( string $name ): bool => isset( $tags[ $name ] );
 	$classify   = bws_core_blocks_survey_classifier();
 	$total      = array();
-	$migratable = 0;
 	$last_id    = 0;
 	$like       = '%' . $wpdb->esc_like( '{{' ) . '%';
 
@@ -348,17 +346,15 @@ function bws_core_blocks_survey_run(): array {
 		);
 		foreach ( (array) $rows as $row ) {
 			$last_id = (int) $row->ID;
-			$records     = bws_core_blocks_survey_walk( (string) $row->post_content, $registered, array( 'kind' => 'post', 'id' => $last_id ), $classify );
-			$total       = bws_core_blocks_survey_merge( $total, bws_core_blocks_survey_count( $records ) );
-			$migratable += bws_core_blocks_survey_migratable_count( $records );
+			$records = bws_core_blocks_survey_walk( (string) $row->post_content, $registered, array( 'kind' => 'post', 'id' => $last_id ), $classify );
+			$total   = bws_core_blocks_survey_merge( $total, bws_core_blocks_survey_count( $records ) );
 		}
 	} while ( count( (array) $rows ) === 200 );
 
 	$widgets = array();
 	foreach ( bws_block_widget_rows() as $number => $content ) {
-		$records     = bws_core_blocks_survey_walk( $content, $registered, array( 'kind' => 'widget', 'id' => $number ), $classify );
-		$widgets     = bws_core_blocks_survey_merge( $widgets, bws_core_blocks_survey_count( $records ) );
-		$migratable += bws_core_blocks_survey_migratable_count( $records );
+		$records = bws_core_blocks_survey_walk( $content, $registered, array( 'kind' => 'widget', 'id' => $number ), $classify );
+		$widgets = bws_core_blocks_survey_merge( $widgets, bws_core_blocks_survey_count( $records ) );
 	}
 	$widget_sum = array( 'registered' => 0, 'unregistered' => 0 );
 	foreach ( $widgets as $cell ) {
@@ -367,9 +363,8 @@ function bws_core_blocks_survey_run(): array {
 	}
 
 	return array(
-		'blocks'      => bws_core_blocks_survey_merge( $total, $widgets ),
-		'widgets'     => $widget_sum,
-		'migratable'  => $migratable,
+		'blocks'  => bws_core_blocks_survey_merge( $total, $widgets ),
+		'widgets' => $widget_sum,
 	);
 }
 

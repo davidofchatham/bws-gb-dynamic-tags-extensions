@@ -293,14 +293,12 @@ class TagConverter {
 	 * hand-kept copy of it. What the converter REPORTS and what apply_option_migration() RUNS
 	 * must be the same predicate, or the list promises work that never happens.
 	 *
-	 * Public so the survey's classifier can ask it (bws_core_blocks_survey_classifier()).
-	 *
 	 * @since Unreleased
 	 * @param string  $tag_string The stored tag.
 	 * @param array[] $entries    The option migrations registered for its tag.
 	 * @return array|null
 	 */
-	public static function first_matching_option_entry( string $tag_string, array $entries ): ?array {
+	private static function first_matching_option_entry( string $tag_string, array $entries ): ?array {
 		[ , $options ] = MigrationRegistry::parse_tag_string( $tag_string );
 		$option_keys   = array_keys( $options );
 
@@ -335,7 +333,7 @@ class TagConverter {
 	 * and not as a second gate. bws_modifier_argless_rewrite() owns the population.
 	 *
 	 * PUBLIC SO THE LOCATED WALK CAN ASK IT (FW-73): the walk's migratable flag is this
-	 * method's `convert` (or an option migration's match), read through
+	 * method's `convert` (or, for an option migration, migrate_string() applying one), read through
 	 * bws_core_blocks_survey_classifier(); nothing else decides it. Ask it only of a deprecated tag name, since a name no entry transforms
 	 * also comes back `convert` (the no-op case above).
 	 *

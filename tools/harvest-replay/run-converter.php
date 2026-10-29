@@ -209,7 +209,7 @@ foreach ( $scan as $row ) {
 // refused is collected with the posts' refusals, because the mapping check reads one set.
 if ( $widget_numbers ) {
 	try {
-		$widget_results = BWSDynamicTagsAdminTagConverter::migrate_widgets( $widget_numbers, 'harvest-replay-' . gmdate( 'YmdHis' ) );
+		$widget_results = \BWS\DynamicTags\Admin\TagConverter::migrate_widgets( $widget_numbers, 'harvest-replay-' . gmdate( 'YmdHis' ) );
 	} catch ( Throwable $e ) {
 		$widget_results = array();
 		$failed[]       = array( 'widgets' => $widget_numbers, 'error' => $e->getMessage() );
@@ -226,6 +226,10 @@ if ( $widget_numbers ) {
 }
 
 WP_CLI::log( sprintf( 'migrated %d posts and %d block widgets, %d tag rewrites', $migrated, $widgets_migrated, $tag_count ) );
+// A THROWN MIGRATION IS SPOKEN, NOT ONLY RECORDED in the report's migrate_failures: a swallowed failure reads as a clean run with nothing migrated.
+foreach ( $failed as $f ) {
+	WP_CLI::warning( 'migration threw for ' . ( isset( $f['post_id'] ) ? 'post ' . $f['post_id'] : 'block widgets ' . implode( ',', $f['widgets'] ) ) . ': ' . $f['error'] );
+}
 if ( $declined_names ) {
 	WP_CLI::log( sprintf(
 		'ownership guard declined %d tag name(s): %s',
