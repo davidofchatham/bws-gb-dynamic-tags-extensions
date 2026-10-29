@@ -315,6 +315,17 @@ button:hover { border-color: var(--accent); color: var(--accent); }
       <input type="checkbox" id="cb-fw81">
       <span class="toggle-desc">collapse datetime keys → <code>{{datetime key:a,b;c}}</code>, <code>use:</code> only for published/modified/now (FW-81, unshipped)</span>
     </label>
+    <div class="toggle-desc" style="margin-top:4px">FW-81 fields inside one <code>key:</code> read (date, time)</div>
+    <select id="sel-fw81-inner" style="width:100%">
+      <option value=",">, (comma): key:a,b;c,d</option>
+      <option value="+">+ (plus): key:a+b;c+d</option>
+      <option value="/">/ (slash): key:a/b;c/d</option>
+    </select>
+    <div class="toggle-desc" style="margin-top:4px">FW-81 verbs in <code>use:</code></div>
+    <select id="sel-fw81-usesep" style="width:100%">
+      <option value=";">; (semicolon): use:published;key</option>
+      <option value=",">, (comma): use:published,key</option>
+    </select>
     <div class="sb-h">when encoding (FW-27, unbuilt)</div>
     <select id="sel-when" style="width:100%">
       <option value="w1">W1 — decided: key(x),test + has(…) relations</option>
@@ -1561,7 +1572,7 @@ const S = {
                         // use:key,field / linkTo:key,field, no bracket. (Radio dropped; 'off' is
                         // the decision — mirrors chainPair.)
   linkCombined: false,  // fold linkKey into linkTo value → linkTo:key,<field> (else separate keys)
-  fw81DtCollapse: false, // FW-81 (parked): show the collapsed use: reading beside today's six-key wire.
+  fw81DtCollapse: false, fw81Inner: ',', fw81UseSep: ';', // FW-81 (parked): show the collapsed use: reading beside today's six-key wire; the two seps are sidebar-picked (inner = fields inside one `key:` read, useSep = verbs in `use:`).
   styleBackground: true, // styling-encodings group: include the background property (it may be deferred past v1).  whenMode: 'w1',       // FW-27 `when` encoding: 'w1' decided wire | 'w2' / 'w2br' / 'w2nv' the OPEN W2 proposal (serializeIf).
   dummies: {key1:'custom_field',key2:'other_field',imgKey:'image_field',dateKey:'event_date',timeKey:'event_time',startKey:'start_date',endKey:'end_date',ref:'rel_post',tax:'category',urlKey:'url_field',fallback:'N/A',rangeSep:' – ',format:'F j, Y'},
 };
@@ -2365,13 +2376,14 @@ function datetimeCollapseFromParts(parts) {
 // FW-81 wire shape for a collapsed read-list (grilling 2026-10-24): fields ALWAYS ride `key:`, reads
 // `;`-joined, each read's fields `,`-joined (primary, then optional time field). `use:` is written
 // only when a read is a non-`key` verb (published/modified/now): it lists the reads in order as bare
-// verbs, `,`-joined, and each `key` there takes the next `;`-group from `key:`. No folded
+// verbs joined by S.fw81UseSep (default `;`; 2026-10-26), and each `key` there takes the next `;`-group from `key:`
+// (non-positional; a read's fields join on S.fw81Inner, default `,`, `+` under trial). No folded
 // `use:key,field` form exists. ONE site so the standalone tag's dtCollapse variant and a folded
 // slot's dtKeys collapse (respellEntries) can't drift apart on how a merge renders.
 function fw81CollapsedPairs(reads) {
-  const groups = reads.filter(r => r.verb === 'key').map(r => (r.args||[]).map(a=>String(resolveVal(a))).join(','));
+  const groups = reads.filter(r => r.verb === 'key').map(r => (r.args||[]).map(a=>String(resolveVal(a))).join(S.fw81Inner));
   const pairs = [];
-  if (reads.some(r => r.verb !== 'key')) pairs.push(['use', reads.map(r => r.verb).join(',')]);
+  if (reads.some(r => r.verb !== 'key')) pairs.push(['use', reads.map(r => r.verb).join(S.fw81UseSep)]);
   if (groups.length) pairs.push(['key', groups.join(';')]);
   return pairs;
 }
@@ -3132,6 +3144,12 @@ document.getElementById('cb-stylebg').addEventListener('change',e=>{
 });
 document.getElementById('sel-when').addEventListener('change',e=>{
   S.whenMode=e.target.value; renderPerms();
+});
+document.getElementById('sel-fw81-inner').addEventListener('change',e=>{
+  S.fw81Inner=e.target.value; renderPerms();
+});
+document.getElementById('sel-fw81-usesep').addEventListener('change',e=>{
+  S.fw81UseSep=e.target.value; renderPerms();
 });
 document.getElementById('add-name-row').addEventListener('click', addNameRow);
 
