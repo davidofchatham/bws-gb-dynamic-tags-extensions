@@ -238,7 +238,7 @@ with a soft line break. Formatted two.</p>
 </div>
 
 <div>
-<h2 class="wp-block-heading">Survey CB6 &#8211; the deprecated and the unregistered tag the seeded block widget holds, in a SELECTED core block: neither is registered, so both print as typed (FW-73)</h2>
+<h2 class="wp-block-heading">Survey CB6 &#8211; the three tags the seeded block widget holds, in a SELECTED core block: the deprecated and the unregistered name print as typed, the registered tag with a legacy option prints its value (FW-73)</h2>
 
 <p class="gb-text">CB6.6 core/paragraph, a deprecated tag name (-> the tag printed literally, as typed):</p>
 
@@ -247,6 +247,10 @@ with a soft line break. Formatted two.</p>
 <p class="gb-text">CB6.7 core/paragraph, an unregistered tag name (-> the tag printed literally, as typed):</p>
 
 <p class="wp-block-paragraph">{{bws_fixture_unregistered key:role}}</p>
+
+<p class="gb-text">CB6.16 core/paragraph, a registered tag carrying the legacy option fallback_text (-> Varsity; the legacy option changes nothing here, so a migrate must not change this line):</p>
+
+<p class="wp-block-paragraph">Team: Varsity</p>
 </div>
 		</div>
 
