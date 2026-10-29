@@ -164,5 +164,11 @@ assert_same(
 assert_same( 'LW6.2 no records, no cells', array(), bws_core_blocks_survey_count( array() ) );
 assert_same( 'LW6.3 the flag moves nothing between categories: counts are the same with and without a classifier', bws_core_blocks_survey_count( $records ), bws_core_blocks_survey_count( bws_core_blocks_survey_walk( $blocks, $reg, $post ) ) );
 
+echo "\nLW7 - the Convertible total is a count over the records\n";
+assert_same( 'LW7.1 the two flagged occurrences (a registered and an unregistered one) are the total', 2, bws_core_blocks_survey_convertible_count( $records ) );
+assert_same( 'LW7.2 no classifier, no total', 0, bws_core_blocks_survey_convertible_count( bws_core_blocks_survey_walk( $blocks, $reg, $post ) ) );
+assert_same( 'LW7.3 declined and skipped occurrences are not counted', 0, bws_core_blocks_survey_convertible_count( $stubbed ) );
+assert_same( 'LW7.4 no records, none', 0, bws_core_blocks_survey_convertible_count( array() ) );
+
 echo "\n{$count} assertions, {$failures} failed\n";
 exit( $failures ? 1 : 0 );

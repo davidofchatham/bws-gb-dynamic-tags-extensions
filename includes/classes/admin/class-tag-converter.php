@@ -61,6 +61,7 @@ class TagConverter {
 	 *                                      { tag, has_migration, status, reason, exempt, count, sample }.
 	 *                                      See classify_tag() for the three statuses.
 	 *   @type array  $option_migrations    List of { tag, label } for base tags with deprecated option keys.
+	 *   @type array  $locations            List of { label, stored } for each occurrence the row converts, label being block type and ordinal ("2nd core/paragraph"); empty when the occurrence is outside any block (FW-73).
 	 * }
 	 */
 	public static function scan(): array {
@@ -121,6 +122,7 @@ class TagConverter {
 				'has_revision_support' => $revision_support_cache[ $post_type ],
 				'deprecated_tags'      => $found['deprecated_tags'],
 				'option_migrations'    => $found['option_migrations'],
+				'locations'            => $found['locations'],
 			);
 		}
 
@@ -160,6 +162,7 @@ class TagConverter {
 	 *   @type bool   $inactive          Whether no active sidebar holds it.
 	 *   @type array  $deprecated_tags   As scan().
 	 *   @type array  $option_migrations As scan().
+	 *   @type array  $locations         As scan().
 	 * }
 	 */
 	public static function scan_widgets( array $widgets, array $names ): array {
@@ -186,6 +189,7 @@ class TagConverter {
 				'inactive'          => $inactive,
 				'deprecated_tags'   => $found['deprecated_tags'],
 				'option_migrations' => $found['option_migrations'],
+				'locations'         => $found['locations'],
 			);
 		}
 
@@ -201,7 +205,7 @@ class TagConverter {
 	 * @param string  $content              Post content or a widget's block markup.
 	 * @param string[] $tag_names           MigrationRegistry::get_deprecated_tag_names().
 	 * @param array   $option_migration_map MigrationRegistry::get_option_migrations_by_tag().
-	 * @return array{deprecated_tags: array[], option_migrations: array[]}
+	 * @return array{deprecated_tags: array[], option_migrations: array[], locations: array[]} `locations` is a list of { label, stored }, label being "2nd core/paragraph".
 	 */
 	private static function scan_content( string $content, array $tag_names, array $option_migration_map ): array {
 		// Deprecated tag names, each stored string CLASSIFIED into one of the report's
@@ -245,33 +249,70 @@ class TagConverter {
 			preg_match_all( $tag_pattern, $content, $tag_matches );
 
 			foreach ( $tag_matches[0] as $tag_string ) {
-				[ , $options ] = MigrationRegistry::parse_tag_string( $tag_string );
-				$option_keys   = array_keys( $options );
-
-				foreach ( $entries as $entry ) {
-					// Match rule owned by MigrationRegistry::entry_matches() — this
-					// used to be a second, hand-kept copy of it. What the converter
-					// REPORTS and what apply_option_migration() RUNS must be the same
-					// predicate, or the list promises work that never happens.
-					if ( MigrationRegistry::entry_matches( $entry, $option_keys, $options ) ) {
-						$label           = $entry['label'] ?? $base_tag;
-						$existing_labels = array_column( $option_migrations_found, 'label' );
-						if ( ! in_array( $label, $existing_labels, true ) ) {
-							$option_migrations_found[] = array(
-								'tag'   => $base_tag,
-								'label' => $label,
-							);
-						}
-						break;
+				$entry = self::first_matching_option_entry( $tag_string, $entries );
+				if ( null !== $entry ) {
+					$label           = $entry['label'] ?? $base_tag;
+					$existing_labels = array_column( $option_migrations_found, 'label' );
+					if ( ! in_array( $label, $existing_labels, true ) ) {
+						$option_migrations_found[] = array(
+							'tag'   => $base_tag,
+							'label' => $label,
+						);
 					}
 				}
+			}
+		}
+
+		// WHERE TO LOOK (FW-73): one entry per occurrence this row will convert, read off the
+		// located walk, so the block type and ordinal are the survey's and not a second reading.
+		// A tag the walk cannot place (text outside any block, or a block's comment attributes)
+		// has no entry; the row is listed all the same.
+		$locations = array();
+		$walk      = bws_core_blocks_survey_classifier();
+		$classify  = static function ( string $tag, string $stored ) use ( $walk, $option_migration_map ): ?string {
+			if ( null !== $walk && 'convert' === $walk( $tag, $stored ) ) {
+				return 'convert';
+			}
+			return isset( $option_migration_map[ $tag ] ) && null !== self::first_matching_option_entry( $stored, $option_migration_map[ $tag ] ) ? 'convert' : null;
+		};
+		foreach ( bws_core_blocks_survey_walk( $content, static fn(): bool => true, array(), $classify ) as $record ) {
+			if ( $record['convertible'] ) {
+				$locations[] = array(
+					'label'  => bws_ordinal_label( $record['ordinal'] ) . ' ' . $record['block_name'],
+					'stored' => $record['stored'],
+				);
 			}
 		}
 
 		return array(
 			'deprecated_tags'   => array_values( $deprecated_found ),
 			'option_migrations' => $option_migrations_found,
+			'locations'         => $locations,
 		);
+	}
+
+	/**
+	 * The first option-migration entry that matches one stored tag string, or null.
+	 *
+	 * Match rule owned by MigrationRegistry::entry_matches(); this used to be a second,
+	 * hand-kept copy of it. What the converter REPORTS and what apply_option_migration() RUNS
+	 * must be the same predicate, or the list promises work that never happens.
+	 *
+	 * @since Unreleased
+	 * @param string  $tag_string The stored tag.
+	 * @param array[] $entries    The option migrations registered for its tag.
+	 * @return array|null
+	 */
+	private static function first_matching_option_entry( string $tag_string, array $entries ): ?array {
+		[ , $options ] = MigrationRegistry::parse_tag_string( $tag_string );
+		$option_keys   = array_keys( $options );
+
+		foreach ( $entries as $entry ) {
+			if ( MigrationRegistry::entry_matches( $entry, $option_keys, $options ) ) {
+				return $entry;
+			}
+		}
+		return null;
 	}
 
 	// ===============================================

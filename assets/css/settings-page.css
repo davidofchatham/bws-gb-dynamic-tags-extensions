@@ -331,6 +331,8 @@
 .bws-dynamic-tags-settings .bws-results-table td { padding: 10px 12px; vertical-align: middle; }
 .bws-dynamic-tags-settings .bws-cb-col { width: 28px; }
 .bws-dynamic-tags-settings .bws-issue-list { margin: 0; padding: 0; font-size: var(--gp-size-small, 12px); list-style: none; }
+.bws-dynamic-tags-settings .bws-location-lead { margin: 6px 0 2px; font-size: var(--gp-size-small, 12px); font-weight: 600; }
+.bws-dynamic-tags-settings .bws-location-list { margin: 0; padding: 0; font-size: var(--gp-size-small, 12px); list-style: none; }
 .bws-dynamic-tags-settings .bws-issue-tag { color: var(--bws-error-text); }
 .bws-dynamic-tags-settings .bws-issue-opt,
 .bws-dynamic-tags-settings .bws-no-revision { color: var(--bws-warn-text); }

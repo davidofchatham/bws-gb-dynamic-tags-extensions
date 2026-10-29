@@ -209,6 +209,10 @@ class SettingsPage {
 					'restoreSkipped'   => __( 'Left as they are:', 'generateblocks' ),
 					'reasonEdited'     => __( 'edited since the migration', 'generateblocks' ),
 					'reasonMissing'    => __( 'no longer exists', 'generateblocks' ),
+					// Where in a result to look (FW-73): the lead-in, and the count past the first ten.
+					'locationsLead'    => __( 'Found in:', 'generateblocks' ),
+					/* translators: %d: how many more locations are not listed. */
+					'locationsMore'    => __( 'and %d more', 'generateblocks' ),
 				),
 			)
 		);
@@ -783,7 +787,7 @@ class SettingsPage {
 						<div class="bws-block-picker" data-scanned="<?php echo $survey ? '1' : '0'; ?>">
 							<div class="bws-block-picker__survey">
 								<div>
-									<p class="description bws-block-picker__survey-status" role="status"><?php echo esc_html( bws_core_blocks_survey_status( $survey, $groups, $text ) ); ?></p>
+									<p class="description bws-block-picker__survey-status" role="status"><?php echo bws_core_blocks_survey_status_html( $survey, $groups, $text ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></p>
 									<p class="description"><?php echo bws_core_blocks_picker_markup( $text['survey_desc'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside. ?></p>
 								</div>
 								<button type="button" class="gp-button gp-button--<?php echo $survey ? 'quiet' : 'primary'; ?> gp-button--small bws-block-picker__scan"><?php echo esc_html( $text['survey_scan'] ); ?></button>

@@ -118,6 +118,27 @@ function bws_core_blocks_survey_count( array $records ): array {
 }
 
 /**
+ * An English ordinal for a 1-based position: 1st, 2nd, 3rd, 4th, 11th, 21st.
+ *
+ * @since Unreleased
+ */
+function bws_ordinal_label( int $n ): string {
+	$last_two = $n % 100;
+	$suffix   = ( $last_two >= 11 && $last_two <= 13 ) ? 'th' : ( array( 1 => 'st', 2 => 'nd', 3 => 'rd' )[ $n % 10 ] ?? 'th' );
+	return $n . $suffix;
+}
+
+/**
+ * How many walk records the converter would convert: the Convertible total on the scan status line.
+ *
+ * @since Unreleased
+ * @param array $records bws_core_blocks_survey_walk() records.
+ */
+function bws_core_blocks_survey_convertible_count( array $records ): int {
+	return count( array_filter( array_column( $records, 'convertible' ) ) );
+}
+
+/**
  * The walk's `$classify` callable: TagConverter::classify_tag()'s status for a deprecated tag name.
  *
  * classify_tag() is THE owner of what the Migration Tool would convert, and it answers
@@ -298,7 +319,7 @@ function bws_block_widget_placements( array $sidebars_widgets ): array {
  * Reads posts in ID-ordered batches, so memory stays flat on a large site.
  *
  * @since Unreleased
- * @return array{blocks: array, widgets: array{registered: int, unregistered: int}}
+ * @return array{blocks: array, widgets: array{registered: int, unregistered: int}, convertible: int} `convertible` is the number of occurrences the converter would convert (the status line's "K convertible").
  */
 function bws_core_blocks_survey_run(): array {
 	global $wpdb;
@@ -306,8 +327,9 @@ function bws_core_blocks_survey_run(): array {
 	$tags       = class_exists( 'GenerateBlocks_Register_Dynamic_Tag' ) ? \GenerateBlocks_Register_Dynamic_Tag::get_tags() : array();
 	$registered = static fn( string $name ): bool => isset( $tags[ $name ] );
 	$classify   = bws_core_blocks_survey_classifier();
-	$total      = array();
-	$last_id    = 0;
+	$total       = array();
+	$convertible = 0;
+	$last_id     = 0;
 	$like       = '%' . $wpdb->esc_like( '{{' ) . '%';
 
 	do {
@@ -323,13 +345,17 @@ function bws_core_blocks_survey_run(): array {
 		);
 		foreach ( (array) $rows as $row ) {
 			$last_id = (int) $row->ID;
-			$total   = bws_core_blocks_survey_merge( $total, bws_core_blocks_survey_count( bws_core_blocks_survey_walk( (string) $row->post_content, $registered, array( 'kind' => 'post', 'id' => $last_id ), $classify ) ) );
+			$records      = bws_core_blocks_survey_walk( (string) $row->post_content, $registered, array( 'kind' => 'post', 'id' => $last_id ), $classify );
+			$total        = bws_core_blocks_survey_merge( $total, bws_core_blocks_survey_count( $records ) );
+			$convertible += bws_core_blocks_survey_convertible_count( $records );
 		}
 	} while ( count( (array) $rows ) === 200 );
 
 	$widgets = array();
 	foreach ( bws_block_widget_rows() as $number => $content ) {
-		$widgets = bws_core_blocks_survey_merge( $widgets, bws_core_blocks_survey_count( bws_core_blocks_survey_walk( $content, $registered, array( 'kind' => 'widget', 'id' => $number ), $classify ) ) );
+		$records      = bws_core_blocks_survey_walk( $content, $registered, array( 'kind' => 'widget', 'id' => $number ), $classify );
+		$widgets      = bws_core_blocks_survey_merge( $widgets, bws_core_blocks_survey_count( $records ) );
+		$convertible += bws_core_blocks_survey_convertible_count( $records );
 	}
 	$widget_sum = array( 'registered' => 0, 'unregistered' => 0 );
 	foreach ( $widgets as $cell ) {
@@ -338,15 +364,16 @@ function bws_core_blocks_survey_run(): array {
 	}
 
 	return array(
-		'blocks'  => bws_core_blocks_survey_merge( $total, $widgets ),
-		'widgets' => $widget_sum,
+		'blocks'      => bws_core_blocks_survey_merge( $total, $widgets ),
+		'widgets'     => $widget_sum,
+		'convertible' => $convertible,
 	);
 }
 
 /**
  * AJAX: run the scan, store it, hand back what the page needs to update itself.
  *
- * Response: `status` (the scan status line, totals included), `rows` (block name => { registered, unregistered,
+ * Response: `status_html` (the scan status line, totals included, with the Convertible link when K > 0), `rows` (block name => { registered, unregistered,
  * registered_html, unregistered_html }, the last two being each Handled by GB or Not handled by GB cell's content: count and tag list;
  * only blocks with a count; the page shows 0 and no tag list in every other row).
  *
@@ -374,8 +401,8 @@ function bws_core_blocks_survey_ajax(): void {
 	}
 	wp_send_json_success(
 		array(
-			'status' => bws_core_blocks_survey_status( $result, bws_core_blocks_picker_groups( $result ), $text ),
-			'rows'   => $rows,
+			'status_html' => bws_core_blocks_survey_status_html( $result, bws_core_blocks_picker_groups( $result ), $text ),
+			'rows'        => $rows,
 		)
 	);
 }

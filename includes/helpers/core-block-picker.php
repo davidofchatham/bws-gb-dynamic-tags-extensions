@@ -89,6 +89,10 @@ function bws_core_blocks_picker_strings(): array {
 		'survey_none_yet'    => __( 'No scan has been run yet.', 'generateblocks' ),
 		/* translators: 1: tags GenerateBlocks handles in the blocks listed below, 2: tags it does not handle in them, 3: date and time of the scan. */
 		'survey_status'      => __( 'Found in the blocks below as of %3$s: %1$d tags handled by GenerateBlocks and %2$d tags it does not handle.', 'generateblocks' ),
+		/* translators: %d: how many tag occurrences the Migration Tool would convert, found by the scan. */
+		'survey_convertible' => __( '%d convertible', 'generateblocks' ),
+		// Read after the count, as screen reader text, so the link says where it goes.
+		'survey_convertible_jump' => __( 'jump to the Migration Tool', 'generateblocks' ),
 		'survey_desc'        => __( 'A scan checks all of your content (posts, pages, templates, patterns and block widgets) for `{{…}}` tags in every block in this list, enabled or not, and lists the tags each block holds, with how many of each, split by whether they are registered with GenerateBlocks. Blocks added only by a plugin\'s editor script are not listed.', 'generateblocks' ),
 		// Read after a count, as screen reader text: "5 tag names", then the details control's own "collapsed".
 		'tags_toggle'        => __( 'tag names', 'generateblocks' ),
@@ -304,6 +308,30 @@ function bws_core_blocks_survey_status( ?array $survey, array $groups, array $te
 	}
 	$when = $format ? $format( $survey['time'] ) : wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $survey['time'] );
 	return sprintf( $text['survey_status'], $known, $unknown, $when );
+}
+
+/**
+ * The status line as markup: the status sentence, then, when the scan found tags the Migration
+ * Tool would convert, a link to that section saying how many (spec decision 10).
+ *
+ * The clause is absent when the count is 0 or the stored scan predates the count. The link is a
+ * plain anchor so it works without script; block-picker.js refines where it scrolls.
+ *
+ * @since Unreleased
+ * @param array|null    $survey The last scan, or null before the first.
+ * @param array[]       $groups bws_core_blocks_picker_rows().
+ * @param array         $text   bws_core_blocks_picker_strings().
+ * @param callable|null $format Time formatter (tests).
+ * @return string HTML, escaped here.
+ */
+function bws_core_blocks_survey_status_html( ?array $survey, array $groups, array $text, ?callable $format = null ): string {
+	$html = esc_html( bws_core_blocks_survey_status( $survey, $groups, $text, $format ) );
+	$k    = (int) ( $survey['convertible'] ?? 0 );
+	if ( $k > 0 ) {
+		$html .= ' <a class="bws-block-picker__convertible" href="#bws-migration-tool">' . esc_html( sprintf( $text['survey_convertible'], $k ) )
+			. '<span class="screen-reader-text"> (' . esc_html( $text['survey_convertible_jump'] ) . ')</span></a>';
+	}
+	return $html;
 }
 
 /**

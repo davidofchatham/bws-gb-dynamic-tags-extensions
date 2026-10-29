@@ -258,6 +258,26 @@
 			'</p>';
 	}
 
+	/**
+	 * Where in the post or widget to look (FW-73): block type and ordinal, then the stored tag.
+	 * PHP composes the label ("2nd core/paragraph"); this places it, up to a cap.
+	 */
+	var MAX_LOCATIONS = 10;
+	function locationsHtml( post ) {
+		var locs = post.locations || [];
+		if ( ! locs.length ) { return ''; }
+
+		var items = locs.slice( 0, MAX_LOCATIONS ).map( function ( l ) {
+			return '<li>' + esc( l.label ) + ' <code>' + esc( l.stored ) + '</code></li>';
+		} ).join( '' );
+		var more = locs.length > MAX_LOCATIONS
+			? '<li>' + esc( ( i18n.locationsMore || 'and %d more' ).replace( '%d', locs.length - MAX_LOCATIONS ) ) + '</li>'
+			: '';
+
+		return '<p class="bws-location-lead">' + esc( i18n.locationsLead || 'Found in:' ) + '</p>' +
+			'<ul class="bws-location-list">' + items + more + '</ul>';
+	}
+
 	function declinedRow( row, claimed ) {
 		var li = document.createElement( 'li' );
 		li.className = 'bws-channel-item bws-channel-declined';
@@ -364,7 +384,7 @@
 					'<input type="checkbox" class="bws-row-cb" value="' + esc( rowId ) + '" aria-label="' + esc( selectLabel ) + '" /></td>' +
 				'<td><a href="' + esc( post.edit_url ) + '" target="_blank" rel="noopener">' + esc( post.post_title ) + '</a>' + revWarn + '</td>' +
 				'<td>' + typeCell + '</td>' +
-				'<td>' + issueHtml + '</td>' +
+				'<td>' + issueHtml + locationsHtml( post ) + '</td>' +
 				'<td>' +
 					'<button type="button" class="button bws-migrate-one-btn" data-post-id="' + esc( rowId ) + '" aria-label="' + esc( migrateLabel ) + '">' +
 						'Migrate' +

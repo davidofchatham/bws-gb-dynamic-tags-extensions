@@ -7,7 +7,11 @@
  *                                      content), shared by the core-block survey runner and the scan.
  *   - bws_block_widget_placements()    which active sidebar holds each instance.
  *   - TagConverter::scan_widgets()     one scan row per instance that holds a convertible tag.
- * Plus the allowlist rebuild, which must take a widget row unchanged.
+ * Plus the allowlist rebuild, which must take a widget row unchanged, and the LOCATIONS a scan row
+ * carries (FW-73 ticket 05): block type and ordinal, read off the located walk.
+ *
+ * REQUIRES THE REAL WORDPRESS BLOCK PARSER, because scan rows now ask the located walk (see
+ * located-walk-test.php for the $BWS_WP_CORE_DIR rule); it FAILS rather than skips when it is missing.
  *
  * The real files are loaded; only get_option / update_option / admin_url are stubbed, and the
  * migration entries are synthetic so a registration change elsewhere cannot move this file.
@@ -44,6 +48,17 @@ if ( ! function_exists( 'apply_filters' ) ) {
 }
 function bws_gb_tag_name_collisions(): array {
 	return array();
+}
+
+$core   = rtrim( (string) ( getenv( 'BWS_WP_CORE_DIR' ) ?: 'D:/Resources/WordPress/wordpress' ), '/\\' );
+$parser = $core . '/wp-includes/class-wp-block-parser.php';
+if ( ! is_file( $parser ) ) {
+	echo "  FAIL the real WP block parser is at {$parser} (set BWS_WP_CORE_DIR)\n";
+	exit( 1 );
+}
+require $parser;
+function parse_blocks( $content ) {
+	return ( new WP_Block_Parser() )->parse( $content );
 }
 
 $root = dirname( __DIR__, 2 );
@@ -165,6 +180,26 @@ echo "\nWS5 - the survey runner reads widgets through the shared enumeration\n";
 $survey = file_get_contents( $root . '/includes/helpers/core-block-survey.php' );
 assert_eq( 'WS5.1 the runner calls bws_block_widget_rows()', true, 1 === preg_match( '/foreach \( bws_block_widget_rows\(\)/', $survey ) );
 assert_eq( 'WS5.2 and the option is read in exactly one place, the enumeration itself', 1, substr_count( $survey, "get_option( 'widget_block'" ) );
+
+echo "\nWS6 - a scan row says where to look: block type and ordinal\n";
+
+$many = '<!-- wp:group --><div>'
+	. '<!-- wp:paragraph --><p>clean</p><!-- /wp:paragraph -->'
+	. '<!-- wp:paragraph --><p>{{ws_old use:x}} {{unrelated}}</p><!-- /wp:paragraph -->'
+	. '<!-- wp:heading --><h2>{{ws_base legacy:v}}</h2><!-- /wp:heading -->'
+	. '</div><!-- /wp:group -->';
+$loc = TagConverter::scan_widgets( array( 5 => $many ), array() )[0]['locations'];
+assert_eq( 'WS6.1 one entry per convertible occurrence, in document order; the live tag beside it has none',
+	array(
+		array( 'label' => '2nd core/paragraph', 'stored' => '{{ws_old use:x}}' ),
+		array( 'label' => '1st core/heading', 'stored' => '{{ws_base legacy:v}}' ),
+	),
+	$loc );
+assert_eq( 'WS6.2 an option-migration occurrence is located too', '1st core/heading', $loc[1]['label'] );
+assert_eq( 'WS6.3 a tag in text outside any block has no location (and the row is still listed)', array( 8, array() ),
+	array( 8, TagConverter::scan_widgets( array( 8 => '{{ws_old}}' ), array() )[0]['locations'] ) );
+assert_eq( 'WS6.4 ordinal suffixes', array( '1st', '2nd', '3rd', '4th', '11th', '12th', '13th', '21st', '22nd', '112th' ),
+	array_map( 'bws_ordinal_label', array( 1, 2, 3, 4, 11, 12, 13, 21, 22, 112 ) ) );
 
 echo "\n";
 if ( $failures ) {

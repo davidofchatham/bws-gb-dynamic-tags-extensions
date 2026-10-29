@@ -167,7 +167,7 @@ assert_same( 'equal counts fall back to name order', $open( '<code>a</code> (2) 
 assert_same( 'no tags, no disclosure: the bare count', '4', bws_core_blocks_survey_count_html( 4, $text ) );
 assert_same( 'a zero stays the muted zero, with no disclosure', false, strpos( bws_core_blocks_survey_count_html( 0, $text ), 'details' ) );
 assert_same( 'before any scan there is no disclosure even if tags were passed', false, strpos( bws_core_blocks_survey_count_html( null, $text, array( 'x' => 1 ) ), 'details' ) );
-foreach ( array( 'tags_toggle', 'heading', 'intro', 'survey_none_yet', 'survey_status', 'survey_desc', 'survey_scan', 'survey_running', 'survey_error', 'confirm_intro', 'note_warn', 'note_info', 'confirm_save', 'confirm_back', 'show_legend', 'show_default', 'show_default_unscanned', 'show_enabled', 'show_tags', 'show_all', 'cat_label', 'cat_all', 'reset', 'showing', 'showing_hint', 'empty_filtered', 'empty_default', 'empty_default_unscanned', 'show_all_button' ) as $key ) {
+foreach ( array( 'tags_toggle', 'heading', 'intro', 'survey_none_yet', 'survey_status', 'survey_desc', 'survey_scan', 'survey_running', 'survey_error', 'confirm_intro', 'note_warn', 'note_info', 'confirm_save', 'confirm_back', 'show_legend', 'show_default', 'show_default_unscanned', 'show_enabled', 'show_tags', 'show_all', 'cat_label', 'cat_all', 'reset', 'showing', 'showing_hint', 'empty_filtered', 'empty_default', 'empty_default_unscanned', 'show_all_button', 'survey_convertible', 'survey_convertible_jump' ) as $key ) {
 	assert_same( "string for '{$key}'", true, is_string( $text[ $key ] ?? null ) && '' !== $text[ $key ] );
 }
 
@@ -182,6 +182,18 @@ $groups = bws_core_blocks_picker_rows( array_merge( $entries, array( entry( 'gen
 assert_same( 'before any scan: the no-scan sentence alone', 'No scan has been run yet.', bws_core_blocks_survey_status( null, $groups, $text ) );
 assert_same( 'after a scan: handled and not-handled sums over the listed rows, with the date', 'Found in the blocks below as of WHEN: 5 tags handled by GenerateBlocks and 1 tags it does not handle.', bws_core_blocks_survey_status( array( 'time' => 1700000000 ), $groups, $text, $when ) );
 assert_same( 'a scan that found nothing in the listed blocks reads as zeros', 'Found in the blocks below as of WHEN: 0 tags handled by GenerateBlocks and 0 tags it does not handle.', bws_core_blocks_survey_status( array( 'time' => 1700000000 ), bws_core_blocks_picker_rows( $entries, $cats, array(), array(), array(), array() ), $text, $when ) );
+$later    = static fn( ?int $k ): array => array( 'time' => 1700000000 ) + ( null === $k ? array() : array( 'convertible' => $k ) );
+$sentence = 'Found in the blocks below as of WHEN: 5 tags handled by GenerateBlocks and 1 tags it does not handle.';
+assert_same( 'the plain status sentence ignores the convertible total', $sentence, bws_core_blocks_survey_status( $later( 3 ), $groups, $text, $when ) );
+assert_same(
+	'K > 0: the sentence, then a link to the Migration Tool section carrying "K convertible"',
+	$sentence . ' <a class="bws-block-picker__convertible" href="#bws-migration-tool">3 convertible<span class="screen-reader-text"> (jump to the Migration Tool)</span></a>',
+	bws_core_blocks_survey_status_html( $later( 3 ), $groups, $text, $when )
+);
+assert_same( 'K = 0: the sentence alone, no "0 convertible" clause', $sentence, bws_core_blocks_survey_status_html( $later( 0 ), $groups, $text, $when ) );
+assert_same( 'a scan stored before the total existed: the sentence alone', $sentence, bws_core_blocks_survey_status_html( $later( null ), $groups, $text, $when ) );
+assert_same( 'before any scan: the no-scan sentence alone', 'No scan has been run yet.', bws_core_blocks_survey_status_html( null, $groups, $text ) );
+assert_same( 'the sentence is escaped', 'a &amp; b', bws_core_blocks_survey_status_html( array( 'time' => 1 ), array(), array( 'survey_status' => 'a & b', 'survey_convertible' => '', 'survey_convertible_jump' => '' ), $when ) );
 assert_same( 'notes run the two warnings, then the advisory, in that order', array( 'warn', 'warn', 'info' ), array_column( $text['notes'], 'tone' ) );
 assert_same( 'the first note is the unfiltered_html one', true, false !== strpos( $text['notes'][0]['text'], 'unfiltered_html' ) );
 $flat = array();
