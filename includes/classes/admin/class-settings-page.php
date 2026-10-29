@@ -1214,7 +1214,7 @@ function my_result( $post_id, $arg = '' ) {
 					<h2 class="bws-section-header"><?php esc_html_e( 'Migration Tool', 'generateblocks' ); ?></h2>
 					<div class="bws-card">
 					<p class="description bws-section-desc">
-						<?php esc_html_e( 'Scan all post content for deprecated tags and option issues, then migrate per post or in bulk. A revision is created before each migration when the post type supports it.', 'generateblocks' ); ?>
+						<?php esc_html_e( 'Scan for deprecated tags and option issues, then migrate per post or widget, or in bulk. A revision is created before each migration when the post type supports it; block widgets are backed up instead and can be restored.', 'generateblocks' ); ?>
 					</p>
 					<?php /* US 26 — DISCLOSURE, not enumeration. A reported count with no stated
 					        boundary reads as a completeness claim it cannot back; an inventory
@@ -1224,7 +1224,7 @@ function my_result( $post_id, $arg = '' ) {
 							<span class="gp-notice__status"><span class="gp-status-dot" aria-hidden="true"></span></span>
 							<div class="gp-notice__content">
 								<span class="screen-reader-text"><?php esc_html_e( 'Note:', 'generateblocks' ); ?></span>
-								<?php esc_html_e( 'Covers post content and the block pattern cache. Tag strings stored elsewhere, such as in custom field values or another plugin\'s cache, are not reached by this tool.', 'generateblocks' ); ?>
+								<?php esc_html_e( 'Covers post content, block widgets and the block pattern cache, which is reconciled automatically on every scan and migration. Tag strings stored elsewhere, such as in custom field values or another plugin\'s cache, are not reached by this tool.', 'generateblocks' ); ?>
 							</div>
 						</div>
 					</div>
@@ -1314,7 +1314,6 @@ function my_result( $post_id, $arg = '' ) {
 					        even when empty so the AJAX handlers can fill it without a reload. */ ?>
 					<div class="bws-pattern-cache">
 						<p class="description bws-pattern-cache-status" aria-live="polite">
-							<?php esc_html_e( 'Block pattern caches are automatically reconciled on every scan and migration.', 'generateblocks' ); ?>
 							<span id="bws-pattern-cache-status"><?php echo esc_html( PatternCache::format_status( PatternCache::get_status() ) ); ?></span>
 						</p>
 					</div>

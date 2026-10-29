@@ -243,20 +243,24 @@ assert_eq( 'P6.1 never run → no line at all',
 	'', PatternCache::format_status( array() ) );
 
 assert_eq( 'P6.2 checked 0 → honest for both "GB Pro absent" and "no patterns yet"',
-	'No pattern cache found.',
+	'No block pattern cache found.',
 	PatternCache::format_status( array( 'checked' => 0, 'reconciled' => 0, 'time' => $ts ) ) );
 
 assert_eq( 'P6.3 checked, none diverged',
-	'As of August 13, 2025 3:46 pm: 37 patterns, all current.',
+	'As of August 13, 2025 3:46 pm: 37 block patterns, all current.',
 	PatternCache::format_status( array( 'checked' => 37, 'reconciled' => 0, 'time' => $ts ) ) );
 
 assert_eq( 'P6.4 …and the singular reads correctly',
-	'As of August 13, 2025 3:46 pm: 1 pattern, all current.',
+	'As of August 13, 2025 3:46 pm: 1 block pattern, all current.',
 	PatternCache::format_status( array( 'checked' => 1, 'reconciled' => 0, 'time' => $ts ) ) );
 
 assert_eq( 'P6.5 some were repaired — M of N, so the denominator survives',
-	'As of August 13, 2025 3:46 pm: 5 of 37 patterns updated.',
+	'As of August 13, 2025 3:46 pm: 5 of 37 block patterns updated.',
 	PatternCache::format_status( array( 'checked' => 37, 'reconciled' => 5, 'time' => $ts ) ) );
+
+assert_eq( 'P6.5b …and one of one reads singular',
+	'As of August 13, 2025 3:46 pm: 1 of 1 block pattern updated.',
+	PatternCache::format_status( array( 'checked' => 1, 'reconciled' => 1, 'time' => $ts ) ) );
 
 // trigger/version are STORED but never rendered — retroactivity, not display. The line
 // must not leak them, or an untranslated slug reaches a user-facing string.
