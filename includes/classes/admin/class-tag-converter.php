@@ -762,6 +762,183 @@ class TagConverter {
 	}
 
 	// ===============================================
+	// BLOCK WIDGETS (FW-73)
+	// ===============================================
+
+	/**
+	 * The option that holds the last widget run's before/after backup. Not autoloaded.
+	 *
+	 * @since Unreleased
+	 */
+	public const WIDGET_BACKUP_OPTION = 'bws_widget_block_backup';
+
+	/**
+	 * Split the ids a migrate request carries into post ids and widget instance numbers.
+	 *
+	 * A widget row's id is the string `widget:<number>` (scan_widgets()'s `row_id`); a post row's is
+	 * its integer ID. Anything else, and any non-positive number, is dropped.
+	 *
+	 * @since Unreleased
+	 * @param array $raw Decoded `post_ids` field.
+	 * @return array{posts: int[], widgets: int[]}
+	 */
+	public static function parse_row_ids( array $raw ): array {
+		$out = array( 'posts' => array(), 'widgets' => array() );
+		foreach ( $raw as $id ) {
+			if ( is_string( $id ) && 1 === preg_match( '/^widget:(\d+)$/', $id, $m ) ) {
+				if ( (int) $m[1] > 0 ) {
+					$out['widgets'][] = (int) $m[1];
+				}
+			} elseif ( ( is_int( $id ) || ( is_string( $id ) && ctype_digit( $id ) ) ) && (int) $id > 0 ) {
+				$out['posts'][] = (int) $id;
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Rewrite the tags in a `widget_block` option value; pure.
+	 *
+	 * Only an instance's `content` is replaced, through migrate_string() (the same rewriter and
+	 * ownership guard as post content). Every other key, `_multiwidget` included, comes back as it
+	 * went in.
+	 *
+	 * @since Unreleased
+	 * @param array      $option  The option value.
+	 * @param int[]|null $numbers Instances to migrate; null for all.
+	 * @return array {
+	 *   @type array $option  The option value to store.
+	 *   @type array $changed Number => { before, after }, for instances whose content moved.
+	 *   @type array $results Number => { changed, tag_count, option_count, declined } per instance looked at.
+	 * }
+	 */
+	public static function migrate_widget_option( array $option, ?array $numbers ): array {
+		$changed = array();
+		$results = array();
+		foreach ( bws_block_widget_rows_of( $option ) as $number => $content ) {
+			if ( null !== $numbers && ! in_array( $number, $numbers, true ) ) {
+				continue;
+			}
+			$rewrite = self::migrate_string( $content );
+			$moved   = $rewrite['content'] !== $content;
+			if ( $moved ) {
+				$option[ $number ]['content'] = $rewrite['content'];
+				$changed[ $number ]           = array( 'before' => $content, 'after' => $rewrite['content'] );
+			}
+			$results[ $number ] = array(
+				'changed'      => $moved,
+				'tag_count'    => $rewrite['tag_count'],
+				'option_count' => $rewrite['option_count'],
+				'declined'     => $rewrite['declined'],
+			);
+		}
+		return array( 'option' => $option, 'changed' => $changed, 'results' => $results );
+	}
+
+	/**
+	 * Revert instances to their backed-up content; pure. THE RESTORE EQUALITY RULE.
+	 *
+	 * An instance reverts only while its content still equals what the migrate wrote (`after`).
+	 * One that differs was edited since and is skipped as `edited`; one that is gone is skipped as
+	 * `missing` and is not re-created. Only `content` is written, so nothing else on an instance moves.
+	 *
+	 * @since Unreleased
+	 * @param array $option    The option value.
+	 * @param array $instances Number => { before, after }, the backup's `instances`.
+	 * @return array{option: array, restored: int[], skipped: array<int, string>}
+	 */
+	public static function restore_widget_option( array $option, array $instances ): array {
+		$current  = bws_block_widget_rows_of( $option );
+		$restored = array();
+		$skipped  = array();
+		foreach ( $instances as $number => $pair ) {
+			if ( ! isset( $current[ $number ] ) ) {
+				$skipped[ $number ] = 'missing';
+			} elseif ( $current[ $number ] !== $pair['after'] ) {
+				$skipped[ $number ] = 'edited';
+			} else {
+				$option[ $number ]['content'] = $pair['before'];
+				$restored[]                   = $number;
+			}
+		}
+		return array( 'option' => $option, 'restored' => $restored, 'skipped' => $skipped );
+	}
+
+	/**
+	 * Migrate block widget instances: one fresh read, one write (spec decision 5).
+	 *
+	 * When anything changed, the backup is stored first and the widget option second, so a failure
+	 * between the two leaves a backup of a write that did not happen rather than a write with no
+	 * backup. A run that changes nothing writes nothing and leaves the
+	 * previous backup alone. `$run_id` names a bulk run: a later batch carrying the same id adds to
+	 * the backup, any other id replaces it. No hook fires beyond WordPress's own
+	 * `update_option_widget_block`; `bws_dynamic_tags_content_written` stays post-only.
+	 *
+	 * @since Unreleased
+	 * @param int[]|null $numbers Instances to migrate; null for all.
+	 * @param string     $run_id  Identifier shared by every batch of one run.
+	 * @return array<int, array> Number => { changed, tag_count, option_count, declined }.
+	 */
+	public static function migrate_widgets( ?array $numbers, string $run_id ): array {
+		$option = get_option( 'widget_block', array() );
+		$r      = self::migrate_widget_option( is_array( $option ) ? $option : array(), $numbers );
+
+		if ( $r['changed'] ) {
+			$backup = get_option( self::WIDGET_BACKUP_OPTION, array() );
+			$kept   = ( is_array( $backup ) && ( $backup['run'] ?? null ) === $run_id ) ? (array) ( $backup['instances'] ?? array() ) : array();
+			foreach ( $r['changed'] as $number => $pair ) {
+				// A later batch of the same run keeps the ORIGINAL before.
+				$kept[ $number ] = array( 'before' => $kept[ $number ]['before'] ?? $pair['before'], 'after' => $pair['after'] );
+			}
+			ksort( $kept );
+			update_option( self::WIDGET_BACKUP_OPTION, array( 'date' => time(), 'run' => $run_id, 'instances' => $kept ), false );
+			update_option( 'widget_block', $r['option'] );
+		}
+
+		return $r['results'];
+	}
+
+	/**
+	 * Restore the backed-up block widgets, then drop the backup.
+	 *
+	 * @since Unreleased
+	 * @return array{restored: int[], skipped: array<int, string>} Skipped is number => `edited`|`missing`.
+	 */
+	public static function restore_widgets(): array {
+		$backup = get_option( self::WIDGET_BACKUP_OPTION, array() );
+		if ( ! is_array( $backup ) || empty( $backup['instances'] ) ) {
+			return array( 'restored' => array(), 'skipped' => array() );
+		}
+
+		$option = get_option( 'widget_block', array() );
+		$r      = self::restore_widget_option( is_array( $option ) ? $option : array(), (array) $backup['instances'] );
+		if ( $r['restored'] ) {
+			update_option( 'widget_block', $r['option'] );
+		}
+		delete_option( self::WIDGET_BACKUP_OPTION );
+
+		return array( 'restored' => $r['restored'], 'skipped' => $r['skipped'] );
+	}
+
+	/**
+	 * The line shown beside the Restore button, or '' when no backup exists (and so no button).
+	 *
+	 * @since Unreleased
+	 */
+	public static function widget_backup_line(): string {
+		$backup = get_option( self::WIDGET_BACKUP_OPTION, array() );
+		if ( ! is_array( $backup ) || empty( $backup['instances'] ) ) {
+			return '';
+		}
+		return sprintf(
+			/* translators: 1: date and time, 2: number of block widgets. */
+			_n( 'Block widgets were migrated on %1$s (%2$d widget backed up).', 'Block widgets were migrated on %1$s (%2$d widgets backed up).', count( $backup['instances'] ), 'generateblocks' ),
+			wp_date( 'Y-m-d H:i', (int) ( $backup['date'] ?? 0 ) ),
+			count( $backup['instances'] )
+		);
+	}
+
+	// ===============================================
 	// AJAX HANDLERS
 	// ===============================================
 
@@ -854,7 +1031,9 @@ class TagConverter {
 	 *
 	 * POST fields:
 	 *   nonce    — bws_convert_tag nonce.
-	 *   post_ids — JSON-encoded array of post IDs to migrate in this batch.
+	 *   post_ids — JSON-encoded array of row ids to migrate in this batch: integer post IDs and
+	 *              `widget:<number>` block widget ids (parse_row_ids()).
+	 *   run_id   — names a bulk run, so its batches share one block widget backup.
 	 *   is_final — "1" on the last batch of a bulk run (or a single-post migrate),
 	 *              signalling the allowlist should be rebuilt now.
 	 *
@@ -868,6 +1047,7 @@ class TagConverter {
 	 *
 	 * @since 1.6.0
 	 * @since 1.14.0 Allowlist rebuild gated to the final batch via is_final.
+	 * @since Unreleased Takes `widget:<number>` ids and a run_id (FW-73).
 	 */
 	public static function ajax_migrate(): void {
 		check_ajax_referer( 'bws_convert_tag', 'nonce' );
@@ -883,17 +1063,23 @@ class TagConverter {
 			wp_send_json_error( array( 'message' => __( 'No post IDs provided.', 'generateblocks' ) ), 400 );
 		}
 
+		$ids     = self::parse_row_ids( $post_ids );
 		$results = array();
-		foreach ( $post_ids as $post_id ) {
-			$post_id = (int) $post_id;
-			if ( $post_id <= 0 ) {
-				continue;
-			}
+		foreach ( $ids['posts'] as $post_id ) {
 			$result               = self::migrate_post( $post_id );
 			$result['post_id']    = $post_id;
 			$result['has_revision'] = ( false !== $result['revision_id'] );
 			unset( $result['revision_id'] );
 			$results[] = $result;
+		}
+
+		// Widgets: this request's instances in ONE read and ONE write (migrate_widgets()). The
+		// client names the run so the batches of one bulk run share a backup.
+		if ( $ids['widgets'] ) {
+			$run_id = sanitize_text_field( wp_unslash( $_POST['run_id'] ?? '' ) );
+			foreach ( self::migrate_widgets( $ids['widgets'], '' !== $run_id ? $run_id : uniqid( 'req', true ) ) as $number => $result ) {
+				$results[] = array( 'post_id' => 'widget:' . $number, 'kind' => 'widget', 'has_revision' => false ) + $result;
+			}
 		}
 
 		// Rebuild once at the end of a bulk run (or on a single-post migrate), not
@@ -917,7 +1103,39 @@ class TagConverter {
 			'processed'        => count( $results ),
 			'patternCache'     => $pattern_cache,
 			'patternCacheLine' => $is_final ? PatternCache::format_status( PatternCache::get_status() ) : '',
+			'widgetBackupLine' => self::widget_backup_line(),
 		) );
+	}
+
+	/**
+	 * AJAX: restore the block widgets the last migrate run changed (FW-73).
+	 *
+	 * Returns JSON { restored: [N...], skipped: [ { number, label, reason } ] } where every skipped
+	 * instance is named, because an instance edited since the run is the author's to look at.
+	 *
+	 * @since Unreleased
+	 */
+	public static function ajax_restore_widgets(): void {
+		check_ajax_referer( 'bws_convert_tag', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'generateblocks' ) ), 403 );
+		}
+
+		$r       = self::restore_widgets();
+		$skipped = array();
+		foreach ( $r['skipped'] as $number => $reason ) {
+			$skipped[] = array(
+				'number' => $number,
+				/* translators: %d: block widget instance number. */
+				'label'  => sprintf( __( 'Block widget #%d', 'generateblocks' ), $number ),
+				'reason' => $reason,
+			);
+		}
+
+		self::rebuild_allowlist();
+
+		wp_send_json_success( array( 'restored' => $r['restored'], 'skipped' => $skipped ) );
 	}
 
 	// ===============================================

@@ -178,7 +178,7 @@ $failed    = array();
 $declined_names = array();
 
 foreach ( $scan as $row ) {
-	// Block widget rows (FW-73) have no post id and nothing writes them yet; the run is posts only.
+	// Block widget rows (FW-73) have no post id; this run is posts only (the widget write is TagConverter::migrate_widgets()).
 	if ( 'widget' === ( $row['kind'] ?? 'post' ) ) {
 		continue;
 	}

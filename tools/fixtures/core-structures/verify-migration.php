@@ -125,7 +125,7 @@ $check( 'every seeded modifier tag renders LITERALLY before conversion', array()
 $scan = \BWS\DynamicTags\Admin\TagConverter::scan();
 $row  = null;
 foreach ( $scan as $r ) {
-	if ( (int) $r['post_id'] === (int) $page->ID ) {
+	if ( 'widget' !== ( $r['kind'] ?? 'post' ) && (int) $r['post_id'] === (int) $page->ID ) {
 		$row = $r;
 		break;
 	}
@@ -164,7 +164,7 @@ $check( 'no modifier tag survives the run', array() === $modifier_tags( $after )
 $rescan = \BWS\DynamicTags\Admin\TagConverter::scan();
 $still  = false;
 foreach ( $rescan as $r ) {
-	if ( (int) $r['post_id'] === (int) $page->ID && ! empty( $r['deprecated_tags'] ) ) {
+	if ( 'widget' !== ( $r['kind'] ?? 'post' ) && (int) $r['post_id'] === (int) $page->ID && ! empty( $r['deprecated_tags'] ) ) {
 		$still = true;
 	}
 }
@@ -224,26 +224,28 @@ foreach ( $converted as $new ) {
 $check( 'the retired flat source controls are gone from every converted tag', array() === $retired, implode( '; ', $retired ) );
 
 // ---------------------------------------------------------------------------
-// 5. REACH — asserted, not merely stated. scan() is a POSTS-table query, so a tag living
-// in the OPTIONS table (a block widget) is out of reach: it is neither reported nor
-// rewritten, and once the prefix is retired it renders its own braces there forever.
-// Probed with a real option rather than described in a comment, because "the converter
-// does not reach it" and "the converter reached it and left it alone" are the same picture
-// from the outside and only one of them is true.
+// 5. REACH — asserted, not merely stated. scan() reaches two stores: the POSTS table and, since
+// FW-73, the `widget_block` option (one row per instance, `kind: widget`). Any OTHER option
+// is out of reach: it is neither reported nor rewritten, and once the prefix is retired it
+// renders its own braces there forever. Probed with a real option rather than described in
+// a comment, because "the converter does not reach it" and "the converter reached it and
+// left it alone" are the same picture from the outside and only one of them is true.
 // ---------------------------------------------------------------------------
 $widget_option = 'bws_fixture_widget_probe';
 $widget_wire   = '{{fixture_text key:role}}';
 update_option( $widget_option, $widget_wire, false );
 
 $widget_scan = \BWS\DynamicTags\Admin\TagConverter::scan();
-$widget_ids  = wp_list_pluck( array_filter( $widget_scan, static fn( $r ) => 'widget' !== ( $r['kind'] ?? 'post' ) ), 'post_id' );
+$post_rows   = array_filter( $widget_scan, static fn( $r ) => 'widget' !== ( $r['kind'] ?? 'post' ) );
+$widget_rows = array_filter( $widget_scan, static fn( $r ) => 'widget' === ( $r['kind'] ?? 'post' ) );
+$widget_ids  = wp_list_pluck( $post_rows, 'post_id' );
 foreach ( $widget_ids as $id ) {
 	\BWS\DynamicTags\Admin\TagConverter::migrate_post( (int) $id );
 }
 
-// The scan can only ever name POSTS, so the probe's immunity is the assertion: a full run
-// over everything the converter reports leaves it byte-identical.
-$check( 'a modifier tag in the OPTIONS table survives a full converter run byte-identical', $widget_wire === get_option( $widget_option ), 'stored=' . var_export( get_option( $widget_option ), true ) . ' ran over ' . count( $widget_ids ) . ' reported posts' );
+// The scan names posts and `widget_block` instances only, so the probe's immunity is the
+// assertion: a full run over everything the converter reports leaves it byte-identical.
+$check( 'a modifier tag in an OTHER option survives a full converter run byte-identical', $widget_wire === get_option( $widget_option ), 'stored=' . var_export( get_option( $widget_option ), true ) . ' ran over ' . count( $widget_ids ) . ' reported posts' );
 
 // THE COST OF BEING OUT OF REACH, now that the prefix is retired: it does not go on
 // rendering, it renders its own braces on a published surface with nothing left to fix it.
@@ -252,6 +254,26 @@ $widget_render = $render( get_option( $widget_option ) );
 $check( 'and it renders its own braces — out of reach is permanent, and after retirement it is visible', $widget_wire === $widget_render, 'out=' . var_export( $widget_render, true ) );
 
 delete_option( $widget_option );
+
+// The seeded `widget_block` instance 9001 IS reached (FW-73): scan() lists it, the widget
+// migrate rewrites its deprecated tag and nothing beside it, restore puts the stored bytes back.
+$seeded_before = get_option( 'widget_block' );
+$seed_row      = array_values( array_filter( $widget_rows, static fn( $r ) => 'widget:9001' === $r['row_id'] ) );
+$check( 'scan lists the seeded block widget as widget:9001', 1 === count( $seed_row ), 'widget rows=' . implode( ',', wp_list_pluck( $widget_rows, 'row_id' ) ) );
+
+$tc      = \BWS\DynamicTags\Admin\TagConverter::class;
+$ran     = $tc::migrate_widgets( array( 9001 ), 'verify-migration' );
+$now     = get_option( 'widget_block' );
+$content = (string) ( $now[9001]['content'] ?? '' );
+$check( 'migrating widget 9001 rewrote it', ! empty( $ran[9001]['changed'] ), 'ran=' . wp_json_encode( $ran ) );
+$check( 'its deprecated tag is gone', false === strpos( $content, '{{post_custom_datetime_single' ), 'content=' . $content );
+$check( 'the registered and the unregistered tags beside it are untouched', false !== strpos( $content, '{{phone key:main_line}}' ) && false !== strpos( $content, '{{email key:contact_email}}' ) && false !== strpos( $content, '{{bws_fixture_unregistered key:role}}' ), 'content=' . $content );
+$check( '_multiwidget survives the write', 1 === ( $now['_multiwidget'] ?? null ), 'widget_block keys=' . implode( ',', array_keys( (array) $now ) ) );
+$check( 'a backup exists, so Restore shows', '' !== $tc::widget_backup_line() );
+
+$restored = $tc::restore_widgets();
+$check( 'restore reverts the widget byte-identical to what was seeded', array( 9001 ) === $restored['restored'] && $seeded_before === get_option( 'widget_block' ), 'restored=' . wp_json_encode( $restored ) );
+$check( 'and the backup is gone, so the button is too', '' === $tc::widget_backup_line() );
 
 echo $fail
 	? "\nMIGRATION VERIFY FAILED ({$fail})\n"

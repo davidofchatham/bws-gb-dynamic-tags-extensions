@@ -351,33 +351,32 @@
 			var selectLabel  = postLabel( i18n.selectPost, 'Select %s' );
 			var migrateLabel = postLabel( i18n.migratePost, 'Migrate %s' );
 
-			// A WIDGET ROW IS REPORT-ONLY until the widget write exists: no checkbox, no
-			// Migrate button, so the post-id based bulk and per-row paths can never be handed
-			// a widget. Its Type cell names the sidebar, or "Inactive".
+			// A widget row is selected and migrated by its `widget:N` id, where a post row uses
+			// its integer ID; the server splits the two (TagConverter::parse_row_ids()). Its
+			// Type cell names the sidebar, or "Inactive".
+			var rowId    = isWidget ? post.row_id : post.post_id;
 			var typeCell = isWidget
 				? esc( post.placement )
 				: '<code>' + esc( post.post_type ) + '</code>';
 
 			row.innerHTML =
-				'<td class="bws-cb-col">' + ( isWidget ? '' :
-					'<input type="checkbox" class="bws-row-cb" value="' + esc( post.post_id ) + '" aria-label="' + esc( selectLabel ) + '" />' ) + '</td>' +
+				'<td class="bws-cb-col">' +
+					'<input type="checkbox" class="bws-row-cb" value="' + esc( rowId ) + '" aria-label="' + esc( selectLabel ) + '" /></td>' +
 				'<td><a href="' + esc( post.edit_url ) + '" target="_blank" rel="noopener">' + esc( post.post_title ) + '</a>' + revWarn + '</td>' +
 				'<td>' + typeCell + '</td>' +
 				'<td>' + issueHtml + '</td>' +
-				'<td>' + ( isWidget ? '' :
-					'<button type="button" class="button bws-migrate-one-btn" data-post-id="' + esc( post.post_id ) + '" aria-label="' + esc( migrateLabel ) + '">' +
+				'<td>' +
+					'<button type="button" class="button bws-migrate-one-btn" data-post-id="' + esc( rowId ) + '" aria-label="' + esc( migrateLabel ) + '">' +
 						'Migrate' +
 					'</button>' +
-					'<span class="bws-row-status"></span>' ) +
+					'<span class="bws-row-status"></span>' +
 				'</td>';
 
 			tbody.appendChild( row );
 
-			if ( isWidget ) { return; }
-
 			// Per-row migrate button.
 			row.querySelector( '.bws-migrate-one-btn' ).addEventListener( 'click', function () {
-				migratePostIds( [ post.post_id ], [ row ] );
+				migratePostIds( [ rowId ], [ row ] );
 			} );
 
 			// Track checkbox for select-all / migrate-selected.
@@ -419,7 +418,9 @@
 			var checkedCbs = Array.from( tbody.querySelectorAll( '.bws-row-cb:checked' ) );
 			if ( ! checkedCbs.length ) { return; }
 
-			var ids  = checkedCbs.map( function ( cb ) { return parseInt( cb.value, 10 ); } );
+			var ids  = checkedCbs.map( function ( cb ) {
+				return /^widget:/.test( cb.value ) ? cb.value : parseInt( cb.value, 10 );
+			} );
 			var rows = checkedCbs.map( function ( cb ) { return cb.closest( 'tr' ); } );
 
 			migratePostIds( ids, rows );
@@ -437,6 +438,9 @@
 	function migratePostIds( ids, rows ) {
 		var total     = ids.length;
 		var processed = 0;
+
+		// Names this run, so the batches of one bulk run share one widget backup.
+		var runId = String( Date.now() );
 
 		// Build a map for fast row lookup.
 		var rowMap = {};
@@ -464,7 +468,7 @@
 
 			post(
 				'bws_migrate_tags',
-				{ post_ids: batch, is_final: isFinal ? '1' : '0' },
+				{ post_ids: batch, is_final: isFinal ? '1' : '0', run_id: runId },
 				function ( data ) {
 					( data.results || [] ).forEach( function ( result ) {
 						var row = rowMap[ result.post_id ];
@@ -479,7 +483,7 @@
 								var parts = [];
 								if ( result.tag_count > 0 )    { parts.push( result.tag_count + ' ' + ( i18n.tagsMigrated || 'tags migrated' ) ); }
 								if ( result.option_count > 0 ) { parts.push( result.option_count + ' ' + ( i18n.optsMigrated || 'option fixes applied' ) ); }
-								if ( ! result.has_revision )   { parts.push( 'no revision' ); }
+								if ( ! result.has_revision && result.kind !== 'widget' ) { parts.push( 'no revision' ); }
 								st.textContent = ( parts.length ? parts.join( ', ' ) : i18n.done || 'Done' );
 								st.className = 'bws-row-status ok';
 							} else {
@@ -501,6 +505,7 @@
 							: processed + ' posts processed.';
 						// Only the final batch reconciles, so only it carries a line.
 						setPatternCacheLine( data );
+						setWidgetBackup( data.widgetBackupLine );
 					}
 				},
 				function ( err ) {
@@ -511,6 +516,53 @@
 		}
 
 		processBatch( 0 );
+	}
+
+	// ============================================================
+	// RESTORE BLOCK WIDGETS (FW-73)
+	// ============================================================
+
+	var restoreWrap   = document.getElementById( 'bws-widget-restore' );
+	var restoreLine   = document.getElementById( 'bws-widget-restore-line' );
+	var restoreBtn    = document.getElementById( 'bws-widget-restore-btn' );
+	var restoreResult = document.getElementById( 'bws-widget-restore-result' );
+
+	/** Show the Restore button only while PHP says a backup exists; PHP owns the sentence. */
+	function setWidgetBackup( line ) {
+		if ( ! restoreWrap || typeof line !== 'string' ) { return; }
+		if ( line !== '' ) { restoreLine.textContent = line; }
+		restoreWrap.style.display = line !== '' ? 'block' : 'none';
+	}
+
+	if ( restoreBtn ) {
+		restoreBtn.addEventListener( 'click', function () {
+			restoreBtn.disabled = true;
+			restoreResult.textContent = i18n.restoring || 'Restoring…';
+
+			post(
+				'bws_restore_widgets',
+				{},
+				function ( data ) {
+					restoreBtn.disabled = false;
+					var restored = ( data.restored || [] ).length;
+					var text = ( i18n.restored || '%d block widgets restored.' ).replace( '%d', restored );
+					var skipped = data.skipped || [];
+					if ( skipped.length ) {
+						// Each skipped instance is NAMED: one edited since the migrate is the
+						// author's to look at, and a bare count would not say which.
+						text += ' ' + ( i18n.restoreSkipped || 'Left as they are:' ) + ' ' + skipped.map( function ( s ) {
+							return s.label + ' (' + ( s.reason === 'missing' ? ( i18n.reasonMissing || 'no longer exists' ) : ( i18n.reasonEdited || 'edited since the migration' ) ) + ')';
+						} ).join( ', ' ) + '.';
+					}
+					restoreResult.textContent = text;
+					setWidgetBackup( '' );
+				},
+				function ( err ) {
+					restoreBtn.disabled = false;
+					restoreResult.textContent = ( i18n.errorPrefix || 'Error:' ) + ' ' + err;
+				}
+			);
+		} );
 	}
 
 	function showProgress( done, total ) {

@@ -54,6 +54,7 @@ class SettingsPage {
 		add_action( 'wp_ajax_bws_scan_tags', array( TagConverter::class, 'ajax_scan' ) );
 		add_action( 'wp_ajax_bws_migrate_tags', array( TagConverter::class, 'ajax_migrate' ) );
 		add_action( 'wp_ajax_bws_ownership_optin', array( TagConverter::class, 'ajax_ownership_optin' ) );
+		add_action( 'wp_ajax_bws_restore_widgets', array( TagConverter::class, 'ajax_restore_widgets' ) );
 		add_action( 'wp_ajax_bws_core_blocks_survey', 'bws_core_blocks_survey_ajax' );
 	}
 
@@ -202,6 +203,12 @@ class SettingsPage {
 					'claimLabel'       => __( 'These tags are mine, convert them', 'generateblocks' ),
 					'claimSaved'       => __( 'Saved. Scan again to pick up the change.', 'generateblocks' ),
 					'saving'           => __( 'Saving…', 'generateblocks' ),
+					// Restore block widgets (FW-73).
+					'restoring'        => __( 'Restoring…', 'generateblocks' ),
+					'restored'         => __( '%d block widgets restored.', 'generateblocks' ),
+					'restoreSkipped'   => __( 'Left as they are:', 'generateblocks' ),
+					'reasonEdited'     => __( 'edited since the migration', 'generateblocks' ),
+					'reasonMissing'    => __( 'no longer exists', 'generateblocks' ),
 				),
 			)
 		);
@@ -1281,7 +1288,23 @@ function my_result( $post_id, $arg = '' ) {
 						<span id="bws-scan-status" class="bws-scan-status" aria-live="polite"></span>
 					</div>
 
-					<?php /* The pattern-cache result, PERSISTED rather than a transient status
+					<?php /* Restore block widgets (FW-73): shown only while a backup exists. The line
+						        is composed in PHP (TagConverter::widget_backup_line()) and refreshed by
+						        the migrate response; the result span sits outside the wrapper so it
+						        survives the wrapper hiding itself after a restore. */ ?>
+						<?php $bws_widget_backup_line = TagConverter::widget_backup_line(); ?>
+						<div id="bws-widget-restore" class="bws-widget-restore" style="<?php echo '' === $bws_widget_backup_line ? 'display:none;' : ''; ?>">
+							<p class="description">
+								<span id="bws-widget-restore-line"><?php echo esc_html( $bws_widget_backup_line ); ?></span>
+								<?php esc_html_e( 'A widget edited since is left as it is.', 'generateblocks' ); ?>
+							</p>
+							<button type="button" id="bws-widget-restore-btn" class="gp-button gp-button--secondary gp-button--small">
+								<?php esc_html_e( 'Restore block widgets', 'generateblocks' ); ?>
+							</button>
+						</div>
+						<p id="bws-widget-restore-result" class="description" aria-live="polite"></p>
+
+						<?php /* The pattern-cache result, PERSISTED rather than a transient status
 					        line: the on-upgrade trigger has no interface at all and is the one
 					        actually repairing already-converted sites. The element is rendered
 					        even when empty so the AJAX handlers can fill it without a reload. */ ?>

@@ -174,8 +174,22 @@ function bws_core_blocks_survey_last(): ?array {
  * @return array<int, string> Ascending by instance number.
  */
 function bws_block_widget_rows(): array {
+	return bws_block_widget_rows_of( (array) get_option( 'widget_block', array() ) );
+}
+
+/**
+ * The instances in a `widget_block` option value already in hand: number => content.
+ *
+ * bws_block_widget_rows() over a value instead of the stored option, so a write path that has
+ * just read the option itself (TagConverter::migrate_widgets()) asks the same question.
+ *
+ * @since Unreleased
+ * @param array $option The option value.
+ * @return array<int, string> Ascending by instance number.
+ */
+function bws_block_widget_rows_of( array $option ): array {
 	$rows = array();
-	foreach ( (array) get_option( 'widget_block', array() ) as $number => $widget ) {
+	foreach ( $option as $number => $widget ) {
 		if ( is_int( $number ) && is_array( $widget ) && isset( $widget['content'] ) && is_string( $widget['content'] ) ) {
 			$rows[ $number ] = $widget['content'];
 		}
