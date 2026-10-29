@@ -35,11 +35,12 @@ class TagConverter {
 	// ===============================================
 
 	/**
-	 * Scan all non-revision posts for deprecated tags and option migrations.
+	 * Scan all non-revision posts, then every block widget, for deprecated tags and option migrations.
 	 *
-	 * Returns one result row per post. Each row includes the post's deprecated tag names
-	 * and option migration labels found in the content, plus whether WP revision support
-	 * is available for that post type.
+	 * Returns one result row per post, then one per block widget instance (scan_widgets(); the
+	 * `kind` key tells them apart). Each row includes the deprecated tag names and option
+	 * migration labels found in the content; a post row adds whether WP revision support is
+	 * available for its post type. Reading only: nothing here writes a post or a widget.
 	 *
 	 * EVERY DEPRECATED TAG CARRIES ITS VERDICT (FW-39, D46). A scan that only reported
 	 * presence promised work on every row it printed, and two kinds of tag were quietly
@@ -48,7 +49,9 @@ class TagConverter {
 	 *
 	 * @since 1.6.0
 	 * @since 1.20.0 Deprecated tag rows carry status / reason / count / sample (FW-39).
+	 * @since Unreleased Widget rows follow the post rows; post rows carry `kind` (FW-73).
 	 * @return array[] {
+	 *   @type string $kind                 `post` here; `widget` on the rows scan_widgets() adds.
 	 *   @type int    $post_id              Post ID.
 	 *   @type string $post_title           Post title (or "(no title)").
 	 *   @type string $post_type            Post type slug.
@@ -94,82 +97,12 @@ class TagConverter {
 			)
 		);
 
-		if ( empty( $rows ) ) {
-			return array();
-		}
-
 		$revision_support_cache = array();
 		$results                = array();
 
-		foreach ( $rows as $row ) {
-			$content = $row->post_content;
-
-			// Deprecated tag names, each stored string CLASSIFIED into one of the report's
-			// three channels — see classify_tag(). Grouped by name + verdict rather than by
-			// name alone, because one post can hold two strings of the same name that fall
-			// different ways (a `term_text` naming a term converts, a bare one beside it is
-			// skipped), and a single row per name would have to pick one and lose the other.
-			$deprecated_found = array();
-			foreach ( $tag_names as $tag ) {
-				$pattern = '/\{\{' . preg_quote( $tag, '/' ) . '(?:\s[^}]*)?\}\}/';
-				if ( ! preg_match_all( $pattern, $content, $tag_matches ) ) {
-					continue;
-				}
-
-				$has_migration = MigrationRegistry::has_migration_path( $tag );
-
-				foreach ( $tag_matches[0] as $stored ) {
-					$verdict = self::classify_tag( $tag, $stored );
-					$group   = $verdict['status'] . '|' . $verdict['reason'];
-
-					if ( ! isset( $deprecated_found[ $group . '|' . $tag ] ) ) {
-						$deprecated_found[ $group . '|' . $tag ] = array(
-							'tag'           => $tag,
-							'has_migration' => $has_migration,
-							'status'        => $verdict['status'],
-							'reason'        => $verdict['reason'],
-							'exempt'        => $verdict['exempt'],
-							'count'         => 0,
-							'sample'        => $stored,
-						);
-					}
-
-					++$deprecated_found[ $group . '|' . $tag ]['count'];
-				}
-			}
-			$deprecated_found = array_values( $deprecated_found );
-
-			// Option migrations.
-			$option_migrations_found = array();
-			foreach ( $option_migration_map as $base_tag => $entries ) {
-				$tag_pattern = '/\{\{' . preg_quote( $base_tag, '/' ) . '(?:\s[^}]*)?\}\}/';
-				preg_match_all( $tag_pattern, $content, $tag_matches );
-
-				foreach ( $tag_matches[0] as $tag_string ) {
-					[ , $options ] = MigrationRegistry::parse_tag_string( $tag_string );
-					$option_keys   = array_keys( $options );
-
-					foreach ( $entries as $entry ) {
-						// Match rule owned by MigrationRegistry::entry_matches() — this
-						// used to be a second, hand-kept copy of it. What the converter
-						// REPORTS and what apply_option_migration() RUNS must be the same
-						// predicate, or the list promises work that never happens.
-						if ( MigrationRegistry::entry_matches( $entry, $option_keys, $options ) ) {
-							$label           = $entry['label'] ?? $base_tag;
-							$existing_labels = array_column( $option_migrations_found, 'label' );
-							if ( ! in_array( $label, $existing_labels, true ) ) {
-								$option_migrations_found[] = array(
-									'tag'   => $base_tag,
-									'label' => $label,
-								);
-							}
-							break;
-						}
-					}
-				}
-			}
-
-			if ( empty( $deprecated_found ) && empty( $option_migrations_found ) ) {
+		foreach ( (array) $rows as $row ) {
+			$found = self::scan_content( $row->post_content, $tag_names, $option_migration_map );
+			if ( empty( $found['deprecated_tags'] ) && empty( $found['option_migrations'] ) ) {
 				continue; // LIKE false-positive.
 			}
 
@@ -180,17 +113,165 @@ class TagConverter {
 			}
 
 			$results[] = array(
+				'kind'                 => 'post',
 				'post_id'              => (int) $row->ID,
 				'post_title'           => $row->post_title ?: __( '(no title)', 'generateblocks' ),
 				'post_type'            => $post_type,
 				'edit_url'             => get_edit_post_link( (int) $row->ID, 'raw' ),
 				'has_revision_support' => $revision_support_cache[ $post_type ],
-				'deprecated_tags'      => $deprecated_found,
-				'option_migrations'    => $option_migrations_found,
+				'deprecated_tags'      => $found['deprecated_tags'],
+				'option_migrations'    => $found['option_migrations'],
+			);
+		}
+
+		// Block widgets (FW-73) follow the post rows. Their placement is read here, where
+		// WordPress is, so scan_widgets() stays a pure function of what it is handed.
+		$names = array();
+		if ( function_exists( 'wp_get_sidebars_widgets' ) ) {
+			global $wp_registered_sidebars;
+			foreach ( bws_block_widget_placements( wp_get_sidebars_widgets() ) as $number => $sidebar ) {
+				$names[ $number ] = (string) ( $wp_registered_sidebars[ $sidebar ]['name'] ?? $sidebar );
+			}
+		}
+
+		return array_merge( $results, self::scan_widgets( bws_block_widget_rows(), $names ) );
+	}
+
+	/**
+	 * One scan row per block widget instance that holds a convertible tag (FW-73).
+	 *
+	 * The row is a post row's twin: the same `deprecated_tags` / `option_migrations` keys, so
+	 * rebuild_allowlist_from_scan() and report_channels() take it unchanged (a tag only a widget
+	 * still uses must not drop off the settings page). What it does not carry is a post: there is
+	 * no `post_id`, `post_type` or `has_revision_support` (options have no revisions, so there is
+	 * no revision note to make), and `kind` is `widget`. Inactive instances are listed. The
+	 * enumeration is bws_block_widget_rows(); this reads nothing and writes nothing.
+	 *
+	 * @since Unreleased
+	 * @param array<int, string> $widgets Instance number => block markup.
+	 * @param array<int, string> $names   Instance number => display name of the active sidebar holding it; absent means inactive.
+	 * @return array[] {
+	 *   @type string $kind              Always `widget`.
+	 *   @type int    $widget_number     Instance number.
+	 *   @type string $row_id            `widget:<number>`, the id the migrate path takes.
+	 *   @type string $post_title        "Block widget #N".
+	 *   @type string $edit_url          The Widgets screen.
+	 *   @type string $placement         The sidebar's name, or "Inactive".
+	 *   @type bool   $inactive          Whether no active sidebar holds it.
+	 *   @type array  $deprecated_tags   As scan().
+	 *   @type array  $option_migrations As scan().
+	 * }
+	 */
+	public static function scan_widgets( array $widgets, array $names ): array {
+		$tag_names            = MigrationRegistry::get_deprecated_tag_names();
+		$option_migration_map = MigrationRegistry::get_option_migrations_by_tag();
+
+		$results = array();
+		foreach ( $widgets as $number => $content ) {
+			$found = self::scan_content( (string) $content, $tag_names, $option_migration_map );
+			if ( empty( $found['deprecated_tags'] ) && empty( $found['option_migrations'] ) ) {
+				continue;
+			}
+
+			$number    = (int) $number;
+			$inactive  = ! isset( $names[ $number ] );
+			$results[] = array(
+				'kind'              => 'widget',
+				'widget_number'     => $number,
+				'row_id'            => 'widget:' . $number,
+				/* translators: %d: block widget instance number. */
+				'post_title'        => sprintf( __( 'Block widget #%d', 'generateblocks' ), $number ),
+				'edit_url'          => admin_url( 'widgets.php' ),
+				'placement'         => $inactive ? __( 'Inactive', 'generateblocks' ) : $names[ $number ],
+				'inactive'          => $inactive,
+				'deprecated_tags'   => $found['deprecated_tags'],
+				'option_migrations' => $found['option_migrations'],
 			);
 		}
 
 		return $results;
+	}
+
+	/**
+	 * The deprecated tags and option migrations one content string holds, as a scan row reports them.
+	 *
+	 * Shared by the post and widget rows, so the two cannot report differently.
+	 *
+	 * @since Unreleased
+	 * @param string  $content              Post content or a widget's block markup.
+	 * @param string[] $tag_names           MigrationRegistry::get_deprecated_tag_names().
+	 * @param array   $option_migration_map MigrationRegistry::get_option_migrations_by_tag().
+	 * @return array{deprecated_tags: array[], option_migrations: array[]}
+	 */
+	private static function scan_content( string $content, array $tag_names, array $option_migration_map ): array {
+		// Deprecated tag names, each stored string CLASSIFIED into one of the report's
+		// three channels — see classify_tag(). Grouped by name + verdict rather than by
+		// name alone, because one post can hold two strings of the same name that fall
+		// different ways (a `term_text` naming a term converts, a bare one beside it is
+		// skipped), and a single row per name would have to pick one and lose the other.
+		$deprecated_found = array();
+		foreach ( $tag_names as $tag ) {
+			$pattern = '/\{\{' . preg_quote( $tag, '/' ) . '(?:\s[^}]*)?\}\}/';
+			if ( ! preg_match_all( $pattern, $content, $tag_matches ) ) {
+				continue;
+			}
+
+			$has_migration = MigrationRegistry::has_migration_path( $tag );
+
+			foreach ( $tag_matches[0] as $stored ) {
+				$verdict = self::classify_tag( $tag, $stored );
+				$group   = $verdict['status'] . '|' . $verdict['reason'];
+
+				if ( ! isset( $deprecated_found[ $group . '|' . $tag ] ) ) {
+					$deprecated_found[ $group . '|' . $tag ] = array(
+						'tag'           => $tag,
+						'has_migration' => $has_migration,
+						'status'        => $verdict['status'],
+						'reason'        => $verdict['reason'],
+						'exempt'        => $verdict['exempt'],
+						'count'         => 0,
+						'sample'        => $stored,
+					);
+				}
+
+				++$deprecated_found[ $group . '|' . $tag ]['count'];
+			}
+		}
+
+		// Option migrations.
+		$option_migrations_found = array();
+		foreach ( $option_migration_map as $base_tag => $entries ) {
+			$tag_pattern = '/\{\{' . preg_quote( $base_tag, '/' ) . '(?:\s[^}]*)?\}\}/';
+			preg_match_all( $tag_pattern, $content, $tag_matches );
+
+			foreach ( $tag_matches[0] as $tag_string ) {
+				[ , $options ] = MigrationRegistry::parse_tag_string( $tag_string );
+				$option_keys   = array_keys( $options );
+
+				foreach ( $entries as $entry ) {
+					// Match rule owned by MigrationRegistry::entry_matches() — this
+					// used to be a second, hand-kept copy of it. What the converter
+					// REPORTS and what apply_option_migration() RUNS must be the same
+					// predicate, or the list promises work that never happens.
+					if ( MigrationRegistry::entry_matches( $entry, $option_keys, $options ) ) {
+						$label           = $entry['label'] ?? $base_tag;
+						$existing_labels = array_column( $option_migrations_found, 'label' );
+						if ( ! in_array( $label, $existing_labels, true ) ) {
+							$option_migrations_found[] = array(
+								'tag'   => $base_tag,
+								'label' => $label,
+							);
+						}
+						break;
+					}
+				}
+			}
+		}
+
+		return array(
+			'deprecated_tags'   => array_values( $deprecated_found ),
+			'option_migrations' => $option_migrations_found,
+		);
 	}
 
 	// ===============================================

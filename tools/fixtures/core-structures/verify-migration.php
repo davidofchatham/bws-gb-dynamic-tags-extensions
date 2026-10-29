@@ -236,7 +236,7 @@ $widget_wire   = '{{fixture_text key:role}}';
 update_option( $widget_option, $widget_wire, false );
 
 $widget_scan = \BWS\DynamicTags\Admin\TagConverter::scan();
-$widget_ids  = wp_list_pluck( $widget_scan, 'post_id' );
+$widget_ids  = wp_list_pluck( array_filter( $widget_scan, static fn( $r ) => 'widget' !== ( $r['kind'] ?? 'post' ) ), 'post_id' );
 foreach ( $widget_ids as $id ) {
 	\BWS\DynamicTags\Admin\TagConverter::migrate_post( (int) $id );
 }

@@ -4,7 +4,7 @@
 
 > **Re-run trigger:** the three core-block rows in [`CLAUDE.md`](../../CLAUDE.md#update-triggers) (classification, enabled set / allowlist / loop keys, survey). Run the pure harnesses they name FIRST; they own the algorithms. Then this matrix, then `php tools/test/page-snapshots.php`.
 
-**How to run:** every CB1 to CB5 row is a visible block on `/matrix-core-blocks/` (blueprint **v34**, `bin/seed.sh testbed core-structures`). Open the page and compare each label's `->` text with what follows it; the page is the instrument, and `page-snapshots.php` pins the rendered output. Recycle the lsphp workers after a source edit and cache-bust the fetch ([`docs/testbed.md`](../../docs/testbed.md) §Two layers of staleness). `render-tag` cannot reach any of these rows: `$block` is empty there, which is what every guard in this matrix keys on.
+**How to run:** every CB1 to CB5 row, and CB6.6 and CB6.7, is a visible block on `/matrix-core-blocks/` (blueprint **v36**, `bin/seed.sh testbed core-structures`). Open the page and compare each label's `->` text with what follows it; the page is the instrument, and `page-snapshots.php` pins the rendered output. Recycle the lsphp workers after a source edit and cache-bust the fetch ([`docs/testbed.md`](../../docs/testbed.md) §Two layers of staleness). `render-tag` cannot reach any of these rows: `$block` is empty there, which is what every guard in this matrix keys on.
 
 Operating the testbed, and why every row must also be a visible block: [`docs/testbed.md`](../../docs/testbed.md).
 
@@ -17,7 +17,7 @@ Operating the testbed, and why every row must also be a visible block: [`docs/te
 | plain meta on that page | `bws_block_plain` (two paragraphs of bare text), `bws_block_formatted` (already `<p>`-wrapped, with a soft break), `bws_block_inline` (bold, italic and a link, no block tag) |
 | staff `jane-partner`, `tom-associate` | `main_line` `(555) 200-3000` and `(555) 200-4000`, the WP_Query loop's items |
 | page `matrix-post-meta` | the `team_members` repeater (**Alice Adams** / `Engineering`, **Bob Brown** / `Operations`) CB5.5 reads |
-| option `widget_block` | one block widget (key 9001) holding a phone and an email tag; in no sidebar, so nothing renders it |
+| option `widget_block` | one block widget (key 9001) holding a phone and an email tag, then (blueprint v36) a deprecated tag `post_custom_datetime_single` and an unregistered one `bws_fixture_unregistered`; in no sidebar, so nothing renders it |
 
 Every row's label block is GenerateBlocks text and never carries a literal tag. A row whose tag blanks its block (CB5) leaves the label standing alone, which is the expectation and not a missing fixture.
 
@@ -102,7 +102,7 @@ The same tag with GenerateBlocks' **Required to render** turned off (`{{table re
 
 ## CB6: survey
 
-`bws_core_blocks_survey_run()` counts tag-like strings per block type and reaches `widget_block`. **No page row, by construction**: the seeded block widget is in no sidebar, and the survey is read off the database rather than a render. Run it through the testbed:
+`bws_core_blocks_survey_run()` counts tag-like strings per block type and reaches `widget_block`, through `bws_block_widget_rows()`, the enumeration the Migration Tool's scan shares. **No page row for the widget itself, by construction**: the seeded block widget is in no sidebar, and the survey and the scan are read off the database rather than a render. CB6.6 and CB6.7 are the visible twins of the two strings it holds beside its registered pair (blueprint v36), on `/matrix-core-blocks/`. Run the survey through the testbed:
 
 ```bash
 wsl.exe -d Ubuntu -- bash -lc 'cd ~/wp-litespeed && bin/wp.sh testbed eval "echo json_encode( bws_core_blocks_survey_run() );"'
@@ -110,11 +110,15 @@ wsl.exe -d Ubuntu -- bash -lc 'cd ~/wp-litespeed && bin/wp.sh testbed eval "echo
 
 | # | Expectation | Status |
 |---|---|---|
-| CB6.1 | `widgets` reports `registered: 2, unregistered: 0` (the phone and the email tag in the seeded widget) | PASS 2026-10-26 |
+| CB6.1 | `widgets` reports `registered: 2, unregistered: 2` (the phone and the email tag, then the deprecated and the unregistered tag, in the seeded widget) | PASS 2026-10-26 for the registered pair; the unregistered count is not yet measured at v36 |
 | CB6.2 | `core/table` is counted: `registered: 2` (the cells of CB1.4 and CB5.3) | PASS 2026-10-26 |
 | CB6.3 | The widget's tags are also counted under `core/paragraph`, merged with the page and pattern rows | PASS 2026-10-26 |
 | CB6.4 | Blocks that are not enabled are counted too: `core/verse` 1 and `core/preformatted` 1 (CB1.6, CB1.7), which is what the Save prompt needs to warn about | PASS 2026-10-26 |
 | CB6.5 | Each cell names its tags with how many times each was found, split into `registered_tags` and `unregistered_tags`: `core/table` is `{"text":1,"table":2}` and none unregistered; `core/paragraph` lists `post_custom_datetime_single` (the pattern's legacy tag) under `unregistered_tags`; the two counts equal the sums of their tag lists | PASS 2026-10-27 (JSON from the command above; the settings-page rendering, wrapping and chevron were looked at in a browser on hargrave.test 2026-10-27, and `core-block-picker-test.php` pins the markup) |
+| CB6.6 | Visible on `/matrix-core-blocks/`: a selected `core/paragraph` holding `{{post_custom_datetime_single date_time_field:event_midnight}}` (the widget's deprecated tag) prints the tag as typed | not yet run (blueprint v36) |
+| CB6.7 | Visible on the same page: a selected `core/paragraph` holding `{{bws_fixture_unregistered key:role}}` (the widget's unregistered tag) prints the tag as typed | not yet run (blueprint v36) |
+| CB6.8 | Scan Content in the Migration Tool lists the seeded widget as "Block widget #9001", placement "Inactive", an edit link to `widgets.php`, the deprecated tag `post_custom_datetime_single` in the row, and no revision note and no Migrate button (the widget write is a later ticket). Through `wp eval`, `TagConverter::scan()` returns a row with `kind: "widget"`, `widget_number: 9001`, `row_id: "widget:9001"` | not yet run (blueprint v36) |
+| CB6.9 | After that scan the scan allowlist (`bws_dynamic_tags_scan_allowlist`) lists `post_custom_datetime_single`, and the survey output (CB6.1 to CB6.5) is unchanged apart from the two added strings: the widget rows are the same strings through `bws_block_widget_rows()` | not yet run (blueprint v36) |
 
 Measured 2026-10-26 on the seeded testbed: `core/paragraph` 12 registered and 1 unregistered (the `wp_block` pattern's legacy tag), `core/heading` 3, `core/button` 8 (a tag in the text and in the `href` count separately), `core/list-item` 1, `core/table` 2, `generateblocks/text` 847 and 13, `generateblocks/media` 5. The counts move whenever any fixture page does; the rows above assert reach, not the totals.
 

@@ -9,9 +9,9 @@
  * Three parts: the pure WALK over one post-content string (it takes the string and a
  * registered-name test and knows nothing of WordPress storage), the pure helpers around its
  * result, and the WordPress-side RUNNER that feeds it every post and block widget and answers
- * the AJAX call. FW-155's converter is meant to read block types through the same walk; FW-73
- * reaches the same two sources the runner enumerates (every post, then every block widget), and
- * whether they share that enumeration is decided when FW-73 is built.
+ * the AJAX call. FW-155's converter is meant to read block types through the same walk. The
+ * block widgets are enumerated by bws_block_widget_rows(), which the Migration Tool's scan
+ * shares (FW-73); the post enumeration is the runner's own, because it batches by ID cursor.
  *
  * @package BWS_Dynamic_Tags
  * @since Unreleased
@@ -159,6 +159,58 @@ function bws_core_blocks_survey_last(): ?array {
 }
 
 /**
+ * Every block widget instance: instance number => the block markup it stores.
+ *
+ * THE ONE ENUMERATION OF BLOCK WIDGETS. The survey runner counts over it and the Migration
+ * Tool's scan lists from it, so what counts as an instance is stated once. Posts are NOT
+ * shared the same way: the survey batches 200 posts by ID cursor on a bare `{{` LIKE, while
+ * TagConverter::scan() runs one query with a LIKE per deprecated name.
+ *
+ * An instance is a numeric key whose value is an array holding a string `content`; the
+ * `_multiwidget` marker and anything malformed are not instances. Classic Text and HTML widgets
+ * live in other options and are out of scope.
+ *
+ * @since Unreleased
+ * @return array<int, string> Ascending by instance number.
+ */
+function bws_block_widget_rows(): array {
+	$rows = array();
+	foreach ( (array) get_option( 'widget_block', array() ) as $number => $widget ) {
+		if ( is_int( $number ) && is_array( $widget ) && isset( $widget['content'] ) && is_string( $widget['content'] ) ) {
+			$rows[ $number ] = $widget['content'];
+		}
+	}
+	ksort( $rows );
+	return $rows;
+}
+
+/**
+ * Which active sidebar holds each block widget instance.
+ *
+ * Instances in the inactive area, in an orphaned area, or in no sidebar at all are absent from
+ * the result; the caller calls those "Inactive". Widgets sit in `sidebars_widgets` as
+ * `block-<number>`, and an instance placed in two sidebars reports the first.
+ *
+ * @since Unreleased
+ * @param array $sidebars_widgets wp_get_sidebars_widgets(): sidebar id => widget ids.
+ * @return array<int, string> Instance number => sidebar id.
+ */
+function bws_block_widget_placements( array $sidebars_widgets ): array {
+	$out = array();
+	foreach ( $sidebars_widgets as $sidebar => $ids ) {
+		if ( ! is_array( $ids ) || 'wp_inactive_widgets' === $sidebar || 0 === strpos( (string) $sidebar, 'orphaned_widgets' ) ) {
+			continue;
+		}
+		foreach ( $ids as $id ) {
+			if ( is_string( $id ) && 1 === preg_match( '/^block-(\d+)$/', $id, $m ) && ! isset( $out[ (int) $m[1] ] ) ) {
+				$out[ (int) $m[1] ] = (string) $sidebar;
+			}
+		}
+	}
+	return $out;
+}
+
+/**
  * Walk the whole site: every post of every type (drafts in; revisions, trash and auto-drafts out),
  * which takes in reusable blocks, templates, template parts and GB Pro patterns, then the block
  * widgets. Classic Text and HTML widgets never pass through block rendering and are out.
@@ -195,10 +247,8 @@ function bws_core_blocks_survey_run(): array {
 	} while ( count( (array) $rows ) === 200 );
 
 	$widgets = array();
-	foreach ( (array) get_option( 'widget_block', array() ) as $widget ) {
-		if ( is_array( $widget ) && isset( $widget['content'] ) && is_string( $widget['content'] ) ) {
-			$widgets = bws_core_blocks_survey_merge( $widgets, bws_core_blocks_survey_walk( $widget['content'], $registered ) );
-		}
+	foreach ( bws_block_widget_rows() as $content ) {
+		$widgets = bws_core_blocks_survey_merge( $widgets, bws_core_blocks_survey_walk( $content, $registered ) );
 	}
 	$widget_sum = array( 'registered' => 0, 'unregistered' => 0 );
 	foreach ( $widgets as $cell ) {

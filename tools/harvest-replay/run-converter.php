@@ -178,6 +178,10 @@ $failed    = array();
 $declined_names = array();
 
 foreach ( $scan as $row ) {
+	// Block widget rows (FW-73) have no post id and nothing writes them yet; the run is posts only.
+	if ( 'widget' === ( $row['kind'] ?? 'post' ) ) {
+		continue;
+	}
 	$id = (int) $row['post_id'];
 	try {
 		$result = \BWS\DynamicTags\Admin\TagConverter::migrate_post( $id );
@@ -262,6 +266,9 @@ if ( class_exists( '\BWS\DynamicTags\Admin\PatternCache' ) ) {
 $rescan    = \BWS\DynamicTags\Admin\TagConverter::scan();
 $remaining = 0;
 foreach ( $rescan as $row ) {
+	if ( 'widget' === ( $row['kind'] ?? 'post' ) ) {
+		continue; // Not migrated by this run, so not a disagreement.
+	}
 	foreach ( (array) ( $row['deprecated_tags'] ?? array() ) as $d ) {
 		if ( 'convert' === ( $d['status'] ?? 'convert' ) ) {
 			$remaining++;

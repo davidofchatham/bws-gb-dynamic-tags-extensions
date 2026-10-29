@@ -318,7 +318,8 @@
 
 		posts.forEach( function ( post ) {
 			var row  = document.createElement( 'tr' );
-			row.setAttribute( 'data-post-id', post.post_id );
+			var isWidget = post.kind === 'widget';
+			row.setAttribute( 'data-post-id', isWidget ? post.row_id : post.post_id );
 
 			// Issues list — ONLY WHAT THIS ROW'S MIGRATE BUTTON WILL CONVERT. A declined or
 			// skipped tag in the same post is reported in its own channel, with its own
@@ -338,7 +339,7 @@
 
 			// No-revision warning.
 			var revWarn = '';
-			if ( ! post.has_revision_support ) {
+			if ( ! isWidget && ! post.has_revision_support ) {
 				revWarn = '<div class="bws-no-revision"><span class="gp-status-dot gp-status-dot--warn" aria-hidden="true"></span> ' + esc( i18n.noRevision || 'No undo' ) + '</div>';
 			}
 
@@ -350,19 +351,29 @@
 			var selectLabel  = postLabel( i18n.selectPost, 'Select %s' );
 			var migrateLabel = postLabel( i18n.migratePost, 'Migrate %s' );
 
+			// A WIDGET ROW IS REPORT-ONLY until the widget write exists: no checkbox, no
+			// Migrate button, so the post-id based bulk and per-row paths can never be handed
+			// a widget. Its Type cell names the sidebar, or "Inactive".
+			var typeCell = isWidget
+				? esc( post.placement )
+				: '<code>' + esc( post.post_type ) + '</code>';
+
 			row.innerHTML =
-				'<td class="bws-cb-col"><input type="checkbox" class="bws-row-cb" value="' + esc( post.post_id ) + '" aria-label="' + esc( selectLabel ) + '" /></td>' +
+				'<td class="bws-cb-col">' + ( isWidget ? '' :
+					'<input type="checkbox" class="bws-row-cb" value="' + esc( post.post_id ) + '" aria-label="' + esc( selectLabel ) + '" />' ) + '</td>' +
 				'<td><a href="' + esc( post.edit_url ) + '" target="_blank" rel="noopener">' + esc( post.post_title ) + '</a>' + revWarn + '</td>' +
-				'<td><code>' + esc( post.post_type ) + '</code></td>' +
+				'<td>' + typeCell + '</td>' +
 				'<td>' + issueHtml + '</td>' +
-				'<td>' +
+				'<td>' + ( isWidget ? '' :
 					'<button type="button" class="button bws-migrate-one-btn" data-post-id="' + esc( post.post_id ) + '" aria-label="' + esc( migrateLabel ) + '">' +
 						'Migrate' +
 					'</button>' +
-					'<span class="bws-row-status"></span>' +
+					'<span class="bws-row-status"></span>' ) +
 				'</td>';
 
 			tbody.appendChild( row );
+
+			if ( isWidget ) { return; }
 
 			// Per-row migrate button.
 			row.querySelector( '.bws-migrate-one-btn' ).addEventListener( 'click', function () {
