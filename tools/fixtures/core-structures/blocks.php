@@ -2569,12 +2569,14 @@ function bws_fixture_page_content_matrix_core_blocks() {
 		$row( 'CB5.8 core/button, Required to render OFF (-> the button stays with NO TEXT: an empty link inside the buttons wrapper)', $button( $tbl_optional, '#' ) ),
 	) );
 
-	// CB6 - the two strings the seeded block widget also holds (manifest `widget_block`, FW-73):
-	// the widget itself renders nowhere, so these are its visible twins. Neither name is
-	// registered, so a selected block prints each as typed.
-	$sections[] = bws_fixture_gb_section( 'Survey CB6 - the deprecated and the unregistered tag the seeded block widget holds, in a SELECTED core block: neither is registered, so both print as typed (FW-73)', array(
+	// CB6 - the three strings the seeded block widget also holds (manifest `widget_block`, FW-73):
+	// the widget itself renders nowhere, so these are its visible twins. The first two names are
+	// not registered, so a selected block prints each as typed; the third is a registered tag
+	// carrying a legacy option, so it prints its value.
+	$sections[] = bws_fixture_gb_section( 'Survey CB6 - the three tags the seeded block widget holds, in a SELECTED core block: the deprecated and the unregistered name print as typed, the registered tag with a legacy option prints its value (FW-73)', array(
 		$row( 'CB6.6 core/paragraph, a deprecated tag name (-> the tag printed literally, as typed)', $paragraph( '{{post_custom_datetime_single date_time_field:event_midnight}}' ) ),
 		$row( 'CB6.7 core/paragraph, an unregistered tag name (-> the tag printed literally, as typed)', $paragraph( '{{bws_fixture_unregistered key:role}}' ) ),
+		$row( 'CB6.16 core/paragraph, a registered tag carrying the legacy option fallback_text (-> Varsity; the legacy option changes nothing here, so a migrate must not change this line)', $paragraph( 'Team: {{text src:site|fixed:Varsity|fallback_text:none}}' ) ),
 	) );
 
 	return implode( "\n\n", $sections );

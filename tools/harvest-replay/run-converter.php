@@ -285,7 +285,7 @@ if ( class_exists( '\BWS\DynamicTags\Admin\PatternCache' ) ) {
 // REPORT/RUN AGREEMENT — a report that outlives its run means the two halves disagree about
 // what a migration is.
 //
-// CONVERTIBLE WORK ONLY. `scan()` classifies every stored string into convert / declined /
+// MIGRATABLE WORK ONLY. `scan()` classifies every stored string into convert / declined /
 // skipped, and the last two are reported BECAUSE they survive — a declined tag still being
 // there after the run is the guard working, not the two halves disagreeing. Counting any
 // non-empty `deprecated_tags` would fire this warning on every default-guard run from now on,
@@ -301,7 +301,7 @@ foreach ( $rescan as $row ) {
 	}
 }
 if ( $remaining ) {
-	WP_CLI::warning( "a second scan still reports {$remaining} convertible row(s) — report and run disagree" );
+	WP_CLI::warning( "a second scan still reports {$remaining} migratable row(s) — report and run disagree" );
 }
 
 // ---------------------------------------------------------------------------

@@ -41,7 +41,7 @@ const BWS_CORE_BLOCKS_SURVEY_OPTION = 'bws_dynamic_tags_core_block_survey';
  * markup is whatever WordPress's parser makes of it.
  *
  * `category` is the BASE category the survey counts: `registered` (Handled by GB) or
- * `unregistered` (Not handled by GB). `convertible` is independent of it: true only when
+ * `unregistered` (Not handled by GB). `migratable` is independent of it: true only when
  * `$classify` answers `convert`, so a deprecated name still registered and the same name after
  * an unregister are both flagged and sit in different categories. The walk holds no rule of its
  * own for the flag; see bws_core_blocks_survey_classifier(). A declined or skipped occurrence
@@ -56,7 +56,7 @@ const BWS_CORE_BLOCKS_SURVEY_OPTION = 'bws_dynamic_tags_core_block_survey';
  * @param callable      $is_registered Given a tag name, whether GB has it registered.
  * @param array         $container     `{kind: post|widget, id: int}`, stamped on every record.
  * @param callable|null $classify      Given (tag name, stored string), the classifier's status string or null when the name is not its business.
- * @return array<int, array{tag: string, category: string, convertible: bool, block_name: string, container: array, ordinal: int, stored: string}>
+ * @return array<int, array{tag: string, category: string, migratable: bool, block_name: string, container: array, ordinal: int, stored: string}>
  */
 function bws_core_blocks_survey_walk( string $content, callable $is_registered, array $container, ?callable $classify = null ): array {
 	if ( false === strpos( $content, '{{' ) ) {
@@ -83,7 +83,7 @@ function bws_core_blocks_survey_walk_blocks( array $blocks, callable $is_registe
 					$out[] = array(
 						'tag'         => $m[1],
 						'category'    => $is_registered( $m[1] ) ? 'registered' : 'unregistered',
-						'convertible' => null !== $classify && 'convert' === $classify( $m[1], $m[0] ),
+						'migratable'  => null !== $classify && 'convert' === $classify( $m[1], $m[0] ),
 						'block_name'  => $name,
 						'container'   => $container,
 						'ordinal'     => $seen[ $name ],
@@ -118,33 +118,29 @@ function bws_core_blocks_survey_count( array $records ): array {
 }
 
 /**
- * An English ordinal for a 1-based position: 1st, 2nd, 3rd, 4th, 11th, 21st.
- *
- * @since Unreleased
- */
-function bws_ordinal_label( int $n ): string {
-	$last_two = $n % 100;
-	$suffix   = ( $last_two >= 11 && $last_two <= 13 ) ? 'th' : ( array( 1 => 'st', 2 => 'nd', 3 => 'rd' )[ $n % 10 ] ?? 'th' );
-	return $n . $suffix;
-}
-
-/**
- * How many walk records the converter would convert: the Convertible total on the scan status line.
+ * How many walk records the Migration Tool would update: the migratable total on the scan status line.
  *
  * @since Unreleased
  * @param array $records bws_core_blocks_survey_walk() records.
  */
-function bws_core_blocks_survey_convertible_count( array $records ): int {
-	return count( array_filter( array_column( $records, 'convertible' ) ) );
+function bws_core_blocks_survey_migratable_count( array $records ): int {
+	return count( array_filter( array_column( $records, 'migratable' ) ) );
 }
 
 /**
- * The walk's `$classify` callable: TagConverter::classify_tag()'s status for a deprecated tag name.
+ * The walk's `$classify` callable, and THE one source of `migratable`: the scan status line's
+ * total and the Migration Tool's "Found in:" list both read it, so they cannot disagree.
  *
- * classify_tag() is THE owner of what the Migration Tool would convert, and it answers
- * `convert` for any name whose transform changes nothing, so it is asked only of the names the
- * converter loops over (MigrationRegistry::get_deprecated_tag_names()); every other name gets
- * null. Null as well when the converter is not loadable.
+ * A stored tag is migratable when the Migration Tool would update it: TagConverter::classify_tag()
+ * answers `convert` for a deprecated tag name, or an option migration matches the stored string
+ * (TagConverter::first_matching_option_entry(), over MigrationRegistry's match rule).
+ * classify_tag() answers `convert` for any name whose transform changes nothing, so it is asked
+ * only of the names the converter loops over (MigrationRegistry::get_deprecated_tag_names());
+ * the option check is asked only of a name an option migration is registered for. Every other
+ * name gets null. Null as well when the converter is not loadable.
+ *
+ * `migratable` is the deprecated class. "Convertible" is reserved for FW-31 (GB core tags into
+ * ours) and FW-155 (snippet tags) and is not built.
  *
  * @since Unreleased
  * @return callable|null (string $tag, string $stored): ?string
@@ -156,7 +152,14 @@ function bws_core_blocks_survey_classifier(): ?callable {
 		return null;
 	}
 	$deprecated = array_flip( $registry::get_deprecated_tag_names() );
-	return static fn( string $tag, string $stored ): ?string => isset( $deprecated[ $tag ] ) ? $converter::classify_tag( $tag, $stored )['status'] : null;
+	$by_tag     = $registry::get_option_migrations_by_tag();
+	return static function ( string $tag, string $stored ) use ( $deprecated, $by_tag, $converter ): ?string {
+		$status = isset( $deprecated[ $tag ] ) ? $converter::classify_tag( $tag, $stored )['status'] : null;
+		if ( 'convert' !== $status && isset( $by_tag[ $tag ] ) && null !== $converter::first_matching_option_entry( $stored, $by_tag[ $tag ] ) ) {
+			return 'convert';
+		}
+		return $status;
+	};
 }
 
 /**
@@ -319,7 +322,7 @@ function bws_block_widget_placements( array $sidebars_widgets ): array {
  * Reads posts in ID-ordered batches, so memory stays flat on a large site.
  *
  * @since Unreleased
- * @return array{blocks: array, widgets: array{registered: int, unregistered: int}, convertible: int} `convertible` is the number of occurrences the converter would convert (the status line's "K convertible").
+ * @return array{blocks: array, widgets: array{registered: int, unregistered: int}, migratable: int} `migratable` is the number of occurrences the Migration Tool would update (the status line's "K need updating").
  */
 function bws_core_blocks_survey_run(): array {
 	global $wpdb;
@@ -327,9 +330,9 @@ function bws_core_blocks_survey_run(): array {
 	$tags       = class_exists( 'GenerateBlocks_Register_Dynamic_Tag' ) ? \GenerateBlocks_Register_Dynamic_Tag::get_tags() : array();
 	$registered = static fn( string $name ): bool => isset( $tags[ $name ] );
 	$classify   = bws_core_blocks_survey_classifier();
-	$total       = array();
-	$convertible = 0;
-	$last_id     = 0;
+	$total      = array();
+	$migratable = 0;
+	$last_id    = 0;
 	$like       = '%' . $wpdb->esc_like( '{{' ) . '%';
 
 	do {
@@ -345,17 +348,17 @@ function bws_core_blocks_survey_run(): array {
 		);
 		foreach ( (array) $rows as $row ) {
 			$last_id = (int) $row->ID;
-			$records      = bws_core_blocks_survey_walk( (string) $row->post_content, $registered, array( 'kind' => 'post', 'id' => $last_id ), $classify );
-			$total        = bws_core_blocks_survey_merge( $total, bws_core_blocks_survey_count( $records ) );
-			$convertible += bws_core_blocks_survey_convertible_count( $records );
+			$records     = bws_core_blocks_survey_walk( (string) $row->post_content, $registered, array( 'kind' => 'post', 'id' => $last_id ), $classify );
+			$total       = bws_core_blocks_survey_merge( $total, bws_core_blocks_survey_count( $records ) );
+			$migratable += bws_core_blocks_survey_migratable_count( $records );
 		}
 	} while ( count( (array) $rows ) === 200 );
 
 	$widgets = array();
 	foreach ( bws_block_widget_rows() as $number => $content ) {
-		$records      = bws_core_blocks_survey_walk( $content, $registered, array( 'kind' => 'widget', 'id' => $number ), $classify );
-		$widgets      = bws_core_blocks_survey_merge( $widgets, bws_core_blocks_survey_count( $records ) );
-		$convertible += bws_core_blocks_survey_convertible_count( $records );
+		$records     = bws_core_blocks_survey_walk( $content, $registered, array( 'kind' => 'widget', 'id' => $number ), $classify );
+		$widgets     = bws_core_blocks_survey_merge( $widgets, bws_core_blocks_survey_count( $records ) );
+		$migratable += bws_core_blocks_survey_migratable_count( $records );
 	}
 	$widget_sum = array( 'registered' => 0, 'unregistered' => 0 );
 	foreach ( $widgets as $cell ) {
@@ -366,14 +369,14 @@ function bws_core_blocks_survey_run(): array {
 	return array(
 		'blocks'      => bws_core_blocks_survey_merge( $total, $widgets ),
 		'widgets'     => $widget_sum,
-		'convertible' => $convertible,
+		'migratable'  => $migratable,
 	);
 }
 
 /**
  * AJAX: run the scan, store it, hand back what the page needs to update itself.
  *
- * Response: `status_html` (the scan status line, totals included, with the Convertible link when K > 0), `rows` (block name => { registered, unregistered,
+ * Response: `status_html` (the scan status line, totals included, with the Migration Tool link when K > 0), `rows` (block name => { registered, unregistered,
  * registered_html, unregistered_html }, the last two being each Handled by GB or Not handled by GB cell's content: count and tag list;
  * only blocks with a count; the page shows 0 and no tag list in every other row).
  *

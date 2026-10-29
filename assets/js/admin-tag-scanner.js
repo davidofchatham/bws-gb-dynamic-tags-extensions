@@ -102,16 +102,16 @@
 	 *
 	 * A deprecated tag counts only when its verdict is `convert`; an option migration always
 	 * counts, because those never reach either channel. `status` is absent on a response from
-	 * a pre-1.20.0 build, and an absent verdict reads as convertible — which is exactly what
+	 * a pre-1.20.0 build, and an absent verdict reads as migratable — which is exactly what
 	 * that build meant by listing the row.
 	 */
-	function hasConvertibleWork( post ) {
+	function hasMigratableWork( post ) {
 		var tags = post.deprecated_tags || [];
-		var convertible = tags.some( function ( t ) {
+		var migratable = tags.some( function ( t ) {
 			return ! t.status || t.status === 'convert';
 		} );
 
-		return convertible || ( post.option_migrations || [] ).length > 0;
+		return migratable || ( post.option_migrations || [] ).length > 0;
 	}
 
 	if ( scanBtn ) {
@@ -139,7 +139,7 @@
 
 					// THE THREE CHANNELS RENDER BEFORE THE ZERO-RESULT RETURN, for the same
 					// reason the pattern-cache line does: a site whose every finding is a
-					// skip or a decline has results worth printing and no convertible post,
+					// skip or a decline has results worth printing and no migratable post,
 					// and leaving this below the return would report "no issues" over a list
 					// of tags we deliberately left alone.
 					renderChannels( data.channels || {} );
@@ -154,15 +154,15 @@
 					// skipped would offer work that cannot happen — the run would report "no
 					// changes needed" and the owner would have no idea why. Those posts are
 					// accounted for in the two channels below instead.
-					var convertible = scanResults.filter( hasConvertibleWork );
+					var migratable = scanResults.filter( hasMigratableWork );
 
-					if ( convertible.length === 0 ) {
+					if ( migratable.length === 0 ) {
 						scanStatus.textContent = i18n.nothingToConvert || 'Nothing to convert.';
 						return;
 					}
 
-					scanStatus.textContent = convertible.length + ' post' + ( convertible.length === 1 ? '' : 's' ) + ' found.';
-					renderResults( convertible );
+					scanStatus.textContent = migratable.length + ' post' + ( migratable.length === 1 ? '' : 's' ) + ' found.';
+					renderResults( migratable );
 					resultsWrap.style.display = 'block';
 				},
 				function ( err ) {

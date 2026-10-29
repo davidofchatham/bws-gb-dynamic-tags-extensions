@@ -951,7 +951,7 @@ assert_same( 'a free name records no collision', false, isset( bws_gb_tag_name_c
 //
 // FW-129, 1.21.0. The two halves are asserted together because the whole claim that this
 // removal is a MINOR rests on them being separable: an author's stored `{{term_text}}`
-// stops resolving to a tag (half one) and stays convertible by the Migration Tool (half
+// stops resolving to a tag (half one) and stays migratable by the Migration Tool (half
 // two). Either half alone passes while the release is wrong in the way that matters.
 //
 // The bootstrap above runs `bws_register_modifier_root_migrations()` and no constructor

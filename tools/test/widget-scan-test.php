@@ -6,9 +6,9 @@
  *   - bws_block_widget_rows()          the ONE enumeration of block widget instances (number =>
  *                                      content), shared by the core-block survey runner and the scan.
  *   - bws_block_widget_placements()    which active sidebar holds each instance.
- *   - TagConverter::scan_widgets()     one scan row per instance that holds a convertible tag.
+ *   - TagConverter::scan_widgets()     one scan row per instance that holds a migratable tag.
  * Plus the allowlist rebuild, which must take a widget row unchanged, and the LOCATIONS a scan row
- * carries (FW-73 ticket 05): block type and ordinal, read off the located walk.
+ * carries (FW-73 ticket 05): block type and position, read off the located walk.
  *
  * REQUIRES THE REAL WORDPRESS BLOCK PARSER, because scan rows now ask the located walk (see
  * located-walk-test.php for the $BWS_WP_CORE_DIR rule); it FAILS rather than skips when it is missing.
@@ -143,7 +143,7 @@ $rows = TagConverter::scan_widgets(
 	array( 3 => 'Primary Sidebar' )
 );
 
-assert_eq( 'WS3.1 one row per instance holding a convertible tag; a clean instance has none', array( 3, 9001 ), array_column( $rows, 'widget_number' ) );
+assert_eq( 'WS3.1 one row per instance holding a migratable tag; a clean instance has none', array( 3, 9001 ), array_column( $rows, 'widget_number' ) );
 assert_eq( 'WS3.2 every row carries the widget discriminator', array( 'widget', 'widget' ), array_column( $rows, 'kind' ) );
 assert_eq( 'WS3.3 label', 'Block widget #3', $rows[0]['post_title'] );
 assert_eq( 'WS3.4 an assigned instance shows its sidebar', 'Primary Sidebar', $rows[0]['placement'] );
@@ -181,7 +181,7 @@ $survey = file_get_contents( $root . '/includes/helpers/core-block-survey.php' )
 assert_eq( 'WS5.1 the runner calls bws_block_widget_rows()', true, 1 === preg_match( '/foreach \( bws_block_widget_rows\(\)/', $survey ) );
 assert_eq( 'WS5.2 and the option is read in exactly one place, the enumeration itself', 1, substr_count( $survey, "get_option( 'widget_block'" ) );
 
-echo "\nWS6 - a scan row says where to look: block type and ordinal\n";
+echo "\nWS6 - a scan row says where to look: block type and position\n";
 
 $many = '<!-- wp:group --><div>'
 	. '<!-- wp:paragraph --><p>clean</p><!-- /wp:paragraph -->'
@@ -189,17 +189,15 @@ $many = '<!-- wp:group --><div>'
 	. '<!-- wp:heading --><h2>{{ws_base legacy:v}}</h2><!-- /wp:heading -->'
 	. '</div><!-- /wp:group -->';
 $loc = TagConverter::scan_widgets( array( 5 => $many ), array() )[0]['locations'];
-assert_eq( 'WS6.1 one entry per convertible occurrence, in document order; the live tag beside it has none',
+assert_eq( 'WS6.1 one entry per migratable occurrence, in document order; the live tag beside it has none',
 	array(
-		array( 'label' => '2nd core/paragraph', 'stored' => '{{ws_old use:x}}' ),
-		array( 'label' => '1st core/heading', 'stored' => '{{ws_base legacy:v}}' ),
+		array( 'label' => 'core/paragraph #2', 'stored' => '{{ws_old use:x}}' ),
+		array( 'label' => 'core/heading #1', 'stored' => '{{ws_base legacy:v}}' ),
 	),
 	$loc );
-assert_eq( 'WS6.2 an option-migration occurrence is located too', '1st core/heading', $loc[1]['label'] );
+assert_eq( 'WS6.2 an option-migration occurrence is located too', 'core/heading #1', $loc[1]['label'] );
 assert_eq( 'WS6.3 a tag in text outside any block has no location (and the row is still listed)', array( 8, array() ),
 	array( 8, TagConverter::scan_widgets( array( 8 => '{{ws_old}}' ), array() )[0]['locations'] ) );
-assert_eq( 'WS6.4 ordinal suffixes', array( '1st', '2nd', '3rd', '4th', '11th', '12th', '13th', '21st', '22nd', '112th' ),
-	array_map( 'bws_ordinal_label', array( 1, 2, 3, 4, 11, 12, 13, 21, 22, 112 ) ) );
 
 echo "\n";
 if ( $failures ) {

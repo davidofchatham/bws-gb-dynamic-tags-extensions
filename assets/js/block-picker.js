@@ -403,11 +403,11 @@
 			boxes.forEach( function ( b ) { b.addEventListener( 'change', hideConfirm ); } );
 		}
 
-		// The "K convertible" link in the status line (spec decision 10): the Migration Tool's scan is
+		// The "K need updating with the Migration Tool" link in the status line (spec decision 10): the Migration Tool's scan is
 		// its own on-demand run, so there is no filtered view to open. Scroll to its loaded results,
 		// else to its Scan button. Delegated, because a scan replaces the status line's markup.
 		status.addEventListener( 'click', function ( e ) {
-			if ( ! e.target.closest || ! e.target.closest( '.bws-block-picker__convertible' ) ) {
+			if ( ! e.target.closest || ! e.target.closest( '.bws-block-picker__migratable' ) ) {
 				return;
 			}
 			var results = document.getElementById( 'bws-scan-results' );
@@ -452,7 +452,7 @@
 						} );
 						caption.textContent = cfg.strings.caption;
 						applySort();
-						// Server-built and escaped (bws_core_blocks_survey_status_html()): the sentence, plus the Convertible link when there is one.
+						// Server-built and escaped (bws_core_blocks_survey_status_html()): the sentence, plus the Migration Tool link when there is one.
 						status.innerHTML = res.data.status_html;
 						scan.classList.replace( 'gp-button--primary', 'gp-button--quiet' );
 						picker.setAttribute( 'data-scanned', '1' );

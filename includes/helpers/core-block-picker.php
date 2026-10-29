@@ -90,8 +90,9 @@ function bws_core_blocks_picker_strings(): array {
 		// The frame; each count's phrase is pluralized in bws_core_blocks_survey_status().
 		/* translators: 1: "N tags handled by GenerateBlocks", 2: "M tags it does not handle", 3: date and time of the scan. */
 		'survey_status'      => __( 'Found in the blocks below as of %3$s: %1$s and %2$s.', 'generateblocks' ),
-		/* translators: %d: how many tag occurrences the Migration Tool would convert, found by the scan. */
-		'survey_convertible' => __( '%d convertible in the Migration Tool', 'generateblocks' ),
+		// The frame when the scan found tags the Migration Tool would update; the clause is pluralized in bws_core_blocks_survey_status().
+		/* translators: 1: "N tags handled by GenerateBlocks", 2: "M tags it does not handle", 3: date and time of the scan, 4: "K need updating with the Migration Tool". */
+		'survey_status_migratable' => __( 'Found in the blocks below as of %3$s: %1$s and %2$s; %4$s.', 'generateblocks' ),
 		'survey_desc'        => __( 'A scan checks all of your content (posts, pages, templates, patterns and block widgets) for `{{…}}` tags in every block in this list, enabled or not, and lists the tags each block holds, with how many of each, split by whether they are registered with GenerateBlocks. Blocks added only by a plugin\'s editor script are not listed.', 'generateblocks' ),
 		// Read after a count, as screen reader text: "5 tag names", then the details control's own "collapsed".
 		'tags_toggle'        => __( 'tag names', 'generateblocks' ),
@@ -284,18 +285,24 @@ function bws_core_blocks_survey_count_html( ?int $count, array $text, array $tag
 }
 
 /**
- * The scan status line: the totals and when they were found, or "No scan has been run yet."
+ * The scan status line: the totals, when they were found and, when the scan found tags the
+ * Migration Tool would update, how many; or "No scan has been run yet."
+ *
+ * The clause ("3 need updating with the Migration Tool") is left out when the count is 0 or the
+ * stored scan predates the count (spec decision 10).
  *
  * @since Unreleased
  * @param array|null    $survey The last scan (bws_core_blocks_survey_last()), or null before the first.
  * @param array[]       $groups bws_core_blocks_picker_rows(); the totals are the sums over the rows in them.
  * @param array         $text   bws_core_blocks_picker_strings().
  * @param callable|null $format Time formatter (tests); defaults to the site's date and time format.
- * @return string Plain text.
+ * @param bool          $html   Return escaped markup with the clause as a link to the Migration Tool section, not plain text. The link is a plain anchor so it works without script; block-picker.js refines where it scrolls.
+ * @return string
  */
-function bws_core_blocks_survey_status( ?array $survey, array $groups, array $text, ?callable $format = null ): string {
+function bws_core_blocks_survey_status( ?array $survey, array $groups, array $text, ?callable $format = null, bool $html = false ): string {
+	$esc = $html ? 'esc_html' : static fn( string $s ): string => $s;
 	if ( null === $survey ) {
-		return $text['survey_none_yet'];
+		return $esc( $text['survey_none_yet'] );
 	}
 	$known   = 0;
 	$unknown = 0;
@@ -306,37 +313,38 @@ function bws_core_blocks_survey_status( ?array $survey, array $groups, array $te
 		}
 	}
 	$when = $format ? $format( $survey['time'] ) : wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $survey['time'] );
-	return sprintf(
-		$text['survey_status'],
+	$args = array(
 		/* translators: %d: number of tags. */
-		sprintf( _n( '%d tag handled by GenerateBlocks', '%d tags handled by GenerateBlocks', $known, 'generateblocks' ), $known ),
+		$esc( sprintf( _n( '%d tag handled by GenerateBlocks', '%d tags handled by GenerateBlocks', $known, 'generateblocks' ), $known ) ),
 		/* translators: %d: number of tags. */
-		sprintf( _n( '%d tag it does not handle', '%d tags it does not handle', $unknown, 'generateblocks' ), $unknown ),
-		$when
+		$esc( sprintf( _n( '%d tag it does not handle', '%d tags it does not handle', $unknown, 'generateblocks' ), $unknown ) ),
+		$esc( $when ),
 	);
+	$k = (int) ( $survey['migratable'] ?? 0 );
+	if ( $k < 1 ) {
+		return sprintf( $esc( $text['survey_status'] ), ...$args );
+	}
+	/* translators: %d: how many tag occurrences the Migration Tool would update, found by the scan. */
+	$clause = $esc( sprintf( _n( '%d needs updating with the Migration Tool', '%d need updating with the Migration Tool', $k, 'generateblocks' ), $k ) );
+	if ( $html ) {
+		$clause = '<a class="bws-block-picker__migratable" href="#bws-migration-tool">' . $clause . '</a>';
+	}
+	$args[] = $clause;
+	return sprintf( $esc( $text['survey_status_migratable'] ), ...$args );
 }
 
 /**
- * The status line as markup: the status sentence, then, when the scan found tags the Migration
- * Tool would convert, a link to that section saying how many (spec decision 10).
- *
- * The clause is absent when the count is 0 or the stored scan predates the count. The link is a
- * plain anchor so it works without script; block-picker.js refines where it scrolls.
+ * The status line as escaped markup (see bws_core_blocks_survey_status()).
  *
  * @since Unreleased
  * @param array|null    $survey The last scan, or null before the first.
  * @param array[]       $groups bws_core_blocks_picker_rows().
  * @param array         $text   bws_core_blocks_picker_strings().
  * @param callable|null $format Time formatter (tests).
- * @return string HTML, escaped here.
+ * @return string HTML.
  */
 function bws_core_blocks_survey_status_html( ?array $survey, array $groups, array $text, ?callable $format = null ): string {
-	$html = esc_html( bws_core_blocks_survey_status( $survey, $groups, $text, $format ) );
-	$k    = (int) ( $survey['convertible'] ?? 0 );
-	if ( $k > 0 ) {
-		$html .= ' <a class="bws-block-picker__convertible" href="#bws-migration-tool">' . esc_html( sprintf( $text['survey_convertible'], $k ) ) . '</a>';
-	}
-	return $html;
+	return bws_core_blocks_survey_status( $survey, $groups, $text, $format, true );
 }
 
 /**

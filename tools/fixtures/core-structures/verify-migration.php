@@ -268,6 +268,7 @@ $content = (string) ( $now[9001]['content'] ?? '' );
 $check( 'migrating widget 9001 rewrote it', ! empty( $ran[9001]['changed'] ), 'ran=' . wp_json_encode( $ran ) );
 $check( 'its deprecated tag is gone', false === strpos( $content, '{{post_custom_datetime_single' ), 'content=' . $content );
 $check( 'the registered and the unregistered tags beside it are untouched', false !== strpos( $content, '{{phone key:main_line}}' ) && false !== strpos( $content, '{{email key:contact_email}}' ) && false !== strpos( $content, '{{bws_fixture_unregistered key:role}}' ), 'content=' . $content );
+$check( 'the registered tag carrying a legacy option has it renamed, and keeps its value tag (v37)', false === strpos( $content, 'fallback_text' ) && 1 === preg_match( '/\{\{text [^}]*fixed:Varsity[^}]*fallback:none[^}]*\}\}/', $content ), 'content=' . $content );
 $check( '_multiwidget survives the write', 1 === ( $now['_multiwidget'] ?? null ), 'widget_block keys=' . implode( ',', array_keys( (array) $now ) ) );
 $check( 'a backup exists, so Restore shows', '' !== $tc::widget_backup_line() );
 

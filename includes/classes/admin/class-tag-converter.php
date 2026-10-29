@@ -140,7 +140,7 @@ class TagConverter {
 	}
 
 	/**
-	 * One scan row per block widget instance that holds a convertible tag (FW-73).
+	 * One scan row per block widget instance that holds a migratable tag (FW-73).
 	 *
 	 * The row is a post row's twin: the same `deprecated_tags` / `option_migrations` keys, so
 	 * rebuild_allowlist_from_scan() and report_channels() take it unchanged (a tag only a widget
@@ -205,7 +205,7 @@ class TagConverter {
 	 * @param string  $content              Post content or a widget's block markup.
 	 * @param string[] $tag_names           MigrationRegistry::get_deprecated_tag_names().
 	 * @param array   $option_migration_map MigrationRegistry::get_option_migrations_by_tag().
-	 * @return array{deprecated_tags: array[], option_migrations: array[], locations: array[]} `locations` is a list of { label, stored }, label being "2nd core/paragraph".
+	 * @return array{deprecated_tags: array[], option_migrations: array[], locations: array[]} `locations` is a list of { label, stored }, label being "core/paragraph #2".
 	 */
 	private static function scan_content( string $content, array $tag_names, array $option_migration_map ): array {
 		// Deprecated tag names, each stored string CLASSIFIED into one of the report's
@@ -263,22 +263,17 @@ class TagConverter {
 			}
 		}
 
-		// WHERE TO LOOK (FW-73): one entry per occurrence this row will convert, read off the
-		// located walk, so the block type and ordinal are the survey's and not a second reading.
-		// A tag the walk cannot place (text outside any block, or a block's comment attributes)
-		// has no entry; the row is listed all the same.
+		// WHERE TO LOOK (FW-73): one entry per migratable occurrence, read off the located walk,
+		// so the block type and position are the survey's and not a second reading, and the
+		// scan status line's total counts exactly these (bws_core_blocks_survey_classifier() is
+		// the one source of `migratable`). A tag the walk cannot place (text outside any block,
+		// or a block's comment attributes) has no entry; the row is listed all the same.
 		$locations = array();
-		$walk      = bws_core_blocks_survey_classifier();
-		$classify  = static function ( string $tag, string $stored ) use ( $walk, $option_migration_map ): ?string {
-			if ( null !== $walk && 'convert' === $walk( $tag, $stored ) ) {
-				return 'convert';
-			}
-			return isset( $option_migration_map[ $tag ] ) && null !== self::first_matching_option_entry( $stored, $option_migration_map[ $tag ] ) ? 'convert' : null;
-		};
-		foreach ( bws_core_blocks_survey_walk( $content, static fn(): bool => true, array(), $classify ) as $record ) {
-			if ( $record['convertible'] ) {
+		foreach ( bws_core_blocks_survey_walk( $content, static fn(): bool => true, array(), bws_core_blocks_survey_classifier() ) as $record ) {
+			if ( $record['migratable'] ) {
 				$locations[] = array(
-					'label'  => bws_ordinal_label( $record['ordinal'] ) . ' ' . $record['block_name'],
+					/* translators: 1: block type, such as core/paragraph. 2: its position among blocks of that type, counting from 1, as in the editor's List View. */
+					'label'  => sprintf( __( '%1$s #%2$d', 'generateblocks' ), $record['block_name'], $record['ordinal'] ),
 					'stored' => $record['stored'],
 				);
 			}
@@ -298,12 +293,14 @@ class TagConverter {
 	 * hand-kept copy of it. What the converter REPORTS and what apply_option_migration() RUNS
 	 * must be the same predicate, or the list promises work that never happens.
 	 *
+	 * Public so the survey's classifier can ask it (bws_core_blocks_survey_classifier()).
+	 *
 	 * @since Unreleased
 	 * @param string  $tag_string The stored tag.
 	 * @param array[] $entries    The option migrations registered for its tag.
 	 * @return array|null
 	 */
-	private static function first_matching_option_entry( string $tag_string, array $entries ): ?array {
+	public static function first_matching_option_entry( string $tag_string, array $entries ): ?array {
 		[ , $options ] = MigrationRegistry::parse_tag_string( $tag_string );
 		$option_keys   = array_keys( $options );
 
@@ -337,9 +334,9 @@ class TagConverter {
 	 * output-neutral (D40), which the report states as a line beside the conversion preview
 	 * and not as a second gate. bws_modifier_argless_rewrite() owns the population.
 	 *
-	 * PUBLIC SO THE LOCATED WALK CAN ASK IT (FW-73): the walk's Convertible flag is this
-	 * method's `convert`, read through bws_core_blocks_survey_classifier(); nothing else
-	 * decides it. Ask it only of a deprecated tag name, since a name no entry transforms
+	 * PUBLIC SO THE LOCATED WALK CAN ASK IT (FW-73): the walk's migratable flag is this
+	 * method's `convert` (or an option migration's match), read through
+	 * bws_core_blocks_survey_classifier(); nothing else decides it. Ask it only of a deprecated tag name, since a name no entry transforms
 	 * also comes back `convert` (the no-op case above).
 	 *
 	 * @since 1.20.0
