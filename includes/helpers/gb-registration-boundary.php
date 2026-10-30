@@ -289,8 +289,8 @@ function bws_gb_registration_marker( ?array $ours, ?array $now ): string {
  * reports a name we took, bws_gb_recheck_tag_ownership() a name we were taken off; this
  * reports a name we never claimed. The YIELD ITSELF IS CORRECT AND IS NOT CHANGED BY THIS —
  * the constructor's own AXIS comment owns why standing down is right for its family. What
- * was wrong was that it was silent: `{{term_title}}` is documented as ours, a co-resident
- * plugin registering that name first means our tag does not exist, and until 1.19.0 the only
+ * was wrong was that it was silent: a documented tag of ours is absent whenever a co-resident
+ * plugin registers that name first, and until 1.19.0 the only
  * evidence anywhere was the tag missing from a dropdown.
  *
  * THE REMEDY IS THE THIRD ONE TOO, which is why the outcome is its own value rather than
@@ -362,7 +362,7 @@ function bws_gb_note_tag_yielded( string $tag, $existing = null ): void {
  *
  * AXIS — AN OUTCOME IS THIS REQUEST'S REGISTRATION ORDER, NOT THE SITE'S HISTORY. 'yielded'
  * says a stranger held the name when our pass reached it. It does NOT say that no block ever
- * rendered through our tag: a site that used {{term_title}} and then installed the stranger
+ * rendered through our tag: a site that used our tag and then installed the stranger
  * records 'yielded' on every request afterwards, while its author lived through exactly the
  * takeover 'lost' describes. Nothing in the record separates the two, and nothing can — the
  * evidence that a takeover happened was the PREVIOUS request's registry, and it is gone.
