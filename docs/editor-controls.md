@@ -518,8 +518,9 @@ The FW-56/57 fold migration has two independent triggers reading the SAME rules
 (`bws_fold_from_flat()` in `slot-fold.php`), and they are complementary, not redundant:
 
 - The **converter/scanner** (`includes/helpers/slot-fold-migrate.php`, registered as a
-  `type:'option'` transform per multislot tag) reads `post_content` only, so a block widget is
-  reachable ONLY on tag-modal mount — the scanner never sees it.
+  `type:'option'` transform per multislot tag) reads `post_content` and block widget instances
+  (`TagConverter::scan_widgets()`), so postmeta, other options, classic widgets and theme or plugin
+  files are reachable ONLY on tag-modal mount — the scanner never sees them.
 - The **editor mount migrator** (`assets/js/slot-fold-migrate.js`) is reachable ONLY when a tag
   string is loaded into the modal — a draft nobody opens is reachable ONLY by the scanner.
 
