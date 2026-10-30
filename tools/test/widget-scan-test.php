@@ -49,6 +49,10 @@ if ( ! function_exists( 'apply_filters' ) ) {
 function bws_gb_tag_name_collisions(): array {
 	return array();
 }
+// The live-registry witness the ownership gatherer also asks; nothing is held by another plugin here.
+function bws_gb_registered_tags_now(): array { return array(); }
+function bws_gb_tags_we_registered(): array { return array(); }
+function bws_gb_tag_held_by_other( string $tag, array $registry, array $ours ): ?array { return null; }
 
 $core   = rtrim( (string) ( getenv( 'BWS_WP_CORE_DIR' ) ?: 'D:/Resources/WordPress/wordpress' ), '/\\' );
 $parser = $core . '/wp-includes/class-wp-block-parser.php';

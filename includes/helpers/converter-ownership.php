@@ -33,8 +33,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  *                       entry in the opt-in set produces this.
  *   'name_not_ours'   — another plugin's code answers for this name on this site, so we
  *                       cannot prove the strings in content were authored against our tag.
- *                       Refuse. The AUTHOR ACTION is real: rename or remove the other
- *                       plugin's tag, or opt in.
+ *                       Refuse. The AUTHOR ACTION is real: deactivate the other plugin
+ *                       or opt in.
  *   'unknown_options' — the name is ours today, but the tag carries option keys the target
  *                       template does not accept, which is what content authored against
  *                       somebody else's same-named tag looks like after we took the name
@@ -91,7 +91,7 @@ function bws_converter_ownership_report_lines(): array {
 		'name_not_ours'   => array(
 			/* translators: 1: tag name, 3: the other plugin that registers the name. */
 			'line'   => __( '%1$s is also registered by %3$s on this site, so we cannot tell which plugin these stored tags were written for. They are left exactly as they are.', 'generateblocks' ),
-			'action' => __( 'Rename or remove the other plugin\'s tag, or claim these tags as yours below.', 'generateblocks' ),
+			'action' => __( 'Deactivate the other plugin, or claim these tags as yours below.', 'generateblocks' ),
 		),
 		'unknown_options' => array(
 			/* translators: %1$s: tag name. */
@@ -129,8 +129,14 @@ const BWS_CONVERTER_OWNERSHIP_OPTIN_OPTION = 'bws_dynamic_tags_ownership_optin';
  * on every change, at the one place in this ship that damages content on a wrong answer.
  * bws_converter_rewrite_allowed() below is the thin WordPress-side half that gathers them.
  *
- * AXIS — A NAME IS NOT OURS IFF THE COLLISION RECORD SAYS ANOTHER PLUGIN'S CODE ANSWERS FOR
- * IT. That is 'lost' and 'yielded' together, and 'kept' deliberately excluded. The record
+ * AXIS — A NAME IS NOT OURS IFF ANOTHER PLUGIN'S CODE ANSWERS FOR IT, BY EITHER WITNESS. The
+ * collision record says it for a name we TRIED to register: 'lost' and 'yielded' together,
+ * and 'kept' deliberately excluded. The live registry says it for ANY name
+ * (`$held_by_other`, decided by bws_gb_tag_held_by_other()), which is the only witness for a
+ * name we no longer register at all: a retired tag has no registration to collide, so the
+ * record is silent about it however plainly a co-resident plugin holds the name. Neither
+ * witness sees a plugin that is not active now, so strings written for a since-deactivated
+ * plugin's tag look ours. The record
  * keeps the three apart because the DEVELOPER remedies differ (see
  * bws_gb_tag_name_collisions()), and the settings page already collapses them on the same
  * line this does — but the question here is neither of theirs. It is "could these strings
@@ -161,6 +167,9 @@ const BWS_CONVERTER_OWNERSHIP_OPTIN_OPTION = 'bws_dynamic_tags_ownership_optin';
  * @param string[] $option_keys   Option keys on the tag AFTER the migration entry's own renames.
  * @param string[] $known_options Keys this plugin recognizes. Empty = nothing recognized.
  * @param string[] $opted_in      Tag names the site owner has claimed.
+ * @param bool     $held_by_other Whether GB's live registry holds $tag for a registration that is
+ *                                not ours. Required, never defaulted: a caller that forgets it
+ *                                must fail loudly, not quietly fail open.
  * @return array{rewrite:bool,reason:string,unknown_options:string[]} A member of
  *         BWS_CONVERTER_OWNERSHIP_REASONS, and the offending keys when there are any.
  */
@@ -169,13 +178,14 @@ function bws_converter_tag_ownership(
 	array $collisions,
 	array $option_keys,
 	array $known_options,
-	array $opted_in
+	array $opted_in,
+	bool $held_by_other
 ): array {
 	$outcome = (string) ( $collisions[ $tag ]['outcome'] ?? '' );
 	$unknown = array_values( array_diff( $option_keys, $known_options ) );
 
 	$refusal = '';
-	if ( 'lost' === $outcome || 'yielded' === $outcome ) {
+	if ( 'lost' === $outcome || 'yielded' === $outcome || $held_by_other ) {
 		$refusal = 'name_not_ours';
 	} elseif ( $unknown ) {
 		$refusal = 'unknown_options';
@@ -195,14 +205,14 @@ function bws_converter_tag_ownership(
 /**
  * Gather this site's facts and ask the guard.
  *
- * The WordPress-side half, kept as thin as it can be: it reads three things and calls the
+ * The WordPress-side half, kept as thin as it can be: it reads four things and calls the
  * predicate. Anything that decides belongs above, where a harness can reach it.
  *
  * THE KEYS COME OFF THE MIGRATED STRING, not the stored one, because the keys the guard
  * weighs are the keys the entry's own renames produced. Passing the transform's output
  * means no second copy of the rename map lives here.
  *
- * THE NAME CHECKED AGAINST THE COLLISION RECORD IS THE STORED ONE. Ownership is a claim
+ * THE NAME CHECKED AGAINST THE COLLISION RECORD AND THE LIVE REGISTRY IS THE STORED ONE. Ownership is a claim
  * about strings already sitting in post content, and those bear the old name; whether the
  * target name is contested is a different question and not this one.
  *
@@ -247,6 +257,7 @@ function bws_converter_rewrite_allowed( string $old_tag, string $transformed_tag
 		bws_gb_tag_name_collisions(),
 		$bare,
 		array_merge( array_keys( bws_serialization_order_key_map() ), BWS_GB_TAG_OUTPUT_OPTIONS ),
-		(array) get_option( BWS_CONVERTER_OWNERSHIP_OPTIN_OPTION, array() )
+		(array) get_option( BWS_CONVERTER_OWNERSHIP_OPTIN_OPTION, array() ),
+		null !== bws_gb_tag_held_by_other( $old_tag, bws_gb_registered_tags_now(), bws_gb_tags_we_registered() )
 	);
 }

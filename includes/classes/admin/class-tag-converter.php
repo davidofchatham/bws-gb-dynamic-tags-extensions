@@ -519,8 +519,9 @@ class TagConverter {
 	 *
 	 * Thin: bws_gb_collision_other_parties() decides WHICH party is the other one and
 	 * bws_gb_other_registrar_phrase() words it — both already own their halves for the
-	 * settings page's conflicts block. This only picks the record out by name, so the decline
-	 * line names the same plugin that block does.
+	 * settings page's conflicts block. This picks the record out by name, so the decline
+	 * line names the same plugin that block does, and falls back to the live registry for a
+	 * name the record never saw.
 	 *
 	 * @since 1.20.0
 	 * @param string $tag Tag name as stored in post content.
@@ -530,14 +531,26 @@ class TagConverter {
 		$collisions = function_exists( 'bws_gb_tag_name_collisions' ) ? bws_gb_tag_name_collisions() : array();
 		$record     = $collisions[ $tag ] ?? array();
 
-		if ( ! $record || ! function_exists( 'bws_gb_collision_other_parties' ) ) {
-			return __( 'another plugin', 'generateblocks' );
+		if ( $record && function_exists( 'bws_gb_collision_other_parties' ) ) {
+			$parties = bws_gb_collision_other_parties( $record );
+			$other   = $parties[ $parties['subject'] ] ?? array();
+
+			return bws_gb_other_registrar_phrase( (string) ( $other['title'] ?? '' ), (string) ( $other['source'] ?? '' ) );
 		}
 
-		$parties = bws_gb_collision_other_parties( $record );
-		$other   = $parties[ $parties['subject'] ] ?? array();
+		// NO RECORD IS THE NORMAL CASE FOR A RETIRED NAME: the guard refused on the live
+		// registry (bws_gb_tag_held_by_other()), and the registry entry is the only evidence
+		// of who holds it. The file is resolved here, on a decline only, because that is the
+		// only caller that words one.
+		$held = function_exists( 'bws_gb_tag_held_by_other' )
+			? bws_gb_tag_held_by_other( $tag, bws_gb_registered_tags_now(), bws_gb_tags_we_registered() )
+			: null;
 
-		return bws_gb_other_registrar_phrase( (string) ( $other['title'] ?? '' ), (string) ( $other['source'] ?? '' ) );
+		if ( null !== $held ) {
+			return bws_gb_other_registrar_phrase( (string) ( $held['title'] ?? '' ), bws_gb_tag_registrar_file( $held['return'] ?? null ) );
+		}
+
+		return __( 'another plugin', 'generateblocks' );
 	}
 
 	// ===============================================

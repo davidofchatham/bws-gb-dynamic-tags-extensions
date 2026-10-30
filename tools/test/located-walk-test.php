@@ -77,6 +77,10 @@ function apply_filters( $hook, $value ) {
 function bws_gb_tag_name_collisions(): array {
 	return array();
 }
+// The live-registry witness the ownership gatherer also asks; nothing is held by another plugin here.
+function bws_gb_registered_tags_now(): array { return array(); }
+function bws_gb_tags_we_registered(): array { return array(); }
+function bws_gb_tag_held_by_other( string $tag, array $registry, array $ours ): ?array { return null; }
 
 $root = dirname( __DIR__, 2 );
 require $root . '/includes/helpers/slot-fold.php';

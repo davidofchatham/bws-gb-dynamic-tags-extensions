@@ -250,6 +250,66 @@ function bws_gb_tag_is_still_ours( array $mine, ?array $now ): bool {
 }
 
 /**
+ * GB's tag registry as it stands now, keyed by tag name; empty when GB's registrar is absent.
+ *
+ * The WordPress-side half of bws_gb_tag_held_by_other(): kept this small so the decision stays
+ * drivable with a fake registry and the one read of the live one is a single line to check.
+ *
+ * @since Unreleased
+ * @internal
+ * @return array<string,array>
+ */
+function bws_gb_registered_tags_now(): array {
+	return class_exists( 'GenerateBlocks_Register_Dynamic_Tag' )
+		? (array) \GenerateBlocks_Register_Dynamic_Tag::get_tags()
+		: array();
+}
+
+/**
+ * GB's registry entry for a name another plugin holds right now, or null.
+ *
+ * AXIS -- A NAME IS HELD BY ANOTHER IFF GB'S REGISTRY HAS AN ENTRY FOR IT THAT IS NOT STILL
+ * OURS. "Still ours" is bws_gb_tag_is_still_ours()'s, not restated here: a name we never
+ * registered has no record of ours to match, so any entry under it is a stranger's.
+ *
+ * WHY THE COLLISION RECORD IS NOT ENOUGH. It is written when we try to register a name, so it
+ * can only ever speak about names we still register. A name we retired (the removed `term_`
+ * family) is never tried, never collides and never appears in it, however plainly a co-resident
+ * plugin holds the name. The converter asks this about exactly those names, because the
+ * stored strings that bear them are what it is about to rewrite.
+ *
+ * PURE OVER ITS ARGUMENTS, like the comparison it rests on: the caller hands in
+ * `GenerateBlocks_Register_Dynamic_Tag::get_tags()` and bws_gb_tags_we_registered(), so a
+ * harness drives every shape with a fake registry. The answer is the entry itself and not the
+ * file its callback lives in: this is asked once per stored tag string a run rewrites, and
+ * resolving a file is reflection. The one caller that words a decline resolves it with
+ * bws_gb_tag_registrar_file().
+ *
+ * NOT RECORDED. This writes nothing to bws_gb_tag_name_collisions(): that record feeds the
+ * settings page's Tag Name Conflicts block, which would then list a tag we do not have.
+ *
+ * @since Unreleased
+ * @internal
+ * @param string $tag      The tag name as it appears in post content.
+ * @param array  $registry GB's registry, keyed by tag name.
+ * @param array  $ours     bws_gb_tags_we_registered().
+ * @return array|null The other registration's entry, or null when nobody else holds the name.
+ */
+function bws_gb_tag_held_by_other( string $tag, array $registry, array $ours ): ?array {
+	$now = isset( $registry[ $tag ] ) && is_array( $registry[ $tag ] ) ? $registry[ $tag ] : null;
+
+	if ( null === $now ) {
+		return null;
+	}
+
+	if ( isset( $ours[ $tag ] ) && bws_gb_tag_is_still_ours( $ours[ $tag ], $now ) ) {
+		return null;
+	}
+
+	return $now;
+}
+
+/**
  * The registration state a settings-page row shows for one tag name.
  *
  * DISPLAY ONLY. The answer is never an input to classification: it does not decide which box a
