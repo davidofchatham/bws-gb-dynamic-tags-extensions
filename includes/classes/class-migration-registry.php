@@ -731,11 +731,8 @@ class MigrationRegistry {
 	 * for its name, the converter's chain loop included. A second, local answer to that
 	 * question is what #111 was; do not re-derive the boundary at a call site.
 	 *
-	 * KNOWN LIMIT, tracked as #116: the split is on a literal space, where every pattern
-	 * around it — GB's own and the converter's — uses `\s`. A tab- or newline-separated
-	 * tag is therefore legal wire that this returns unparsed, reported by the scan and
-	 * silently declined by the run. Widening it moves what every migration entry matches,
-	 * so it is deliberately not a drive-by fix.
+	 * THE NAME ENDS AT THE FIRST WHITESPACE, in the set `\s` matches. A narrower set here
+	 * is a tag GB renders and the scan lists, but the run declines.
 	 *
 	 * TRAILING WHITESPACE INSIDE THE BRACES IS PART OF THE LAST VALUE, and is preserved
 	 * (fixed 1.17.0). GB's own parser does not trim option values — `parse_options()`
@@ -745,6 +742,7 @@ class MigrationRegistry {
 	 * matches nearly every join/try_ tag, which made it reachable at scale.
 	 *
 	 * @since 1.17.0 The last option value keeps its trailing whitespace.
+	 * @since Unreleased The name ends at any `\s` whitespace, not only a space.
 	 * @param string $tag_string Full tag string including `{{` / `}}`.
 	 * @return array{0: string, 1: array<string,string>}
 	 */
@@ -759,13 +757,16 @@ class MigrationRegistry {
 		}
 		$inner = ltrim( $inner );
 
-		$space = strpos( $inner, ' ' );
-		if ( false === $space ) {
+		// PCRE's `\s` set, which is not trim()'s: no NUL, and form feed included. The
+		// remainder is left-trimmed with the same set, so a run of it is one separator.
+		$whitespace = " \t\n\x0B\f\r";
+		$name_end   = strcspn( $inner, $whitespace );
+		if ( strlen( $inner ) === $name_end ) {
 			return array( $inner, array() );
 		}
 
-		$tag_name    = substr( $inner, 0, $space );
-		$options_str = ltrim( substr( $inner, $space + 1 ) );
+		$tag_name    = substr( $inner, 0, $name_end );
+		$options_str = ltrim( substr( $inner, $name_end + 1 ), $whitespace );
 		$options     = array();
 
 		if ( '' !== $options_str ) {

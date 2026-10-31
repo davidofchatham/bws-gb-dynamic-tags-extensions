@@ -28,6 +28,7 @@ All notable changes to this project are documented in this file. The format is b
 
 - **Clearing a custom value with the X button now leaves the field empty.** The `{{table}}` size, width, color and border fields and the field selector put the old text back in as the X cleared it.
 - **The Migration Tool no longer rewrites GB Query Enhancements' `{{term_title}}` and `{{term_description}}` tags.** Both names belong to that plugin. Since 1.21.0 removed our `term_` tags, the tool stopped asking whether another plugin holds a name we no longer register, so on a site running both it converted those tags into `{{title}}` and `{{content}}`. It now checks GenerateBlocks' live tag list, and when another plugin holds the name it leaves the tags as they are and offers the usual choice to claim them as yours. The message names the plugin and now reads "Deactivate the other plugin, or claim these tags as yours below."
+- **The Migration Tool now converts a tag whose name is followed by a tab or a line break instead of a space.** GenerateBlocks renders such a tag, and the Migration Tool listed it as needing an update, but pressing Migrate left it unchanged. It now converts exactly as the space-separated tag does. The plugin never writes tags this way, so only tags typed or pasted by hand, or written by another plugin, are affected.
 
 ## [1.23.0] — 2026-10-23
 
