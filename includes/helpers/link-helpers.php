@@ -155,7 +155,9 @@ const BWS_CORE_BLOCK_KIND_UNRESTRICTED = 'unrestricted';
  *   goes in the child block, and the kind exists so the settings page can say so):
  *   `core/group`, `core/cover`, `core/media-text`, `core/quote`, `core/buttons`, `core/list`,
  *   `core/columns`, `core/column`.
- * - BWS_CORE_BLOCK_KIND_UNRESTRICTED (holds any content, so nothing is guarded): `core/html`.
+ * - BWS_CORE_BLOCK_KIND_UNRESTRICTED (holds any content, so nothing is guarded): `core/html`,
+ *   `core/freeform` (the Classic block; reached only when stored WITH its delimiters, since
+ *   undelimited classic HTML parses with no block name).
  *
  * Anything else takes the kind a `bws_dynamic_tags_core_blocks` callback declared for it
  * (`name => kind`, read through bws_core_blocks_declared_kinds()), else '' and unconstrained,
@@ -199,6 +201,7 @@ function bws_core_block_kind( $block ): string {
 		case 'core/column':
 			return BWS_CORE_BLOCK_KIND_CONTAINER;
 		case 'core/html':
+		case 'core/freeform':
 			return BWS_CORE_BLOCK_KIND_UNRESTRICTED;
 	}
 	return function_exists( 'bws_core_blocks_declared_kinds' ) ? ( bws_core_blocks_declared_kinds()[ $name ] ?? '' ) : '';

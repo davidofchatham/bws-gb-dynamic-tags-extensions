@@ -126,7 +126,9 @@ foreach ( array( 'core/button', 'core/file', 'core/navigation-link', 'core/read-
 foreach ( array( 'core/list', 'core/group', 'core/cover', 'core/media-text', 'core/quote', 'core/buttons', 'core/columns', 'core/column' ) as $name ) {
 	assert_same( "{$name}: no text of its own, the child-block limit", array( 'contents_container', 'limits_container', false ), $bws_cells_of( $name ) );
 }
-assert_same( 'core/html: any content, no limit', array( 'contents_unrestricted', 'limits_none', false ), $bws_cells_of( 'core/html' ) );
+foreach ( array( 'core/html', 'core/freeform' ) as $name ) {
+	assert_same( "{$name}: any content, no limit", array( 'contents_unrestricted', 'limits_none', false ), $bws_cells_of( $name ) );
+}
 assert_same( 'core/image: unclassified, Not tested, no limit', array( 'contents_untested', 'limits_none', true ), $bws_cells_of( 'core/image' ) );
 assert_same( 'unclassified: Not tested in Holds, Tag limits is a dash (this plugin applies no limit)', array( 'contents_untested', 'limits_none', true ), $cell( 'acme/widget' ) );
 assert_same( 'a classified row carries no note (the cells say it)', array(), $rows['core/paragraph']['notes'] );

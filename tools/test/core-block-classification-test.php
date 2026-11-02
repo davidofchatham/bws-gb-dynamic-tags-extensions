@@ -72,7 +72,7 @@ $map = array(
 	BWS_CORE_BLOCK_KIND_PREFORMATTED => array( 'core/verse', 'core/preformatted', 'core/code' ),
 	BWS_CORE_BLOCK_KIND_LINK         => array( 'core/button', 'core/file', 'core/navigation-link', 'core/read-more' ),
 	BWS_CORE_BLOCK_KIND_CONTAINER    => array( 'core/group', 'core/cover', 'core/media-text', 'core/quote', 'core/buttons', 'core/list', 'core/columns', 'core/column' ),
-	BWS_CORE_BLOCK_KIND_UNRESTRICTED => array( 'core/html' ),
+	BWS_CORE_BLOCK_KIND_UNRESTRICTED => array( 'core/html', 'core/freeform' ),
 );
 foreach ( $map as $kind => $names ) {
 	foreach ( $names as $name ) {

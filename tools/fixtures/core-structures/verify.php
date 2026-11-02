@@ -1030,6 +1030,59 @@ if ( $roster_page instanceof WP_Post && function_exists( 'bws_run_step' ) ) {
 }
 
 /* ---------------------------------------------------------------------------
+ * A DECLARED KIND reaches the guards (core-block kinds, FW-156).
+ *
+ * `core/image` is deliberately in no built-in map, so the control arm shows an unguarded
+ * {{content}} keeping its block markup. A `bws_dynamic_tags_core_blocks` callback then declares
+ * `core/image => inline` (and, in a second arm, `link`) and the SAME render goes through the
+ * guard; removing the callback puts it back. Each arm calls the tag seam directly with a block
+ * array naming the host: what is asserted is the kind lookup reaching the guards, and the
+ * allowlist in front of it is GB's and the matrix's (a block outside the enabled set at `init`
+ * carries no loop context, so GB would print its tags literally before any guard ran).
+ * `bws_core_blocks_reset_declared_kinds()` forgets the once-per-request read between arms.
+ * ------------------------------------------------------------------------ */
+$dk_page = get_page_by_path( 'matrix-core-blocks' );
+$dk_tag  = $dk_page ? '{{content src:post,' . $dk_page->ID . '|use:key|key:bws_block_plain}}' : '';
+$dk_run  = static function () use ( $dk_tag ) {
+	$dk_instance          = new stdClass();
+	$dk_instance->context = array();
+	$dk_block             = array( 'blockName' => 'core/image', 'innerHTML' => '' );
+	return trim( (string) GenerateBlocks_Register_Dynamic_Tag::replace_tags( $dk_tag, $dk_block, $dk_instance ) );
+};
+$dk_declare = static function ( $kind ) {
+	return static function ( $set ) use ( $kind ) {
+		$set = is_array( $set ) ? $set : array();
+		$set['core/image'] = $kind;
+		return $set;
+	};
+};
+$check( 'declared kind: the matrix-core-blocks page exists', $dk_page instanceof WP_Post );
+if ( $dk_page && function_exists( 'bws_core_blocks_reset_declared_kinds' ) ) {
+	bws_core_blocks_reset_declared_kinds();
+	$dk_before = $dk_run();
+	$check( 'declared kind control: undeclared core/image keeps the block markup', false !== strpos( $dk_before, '<p>' ), 'out=' . var_export( $dk_before, true ) );
+
+	$dk_inline = $dk_declare( 'inline' );
+	add_filter( 'bws_dynamic_tags_core_blocks', $dk_inline );
+	bws_core_blocks_reset_declared_kinds();
+	$dk_out = $dk_run();
+	$check( 'declared kind: core/image => inline strips {{content}} to inline', 'Plain line one. Plain line two.' === $dk_out, 'out=' . var_export( $dk_out, true ) );
+	remove_filter( 'bws_dynamic_tags_core_blocks', $dk_inline );
+
+	$dk_link = $dk_declare( 'link' );
+	add_filter( 'bws_dynamic_tags_core_blocks', $dk_link );
+	bws_core_blocks_reset_declared_kinds();
+	$dk_out = $dk_run();
+	$check( 'declared kind: core/image => link refuses {{content}}', '' === $dk_out, 'out=' . var_export( $dk_out, true ) );
+	remove_filter( 'bws_dynamic_tags_core_blocks', $dk_link );
+
+	bws_core_blocks_reset_declared_kinds();
+	$dk_after = $dk_run();
+	$check( 'declared kind: with the callback removed the guard no longer applies', $dk_after === $dk_before, 'out=' . var_export( $dk_after, true ) );
+	bws_core_blocks_reset_declared_kinds();
+}
+
+/* ---------------------------------------------------------------------------
  * {{image}}'s STATED FALLBACK on an empty read that reaches no core (GH #139, fold matrix
  * §F11b.3c-f).
  *
