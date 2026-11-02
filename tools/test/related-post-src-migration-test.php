@@ -389,6 +389,14 @@ assert_eq( 'R6.3 the pre-rename `taxonomy` spelling is read too',
 	'{{title src:terms,department,limit(1);refs,lead,limit(1)}}',
 	$migrate_tag( '{{post_term_related_post_title taxonomy:department|rel:lead}}' ) );
 
+// The single-term family accepts `taxonomy` as well as `tax`; with both keys present `tax` wins.
+assert_eq( 'R6.3b post_term_*: `taxonomy` becomes the term hop like `tax`',
+	'{{title srcTermIn:teams}}',
+	$migrate_tag( '{{post_term_title taxonomy:teams}}' ) );
+assert_eq( 'R6.3c post_term_*: with both keys, `tax` outranks `taxonomy`',
+	'{{title srcTermIn:a}}',
+	$migrate_tag( '{{post_term_title taxonomy:b|tax:a}}' ) );
+
 // The suffix decides the TAG; the family decides the CHAIN. A `*_term_*` suffix lands
 // on the term_ modifier, because its last hop was post->term.
 assert_eq( 'R6.4 a *_term_* suffix targets the term_ modifier',
