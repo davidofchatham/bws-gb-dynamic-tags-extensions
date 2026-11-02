@@ -38,17 +38,24 @@ function assert_same( $label, $expected, $actual ): void {
 
 $blk = static fn( $name ) => array( 'blockName' => $name );
 
-echo "§1 — the kind\n";
-foreach ( array( 'core/paragraph', 'core/heading', 'core/list-item' ) as $name ) {
-	assert_same( "{$name} is inline text", BWS_CORE_BLOCK_KIND_INLINE, bws_core_block_kind( $blk( $name ) ) );
+echo "§1 — the kind, for every block in the built-in map\n";
+$map = array(
+	BWS_CORE_BLOCK_KIND_INLINE       => array( 'core/paragraph', 'core/heading', 'core/list-item', 'core/table', 'core/pullquote', 'core/details' ),
+	BWS_CORE_BLOCK_KIND_PREFORMATTED => array( 'core/verse', 'core/preformatted', 'core/code' ),
+	BWS_CORE_BLOCK_KIND_LINK         => array( 'core/button', 'core/file', 'core/navigation-link', 'core/read-more' ),
+	BWS_CORE_BLOCK_KIND_CONTAINER    => array( 'core/group', 'core/cover', 'core/media-text', 'core/quote', 'core/buttons', 'core/list', 'core/columns', 'core/column' ),
+	BWS_CORE_BLOCK_KIND_UNRESTRICTED => array( 'core/html' ),
+);
+foreach ( $map as $kind => $names ) {
+	foreach ( $names as $name ) {
+		assert_same( "{$name} is {$kind}", $kind, bws_core_block_kind( $blk( $name ) ) );
+	}
 }
-assert_same( 'core/table is the table kind', BWS_CORE_BLOCK_KIND_TABLE, bws_core_block_kind( $blk( 'core/table' ) ) );
-assert_same( 'core/list is the list kind', BWS_CORE_BLOCK_KIND_LIST, bws_core_block_kind( $blk( 'core/list' ) ) );
-assert_same( 'core/button is the button kind', BWS_CORE_BLOCK_KIND_BUTTON, bws_core_block_kind( $blk( 'core/button' ) ) );
-assert_same( 'the five kinds are distinct', 5, count( array_unique( array( BWS_CORE_BLOCK_KIND_INLINE, BWS_CORE_BLOCK_KIND_TABLE, BWS_CORE_BLOCK_KIND_LIST, BWS_CORE_BLOCK_KIND_BUTTON, '' ) ) ) );
+assert_same( 'the wire values are the kind names', array( 'inline', 'preformatted', 'link', 'container', 'unrestricted' ), array( BWS_CORE_BLOCK_KIND_INLINE, BWS_CORE_BLOCK_KIND_PREFORMATTED, BWS_CORE_BLOCK_KIND_LINK, BWS_CORE_BLOCK_KIND_CONTAINER, BWS_CORE_BLOCK_KIND_UNRESTRICTED ) );
+assert_same( 'the retired kind constants are gone', array( false, false, false ), array_map( static fn( $k ) => defined( 'BWS_CORE_BLOCK_KIND_' . $k ), array( 'TABLE', 'LIST', 'BUTTON' ) ) );
 
 echo "§2 — unclassified is unconstrained\n";
-foreach ( array( 'core/group', 'core/quote', 'core/image', 'generateblocks/text', 'generateblocks/element', 'acme/thing', '' ) as $name ) {
+foreach ( array( 'core/image', 'generateblocks/text', 'generateblocks/element', 'acme/thing', '' ) as $name ) {
 	assert_same( "'{$name}' is unclassified", '', bws_core_block_kind( $blk( $name ) ) );
 }
 
@@ -56,19 +63,23 @@ echo "§3 — malformed \$block never fatals and never classifies\n";
 foreach ( array( 'null' => null, 'string' => 'core/paragraph', 'int' => 7, 'false' => false, 'empty array' => array(), 'no blockName key' => array( 'attrs' => array() ), 'non-string blockName' => array( 'blockName' => array( 'core/paragraph' ) ), 'null blockName' => array( 'blockName' => null ) ) as $label => $bad ) {
 	assert_same( "{$label}: unclassified", '', bws_core_block_kind( $bad ) );
 	assert_same( "{$label}: not inline-only", false, bws_core_block_is_inline_only( $bad ) );
-	assert_same( "{$label}: not a button", false, bws_core_block_is_button( $bad ) );
+	assert_same( "{$label}: not a link host", false, bws_core_block_is_link( $bad ) );
 }
 
 echo "§4 — the two questions\n";
-foreach ( array( 'core/paragraph', 'core/heading', 'core/list-item', 'core/table', 'core/button' ) as $name ) {
-	assert_same( "{$name} is inline-only", true, bws_core_block_is_inline_only( $blk( $name ) ) );
+foreach ( array( BWS_CORE_BLOCK_KIND_INLINE, BWS_CORE_BLOCK_KIND_PREFORMATTED, BWS_CORE_BLOCK_KIND_LINK ) as $kind ) {
+	foreach ( $map[ $kind ] as $name ) {
+		assert_same( "{$name} ({$kind}) is inline-only", true, bws_core_block_is_inline_only( $blk( $name ) ) );
+	}
 }
-foreach ( array( 'core/list', 'core/group', 'generateblocks/text' ) as $name ) {
-	assert_same( "{$name} is not inline-only (the list kind is unconstrained)", false, bws_core_block_is_inline_only( $blk( $name ) ) );
+foreach ( array_merge( $map[ BWS_CORE_BLOCK_KIND_CONTAINER ], $map[ BWS_CORE_BLOCK_KIND_UNRESTRICTED ], array( 'core/image', 'generateblocks/text' ) ) as $name ) {
+	assert_same( "{$name} is not inline-only", false, bws_core_block_is_inline_only( $blk( $name ) ) );
 }
-assert_same( 'core/button is the button host', true, bws_core_block_is_button( $blk( 'core/button' ) ) );
-foreach ( array( 'core/paragraph', 'core/heading', 'core/list-item', 'core/table', 'core/list', 'core/buttons', 'generateblocks/text' ) as $name ) {
-	assert_same( "{$name} is not the button host", false, bws_core_block_is_button( $blk( $name ) ) );
+foreach ( $map[ BWS_CORE_BLOCK_KIND_LINK ] as $name ) {
+	assert_same( "{$name} is a link host", true, bws_core_block_is_link( $blk( $name ) ) );
+}
+foreach ( array_merge( $map[ BWS_CORE_BLOCK_KIND_INLINE ], $map[ BWS_CORE_BLOCK_KIND_PREFORMATTED ], $map[ BWS_CORE_BLOCK_KIND_CONTAINER ], array( 'core/html', 'generateblocks/text' ) ) as $name ) {
+	assert_same( "{$name} is not a link host", false, bws_core_block_is_link( $blk( $name ) ) );
 }
 
 echo "\n{$count} assertions, {$failures} failed\n";

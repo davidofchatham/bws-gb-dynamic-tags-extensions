@@ -51,11 +51,14 @@ function bws_core_blocks_picker_strings(): array {
 		'code_set'           => __( 'Turned on by code on this site.', 'generateblocks' ),
 		'dirty'              => __( 'Unsaved changes', 'generateblocks' ),
 		'contents_inline'    => __( 'Inline text', 'generateblocks' ),
-		'contents_button'    => __( 'Link text', 'generateblocks' ),
-		'contents_list'      => __( 'No text of its own', 'generateblocks' ),
+		'contents_preformatted' => __( 'Preformatted text', 'generateblocks' ),
+		'contents_link'      => __( 'Link text', 'generateblocks' ),
+		'contents_container' => __( 'No text of its own', 'generateblocks' ),
+		'contents_unrestricted' => __( 'Any content', 'generateblocks' ),
 		'contents_untested'  => __( 'Not tested', 'generateblocks' ),
 		'limits_inline'      => __( '`content` keeps inline formatting only; `table` returns empty', 'generateblocks' ),
-		'limits_button'      => __( '`content` and `table` return empty; link tags return plain text', 'generateblocks' ),
+		'limits_link'        => __( '`content` and `table` return empty; link tags return plain text', 'generateblocks' ),
+		'limits_container'   => __( 'Put tags in the child block', 'generateblocks' ),
 		'limits_none'        => __( '–', 'generateblocks' ),
 		'limits_none_sr'     => __( 'No limit', 'generateblocks' ),
 		'count_unscanned'    => __( 'Not scanned', 'generateblocks' ),
@@ -85,6 +88,7 @@ function bws_core_blocks_picker_strings(): array {
 			array( __( '`table` returns empty', 'generateblocks' ), __( 'Unless *Required to render* is disabled, GenerateBlocks removes the block, like a tag that returns no value.', 'generateblocks' ) ),
 			array( __( '`content` and `table` return empty', 'generateblocks' ), __( 'Neither belongs in a button. Unless *Required to render* is disabled, GenerateBlocks removes the button, like a tag that returns no value.', 'generateblocks' ) ),
 			array( __( 'link tags return plain text', 'generateblocks' ), __( '`email`, `phone` and any tag set to *Link To* print just the address, number or text, not a link. In a Button\'s link, type `mailto:` or `tel:` before the tag yourself.', 'generateblocks' ) ),
+			array( __( 'Put tags in the child block', 'generateblocks' ), __( 'Enabling this block does not enable the blocks inside it. Enable the child block, and put the tag there.', 'generateblocks' ) ),
 		),
 		'survey_none_yet'    => __( 'No scan has been run yet.', 'generateblocks' ),
 		// The frame; each count's phrase is pluralized in bws_core_blocks_survey_status().
@@ -215,12 +219,15 @@ function bws_core_blocks_picker_rows( array $entries, array $categories, array $
 function bws_core_blocks_picker_cells( string $name, bool $registered = true ): array {
 	switch ( $registered ? bws_core_block_kind( array( 'blockName' => $name ) ) : '' ) {
 		case BWS_CORE_BLOCK_KIND_INLINE:
-		case BWS_CORE_BLOCK_KIND_TABLE:
 			return array( 'contents' => 'contents_inline', 'limits' => 'limits_inline', 'untested' => false );
-		case BWS_CORE_BLOCK_KIND_BUTTON:
-			return array( 'contents' => 'contents_button', 'limits' => 'limits_button', 'untested' => false );
-		case BWS_CORE_BLOCK_KIND_LIST:
-			return array( 'contents' => 'contents_list', 'limits' => 'limits_none', 'untested' => false );
+		case BWS_CORE_BLOCK_KIND_PREFORMATTED:
+			return array( 'contents' => 'contents_preformatted', 'limits' => 'limits_inline', 'untested' => false );
+		case BWS_CORE_BLOCK_KIND_LINK:
+			return array( 'contents' => 'contents_link', 'limits' => 'limits_link', 'untested' => false );
+		case BWS_CORE_BLOCK_KIND_CONTAINER:
+			return array( 'contents' => 'contents_container', 'limits' => 'limits_container', 'untested' => false );
+		case BWS_CORE_BLOCK_KIND_UNRESTRICTED:
+			return array( 'contents' => 'contents_unrestricted', 'limits' => 'limits_none', 'untested' => false );
 	}
 	return array( 'contents' => 'contents_untested', 'limits' => 'limits_none', 'untested' => true );
 }
