@@ -193,7 +193,7 @@ $reaches = static function ( $block ) use ( $trap ): bool {
 	return false;
 };
 check( 'a container host proceeds past the guard (contrast)', true, $reaches( array( 'blockName' => 'generateblocks/element' ) ) );
-check( 'a container and an unrestricted host proceed', true, $reaches( array( 'blockName' => 'core/group' ) ) && $reaches( array( 'blockName' => 'core/html' ) ) && $reaches( array( 'blockName' => 'core/freeform' ) ) && $reaches( array( 'blockName' => 'core/image' ) ) );
+check( 'a container and an unrestricted host proceed', true, $reaches( array( 'blockName' => 'core/group' ) ) && $reaches( array( 'blockName' => 'core/html' ) ) && $reaches( array( 'blockName' => 'core/image' ) ) );
 check( 'no block array at all proceeds', true, $reaches( null ) );
 foreach ( array( 'core/paragraph', 'core/heading', 'core/list-item', 'core/table', 'core/button', 'core/file', 'core/navigation-link', 'core/read-more', 'core/verse', 'core/preformatted', 'core/code', 'core/pullquote', 'core/details' ) as $host ) {
 	check( "{$host} host returns '' first", '', bws_table_callback( array( 'src' => 'site', 'A' => 'key(name)' ), array( 'blockName' => $host ), $trap ) );

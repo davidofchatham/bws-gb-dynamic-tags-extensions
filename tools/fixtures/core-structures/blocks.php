@@ -2429,7 +2429,7 @@ function bws_fixture_page_content_matrix_links() {
  * written against the testbed's settings baseline (manifest `wp_options`): core/paragraph,
  * core/heading, core/list-item, core/table, core/button, core/verse, core/preformatted,
  * core/code, core/pullquote, core/details, core/file, core/read-more, core/group, core/html,
- * core/navigation-link and core/freeform are SELECTED, core/image (unclassified) is not. A row is a label block (GB text, so it never carries a
+ * and core/navigation-link are SELECTED, core/image (unclassified) and core/freeform are not. A row is a label block (GB text, so it never carries a
  * literal tag) followed by the core block under test: when the tag blanks the block, as
  * `{{table}}` does in an inline-only block, the label stands alone, which is the
  * expectation and not missing fixture (bws_fixture_gb_empty_row() has the same reason).
@@ -2515,14 +2515,9 @@ function bws_fixture_page_content_matrix_core_blocks() {
 <!-- wp:navigation-link {\"label\":\"{$inner}\",\"type\":\"custom\",\"url\":\"" . esc_url( home_url( '/matrix-core-blocks/' ) ) . "\",\"kind\":\"custom\"} /-->
 <!-- /wp:navigation -->";
 	};
-	// core/freeform (the Classic block): $freeraw is the usual stored form, undelimited; $freewrap the delimited one.
+	// core/freeform (the Classic block) as the editor saves it: undelimited, so it has no block name.
 	$freeraw   = static function ( $inner ) {
 		return "<p>{$inner}</p>";
-	};
-	$freewrap  = static function ( $inner ) {
-		return "<!-- wp:freeform -->
-<p>{$inner}</p>
-<!-- /wp:freeform -->";
 	};
 	// core/image is NOT classified, so it is the unselected control: the tag sits in its caption.
 	$image_id  = function_exists( 'bws_fixture_seeded_attachment_id' ) ? bws_fixture_seeded_attachment_id( 'fixture-photo' ) : false;
@@ -2648,7 +2643,6 @@ function bws_fixture_page_content_matrix_core_blocks() {
 		$row( 'CB7.26 core/html (-> Director inside the div)', $html( $role ) ),
 		$row( 'CB7.27 core/navigation-link inside core/navigation (-> Director as the link label)', $navlink( $role ) ),
 		$row( 'CB7.28 core/navigation-link inside core/navigation, Link To (-> Director as the label, the bare value: no anchor nested inside the navigation link)', $navlink( $link_role ) ),
-		$row( 'CB7.29 core/freeform, the Classic block stored WITH its delimiters (-> Director inside the block paragraph)', $freewrap( $role ) ),
 	) );
 	$sections[] = bws_fixture_gb_section( 'Content CB7 - the content tag in each text-holding core block: preformatted blocks join with a newline, inline ones with a space, link blocks are hidden (FW-156)', array(
 		$row( 'CB7.10 core/verse (-> TWO lines inside the verse block: Plain line one. then Plain line two., joined by a newline)', $verse( $plain ) ),
@@ -2660,7 +2654,6 @@ function bws_fixture_page_content_matrix_core_blocks() {
 		$row( 'CB7.16 core/read-more (-> EMPTY: the read-more block is hidden, nothing follows this label)', $readmore( $plain ) ),
 		$row( 'CB7.30 core/html (-> TWO paragraphs kept: Plain line one. and Plain line two., no strip)', $html( $plain ) ),
 		$row( 'CB7.31 core/navigation-link inside core/navigation (-> EMPTY: the link is hidden, nothing follows this label)', $navlink( $plain ) ),
-		$row( 'CB7.32 core/freeform, stored WITH its delimiters (-> TWO paragraphs, Plain line one. and Plain line two., nothing stripped)', $freewrap( $plain ) ),
 	) );
 	$sections[] = bws_fixture_gb_section( 'Table CB7 - the table tag in each text-holding core block prints nothing, so the block is hidden (FW-156)', array(
 		$row( 'CB7.17 core/verse (-> EMPTY: the block is hidden, nothing follows this label)', $verse( $tbl ) ),
@@ -2672,15 +2665,14 @@ function bws_fixture_page_content_matrix_core_blocks() {
 		$row( 'CB7.23 core/read-more (-> EMPTY: the block is hidden, nothing follows this label)', $readmore( $tbl ) ),
 		$row( 'CB7.33 core/html (-> the two-row table, rendered)', $html( $tbl ) ),
 		$row( 'CB7.34 core/navigation-link inside core/navigation (-> EMPTY: the link is hidden, nothing follows this label)', $navlink( $tbl ) ),
-		$row( 'CB7.35 core/freeform, stored WITH its delimiters (-> the two-row table, rendered: nothing refused)', $freewrap( $tbl ) ),
 	) );
 
-	// Undelimited classic HTML is a core/freeform block ONLY at the top level of post content. Inside a GB
-	// element it is just part of that element's own innerHTML, and GB then replaces the tag string
-	// everywhere in the element's output, which fills a literal tag in a sibling row. So these rows are
-	// NOT wrapped in a section element.
-	$sections[] = "<!-- wp:heading {\"className\":\"\"} -->\n<h2 class=\"wp-block-heading\">CB7 core/freeform stored WITHOUT block delimiters (FW-156)</h2>\n<!-- /wp:heading -->"
-		. "\n\n" . $row( 'CB7.36 core/freeform, stored WITHOUT delimiters, a text tag (-> the tag printed literally: undelimited classic HTML has no block name, so no setting reaches it)', $freeraw( $role ) )
+	// Classic content as the editor saves it has no block delimiters, so it parses with no block name and is
+	// unreachable (matrix N4). Inside a GB element it is just part of that element's own innerHTML, and GB
+	// then replaces the tag string everywhere in the element's output, which fills a literal tag in a
+	// sibling row. So these rows are NOT wrapped in a section element.
+	$sections[] = "<!-- wp:heading {\"className\":\"\"} -->\n<h2 class=\"wp-block-heading\">CB7 core/freeform as the editor saves it, WITHOUT block delimiters (FW-156)</h2>\n<!-- /wp:heading -->"
+		. "\n\n" . $row( 'CB7.36 core/freeform, stored WITHOUT delimiters, a text tag (-> the tag printed literally: editor-made Classic content has no block name, so no setting reaches it)', $freeraw( $role ) )
 		. "\n\n" . $row( 'CB7.37 core/freeform, stored WITHOUT delimiters, the content tag (-> the tag printed literally, as CB7.36)', $freeraw( $plain ) );
 
 	return implode( "\n\n", $sections );
