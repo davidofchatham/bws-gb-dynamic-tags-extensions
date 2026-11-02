@@ -305,6 +305,7 @@ $gatherer = $gather_m[0] ?? '';
 check( 'O5.3 the gatherer checks the STORED name against the collision record, not the migrated one', 1 === preg_match( '/bws_converter_tag_ownership\(\s*\$old_tag,/s', $gatherer ), 'ownership is a claim about strings already in content, and those bear the old name' );
 
 check( 'O5.4 known vocabulary includes the keys GB\'s own output pipeline consumes', 1 === preg_match( '/BWS_GB_TAG_OUTPUT_OPTIONS/', $gatherer ), 'without them an ordinary {{text …|link:post}} reads as foreign wire and refuses' );
+check( 'O5.4b and the GB keys that ride on our tags', 1 === preg_match( '/BWS_GB_PASSTHROUGH_TAG_OPTIONS/', $gatherer ), 'without them a tag carrying required:false is refused on every rewrite' );
 
 check( 'O5.5 the opt-in is read from the named option, never inferred', 1 === preg_match( '/get_option\(\s*BWS_CONVERTER_OWNERSHIP_OPTIN_OPTION/', $gatherer ) );
 
@@ -343,7 +344,7 @@ require $root . '/includes/helpers/gb-output-boundary.php';
 require $root . '/includes/helpers/serialization-order.php';
 require $root . '/includes/helpers/slot-fold.php';
 
-$real_known = array_merge( array_keys( bws_serialization_order_key_map() ), BWS_GB_TAG_OUTPUT_OPTIONS );
+$real_known = array_merge( array_keys( bws_serialization_order_key_map() ), BWS_GB_TAG_OUTPUT_OPTIONS, BWS_GB_PASSTHROUGH_TAG_OPTIONS );
 
 foreach ( array(
 	'limit' => '{{term_text key:phone|limit:2}} converts carrying it',
@@ -369,6 +370,22 @@ foreach ( array( '2-key', '10-src', 'A', 'B' ) as $slot_key ) {
 // The other direction, so O6.1 cannot pass by the set having grown to everything: a key
 // from nobody's vocabulary is still caught.
 check( 'O6.3 a foreign key is still unknown against the real set', false === in_array( 'qe_mode', $real_known, true ) );
+
+// The GB key that rides on our tags (#158). `required:false` is GB's "Required to render" and can
+// sit on any tag; without it the guard refuses every rewrite of such a tag as foreign wire.
+check( 'O6.4 `required` is known vocabulary', in_array( 'required', $real_known, true ) );
+
+// The other keys GB reserves, and that we stopped using because its modal captures them, stay
+// UNKNOWN: a tag carrying one is not our wire. `tax` is the sidecar GB Query Enhancements' term tags
+// write now (docs/coresident/gb-query-enhancements.md), and the removed term_ family wrote it before.
+foreach ( array( 'source', 'tax', 'dateFormat' ) as $key ) {
+	check( "O6.4b `{$key}` stays unknown vocabulary", false === in_array( $key, $real_known, true ) );
+}
+
+// Every passthrough key is one GB really reserves: read off docs/gb-constraints.md's Reserved line.
+preg_match( '/\*\*Reserved:\*\*\s*(.+)/', (string) file_get_contents( $root . '/docs/gb-constraints.md' ), $reserved_m );
+$documented = array_map( static fn( string $k ): string => trim( $k, " `\t\r\n" ), explode( ',', $reserved_m[1] ?? '' ) );
+check( 'O6.5 every BWS_GB_PASSTHROUGH_TAG_OPTIONS key is in the Reserved list in docs/gb-constraints.md', array() === array_diff( BWS_GB_PASSTHROUGH_TAG_OPTIONS, $documented ) && count( $documented ) > 1, json_encode( $documented ) );
 
 // ---------------------------------------------------------------------------
 echo "\n§O7 — no rewrite path in the converter bypasses the guard\n";

@@ -147,6 +147,9 @@ assert_eq( 'MR2.6 a deprecated name that rewrites converts to the chain\'s strin
 $v = TagConverter::classify_tag( 'text', '{{text}}' );
 assert_eq( 'MR2.7 a name no entry mentions is unchanged', 'unchanged', $v['status'] );
 
+$v = TagConverter::classify_tag( 'mr_cascade', '{{mr_cascade a:1|required:false}}' );
+assert_eq( 'MR2.8 GB\'s reserved required option is not foreign wire: the rewrite converts and keeps it (#158)', array( 'convert', '{{mr_cascade key:1|required:false}}' ), array( $v['status'], $v['string'] ) );
+
 echo "\nMR3 - the scan rows read the verdict; the allowlist still reads what is present\n";
 $block = static fn ( string $p ): string => '<!-- wp:paragraph --><p>' . $p . '</p><!-- /wp:paragraph -->';
 $row   = static fn ( string $p ): array => TagConverter::scan_widgets( array( 1 => $block( $p ) ), array() );

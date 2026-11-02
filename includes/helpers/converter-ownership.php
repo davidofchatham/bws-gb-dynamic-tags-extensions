@@ -117,6 +117,22 @@ function bws_converter_ownership_report_lines(): array {
 const BWS_CONVERTER_OWNERSHIP_OPTIN_OPTION = 'bws_dynamic_tags_ownership_optin';
 
 /**
+ * The GB-owned option keys that ride on OUR tags and that no migration of ours renames or
+ * reads: GenerateBlocks' tag modal writes them onto any tag, so they are never foreign wire.
+ * Today that is `required` ("Required to render"), the one reserved key we still pass through.
+ * The others GB reserves (docs/gb-constraints.md §Reserved) either are already known here
+ * (`id`, `key`, `link`, `size`) or are no longer ours: `source`, `tax` and `dateFormat` were
+ * replaced by our own keys because GB's modal captures them, so they stay unknown on purpose
+ * and a tag carrying one reads as foreign vocabulary.
+ *
+ * Kept apart from BWS_GB_TAG_OUTPUT_OPTIONS, which is the keys GB's OUTPUT pipeline reads;
+ * `required` is read earlier, at replacement time. Pinned by converter-ownership-test.php §O6.
+ *
+ * @since Unreleased
+ */
+const BWS_GB_PASSTHROUGH_TAG_OPTIONS = array( 'required' );
+
+/**
  * THE GUARD. Decide whether the strings bearing $tag may be rewritten, and say why.
  *
  * INVARIANT — THE CONVERTER NEVER REWRITES A TAG NAME WE CANNOT PROVE WE OWN WITHOUT AN
@@ -217,7 +233,7 @@ function bws_converter_tag_ownership(
  * target name is contested is a different question and not this one.
  *
  * KNOWN VOCABULARY IS THE CANONICAL KEY MAP PLUS THE KEYS GB'S OWN OUTPUT PIPELINE
- * CONSUMES, AND IT IS DELIBERATELY NOT THE TARGET TAG'S REGISTERED OPTIONS. A registered
+ * CONSUMES PLUS THE GB KEYS THAT RIDE ON OUR TAGS (BWS_GB_PASSTHROUGH_TAG_OPTIONS), AND IT IS DELIBERATELY NOT THE TARGET TAG'S REGISTERED OPTIONS. A registered
  * option set answers "which controls does the editor paint", and that is a strictly
  * narrower question than "is this key one of ours" — ADR 0004 is why: removing a control
  * never removes an option, so `limit` has been legal, read and unregistered on the base
@@ -256,7 +272,7 @@ function bws_converter_rewrite_allowed( string $old_tag, string $transformed_tag
 		$old_tag,
 		bws_gb_tag_name_collisions(),
 		$bare,
-		array_merge( array_keys( bws_serialization_order_key_map() ), BWS_GB_TAG_OUTPUT_OPTIONS ),
+		array_merge( array_keys( bws_serialization_order_key_map() ), BWS_GB_TAG_OUTPUT_OPTIONS, BWS_GB_PASSTHROUGH_TAG_OPTIONS ),
 		(array) get_option( BWS_CONVERTER_OWNERSHIP_OPTIN_OPTION, array() ),
 		null !== bws_gb_tag_held_by_other( $old_tag, bws_gb_registered_tags_now(), bws_gb_tags_we_registered() )
 	);
