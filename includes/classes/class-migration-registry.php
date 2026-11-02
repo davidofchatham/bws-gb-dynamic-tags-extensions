@@ -86,6 +86,13 @@ class MigrationRegistry {
 	 *                                   from registration state, and independent of whether the
 	 *                                   tag is registered, hidden or migration-only.
 	 *
+	 *   @type bool    $drop_unrecognized_options When true, transform_tag() discards every option key
+	 *                                   the plugin does not recognize from the entry's output, so
+	 *                                   the converter's `unknown_options` refusal cannot fire for
+	 *                                   this tag. A dropped key is gone from the stored string, so
+	 *                                   the entry owns the claim that discarding it is acceptable.
+	 *                                   What "recognize" means: bws_converter_known_options().
+	 *
 	 *   `callback` and `prefix_removed` are accepted and ignored; neither says anything about
 	 *   intent.
 	 *
@@ -223,6 +230,8 @@ class MigrationRegistry {
 	 * Otherwise applies the full transform pipeline: parse → option_renames → value_renames
 	 * → datetime_transforms → source_inject (prepend) → fixed_options → serialize.
 	 *
+	 * Either way, an entry with `drop_unrecognized_options` then has its unrecognized keys removed.
+	 *
 	 * Returns the original string unchanged when no 'tag' entry matches.
 	 *
 	 * @param string $old_tag_name Deprecated tag name.
@@ -245,11 +254,18 @@ class MigrationRegistry {
 			return $tag_string;
 		}
 
-		if ( isset( $entry['transform_callback'] ) && is_callable( $entry['transform_callback'] ) ) {
-			return ( $entry['transform_callback'] )( $tag_string );
+		$transformed = isset( $entry['transform_callback'] ) && is_callable( $entry['transform_callback'] )
+			? ( $entry['transform_callback'] )( $tag_string )
+			: self::run_transform( $entry, $tag_string );
+
+		// Applied here, after either path, because a transform_callback overrides the
+		// declarative pipeline whole. Absent helper = nothing dropped, and the ownership
+		// guard then refuses on the unknown keys: the fail-closed direction.
+		if ( ! empty( $entry['drop_unrecognized_options'] ) && function_exists( 'bws_converter_drop_unrecognized_options' ) ) {
+			return bws_converter_drop_unrecognized_options( $transformed );
 		}
 
-		return self::run_transform( $entry, $tag_string );
+		return $transformed;
 	}
 
 	// ===============================================

@@ -302,14 +302,19 @@ check( 'O5.2 the predicate reads no global or superglobal', 1 !== preg_match( '/
 preg_match( '/function bws_converter_rewrite_allowed\(.*?\n\}/s', $src, $gather_m );
 $gatherer = $gather_m[0] ?? '';
 
+// The vocabulary is its own function now, read by the gatherer AND by the drop helper (§O9).
+preg_match( '/function bws_converter_known_options\(.*?\n\}/s', $src, $vocab_m );
+$vocab = $vocab_m[0] ?? '';
+check( 'O5.3b the gatherer feeds the predicate bws_converter_known_options(), not a list of its own', 1 === preg_match( '/bws_converter_known_options\(\)/', $gatherer ) );
+
 check( 'O5.3 the gatherer checks the STORED name against the collision record, not the migrated one', 1 === preg_match( '/bws_converter_tag_ownership\(\s*\$old_tag,/s', $gatherer ), 'ownership is a claim about strings already in content, and those bear the old name' );
 
-check( 'O5.4 known vocabulary includes the keys GB\'s own output pipeline consumes', 1 === preg_match( '/BWS_GB_TAG_OUTPUT_OPTIONS/', $gatherer ), 'without them an ordinary {{text …|link:post}} reads as foreign wire and refuses' );
-check( 'O5.4b and the GB keys that ride on our tags', 1 === preg_match( '/BWS_GB_PASSTHROUGH_TAG_OPTIONS/', $gatherer ), 'without them a tag carrying required:false is refused on every rewrite' );
+check( 'O5.4 known vocabulary includes the keys GB\'s own output pipeline consumes', 1 === preg_match( '/BWS_GB_TAG_OUTPUT_OPTIONS/', $vocab ), 'without them an ordinary {{text …|link:post}} reads as foreign wire and refuses' );
+check( 'O5.4b and the GB keys that ride on our tags', 1 === preg_match( '/BWS_GB_PASSTHROUGH_TAG_OPTIONS/', $vocab ), 'without them a tag carrying required:false is refused on every rewrite' );
 
 check( 'O5.5 the opt-in is read from the named option, never inferred', 1 === preg_match( '/get_option\(\s*BWS_CONVERTER_OWNERSHIP_OPTIN_OPTION/', $gatherer ) );
 
-check( 'O5.6 known vocabulary is the CANONICAL KEY MAP, not a tag\'s registered options', 1 === preg_match( '/bws_serialization_order_key_map\(\)/', $gatherer ) && 1 !== preg_match( '/GenerateBlocks_Register_Dynamic_Tag/', $gatherer ), 'a registered option set answers which controls the editor paints, which is narrower — see the function\'s own PHPDoc' );
+check( 'O5.6 known vocabulary is the CANONICAL KEY MAP, not a tag\'s registered options', 1 === preg_match( '/bws_serialization_order_key_map\(\)/', $vocab ) && 1 !== preg_match( '/GenerateBlocks_Register_Dynamic_Tag/', $vocab ), 'a registered option set answers which controls the editor paints, which is narrower — see the function\'s own PHPDoc' );
 
 check( 'O5.8 the gatherer asks the registry about the STORED name and hands the predicate a bool', 1 === preg_match( '/bws_gb_tag_held_by_other\(\s*\$old_tag,/', $gatherer ) && 1 === preg_match( '/null\s*!==\s*bws_gb_tag_held_by_other\(/', $gatherer ), 'the collision record cannot see a name we no longer register — see the predicate\'s AXIS' );
 
@@ -344,7 +349,7 @@ require $root . '/includes/helpers/gb-output-boundary.php';
 require $root . '/includes/helpers/serialization-order.php';
 require $root . '/includes/helpers/slot-fold.php';
 
-$real_known = array_merge( array_keys( bws_serialization_order_key_map() ), BWS_GB_TAG_OUTPUT_OPTIONS, BWS_GB_PASSTHROUGH_TAG_OPTIONS );
+$real_known = bws_converter_known_options();
 
 foreach ( array(
 	'limit' => '{{term_text key:phone|limit:2}} converts carrying it',
@@ -510,6 +515,35 @@ check( 'O8.5 a name we registered whose callable has been replaced IS held by an
 check( 'O8.6 a name nobody holds is not held by another', null === bws_gb_tag_held_by_other( 'term_content', $registry, $we_hold ) );
 check( 'O8.7 an empty registry holds nothing', null === bws_gb_tag_held_by_other( 'term_title', array(), $we_hold ) );
 check( 'O8.8 a registry entry that is not an array is ignored rather than guessed at', null === bws_gb_tag_held_by_other( 'odd', array( 'odd' => 'not-an-entry' ), $we_hold ) );
+
+// ---------------------------------------------------------------------------
+echo "\n§O9 — a migration entry may DISCARD unrecognized keys instead of being refused for them\n";
+// ---------------------------------------------------------------------------
+//
+// bws_converter_drop_unrecognized_options() is the behavior behind an entry's
+// `drop_unrecognized_options` flag. It reads the same set the guard does (§O5, §O6), so a key
+// the guard would refuse is a key this removes. The end-to-end shape (flagged entry converts,
+// unflagged entry still refuses, a contested name still refuses) is migrate-string-test.php MS3.
+
+require_once $root . '/includes/classes/class-migration-registry.php';
+
+check( 'O9.1 unrecognized keys are removed, recognized ones kept in order',
+	'{{post_content fallback:x|limit:2}}' === bws_converter_drop_unrecognized_options( '{{post_content fallback:x|css_handling:strip|limit:2|processing_level:basic}}' ) );
+check( 'O9.2 a tag whose every key is unrecognized keeps its name and loses all options',
+	'{{post_content}}' === bws_converter_drop_unrecognized_options( '{{post_content css_handling:strip|processing_level:basic}}' ) );
+$misplit = '{{post_content fallback:a|b|css_handling:strip}}';
+check( 'O9.3 a VALUELESS unrecognized key blocks the drop, so the guard still refuses: it is the tail of a value split on a pipe, and dropping it would cut the author\x27s text',
+	$misplit === bws_converter_drop_unrecognized_options( $misplit ) );
+check( 'O9.3b …and a valueless key that IS recognized does not block it (noLink-style flags are ours)',
+	'{{post_content noLink}}' === bws_converter_drop_unrecognized_options( '{{post_content noLink|css_handling:strip}}' ) );
+check( 'O9.4 a slot-prefixed recognized key survives (`2-key` is `key` at slot 2)',
+	'{{join 2-key:phone}}' === bws_converter_drop_unrecognized_options( '{{join 2-key:phone|css_handling:strip}}' ) );
+
+$clean = '{{text  key:phone|limit:2|fallback:}}';
+check( 'O9.5 a tag with nothing to drop is returned byte-identical — no re-serialization, so spacing and empty values are not disturbed',
+	$clean === bws_converter_drop_unrecognized_options( $clean ) );
+
+check( 'O9.6 an option-less tag is returned as is', '{{post_content}}' === bws_converter_drop_unrecognized_options( '{{post_content}}' ) );
 
 // ---------------------------------------------------------------------------
 echo "\n";

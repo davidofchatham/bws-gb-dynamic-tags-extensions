@@ -213,12 +213,13 @@ function bws_register_nxm_tag_migrations() {
 	// ==========================================
 
 	$reg::register( array(
-		'old_tag'        => 'post_content',
-		'new_tag'        => 'content',
-		'since'          => $since,
-		'source_inject'  => '',
-		'option_renames' => $content_renames,
-		'value_renames'  => $content_values,
+		'old_tag'                   => 'post_content',
+		'new_tag'                   => 'content',
+		'since'                     => $since,
+		'source_inject'             => '',
+		'option_renames'            => $content_renames,
+		'value_renames'             => $content_values,
+		'drop_unrecognized_options' => true,
 	) );
 
 	$reg::register( array(
@@ -406,6 +407,7 @@ function bws_register_nxm_tag_migrations() {
 
 			return \BWS\DynamicTags\MigrationRegistry::format_tag_string( $new_tag, $new_options );
 		},
+		'drop_unrecognized_options' => true,
 	) );
 
 	$reg::register( array(
@@ -540,12 +542,13 @@ function bws_register_nxm_tag_migrations() {
 	) );
 
 	$reg::register( array(
-		'old_tag'        => 'term_related_post_content',
-		'new_tag'        => 'term_content',
-		'since'          => $since,
-		'source_inject'  => 'ref',
-		'option_renames' => $rel_content_renames,
-		'value_renames'  => $content_values,
+		'old_tag'                   => 'term_related_post_content',
+		'new_tag'                   => 'term_content',
+		'since'                     => $since,
+		'source_inject'             => 'ref',
+		'option_renames'            => $rel_content_renames,
+		'value_renames'             => $content_values,
+		'drop_unrecognized_options' => true,
 	) );
 
 	$reg::register( array(
