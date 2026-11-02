@@ -157,7 +157,9 @@ const BWS_CORE_BLOCK_KIND_UNRESTRICTED = 'unrestricted';
  *   `core/columns`, `core/column`.
  * - BWS_CORE_BLOCK_KIND_UNRESTRICTED (holds any content, so nothing is guarded): `core/html`.
  *
- * Anything else, including every GenerateBlocks block, is '' and unconstrained.
+ * Anything else takes the kind a `bws_dynamic_tags_core_blocks` callback declared for it
+ * (`name => kind`, read through bws_core_blocks_declared_kinds()), else '' and unconstrained,
+ * as every GenerateBlocks block is. A name in the map above is never overridden by a declaration.
  *
  * Takes `$block` the way the media guard does: the array a tag callback receives as arg 2.
  * Anything else classifies as '' (never a fatal).
@@ -169,7 +171,8 @@ const BWS_CORE_BLOCK_KIND_UNRESTRICTED = 'unrestricted';
 if ( ! function_exists( 'bws_core_block_kind' ) ) {
 function bws_core_block_kind( $block ): string {
 	$name = is_array( $block ) ? ( $block['blockName'] ?? '' ) : '';
-	switch ( is_string( $name ) ? $name : '' ) {
+	$name = is_string( $name ) ? $name : '';
+	switch ( $name ) {
 		case 'core/paragraph':
 		case 'core/heading':
 		case 'core/list-item':
@@ -198,7 +201,7 @@ function bws_core_block_kind( $block ): string {
 		case 'core/html':
 			return BWS_CORE_BLOCK_KIND_UNRESTRICTED;
 	}
-	return '';
+	return function_exists( 'bws_core_blocks_declared_kinds' ) ? ( bws_core_blocks_declared_kinds()[ $name ] ?? '' ) : '';
 }
 }
 

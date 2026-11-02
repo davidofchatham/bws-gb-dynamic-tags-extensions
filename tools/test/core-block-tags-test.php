@@ -66,6 +66,7 @@ function sanitize_key( $k ) {
 require $root . '/includes/helpers/table-helpers.php';
 require $root . '/includes/classes/admin/class-settings-page.php';
 require $root . '/includes/helpers/core-block-tags.php';
+require $root . '/includes/helpers/link-helpers.php';
 require $root . '/includes/hooks.php';
 
 use BWS\DynamicTags\Admin\SettingsPage;
@@ -93,6 +94,7 @@ function with_saved( $core_blocks ): void {
 	$ref->setAccessible( true );
 	$ref->setValue( null, null );
 	remove_all_filters( 'bws_dynamic_tags_core_blocks' );
+	bws_core_blocks_reset_declared_kinds();
 }
 
 echo "§1 — the enabled set\n";
@@ -127,6 +129,60 @@ assert_same( 'a filter returning a non-array yields empty, not a fatal', array()
 with_saved( array( 'core/paragraph' ) );
 add_filter( 'bws_dynamic_tags_core_blocks', fn( $b ) => array( 'core/paragraph', 7, null, array( 'x' ), '' ) );
 assert_same( 'non-string filter entries are dropped', array( 'core/paragraph' ), bws_core_blocks_enabled() );
+
+echo "§1b — the mixed filter value: a bare name, or name => kind\n";
+/** Run $cb as the only filter callback over a saved list of core/paragraph; return [enabled, declared kinds]. */
+function with_filter( callable $cb ): array {
+	with_saved( array( 'core/paragraph' ) );
+	add_filter( 'bws_dynamic_tags_core_blocks', $cb );
+	return array( bws_core_blocks_enabled(), bws_core_blocks_declared_kinds() );
+}
+
+[ $enabled, $kinds ] = with_filter( fn( $b ) => array_merge( $b, array( 'acme/bare' ) ) );
+assert_same( 'a bare name is enabled and declares no kind', array( array( 'core/paragraph', 'acme/bare' ), array() ), array( $enabled, $kinds ) );
+
+foreach ( array( 'inline', 'preformatted', 'link', 'container', 'unrestricted' ) as $kind ) {
+	[ $enabled, $kinds ] = with_filter( fn( $b ) => array_merge( $b, array( 'acme/blk' => $kind ) ) );
+	assert_same( "name => '{$kind}': enabled as a flat name list, kind declared", array( array( 'core/paragraph', 'acme/blk' ), array( 'acme/blk' => $kind ) ), array( $enabled, $kinds ) );
+}
+
+[ $enabled, $kinds ] = with_filter( fn( $b ) => array_merge( $b, array( 'acme/blk' => 'bogus', 'acme/blk2' => '', 'acme/blk3' => 7, 'acme/blk4' => array( 'inline' ) ) ) );
+assert_same( 'an unknown kind value is dropped to unclassified; the name stays enabled', array( array( 'core/paragraph', 'acme/blk', 'acme/blk2', 'acme/blk3', 'acme/blk4' ), array() ), array( $enabled, $kinds ) );
+
+[ $enabled, $kinds ] = with_filter( fn( $b ) => array_merge( $b, array( 'Bad Name' => 'inline', 'nope' => 'link', 'acme/ok' => 'link' ) ) );
+assert_same( 'a string key that is not a block name is dropped whole', array( array( 'core/paragraph', 'acme/ok' ), array( 'acme/ok' => 'link' ) ), array( $enabled, $kinds ) );
+
+[ $enabled, $kinds ] = with_filter( fn( $b ) => array( ' acme/padded ' => 'inline' ) );
+assert_same( 'a keyed name is trimmed like a bare one', array( array( 'acme/padded' ), array( 'acme/padded' => 'inline' ) ), array( $enabled, $kinds ) );
+
+[ $enabled, $kinds ] = with_filter( fn( $b ) => 'not-a-list' );
+assert_same( 'a non-array filter result declares nothing and enables nothing', array( array(), array() ), array( $enabled, $kinds ) );
+
+with_saved( array( 'core/paragraph' ) );
+add_filter( 'bws_dynamic_tags_core_blocks', fn( $b ) => array_merge( $b, array( 'acme/blk' => 'inline' ) ) );
+add_filter( 'bws_dynamic_tags_core_blocks', fn( $b ) => array_merge( $b, array( 'acme/blk' => 'link' ) ) );
+assert_same( 'two callbacks declaring the same name: the later one wins, one entry', array( array( 'core/paragraph', 'acme/blk' ), array( 'acme/blk' => 'link' ) ), array( bws_core_blocks_enabled(), bws_core_blocks_declared_kinds() ) );
+
+with_saved( array( 'core/paragraph' ) );
+add_filter( 'bws_dynamic_tags_core_blocks', fn( $b ) => array_merge( $b, array( 'acme/blk' => 'inline' ) ) );
+add_filter( 'bws_dynamic_tags_core_blocks', fn( $b ) => array_diff( $b, array( 'acme/blk' ) ) );
+assert_same( 'remove-by-value misses a mapped entry (it compares the kind)', array( 'core/paragraph', 'acme/blk' ), bws_core_blocks_enabled() );
+
+with_saved( array( 'core/paragraph' ) );
+add_filter( 'bws_dynamic_tags_core_blocks', function ( $b ) { $b['acme/blk'] = 'inline'; return $b; } );
+add_filter( 'bws_dynamic_tags_core_blocks', function ( $b ) { unset( $b['acme/blk'] ); return $b; } );
+assert_same( 'remove by key removes both the name and its kind', array( array( 'core/paragraph' ), array() ), array( bws_core_blocks_enabled(), bws_core_blocks_declared_kinds() ) );
+
+with_saved( array( 'core/paragraph' ) );
+$calls = 0;
+add_filter( 'bws_dynamic_tags_core_blocks', function ( $b ) use ( &$calls ) { $calls++; return array_merge( $b, array( 'acme/blk' => 'link' ) ); } );
+for ( $i = 0; $i < 5; $i++ ) {
+	bws_core_blocks_declared_kinds();
+}
+assert_same( 'the declared kinds are read once per request, not per lookup', 1, $calls );
+bws_core_blocks_reset_declared_kinds();
+bws_core_blocks_declared_kinds();
+assert_same( 'the reset makes the next read run the filter again', 2, $calls );
 
 echo "§2 — sanitize_settings() keeps and cleans core_blocks\n";
 $s = SettingsPage::sanitize_settings( array( 'core_blocks' => array( 'core/paragraph', ' core/heading ', 'acme/my-block' ) ) );
