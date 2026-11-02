@@ -67,8 +67,11 @@ return array(
 	// site held, so another set's newer posts failed 28 of 28 pages with the tree untouched. Each is
 	// now narrowed to the manifest's own posts (docs/testbed.md). Two lists moved for a reason beyond
 	// that: `ctx-term` now leads with `fixture-root` (a staff post in Sales since v8) where the
-	// 2026-10-26 baseline had four pages without it, and `ctx-home-latest` lists two posts, not
-	// twelve. `page-matrix-loops` QL3.2 prints a stored term count that includes other sets' posts; it is
+	// 2026-10-26 baseline had four pages without it. The cause is a strong inference, not a
+	// measurement: the one known integrating plugin applied one post type's gate to every row of a
+	// shared-taxonomy archive, which hid `fixture-root` from the Sales archive; it was fixed on that
+	// plugin's side on 2026-10-29. A direct counterfactual did not reproduce it, which is why this
+	// stays an inference. `ctx-home-latest` lists two posts, not twelve. `page-matrix-loops` QL3.2 prints a stored term count that includes other sets' posts; it is
 	// scoped the same day by rewriting the count to the manifest's own (docs/testbed.md). WordPress 7.1.3 -> 7.1.4 moved in the same window and is
 	// attributable for no line. Active set unchanged.
 	//
