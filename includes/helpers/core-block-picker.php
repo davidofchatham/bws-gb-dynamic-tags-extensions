@@ -57,6 +57,7 @@ function bws_core_blocks_picker_strings(): array {
 		'contents_unrestricted' => __( 'Any content', 'generateblocks' ),
 		'contents_untested'  => __( 'Not tested', 'generateblocks' ),
 		'limits_inline'      => __( '`content` keeps inline formatting only; `table` returns empty', 'generateblocks' ),
+		'limits_preformatted' => __( '`content` keeps inline formatting and line breaks; `table` returns empty', 'generateblocks' ),
 		'limits_link'        => __( '`content` and `table` return empty; link tags return plain text', 'generateblocks' ),
 		'limits_container'   => __( 'Put tags in the child block', 'generateblocks' ),
 		'limits_none'        => __( '–', 'generateblocks' ),
@@ -85,6 +86,7 @@ function bws_core_blocks_picker_strings(): array {
 		'key_limits'         => array(
 			array( __( '–', 'generateblocks' ), __( 'No limits. This plugin changes nothing about how a tag renders in this block.', 'generateblocks' ) ),
 			array( __( '`content` keeps inline formatting only', 'generateblocks' ), __( 'Text, bold, italics and links stay. Paragraph breaks, headings, lists and images are dropped, so long content runs together.', 'generateblocks' ) ),
+			array( __( '`content` keeps inline formatting and line breaks', 'generateblocks' ), __( 'Text, bold, italics, links and line breaks stay, and each paragraph or list item keeps its own line. Heading and list tags, and images, are dropped.', 'generateblocks' ) ),
 			array( __( '`table` returns empty', 'generateblocks' ), __( 'Unless *Required to render* is disabled, GenerateBlocks removes the block, like a tag that returns no value.', 'generateblocks' ) ),
 			array( __( '`content` and `table` return empty', 'generateblocks' ), __( 'Neither belongs in a button. Unless *Required to render* is disabled, GenerateBlocks removes the button, like a tag that returns no value.', 'generateblocks' ) ),
 			array( __( 'link tags return plain text', 'generateblocks' ), __( '`email`, `phone` and any tag set to *Link To* print just the address, number or text, not a link. In a Button\'s link, type `mailto:` or `tel:` before the tag yourself.', 'generateblocks' ) ),
@@ -221,7 +223,7 @@ function bws_core_blocks_picker_cells( string $name, bool $registered = true ): 
 		case BWS_CORE_BLOCK_KIND_INLINE:
 			return array( 'contents' => 'contents_inline', 'limits' => 'limits_inline', 'untested' => false );
 		case BWS_CORE_BLOCK_KIND_PREFORMATTED:
-			return array( 'contents' => 'contents_preformatted', 'limits' => 'limits_inline', 'untested' => false );
+			return array( 'contents' => 'contents_preformatted', 'limits' => 'limits_preformatted', 'untested' => false );
 		case BWS_CORE_BLOCK_KIND_LINK:
 			return array( 'contents' => 'contents_link', 'limits' => 'limits_link', 'untested' => false );
 		case BWS_CORE_BLOCK_KIND_CONTAINER:

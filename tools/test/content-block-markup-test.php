@@ -11,6 +11,7 @@
  */
 
 define( 'ABSPATH', __DIR__ );
+require __DIR__ . '/../../includes/helpers/link-helpers.php';
 require __DIR__ . '/../../includes/helpers/content-helpers.php';
 
 $failures = 0;
@@ -48,5 +49,17 @@ foreach ( $cases as [ $label, $markup, $expected ] ) {
 	echo "  FAIL {$label}: expected " . var_export( $expected, true ) . ', got ' . var_export( $actual, true ) . "\n";
 }
 
-echo $failures ? "\n{$failures} FAILED\n" : "\nall " . count( $cases ) . " passed\n";
+// A preformatted host gets the newline form of the strip, an inline host the space form.
+$wrapped = "<p>One.</p>\n<p>Two.</p>";
+foreach ( array( 'core/verse' => "One.\nTwo.", 'core/paragraph' => 'One. Two.' ) as $name => $expected ) {
+	$actual = bws_content_strip_for_host( $wrapped, array( 'blockName' => $name ) );
+	if ( $actual === $expected ) {
+		echo "  ok   {$name} host strip form\n";
+		continue;
+	}
+	$failures++;
+	echo "  FAIL {$name} host strip form: expected " . var_export( $expected, true ) . ', got ' . var_export( $actual, true ) . "\n";
+}
+
+echo $failures ? "\n{$failures} FAILED\n" : "\nall " . ( count( $cases ) + 2 ) . " passed\n";
 exit( $failures ? 1 : 0 );

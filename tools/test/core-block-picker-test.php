@@ -116,7 +116,7 @@ foreach ( array( 'core/pullquote', 'core/details' ) as $name ) {
 	assert_same( "{$name}: inline text, inline limits", array( 'contents_inline', 'limits_inline', false ), $bws_cells_of( $name ) );
 }
 foreach ( array( 'core/verse', 'core/preformatted', 'core/code' ) as $name ) {
-	assert_same( "{$name}: preformatted text, the inline limits", array( 'contents_preformatted', 'limits_inline', false ), $bws_cells_of( $name ) );
+	assert_same( "{$name}: preformatted text, its own limits", array( 'contents_preformatted', 'limits_preformatted', false ), $bws_cells_of( $name ) );
 }
 foreach ( array( 'core/button', 'core/file', 'core/navigation-link', 'core/read-more' ) as $name ) {
 	assert_same( "{$name}: link text, link limits", array( 'contents_link', 'limits_link', false ), $bws_cells_of( $name ) );
@@ -152,7 +152,7 @@ assert_same( 'nothing selected posts nothing (empty = off)', array(), array_keys
 
 echo "§6 — every note has a string, and the text helper\n";
 $strings = bws_core_blocks_picker_strings();
-foreach ( array( 'unregistered', 'code_set', 'contents_inline', 'contents_preformatted', 'contents_link', 'contents_container', 'contents_unrestricted', 'contents_untested', 'limits_inline', 'limits_link', 'limits_container', 'limits_none', 'limits_none_sr', 'sorted', 'ascending', 'descending', 'col_block', 'col_contents', 'col_limits', 'col_known', 'col_unknown', 'caption_before', 'caption_after', 'key_summary', 'count_unscanned' ) as $key ) {
+foreach ( array( 'unregistered', 'code_set', 'contents_inline', 'contents_preformatted', 'contents_link', 'contents_container', 'contents_unrestricted', 'contents_untested', 'limits_inline', 'limits_preformatted', 'limits_link', 'limits_container', 'limits_none', 'limits_none_sr', 'sorted', 'ascending', 'descending', 'col_block', 'col_contents', 'col_limits', 'col_known', 'col_unknown', 'caption_before', 'caption_after', 'key_summary', 'count_unscanned' ) as $key ) {
 	assert_same( "string for '{$key}'", true, is_string( $strings[ $key ] ?? null ) && '' !== $strings[ $key ] );
 }
 assert_same( 'backticks become code, html is escaped first', 'a <code>x &lt;b&gt;</code> &amp; b', bws_core_blocks_picker_markup( 'a `x <b>` & b' ) );
@@ -249,7 +249,7 @@ assert_same( '"registered" appears only where Handled by GB and Not handled by G
 echo "§6c — the key restates the Tag limits cells (Invariant 6)\n";
 $terms       = array_column( $text['key'], 0 );
 $limit_terms = array_column( $text['key_limits'], 0 );
-foreach ( array( 'limits_inline', 'limits_link', 'limits_container', 'limits_none' ) as $key ) {
+foreach ( array( 'limits_inline', 'limits_preformatted', 'limits_link', 'limits_container', 'limits_none' ) as $key ) {
 	foreach ( explode( '; ', $text[ $key ] ) as $phrase ) {
 		assert_same( "the Tag limits group has an entry opening with the {$key} phrase '{$phrase}'", true, in_array( $phrase, $limit_terms, true ) );
 	}
