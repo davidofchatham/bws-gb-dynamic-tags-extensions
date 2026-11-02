@@ -126,14 +126,10 @@ function bws_core_blocks_survey_count( array $records ): array {
  * count and the Migration Tool's "Found in:" list both read it, so they cannot disagree.
  *
  * A stored tag is migratable when the Migration Tool would update it, and a tag its ownership
- * guard declines is not. Deprecated tag name: TagConverter::classify_tag()
- * answers `convert`. Option migration: TagConverter::migrate_string(), the rewrite itself, reports
- * an applied option rewrite (`option_count`); asking it, not re-deriving the match and the guard
- * here, is what keeps this and the write one decision.
- * classify_tag() answers `convert` for any name whose transform changes nothing, so it is asked
- * only of the names the converter loops over (MigrationRegistry::get_deprecated_tag_names());
- * the option check is asked only of a name an option migration is registered for. Every other
- * name gets null. Null as well when the converter is not loadable.
+ * guard declines is not. Both come from TagConverter::classify_tag(), the verdict the scan rows
+ * read too, so this and the write are one decision. It is asked only of a name the converter
+ * acts on (a deprecated tag name, or a name an option migration is registered for); every other
+ * name gets null, as does a verdict of `unchanged`. Null as well when the converter is not loadable.
  *
  * `migratable` is the deprecated class. "Convertible" is reserved for FW-31 (GB core tags into
  * ours) and FW-155 (snippet tags) and is not built.
@@ -150,11 +146,11 @@ function bws_core_blocks_survey_classifier(): ?callable {
 	$deprecated = array_flip( $registry::get_deprecated_tag_names() );
 	$by_tag     = $registry::get_option_migrations_by_tag();
 	return static function ( string $tag, string $stored ) use ( $deprecated, $by_tag, $converter ): ?string {
-		$status = isset( $deprecated[ $tag ] ) ? $converter::classify_tag( $tag, $stored )['status'] : null;
-		if ( 'convert' !== $status && isset( $by_tag[ $tag ] ) && $converter::migrate_string( $stored )['option_count'] > 0 ) {
-			return 'convert';
+		if ( ! isset( $deprecated[ $tag ] ) && ! isset( $by_tag[ $tag ] ) ) {
+			return null;
 		}
-		return $status;
+		$status = $converter::classify_tag( $tag, $stored )['status'];
+		return 'unchanged' === $status ? null : $status;
 	};
 }
 

@@ -181,7 +181,7 @@ MigrationRegistry::register( array(
 $real = bws_core_blocks_survey_classifier();
 $ours = \BWS\DynamicTags\Admin\TagConverter::migrate_string( '{{ws_other legacy:v}}' );
 assert_same( 'LW5c.1 premise: the rewrite takes the guard\'s decline (unknown option key) and changes nothing', array( 0, array( 'ws_other' => 'unknown_options' ) ), array( $ours['option_count'], $ours['declined'] ) );
-assert_same( 'LW5c.2 the classifier agrees with the rewrite: no verdict, though the option migration matches', null, $real( 'ws_other', '{{ws_other legacy:v}}' ) );
+assert_same( 'LW5c.2 the classifier agrees with the rewrite: the verdict is declined, though the option migration matches', 'declined', $real( 'ws_other', '{{ws_other legacy:v}}' ) );
 $declined = bws_core_blocks_survey_walk( '<!-- wp:paragraph --><p>{{ws_other legacy:v}}</p><!-- /wp:paragraph -->', $reg, $post, $real );
 assert_same( 'LW5c.3 the located record is not migratable', array( false ), array_column( $declined, 'migratable' ) );
 

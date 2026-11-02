@@ -259,12 +259,10 @@ class MigrationRegistry {
 	/**
 	 * THE match rule for an 'option' entry — does this entry apply to these options?
 	 *
-	 * Single owner, because two places need the same answer and used to each compute it:
-	 * find_option_migrations() (which decides what RUNS) and the admin scanner's
-	 * per-tag-string detection (which decides what the converter REPORTS). Two copies of
-	 * a match rule diverge quietly, and the two halves disagreeing is worse than either
-	 * being wrong — the converter then lists work it will not do, or does work it never
-	 * listed.
+	 * Single owner of WHAT MATCHES: find_option_migrations() (inside the cascade walk) and the
+	 * scan's "present on this site" read both ask it, so two copies cannot diverge quietly.
+	 * A match is not a promise that anything changes; what the Migration Tool reports as work is
+	 * TagConverter::classify_tag()'s call.
 	 *
 	 * Three independent gates, AND-ed, and an entry must declare at least one:
 	 *   - match_options           every listed key must be present
@@ -372,8 +370,15 @@ class MigrationRegistry {
 	}
 
 	/**
-	 * Apply option migrations to a tag string. Loops until no matching entry produces a
-	 * change, so overlapping/cascading migrations all apply in one call.
+	 * Walk the option-migration cascade over a tag string, recording which entries moved it.
+	 *
+	 * THE ONE WALK the Migration Tool's report and its run both read: the final string is what
+	 * the run writes, and `fired` is what the report names (see TagConverter::classify_tag()).
+	 * An entry whose key matches but whose transform moves nothing is not in `fired`, and an
+	 * entry that only matches after an earlier one has run IS, in firing order.
+	 *
+	 * Loops until no matching entry produces a change, so overlapping/cascading migrations all
+	 * apply in one call.
 	 *
 	 * A NO-OP ENTRY DOES NOT END THE CASCADE (fixed 1.17.0). Multiple 'option' entries per
 	 * live tag is normal — `text` has ~5, `image` ~7 — and before this fix they only all
@@ -398,12 +403,13 @@ class MigrationRegistry {
 	 * chain (entries-per-tag, ~7 today) rather than merely the number of distinct entries
 	 * that fire.
 	 *
-	 * @since 1.17.0 No-op entries are skipped instead of halting the cascade.
+	 * @since Unreleased
 	 * @param string $tag_name   Current (live) tag name.
 	 * @param string $tag_string Full raw tag string.
-	 * @return string Migrated string, or original if nothing fired.
+	 * @return array{string:string, fired:array[]} The migrated string (the input when nothing fired) and the entries that changed it, in firing order.
 	 */
-	public static function apply_option_migration( string $tag_name, string $tag_string ): string {
+	public static function walk_option_migrations( string $tag_name, string $tag_string ): array {
+		$fired          = array();
 		$max_iterations = 32;
 		for ( $i = 0; $i < $max_iterations; $i++ ) {
 			[ , $options ] = self::parse_tag_string( $tag_string );
@@ -414,16 +420,29 @@ class MigrationRegistry {
 				$next = self::run_transform( $entry, $tag_string );
 				if ( $next !== $tag_string ) {
 					$tag_string = $next;
+					$fired[]    = $entry;
 					$changed    = true;
 					break;
 				}
 			}
 
 			if ( ! $changed ) {
-				return $tag_string;
+				break;
 			}
 		}
-		return $tag_string;
+		return array( 'string' => $tag_string, 'fired' => $fired );
+	}
+
+	/**
+	 * Apply option migrations to a tag string: the string half of walk_option_migrations().
+	 *
+	 * @since 1.17.0 No-op entries are skipped instead of halting the cascade.
+	 * @param string $tag_name   Current (live) tag name.
+	 * @param string $tag_string Full raw tag string.
+	 * @return string Migrated string, or original if nothing fired.
+	 */
+	public static function apply_option_migration( string $tag_name, string $tag_string ): string {
+		return self::walk_option_migrations( $tag_name, $tag_string )['string'];
 	}
 
 	// ===============================================
