@@ -696,7 +696,10 @@ return array(
 			// Latest-posts home: the testbed assigns no static front page, and the
 			// `home` class is what proves it still does not. Assign one and this row
 			// fails rather than quietly snapshotting a singular page.
-			'path'       => '/',
+			// `?bwsfx_scope=core` is schema.php's narrowing of the main query to this blueprint's
+			// own posts: the home lists every post on the shared site, so another fixture set's
+			// newest post displaced the lead post (measured 2026-11-02).
+			'path'       => '/?bwsfx_scope=core',
 			'body_class' => 'home',
 		),
 		'ctx-author'      => array(
@@ -715,7 +718,8 @@ return array(
 			// `tax-department` and not `archive`: WHICH KIND of archive this is, is the
 			// whole reason the page is in the set, so the row has to fail if it degrades
 			// into some other archive rather than pass on the generic class they all share.
-			'path'       => '/department/sales/',
+			// Scoped like the home above: other sets assign their posts to our department terms.
+			'path'       => '/department/sales/?bwsfx_scope=core',
 			'body_class' => 'tax-department',
 		),
 	),

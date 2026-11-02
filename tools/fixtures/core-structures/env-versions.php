@@ -61,6 +61,17 @@ return array(
 	// The date the baseline under `tools/test/snapshots/` was captured. Prose only —
 	// nothing compares it; it is here so a reader can place the record in time.
 	//
+	// 2026-11-02: THE BASELINE STOPPED DEPENDING ON OTHER FIXTURE SETS' POSTS. The Recent Posts widget
+	// (a core/latest-posts block in a widget_block, on every page), the latest-posts home, the Sales
+	// term archive and the previous/next link under `post-home-lead` all listed whatever the shared
+	// site held, so another set's newer posts failed 28 of 28 pages with the tree untouched. Each is
+	// now narrowed to the manifest's own posts (docs/testbed.md). Two lists moved for a reason beyond
+	// that: `ctx-term` now leads with `fixture-root` (a staff post in Sales since v8) where the
+	// 2026-10-26 baseline had four pages without it, and `ctx-home-latest` lists two posts, not
+	// twelve. One list is still not scoped: `page-matrix-loops` QL3.2 prints a stored term count,
+	// which includes other sets' posts. WordPress 7.1.3 -> 7.1.4 moved in the same window and is
+	// attributable for no line. Active set unchanged.
+	//
 	// 2026-10-29: blueprint v38 (FW-145). The blueprint now owns an `access_tier` taxonomy and one
 	// `All Users` term on jane, tom and `matrix-post-meta`, replacing a taxonomy a co-resident
 	// plugin owned and then replaced. Only two pages moved: `page-matrix-post-meta` and
@@ -149,15 +160,15 @@ return array(
 	// The 2026-09-14 capture is WooCommerce joining the fixture site (chrome only, no
 	// rendered tag moved); the 2026-09-03 one is where the head-deletion rule arrived — a
 	// reader hitting an ~800-line deletion further back in `git log` is looking at that.
-	'captured' => '2026-10-26',
+	'captured' => '2026-11-02',
 
 	// WordPress core, as `get_bloginfo( 'version' )` reports it. A change is a WARNING like a
 	// plugin version change, never a failure. First recorded 2026-09-25, read off the site
 	// with a 7.1.2 update pending and the 2026-09-24 baseline not re-captured, so it is the
 	// version that baseline was running under unless core moved that one day. The evidence for
 	// readme.txt's `Tested up to`: page-snapshot-normalize-test.php fails if that line names a
-	// newer major.minor than the one recorded here. 7.1.2 from the 2026-09-25 capture, 7.1.3 since 2026-10-09.
-	'wordpress' => '7.1.3',
+	// newer major.minor than the one recorded here. 7.1.2 from the 2026-09-25 capture, 7.1.3 from 2026-10-09, 7.1.4 since 2026-11-02.
+	'wordpress' => '7.1.4',
 
 	// EVERY PLUGIN THAT WAS RUNNING, not only the four this record requires. The version
 	// list below answers "were the dependencies the same"; this answers "what else was in
