@@ -1355,10 +1355,61 @@ function bws_fixture_core_structures_scope_product_loops( $query ) {
 	$query->set( 'post_name__in', $names ? $names : array( '__bwsfx_none__' ) );
 }
 
+/**
+ * Report the blueprint's own post count on each term of /matrix-loops/'s term loops.
+ *
+ * `{{term_count}}` (QL3.2) prints the `count` GB Query Enhancements copies off the WP_Term, which
+ * is the stored term count: it includes every post any fixture set assigned to the term, so a
+ * post another set adds to Sales moved the page. No query filter reaches a count WordPress keeps
+ * on the term, so the term objects GB Query Enhancements hands its Term Query loop are rewritten
+ * instead (its `gb_query_enhancements_term_query_data` filter; core's `get_terms` filter runs in
+ * get_terms(), which that plugin does not call): `count` becomes the number of the manifest's
+ * published posts (by slug, in the taxonomy's own post types) holding the term, which is what the
+ * stored count would read with no other set present. Live only on that page. Fixture site only;
+ * the plugin never ships this.
+ *
+ * @param array $query_data The Term Query loop's data (`data` holds the WP_Term objects).
+ * @return array
+ */
+function bws_fixture_core_structures_scope_term_counts( $query_data ) {
+	if ( is_admin() || ! is_page( 'matrix-loops' ) || ! is_array( $query_data['data'] ?? null ) ) {
+		return $query_data;
+	}
+	$terms = $query_data['data'];
+	foreach ( $terms as $i => $term ) {
+		if ( ! $term instanceof WP_Term || ! taxonomy_exists( $term->taxonomy ) ) {
+			continue;
+		}
+		$own = new WP_Query(
+			array(
+				'post_type'      => get_taxonomy( $term->taxonomy )->object_type,
+				'post_status'    => 'publish',
+				'post_name__in'  => bws_fixture_core_structures_manifest_slugs(),
+				'tax_query'      => array(
+					array(
+						'taxonomy'         => $term->taxonomy,
+						'terms'            => $term->term_id,
+						'include_children' => false,
+					),
+				),
+				'fields'         => 'ids',
+				'posts_per_page' => -1,
+				'no_found_rows'  => true,
+			)
+		);
+		$term        = clone $term;
+		$term->count = count( $own->posts );
+		$terms[ $i ] = $term;
+	}
+	$query_data['data'] = $terms;
+	return $query_data;
+}
+
 // Runtime path (mu-plugin loader stub): hook normally.
 if ( function_exists( 'add_action' ) && ! defined( 'BWS_FIXTURE_SEEDING' ) ) {
 	add_action( 'pre_get_posts', 'bws_fixture_core_structures_scope_archive' );
 	add_action( 'pre_get_posts', 'bws_fixture_core_structures_scope_product_loops' );
+	add_filter( 'gb_query_enhancements_term_query_data', 'bws_fixture_core_structures_scope_term_counts' );
 	add_filter( 'get_previous_post_where', 'bws_fixture_core_structures_scope_adjacent_post' );
 	add_filter( 'get_next_post_where', 'bws_fixture_core_structures_scope_adjacent_post' );
 	add_filter( 'pre_render_block', 'bws_fixture_core_structures_recent_posts_begin', 10, 2 );

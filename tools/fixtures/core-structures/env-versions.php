@@ -68,8 +68,8 @@ return array(
 	// now narrowed to the manifest's own posts (docs/testbed.md). Two lists moved for a reason beyond
 	// that: `ctx-term` now leads with `fixture-root` (a staff post in Sales since v8) where the
 	// 2026-10-26 baseline had four pages without it, and `ctx-home-latest` lists two posts, not
-	// twelve. One list is still not scoped: `page-matrix-loops` QL3.2 prints a stored term count,
-	// which includes other sets' posts. WordPress 7.1.3 -> 7.1.4 moved in the same window and is
+	// twelve. `page-matrix-loops` QL3.2 prints a stored term count that includes other sets' posts; it is
+	// scoped the same day by rewriting the count to the manifest's own (docs/testbed.md). WordPress 7.1.3 -> 7.1.4 moved in the same window and is
 	// attributable for no line. Active set unchanged.
 	//
 	// 2026-10-29: blueprint v38 (FW-145). The blueprint now owns an `access_tier` taxonomy and one
