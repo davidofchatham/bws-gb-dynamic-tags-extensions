@@ -899,6 +899,18 @@ Open: Which screen readers and browsers (NVDA with Chrome and Firefox on Windows
 
 Blocked by: —  •  Interacts with: FW-53 (closed; the controls that prompted it), FW-147 (the entity picker's caution and loading state are announcement surfaces too), FW-173 (a toggle switch would be a control this pass covers)
 
+#### FW-180 — The migration diff pairs a still-stored old string with its mapped new string's render
+
+`diff-replays.php --map` pairs an A-side tag string with the render of its mapped new string on the C side whenever that new string appears anywhere in the C census, even when the old string is still stored where the converter cannot reach (options and postmeta). The pair then compares the old string's render against a different occurrence's render, and reports a CHANGED row that is not a render change.
+
+Detail home: this row
+
+Progress: Measured 2026-11-02 on the Site H clone at the head of #159: 105 CHANGED rows, all one string with 3 postmeta occurrences. The old string rendered byte-identically before and after on all 105 URLs; the new string, also present from other migrated occurrences, rendered a value. The gate exits 1 on a run with no render movement, so the instrument cannot pass this clone as it stands. The pairing is `$translate` in `diff-replays.php`, which takes the mapped new string whenever its render exists on the C side; its comment above names the unmapped-fallback direction of this hazard and says it does not reach the verdict, which this run's CHANGED rows contradict for the new-string-present direction. The README already says a migration replay moves two axes, but not this third way a row can move.
+
+Open: Whether a pair whose old string is still present on the C side should compare old against old and leave the mapped pairing to strings that actually moved. Whether that is one more rule in `replay-verdict.php` with a harness case, or a separate bucket so it stays visible. The fix gets a mutation check in `replay-verdict-test.php`, since a pairing rule that fails open reads as a clean diff.
+
+Blocked by: —  •  Interacts with: FW-96 (the other replay variant that reads the same differ)
+
 ### Docs & vocabulary
 
 Repairs to the documentation corpus itself: prose that has outgrown its reader, pointers that no longer resolve, and vocabulary the docs use inconsistently. Split out of §Testing & infrastructure 2026-08-28 — those items had nothing in common with a fixture site beyond "not a feature and not a bug".
