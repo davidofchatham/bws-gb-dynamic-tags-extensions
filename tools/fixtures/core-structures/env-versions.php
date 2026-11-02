@@ -61,6 +61,15 @@ return array(
 	// The date the baseline under `tools/test/snapshots/` was captured. Prose only —
 	// nothing compares it; it is here so a reader can place the record in time.
 	//
+	// 2026-10-29: blueprint v38 (FW-145). The blueprint now owns an `access_tier` taxonomy and one
+	// `All Users` term on jane, tom and `matrix-post-meta`, replacing a taxonomy a co-resident
+	// plugin owned and then replaced. Only two pages moved: `page-matrix-post-meta` and
+	// `page-matrix-pinned-roots` each gained rows that had rendered empty, and so been dropped
+	// from the page, since the 2026-09-29 capture (18 rows in all, every one now printing the
+	// value its own label states; F10.2 went from `Captain` back to its stated value). No existing
+	// line changed. Dependency versions unchanged; the active set gained three co-resident
+	// plugins (the order-forms plugin and the two Ninja Tables plugins), which moved no page.
+	//
 	// 2026-10-26: a NEW PAGE, `page-matrix-core-blocks` (FW-156, core-block-test-matrix.md), and the
 	// testbed settings baseline now selects five core block types. Pure addition: all 27 existing
 	// pages passed byte-identical with the five selected, before the new page was captured, which is
@@ -100,8 +109,8 @@ return array(
 	// 2026-09-29 (FW-141): a new join section (J29-J37) on `page-matrix-post-meta`, plus
 	// catch-up for rows deleted from the blueprint by earlier commits without a re-capture
 	// (`page-matrix-post-meta`, `page-matrix-pinned-roots`). `active` now names
-	// `site-views` where it named `bws-portal-system`, read off the live plugin list.
-	// Three F10 rows changed value with the cause NOT measured: tracked as FW-145.
+	// the integrating plugin under its new slug, read off the live plugin list.
+	// Three F10 rows changed value; the cause is measured in FW-145.
 	//
 	// The PREVIOUS capture (2026-09-25) is a DEPENDENCY MOVE. GB Query Enhancements
 	// 1.3.0 -> 1.4.0 moved three lines on `page-matrix-products`: each Product Query loop
@@ -170,6 +179,7 @@ return array(
 		'advanced-custom-fields-pro/acf.php',
 		'block-visibility/block-visibility.php',
 		'bws-block-visibility-acf-datetime-extension/bws-block-visibility-acf-datetime-extension.php',
+		'bws-catalog-order-forms/bws-catalog-order-forms.php',
 		'bws-gb-dynamic-tags-extensions/bws-gb-dynamic-tags-extensions.php',
 		'bws-generate-layout-conditions/bws-generate-layout-conditions.php',
 		'bws-pdf-viewer/bws-pdf-viewer.php',
@@ -182,6 +192,8 @@ return array(
 		'litespeed-cache/litespeed-cache.php',
 		'meta-box-lite/meta-box-lite.php',
 		'meta-conductor/meta-conductor.php',
+		'ninja-tables-pro/ninja-tables-pro.php',
+		'ninja-tables/ninja-tables.php',
 		'redirection/redirection.php',
 		'site-views/site-views.php',
 		'slim-seo/slim-seo.php',

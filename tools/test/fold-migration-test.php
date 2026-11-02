@@ -1162,5 +1162,48 @@ check(
 	implode( ',', $term_in_list )
 );
 
+// ===========================================================================
+echo "\n§M14 The tag name ends at the first WHITESPACE, in the set `\\s` matches\n";
+// ===========================================================================
+// PCRE's `\s` set: space, tab, newline, vertical tab, form feed, carriage return. NUL is
+// not in it and form feed is, which is where trim()'s character list differs, so the
+// left-trim of the remainder is checked over every member of the set too.
+
+foreach ( array( 'space' => ' ', 'tab' => "\t", 'newline' => "\n", 'vtab' => "\x0B", 'formfeed' => "\f", 'cr' => "\r" ) as $label => $ws ) {
+	check(
+		"M14.1 a $label after the name splits name from options",
+		array( 'view_text', array( 'key' => 'x' ) ) === MigrationRegistry::parse_tag_string( '{{view_text' . $ws . 'key:x}}' ),
+		json_encode( MigrationRegistry::parse_tag_string( '{{view_text' . $ws . 'key:x}}' ) )
+	);
+	check(
+		"M14.1b …and $label is in the `\\s` set this section claims",
+		1 === preg_match( '/^\s$/', $ws )
+	);
+}
+
+check(
+	'M14.2 a run of mixed whitespace splits at the first, the rest is left-trimmed',
+	array( 'view_text', array( 'key' => 'x' ) ) === MigrationRegistry::parse_tag_string( "{{view_text \t\n\x0B\f\r key:x}}" ),
+	json_encode( MigrationRegistry::parse_tag_string( "{{view_text \t\n\x0B\f\r key:x}}" ) )
+);
+check(
+	'M14.2b a double space splits at the first, as before',
+	array( 'view_text', array( 'key' => 'x' ) ) === MigrationRegistry::parse_tag_string( '{{view_text  key:x}}' )
+);
+check(
+	'M14.3 a bare tag with no options parses as a name alone',
+	array( 'view_text', array() ) === MigrationRegistry::parse_tag_string( '{{view_text}}' )
+);
+check(
+	'M14.4 trailing whitespace on the last value is still preserved (1.17.0)',
+	array( 'text', array( 'sep' => ', ' ) ) === MigrationRegistry::parse_tag_string( "{{text\tsep:, }}" ),
+	json_encode( MigrationRegistry::parse_tag_string( "{{text\tsep:, }}" ) )
+);
+check(
+	'M14.5 NUL is not a separator: `\s` does not match it, so it stays inside the name',
+	array( "view_text\0key:x", array() ) === MigrationRegistry::parse_tag_string( "{{view_text\0key:x}}" ) && 0 === preg_match( '/\s/', "\0" ),
+	json_encode( MigrationRegistry::parse_tag_string( "{{view_text\0key:x}}" ) )
+);
+
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );

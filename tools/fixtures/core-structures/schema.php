@@ -54,6 +54,22 @@ function bws_fixture_core_structures_register_types() {
 		)
 	);
 
+	// The blueprint's OWN access taxonomy, for the rows that hop `terms` off a ref'd post and need
+	// a taxonomy other than `department` (jane and tom carry no department terms). Owned here, with
+	// its terms seeded from the manifest, because the first one these rows borrowed belonged to a
+	// co-resident plugin and vanished with it (FW-145). Not public: nothing queries it by URL.
+	register_taxonomy(
+		'access_tier',
+		array( 'page', 'staff' ),
+		array(
+			'label'        => 'Access tiers',
+			'public'       => false,
+			'show_in_rest' => true,
+			'hierarchical' => true,
+			'rewrite'      => false,
+		)
+	);
+
 	// A SECOND hierarchical taxonomy, on pages only, so a term can have a parent (FW-169, the
 	// `parent` step's term arm). Not more `department` terms: every department term is counted
 	// and printed on /matrix-loops/, so adding one moves that page's baseline for nothing.
@@ -1224,9 +1240,39 @@ function bws_fixture_core_structures_scope_archive( $query ) {
 	$query->set( 'post_name__in', $names ? $names : array( '__bwsfx_none__' ) );
 }
 
+/**
+ * Narrow the product loops on /matrix-products/ to the products this blueprint seeded.
+ *
+ * Same reason as the archive above (the site is shared, so another fixture set's products enter
+ * the loop and move the page off its snapshot), but a loop is a SECONDARY query on an ordinary
+ * page, so there is no query string to ask with: the page itself is the scope. Both loops on it
+ * (the extension's Product Query, which runs wc_get_products() over WP_Query, and the plain
+ * WP_Query beside it) pass through here. Matched by slug against the manifest's `products`.
+ * Fixture site only; the plugin never ships this.
+ *
+ * @param WP_Query $query Query under construction.
+ */
+function bws_fixture_core_structures_scope_product_loops( $query ) {
+	if ( is_admin() || $query->is_main_query() || ! is_page( 'matrix-products' ) ) {
+		return;
+	}
+	if ( ! in_array( 'product', (array) $query->get( 'post_type' ), true ) ) {
+		return;
+	}
+	$manifest = require __DIR__ . '/manifest.php';
+	$names    = array();
+	foreach ( ( $manifest['products'] ?? array() ) as $def ) {
+		if ( ! empty( $def['slug'] ) ) {
+			$names[] = $def['slug'];
+		}
+	}
+	$query->set( 'post_name__in', $names ? $names : array( '__bwsfx_none__' ) );
+}
+
 // Runtime path (mu-plugin loader stub): hook normally.
 if ( function_exists( 'add_action' ) && ! defined( 'BWS_FIXTURE_SEEDING' ) ) {
 	add_action( 'pre_get_posts', 'bws_fixture_core_structures_scope_archive' );
+	add_action( 'pre_get_posts', 'bws_fixture_core_structures_scope_product_loops' );
 	add_action( 'init', 'bws_fixture_core_structures_register_types', 5 );
 	add_action( 'init', 'bws_fixture_core_structures_register_meta', 5 );
 	add_action( 'acf/init', 'bws_fixture_core_structures_register_acf', 5 );

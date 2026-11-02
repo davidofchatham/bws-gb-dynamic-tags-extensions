@@ -159,7 +159,7 @@ function bws_register_nxm_tag_migrations() {
 	$cds_renames     = array( 'date_time_field' => 'key', 'fallback_text' => 'fallback' );
 	$cdr_renames     = array( 'start_field' => 'startKey', 'end_field' => 'endKey', 'separator' => 'rangeSep', 'fallback_text' => 'fallback' );
 	$cdts_renames    = array( 'date_time_field' => 'key', 'time_field' => 'timeKey', 'fallback_text' => 'fallback' );
-	$cdtr_renames    = array( 'start_field' => 'startKey', 'start_time_field' => 'startTimeKey', 'end_field' => 'endKey', 'end_time_field' => 'endTimeKey', 'separator' => 'rangeSep', 'date_time_separator' => 'timeSep', 'fallback_text' => 'fallback' );
+	$cdtr_renames    = bws_datetime_range_option_renames();
 
 	// Related-source renames (see the @invariant above). Used by the related_post and
 	// term_related_post entries; second_related_post/post_term_related_post use
@@ -204,19 +204,22 @@ function bws_register_nxm_tag_migrations() {
 	// Term-extraction migration: old `tax:<slug>` → new `srcTermIn:<slug>`.
 	// Term-extraction deprecated tags always carry a `tax` value, so a plain rename
 	// suffices; the new key both signals the term hop and supplies the slug.
-	$srcterm_renames = array( 'tax' => 'srcTermIn' );
+	// `taxonomy` is the older spelling of `tax`. A tag carrying both keeps `tax`'s value, so
+	// `taxonomy` is listed first.
+	$srcterm_renames = array( 'taxonomy' => 'srcTermIn', 'tax' => 'srcTermIn' );
 
 	// ==========================================
 	// POST SOURCE (source_inject: '')
 	// ==========================================
 
 	$reg::register( array(
-		'old_tag'        => 'post_content',
-		'new_tag'        => 'content',
-		'since'          => $since,
-		'source_inject'  => '',
-		'option_renames' => $content_renames,
-		'value_renames'  => $content_values,
+		'old_tag'                   => 'post_content',
+		'new_tag'                   => 'content',
+		'since'                     => $since,
+		'source_inject'             => '',
+		'option_renames'            => $content_renames,
+		'value_renames'             => $content_values,
+		'drop_unrecognized_options' => true,
 	) );
 
 	$reg::register( array(
@@ -404,6 +407,7 @@ function bws_register_nxm_tag_migrations() {
 
 			return \BWS\DynamicTags\MigrationRegistry::format_tag_string( $new_tag, $new_options );
 		},
+		'drop_unrecognized_options' => true,
 	) );
 
 	$reg::register( array(
@@ -538,12 +542,13 @@ function bws_register_nxm_tag_migrations() {
 	) );
 
 	$reg::register( array(
-		'old_tag'        => 'term_related_post_content',
-		'new_tag'        => 'term_content',
-		'since'          => $since,
-		'source_inject'  => 'ref',
-		'option_renames' => $rel_content_renames,
-		'value_renames'  => $content_values,
+		'old_tag'                   => 'term_related_post_content',
+		'new_tag'                   => 'term_content',
+		'since'                     => $since,
+		'source_inject'             => 'ref',
+		'option_renames'            => $rel_content_renames,
+		'value_renames'             => $content_values,
+		'drop_unrecognized_options' => true,
 	) );
 
 	$reg::register( array(
@@ -856,6 +861,29 @@ function bws_register_nxm_tag_migrations() {
 // ===============================================
 
 /**
+ * The pre-1.6 range-tag option renames: every `*_field`, the two separators and the fallback.
+ *
+ * ONE MAP for the N×M range entries, the hand-written `post_acf_date_time_range` entry and the
+ * live-tag `datetime_range` option entry, so a key cannot be renamed by one and left behind by
+ * another (a left-behind key reaches the Migration Tool's ownership guard as unknown vocabulary
+ * and the tag is declined).
+ *
+ * @since Unreleased
+ * @return array<string,string> Old option key => new option key.
+ */
+function bws_datetime_range_option_renames(): array {
+	return array(
+		'start_field'         => 'startKey',
+		'start_time_field'    => 'startTimeKey',
+		'end_field'           => 'endKey',
+		'end_time_field'      => 'endTimeKey',
+		'separator'           => 'rangeSep',
+		'date_time_separator' => 'timeSep',
+		'fallback_text'       => 'fallback',
+	);
+}
+
+/**
  * Register MigrationRegistry entries for the eight early deprecated tags.
  *
  * Pre-1.6 tags, older than bws_register_nxm_tag_migrations(). Called from
@@ -929,14 +957,14 @@ function bws_register_early_deprecated_tag_migrations(): void {
 	) );
 
 	// post_acf_date_time_range → datetime_range.
-	// Old options: start_field (→ startKey), end_field (→ endKey), separator (→ rangeSep), fallback_text (→ fallback), datetime booleans.
+	// Old options: the full range-tag option set (bws_datetime_range_option_renames()), datetime booleans.
 	$reg::register( array(
 		'type'                => 'tag',
 		'old_tag'             => 'post_acf_date_time_range',
 		'new_tag'             => 'datetime_range',
 		'since'               => $since,
 		'source_inject'       => '',
-		'option_renames'      => array( 'start_field' => 'startKey', 'end_field' => 'endKey', 'separator' => 'rangeSep', 'fallback_text' => 'fallback' ),
+		'option_renames'      => bws_datetime_range_option_renames(),
 		'datetime_transforms' => true,
 	) );
 
@@ -2190,15 +2218,7 @@ function bws_register_option_migrations(): void {
 	// prior migration pass but datetime field/separator/format/boolean keys were left in
 	// the old form. Same rename maps and datetime_transforms used for type:'tag' entries.
 	$cdts_renames = array( 'date_time_field' => 'key', 'time_field' => 'timeKey', 'fallback_text' => 'fallback' );
-	$cdtr_renames = array(
-		'start_field'         => 'startKey',
-		'start_time_field'    => 'startTimeKey',
-		'end_field'           => 'endKey',
-		'end_time_field'      => 'endTimeKey',
-		'separator'           => 'rangeSep',
-		'date_time_separator' => 'timeSep',
-		'fallback_text'       => 'fallback',
-	);
+	$cdtr_renames = bws_datetime_range_option_renames();
 
 	// Old key set (any one of these means the tag predates the rename and the datetime
 	// transforms (format_type, date_only, time_only, smart_time, omit_current_year) need

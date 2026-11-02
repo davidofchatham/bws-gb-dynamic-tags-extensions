@@ -86,6 +86,13 @@ class MigrationRegistry {
 	 *                                   from registration state, and independent of whether the
 	 *                                   tag is registered, hidden or migration-only.
 	 *
+	 *   @type bool    $drop_unrecognized_options When true, transform_tag() discards every option key
+	 *                                   the plugin does not recognize from the entry's output, so
+	 *                                   the converter's `unknown_options` refusal cannot fire for
+	 *                                   this tag. A dropped key is gone from the stored string, so
+	 *                                   the entry owns the claim that discarding it is acceptable.
+	 *                                   What "recognize" means: bws_converter_known_options().
+	 *
 	 *   `callback` and `prefix_removed` are accepted and ignored; neither says anything about
 	 *   intent.
 	 *
@@ -223,6 +230,8 @@ class MigrationRegistry {
 	 * Otherwise applies the full transform pipeline: parse → option_renames → value_renames
 	 * → datetime_transforms → source_inject (prepend) → fixed_options → serialize.
 	 *
+	 * Either way, an entry with `drop_unrecognized_options` then has its unrecognized keys removed.
+	 *
 	 * Returns the original string unchanged when no 'tag' entry matches.
 	 *
 	 * @param string $old_tag_name Deprecated tag name.
@@ -245,11 +254,18 @@ class MigrationRegistry {
 			return $tag_string;
 		}
 
-		if ( isset( $entry['transform_callback'] ) && is_callable( $entry['transform_callback'] ) ) {
-			return ( $entry['transform_callback'] )( $tag_string );
+		$transformed = isset( $entry['transform_callback'] ) && is_callable( $entry['transform_callback'] )
+			? ( $entry['transform_callback'] )( $tag_string )
+			: self::run_transform( $entry, $tag_string );
+
+		// Applied here, after either path, because a transform_callback overrides the
+		// declarative pipeline whole. Absent helper = nothing dropped, and the ownership
+		// guard then refuses on the unknown keys: the fail-closed direction.
+		if ( ! empty( $entry['drop_unrecognized_options'] ) && function_exists( 'bws_converter_drop_unrecognized_options' ) ) {
+			return bws_converter_drop_unrecognized_options( $transformed );
 		}
 
-		return self::run_transform( $entry, $tag_string );
+		return $transformed;
 	}
 
 	// ===============================================
@@ -259,12 +275,10 @@ class MigrationRegistry {
 	/**
 	 * THE match rule for an 'option' entry — does this entry apply to these options?
 	 *
-	 * Single owner, because two places need the same answer and used to each compute it:
-	 * find_option_migrations() (which decides what RUNS) and the admin scanner's
-	 * per-tag-string detection (which decides what the converter REPORTS). Two copies of
-	 * a match rule diverge quietly, and the two halves disagreeing is worse than either
-	 * being wrong — the converter then lists work it will not do, or does work it never
-	 * listed.
+	 * Single owner of WHAT MATCHES: find_option_migrations() (inside the cascade walk) and the
+	 * scan's "present on this site" read both ask it, so two copies cannot diverge quietly.
+	 * A match is not a promise that anything changes; what the Migration Tool reports as work is
+	 * TagConverter::classify_tag()'s call.
 	 *
 	 * Three independent gates, AND-ed, and an entry must declare at least one:
 	 *   - match_options           every listed key must be present
@@ -372,8 +386,15 @@ class MigrationRegistry {
 	}
 
 	/**
-	 * Apply option migrations to a tag string. Loops until no matching entry produces a
-	 * change, so overlapping/cascading migrations all apply in one call.
+	 * Walk the option-migration cascade over a tag string, recording which entries moved it.
+	 *
+	 * THE ONE WALK the Migration Tool's report and its run both read: the final string is what
+	 * the run writes, and `fired` is what the report names (see TagConverter::classify_tag()).
+	 * An entry whose key matches but whose transform moves nothing is not in `fired`, and an
+	 * entry that only matches after an earlier one has run IS, in firing order.
+	 *
+	 * Loops until no matching entry produces a change, so overlapping/cascading migrations all
+	 * apply in one call.
 	 *
 	 * A NO-OP ENTRY DOES NOT END THE CASCADE (fixed 1.17.0). Multiple 'option' entries per
 	 * live tag is normal — `text` has ~5, `image` ~7 — and before this fix they only all
@@ -398,12 +419,13 @@ class MigrationRegistry {
 	 * chain (entries-per-tag, ~7 today) rather than merely the number of distinct entries
 	 * that fire.
 	 *
-	 * @since 1.17.0 No-op entries are skipped instead of halting the cascade.
+	 * @since Unreleased
 	 * @param string $tag_name   Current (live) tag name.
 	 * @param string $tag_string Full raw tag string.
-	 * @return string Migrated string, or original if nothing fired.
+	 * @return array{string:string, fired:array[]} The migrated string (the input when nothing fired) and the entries that changed it, in firing order.
 	 */
-	public static function apply_option_migration( string $tag_name, string $tag_string ): string {
+	public static function walk_option_migrations( string $tag_name, string $tag_string ): array {
+		$fired          = array();
 		$max_iterations = 32;
 		for ( $i = 0; $i < $max_iterations; $i++ ) {
 			[ , $options ] = self::parse_tag_string( $tag_string );
@@ -414,16 +436,29 @@ class MigrationRegistry {
 				$next = self::run_transform( $entry, $tag_string );
 				if ( $next !== $tag_string ) {
 					$tag_string = $next;
+					$fired[]    = $entry;
 					$changed    = true;
 					break;
 				}
 			}
 
 			if ( ! $changed ) {
-				return $tag_string;
+				break;
 			}
 		}
-		return $tag_string;
+		return array( 'string' => $tag_string, 'fired' => $fired );
+	}
+
+	/**
+	 * Apply option migrations to a tag string: the string half of walk_option_migrations().
+	 *
+	 * @since 1.17.0 No-op entries are skipped instead of halting the cascade.
+	 * @param string $tag_name   Current (live) tag name.
+	 * @param string $tag_string Full raw tag string.
+	 * @return string Migrated string, or original if nothing fired.
+	 */
+	public static function apply_option_migration( string $tag_name, string $tag_string ): string {
+		return self::walk_option_migrations( $tag_name, $tag_string )['string'];
 	}
 
 	// ===============================================
@@ -731,11 +766,8 @@ class MigrationRegistry {
 	 * for its name, the converter's chain loop included. A second, local answer to that
 	 * question is what #111 was; do not re-derive the boundary at a call site.
 	 *
-	 * KNOWN LIMIT, tracked as #116: the split is on a literal space, where every pattern
-	 * around it — GB's own and the converter's — uses `\s`. A tab- or newline-separated
-	 * tag is therefore legal wire that this returns unparsed, reported by the scan and
-	 * silently declined by the run. Widening it moves what every migration entry matches,
-	 * so it is deliberately not a drive-by fix.
+	 * THE NAME ENDS AT THE FIRST WHITESPACE, in the set `\s` matches. A narrower set here
+	 * is a tag GB renders and the scan lists, but the run declines.
 	 *
 	 * TRAILING WHITESPACE INSIDE THE BRACES IS PART OF THE LAST VALUE, and is preserved
 	 * (fixed 1.17.0). GB's own parser does not trim option values — `parse_options()`
@@ -745,6 +777,7 @@ class MigrationRegistry {
 	 * matches nearly every join/try_ tag, which made it reachable at scale.
 	 *
 	 * @since 1.17.0 The last option value keeps its trailing whitespace.
+	 * @since Unreleased The name ends at any `\s` whitespace, not only a space.
 	 * @param string $tag_string Full tag string including `{{` / `}}`.
 	 * @return array{0: string, 1: array<string,string>}
 	 */
@@ -759,13 +792,16 @@ class MigrationRegistry {
 		}
 		$inner = ltrim( $inner );
 
-		$space = strpos( $inner, ' ' );
-		if ( false === $space ) {
+		// PCRE's `\s` set, which is not trim()'s: no NUL, and form feed included. The
+		// remainder is left-trimmed with the same set, so a run of it is one separator.
+		$whitespace = " \t\n\x0B\f\r";
+		$name_end   = strcspn( $inner, $whitespace );
+		if ( strlen( $inner ) === $name_end ) {
 			return array( $inner, array() );
 		}
 
-		$tag_name    = substr( $inner, 0, $space );
-		$options_str = ltrim( substr( $inner, $space + 1 ) );
+		$tag_name    = substr( $inner, 0, $name_end );
+		$options_str = ltrim( substr( $inner, $name_end + 1 ), $whitespace );
 		$options     = array();
 
 		if ( '' !== $options_str ) {

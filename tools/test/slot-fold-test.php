@@ -200,11 +200,11 @@ $corpus = array(
 	array( 'try', 'src(term,34);use(title)' ),
 	array( 'try', 'src(term,34;refs,related_post);key(name)' ),
 	// TWO hops off the pin (ticket 04, D3) — the shape the base-tag wire spells as
-	// `src:term,34;refs,dept_lead;terms,portal_visibility`. A slot must spell it identically
+	// `src:term,34;refs,dept_lead;terms,access_tier`. A slot must spell it identically
 	// or D11's "same chain on a base tag, in a {{join}} field and in a try_ attempt" is three
 	// grammars agreeing by luck.
-	array( 'try', 'src(term,34;refs,dept_lead;terms,portal_visibility);use(title)' ),
-	array( 'join', 'title;src(term,34;refs,dept_lead;terms,portal_visibility)' ),
+	array( 'try', 'src(term,34;refs,dept_lead;terms,access_tier);use(title)' ),
+	array( 'join', 'title;src(term,34;refs,dept_lead;terms,access_tier)' ),
 	array( 'join', 'title;src(post,1692;rows,team_members)' ),
 	// join — agnostic, type leads
 	array( 'join', 'title' ),

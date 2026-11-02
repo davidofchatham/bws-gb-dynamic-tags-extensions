@@ -563,9 +563,9 @@ function bws_fixture_page_content_matrix_post_meta() {
 		// limit does. Each is paired with its flat original, and L4.11 additionally
 		// with an unlimited partner, so a mapping that did nothing cannot pass.
 		bws_fixture_gb_row( 'L4.10 what MIGRATION writes for L4.1 (expect Jane Partner only, linked - identical to the flat row it replaces)', '{{text src:refs,related_staff,limit(1)|use:title|linkTo:permalink}}' ),
-		bws_fixture_gb_row( 'L4.11a TWO fanning steps, FLAT original (expect All Users)', '{{text src:ref|ref:related_staff|srcTermIn:portal_visibility|use:title}}' ),
-		bws_fixture_gb_row( 'L4.11b the same source MIGRATED - both steps limited (expect All Users, same as L4.11a)', '{{text src:refs,related_staff,limit(1);terms,portal_visibility,limit(1)|use:title}}' ),
-		bws_fixture_gb_row( 'L4.11c L4.11b-s partner, no step limits (expect All Users, All Users - this is what makes the pair non-vacuous)', '{{text src:refs,related_staff;terms,portal_visibility|use:title}}' ),
+		bws_fixture_gb_row( 'L4.11a TWO fanning steps, FLAT original (expect All Users)', '{{text src:ref|ref:related_staff|srcTermIn:access_tier|use:title}}' ),
+		bws_fixture_gb_row( 'L4.11b the same source MIGRATED - both steps limited (expect All Users, same as L4.11a)', '{{text src:refs,related_staff,limit(1);terms,access_tier,limit(1)|use:title}}' ),
+		bws_fixture_gb_row( 'L4.11c L4.11b-s partner, no step limits (expect All Users, All Users - this is what makes the pair non-vacuous)', '{{text src:refs,related_staff;terms,access_tier|use:title}}' ),
 		// L5.8's SUBJECT: a flat tag carrying an author-stated limit, there to be
 		// converted in the editor. Front-end expectation is the pre-conversion one.
 		bws_fixture_gb_row( 'L5.8 subject - FLAT with an author-stated limit:3 (expect BOTH names; convert it in the editor and the 3 moves onto the last step)', '{{text src:ref|ref:related_staff|use:title|limit:3}}' ),
@@ -827,7 +827,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F8.7 TWO relationship steps - the spec headline case, data two relationships away (-> Jane Partner, who is the only reports_to target; Jane herself has none, so that branch drops)', '{{text src:refs,related_staff;refs,reports_to|use:title}}' ),
 		bws_fixture_gb_empty_row( 'F8.8 F8.7 with step 1 bounded to Jane, who reports to nobody (-> EMPTY: the step limit bounds step 1 and the chain short-circuits)', '{{text src:refs,related_staff,limit(1);refs,reports_to|use:title}}' ),
 		bws_fixture_gb_row( 'F8.9 F8.7 reading a FIELD off the second-degree post, not its title (-> (555) 200-3000, Jane\'s line)', '{{text src:refs,related_staff;refs,reports_to|use:key|key:main_line}}' ),
-		bws_fixture_gb_row( 'F8.10 a LATER step\'s limit is PER-INPUT (#72): one term from EACH ref\'d staff (-> All Users, All Users; whole-output rendered one)', '{{text src:refs,related_staff;terms,portal_visibility,limit(1)|use:title}}' ),
+		bws_fixture_gb_row( 'F8.10 a LATER step\'s limit is PER-INPUT (#72): one term from EACH ref\'d staff (-> All Users, All Users; whole-output rendered one)', '{{text src:refs,related_staff;terms,access_tier,limit(1)|use:title}}' ),
 		// F8b (#74) - an ARGLESS step on a base tag reads EMPTY, not the ambient entity.
 		// Through 1.16.x the compiler DROPPED it, leaving a chain with no steps, and a
 		// chain with no steps resolves the ambient entity - so these returned THIS page's
@@ -1016,11 +1016,11 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F9.5n CONTROL (-> August 1–9, 2030, the range on THIS page - what the row above printed before FW-74)', '{{datetime_range startKey:event_start_date|endKey:event_end_date}}' ),
 		bws_fixture_gb_row( 'F9.5n2 try_datetime_range on a row slot (-> the same two ranges as F9.5n; rendered EMPTY before FW-74)', '{{try_datetime_range A:src(rows,team_members)|startKey:contract_start|endKey:contract_end}}' ),
 		// The one flat-wire behaviour change, shown rather than hidden. It uses
-		// portal_visibility, NOT department: jane and tom carry no department terms,
+		// access_tier, NOT department: jane and tom carry no department terms,
 		// so that taxonomy makes the row empty either way and it asserts nothing.
 		// Drop the limit:0 and this reads All Users on both eras - the floor holding.
-		bws_fixture_gb_row( 'F9.6 flat ref+term with an EXPLICIT limit now fans across every ref-d post (-> All Users, All Users; was All Users)', '{{text src:ref|ref:related_staff|srcTermIn:portal_visibility|use:title|limit:0}}' ),
-		bws_fixture_gb_row( 'F9.6b the compatibility FLOOR: same tag, limit unset (-> All Users, unchanged from before)', '{{text src:ref|ref:related_staff|srcTermIn:portal_visibility|use:title}}' ),
+		bws_fixture_gb_row( 'F9.6 flat ref+term with an EXPLICIT limit now fans across every ref-d post (-> All Users, All Users; was All Users)', '{{text src:ref|ref:related_staff|srcTermIn:access_tier|use:title|limit:0}}' ),
+		bws_fixture_gb_row( 'F9.6b the compatibility FLOOR: same tag, limit unset (-> All Users, unchanged from before)', '{{text src:ref|ref:related_staff|srcTermIn:access_tier|use:title}}' ),
 		// Matches on the AMBIENT page's content, not jane's: {{content}} ignores the
 		// relationship step entirely (issue #58, measured identically on main). The
 		// PAIR agreeing is the arm-dispatch property; it is not proof the hop works.
@@ -1041,7 +1041,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F9b.2 flat ref attempt with an EXPLICIT unlimited (-> Jane Partner, Tom Associate; was Jane Partner)', '{{try_text src:ref|ref:related_staff|use:title|limit:0}}' ),
 		bws_fixture_gb_row( 'F9b.6 the compatibility FLOOR for both rows above: same tag, limit unset (-> Jane Partner, unchanged)', '{{try_text src:ref|ref:related_staff|use:title}}' ),
 		bws_fixture_gb_row( 'F9b.3 the same change in another family, where each value self-wraps (-> both numbers; was one)', '{{try_phone src:ref|ref:related_staff|key:main_line|limit:0}}' ),
-		bws_fixture_gb_row( 'F9b.4 the try_ twin of F9.6: ref+term with an explicit unlimited (-> All Users, All Users; was All Users)', '{{try_text src:ref|ref:related_staff|srcTermIn:portal_visibility|use:title|limit:0}}' ),
+		bws_fixture_gb_row( 'F9b.4 the try_ twin of F9.6: ref+term with an explicit unlimited (-> All Users, All Users; was All Users)', '{{try_text src:ref|ref:related_staff|srcTermIn:access_tier|use:title|limit:0}}' ),
 		// A PRECEDENCE change, not a fanning one. The old arms tested srcTermIn
 		// FIRST, so this attempt took the term arm, resolved no post from a site
 		// source, and skipped whole. Kind dispatch answers `site`, which is what the
@@ -1134,7 +1134,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 	// base tag must render identically ([I16]), and a slot row on its own cannot
 	// tell "resolved correctly" from "resolved plausibly".
 	//
-	// F10.1/2 need portal_visibility and NOT department: jane and tom carry no
+	// F10.1/2 need access_tier and NOT department: jane and tom carry no
 	// department terms, so that taxonomy makes the row empty either way and asserts
 	// nothing. That exact vacuity is what the old F10.3 negative control was for.
 	//
@@ -1142,9 +1142,9 @@ function bws_fixture_page_content_matrix_post_meta() {
 	// and an empty read are indistinguishable on the front end. slot-fold-test.php
 	// §P13.5 is what says the chain is now run rather than refused.
 	$sections[] = bws_fixture_gb_section( 'Fold F10 - a MULTI-STEP slot source resolves (#104; pairs must match)', array(
-		bws_fixture_gb_row( 'F10.1 join slot, two hops (-> All Users, All Users; printed NOTHING before #104)', '{{join A:src(refs,related_staff;terms,portal_visibility);use(title)}}' ),
-		bws_fixture_gb_row( 'F10.1 BASE twin - the identity under test (-> same)', '{{text src:refs,related_staff;terms,portal_visibility|use:title}}' ),
-		bws_fixture_gb_row( 'F10.2 try_ slot, same chain; slot 2 must NOT run because slot 1 resolved (-> All Users, All Users)', '{{try_text A:src(refs,related_staff;terms,portal_visibility);use(title)|B:key(role)}}' ),
+		bws_fixture_gb_row( 'F10.1 join slot, two hops (-> All Users, All Users; printed NOTHING before #104)', '{{join A:src(refs,related_staff;terms,access_tier);use(title)}}' ),
+		bws_fixture_gb_row( 'F10.1 BASE twin - the identity under test (-> same)', '{{text src:refs,related_staff;terms,access_tier|use:title}}' ),
+		bws_fixture_gb_row( 'F10.2 try_ slot, same chain; slot 2 must NOT run because slot 1 resolved (-> All Users, All Users)', '{{try_text A:src(refs,related_staff;terms,access_tier);use(title)|B:key(role)}}' ),
 		bws_fixture_gb_row( 'F10.3 a SECOND ref hop now runs and finds nothing (staff carry no related_staff of their own), so slot 2 answers (-> Captain, as it did when slot 1 was SKIPPED)', '{{join A:src(refs,related_staff;refs,related_staff);use(title)|B:key(role)}}' ),
 		bws_fixture_gb_row( 'F10.4 a rows step resolves and its rows JOIN with the next slot since FW-74 (-> Alice Adams, Bob Brown, Captain; was Captain alone)', '{{join A:src(rows,team_members);use(key);key(name)|B:key(role)}}' ),
 		bws_fixture_gb_row( 'F10.4 BASE twin - a slot absorbs the row read through the text seam, so the plain tag reads the same rows (-> Alice Adams, Bob Brown; F9.5 is the same fact stated on the base tag)', '{{text src:rows,team_members|use:key|key:name}}' ),
@@ -1156,11 +1156,11 @@ function bws_fixture_page_content_matrix_post_meta() {
 		// post to read, and the slot vanishes from the join. This page carries no department
 		// terms, hence the pair reads on /matrix-terms-valid/ - the rows below are the
 		// FOLDED twin, which is the one that renders here.
-		bws_fixture_gb_row( 'F10.6b a carried hop is REPLACED by the slot own hop, not followed by it (-> Sales, Support, All Users)', '{{join A:src(terms,department);use(title)|B:src(same;terms,portal_visibility);use(title)}}' ),
-		bws_fixture_gb_row( 'F10.6c the shape the rule exists for: a rooted BASE plus two different taxonomies, slot 2 carrying over (-> All Users; slot 2 keeps the carried base and replaces only the taxonomy, so the wire needs no duplicate of the base)', '{{join src:ref|ref:related_staff|srcTermIn:department|use:title|2-src:same|2-srcTermIn:portal_visibility|2-use:title}}' ),
+		bws_fixture_gb_row( 'F10.6b a carried hop is REPLACED by the slot own hop, not followed by it (-> Sales, Support, All Users)', '{{join A:src(terms,department);use(title)|B:src(same;terms,access_tier);use(title)}}' ),
+		bws_fixture_gb_row( 'F10.6c the shape the rule exists for: a rooted BASE plus two different taxonomies, slot 2 carrying over (-> All Users; slot 2 keeps the carried base and replaces only the taxonomy, so the wire needs no duplicate of the base)', '{{join src:ref|ref:related_staff|srcTermIn:department|use:title|2-src:same|2-srcTermIn:access_tier|2-use:title}}' ),
 		bws_fixture_gb_row( 'F10.6d the row that BOUNDS the rule: refs is post-to-post, so a carried ref hop must NOT be dropped (-> Jane Partner, Tom Associate, Jane Partner; slot B equals the base twin below)', '{{join A:src(refs,related_staff);use(title)|B:src(same;refs,reports_to);use(title)}}' ),
 		bws_fixture_gb_row( 'F10.6d BASE twin for slot B (-> Jane Partner)', '{{text src:refs,related_staff;refs,reports_to|use:title}}' ),
-		bws_fixture_gb_row( 'F10.6b LEGACY twin - the pair the old editor authored (-> Sales, All Users; ONE department term, because flat wire bounds at 1 and chain wire does not - the SLOT, not the count, is what must match)', '{{join srcTermIn:department|use:title|2-src:same|2-srcTermIn:portal_visibility|2-use:title}}' ),
+		bws_fixture_gb_row( 'F10.6b LEGACY twin - the pair the old editor authored (-> Sales, All Users; ONE department term, because flat wire bounds at 1 and chain wire does not - the SLOT, not the count, is what must match)', '{{join srcTermIn:department|use:title|2-src:same|2-srcTermIn:access_tier|2-use:title}}' ),
 		bws_fixture_gb_row( 'F10.6 BASE twin (-> the same number)', '{{phone src:site|srcTermIn:department|key:org_phone}}' ),
 		bws_fixture_gb_empty_row( 'F10.7 hand-written chain wire SAYS the term step, so it keeps it and resolves nothing (-> EMPTY; the deliberate contrast to F10.6)', '{{join A:src(site;terms,department);key(org_phone)}}' ),
 		bws_fixture_gb_empty_row( 'F10.7 BASE twin (-> EMPTY too; a term step needs a post input)', '{{phone src:site;terms,department|key:org_phone}}' ),
@@ -1173,8 +1173,8 @@ function bws_fixture_page_content_matrix_post_meta() {
 	// ONLY where a slot fans TWICE, which is refs+terms - the one two-fanning-step
 	// shape the flat triple could express.
 	$sections[] = bws_fixture_gb_section( 'Fold F9d - per-step bounds now reach the ENGINE (stated change, #104)', array(
-		bws_fixture_gb_row( 'F9d.1 flat ref+term with an explicit limit: terms of the FIRST ref-d post, first 2 (-> All Users; was terms of ALL ref-d posts, first 2 = All Users, All Users)', '{{join src:ref|ref:related_staff|srcTermIn:portal_visibility|use:title|limit:2}}' ),
-		bws_fixture_gb_row( 'F9d.2 the MIGRATED twin of F9d.1 - the wire that says what now happens (-> identical to F9d.1; that agreement is the property)', '{{join A:src(refs,related_staff,limit[1];terms,portal_visibility,limit[2]);use(title)}}' ),
+		bws_fixture_gb_row( 'F9d.1 flat ref+term with an explicit limit: terms of the FIRST ref-d post, first 2 (-> All Users; was terms of ALL ref-d posts, first 2 = All Users, All Users)', '{{join src:ref|ref:related_staff|srcTermIn:access_tier|use:title|limit:2}}' ),
+		bws_fixture_gb_row( 'F9d.2 the MIGRATED twin of F9d.1 - the wire that says what now happens (-> identical to F9d.1; that agreement is the property)', '{{join A:src(refs,related_staff,limit[1];terms,access_tier,limit[2]);use(title)}}' ),
 		bws_fixture_gb_row( 'F9d.3 the compatibility FLOOR: ONE fanning step, so per-hop and total coincide (-> Jane Partner, Tom Associate; unchanged)', '{{join src:ref|ref:related_staff|use:title|limit:0}}' ),
 	) );
 
@@ -2086,10 +2086,10 @@ function bws_fixture_page_content_matrix_pinned_roots() {
 	$two_step = "src:term,{$sales_id};refs,dept_lead;refs,reports_to";
 	$sections[] = bws_fixture_gb_section( 'F22 - STEPS run off a pinned root, exactly as off any other root (FW-39 ticket 04)', array(
 		bws_fixture_gb_row( "F22.1 TWO steps off the pin: Sales -> its dept_lead (Tom) -> Tom's reports_to (-> Jane Partner)", "{{text {$two_step}|use:title}}" ),
-		// The literal D3 shape, term -> post -> term. `portal_visibility` and NOT
+		// The literal D3 shape, term -> post -> term. `access_tier` and NOT
 		// `department`: jane and tom carry no department terms (F9.3), so that taxonomy
 		// would render empty here for a reason having nothing to do with pins.
-		bws_fixture_gb_row( "F22.2 the D3 shape term->post->term: the pin, its dept_lead, then that post's visibility terms (-> All Users)", "{{text src:term,{$sales_id};refs,dept_lead;terms,portal_visibility|use:title}}" ),
+		bws_fixture_gb_row( "F22.2 the D3 shape term->post->term: the pin, its dept_lead, then that post's visibility terms (-> All Users)", "{{text src:term,{$sales_id};refs,dept_lead;terms,access_tier|use:title}}" ),
 		bws_fixture_gb_row( "F22.3 the SAME two-step chain inside a try_ attempt (-> Jane Partner, identical to F22.1)", "{{try_text A:src(term,{$sales_id};refs,dept_lead;refs,reports_to);use(title)}}" ),
 		bws_fixture_gb_row(
 			"F22.4 the SAME two-step chain inside a join slot, composed with the ambient title (-> Jane Partner / Matrix: Pinned Entity Roots)",
@@ -2102,7 +2102,7 @@ function bws_fixture_page_content_matrix_pinned_roots() {
 		bws_fixture_gb_empty_row( 'F22.5 a `terms` step off the pinned TERM root - EMPTY: there is no term-to-term edge, and F20.1 already proves the pin itself resolves', "{{text src:term,{$sales_id};terms,department|use:title}}" ),
 		// ...and its NON-VACUITY partner: the same step type off a pinned POST root DOES
 		// run. Without this row, F22.5 reads identically to "the terms step is broken".
-		bws_fixture_gb_row( "F22.5b the SAME step type off a pinned POST root (-> All Users) - F22.5 is a KIND refusal, not a broken step", "{{text src:post,{$tom_id};terms,portal_visibility|use:title}}" ),
+		bws_fixture_gb_row( "F22.5b the SAME step type off a pinned POST root (-> All Users) - F22.5 is a KIND refusal, not a broken step", "{{text src:post,{$tom_id};terms,access_tier|use:title}}" ),
 		// A `rows` step off a pin, shown through {{table}} because that is the container
 		// that ASSEMBLES a row into cells - the base/join/try_ arms read one key per row
 		// (F9.5/F10.4) rather than tabulating. The pinned page is matrix-post-meta, which

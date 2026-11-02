@@ -113,6 +113,7 @@ function assert_eq( string $label, $expected, $actual ): void {
 }
 
 bws_register_nxm_tag_migrations();
+bws_register_early_deprecated_tag_migrations();
 bws_register_option_migrations();
 
 /** Run the TAG-name door (a pre-1.6 tag name is rewritten whole). */
@@ -240,6 +241,15 @@ assert_eq( 'D2.4 a pre-1.6 tag name is era evidence with no options at all',
 assert_eq( 'D2.5 era survives the rename that consumes its evidence',
 	true,
 	false !== strpos( $migrate_opt( '{{datetime_single date_time_field:d}}' ), 'showMidnight' ) );
+
+// The hand-written early wrapper renames the same range options as the N×M ones: a key it
+// left behind would reach the target as an unknown option.
+assert_eq( 'D2.6 post_acf_date_time_range: end_time_field → endTimeKey',
+	'{{datetime_range as:time|rangeSep:–|showMidnight|startKey:start_date_time|endTimeKey:end_time}}',
+	$migrate_tag( '{{post_acf_date_time_range start_field:start_date_time|format_type:auto|separator:–|end_time_field:end_time|time_only}}' ) );
+assert_eq( 'D2.7 post_acf_date_time_range: start_time_field and date_time_separator too',
+	'{{datetime_range rangeSep:–|timeSep:@|showCurrentYear|showMidnight|startKey:a|startTimeKey:b|endTimeKey:c}}',
+	$migrate_tag( '{{post_acf_date_time_range start_field:a|start_time_field:b|end_time_field:c|separator:–|date_time_separator:@}}' ) );
 
 // ===========================================================================
 echo "\nD3 — output gate: no flag for a part the tag does not render\n";

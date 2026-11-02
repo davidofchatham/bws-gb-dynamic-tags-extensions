@@ -33,8 +33,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  *                       entry in the opt-in set produces this.
  *   'name_not_ours'   — another plugin's code answers for this name on this site, so we
  *                       cannot prove the strings in content were authored against our tag.
- *                       Refuse. The AUTHOR ACTION is real: rename or remove the other
- *                       plugin's tag, or opt in.
+ *                       Refuse. The AUTHOR ACTION is real: deactivate the other plugin
+ *                       or opt in.
  *   'unknown_options' — the name is ours today, but the tag carries option keys the target
  *                       template does not accept, which is what content authored against
  *                       somebody else's same-named tag looks like after we took the name
@@ -91,7 +91,7 @@ function bws_converter_ownership_report_lines(): array {
 		'name_not_ours'   => array(
 			/* translators: 1: tag name, 3: the other plugin that registers the name. */
 			'line'   => __( '%1$s is also registered by %3$s on this site, so we cannot tell which plugin these stored tags were written for. They are left exactly as they are.', 'generateblocks' ),
-			'action' => __( 'Rename or remove the other plugin\'s tag, or claim these tags as yours below.', 'generateblocks' ),
+			'action' => __( 'Deactivate the other plugin, or claim these tags as yours below.', 'generateblocks' ),
 		),
 		'unknown_options' => array(
 			/* translators: %1$s: tag name. */
@@ -117,6 +117,22 @@ function bws_converter_ownership_report_lines(): array {
 const BWS_CONVERTER_OWNERSHIP_OPTIN_OPTION = 'bws_dynamic_tags_ownership_optin';
 
 /**
+ * The GB-owned option keys that ride on OUR tags and that no migration of ours renames or
+ * reads: GenerateBlocks' tag modal writes them onto any tag, so they are never foreign wire.
+ * Today that is `required` ("Required to render"), the one reserved key we still pass through.
+ * The others GB reserves (docs/gb-constraints.md §Reserved) either are already known here
+ * (`id`, `key`, `link`, `size`) or are no longer ours: `source`, `tax` and `dateFormat` were
+ * replaced by our own keys because GB's modal captures them, so they stay unknown on purpose
+ * and a tag carrying one reads as foreign vocabulary.
+ *
+ * Kept apart from BWS_GB_TAG_OUTPUT_OPTIONS, which is the keys GB's OUTPUT pipeline reads;
+ * `required` is read earlier, at replacement time. Pinned by converter-ownership-test.php §O6.
+ *
+ * @since Unreleased
+ */
+const BWS_GB_PASSTHROUGH_TAG_OPTIONS = array( 'required' );
+
+/**
  * THE GUARD. Decide whether the strings bearing $tag may be rewritten, and say why.
  *
  * INVARIANT — THE CONVERTER NEVER REWRITES A TAG NAME WE CANNOT PROVE WE OWN WITHOUT AN
@@ -129,8 +145,14 @@ const BWS_CONVERTER_OWNERSHIP_OPTIN_OPTION = 'bws_dynamic_tags_ownership_optin';
  * on every change, at the one place in this ship that damages content on a wrong answer.
  * bws_converter_rewrite_allowed() below is the thin WordPress-side half that gathers them.
  *
- * AXIS — A NAME IS NOT OURS IFF THE COLLISION RECORD SAYS ANOTHER PLUGIN'S CODE ANSWERS FOR
- * IT. That is 'lost' and 'yielded' together, and 'kept' deliberately excluded. The record
+ * AXIS — A NAME IS NOT OURS IFF ANOTHER PLUGIN'S CODE ANSWERS FOR IT, BY EITHER WITNESS. The
+ * collision record says it for a name we TRIED to register: 'lost' and 'yielded' together,
+ * and 'kept' deliberately excluded. The live registry says it for ANY name
+ * (`$held_by_other`, decided by bws_gb_tag_held_by_other()), which is the only witness for a
+ * name we no longer register at all: a retired tag has no registration to collide, so the
+ * record is silent about it however plainly a co-resident plugin holds the name. Neither
+ * witness sees a plugin that is not active now, so strings written for a since-deactivated
+ * plugin's tag look ours. The record
  * keeps the three apart because the DEVELOPER remedies differ (see
  * bws_gb_tag_name_collisions()), and the settings page already collapses them on the same
  * line this does — but the question here is neither of theirs. It is "could these strings
@@ -161,6 +183,9 @@ const BWS_CONVERTER_OWNERSHIP_OPTIN_OPTION = 'bws_dynamic_tags_ownership_optin';
  * @param string[] $option_keys   Option keys on the tag AFTER the migration entry's own renames.
  * @param string[] $known_options Keys this plugin recognizes. Empty = nothing recognized.
  * @param string[] $opted_in      Tag names the site owner has claimed.
+ * @param bool     $held_by_other Whether GB's live registry holds $tag for a registration that is
+ *                                not ours. Required, never defaulted: a caller that forgets it
+ *                                must fail loudly, not quietly fail open.
  * @return array{rewrite:bool,reason:string,unknown_options:string[]} A member of
  *         BWS_CONVERTER_OWNERSHIP_REASONS, and the offending keys when there are any.
  */
@@ -169,13 +194,14 @@ function bws_converter_tag_ownership(
 	array $collisions,
 	array $option_keys,
 	array $known_options,
-	array $opted_in
+	array $opted_in,
+	bool $held_by_other
 ): array {
 	$outcome = (string) ( $collisions[ $tag ]['outcome'] ?? '' );
 	$unknown = array_values( array_diff( $option_keys, $known_options ) );
 
 	$refusal = '';
-	if ( 'lost' === $outcome || 'yielded' === $outcome ) {
+	if ( 'lost' === $outcome || 'yielded' === $outcome || $held_by_other ) {
 		$refusal = 'name_not_ours';
 	} elseif ( $unknown ) {
 		$refusal = 'unknown_options';
@@ -193,21 +219,14 @@ function bws_converter_tag_ownership(
 }
 
 /**
- * Gather this site's facts and ask the guard.
+ * The option keys this plugin recognizes — THE ONE ANSWER to "is this key one of ours".
  *
- * The WordPress-side half, kept as thin as it can be: it reads three things and calls the
- * predicate. Anything that decides belongs above, where a harness can reach it.
- *
- * THE KEYS COME OFF THE MIGRATED STRING, not the stored one, because the keys the guard
- * weighs are the keys the entry's own renames produced. Passing the transform's output
- * means no second copy of the rename map lives here.
- *
- * THE NAME CHECKED AGAINST THE COLLISION RECORD IS THE STORED ONE. Ownership is a claim
- * about strings already sitting in post content, and those bear the old name; whether the
- * target name is contested is a different question and not this one.
+ * Read by the guard (bws_converter_rewrite_allowed(), where an unrecognized key REFUSES the
+ * rewrite) and by bws_converter_drop_unrecognized_options() (where a migration entry that
+ * opted in DISCARDS it instead). Two readers, one set.
  *
  * KNOWN VOCABULARY IS THE CANONICAL KEY MAP PLUS THE KEYS GB'S OWN OUTPUT PIPELINE
- * CONSUMES, AND IT IS DELIBERATELY NOT THE TARGET TAG'S REGISTERED OPTIONS. A registered
+ * CONSUMES PLUS THE GB KEYS THAT RIDE ON OUR TAGS (BWS_GB_PASSTHROUGH_TAG_OPTIONS), AND IT IS DELIBERATELY NOT THE TARGET TAG'S REGISTERED OPTIONS. A registered
  * option set answers "which controls does the editor paint", and that is a strictly
  * narrower question than "is this key one of ours" — ADR 0004 is why: removing a control
  * never removes an option, so `limit` has been legal, read and unregistered on the base
@@ -225,6 +244,79 @@ function bws_converter_tag_ownership(
  * THE GB HALF IS LOAD-BEARING TOO: `link`, `trunc` and the rest are legal on every tag we
  * register, appear in no option array of ours and are not in the key map either, because GB
  * supplies those controls itself. bws_gb_tag_output() owns that set.
+ *
+ * @since Unreleased
+ * @return string[]
+ */
+function bws_converter_known_options(): array {
+	return array_merge( array_keys( bws_serialization_order_key_map() ), BWS_GB_TAG_OUTPUT_OPTIONS, BWS_GB_PASSTHROUGH_TAG_OPTIONS );
+}
+
+/**
+ * Remove every option key we do not recognize from a tag string.
+ *
+ * The behavior behind a tag migration entry's `drop_unrecognized_options` flag, applied by
+ * MigrationRegistry::transform_tag() to the entry's output. It runs BEFORE the ownership
+ * guard sees the string, so for a flagged entry the guard's `unknown_options` refusal cannot
+ * fire: the stored tag converts, minus the keys. The name checks (`name_not_ours`) are
+ * untouched, and so is every unflagged entry.
+ *
+ * WHY AN ENTRY WOULD ASK FOR IT: the old standalone-era content tags carried options this
+ * plugin has no equivalent for (`css_handling`, `processing_level`, `max_length`), and
+ * refusing the whole tag for them leaves a page author to delete keys by hand. The cost is
+ * deliberate: a key dropped here is gone from the stored string, so the entry owns the
+ * claim that discarding it is acceptable.
+ *
+ * Returns the string untouched when every key is recognized (no re-serialization, so key
+ * order and empty values are not disturbed on a clean tag). A string that does drop a key
+ * is re-serialized, which omits empty-valued keys.
+ *
+ * A VALUELESS UNRECOGNIZED KEY IS NOT DROPPED, and the string comes back untouched so the
+ * guard refuses it as before. Every old option that has nothing to carry over had a value
+ * (`css_handling:strip`); a bare key that is not ours is far more likely the tail of a value
+ * split on a `|` inside it (`fallback:a|b`), and dropping it would silently cut the author's text.
+ *
+ * @since Unreleased
+ * @param string $tag_string Full tag string including `{{` / `}}`.
+ * @return string The same tag without its unrecognized keys.
+ */
+function bws_converter_drop_unrecognized_options( string $tag_string ): string {
+	[ $name, $options ] = \BWS\DynamicTags\MigrationRegistry::parse_tag_string( $tag_string );
+	$known              = bws_converter_known_options();
+
+	$kept = array_filter(
+		$options,
+		static function ( $key ) use ( $known ): bool {
+			[ , $bare ] = bws_serialization_order_parse_slot( (string) $key );
+			return in_array( $bare, $known, true );
+		},
+		ARRAY_FILTER_USE_KEY
+	);
+
+	$dropped = array_diff_key( $options, $kept );
+
+	if ( ! $dropped || in_array( true, $dropped, true ) ) {
+		return $tag_string;
+	}
+
+	return \BWS\DynamicTags\MigrationRegistry::format_tag_string( $name, $kept );
+}
+
+/**
+ * Gather this site's facts and ask the guard.
+ *
+ * The WordPress-side half, kept as thin as it can be: it reads four things and calls the
+ * predicate. Anything that decides belongs above, where a harness can reach it.
+ *
+ * THE KEYS COME OFF THE MIGRATED STRING, not the stored one, because the keys the guard
+ * weighs are the keys the entry's own renames produced. Passing the transform's output
+ * means no second copy of the rename map lives here.
+ *
+ * THE NAME CHECKED AGAINST THE COLLISION RECORD AND THE LIVE REGISTRY IS THE STORED ONE. Ownership is a claim
+ * about strings already sitting in post content, and those bear the old name; whether the
+ * target name is contested is a different question and not this one.
+ *
+ * WHAT COUNTS AS KNOWN: bws_converter_known_options().
  *
  * THE SLOT PREFIX IS STRIPPED FIRST. `2-key` is `key` at slot 2, and a folded slot key
  * (`A`, `B`, …) parses to the empty bare name, which the map carries an entry for.
@@ -246,7 +338,8 @@ function bws_converter_rewrite_allowed( string $old_tag, string $transformed_tag
 		$old_tag,
 		bws_gb_tag_name_collisions(),
 		$bare,
-		array_merge( array_keys( bws_serialization_order_key_map() ), BWS_GB_TAG_OUTPUT_OPTIONS ),
-		(array) get_option( BWS_CONVERTER_OWNERSHIP_OPTIN_OPTION, array() )
+		bws_converter_known_options(),
+		(array) get_option( BWS_CONVERTER_OWNERSHIP_OPTIN_OPTION, array() ),
+		null !== bws_gb_tag_held_by_other( $old_tag, bws_gb_registered_tags_now(), bws_gb_tags_we_registered() )
 	);
 }

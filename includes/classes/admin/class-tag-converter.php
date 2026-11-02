@@ -103,7 +103,7 @@ class TagConverter {
 
 		foreach ( (array) $rows as $row ) {
 			$found = self::scan_content( $row->post_content, $tag_names, $option_migration_map );
-			if ( empty( $found['deprecated_tags'] ) && empty( $found['option_migrations'] ) ) {
+			if ( empty( $found['deprecated_tags'] ) && empty( $found['option_present'] ) ) {
 				continue; // LIKE false-positive.
 			}
 
@@ -122,6 +122,7 @@ class TagConverter {
 				'has_revision_support' => $revision_support_cache[ $post_type ],
 				'deprecated_tags'      => $found['deprecated_tags'],
 				'option_migrations'    => $found['option_migrations'],
+				'option_present'       => $found['option_present'],
 				'locations'            => $found['locations'],
 			);
 		}
@@ -162,6 +163,7 @@ class TagConverter {
 	 *   @type bool   $inactive          Whether no active sidebar holds it.
 	 *   @type array  $deprecated_tags   As scan().
 	 *   @type array  $option_migrations As scan().
+	 *   @type array  $option_present    As scan().
 	 *   @type array  $locations         As scan().
 	 * }
 	 */
@@ -172,7 +174,7 @@ class TagConverter {
 		$results = array();
 		foreach ( $widgets as $number => $content ) {
 			$found = self::scan_content( (string) $content, $tag_names, $option_migration_map );
-			if ( empty( $found['deprecated_tags'] ) && empty( $found['option_migrations'] ) ) {
+			if ( empty( $found['deprecated_tags'] ) && empty( $found['option_present'] ) ) {
 				continue;
 			}
 
@@ -189,6 +191,7 @@ class TagConverter {
 				'inactive'          => $inactive,
 				'deprecated_tags'   => $found['deprecated_tags'],
 				'option_migrations' => $found['option_migrations'],
+				'option_present'    => $found['option_present'],
 				'locations'         => $found['locations'],
 			);
 		}
@@ -197,23 +200,48 @@ class TagConverter {
 	}
 
 	/**
-	 * The deprecated tags and option migrations one content string holds, as a scan row reports them.
+	 * What one content string holds, as a scan row reports it: what is PRESENT, and what WILL CHANGE.
 	 *
-	 * Shared by the post and widget rows, so the two cannot report differently.
+	 * Shared by the post and widget rows, so the two cannot report differently. Two questions,
+	 * kept apart:
+	 *   - WILL CHANGE is classify_tag()'s verdict. `convert` rows are the work the Migrate button
+	 *     does; a declined or skipped row is the channels' input.
+	 *   - PRESENT is a plain match, and feeds the stored allowlist (the settings page's retired-tag
+	 *     and retired-option boxes), so a string still in content keeps its entry there even when
+	 *     the tool cannot convert it. `deprecated_tags` carries every stored string of a deprecated
+	 *     name whatever its verdict; `option_present` carries every option label whose entry matches.
+	 *
+	 * A declined option migration rides `deprecated_tags` (the channels read that list) under its
+	 * base name, marked `option`, which the allowlist skips: a base name is not a retired tag.
 	 *
 	 * @since Unreleased
 	 * @param string  $content              Post content or a widget's block markup.
 	 * @param string[] $tag_names           MigrationRegistry::get_deprecated_tag_names().
 	 * @param array   $option_migration_map MigrationRegistry::get_option_migrations_by_tag().
-	 * @return array{deprecated_tags: array[], option_migrations: array[], locations: array[]} `locations` is a list of { label, stored }, label being "core/paragraph #2".
+	 * @return array{deprecated_tags: array[], option_migrations: array[], option_present: array[], locations: array[]} `option_migrations` is { tag, label } for each label that will fire; `option_present` the same shape for each label whose entry matches. `locations` is a list of { label, stored }, label being "core/paragraph #2".
 	 */
 	private static function scan_content( string $content, array $tag_names, array $option_migration_map ): array {
-		// Deprecated tag names, each stored string CLASSIFIED into one of the report's
-		// three channels — see classify_tag(). Grouped by name + verdict rather than by
-		// name alone, because one post can hold two strings of the same name that fall
-		// different ways (a `term_text` naming a term converts, a bare one beside it is
-		// skipped), and a single row per name would have to pick one and lose the other.
+		// Each stored string CLASSIFIED into one of the report's channels — see classify_tag().
+		// Grouped by name + verdict rather than by name alone, because one post can hold two
+		// strings of the same name that fall different ways (a `term_text` naming a term converts,
+		// a bare one beside it is skipped), and a single row per name would have to pick one and
+		// lose the other.
 		$deprecated_found = array();
+		$tally            = static function ( string $tag, string $stored, array $verdict, array $extra ) use ( &$deprecated_found ): void {
+			$key = $verdict['status'] . '|' . $verdict['reason'] . '|' . $tag;
+			if ( ! isset( $deprecated_found[ $key ] ) ) {
+				$deprecated_found[ $key ] = array(
+					'tag'           => $tag,
+					'has_migration' => $extra['has_migration'],
+					'status'        => $verdict['status'],
+					'reason'        => $verdict['reason'],
+					'exempt'        => $verdict['exempt'],
+					'count'         => 0,
+					'sample'        => $stored,
+				) + array_diff_key( $extra, array( 'has_migration' => 1 ) );
+			}
+			++$deprecated_found[ $key ]['count'];
+		};
 		foreach ( $tag_names as $tag ) {
 			$pattern = '/\{\{' . preg_quote( $tag, '/' ) . '(?:\s[^}]*)?\}\}/';
 			if ( ! preg_match_all( $pattern, $content, $tag_matches ) ) {
@@ -221,44 +249,44 @@ class TagConverter {
 			}
 
 			$has_migration = MigrationRegistry::has_migration_path( $tag );
-
 			foreach ( $tag_matches[0] as $stored ) {
-				$verdict = self::classify_tag( $tag, $stored );
-				$group   = $verdict['status'] . '|' . $verdict['reason'];
-
-				if ( ! isset( $deprecated_found[ $group . '|' . $tag ] ) ) {
-					$deprecated_found[ $group . '|' . $tag ] = array(
-						'tag'           => $tag,
-						'has_migration' => $has_migration,
-						'status'        => $verdict['status'],
-						'reason'        => $verdict['reason'],
-						'exempt'        => $verdict['exempt'],
-						'count'         => 0,
-						'sample'        => $stored,
-					);
-				}
-
-				++$deprecated_found[ $group . '|' . $tag ]['count'];
+				$tally( $tag, $stored, self::classify_tag( $tag, $stored ), array( 'has_migration' => $has_migration ) );
 			}
 		}
 
-		// Option migrations.
+		// Option migrations. A label is listed once, however many strings carry it.
 		$option_migrations_found = array();
+		$option_present          = array();
 		foreach ( $option_migration_map as $base_tag => $entries ) {
 			$tag_pattern = '/\{\{' . preg_quote( $base_tag, '/' ) . '(?:\s[^}]*)?\}\}/';
 			preg_match_all( $tag_pattern, $content, $tag_matches );
 
-			foreach ( $tag_matches[0] as $tag_string ) {
-				$entry = self::first_matching_option_entry( $tag_string, $entries );
-				if ( null !== $entry ) {
-					$label           = $entry['label'] ?? $base_tag;
-					$existing_labels = array_column( $option_migrations_found, 'label' );
-					if ( ! in_array( $label, $existing_labels, true ) ) {
-						$option_migrations_found[] = array(
-							'tag'   => $base_tag,
-							'label' => $label,
-						);
+			// A name that is also a deprecated tag was tallied above; its verdict is not tallied twice.
+			$tallied = in_array( $base_tag, $tag_names, true );
+
+			foreach ( $tag_matches[0] as $stored ) {
+				[ , $options ] = MigrationRegistry::parse_tag_string( $stored );
+				$matched       = false;
+				foreach ( $entries as $entry ) {
+					if ( MigrationRegistry::entry_matches( $entry, array_keys( $options ), $options ) ) {
+						$label                    = $entry['label'] ?? $base_tag;
+						$option_present[ $label ] = array( 'tag' => $base_tag, 'label' => $label );
+						$matched                  = true;
 					}
+				}
+
+				// A string no entry matches cannot change, so it needs no verdict.
+				if ( ! $matched ) {
+					continue;
+				}
+
+				$verdict = self::classify_tag( $base_tag, $stored );
+				if ( 'convert' === $verdict['status'] ) {
+					foreach ( $verdict['labels'] as $label ) {
+						$option_migrations_found[ $label ] = array( 'tag' => $base_tag, 'label' => $label );
+					}
+				} elseif ( 'unchanged' !== $verdict['status'] && ! $tallied ) {
+					$tally( $base_tag, $stored, $verdict, array( 'has_migration' => true, 'option' => true ) );
 				}
 			}
 		}
@@ -281,33 +309,10 @@ class TagConverter {
 
 		return array(
 			'deprecated_tags'   => array_values( $deprecated_found ),
-			'option_migrations' => $option_migrations_found,
+			'option_migrations' => array_values( $option_migrations_found ),
+			'option_present'    => array_values( $option_present ),
 			'locations'         => $locations,
 		);
-	}
-
-	/**
-	 * The first option-migration entry that matches one stored tag string, or null.
-	 *
-	 * Match rule owned by MigrationRegistry::entry_matches(); this used to be a second,
-	 * hand-kept copy of it. What the converter REPORTS and what apply_option_migration() RUNS
-	 * must be the same predicate, or the list promises work that never happens.
-	 *
-	 * @since Unreleased
-	 * @param string  $tag_string The stored tag.
-	 * @param array[] $entries    The option migrations registered for its tag.
-	 * @return array|null
-	 */
-	private static function first_matching_option_entry( string $tag_string, array $entries ): ?array {
-		[ , $options ] = MigrationRegistry::parse_tag_string( $tag_string );
-		$option_keys   = array_keys( $options );
-
-		foreach ( $entries as $entry ) {
-			if ( MigrationRegistry::entry_matches( $entry, $option_keys, $options ) ) {
-				return $entry;
-			}
-		}
-		return null;
 	}
 
 	// ===============================================
@@ -315,7 +320,17 @@ class TagConverter {
 	// ===============================================
 
 	/**
-	 * Which of the report's three channels one stored tag string belongs to.
+	 * THE VERDICT: what the Migration Tool will do with one stored tag string.
+	 *
+	 * THE ONLY PREDICATE FOR "WILL THIS CHANGE", and the owner of the rule that a transform which
+	 * moves nothing is not work. It runs the chain and then the option cascade walk, the same two
+	 * steps migrate_string() runs, and asks the same ownership guard before each accepted rewrite,
+	 * so the scan's rows and the survey's migratable flag cannot list work the run declines.
+	 *
+	 * Status is one of `convert` (the run rewrites it), `declined` (a rewrite exists and the
+	 * ownership guard refuses it), `skipped` (the entry cannot express the shape) or `unchanged`
+	 * (nothing in the registry moves it). `string` and `labels` are what the run produces:
+	 * a deprecated name's chain, then the option cascade on the name the string then carries.
 	 *
 	 * THE ORDER IS THE DECISION, not a convenience. A shape the migration entry cannot
 	 * express is SKIPPED, and that is settled before ownership is ever asked — the entry has
@@ -323,51 +338,82 @@ class TagConverter {
 	 * and file an informational outcome under a channel that offers an action.
 	 * apply_if_owned() states the same ordering from the rewrite side.
 	 *
-	 * A TRANSFORM THAT CHANGES NOTHING IS NOT A DECLINE. There is no rewrite to refuse, so
-	 * the row stays in the default channel exactly as it did before this method existed;
-	 * only a real rewrite can be declined.
+	 * `unchanged` IS A STATUS, NOT A KIND OF CONVERT: a no-op transform is not work and is not
+	 * filed with the conversions. (Resolved toward the code against this docblock's earlier
+	 * wording, by the owner's decision, because that wording is the shape #119 exists to remove.)
 	 *
 	 * `exempt` IS A DISCLOSURE RIDING A CONVERSION, NEVER A FOURTH STATUS. The tag converts;
 	 * what the flag says is that the conversion is the one place this migration is not
 	 * output-neutral (D40), which the report states as a line beside the conversion preview
 	 * and not as a second gate. bws_modifier_argless_rewrite() owns the population.
 	 *
-	 * PUBLIC SO THE LOCATED WALK CAN ASK IT (FW-73): the walk's migratable flag is this
-	 * method's `convert` (or, for an option migration, migrate_string() applying one), read through
-	 * bws_core_blocks_survey_classifier(); nothing else decides it. Ask it only of a deprecated tag name, since a name no entry transforms
-	 * also comes back `convert` (the no-op case above).
+	 * PUBLIC SO THE LOCATED WALK AND THE SCAN CAN ASK IT (FW-73): the walk's migratable flag is
+	 * this method's `convert`, read through bws_core_blocks_survey_classifier(); nothing else
+	 * decides it. The future content scanner (FW-128) reads the same verdict.
 	 *
 	 * @since 1.20.0
+	 * @since Unreleased `unchanged`; answers for a base name's option cascade too; `labels` and `string`.
 	 * @param string $tag    Tag name as stored in post content.
 	 * @param string $stored The matched tag string, exactly as content holds it.
-	 * @return array{status:string, reason:string, exempt:bool} `status` is one of
-	 *         'convert', 'declined' or 'skipped'; `reason` is a member of
-	 *         BWS_MODIFIER_SKIP_REASONS or BWS_CONVERTER_OWNERSHIP_REASONS, or ''.
+	 * @return array{status:string, reason:string, exempt:bool, labels:string[], string:string} `status` is one of
+	 *         'convert', 'declined', 'skipped' or 'unchanged'; `reason` is a member of
+	 *         BWS_MODIFIER_SKIP_REASONS or BWS_CONVERTER_OWNERSHIP_REASONS, or ''; `labels` are the
+	 *         option migrations that fired, in order; `string` is what the run writes (`stored` unless `convert`).
 	 */
 	public static function classify_tag( string $tag, string $stored ): array {
+		$verdict = array( 'status' => 'unchanged', 'reason' => '', 'exempt' => false, 'labels' => array(), 'string' => $stored );
+
 		$skip = function_exists( 'bws_modifier_skip_reason_for_tag' )
 			? bws_modifier_skip_reason_for_tag( $stored )
 			: '';
 
 		if ( '' !== $skip ) {
-			return array( 'status' => 'skipped', 'reason' => $skip, 'exempt' => false );
+			return array( 'status' => 'skipped', 'reason' => $skip ) + $verdict;
 		}
 
-		$exempt = function_exists( 'bws_modifier_argless_rewrite' )
-			&& bws_modifier_argless_rewrite( $stored );
+		// Two steps in the run's order, one guard call before each accepted rewrite. A refused
+		// first step is the whole verdict; a refused second step leaves the first standing, as
+		// the run does (the refusal then shows on the next scan, against the rewritten string).
+		$string  = $stored;
+		$labels  = array();
+		$chained = false;
+		$refused = null;
+		foreach ( array( false, true ) as $cascade ) {
+			$name = ( $cascade && $string !== $stored ) ? MigrationRegistry::parse_tag_string( $string )[0] : $tag;
+			if ( $cascade ) {
+				$walk = MigrationRegistry::walk_option_migrations( $name, $string );
+				$next = $walk['string'];
+			} else {
+				$next = self::resolve_full_chain( $tag, $string );
+			}
+			if ( $next === $string ) {
+				continue;
+			}
 
-		$transformed = self::resolve_full_chain( $tag, $stored );
-		if ( $transformed === $stored ) {
-			return array( 'status' => 'convert', 'reason' => '', 'exempt' => false );
+			$decision = bws_converter_rewrite_allowed( $name, $next );
+			if ( ! $decision['rewrite'] ) {
+				$refused = $decision['reason'];
+				break;
+			}
+
+			$string = $next;
+			if ( $cascade ) {
+				foreach ( $walk['fired'] as $entry ) {
+					$labels[] = $entry['label'] ?? $name;
+				}
+			} else {
+				$chained = true;
+			}
 		}
 
-		$decision = bws_converter_rewrite_allowed( $tag, $transformed );
+		if ( $string === $stored ) {
+			return null === $refused ? $verdict : array( 'status' => 'declined', 'reason' => $refused ) + $verdict;
+		}
 
-		return $decision['rewrite']
-			? array( 'status' => 'convert', 'reason' => '', 'exempt' => $exempt )
-			: array( 'status' => 'declined', 'reason' => $decision['reason'], 'exempt' => false );
+		$exempt = $chained && function_exists( 'bws_modifier_argless_rewrite' ) && bws_modifier_argless_rewrite( $stored );
+
+		return array( 'status' => 'convert', 'exempt' => $exempt, 'labels' => $labels, 'string' => $string ) + $verdict;
 	}
-
 	/**
 	 * The wording around a report row's `found` list, so the script only places it.
 	 *
@@ -519,8 +565,9 @@ class TagConverter {
 	 *
 	 * Thin: bws_gb_collision_other_parties() decides WHICH party is the other one and
 	 * bws_gb_other_registrar_phrase() words it — both already own their halves for the
-	 * settings page's conflicts block. This only picks the record out by name, so the decline
-	 * line names the same plugin that block does.
+	 * settings page's conflicts block. This picks the record out by name, so the decline
+	 * line names the same plugin that block does, and falls back to the live registry for a
+	 * name the record never saw.
 	 *
 	 * @since 1.20.0
 	 * @param string $tag Tag name as stored in post content.
@@ -530,14 +577,26 @@ class TagConverter {
 		$collisions = function_exists( 'bws_gb_tag_name_collisions' ) ? bws_gb_tag_name_collisions() : array();
 		$record     = $collisions[ $tag ] ?? array();
 
-		if ( ! $record || ! function_exists( 'bws_gb_collision_other_parties' ) ) {
-			return __( 'another plugin', 'generateblocks' );
+		if ( $record && function_exists( 'bws_gb_collision_other_parties' ) ) {
+			$parties = bws_gb_collision_other_parties( $record );
+			$other   = $parties[ $parties['subject'] ] ?? array();
+
+			return bws_gb_other_registrar_phrase( (string) ( $other['title'] ?? '' ), (string) ( $other['source'] ?? '' ) );
 		}
 
-		$parties = bws_gb_collision_other_parties( $record );
-		$other   = $parties[ $parties['subject'] ] ?? array();
+		// NO RECORD IS THE NORMAL CASE FOR A RETIRED NAME: the guard refused on the live
+		// registry (bws_gb_tag_held_by_other()), and the registry entry is the only evidence
+		// of who holds it. The file is resolved here, on a decline only, because that is the
+		// only caller that words one.
+		$held = function_exists( 'bws_gb_tag_held_by_other' )
+			? bws_gb_tag_held_by_other( $tag, bws_gb_registered_tags_now(), bws_gb_tags_we_registered() )
+			: null;
 
-		return bws_gb_other_registrar_phrase( (string) ( $other['title'] ?? '' ), (string) ( $other['source'] ?? '' ) );
+		if ( null !== $held ) {
+			return bws_gb_other_registrar_phrase( (string) ( $held['title'] ?? '' ), bws_gb_tag_registrar_file( $held['return'] ?? null ) );
+		}
+
+		return __( 'another plugin', 'generateblocks' );
 	}
 
 	// ===============================================
@@ -566,7 +625,7 @@ class TagConverter {
 	 * Rebuild the scan allowlist from an already-computed scan() result.
 	 *
 	 * Reduces scan() rows to the flat set of deprecated tag names and option
-	 * migration labels actually found in content — the positive list the settings
+	 * migration labels actually PRESENT in content (matched, whether or not the tool can change them) — the positive list the settings
 	 * page uses to hide zero-match entries (V7). Also called after migrate_post()/
 	 * bulk migrate (V7/V9 — a migrated post's old tag/option should drop off on
 	 * the next rebuild).
@@ -581,9 +640,11 @@ class TagConverter {
 
 		foreach ( $posts as $row ) {
 			foreach ( $row['deprecated_tags'] as $found ) {
-				$tags[] = $found['tag'];
+				if ( empty( $found['option'] ) ) { // A declined option migration is a base name, not a retired tag.
+					$tags[] = $found['tag'];
+				}
 			}
-			foreach ( $row['option_migrations'] as $found ) {
+			foreach ( $row['option_present'] as $found ) {
 				$option_labels[] = $found['label'];
 			}
 		}

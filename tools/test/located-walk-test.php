@@ -77,6 +77,10 @@ function apply_filters( $hook, $value ) {
 function bws_gb_tag_name_collisions(): array {
 	return array();
 }
+// The live-registry witness the ownership gatherer also asks; nothing is held by another plugin here.
+function bws_gb_registered_tags_now(): array { return array(); }
+function bws_gb_tags_we_registered(): array { return array(); }
+function bws_gb_tag_held_by_other( string $tag, array $registry, array $ours ): ?array { return null; }
 
 $root = dirname( __DIR__, 2 );
 require $root . '/includes/helpers/slot-fold.php';
@@ -177,7 +181,7 @@ MigrationRegistry::register( array(
 $real = bws_core_blocks_survey_classifier();
 $ours = \BWS\DynamicTags\Admin\TagConverter::migrate_string( '{{ws_other legacy:v}}' );
 assert_same( 'LW5c.1 premise: the rewrite takes the guard\'s decline (unknown option key) and changes nothing', array( 0, array( 'ws_other' => 'unknown_options' ) ), array( $ours['option_count'], $ours['declined'] ) );
-assert_same( 'LW5c.2 the classifier agrees with the rewrite: no verdict, though the option migration matches', null, $real( 'ws_other', '{{ws_other legacy:v}}' ) );
+assert_same( 'LW5c.2 the classifier agrees with the rewrite: the verdict is declined, though the option migration matches', 'declined', $real( 'ws_other', '{{ws_other legacy:v}}' ) );
 $declined = bws_core_blocks_survey_walk( '<!-- wp:paragraph --><p>{{ws_other legacy:v}}</p><!-- /wp:paragraph -->', $reg, $post, $real );
 assert_same( 'LW5c.3 the located record is not migratable', array( false ), array_column( $declined, 'migratable' ) );
 

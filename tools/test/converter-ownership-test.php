@@ -78,7 +78,8 @@ function decide( array $facts ): array {
 		$facts['collisions'] ?? array(),
 		$facts['option_keys'] ?? array(),
 		$facts['known_options'] ?? array( 'src', 'use', 'key', 'fallback' ),
-		$facts['opted_in'] ?? array()
+		$facts['opted_in'] ?? array(),
+		$facts['held_by_other'] ?? false
 	);
 
 	$reasons_driven[ $out['reason'] ] = true;
@@ -151,6 +152,25 @@ check( 'O2.8 the opt-in releases the vocabulary refusal too — one claim, both 
 
 $optin_idle = decide( array( 'option_keys' => array( 'use' ), 'opted_in' => array( 'term_title' ) ) );
 check( 'O2.9 an opt-in on an UNCONTESTED name reports `ours`, not `opted_in`', 'ours' === $optin_idle['reason'], 'the reason names the fact that decided, and here nothing was overridden' );
+
+// THE LIVE REGISTRY IS THE SECOND WITNESS. The record only knows names WE tried to register,
+// so a name we no longer register at all (the removed `term_` family) has no record however
+// plainly another plugin holds it. `held_by_other` is that fact read off GB's registry, and it
+// refuses on the same reason, for the same author action.
+$held = decide( array( 'option_keys' => array( 'use', 'key' ), 'held_by_other' => true ) );
+check( 'O2.10 a name another plugin holds refuses with NO collision record at all', false === $held['rewrite'] && 'name_not_ours' === $held['reason'] );
+
+$held_bare = decide( array( 'option_keys' => array(), 'held_by_other' => true ) );
+check( 'O2.11 …even with no options, as O2.2 does for the record', false === $held_bare['rewrite'] && 'name_not_ours' === $held_bare['reason'] );
+
+$held_foreign = decide( array( 'option_keys' => array( 'qe_mode' ), 'held_by_other' => true ) );
+check( 'O2.12 …and names the contested NAME, not the vocabulary, when both apply (D38: only the name has an owner action)', 'name_not_ours' === $held_foreign['reason'] );
+
+$held_claimed = decide( array( 'option_keys' => array( 'use' ), 'held_by_other' => true, 'opted_in' => array( 'term_title' ) ) );
+check( 'O2.13 the owner claimed the name — rewrite, reason `opted_in`', true === $held_claimed['rewrite'] && 'opted_in' === $held_claimed['reason'] );
+
+$held_other_claim = decide( array( 'option_keys' => array( 'use' ), 'held_by_other' => true, 'opted_in' => array( 'term_content' ) ) );
+check( 'O2.14 the opt-in is still PER NAME for a registry-held name', false === $held_other_claim['rewrite'] && 'name_not_ours' === $held_other_claim['reason'] );
 
 // ---------------------------------------------------------------------------
 echo "\n§O3 — the fail-closed direction\n";
@@ -248,7 +268,7 @@ foreach ( $wording as $reason => $row ) {
 // D38 PROPER — the two refusals are not one reason, and `action` is where that lands. A
 // contested NAME has something an owner can go and do; unknown vocabulary does not, and
 // telling them to look for a plugin conflict sends them after one that does not exist.
-check( 'O4.7 name_not_ours offers an author action', '' !== $wording['name_not_ours']['action'], 'D38: rename or remove the other plugin\'s tag' );
+check( 'O4.7 name_not_ours offers an author action', '' !== $wording['name_not_ours']['action'], 'D38: deactivate the other plugin' );
 check( 'O4.8 unknown_options offers NONE', '' === $wording['unknown_options']['action'], 'D38: there is no other plugin to go and find' );
 
 // THE TWO CHANNELS ARE SEPARATE SURFACES (D46), and this is the half of that a harness can
@@ -282,13 +302,28 @@ check( 'O5.2 the predicate reads no global or superglobal', 1 !== preg_match( '/
 preg_match( '/function bws_converter_rewrite_allowed\(.*?\n\}/s', $src, $gather_m );
 $gatherer = $gather_m[0] ?? '';
 
+// The vocabulary is its own function now, read by the gatherer AND by the drop helper (§O9).
+preg_match( '/function bws_converter_known_options\(.*?\n\}/s', $src, $vocab_m );
+$vocab = $vocab_m[0] ?? '';
+check( 'O5.3b the gatherer feeds the predicate bws_converter_known_options(), not a list of its own', 1 === preg_match( '/bws_converter_known_options\(\)/', $gatherer ) );
+
 check( 'O5.3 the gatherer checks the STORED name against the collision record, not the migrated one', 1 === preg_match( '/bws_converter_tag_ownership\(\s*\$old_tag,/s', $gatherer ), 'ownership is a claim about strings already in content, and those bear the old name' );
 
-check( 'O5.4 known vocabulary includes the keys GB\'s own output pipeline consumes', 1 === preg_match( '/BWS_GB_TAG_OUTPUT_OPTIONS/', $gatherer ), 'without them an ordinary {{text …|link:post}} reads as foreign wire and refuses' );
+check( 'O5.4 known vocabulary includes the keys GB\'s own output pipeline consumes', 1 === preg_match( '/BWS_GB_TAG_OUTPUT_OPTIONS/', $vocab ), 'without them an ordinary {{text …|link:post}} reads as foreign wire and refuses' );
+check( 'O5.4b and the GB keys that ride on our tags', 1 === preg_match( '/BWS_GB_PASSTHROUGH_TAG_OPTIONS/', $vocab ), 'without them a tag carrying required:false is refused on every rewrite' );
 
 check( 'O5.5 the opt-in is read from the named option, never inferred', 1 === preg_match( '/get_option\(\s*BWS_CONVERTER_OWNERSHIP_OPTIN_OPTION/', $gatherer ) );
 
-check( 'O5.6 known vocabulary is the CANONICAL KEY MAP, not a tag\'s registered options', 1 === preg_match( '/bws_serialization_order_key_map\(\)/', $gatherer ) && 1 !== preg_match( '/GenerateBlocks_Register_Dynamic_Tag/', $gatherer ), 'a registered option set answers which controls the editor paints, which is narrower — see the function\'s own PHPDoc' );
+check( 'O5.6 known vocabulary is the CANONICAL KEY MAP, not a tag\'s registered options', 1 === preg_match( '/bws_serialization_order_key_map\(\)/', $vocab ) && 1 !== preg_match( '/GenerateBlocks_Register_Dynamic_Tag/', $vocab ), 'a registered option set answers which controls the editor paints, which is narrower — see the function\'s own PHPDoc' );
+
+check( 'O5.8 the gatherer asks the registry about the STORED name and hands the predicate a bool', 1 === preg_match( '/bws_gb_tag_held_by_other\(\s*\$old_tag,/', $gatherer ) && 1 === preg_match( '/null\s*!==\s*bws_gb_tag_held_by_other\(/', $gatherer ), 'the collision record cannot see a name we no longer register — see the predicate\'s AXIS' );
+
+// The registry read is one small function of the boundary file, so the gatherer itself names
+// no GB class (O5.6 holds that). Its degrade is the static fact worth pinning: no GB means an
+// empty registry, which holds nothing, and never a fatal on a site mid-activation.
+preg_match( '/function bws_gb_registered_tags_now\(.*?\n\}/s', (string) file_get_contents( $root . '/includes/helpers/gb-registration-boundary.php' ), $now_m );
+check( 'O5.9 the live registry read degrades to an empty registry when GB\'s registrar class is absent', 1 === preg_match( '/class_exists\(\s*\'GenerateBlocks_Register_Dynamic_Tag\'.*get_tags\(\)/s', $now_m[0] ?? '' ) && 1 === preg_match( '/:\s*array\(\)/', $now_m[0] ?? '' ) );
+check( 'O5.10 the gatherer passes that read and our own registrations to bws_gb_tag_held_by_other()', 1 === preg_match( '/bws_gb_tag_held_by_other\(\s*\$old_tag,\s*bws_gb_registered_tags_now\(\),\s*bws_gb_tags_we_registered\(\)/', $gatherer ) );
 
 check( 'O5.7 the slot prefix is stripped before the keys are weighed', 1 === preg_match( '/bws_serialization_order_parse_slot\(/', $gatherer ), '`2-key` is `key` at slot 2' );
 
@@ -314,7 +349,7 @@ require $root . '/includes/helpers/gb-output-boundary.php';
 require $root . '/includes/helpers/serialization-order.php';
 require $root . '/includes/helpers/slot-fold.php';
 
-$real_known = array_merge( array_keys( bws_serialization_order_key_map() ), BWS_GB_TAG_OUTPUT_OPTIONS );
+$real_known = bws_converter_known_options();
 
 foreach ( array(
 	'limit' => '{{term_text key:phone|limit:2}} converts carrying it',
@@ -340,6 +375,22 @@ foreach ( array( '2-key', '10-src', 'A', 'B' ) as $slot_key ) {
 // The other direction, so O6.1 cannot pass by the set having grown to everything: a key
 // from nobody's vocabulary is still caught.
 check( 'O6.3 a foreign key is still unknown against the real set', false === in_array( 'qe_mode', $real_known, true ) );
+
+// The GB key that rides on our tags (#158). `required:false` is GB's "Required to render" and can
+// sit on any tag; without it the guard refuses every rewrite of such a tag as foreign wire.
+check( 'O6.4 `required` is known vocabulary', in_array( 'required', $real_known, true ) );
+
+// The other keys GB reserves, and that we stopped using because its modal captures them, stay
+// UNKNOWN: a tag carrying one is not our wire. `tax` is the sidecar GB Query Enhancements' term tags
+// write now (docs/coresident/gb-query-enhancements.md), and the removed term_ family wrote it before.
+foreach ( array( 'source', 'tax', 'dateFormat' ) as $key ) {
+	check( "O6.4b `{$key}` stays unknown vocabulary", false === in_array( $key, $real_known, true ) );
+}
+
+// Every passthrough key is one GB really reserves: read off docs/gb-constraints.md's Reserved line.
+preg_match( '/\*\*Reserved:\*\*\s*(.+)/', (string) file_get_contents( $root . '/docs/gb-constraints.md' ), $reserved_m );
+$documented = array_map( static fn( string $k ): string => trim( $k, " `\t\r\n" ), explode( ',', $reserved_m[1] ?? '' ) );
+check( 'O6.5 every BWS_GB_PASSTHROUGH_TAG_OPTIONS key is in the Reserved list in docs/gb-constraints.md', array() === array_diff( BWS_GB_PASSTHROUGH_TAG_OPTIONS, $documented ) && count( $documented ) > 1, json_encode( $documented ) );
 
 // ---------------------------------------------------------------------------
 echo "\n§O7 — no rewrite path in the converter bypasses the guard\n";
@@ -420,6 +471,79 @@ check( 'O7.3c the report asker writes nothing', 1 !== preg_match( '/wpdb->update
 // "ungated" stays a decision rather than becoming an oversight.
 preg_match( '/public static function scan\(\).*?\n\t\}/s', $code_only, $scan_m );
 check( 'O7.4 scan() writes no content, so it is ungated by design', false === strpos( $scan_m[0] ?? '', 'wpdb->update' ) );
+
+// ---------------------------------------------------------------------------
+echo "\n§O8 — the registry witness: who holds a name, read off GB's registry\n";
+// ---------------------------------------------------------------------------
+//
+// bws_gb_tag_held_by_other() is pure over the two arrays it is handed, so a fake registry
+// drives every shape. What a fake cannot say is what a REAL co-resident plugin leaves in GB's
+// registry, which the testbed check in verify.php holds.
+
+require $root . '/includes/helpers/gb-registration-boundary.php';
+
+function bws_test_stranger_callback() { // phpcs:ignore
+	return '';
+}
+
+$mine = static function ( string $tag, $callable ): array {
+	return array( 'tag' => $tag, 'title' => 'Ours', 'return' => $callable, 'hidden' => false );
+};
+
+$registry = array(
+	'term_title' => array( 'title' => 'Term Title', 'type' => 'term', 'return' => 'bws_test_stranger_callback' ),
+	'text'       => array( 'title' => 'Text', 'return' => 'bws_base_text_callback' ),
+	'swapped'    => array( 'title' => 'Swapped', 'return' => 'bws_test_stranger_callback' ),
+);
+$we_hold  = array(
+	'text'    => $mine( 'text', 'bws_base_text_callback' ),
+	'swapped' => $mine( 'swapped', 'bws_swapped_callback' ),
+);
+
+$stranger = bws_gb_tag_held_by_other( 'term_title', $registry, $we_hold );
+check( 'O8.1 a name we never registered, held in the registry, is held by another', is_array( $stranger ) );
+check( 'O8.2 …and the answer IS the registry entry, so the report line has its title', 'Term Title' === ( $stranger['title'] ?? null ) );
+
+// THE ANSWER CARRIES THE CALLABLE, NOT ITS FILE. The gatherer asks this for every stored tag
+// string it rewrites, and resolving a file is reflection; only a DECLINE needs the file, so
+// the one caller that words a decline resolves it with bws_gb_tag_registrar_file().
+$source = bws_gb_tag_registrar_file( $stranger['return'] ?? null );
+check( 'O8.3 …and the callable leads to the file the other registration lives in', false !== strpos( $source, 'converter-ownership-test.php' ), 'source: ' . var_export( $source, true ) );
+
+check( 'O8.4 a name we registered and GB still holds as ours is NOT held by another', null === bws_gb_tag_held_by_other( 'text', $registry, $we_hold ) );
+check( 'O8.5 a name we registered whose callable has been replaced IS held by another', is_array( bws_gb_tag_held_by_other( 'swapped', $registry, $we_hold ) ) );
+check( 'O8.6 a name nobody holds is not held by another', null === bws_gb_tag_held_by_other( 'term_content', $registry, $we_hold ) );
+check( 'O8.7 an empty registry holds nothing', null === bws_gb_tag_held_by_other( 'term_title', array(), $we_hold ) );
+check( 'O8.8 a registry entry that is not an array is ignored rather than guessed at', null === bws_gb_tag_held_by_other( 'odd', array( 'odd' => 'not-an-entry' ), $we_hold ) );
+
+// ---------------------------------------------------------------------------
+echo "\n§O9 — a migration entry may DISCARD unrecognized keys instead of being refused for them\n";
+// ---------------------------------------------------------------------------
+//
+// bws_converter_drop_unrecognized_options() is the behavior behind an entry's
+// `drop_unrecognized_options` flag. It reads the same set the guard does (§O5, §O6), so a key
+// the guard would refuse is a key this removes. The end-to-end shape (flagged entry converts,
+// unflagged entry still refuses, a contested name still refuses) is migrate-string-test.php MS3.
+
+require_once $root . '/includes/classes/class-migration-registry.php';
+
+check( 'O9.1 unrecognized keys are removed, recognized ones kept in order',
+	'{{post_content fallback:x|limit:2}}' === bws_converter_drop_unrecognized_options( '{{post_content fallback:x|css_handling:strip|limit:2|processing_level:basic}}' ) );
+check( 'O9.2 a tag whose every key is unrecognized keeps its name and loses all options',
+	'{{post_content}}' === bws_converter_drop_unrecognized_options( '{{post_content css_handling:strip|processing_level:basic}}' ) );
+$misplit = '{{post_content fallback:a|b|css_handling:strip}}';
+check( 'O9.3 a VALUELESS unrecognized key blocks the drop, so the guard still refuses: it is the tail of a value split on a pipe, and dropping it would cut the author\x27s text',
+	$misplit === bws_converter_drop_unrecognized_options( $misplit ) );
+check( 'O9.3b …and a valueless key that IS recognized does not block it (noLink-style flags are ours)',
+	'{{post_content noLink}}' === bws_converter_drop_unrecognized_options( '{{post_content noLink|css_handling:strip}}' ) );
+check( 'O9.4 a slot-prefixed recognized key survives (`2-key` is `key` at slot 2)',
+	'{{join 2-key:phone}}' === bws_converter_drop_unrecognized_options( '{{join 2-key:phone|css_handling:strip}}' ) );
+
+$clean = '{{text  key:phone|limit:2|fallback:}}';
+check( 'O9.5 a tag with nothing to drop is returned byte-identical — no re-serialization, so spacing and empty values are not disturbed',
+	$clean === bws_converter_drop_unrecognized_options( $clean ) );
+
+check( 'O9.6 an option-less tag is returned as is', '{{post_content}}' === bws_converter_drop_unrecognized_options( '{{post_content}}' ) );
 
 // ---------------------------------------------------------------------------
 echo "\n";

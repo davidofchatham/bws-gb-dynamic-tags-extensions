@@ -37,8 +37,17 @@ if ( ! function_exists( 'apply_filters' ) ) {
 // bws_gb_tag_name_collisions() itself is gb-registration-boundary.php's, pinned by
 // control-order-test.php; here it is only the fact the guard reads.
 function bws_gb_tag_name_collisions(): array {
-	return array( 'ms_held' => array( 'tag' => 'ms_held', 'outcome' => 'yielded', 'title' => '' ) );
+	return array(
+		'ms_held'      => array( 'tag' => 'ms_held', 'outcome' => 'yielded', 'title' => '' ),
+		'ms_held_drop' => array( 'tag' => 'ms_held_drop', 'outcome' => 'yielded', 'title' => '' ),
+	);
 }
+
+// The live-registry witness the gatherer also asks. Nothing here is held by another plugin
+// beyond what the collision stub declares: the rule is converter-ownership-test.php's.
+function bws_gb_registered_tags_now(): array { return array(); }
+function bws_gb_tags_we_registered(): array { return array(); }
+function bws_gb_tag_held_by_other( string $tag, array $registry, array $ours ): ?array { return null; }
 
 $root = dirname( __DIR__, 2 );
 require $root . '/includes/helpers/slot-fold.php'; // bws_slot_ordinal_num(), which the key parser reads.
@@ -106,6 +115,51 @@ echo "\nMS2 — nothing to do\n";
 $none = TagConverter::migrate_string( 'plain {{unrelated}} text' );
 assert_eq( 'MS2.1 untouched content, zero counts, nothing declined',
 	array( 'content' => 'plain {{unrelated}} text', 'tag_count' => 0, 'option_count' => 0, 'declined' => array() ), $none );
+
+echo "\nMS3 — drop_unrecognized_options: the entry opts out of the unknown-options refusal\n";
+
+// `css_handling` is in nobody's vocabulary; `key` is. Same input, three entries: flagged
+// (declarative pipeline), flagged (transform_callback, which overrides that pipeline whole),
+// and unflagged. A flagged entry on a name another plugin holds (`ms_held_drop`) must still refuse.
+MigrationRegistry::register( array(
+	'type'                      => 'tag',
+	'match_tag'                 => 'ms_drop',
+	'new_tag'                   => 'ms_drop_new',
+	'drop_unrecognized_options' => true,
+) );
+MigrationRegistry::register( array(
+	'type'                      => 'tag',
+	'match_tag'                 => 'ms_drop_cb',
+	'new_tag'                   => 'ms_drop_cb_new',
+	'drop_unrecognized_options' => true,
+	'transform_callback'        => static fn ( string $s ): string => str_replace( '{{ms_drop_cb', '{{ms_drop_cb_new', $s ),
+) );
+MigrationRegistry::register( array(
+	'type'               => 'tag',
+	'match_tag'          => 'ms_keep',
+	'new_tag'            => 'ms_keep_new',
+) );
+MigrationRegistry::register( array(
+	'type'                      => 'tag',
+	'match_tag'                 => 'ms_held_drop',
+	'new_tag'                   => 'ms_held_drop_new',
+	'drop_unrecognized_options' => true,
+) );
+
+$drop = TagConverter::migrate_string( '{{ms_drop key:v|css_handling:strip}} {{ms_drop_cb key:v|css_handling:strip}}' );
+assert_eq( 'MS3.1 flagged entries convert and lose the unrecognized key, declarative and callback alike',
+	'{{ms_drop_new key:v}} {{ms_drop_cb_new key:v}}', $drop['content'] );
+assert_eq( 'MS3.2 …and nothing is declined', array(), $drop['declined'] );
+
+$keep = TagConverter::migrate_string( '{{ms_keep key:v|css_handling:strip}}' );
+assert_eq( 'MS3.3 an unflagged entry is untouched: the same input is still refused as unknown_options',
+	array( 'content' => '{{ms_keep key:v|css_handling:strip}}', 'declined' => array( 'ms_keep' => 'unknown_options' ) ),
+	array( 'content' => $keep['content'], 'declined' => $keep['declined'] ) );
+
+$held = TagConverter::migrate_string( '{{ms_held_drop key:v|css_handling:strip}}' );
+assert_eq( 'MS3.4 a flagged entry on a contested name still refuses: the flag touches keys, not ownership',
+	array( '{{ms_held_drop key:v|css_handling:strip}}', array( 'ms_held_drop' => 'name_not_ours' ) ),
+	array( $held['content'], $held['declined'] ) );
 
 echo "\n";
 if ( $failures ) {

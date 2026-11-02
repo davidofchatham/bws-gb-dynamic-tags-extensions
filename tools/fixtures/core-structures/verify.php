@@ -253,6 +253,35 @@ $check( 'both-sidecars shape: the migrated chain wire renders (-> the hop TARGET
 $base5 = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{text src:site|use:key|key:organization_email}}', [], $instance );
 $check( 'site shape: the migrated wire renders the site read', 'info@example.test' === trim( (string) $base5 ), 'migrated=' . var_export( $base5, true ) );
 
+// THE CONVERTER'S OWNERSHIP GUARD, against a REAL co-resident registry. GB Query Enhancements
+// is a required active plugin on this site and registers `term_title` and `term_description`,
+// two names the converter still migrates and no tag of ours registers. Our
+// registration pass no longer touches either, so the collision record is empty for both and
+// only the live registry can say another plugin answers for them. converter-ownership-test.php
+// holds the rule with a fake registry; this holds that the real one reaches it.
+if ( class_exists( 'BWS\DynamicTags\Admin\TagConverter' ) && function_exists( 'bws_gb_tag_held_by_other' ) ) {
+	$gbqe_active = isset( GenerateBlocks_Register_Dynamic_Tag::get_tags()['term_title'] );
+	$check( 'GB Query Enhancements holds term_title in the live registry (precondition)', $gbqe_active );
+
+	$ownership_cases = array(
+		'term_title'       => array( 'declined', 'name_not_ours' ),
+		'term_description' => array( 'declined', 'name_not_ours' ),
+		'term_text'        => array( 'convert', '' ),
+		'term_name'        => array( 'convert', '' ),
+	);
+	foreach ( $ownership_cases as $own_tag => $own_expect ) {
+		$own = \BWS\DynamicTags\Admin\TagConverter::classify_tag( $own_tag, $own_tag );
+		$check( "converter classifies stored {{{$own_tag}}} as {$own_expect[0]}" . ( '' !== $own_expect[1] ? " ({$own_expect[1]})" : '' ), $own_expect[0] === $own['status'] && $own_expect[1] === $own['reason'], 'got=' . $own['status'] . '/' . $own['reason'] );
+	}
+
+	// The decline line must NAME the plugin, though the collision record has nothing for these names.
+	$own_report = \BWS\DynamicTags\Admin\TagConverter::report_channels( array(
+		array( 'deprecated_tags' => array( array( 'tag' => 'term_title', 'status' => 'declined', 'reason' => 'name_not_ours', 'count' => 1, 'sample' => '{{term_title}}' ) ) ),
+	) );
+	$own_line = (string) ( $own_report['declined'][0]['line'] ?? '' );
+	$check( 'the decline line names the plugin that holds the name', false !== strpos( $own_line, 'GB Query Enhancements' ), 'line=' . var_export( $own_line, true ) );
+}
+
 // ---------------------------------------------------------------------------
 // SOURCE GATE corpus (v13, ADR 0007) — fold matrix §F17.
 // ---------------------------------------------------------------------------

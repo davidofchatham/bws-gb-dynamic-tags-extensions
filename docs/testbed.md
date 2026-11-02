@@ -169,6 +169,8 @@ by existing. Nothing to register.
 
 **The post-type archive is scoped to this blueprint's own posts**, by `?bwsfx_scope=core` on its derived URL. An archive lists every post of its type a visitor may see, and the fixture site is shared, so a visible post from another fixture set moved the first article and the page count while nothing of ours had changed (measured 2026-10-23, `ctx-pta-staff`). The fixture mu-plugin (`bws_fixture_core_structures_scope_archive` in `schema.php`) restricts the main archive query to the manifest's posts of that type by slug, so the list is still rendered and still covered and only its population is pinned. A fixture post of ours added to a type that has an archive snapshot joins it by being in the manifest; one from anywhere else never does.
 
+**The product loops on `/matrix-products/` are scoped the same way**, by `bws_fixture_core_structures_scope_product_loops` (`schema.php`): every secondary product query on that page is restricted to the manifest's `products` by slug, with no query string because the page itself is the scope. Another fixture set's products on the shared site no longer move it (measured 2026-10-29 with eight `cof-*` products present, 28 of 28 pages matching the committed baseline).
+
 **Cache-busting is built in** (the §page cache rule above applies to this instrument too, and it
 generates its own bust value per request — do not wrap it in one). A reseed does not invalidate
 the baseline either: `post_modified` and its siblings are normalized out, so `bin/seed.sh` and
@@ -186,7 +188,7 @@ instead of skipping, so deactivating one is enough to stop a verification.
 
 **A plugin toggle no longer moves the baseline.** The document head is not captured (bar `<title>`, the two description metas and any `bws-*` `<style>`), which is where co-resident stylesheet links live; `docs/update-triggers.md` owns what that costs. The practical consequence for operating this: you can activate and deactivate unrelated plugins on the fixture site without invalidating the committed baseline, and the warning line above is how you find out it happened.
 
-**All four must be ACTIVE on the fixture site, GB Query Enhancements included.** It supplies no fixture row's content; it is a co-resident extension that filters our tag rendering itself, from three PHP hooks that run on every tag render — [`coresident/gb-query-enhancements.md`](coresident/gb-query-enhancements.md#it-filters-tag-rendering-in-php-on-every-render) enumerates them and owns that half. Every baseline below was therefore captured with them in the chain, and the defect that made that visible is GitHub [#123](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/123).
+**All four must be ACTIVE on the fixture site, GB Query Enhancements included.** It supplies no fixture row's content; it is a co-resident extension that filters our tag rendering itself, from three PHP hooks that run on every tag render — [`coresident/gb-query-enhancements.md`](coresident/gb-query-enhancements.md#its-php-hooks-on-tag-rendering-and-what-each-means-for-us) enumerates them and owns that half. Every baseline below was therefore captured with them in the chain, and the defect that made that visible is GitHub [#123](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/123).
 
 What makes the declaration load-bearing is that **nothing else in the tree notices if it goes**:
 measured 2026-08-24, with it deactivated all nine snapshot pages still matched the baseline and the

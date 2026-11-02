@@ -184,9 +184,11 @@ so the schema survives snapshot restores.
 - Options page **Site Settings** with `organization_*` fields.
 - Fixture user `fixture-author` (display name + bio) authoring `sample-event`
   → the author-archive context fixture (`/author/fixture-author/`, C3/C13).
-- `sample-event` doubles as the date-archive fixture: kept categoryless +
-  visibility-tagged so `/2026/07/` has results under the integrator's anonymous
-  query filter (else 404). `department-sales` carries a description (C17).
+- `sample-event` doubles as the date-archive fixture, kept categoryless.
+  `department-sales` carries a description (C17).
+- `access_tier` (v38): the blueprint's own taxonomy on pages and staff, with one `All Users`
+  term on jane, tom and `matrix-post-meta`. The rows that hop `terms` off a ref'd post read it
+  (jane and tom carry no department).
 - join person-name surface: `name_*` parts (Staff Contact group) — dense on
   `tom-associate`, sparse (first+last) on `jane-partner`; `role` + `height_*`
   (incl. blank + zero probes) + a slot-1 `name_first` on `matrix-post-meta`.
