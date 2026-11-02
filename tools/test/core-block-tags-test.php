@@ -94,7 +94,7 @@ function with_saved( $core_blocks ): void {
 	$ref->setAccessible( true );
 	$ref->setValue( null, null );
 	remove_all_filters( 'bws_dynamic_tags_core_blocks' );
-	bws_core_blocks_reset_declared_kinds();
+	bws_core_blocks_reset_memo();
 }
 
 echo "§1 — the enabled set\n";
@@ -180,9 +180,20 @@ for ( $i = 0; $i < 5; $i++ ) {
 	bws_core_blocks_declared_kinds();
 }
 assert_same( 'the declared kinds are read once per request, not per lookup', 1, $calls );
-bws_core_blocks_reset_declared_kinds();
+bws_core_blocks_reset_memo();
 bws_core_blocks_declared_kinds();
 assert_same( 'the reset makes the next read run the filter again', 2, $calls );
+
+with_saved( array( 'core/paragraph' ) );
+$calls = 0;
+add_filter( 'bws_dynamic_tags_core_blocks', function ( $b ) use ( &$calls ) { $calls++; return array_merge( $b, array( 'acme/blk' => 'link' ) ); } );
+for ( $i = 0; $i < 5; $i++ ) {
+	bws_core_blocks_enabled();
+	bws_core_blocks_declared_kinds();
+}
+assert_same( 'the enabled set and the declared kinds share ONE filter run per request', 1, $calls );
+add_filter( 'bws_dynamic_tags_core_blocks', fn( $b ) => array() );
+assert_same( 'a callback added after the first read is not seen (the enabled set is memoized too)', array( 'core/paragraph', 'acme/blk' ), bws_core_blocks_enabled() );
 
 echo "§2 — sanitize_settings() keeps and cleans core_blocks\n";
 $s = SettingsPage::sanitize_settings( array( 'core_blocks' => array( 'core/paragraph', ' core/heading ', 'acme/my-block' ) ) );

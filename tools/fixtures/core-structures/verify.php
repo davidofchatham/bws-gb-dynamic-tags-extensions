@@ -804,14 +804,17 @@ if ( $trust_ready ) {
 
 		// Nothing enabled but GB's own blocks: (a) holds no enabled block, so it does not apply.
 		add_filter( 'bws_dynamic_tags_core_blocks', $gate_off );
+		bws_core_blocks_reset_memo(); // the enabled set is read once per request
 		$check(
 			'P2c control: `{{` in an unenabled core/verse beside an unenabled core/paragraph does not apply',
 			false === $gate_sec::should_validate_content( $gate_a, false )
 				&& false === $gate_sec::save_is_restricted( $gate_a, 0, 'post' )
 		);
 		remove_filter( 'bws_dynamic_tags_core_blocks', $gate_off );
+		bws_core_blocks_reset_memo(); // the enabled set is read once per request
 
 		add_filter( 'bws_dynamic_tags_core_blocks', $gate_on );
+		bws_core_blocks_reset_memo(); // the enabled set is read once per request
 
 		$check(
 			'P2c applies: `{{` only in an unenabled core/verse, plus an enabled core/paragraph with no tag',
@@ -877,12 +880,15 @@ if ( $trust_ready ) {
 		// must not recur. This is the control that proves the pin measures the enabled set and
 		// not a gate that refuses anything carrying `{{`.
 		remove_filter( 'bws_dynamic_tags_core_blocks', $gate_on );
+		bws_core_blocks_reset_memo(); // the enabled set is read once per request
 		add_filter( 'bws_dynamic_tags_core_blocks', $gate_off );
+		bws_core_blocks_reset_memo(); // the enabled set is read once per request
 		$check(
 			'P2c control: with core/paragraph no longer enabled, (a) saves again',
 			false === $gate_sec::save_is_restricted( $gate_a, 0, 'post' )
 		);
 		remove_filter( 'bws_dynamic_tags_core_blocks', $gate_off );
+		bws_core_blocks_reset_memo(); // the enabled set is read once per request
 
 		$GLOBALS['post'] = $gate_prev_post;
 		if ( $gate_prev_post instanceof WP_Post ) {
@@ -1039,7 +1045,7 @@ if ( $roster_page instanceof WP_Post && function_exists( 'bws_run_step' ) ) {
  * array naming the host: what is asserted is the kind lookup reaching the guards, and the
  * allowlist in front of it is GB's and the matrix's (a block outside the enabled set at `init`
  * carries no loop context, so GB would print its tags literally before any guard ran).
- * `bws_core_blocks_reset_declared_kinds()` forgets the once-per-request read between arms.
+ * `bws_core_blocks_reset_memo()` forgets the once-per-request read between arms.
  * ------------------------------------------------------------------------ */
 $dk_page = get_page_by_path( 'matrix-core-blocks' );
 $dk_tag  = $dk_page ? '{{content src:post,' . $dk_page->ID . '|use:key|key:bws_block_plain}}' : '';
@@ -1057,29 +1063,29 @@ $dk_declare = static function ( $kind ) {
 	};
 };
 $check( 'declared kind: the matrix-core-blocks page exists', $dk_page instanceof WP_Post );
-if ( $dk_page && function_exists( 'bws_core_blocks_reset_declared_kinds' ) ) {
-	bws_core_blocks_reset_declared_kinds();
+if ( $dk_page && function_exists( 'bws_core_blocks_reset_memo' ) ) {
+	bws_core_blocks_reset_memo();
 	$dk_before = $dk_run();
 	$check( 'declared kind control: undeclared core/image keeps the block markup', false !== strpos( $dk_before, '<p>' ), 'out=' . var_export( $dk_before, true ) );
 
 	$dk_inline = $dk_declare( 'inline' );
 	add_filter( 'bws_dynamic_tags_core_blocks', $dk_inline );
-	bws_core_blocks_reset_declared_kinds();
+	bws_core_blocks_reset_memo();
 	$dk_out = $dk_run();
 	$check( 'declared kind: core/image => inline strips {{content}} to inline', 'Plain line one. Plain line two.' === $dk_out, 'out=' . var_export( $dk_out, true ) );
 	remove_filter( 'bws_dynamic_tags_core_blocks', $dk_inline );
 
 	$dk_link = $dk_declare( 'link' );
 	add_filter( 'bws_dynamic_tags_core_blocks', $dk_link );
-	bws_core_blocks_reset_declared_kinds();
+	bws_core_blocks_reset_memo();
 	$dk_out = $dk_run();
 	$check( 'declared kind: core/image => link refuses {{content}}', '' === $dk_out, 'out=' . var_export( $dk_out, true ) );
 	remove_filter( 'bws_dynamic_tags_core_blocks', $dk_link );
 
-	bws_core_blocks_reset_declared_kinds();
+	bws_core_blocks_reset_memo();
 	$dk_after = $dk_run();
 	$check( 'declared kind: with the callback removed the guard no longer applies', $dk_after === $dk_before, 'out=' . var_export( $dk_after, true ) );
-	bws_core_blocks_reset_declared_kinds();
+	bws_core_blocks_reset_memo();
 }
 
 /* ---------------------------------------------------------------------------

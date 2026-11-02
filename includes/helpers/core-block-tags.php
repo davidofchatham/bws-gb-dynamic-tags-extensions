@@ -50,7 +50,8 @@ function bws_core_blocks_clean( $raw ): array {
 
 /**
  * The `bws_dynamic_tags_core_blocks` filter result, raw: the saved list passed through the
- * filter. The one place the filter runs; the enabled set and the declared kinds both read it.
+ * filter. Unmemoized and called only from bws_core_blocks_resolved(), the one place the filter
+ * runs; every other reader goes through that.
  *
  * @since Unreleased
  * @return mixed The filter result (a filter is outside input, so not necessarily an array).
@@ -83,26 +84,48 @@ function bws_core_blocks_filter_result() {
  * @return array{names: string[], kinds: array<string, string>}
  */
 function bws_core_blocks_parse_filter_result( $raw ): array {
-	$known = array( BWS_CORE_BLOCK_KIND_INLINE, BWS_CORE_BLOCK_KIND_PREFORMATTED, BWS_CORE_BLOCK_KIND_LINK, BWS_CORE_BLOCK_KIND_CONTAINER, BWS_CORE_BLOCK_KIND_UNRESTRICTED );
 	$names = array();
 	$kinds = array();
 	foreach ( is_array( $raw ) ? $raw : array() as $key => $value ) {
-		$name = is_string( $key ) ? $key : $value;
-		$name = is_string( $name ) ? trim( $name ) : $name;
-		if ( ! bws_core_blocks_is_block_name( $name ) ) {
-			continue;
-		}
-		$names[] = $name;
-		if ( is_string( $key ) && in_array( $value, $known, true ) ) {
-			$kinds[ $name ] = $value;
+		$names[] = is_string( $key ) ? $key : $value;
+		$clean   = is_string( $key ) && in_array( $value, BWS_CORE_BLOCK_KINDS, true ) ? bws_core_blocks_clean( array( $key ) ) : array();
+		if ( $clean ) {
+			$kinds[ $clean[0] ] = $value;
 		}
 	}
-	return array( 'names' => array_values( array_unique( $names ) ), 'kinds' => $kinds );
+	return array( 'names' => bws_core_blocks_clean( $names ), 'kinds' => $kinds );
+}
+
+/**
+ * The parsed filter result, run once per request and memoized.
+ *
+ * The one place the filter runs. GenerateBlocks asks the allowlist for every rendered block and
+ * bws_core_block_kind() asks the kinds for every tag render, so the enabled set and the declared
+ * kinds both read this memo. That is why a callback added after the first read is not seen until
+ * the next request. The saved list rides inside it, read through SettingsPage::get_settings(),
+ * which is itself per-request; a settings save redirects, so no request reads the list both
+ * before and after it.
+ *
+ * @since Unreleased
+ * @param bool $reset Drop the memo instead of reading it (see bws_core_blocks_reset_memo()).
+ * @return array{names: string[], kinds: array<string, string>}
+ */
+function bws_core_blocks_resolved( bool $reset = false ): array {
+	static $memo = null;
+	if ( $reset ) {
+		$memo = null;
+		return array( 'names' => array(), 'kinds' => array() );
+	}
+	if ( null === $memo ) {
+		$memo = bws_core_blocks_parse_filter_result( bws_core_blocks_filter_result() );
+	}
+	return $memo;
 }
 
 /**
  * The block names whose dynamic tags we enable: the saved list, passed through
- * `bws_dynamic_tags_core_blocks`, de-duplicated. Empty by default (off).
+ * `bws_dynamic_tags_core_blocks`, de-duplicated. Empty by default (off). Read through
+ * bws_core_blocks_resolved(), so the filter does not re-run per call.
  *
  * The one owner of the set; every consumer reads this and none re-derives it. The saved
  * list is sanitized at save; the filter result is cleaned here because a filter is outside
@@ -119,41 +142,31 @@ function bws_core_blocks_parse_filter_result( $raw ): array {
  * @return string[] Block names, e.g. `core/paragraph`.
  */
 function bws_core_blocks_enabled(): array {
-	return bws_core_blocks_parse_filter_result( bws_core_blocks_filter_result() )['names'];
+	return bws_core_blocks_resolved()['names'];
 }
 
 /**
  * The content kinds code declared for blocks (`name => kind`) through `bws_dynamic_tags_core_blocks`.
  *
- * Read once per request and memoized, because bws_core_block_kind() asks it for every block on
- * every tag render. The memo is why a callback added after the first tag render is not seen
- * until the next request. Not filtered against the built-in map: bws_core_block_kind() consults
- * the map first, so a declaration for a built-in name is simply never reached.
+ * Read through bws_core_blocks_resolved(). Not filtered against the built-in map: a declaration
+ * for a built-in name is ignored (see bws_core_block_kind()'s PHPDoc for how a block's kind is
+ * decided).
  *
  * @since Unreleased
- * @param bool $reset Drop the memo instead of reading it (see bws_core_blocks_reset_declared_kinds()).
  * @return array<string, string> Block name => a BWS_CORE_BLOCK_KIND_* constant.
  */
-function bws_core_blocks_declared_kinds( bool $reset = false ): array {
-	static $memo = null;
-	if ( $reset ) {
-		$memo = null;
-		return array();
-	}
-	if ( null === $memo ) {
-		$memo = bws_core_blocks_parse_filter_result( bws_core_blocks_filter_result() )['kinds'];
-	}
-	return $memo;
+function bws_core_blocks_declared_kinds(): array {
+	return bws_core_blocks_resolved()['kinds'];
 }
 
 /**
- * Forget the memoized declared kinds, so the next read runs the filter again. For harnesses that
- * change the filter between assertions.
+ * Forget the memoized filter result, so the next read runs the filter again. For harnesses that
+ * change the filter or the saved list between assertions.
  *
  * @since Unreleased
  */
-function bws_core_blocks_reset_declared_kinds(): void {
-	bws_core_blocks_declared_kinds( true );
+function bws_core_blocks_reset_memo(): void {
+	bws_core_blocks_resolved( true );
 }
 
 /**

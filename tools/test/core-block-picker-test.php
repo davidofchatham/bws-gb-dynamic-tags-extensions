@@ -336,12 +336,12 @@ assert_same( 'our callback is back on the filter at its own priority afterwards'
 echo "§9 — a code-declared kind shows the right cells and stays locked\n";
 $GLOBALS['__filters'] = array();
 add_filter( 'bws_dynamic_tags_core_blocks', static fn( $b ) => array_merge( $b, array( 'acme/widget' => 'link', 'acme/untitled' ) ) );
-bws_core_blocks_reset_declared_kinds();
+bws_core_blocks_reset_memo();
 $rows = rows_by_name( bws_core_blocks_picker_rows( $entries, $cats, array( 'core/paragraph' ), bws_core_blocks_enabled() ) );
 assert_same( 'a declared link: link cells, enabled and locked', array( 'contents_link', 'limits_link', false, true, true ), array( $rows['acme/widget']['contents'], $rows['acme/widget']['limits'], $rows['acme/widget']['untested'], $rows['acme/widget']['selected'], $rows['acme/widget']['disabled'] ) );
 assert_same( 'a bare code-added name: untested cells, still enabled and locked', array( 'contents_untested', 'limits_none', true, true, true ), array( $rows['acme/untitled']['contents'], $rows['acme/untitled']['limits'], $rows['acme/untitled']['untested'], $rows['acme/untitled']['selected'], $rows['acme/untitled']['disabled'] ) );
 $GLOBALS['__filters'] = array();
-bws_core_blocks_reset_declared_kinds();
+bws_core_blocks_reset_memo();
 
 echo "\n{$count} assertions, {$failures} failed\n";
 exit( $failures ? 1 : 0 );

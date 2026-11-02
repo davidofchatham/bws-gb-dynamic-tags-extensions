@@ -505,7 +505,7 @@ function bws_markup_strip_to_inline( string $markup, string $join = ' ' ): strin
  * `try_` content-slot arm), never from the resolve seam. An inline-only core block gets the
  * value reduced to inline content, lossy by design (block breaks become a space, or a newline
  * in a preformatted host); any other host gets it back untouched.
- * A button host never reaches here: both shells refuse it first (nothing, so GB blanks the block).
+ * A link host never reaches here: both shells refuse it first (nothing, so GB blanks the block).
  *
  * @since Unreleased
  *

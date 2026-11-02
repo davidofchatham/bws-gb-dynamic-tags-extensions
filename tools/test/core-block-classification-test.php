@@ -115,7 +115,7 @@ echo "§5 — a declared kind reaches the same questions a built-in one does\n";
 function declare_kinds( array $declared ): void {
 	$GLOBALS['__filters'] = array();
 	add_filter( 'bws_dynamic_tags_core_blocks', static fn( $b ) => array_merge( $b, $declared ) );
-	bws_core_blocks_reset_declared_kinds();
+	bws_core_blocks_reset_memo();
 }
 
 declare_kinds( array( 'acme/a' => 'inline', 'acme/b' => 'preformatted', 'acme/c' => 'link', 'acme/d' => 'container', 'acme/e' => 'unrestricted', 'acme/bare' ) );
@@ -136,7 +136,7 @@ declare_kinds( array( 'acme/a' => 'inline' ) );
 assert_same( 'before the filter changes', 'inline', bws_core_block_kind( $blk( 'acme/a' ) ) );
 $GLOBALS['__filters'] = array();
 assert_same( 'the memo holds the answer for the request', 'inline', bws_core_block_kind( $blk( 'acme/a' ) ) );
-bws_core_blocks_reset_declared_kinds();
+bws_core_blocks_reset_memo();
 assert_same( 'after the reset the new filter result is read', '', bws_core_block_kind( $blk( 'acme/a' ) ) );
 
 foreach ( array( 'null' => null, 'string' => 'acme/a', 'no blockName key' => array( 'attrs' => array() ) ) as $label => $bad ) {

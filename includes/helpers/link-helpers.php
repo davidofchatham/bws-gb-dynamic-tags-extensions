@@ -137,6 +137,15 @@ const BWS_CORE_BLOCK_KIND_LINK         = 'link';
 const BWS_CORE_BLOCK_KIND_CONTAINER    = 'container';
 const BWS_CORE_BLOCK_KIND_UNRESTRICTED = 'unrestricted';
 
+/** Every content kind, for a plain membership test. */
+const BWS_CORE_BLOCK_KINDS = array(
+	BWS_CORE_BLOCK_KIND_INLINE,
+	BWS_CORE_BLOCK_KIND_PREFORMATTED,
+	BWS_CORE_BLOCK_KIND_LINK,
+	BWS_CORE_BLOCK_KIND_CONTAINER,
+	BWS_CORE_BLOCK_KIND_UNRESTRICTED,
+);
+
 /**
  * Content kind of a core block host, for the render guards that constrain inline-only blocks.
  *
