@@ -80,13 +80,13 @@
 
 <p class="gb-text">CB1.5 the GB text block control (-> Director): Director</p>
 
-<p class="gb-text">CB1.6 core/verse, NOT selected (-> the tag printed literally, as typed):</p>
+<p class="gb-text">CB1.6 core/image caption, NOT selected (-> the tag printed literally, as typed):</p>
 
-<pre class="wp-block-verse">{{text key:role}}</pre>
+<figure class="wp-block-image"><img decoding="async" src="/wp-content/uploads/2026/07/fixture-photo.png" alt=""/><figcaption class="wp-element-caption">{{text key:role}}</figcaption></figure>
 
-<p class="gb-text">CB1.7 core/preformatted, NOT selected (-> the tag printed literally, as typed):</p>
+<p class="gb-text">CB1.7 core/image caption, NOT selected, an email tag (-> the tag printed literally, as typed):</p>
 
-<pre class="wp-block-preformatted">{{text key:role}}</pre>
+<figure class="wp-block-image"><img decoding="async" src="/wp-content/uploads/2026/07/fixture-photo.png" alt=""/><figcaption class="wp-element-caption">{{email key:contact_email}}</figcaption></figure>
 </div>
 
 <div>
@@ -252,6 +252,100 @@ with a soft line break. Formatted two.</p>
 
 <p class="wp-block-paragraph">Team: Varsity</p>
 </div>
+
+<div>
+<h2 class="wp-block-heading">Text CB7 &#8211; a text tag in each text-holding core block (FW-156)</h2>
+
+<p class="gb-text">CB7.1 core/verse (-> Director, inside the verse block):</p>
+
+<pre class="wp-block-verse">Director</pre>
+
+<p class="gb-text">CB7.2 core/preformatted (-> Director, inside the preformatted block):</p>
+
+<pre class="wp-block-preformatted">Director</pre>
+
+<p class="gb-text">CB7.3 core/code (-> Director, inside the code block):</p>
+
+<pre class="wp-block-code"><code>Director</code></pre>
+
+<p class="gb-text">CB7.4 core/pullquote (-> Director, as the pullquote text):</p>
+
+<figure class="wp-block-pullquote"><blockquote><p>Director</p></blockquote></figure>
+
+<p class="gb-text">CB7.5 core/details summary (-> Director as the summary; the body line The details body. is untouched):</p>
+
+<details class="wp-block-details is-layout-flow wp-block-details-is-layout-flow"><summary>Director</summary>
+<p class="wp-block-paragraph">The details body.</p>
+</details>
+
+<p class="gb-text">CB7.6 core/file link text (-> Director as the file link text):</p>
+
+<div class="wp-block-file"><a href="#">Director</a></div>
+
+<p class="gb-text">CB7.7 core/read-more link text (-> Director as the link text, linking to this page; the hidden screen-reader suffix is WordPress own):</p>
+
+<a class="wp-block-read-more" href="/matrix-core-blocks/" target="_self">Director<span class="screen-reader-text">: Matrix: Core Blocks</span></a>
+
+<p class="gb-text">CB7.8 core/file link text, Link To (-> Director as the file link text, the bare value: no anchor nested inside the file link, same as CB7.6):</p>
+
+<div class="wp-block-file"><a href="#">Director</a></div>
+
+<p class="gb-text">CB7.9 core/read-more link text, Link To (-> Director as the link text, the bare value: no anchor nested inside the read-more link, same as CB7.7):</p>
+
+<a class="wp-block-read-more" href="/matrix-core-blocks/" target="_self">Director<span class="screen-reader-text">: Matrix: Core Blocks</span></a></div>
+
+<div>
+<h2 class="wp-block-heading">Content CB7 &#8211; the content tag in each text-holding core block: preformatted blocks join with a newline, inline ones with a space, link blocks are hidden (FW-156)</h2>
+
+<p class="gb-text">CB7.10 core/verse (-> TWO lines inside the verse block: Plain line one. then Plain line two., joined by a newline):</p>
+
+<pre class="wp-block-verse">Plain line one.
+Plain line two.</pre>
+
+<p class="gb-text">CB7.11 core/preformatted (-> TWO lines: Plain line one. then Plain line two., joined by a newline):</p>
+
+<pre class="wp-block-preformatted">Plain line one.
+Plain line two.</pre>
+
+<p class="gb-text">CB7.12 core/code (-> TWO lines: Plain line one. then Plain line two., joined by a newline):</p>
+
+<pre class="wp-block-code"><code>Plain line one.
+Plain line two.</code></pre>
+
+<p class="gb-text">CB7.13 core/pullquote (-> ONE line: Plain line one. Plain line two., joined by a space):</p>
+
+<figure class="wp-block-pullquote"><blockquote><p>Plain line one. Plain line two.</p></blockquote></figure>
+
+<p class="gb-text">CB7.14 core/details summary (-> ONE line as the summary: Plain line one. Plain line two., joined by a space):</p>
+
+<details class="wp-block-details is-layout-flow wp-block-details-is-layout-flow"><summary>Plain line one. Plain line two.</summary>
+<p class="wp-block-paragraph">The details body.</p>
+</details>
+
+<p class="gb-text">CB7.15 core/file (-> EMPTY: the file block is hidden, nothing follows this label):</p>
+
+<p class="gb-text">CB7.16 core/read-more (-> EMPTY: the read-more block is hidden, nothing follows this label):</p>
+
+</div>
+
+<div>
+<h2 class="wp-block-heading">Table CB7 &#8211; the table tag in each text-holding core block prints nothing, so the block is hidden (FW-156)</h2>
+
+<p class="gb-text">CB7.17 core/verse (-> EMPTY: the block is hidden, nothing follows this label):</p>
+
+<p class="gb-text">CB7.18 core/preformatted (-> EMPTY: the block is hidden, nothing follows this label):</p>
+
+<p class="gb-text">CB7.19 core/code (-> EMPTY: the block is hidden, nothing follows this label):</p>
+
+<p class="gb-text">CB7.20 core/pullquote (-> EMPTY: the block is hidden, nothing follows this label):</p>
+
+<p class="gb-text">CB7.21 core/details summary (-> EMPTY: the whole details block is hidden, nothing follows this label):</p>
+
+<p class="gb-text">CB7.22 core/file (-> EMPTY: the block is hidden, nothing follows this label):</p>
+
+<p class="gb-text">CB7.23 core/read-more (-> EMPTY: the block is hidden, nothing follows this label):</p>
+
+</div>
 		</div>
 
 			</div>
@@ -287,7 +381,7 @@ with a soft line break. Formatted two.</p>
 <script id="generate-a11y">
 !function(){"use strict";if("querySelector"in document&&"addEventListener"in window){var e=document.body;e.addEventListener("pointerdown",(function(){e.classList.add("using-mouse")}),{passive:!0}),e.addEventListener("keydown",(function(){e.classList.remove("using-mouse")}),{passive:!0})}}();
 </script>
-<script type="application/ld+json" id="slim-seo-schema">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"/#website","url":"/","name":"BWS Testbed","inLanguage":"en-US","potentialAction":{"@id":"/#searchaction"},"publisher":{"@id":"/#organization"}},{"@type":"SearchAction","@id":"/#searchaction","target":"/?s={search_term_string}","query-input":"required name=search_term_string"},{"@type":"BreadcrumbList","name":"Breadcrumbs","@id":"/matrix-core-blocks/#breadcrumblist","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"/"},{"@type":"ListItem","position":2,"name":"Matrix: Core Blocks"}]},{"@type":"WebPage","@id":"/matrix-core-blocks/#webpage","url":"/matrix-core-blocks/","inLanguage":"en-US","name":"Matrix: Core Blocks – BWS Testbed","description":"Text CB1 - a tag in a SELECTED core block renders; in an unselected one it prints as typed (FW-156) CB1.1 core/paragraph, selected (-> Director): Director CB1.2","datePublished":"TIMESTAMP","dateModified":"TIMESTAMP","isPartOf":{"@id":"/#website"},"breadcrumb":{"@id":"/matrix-core-blocks/#breadcrumblist"},"potentialAction":{"@id":"/matrix-core-blocks/#readaction"}},{"@type":"ReadAction","@id":"/matrix-core-blocks/#readaction","target":"/matrix-core-blocks/"},{"@type":"Organization","@id":"/#organization","url":"/","name":"BWS Testbed"}]}</script>	<script>
+<script type="application/ld+json" id="slim-seo-schema">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"/#website","url":"/","name":"BWS Testbed","inLanguage":"en-US","potentialAction":{"@id":"/#searchaction"},"publisher":{"@id":"/#organization"}},{"@type":"SearchAction","@id":"/#searchaction","target":"/?s={search_term_string}","query-input":"required name=search_term_string"},{"@type":"BreadcrumbList","name":"Breadcrumbs","@id":"/matrix-core-blocks/#breadcrumblist","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"/"},{"@type":"ListItem","position":2,"name":"Matrix: Core Blocks"}]},{"@type":"WebPage","@id":"/matrix-core-blocks/#webpage","url":"/matrix-core-blocks/","inLanguage":"en-US","name":"Matrix: Core Blocks – BWS Testbed","description":"Text CB1 - a tag in a SELECTED core block renders; in an unselected one it prints as typed (FW-156) CB1.1 core/paragraph, selected (-> Director): Director CB1.2","datePublished":"TIMESTAMP","dateModified":"TIMESTAMP","isPartOf":{"@id":"/#website"},"breadcrumb":{"@id":"/matrix-core-blocks/#breadcrumblist"},"potentialAction":{"@id":"/matrix-core-blocks/#readaction"},"primaryImageOfPage":{"@id":"/matrix-core-blocks/#thumbnail"},"image":{"@id":"/matrix-core-blocks/#thumbnail"}},{"@type":"ReadAction","@id":"/matrix-core-blocks/#readaction","target":"/matrix-core-blocks/"},{"@type":"Organization","@id":"/#organization","url":"/","name":"BWS Testbed"},{"@type":"ImageObject","@id":"/matrix-core-blocks/#thumbnail","caption":"Fixture photo caption","url":"/wp-content/uploads/2026/07/fixture-photo.png","contentUrl":"/wp-content/uploads/2026/07/fixture-photo.png","width":320,"height":200}]}</script>	<script>
 		(function () {
 			var c = document.body.className;
 			c = c.replace(/woocommerce-no-js/, 'woocommerce-js');

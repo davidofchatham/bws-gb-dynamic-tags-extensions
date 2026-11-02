@@ -775,7 +775,7 @@ if ( $trust_ready ) {
 		// overstating. A FAILURE MEANS GB MOVED, or `bws_core_blocks_allow()` stopped
 		// admitting core/paragraph: read both before the note's copy.
 		//
-		// The tag sits in a core/verse (never enabled here); core/paragraph is the enabled
+		// The tag sits in a core/verse (outside every arm's enabled set below); core/paragraph is the enabled
 		// type and carries no tag at all. Tags avoid quotes and backslashes so a stored copy
 		// is byte-identical to what was written.
 		// Each arm REPLACES the saved set through the filter (`bws_core_blocks_enabled()` hands the
