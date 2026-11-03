@@ -35,6 +35,8 @@ $root = dirname( __DIR__, 2 );
 require $root . '/includes/helpers/link-helpers.php';
 require $root . '/includes/helpers/core-block-tags.php';
 require $root . '/includes/helpers/core-block-picker.php';
+// The enabled set reads the saved list; a declared kind is read off the same filter result.
+eval( 'namespace BWS\DynamicTags\Admin; class SettingsPage { public static function get_settings() { return array( "core_blocks" => array( "core/paragraph" ) ); } }' );
 
 $failures = 0;
 $count    = 0;
@@ -105,11 +107,27 @@ assert_same( 'no empty groups', true, count( array_filter( $groups, fn( $g ) => 
 echo "§3 — the Holds and Tag limits cells come from the classification owner\n";
 $rows = rows_by_name( bws_core_blocks_picker_rows( $entries, $cats, array(), array() ) );
 $cell = static fn( string $name ): array => array( $rows[ $name ]['contents'], $rows[ $name ]['limits'], $rows[ $name ]['untested'] );
+$bws_cells_of = static function ( string $name ): array {
+	$c = bws_core_blocks_picker_cells( $name );
+	return array( $c['contents'], $c['limits'], $c['untested'] );
+};
 foreach ( array( 'core/paragraph', 'core/heading', 'core/list-item', 'core/table' ) as $name ) {
 	assert_same( "{$name}: inline text, inline limits", array( 'contents_inline', 'limits_inline', false ), $cell( $name ) );
 }
-assert_same( 'core/button: link text, button limits', array( 'contents_button', 'limits_button', false ), $cell( 'core/button' ) );
-assert_same( 'core/list: no text of its own, no limit', array( 'contents_list', 'limits_none', false ), $cell( 'core/list' ) );
+foreach ( array( 'core/pullquote', 'core/details' ) as $name ) {
+	assert_same( "{$name}: inline text, inline limits", array( 'contents_inline', 'limits_inline', false ), $bws_cells_of( $name ) );
+}
+foreach ( array( 'core/verse', 'core/preformatted', 'core/code' ) as $name ) {
+	assert_same( "{$name}: preformatted text, its own limits", array( 'contents_preformatted', 'limits_preformatted', false ), $bws_cells_of( $name ) );
+}
+foreach ( array( 'core/button', 'core/file', 'core/navigation-link', 'core/read-more' ) as $name ) {
+	assert_same( "{$name}: link text, link limits", array( 'contents_link', 'limits_link', false ), $bws_cells_of( $name ) );
+}
+foreach ( array( 'core/list', 'core/group', 'core/cover', 'core/media-text', 'core/quote', 'core/buttons', 'core/columns', 'core/column' ) as $name ) {
+	assert_same( "{$name}: no text of its own, the child-block limit", array( 'contents_container', 'limits_container', false ), $bws_cells_of( $name ) );
+}
+assert_same( 'core/html: any content, no limit', array( 'contents_unrestricted', 'limits_none', false ), $bws_cells_of( 'core/html' ) );
+assert_same( 'core/image: unclassified, Not tested, no limit', array( 'contents_untested', 'limits_none', true ), $bws_cells_of( 'core/image' ) );
 assert_same( 'unclassified: Not tested in Holds, Tag limits is a dash (this plugin applies no limit)', array( 'contents_untested', 'limits_none', true ), $cell( 'acme/widget' ) );
 assert_same( 'a classified row carries no note (the cells say it)', array(), $rows['core/paragraph']['notes'] );
 $gone = rows_by_name( bws_core_blocks_picker_rows( $entries, $cats, array( 'acme/gone' ), array( 'acme/gone' ) ) );
@@ -136,7 +154,7 @@ assert_same( 'nothing selected posts nothing (empty = off)', array(), array_keys
 
 echo "§6 — every note has a string, and the text helper\n";
 $strings = bws_core_blocks_picker_strings();
-foreach ( array( 'unregistered', 'code_set', 'contents_inline', 'contents_button', 'contents_list', 'contents_untested', 'limits_inline', 'limits_button', 'limits_none', 'limits_none_sr', 'sorted', 'ascending', 'descending', 'col_block', 'col_contents', 'col_limits', 'col_known', 'col_unknown', 'caption_before', 'caption_after', 'key_summary', 'count_unscanned' ) as $key ) {
+foreach ( array( 'unregistered', 'code_set', 'contents_inline', 'contents_preformatted', 'contents_link', 'contents_container', 'contents_unrestricted', 'contents_untested', 'limits_inline', 'limits_preformatted', 'limits_link', 'limits_container', 'limits_none', 'limits_none_sr', 'sorted', 'ascending', 'descending', 'col_block', 'col_contents', 'col_limits', 'col_known', 'col_unknown', 'caption_before', 'caption_after', 'key_summary', 'count_unscanned' ) as $key ) {
 	assert_same( "string for '{$key}'", true, is_string( $strings[ $key ] ?? null ) && '' !== $strings[ $key ] );
 }
 assert_same( 'backticks become code, html is escaped first', 'a <code>x &lt;b&gt;</code> &amp; b', bws_core_blocks_picker_markup( 'a `x <b>` & b' ) );
@@ -233,12 +251,12 @@ assert_same( '"registered" appears only where Handled by GB and Not handled by G
 echo "§6c — the key restates the Tag limits cells (Invariant 6)\n";
 $terms       = array_column( $text['key'], 0 );
 $limit_terms = array_column( $text['key_limits'], 0 );
-foreach ( array( 'limits_inline', 'limits_button', 'limits_none' ) as $key ) {
+foreach ( array( 'limits_inline', 'limits_preformatted', 'limits_link', 'limits_container', 'limits_none' ) as $key ) {
 	foreach ( explode( '; ', $text[ $key ] ) as $phrase ) {
 		assert_same( "the Tag limits group has an entry opening with the {$key} phrase '{$phrase}'", true, in_array( $phrase, $limit_terms, true ) );
 	}
 }
-assert_same( 'the first group is the counts, then Holds "No text of its own"', array( 'Handled by GB', 'Not handled by GB', $text['contents_list'] ), $terms );
+assert_same( 'the first group is the counts, then Holds "No text of its own"', array( 'Handled by GB', 'Not handled by GB', $text['contents_container'] ), $terms );
 assert_same( 'the Tag limits group opens with "–", under its own heading', array( '–', 'Tag limits' ), array( $limit_terms[0], $text['key_limits_heading'] ) );
 assert_same( 'every key entry has a term and an explanation', true, array() === array_filter( array_merge( $text['key'], $text['key_limits'] ), static fn( $e ) => 2 !== count( $e ) || '' === $e[0] || '' === $e[1] ) );
 
@@ -311,10 +329,19 @@ if ( true ) {
 $gb = 'generateblocks_dynamic_tags_allowed_blocks';
 add_filter( $gb, static fn( $a ) => array_merge( $a, array( 'generateblocks-pro/thing' ) ), 5 );
 add_filter( $gb, 'bws_core_blocks_allow', 20 );
-eval( 'namespace BWS\DynamicTags\Admin; class SettingsPage { public static function get_settings() { return array( "core_blocks" => array( "core/paragraph" ) ); } }' );
 assert_same( 'control: with ours hooked, the live list does carry the enabled block', true, in_array( 'core/paragraph', GenerateBlocks_Dynamic_Tags::get_instance()->get_allowed_blocks(), true ) );
 assert_same( 'GB core plus Pro additions, without ours', array( 'generateblocks/text', 'generateblocks/element', 'generateblocks-pro/thing' ), bws_core_blocks_gb_native() );
 assert_same( 'our callback is back on the filter at its own priority afterwards', 20, has_filter( $gb, 'bws_core_blocks_allow' ) );
+
+echo "§9 — a code-declared kind shows the right cells and stays locked\n";
+$GLOBALS['__filters'] = array();
+add_filter( 'bws_dynamic_tags_core_blocks', static fn( $b ) => array_merge( $b, array( 'acme/widget' => 'link', 'acme/untitled' ) ) );
+bws_core_blocks_reset_memo();
+$rows = rows_by_name( bws_core_blocks_picker_rows( $entries, $cats, array( 'core/paragraph' ), bws_core_blocks_enabled() ) );
+assert_same( 'a declared link: link cells, enabled and locked', array( 'contents_link', 'limits_link', false, true, true ), array( $rows['acme/widget']['contents'], $rows['acme/widget']['limits'], $rows['acme/widget']['untested'], $rows['acme/widget']['selected'], $rows['acme/widget']['disabled'] ) );
+assert_same( 'a bare code-added name: untested cells, still enabled and locked', array( 'contents_untested', 'limits_none', true, true, true ), array( $rows['acme/untitled']['contents'], $rows['acme/untitled']['limits'], $rows['acme/untitled']['untested'], $rows['acme/untitled']['selected'], $rows['acme/untitled']['disabled'] ) );
+$GLOBALS['__filters'] = array();
+bws_core_blocks_reset_memo();
 
 echo "\n{$count} assertions, {$failures} failed\n";
 exit( $failures ? 1 : 0 );

@@ -131,23 +131,44 @@ function bws_tag_blocked_on_media_block( $block ): bool {
 }
 }
 
-const BWS_CORE_BLOCK_KIND_INLINE = 'inline';
-const BWS_CORE_BLOCK_KIND_BUTTON = 'button';
-const BWS_CORE_BLOCK_KIND_TABLE  = 'table';
-const BWS_CORE_BLOCK_KIND_LIST   = 'list';
+const BWS_CORE_BLOCK_KIND_INLINE       = 'inline';
+const BWS_CORE_BLOCK_KIND_PREFORMATTED = 'preformatted';
+const BWS_CORE_BLOCK_KIND_LINK         = 'link';
+const BWS_CORE_BLOCK_KIND_CONTAINER    = 'container';
+const BWS_CORE_BLOCK_KIND_UNRESTRICTED = 'unrestricted';
+
+/** Every content kind, for a plain membership test. */
+const BWS_CORE_BLOCK_KINDS = array(
+	BWS_CORE_BLOCK_KIND_INLINE,
+	BWS_CORE_BLOCK_KIND_PREFORMATTED,
+	BWS_CORE_BLOCK_KIND_LINK,
+	BWS_CORE_BLOCK_KIND_CONTAINER,
+	BWS_CORE_BLOCK_KIND_UNRESTRICTED,
+);
 
 /**
  * Content kind of a core block host, for the render guards that constrain inline-only blocks.
  *
  * THE one owner of the block-name to content-kind map (FW-156). Every other site asks this
  * (or the two yes/no questions below) and states only the consequence; none names a block.
- * Classified: `core/paragraph`, `core/heading` and `core/list-item` are
- * BWS_CORE_BLOCK_KIND_INLINE (inline-only text); `core/table` is BWS_CORE_BLOCK_KIND_TABLE
- * (inline-only, because its cells are); `core/button` is BWS_CORE_BLOCK_KIND_BUTTON
- * (inline-only, and the host is itself the link); `core/list` is BWS_CORE_BLOCK_KIND_LIST
- * (UNCONSTRAINED: it holds no text itself, the tag goes in its List Item, and the kind exists
- * only so the settings page can say so). Anything else, including every GenerateBlocks block,
- * is '' and unconstrained.
+ * Each block is classified by what it holds:
+ *
+ * - BWS_CORE_BLOCK_KIND_INLINE (inline-only text): `core/paragraph`, `core/heading`,
+ *   `core/list-item`, `core/table` (its cells are), `core/pullquote`, `core/details` (the
+ *   summary; the body children are their own blocks).
+ * - BWS_CORE_BLOCK_KIND_PREFORMATTED (inline-only, but a block break is a newline, not a
+ *   space): `core/verse`, `core/preformatted`, `core/code`.
+ * - BWS_CORE_BLOCK_KIND_LINK (inline-only, and the host is itself the link): `core/button`,
+ *   `core/file`, `core/navigation-link`, `core/read-more`.
+ * - BWS_CORE_BLOCK_KIND_CONTAINER (UNCONSTRAINED: it holds other blocks, not text; the tag
+ *   goes in the child block, and the kind exists so the settings page can say so):
+ *   `core/group`, `core/cover`, `core/media-text`, `core/quote`, `core/buttons`, `core/list`,
+ *   `core/columns`, `core/column`.
+ * - BWS_CORE_BLOCK_KIND_UNRESTRICTED (holds any content, so nothing is guarded): `core/html`.
+ *
+ * Anything else takes the kind a `bws_dynamic_tags_core_blocks` callback declared for it
+ * (`name => kind`, read through bws_core_blocks_declared_kinds()), else '' and unconstrained,
+ * as every GenerateBlocks block is. A name in the map above is never overridden by a declaration.
  *
  * Takes `$block` the way the media guard does: the array a tag callback receives as arg 2.
  * Anything else classifies as '' (never a fatal).
@@ -159,24 +180,42 @@ const BWS_CORE_BLOCK_KIND_LIST   = 'list';
 if ( ! function_exists( 'bws_core_block_kind' ) ) {
 function bws_core_block_kind( $block ): string {
 	$name = is_array( $block ) ? ( $block['blockName'] ?? '' ) : '';
-	switch ( is_string( $name ) ? $name : '' ) {
+	$name = is_string( $name ) ? $name : '';
+	switch ( $name ) {
 		case 'core/paragraph':
 		case 'core/heading':
 		case 'core/list-item':
-			return BWS_CORE_BLOCK_KIND_INLINE;
 		case 'core/table':
-			return BWS_CORE_BLOCK_KIND_TABLE;
-		case 'core/list':
-			return BWS_CORE_BLOCK_KIND_LIST;
+		case 'core/pullquote':
+		case 'core/details':
+			return BWS_CORE_BLOCK_KIND_INLINE;
+		case 'core/verse':
+		case 'core/preformatted':
+		case 'core/code':
+			return BWS_CORE_BLOCK_KIND_PREFORMATTED;
 		case 'core/button':
-			return BWS_CORE_BLOCK_KIND_BUTTON;
+		case 'core/file':
+		case 'core/navigation-link':
+		case 'core/read-more':
+			return BWS_CORE_BLOCK_KIND_LINK;
+		case 'core/group':
+		case 'core/cover':
+		case 'core/media-text':
+		case 'core/quote':
+		case 'core/buttons':
+		case 'core/list':
+		case 'core/columns':
+		case 'core/column':
+			return BWS_CORE_BLOCK_KIND_CONTAINER;
+		case 'core/html':
+			return BWS_CORE_BLOCK_KIND_UNRESTRICTED;
 	}
-	return '';
+	return function_exists( 'bws_core_blocks_declared_kinds' ) ? ( bws_core_blocks_declared_kinds()[ $name ] ?? '' ) : '';
 }
 }
 
 /**
- * Whether the host block takes inline content only (every classified kind except the list).
+ * Whether the host block takes inline content only (the inline, preformatted and link kinds).
  *
  * @since Unreleased
  * @param mixed $block GB block array passed to the tag callback (arg 2).
@@ -184,28 +223,27 @@ function bws_core_block_kind( $block ): string {
  */
 if ( ! function_exists( 'bws_core_block_is_inline_only' ) ) {
 function bws_core_block_is_inline_only( $block ): bool {
-	$kind = bws_core_block_kind( $block );
-	return '' !== $kind && BWS_CORE_BLOCK_KIND_LIST !== $kind;
+	return in_array( bws_core_block_kind( $block ), array( BWS_CORE_BLOCK_KIND_INLINE, BWS_CORE_BLOCK_KIND_PREFORMATTED, BWS_CORE_BLOCK_KIND_LINK ), true );
 }
 }
 
 /**
- * Whether the host block is the button kind (the host is itself the link).
+ * Whether the host block is the link kind (the host is itself the link).
  *
  * @since Unreleased
  * @param mixed $block GB block array passed to the tag callback (arg 2).
  * @return bool
  */
-if ( ! function_exists( 'bws_core_block_is_button' ) ) {
-function bws_core_block_is_button( $block ): bool {
-	return BWS_CORE_BLOCK_KIND_BUTTON === bws_core_block_kind( $block );
+if ( ! function_exists( 'bws_core_block_is_link' ) ) {
+function bws_core_block_is_link( $block ): bool {
+	return BWS_CORE_BLOCK_KIND_LINK === bws_core_block_kind( $block );
 }
 }
 
 /**
- * Tag options as the host block lets a tag read them: no link wrap on a button host.
+ * Tag options as the host block lets a tag read them: no link wrap on a link host.
  *
- * A button host is itself the link, so a tag that would wrap its output in `<a>` (the
+ * A link host is itself the link, so a tag that would wrap its output in `<a>` (the
  * `linkTo` wrap, or the default-on mailto:/tel: wrap of `{{email}}` / `{{phone}}`) prints the
  * bare value instead, in the button text and in its `href` alike (the callback cannot tell
  * which slot it renders in, so one rule serves both). The value is never emptied: GB blanks a
@@ -219,11 +257,11 @@ function bws_core_block_is_button( $block ): bool {
  * @since Unreleased
  * @param array $options Tag options.
  * @param mixed $block   GB block array passed to the tag callback (arg 2).
- * @return array The options, with the wrap controls forced off on a button host.
+ * @return array The options, with the wrap controls forced off on a link host.
  */
 if ( ! function_exists( 'bws_host_unlinked_options' ) ) {
 function bws_host_unlinked_options( $options, $block ) {
-	if ( ! bws_core_block_is_button( $block ) ) {
+	if ( ! bws_core_block_is_link( $block ) ) {
 		return $options;
 	}
 	$options           = (array) $options;

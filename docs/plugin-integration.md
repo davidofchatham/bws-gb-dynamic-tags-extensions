@@ -332,25 +332,31 @@ add_filter( 'bws_dynamic_tags_benchmark_logging', '__return_true' );
 
 ## 7. Enabling tags in a block type **[UNRELEASED]**
 
-GenerateBlocks fills in dynamic tags only inside its own blocks. Site owners opt other block types in from the Tag Extensions settings page; the choice is saved as `core_blocks` in the plugin's settings ([`tag-reference.md` §Tags in core blocks](tag-reference.md#tags-in-core-blocks-unreleased)). Your plugin can switch a block type on itself, for a block it ships, with a filter over that list.
+GenerateBlocks fills in dynamic tags only inside its own blocks. Site owners opt other block types in from the Tag Extensions settings page; the choice is saved as `core_blocks` in the plugin's settings ([`tag-reference.md` §Tags in core blocks](tag-reference.md#tags-in-core-blocks-unreleased)). Your plugin can switch a block type on itself, for a block it ships, with a filter over that list, and can say what the block holds so the plugin's guards apply to it.
 
 ```php
 add_filter( 'bws_dynamic_tags_core_blocks', function ( $blocks ) {
-    $blocks[] = 'my-plugin/callout';
+    $blocks[]                   = 'my-plugin/callout';       // enabled, content kind not declared
+    $blocks['my-plugin/quote']  = 'inline';                  // enabled, and declared to hold inline text
     return $blocks;
 } );
 ```
 
 | Arg | Type | Meaning |
 |---|---|---|
-| `$blocks` | `string[]` | The block names the site saved on the settings page (empty by default). Return the list you want enabled. |
+| `$blocks` | `array<int\|string, string>` | The block names the site saved on the settings page (empty by default), as a list of names. An entry is a bare name, or `name => kind` to declare what the block holds. Return the entries you want enabled. |
 
 - **It runs after the saved list, and its result is what every consumer reads.** You can add a name or remove one the site saved.
 - **Names are cleaned, not checked.** Anything that is not a `namespace/name` slug is dropped, and duplicates are merged.
 - **Only block types registered in time reach GenerateBlocks.** A name with no registered block type stays in the enabled set but is left out of GenerateBlocks' allowlist, and gets no loop context, until the type registers. A type that registers after the loop-context pass (`init`, priority 99) is also left out, so its tags print literally rather than reading the page. The saved list is never pruned.
 - **A block you add shows as enabled and locked on the settings page** ("Turned on by code on this site"), so the site owner cannot untick it there.
 - **It widens GenerateBlocks' save check too.** GenerateBlocks reads the same allowlist to decide whose `{{` content it refuses to save, so a user who may not post unfiltered HTML cannot save changes to a post that has `{{` anywhere in its content along with your block (the check is post-wide, not per block).
-- **Nothing is promised about a block the plugin has not classified.** Its tags are filled in and given loop context, but the plugin has not tested them in that block, and the guards that adjust a few tags for text-only core blocks do not apply to it.
+- **A kind says what the block holds, and the plugin guards the tags to match.** There are five. `inline` is inline text only (`{{content}}` is cut down to inline content with a block break read as a space, and `{{table}}` prints nothing). `preformatted` is the same but a block break becomes a newline. `link` is a block that is itself the link (`{{content}}` and `{{table}}` print nothing, and a tag that would print a link prints the bare value). `container` holds other blocks, not text (nothing is guarded, and the settings page tells the site owner to put tags in the child block). `unrestricted` holds any content (nothing is guarded). What each kind does to each tag is in [`tag-reference.md` §Guards by host block](tag-reference.md#guards-by-host-block).
+- **A value that is not one of the five kinds is dropped, and the block stays enabled and unclassified.** A bare name is unclassified too: its tags are filled in and given loop context, but the plugin has not tested them in that block, no guard applies to it, and the settings page says "Not tested".
+- **A declaration cannot change a block the plugin already classifies.** For a name the plugin classifies itself (Paragraph, Button, Group and the rest of the list under [Guards by host block](tag-reference.md#guards-by-host-block)), the plugin's own kind is the one used and yours is ignored, so a callback cannot loosen or tighten a core block.
+- **A kind describes the whole block.** The guards cannot tell which of a block's attributes or sections a tag sits in, so declare a kind only for a block whose tags all go where its text goes. A block that also takes a URL or an alt text from its tags is better left undeclared.
+- **The filter runs once per request.** A callback added after the first tag has rendered, or after GenerateBlocks first asked for the allowlist, is not seen until the next request, for the enabled set and for kinds alike.
+- **Remove an entry by its key, not its value.** In a `name => kind` entry the value is the kind, so `array_diff()`, `in_array()` and `array_search()` on the values miss it, and a callback written that way leaves the block enabled. Use `unset( $blocks['my-plugin/quote'] )` for a declared entry, and remove a bare name by its value as before. Adding is unaffected, `array_merge()` included. The saved list stays a list of names; a declared kind is never written back to it.
 
 ---
 

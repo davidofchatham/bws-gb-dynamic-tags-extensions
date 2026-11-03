@@ -1207,37 +1207,123 @@ function bws_fixture_core_structures_404_title( $title ) {
 }
 
 /**
- * Narrow a post-type ARCHIVE to the posts this blueprint seeded, when the request asks.
+ * Slugs of the manifest's own posts, optionally of one post type.
  *
- * The archive lists every post of its type the visitor may see, so a post another fixture set
- * adds moves the first article and the page count of an archive snapshot while nothing of ours
- * changed. `?bwsfx_scope=core` restricts the main archive query to the manifest's own posts of
- * that type, by slug. Removed from the query rather than normalized out of the snapshot, as the
- * WooCommerce related-products block is: the list stays rendered and stays covered, and only
- * the population is pinned. Fixture site only; the plugin never ships this.
+ * @param string $type Post type, or '' for every type.
+ * @return string[] Slugs; a never-matching placeholder when there are none, so a query narrowed by
+ *                  the result matches nothing rather than falling back to everything.
+ */
+function bws_fixture_core_structures_manifest_slugs( $type = '' ) {
+	$manifest = require __DIR__ . '/manifest.php';
+	$names    = array();
+	foreach ( ( $manifest['posts'] ?? array() ) as $def ) {
+		if ( ( '' === $type || ( $def['post_type'] ?? '' ) === $type ) && ! empty( $def['post_name'] ) ) {
+			$names[] = $def['post_name'];
+		}
+	}
+	return $names ? $names : array( '__bwsfx_none__' );
+}
+
+/**
+ * Narrow a main-query LISTING (post-type archive, latest-posts home, taxonomy archive) to the
+ * posts this blueprint seeded, when the request asks.
+ *
+ * Such a page lists every post the visitor may see, so a post another fixture set adds moves the
+ * first article and the page count of its snapshot while nothing of ours changed. `?bwsfx_scope=core`
+ * restricts the main query to the manifest's own posts by slug: of the archive's type, of type
+ * `post` on the home, of any type on a taxonomy archive (other sets assign their posts to our
+ * terms). Removed from the query rather than normalized out of the snapshot, as the WooCommerce
+ * related-products block is: the list stays rendered and stays covered, and only the population is
+ * pinned. Fixture site only; the plugin never ships this.
  *
  * @param WP_Query $query Query under construction.
  */
 function bws_fixture_core_structures_scope_archive( $query ) {
-	if ( is_admin() || ! $query->is_main_query() || ! $query->is_post_type_archive() ) {
+	if ( is_admin() || ! $query->is_main_query() ) {
 		return;
 	}
 	if ( ! isset( $_GET['bwsfx_scope'] ) || 'core' !== $_GET['bwsfx_scope'] ) { // phpcs:ignore WordPress.Security.NonceVerification
 		return;
 	}
-	$type = $query->get( 'post_type' );
-	if ( ! is_string( $type ) || '' === $type ) {
+	if ( $query->is_post_type_archive() ) {
+		$type = $query->get( 'post_type' );
+		if ( ! is_string( $type ) || '' === $type ) {
+			return;
+		}
+	} elseif ( $query->is_home() ) {
+		$type = 'post';
+	} elseif ( $query->is_tax() ) {
+		$type = '';
+	} else {
 		return;
 	}
-	$manifest = require __DIR__ . '/manifest.php';
-	$names    = array();
-	foreach ( ( $manifest['posts'] ?? array() ) as $def ) {
-		if ( ( $def['post_type'] ?? '' ) === $type && ! empty( $def['post_name'] ) ) {
-			$names[] = $def['post_name'];
-		}
+	$query->set( 'post_name__in', bws_fixture_core_structures_manifest_slugs( $type ) );
+}
+
+/**
+ * Narrow the Latest Posts block (the sidebar "Recent Posts" widget) to the blueprint's own posts.
+ *
+ * The widget sits on every page and lists the newest posts of the whole site, so another fixture
+ * set's posts moved all of the snapshots at once. It is a core/latest-posts BLOCK inside a
+ * widget_block instance, not a classic widget, so `widget_posts_args` never runs; the block
+ * queries through get_posts() with filters on. The page is not the scope here, the block is: the
+ * narrowing is hooked only for the duration of that block's render, so no other secondary query
+ * (a fixture query loop, say) is touched. Fixture site only; the plugin never ships this.
+ *
+ * @param array $pre   Pre-render short-circuit (passed through).
+ * @param array $block Parsed block.
+ * @return mixed
+ */
+function bws_fixture_core_structures_recent_posts_begin( $pre, $block ) {
+	if ( 'core/latest-posts' === ( $block['blockName'] ?? '' ) ) {
+		add_action( 'pre_get_posts', 'bws_fixture_core_structures_scope_recent_posts' );
 	}
-	// No seeded post of the type: match nothing rather than fall back to everything.
-	$query->set( 'post_name__in', $names ? $names : array( '__bwsfx_none__' ) );
+	return $pre;
+}
+
+/**
+ * Unhook the Latest Posts narrowing once the block has rendered.
+ *
+ * @param string $content Rendered block.
+ * @param array  $block   Parsed block.
+ * @return string
+ */
+function bws_fixture_core_structures_recent_posts_end( $content, $block ) {
+	if ( 'core/latest-posts' === ( $block['blockName'] ?? '' ) ) {
+		remove_action( 'pre_get_posts', 'bws_fixture_core_structures_scope_recent_posts' );
+	}
+	return $content;
+}
+
+/**
+ * The narrowing itself, live only between the two functions above.
+ *
+ * @param WP_Query $query Query under construction.
+ */
+function bws_fixture_core_structures_scope_recent_posts( $query ) {
+	$query->set( 'post_name__in', bws_fixture_core_structures_manifest_slugs( 'post' ) );
+}
+
+/**
+ * Narrow previous/next post navigation on the blueprint's own post singles to its own posts.
+ *
+ * The link under `post-home-lead` names the neighboring post of the whole site, so another fixture
+ * set's post moved the page. The page is the scope (no query string), as on /matrix-products/:
+ * the narrowing applies only while the current single is one of the manifest's `post` entries.
+ * Wired to both `get_previous_post_where` and `get_next_post_where`. Fixture site only; the
+ * plugin never ships this.
+ *
+ * @param string $where Adjacent-post WHERE clause under construction.
+ * @return string
+ */
+function bws_fixture_core_structures_scope_adjacent_post( $where ) {
+	global $wpdb;
+	$current = is_singular( 'post' ) ? get_queried_object() : null;
+	$names   = bws_fixture_core_structures_manifest_slugs( 'post' );
+	if ( ! $current || ! in_array( $current->post_name, $names, true ) ) {
+		return $where;
+	}
+	return $where . ' AND p.post_name IN (' . implode( ',', array_map( array( $wpdb, 'prepare' ), array_fill( 0, count( $names ), '%s' ), $names ) ) . ')';
 }
 
 /**
@@ -1269,10 +1355,65 @@ function bws_fixture_core_structures_scope_product_loops( $query ) {
 	$query->set( 'post_name__in', $names ? $names : array( '__bwsfx_none__' ) );
 }
 
+/**
+ * Report the blueprint's own post count on each term of /matrix-loops/'s term loops.
+ *
+ * `{{term_count}}` (QL3.2) prints the `count` GB Query Enhancements copies off the WP_Term, which
+ * is the stored term count: it includes every post any fixture set assigned to the term, so a
+ * post another set adds to Sales moved the page. No query filter reaches a count WordPress keeps
+ * on the term, so the term objects GB Query Enhancements hands its Term Query loop are rewritten
+ * instead (its `gb_query_enhancements_term_query_data` filter; core's `get_terms` filter runs in
+ * get_terms(), which that plugin does not call): `count` becomes the number of the manifest's
+ * published posts (by slug, in the taxonomy's own post types) holding the term, which is what the
+ * stored count would read with no other set present. Live only on that page. Fixture site only;
+ * the plugin never ships this.
+ *
+ * @param array $query_data The Term Query loop's data (`data` holds the WP_Term objects).
+ * @return array
+ */
+function bws_fixture_core_structures_scope_term_counts( $query_data ) {
+	if ( is_admin() || ! is_page( 'matrix-loops' ) || ! is_array( $query_data['data'] ?? null ) ) {
+		return $query_data;
+	}
+	$terms = $query_data['data'];
+	foreach ( $terms as $i => $term ) {
+		if ( ! $term instanceof WP_Term || ! taxonomy_exists( $term->taxonomy ) ) {
+			continue;
+		}
+		$own = new WP_Query(
+			array(
+				'post_type'      => get_taxonomy( $term->taxonomy )->object_type,
+				'post_status'    => 'publish',
+				'post_name__in'  => bws_fixture_core_structures_manifest_slugs(),
+				'tax_query'      => array(
+					array(
+						'taxonomy'         => $term->taxonomy,
+						'terms'            => $term->term_id,
+						'include_children' => false,
+					),
+				),
+				'fields'         => 'ids',
+				'posts_per_page' => -1,
+				'no_found_rows'  => true,
+			)
+		);
+		$term        = clone $term;
+		$term->count = count( $own->posts );
+		$terms[ $i ] = $term;
+	}
+	$query_data['data'] = $terms;
+	return $query_data;
+}
+
 // Runtime path (mu-plugin loader stub): hook normally.
 if ( function_exists( 'add_action' ) && ! defined( 'BWS_FIXTURE_SEEDING' ) ) {
 	add_action( 'pre_get_posts', 'bws_fixture_core_structures_scope_archive' );
 	add_action( 'pre_get_posts', 'bws_fixture_core_structures_scope_product_loops' );
+	add_filter( 'gb_query_enhancements_term_query_data', 'bws_fixture_core_structures_scope_term_counts' );
+	add_filter( 'get_previous_post_where', 'bws_fixture_core_structures_scope_adjacent_post' );
+	add_filter( 'get_next_post_where', 'bws_fixture_core_structures_scope_adjacent_post' );
+	add_filter( 'pre_render_block', 'bws_fixture_core_structures_recent_posts_begin', 10, 2 );
+	add_filter( 'render_block', 'bws_fixture_core_structures_recent_posts_end', 10, 2 );
 	add_action( 'init', 'bws_fixture_core_structures_register_types', 5 );
 	add_action( 'init', 'bws_fixture_core_structures_register_meta', 5 );
 	add_action( 'acf/init', 'bws_fixture_core_structures_register_acf', 5 );

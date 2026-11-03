@@ -80,13 +80,13 @@
 
 <p class="gb-text">CB1.5 the GB text block control (-> Director): Director</p>
 
-<p class="gb-text">CB1.6 core/verse, NOT selected (-> the tag printed literally, as typed):</p>
+<p class="gb-text">CB1.6 core/image caption, NOT selected (-> the tag printed literally, as typed):</p>
 
-<pre class="wp-block-verse">{{text key:role}}</pre>
+<figure class="wp-block-image"><img decoding="async" src="/wp-content/uploads/2026/07/fixture-photo.png" alt=""/><figcaption class="wp-element-caption">{{text key:role}}</figcaption></figure>
 
-<p class="gb-text">CB1.7 core/preformatted, NOT selected (-> the tag printed literally, as typed):</p>
+<p class="gb-text">CB1.7 core/image caption, NOT selected, an email tag (-> the tag printed literally, as typed):</p>
 
-<pre class="wp-block-preformatted">{{text key:role}}</pre>
+<figure class="wp-block-image"><img decoding="async" src="/wp-content/uploads/2026/07/fixture-photo.png" alt=""/><figcaption class="wp-element-caption">{{email key:contact_email}}</figcaption></figure>
 </div>
 
 <div>
@@ -252,7 +252,265 @@ with a soft line break. Formatted two.</p>
 
 <p class="wp-block-paragraph">Team: Varsity</p>
 </div>
-		</div>
+
+<div>
+<h2 class="wp-block-heading">Text CB7 &#8211; a text tag in each text-holding core block (FW-156)</h2>
+
+<p class="gb-text">CB7.1 core/verse (-> Director, inside the verse block):</p>
+
+<pre class="wp-block-verse">Director</pre>
+
+<p class="gb-text">CB7.2 core/preformatted (-> Director, inside the preformatted block):</p>
+
+<pre class="wp-block-preformatted">Director</pre>
+
+<p class="gb-text">CB7.3 core/code (-> Director, inside the code block):</p>
+
+<pre class="wp-block-code"><code>Director</code></pre>
+
+<p class="gb-text">CB7.4 core/pullquote (-> Director, as the pullquote text):</p>
+
+<figure class="wp-block-pullquote"><blockquote><p>Director</p></blockquote></figure>
+
+<p class="gb-text">CB7.5 core/details summary (-> Director as the summary; the body line The details body. is untouched):</p>
+
+<details class="wp-block-details is-layout-flow wp-block-details-is-layout-flow"><summary>Director</summary>
+<p class="wp-block-paragraph">The details body.</p>
+</details>
+
+<p class="gb-text">CB7.6 core/file link text (-> Director as the file link text):</p>
+
+<div class="wp-block-file"><a href="#">Director</a></div>
+
+<p class="gb-text">CB7.7 core/read-more link text (-> Director as the link text, linking to this page; the hidden screen-reader suffix is WordPress own):</p>
+
+<a class="wp-block-read-more" href="/matrix-core-blocks/" target="_self">Director<span class="screen-reader-text">: Matrix: Core Blocks</span></a>
+
+<p class="gb-text">CB7.8 core/file link text, Link To (-> Director as the file link text, the bare value: no anchor nested inside the file link, same as CB7.6):</p>
+
+<div class="wp-block-file"><a href="#">Director</a></div>
+
+<p class="gb-text">CB7.9 core/read-more link text, Link To (-> Director as the link text, the bare value: no anchor nested inside the read-more link, same as CB7.7):</p>
+
+<a class="wp-block-read-more" href="/matrix-core-blocks/" target="_self">Director<span class="screen-reader-text">: Matrix: Core Blocks</span></a>
+
+<p class="gb-text">CB7.24 core/group around a core/image whose caption holds the tag (-> the tag printed literally: enabling the group does nothing for its child):</p>
+
+<div class="wp-block-group"><div class="wp-block-group__inner-container is-layout-flow wp-block-group-is-layout-flow">
+<figure class="wp-block-image"><img decoding="async" src="/wp-content/uploads/2026/07/fixture-photo.png" alt=""/><figcaption class="wp-element-caption">{{text key:role}}</figcaption></figure>
+</div></div>
+
+<p class="gb-text">CB7.25 core/group around a core/paragraph (-> Director: the paragraph is enabled in its own right):</p>
+
+<div class="wp-block-group"><div class="wp-block-group__inner-container is-layout-flow wp-block-group-is-layout-flow">
+<p class="wp-block-paragraph">Director</p>
+</div></div>
+
+<p class="gb-text">CB7.26 core/html (-> Director inside the div):</p>
+
+<div class="custom">Director</div>
+
+<p class="gb-text">CB7.27 core/navigation-link inside core/navigation (-> Director as the link label):</p>
+
+<nav class="is-responsive wp-block-navigation is-layout-flex wp-block-navigation-is-layout-flex"
+		 data-wp-interactive="core/navigation" data-wp-context='{"overlayOpenedBy":{"click":false,"hover":false,"focus":false},"type":"overlay","roleAttribute":"","ariaLabel":"Menu"}'><button aria-haspopup="dialog" aria-label="Open menu" class="wp-block-navigation__responsive-container-open"
+				data-wp-on--click="actions.openMenuOnClick"
+				data-wp-on--keydown="actions.handleMenuKeydown"
+			><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7.5h16v1.5H4z"></path><path d="M4 15h16v1.5H4z"></path></svg></button>
+				<div class="wp-block-navigation__responsive-container"  id="modal-1"
+				data-wp-class--has-modal-open="state.isMenuOpen"
+				data-wp-class--is-menu-open="state.isMenuOpen"
+				data-wp-watch="callbacks.initMenu"
+				data-wp-on--keydown="actions.handleMenuKeydown"
+				data-wp-on--focusout="actions.handleMenuFocusout"
+				tabindex="-1"
+			>
+					<div class="wp-block-navigation__responsive-close" tabindex="-1">
+						<div class="wp-block-navigation__responsive-dialog"
+				data-wp-bind--aria-modal="state.ariaModal"
+				data-wp-bind--aria-label="state.ariaLabel"
+				data-wp-bind--role="state.roleAttribute"
+			>
+							<button aria-label="Close menu" class="wp-block-navigation__responsive-container-close"
+				data-wp-on--click="actions.closeMenuOnClick"
+			><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path d="m13.06 12 6.47-6.47-1.06-1.06L12 10.94 5.53 4.47 4.47 5.53 10.94 12l-6.47 6.47 1.06 1.06L12 13.06l6.47 6.47 1.06-1.06L13.06 12Z"></path></svg></button>
+							<div class="wp-block-navigation__responsive-container-content"
+				data-wp-watch="callbacks.focusFirstElement"
+			 id="modal-1-content">
+								<ul class="wp-block-navigation__container is-responsive wp-block-navigation"><li class="wp-block-navigation-item wp-block-navigation-link"><a class="wp-block-navigation-item__content"  href="/matrix-core-blocks/"><span class="wp-block-navigation-item__label">Director</span></a></li></ul>
+
+							</div>
+						</div>
+					</div>
+				</div></nav>
+
+<p class="gb-text">CB7.28 core/navigation-link inside core/navigation, Link To (-> Director as the label, the bare value: no anchor nested inside the navigation link):</p>
+
+<nav class="is-responsive wp-block-navigation is-layout-flex wp-block-navigation-is-layout-flex" aria-label=" 2"
+		 data-wp-interactive="core/navigation" data-wp-context='{"overlayOpenedBy":{"click":false,"hover":false,"focus":false},"type":"overlay","roleAttribute":"","ariaLabel":"Menu"}'><button aria-haspopup="dialog" aria-label="Open menu" class="wp-block-navigation__responsive-container-open"
+				data-wp-on--click="actions.openMenuOnClick"
+				data-wp-on--keydown="actions.handleMenuKeydown"
+			><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7.5h16v1.5H4z"></path><path d="M4 15h16v1.5H4z"></path></svg></button>
+				<div class="wp-block-navigation__responsive-container"  id="modal-2"
+				data-wp-class--has-modal-open="state.isMenuOpen"
+				data-wp-class--is-menu-open="state.isMenuOpen"
+				data-wp-watch="callbacks.initMenu"
+				data-wp-on--keydown="actions.handleMenuKeydown"
+				data-wp-on--focusout="actions.handleMenuFocusout"
+				tabindex="-1"
+			>
+					<div class="wp-block-navigation__responsive-close" tabindex="-1">
+						<div class="wp-block-navigation__responsive-dialog"
+				data-wp-bind--aria-modal="state.ariaModal"
+				data-wp-bind--aria-label="state.ariaLabel"
+				data-wp-bind--role="state.roleAttribute"
+			>
+							<button aria-label="Close menu" class="wp-block-navigation__responsive-container-close"
+				data-wp-on--click="actions.closeMenuOnClick"
+			><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path d="m13.06 12 6.47-6.47-1.06-1.06L12 10.94 5.53 4.47 4.47 5.53 10.94 12l-6.47 6.47 1.06 1.06L12 13.06l6.47 6.47 1.06-1.06L13.06 12Z"></path></svg></button>
+							<div class="wp-block-navigation__responsive-container-content"
+				data-wp-watch="callbacks.focusFirstElement"
+			 id="modal-2-content">
+								<ul class="wp-block-navigation__container is-responsive wp-block-navigation"><li class="wp-block-navigation-item wp-block-navigation-link"><a class="wp-block-navigation-item__content"  href="/matrix-core-blocks/"><span class="wp-block-navigation-item__label">Director</span></a></li></ul>
+
+							</div>
+						</div>
+					</div>
+				</div></nav></div>
+
+<div>
+<h2 class="wp-block-heading">Content CB7 &#8211; the content tag in each text-holding core block: preformatted blocks join with a newline, inline ones with a space, link blocks are hidden (FW-156)</h2>
+
+<p class="gb-text">CB7.10 core/verse (-> TWO lines inside the verse block: Plain line one. then Plain line two., joined by a newline):</p>
+
+<pre class="wp-block-verse">Plain line one.
+Plain line two.</pre>
+
+<p class="gb-text">CB7.11 core/preformatted (-> TWO lines: Plain line one. then Plain line two., joined by a newline):</p>
+
+<pre class="wp-block-preformatted">Plain line one.
+Plain line two.</pre>
+
+<p class="gb-text">CB7.12 core/code (-> TWO lines: Plain line one. then Plain line two., joined by a newline):</p>
+
+<pre class="wp-block-code"><code>Plain line one.
+Plain line two.</code></pre>
+
+<p class="gb-text">CB7.13 core/pullquote (-> ONE line: Plain line one. Plain line two., joined by a space):</p>
+
+<figure class="wp-block-pullquote"><blockquote><p>Plain line one. Plain line two.</p></blockquote></figure>
+
+<p class="gb-text">CB7.14 core/details summary (-> ONE line as the summary: Plain line one. Plain line two., joined by a space):</p>
+
+<details class="wp-block-details is-layout-flow wp-block-details-is-layout-flow"><summary>Plain line one. Plain line two.</summary>
+<p class="wp-block-paragraph">The details body.</p>
+</details>
+
+<p class="gb-text">CB7.15 core/file (-> EMPTY: the file block is hidden, nothing follows this label):</p>
+
+<p class="gb-text">CB7.16 core/read-more (-> EMPTY: the read-more block is hidden, nothing follows this label):</p>
+
+<p class="gb-text">CB7.30 core/html (-> TWO paragraphs kept: Plain line one. and Plain line two., no strip):</p>
+
+<div class="custom"><p>Plain line one.</p>
+<p>Plain line two.</p></div>
+
+<p class="gb-text">CB7.31 core/navigation-link inside core/navigation (-> EMPTY: the link is hidden, nothing follows this label):</p>
+
+<nav class="is-responsive wp-block-navigation is-layout-flex wp-block-navigation-is-layout-flex" aria-label=" 3"
+		 data-wp-interactive="core/navigation" data-wp-context='{"overlayOpenedBy":{"click":false,"hover":false,"focus":false},"type":"overlay","roleAttribute":"","ariaLabel":"Menu"}'><button aria-haspopup="dialog" aria-label="Open menu" class="wp-block-navigation__responsive-container-open"
+				data-wp-on--click="actions.openMenuOnClick"
+				data-wp-on--keydown="actions.handleMenuKeydown"
+			><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7.5h16v1.5H4z"></path><path d="M4 15h16v1.5H4z"></path></svg></button>
+				<div class="wp-block-navigation__responsive-container"  id="modal-3"
+				data-wp-class--has-modal-open="state.isMenuOpen"
+				data-wp-class--is-menu-open="state.isMenuOpen"
+				data-wp-watch="callbacks.initMenu"
+				data-wp-on--keydown="actions.handleMenuKeydown"
+				data-wp-on--focusout="actions.handleMenuFocusout"
+				tabindex="-1"
+			>
+					<div class="wp-block-navigation__responsive-close" tabindex="-1">
+						<div class="wp-block-navigation__responsive-dialog"
+				data-wp-bind--aria-modal="state.ariaModal"
+				data-wp-bind--aria-label="state.ariaLabel"
+				data-wp-bind--role="state.roleAttribute"
+			>
+							<button aria-label="Close menu" class="wp-block-navigation__responsive-container-close"
+				data-wp-on--click="actions.closeMenuOnClick"
+			><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path d="m13.06 12 6.47-6.47-1.06-1.06L12 10.94 5.53 4.47 4.47 5.53 10.94 12l-6.47 6.47 1.06 1.06L12 13.06l6.47 6.47 1.06-1.06L13.06 12Z"></path></svg></button>
+							<div class="wp-block-navigation__responsive-container-content"
+				data-wp-watch="callbacks.focusFirstElement"
+			 id="modal-3-content">
+
+							</div>
+						</div>
+					</div>
+				</div></nav></div>
+
+<div>
+<h2 class="wp-block-heading">Table CB7 &#8211; the table tag in each text-holding core block prints nothing, so the block is hidden (FW-156)</h2>
+
+<p class="gb-text">CB7.17 core/verse (-> EMPTY: the block is hidden, nothing follows this label):</p>
+
+<p class="gb-text">CB7.18 core/preformatted (-> EMPTY: the block is hidden, nothing follows this label):</p>
+
+<p class="gb-text">CB7.19 core/code (-> EMPTY: the block is hidden, nothing follows this label):</p>
+
+<p class="gb-text">CB7.20 core/pullquote (-> EMPTY: the block is hidden, nothing follows this label):</p>
+
+<p class="gb-text">CB7.21 core/details summary (-> EMPTY: the whole details block is hidden, nothing follows this label):</p>
+
+<p class="gb-text">CB7.22 core/file (-> EMPTY: the block is hidden, nothing follows this label):</p>
+
+<p class="gb-text">CB7.23 core/read-more (-> EMPTY: the block is hidden, nothing follows this label):</p>
+
+<p class="gb-text">CB7.33 core/html (-> the two-row table, rendered):</p>
+
+<div class="custom"><table><thead><tr><th>Name</th><th>Role</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td></tr><tr><td>Bob Brown</td><td>Operations</td></tr></tbody></table></div>
+
+<p class="gb-text">CB7.34 core/navigation-link inside core/navigation (-> EMPTY: the link is hidden, nothing follows this label):</p>
+
+<nav class="is-responsive wp-block-navigation is-layout-flex wp-block-navigation-is-layout-flex" aria-label=" 4"
+		 data-wp-interactive="core/navigation" data-wp-context='{"overlayOpenedBy":{"click":false,"hover":false,"focus":false},"type":"overlay","roleAttribute":"","ariaLabel":"Menu"}'><button aria-haspopup="dialog" aria-label="Open menu" class="wp-block-navigation__responsive-container-open"
+				data-wp-on--click="actions.openMenuOnClick"
+				data-wp-on--keydown="actions.handleMenuKeydown"
+			><svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7.5h16v1.5H4z"></path><path d="M4 15h16v1.5H4z"></path></svg></button>
+				<div class="wp-block-navigation__responsive-container"  id="modal-4"
+				data-wp-class--has-modal-open="state.isMenuOpen"
+				data-wp-class--is-menu-open="state.isMenuOpen"
+				data-wp-watch="callbacks.initMenu"
+				data-wp-on--keydown="actions.handleMenuKeydown"
+				data-wp-on--focusout="actions.handleMenuFocusout"
+				tabindex="-1"
+			>
+					<div class="wp-block-navigation__responsive-close" tabindex="-1">
+						<div class="wp-block-navigation__responsive-dialog"
+				data-wp-bind--aria-modal="state.ariaModal"
+				data-wp-bind--aria-label="state.ariaLabel"
+				data-wp-bind--role="state.roleAttribute"
+			>
+							<button aria-label="Close menu" class="wp-block-navigation__responsive-container-close"
+				data-wp-on--click="actions.closeMenuOnClick"
+			><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path d="m13.06 12 6.47-6.47-1.06-1.06L12 10.94 5.53 4.47 4.47 5.53 10.94 12l-6.47 6.47 1.06 1.06L12 13.06l6.47 6.47 1.06-1.06L13.06 12Z"></path></svg></button>
+							<div class="wp-block-navigation__responsive-container-content"
+				data-wp-watch="callbacks.focusFirstElement"
+			 id="modal-4-content">
+
+							</div>
+						</div>
+					</div>
+				</div></nav></div>
+
+<h2 class="wp-block-heading">CB7 core/freeform as the editor saves it, WITHOUT block delimiters (FW-156)</h2>
+
+<p class="gb-text">CB7.36 core/freeform, stored WITHOUT delimiters, a text tag (-> the tag printed literally: editor-made Classic content has no block name, so no setting reaches it):</p>
+
+<p>{{text key:role}}</p>
+
+<p class="gb-text">CB7.37 core/freeform, stored WITHOUT delimiters, the content tag (-> the tag printed literally, as CB7.36):</p>
+
+<p>{{content use:key|key:bws_block_plain}}</p>		</div>
 
 			</div>
 </article>
@@ -261,11 +519,8 @@ with a soft line break. Formatted two.</p>
 
 	<div class="widget-area sidebar is-right-sidebar" id="right-sidebar">
 	<div class="inside-right-sidebar">
-		<aside id="block-2" class="widget inner-padding widget_block widget_search"><form role="search" method="get" action="/" class="wp-block-search__button-outside wp-block-search__text-button wp-block-search" ><label class="wp-block-search__label" for="wp-block-search__input-1" >Search</label><div class="wp-block-search__inside-wrapper" ><input class="wp-block-search__input" id="wp-block-search__input-1" placeholder="" value="" type="search" name="s" required /><button aria-label="Search" class="wp-block-search__button wp-element-button" type="submit" >Search</button></div></form></aside><aside id="block-3" class="widget inner-padding widget_block"><div class="wp-block-group"><div class="wp-block-group__inner-container is-layout-flow wp-block-group-is-layout-flow"><h2 class="wp-block-heading">Recent Posts</h2><ul class="wp-block-latest-posts__list wp-block-latest-posts is-layout-flow wp-block-latest-posts-is-layout-flow"><li><a class="wp-block-latest-posts__post-title" href="/home-lead/">Home Lead Post</a></li>
-<li><a class="wp-block-latest-posts__post-title" href="/bwsut-target/">BWSUT Target Post</a></li>
-<li><a class="wp-block-latest-posts__post-title" href="/gbqf-delta/">GBQF Delta</a></li>
-<li><a class="wp-block-latest-posts__post-title" href="/gbqf-charlie/">GBQF Charlie</a></li>
-<li><a class="wp-block-latest-posts__post-title" href="/gbqf-bravo/">GBQF Bravo</a></li>
+		<aside id="block-2" class="widget inner-padding widget_block widget_search"><form role="search" method="get" action="/" class="wp-block-search__button-outside wp-block-search__text-button wp-block-search" ><label class="wp-block-search__label" for="wp-block-search__input-5" >Search</label><div class="wp-block-search__inside-wrapper" ><input class="wp-block-search__input" id="wp-block-search__input-5" placeholder="" value="" type="search" name="s" required /><button aria-label="Search" class="wp-block-search__button wp-element-button" type="submit" >Search</button></div></form></aside><aside id="block-3" class="widget inner-padding widget_block"><div class="wp-block-group"><div class="wp-block-group__inner-container is-layout-flow wp-block-group-is-layout-flow"><h2 class="wp-block-heading">Recent Posts</h2><ul class="wp-block-latest-posts__list wp-block-latest-posts is-layout-flow wp-block-latest-posts-is-layout-flow"><li><a class="wp-block-latest-posts__post-title" href="/home-lead/">Home Lead Post</a></li>
+<li><a class="wp-block-latest-posts__post-title" href="/sample-event/">Sample Event</a></li>
 </ul></div></div></aside><aside id="block-4" class="widget inner-padding widget_block"><div class="wp-block-group"><div class="wp-block-group__inner-container is-layout-flow wp-block-group-is-layout-flow"><h2 class="wp-block-heading">Recent Comments</h2><ol class="wp-block-latest-comments"><li class="wp-block-latest-comments__comment"><article><footer class="wp-block-latest-comments__comment-meta"><a class="wp-block-latest-comments__comment-author" href="https://wordpress.org/">A WordPress Commenter</a> on <a class="wp-block-latest-comments__comment-link" href="/hello-world/#comment-1">Hello world!</a></footer></article></li></ol></div></div></aside>	</div>
 </div>
 
@@ -287,7 +542,12 @@ with a soft line break. Formatted two.</p>
 <script id="generate-a11y">
 !function(){"use strict";if("querySelector"in document&&"addEventListener"in window){var e=document.body;e.addEventListener("pointerdown",(function(){e.classList.add("using-mouse")}),{passive:!0}),e.addEventListener("keydown",(function(){e.classList.remove("using-mouse")}),{passive:!0})}}();
 </script>
-<script type="application/ld+json" id="slim-seo-schema">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"/#website","url":"/","name":"BWS Testbed","inLanguage":"en-US","potentialAction":{"@id":"/#searchaction"},"publisher":{"@id":"/#organization"}},{"@type":"SearchAction","@id":"/#searchaction","target":"/?s={search_term_string}","query-input":"required name=search_term_string"},{"@type":"BreadcrumbList","name":"Breadcrumbs","@id":"/matrix-core-blocks/#breadcrumblist","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"/"},{"@type":"ListItem","position":2,"name":"Matrix: Core Blocks"}]},{"@type":"WebPage","@id":"/matrix-core-blocks/#webpage","url":"/matrix-core-blocks/","inLanguage":"en-US","name":"Matrix: Core Blocks – BWS Testbed","description":"Text CB1 - a tag in a SELECTED core block renders; in an unselected one it prints as typed (FW-156) CB1.1 core/paragraph, selected (-> Director): Director CB1.2","datePublished":"TIMESTAMP","dateModified":"TIMESTAMP","isPartOf":{"@id":"/#website"},"breadcrumb":{"@id":"/matrix-core-blocks/#breadcrumblist"},"potentialAction":{"@id":"/matrix-core-blocks/#readaction"}},{"@type":"ReadAction","@id":"/matrix-core-blocks/#readaction","target":"/matrix-core-blocks/"},{"@type":"Organization","@id":"/#organization","url":"/","name":"BWS Testbed"}]}</script>	<script>
+<script id="wp-importmap" type="importmap">
+{"imports":{"@wordpress/interactivity":"/wp-includes/js/dist/script-modules/interactivity/index.js?ver=VER"}}
+</script>
+<script data-wp-router-options="{&quot;loadOnClientNavigation&quot;:true}" fetchpriority="low" id="@wordpress/block-library/navigation/view-js-module" src="/wp-includes/js/dist/script-modules/block-library/navigation/view.js?ver=VER" type="module"></script>
+<link rel="modulepreload" href="/wp-includes/js/dist/script-modules/interactivity/index.js?ver=VER" id="@wordpress/interactivity-js-modulepreload" fetchpriority="low">
+<script type="application/ld+json" id="slim-seo-schema">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"/#website","url":"/","name":"BWS Testbed","inLanguage":"en-US","potentialAction":{"@id":"/#searchaction"},"publisher":{"@id":"/#organization"}},{"@type":"SearchAction","@id":"/#searchaction","target":"/?s={search_term_string}","query-input":"required name=search_term_string"},{"@type":"BreadcrumbList","name":"Breadcrumbs","@id":"/matrix-core-blocks/#breadcrumblist","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"/"},{"@type":"ListItem","position":2,"name":"Matrix: Core Blocks"}]},{"@type":"WebPage","@id":"/matrix-core-blocks/#webpage","url":"/matrix-core-blocks/","inLanguage":"en-US","name":"Matrix: Core Blocks – BWS Testbed","description":"Text CB1 - a tag in a SELECTED core block renders; in an unselected one it prints as typed (FW-156) CB1.1 core/paragraph, selected (-> Director): Director CB1.2","datePublished":"TIMESTAMP","dateModified":"TIMESTAMP","isPartOf":{"@id":"/#website"},"breadcrumb":{"@id":"/matrix-core-blocks/#breadcrumblist"},"potentialAction":{"@id":"/matrix-core-blocks/#readaction"},"primaryImageOfPage":{"@id":"/matrix-core-blocks/#thumbnail"},"image":{"@id":"/matrix-core-blocks/#thumbnail"}},{"@type":"ReadAction","@id":"/matrix-core-blocks/#readaction","target":"/matrix-core-blocks/"},{"@type":"Organization","@id":"/#organization","url":"/","name":"BWS Testbed"},{"@type":"ImageObject","@id":"/matrix-core-blocks/#thumbnail","caption":"Fixture photo caption","url":"/wp-content/uploads/2026/07/fixture-photo.png","contentUrl":"/wp-content/uploads/2026/07/fixture-photo.png","width":320,"height":200}]}</script>	<script>
 		(function () {
 			var c = document.body.className;
 			c = c.replace(/woocommerce-no-js/, 'woocommerce-js');

@@ -461,17 +461,24 @@ function bws_markup_has_block_level_tag( string $markup ): bool {
  * Reduce markup to inline content: inline tags stay, every other tag goes and its text stays.
  *
  * Images and figures are dropped whole. A run of block tags (open or close) collapses, with
- * the whitespace around it, to ONE space, never a `<br>`; the result is trimmed. Text between
- * tags is otherwise untouched, so a bare run comes out as it went in. `img` is on the inline
- * list but cannot live in an inline-only host, so it is dropped here as well.
+ * the whitespace around it, to ONE `$join`, never a `<br>`; the result is trimmed. Text between
+ * tags is otherwise untouched, so a bare run comes out as it went in, and a `<br>` in the
+ * input survives. `img` is on the inline list but cannot live in an inline-only host, so it is
+ * dropped here as well.
+ *
+ * Two joins, one function: a space (the default) for the inline and link kinds, a newline for
+ * the preformatted kind, where a space would print two blocks on one line.
+ * bws_content_strip_for_host() picks by the host's kind; which blocks are which is
+ * bws_core_block_kind()'s.
  *
  * @since Unreleased
  *
  * @param string $markup Value to reduce.
+ * @param string $join   What one run of block tags becomes.
  * @return string
  */
 if ( ! function_exists( 'bws_markup_strip_to_inline' ) ) {
-function bws_markup_strip_to_inline( string $markup ): string {
+function bws_markup_strip_to_inline( string $markup, string $join = ' ' ): string {
 	$inline = bws_markup_inline_tags();
 	$gap    = "\x01";
 	$out    = preg_replace( array( '/<!--.*?-->/s', '/<figure(?=[\s\/>]).*?<\/figure\s*>/is' ), '', $markup );
@@ -486,7 +493,7 @@ function bws_markup_strip_to_inline( string $markup ): string {
 		},
 		$out
 	);
-	$out = preg_replace( '/\s*' . $gap . '[\s' . $gap . ']*/', ' ', $out );
+	$out = preg_replace_callback( '/\s*' . $gap . '[\s' . $gap . ']*/', static fn() => $join, $out );
 	return trim( $out );
 }
 }
@@ -496,8 +503,9 @@ function bws_markup_strip_to_inline( string $markup ): string {
  *
  * Called from the two callback shells that have `$block` (bws_base_content_callback() and the
  * `try_` content-slot arm), never from the resolve seam. An inline-only core block gets the
- * value reduced to inline content, lossy by design; any other host gets it back untouched.
- * A button host never reaches here: both shells refuse it first (nothing, so GB blanks the block).
+ * value reduced to inline content, lossy by design (block breaks become a space, or a newline
+ * in a preformatted host); any other host gets it back untouched.
+ * A link host never reaches here: both shells refuse it first (nothing, so GB blanks the block).
  *
  * @since Unreleased
  *
@@ -510,6 +518,6 @@ function bws_content_strip_for_host( string $value, $block ): string {
 	if ( '' === $value || ! function_exists( 'bws_core_block_is_inline_only' ) || ! bws_core_block_is_inline_only( $block ) ) {
 		return $value;
 	}
-	return bws_markup_strip_to_inline( $value );
+	return bws_markup_strip_to_inline( $value, BWS_CORE_BLOCK_KIND_PREFORMATTED === bws_core_block_kind( $block ) ? "\n" : ' ' );
 }
 }

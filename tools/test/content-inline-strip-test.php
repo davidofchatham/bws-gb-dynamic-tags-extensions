@@ -52,6 +52,48 @@ foreach ( $cases as [ $label, $value, $block, $expected ] ) {
 	echo "  FAIL {$label}: expected " . var_export( $expected, true ) . ', got ' . var_export( $actual, true ) . "\n";
 }
 
+// The join: a run of block tags collapses to ONE join, space by default, newline when asked.
+$joins = array(
+	// [ label, value, join, expected ]
+	array( 'two paragraphs, newline join',            "<p>one</p>\n\n<p>two</p>",      "\n", "one\ntwo" ),
+	array( 'two paragraphs, default join',            "<p>one</p>\n\n<p>two</p>",      null, 'one two' ),
+	array( 'two paragraphs, explicit space',          "<p>one</p><p>two</p>",          ' ',  'one two' ),
+	array( 'soft br survives, newline join',          '<p>a<br />b</p><p>c</p>',       "\n", "a<br />b\nc" ),
+	array( 'soft br survives, default join',          '<p>a<br />b</p><p>c</p>',       null, 'a<br />b c' ),
+	array( 'bare run unchanged, newline join',        'Just words',                    "\n", 'Just words' ),
+	array( 'bare run unchanged, default join',        'Just words',                    null, 'Just words' ),
+	array( 'leading and trailing breaks trimmed',     "\n<p>x</p>\n<p>y</p>\n",        "\n", "x\ny" ),
+	array( 'a deep run is one newline, not a blank line', "<ul><li>a</li>\n\n</ul><p>b</p>", "\n", "a\nb" ),
+	array( 'inline tags kept, newline join',          '<p><strong>a</strong></p><p><em>b</em></p>', "\n", "<strong>a</strong>\n<em>b</em>" ),
+);
+foreach ( $joins as [ $label, $value, $join, $expected ] ) {
+	$actual = null === $join ? bws_markup_strip_to_inline( $value ) : bws_markup_strip_to_inline( $value, $join );
+	if ( $actual === $expected ) {
+		echo "  ok   join: {$label}\n";
+		continue;
+	}
+	$failures++;
+	echo "  FAIL join: {$label}: expected " . var_export( $expected, true ) . ', got ' . var_export( $actual, true ) . "\n";
+}
+
+// The host picks the join: the preformatted kind gets a newline, the inline kind a space.
+$host_joins = array(
+	array( 'core/verse',        "one\ntwo" ),
+	array( 'core/preformatted', "one\ntwo" ),
+	array( 'core/code',         "one\ntwo" ),
+	array( 'core/paragraph',    'one two' ),
+	array( 'core/button',       'one two' ),
+);
+foreach ( $host_joins as [ $name, $expected ] ) {
+	$actual = bws_content_strip_for_host( "<p>one</p>\n<p>two</p>", array( 'blockName' => $name ) );
+	if ( $actual === $expected ) {
+		echo "  ok   host join: {$name}\n";
+		continue;
+	}
+	$failures++;
+	echo "  FAIL host join: {$name}: expected " . var_export( $expected, true ) . ', got ' . var_export( $actual, true ) . "\n";
+}
+
 // The strip and the wrap share one vocabulary: nothing the strip keeps may read as block-level.
 $kept = implode( '', array_map( static fn( $t ) => "<{$t}>x</{$t}>", bws_markup_inline_tags() ) );
 if ( bws_markup_has_block_level_tag( $kept ) ) {
@@ -61,5 +103,5 @@ if ( bws_markup_has_block_level_tag( $kept ) ) {
 	echo "  ok   inline vocabulary agrees with bws_markup_has_block_level_tag()\n";
 }
 
-echo $failures ? "\n{$failures} FAILED\n" : "\nall " . ( count( $cases ) + 1 ) . " passed\n";
+echo $failures ? "\n{$failures} FAILED\n" : "\nall " . ( count( $cases ) + count( $joins ) + count( $host_joins ) + 1 ) . " passed\n";
 exit( $failures ? 1 : 0 );

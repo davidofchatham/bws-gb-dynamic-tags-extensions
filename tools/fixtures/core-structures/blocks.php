@@ -2427,8 +2427,9 @@ function bws_fixture_page_content_matrix_links() {
  *
  * The page's axis is WHICH BLOCK a tag sits in, which no other page splits on. Rows are
  * written against the testbed's settings baseline (manifest `wp_options`): core/paragraph,
- * core/heading, core/list-item, core/table and core/button are SELECTED, core/verse and
- * core/preformatted are not. A row is a label block (GB text, so it never carries a
+ * core/heading, core/list-item, core/table, core/button, core/verse, core/preformatted,
+ * core/code, core/pullquote, core/details, core/file, core/read-more, core/group, core/html,
+ * and core/navigation-link are SELECTED, core/image (unclassified) and core/freeform are not. A row is a label block (GB text, so it never carries a
  * literal tag) followed by the core block under test: when the tag blanks the block, as
  * `{{table}}` does in an inline-only block, the label stands alone, which is the
  * expectation and not missing fixture (bws_fixture_gb_empty_row() has the same reason).
@@ -2479,6 +2480,51 @@ function bws_fixture_page_content_matrix_core_blocks() {
 	$preformat = static function ( $inner ) {
 		return "<!-- wp:preformatted -->\n<pre class=\"wp-block-preformatted\">{$inner}</pre>\n<!-- /wp:preformatted -->";
 	};
+	$code      = static function ( $inner ) {
+		return "<!-- wp:code -->\n<pre class=\"wp-block-code\"><code>{$inner}</code></pre>\n<!-- /wp:code -->";
+	};
+	$pullquote = static function ( $inner ) {
+		return "<!-- wp:pullquote -->\n<figure class=\"wp-block-pullquote\"><blockquote><p>{$inner}</p></blockquote></figure>\n<!-- /wp:pullquote -->";
+	};
+	// The tag sits in the summary; the body is a paragraph with no tag.
+	$details   = static function ( $inner ) {
+		return "<!-- wp:details -->\n<details class=\"wp-block-details\"><summary>{$inner}</summary><!-- wp:paragraph -->\n<p>The details body.</p>\n<!-- /wp:paragraph --></details>\n<!-- /wp:details -->";
+	};
+	$file      = static function ( $inner ) {
+		return "<!-- wp:file -->\n<div class=\"wp-block-file\"><a href=\"#\">{$inner}</a></div>\n<!-- /wp:file -->";
+	};
+	// A dynamic block: its text is the `content` attribute, so the tag rides in the comment's JSON.
+	$readmore  = static function ( $inner ) {
+		return "<!-- wp:read-more {\"content\":\"{$inner}\"} /-->";
+	};
+	// A container: the tag sits in a child block; the group itself holds no text.
+	$group     = static function ( $child ) {
+		return "<!-- wp:group -->
+<div class=\"wp-block-group\">{$child}</div>
+<!-- /wp:group -->";
+	};
+	// core/html takes raw markup, so the tag sits in a div.
+	$html      = static function ( $inner ) {
+		return "<!-- wp:html -->
+<div class=\"custom\">{$inner}</div>
+<!-- /wp:html -->";
+	};
+	// core/navigation-link is only valid inside core/navigation; its label is a comment attribute.
+	$navlink   = static function ( $inner ) {
+		return "<!-- wp:navigation -->
+<!-- wp:navigation-link {\"label\":\"{$inner}\",\"type\":\"custom\",\"url\":\"" . esc_url( home_url( '/matrix-core-blocks/' ) ) . "\",\"kind\":\"custom\"} /-->
+<!-- /wp:navigation -->";
+	};
+	// core/freeform (the Classic block) as the editor saves it: undelimited, so it has no block name.
+	$freeraw   = static function ( $inner ) {
+		return "<p>{$inner}</p>";
+	};
+	// core/image is NOT classified, so it is the unselected control: the tag sits in its caption.
+	$image_id  = function_exists( 'bws_fixture_seeded_attachment_id' ) ? bws_fixture_seeded_attachment_id( 'fixture-photo' ) : false;
+	$image_url = $image_id ? (string) wp_get_attachment_url( $image_id ) : '';
+	$image     = static function ( $inner ) use ( $image_url ) {
+		return "<!-- wp:image -->\n<figure class=\"wp-block-image\"><img src=\"" . esc_url( $image_url ) . "\" alt=\"\"/><figcaption class=\"wp-element-caption\">{$inner}</figcaption></figure>\n<!-- /wp:image -->";
+	};
 	// A label block, then the core block under test.
 	$row       = static function ( $label, $core ) {
 		return bws_fixture_gb_text_block( $label . ':', 'cb-label:' . $label ) . "\n\n" . $core;
@@ -2500,8 +2546,8 @@ function bws_fixture_page_content_matrix_core_blocks() {
 		$row( 'CB1.3 core/list-item, selected (-> Director, as the one bullet)', $list( $role ) ),
 		$row( 'CB1.4 core/table cell, selected (-> Director, in the one cell)', $table( $role ) ),
 		bws_fixture_gb_row( 'CB1.5 the GB text block control (-> Director)', $role ),
-		$row( 'CB1.6 core/verse, NOT selected (-> the tag printed literally, as typed)', $verse( $role ) ),
-		$row( 'CB1.7 core/preformatted, NOT selected (-> the tag printed literally, as typed)', $preformat( $role ) ),
+		$row( 'CB1.6 core/image caption, NOT selected (-> the tag printed literally, as typed)', $image( $role ) ),
+		$row( 'CB1.7 core/image caption, NOT selected, an email tag (-> the tag printed literally, as typed)', $image( '{{email key:contact_email}}' ) ),
 	) );
 
 	// CB2 - loop context: a selected core block inside a loop reads the loop item.
@@ -2578,6 +2624,56 @@ function bws_fixture_page_content_matrix_core_blocks() {
 		$row( 'CB6.7 core/paragraph, an unregistered tag name (-> the tag printed literally, as typed)', $paragraph( '{{bws_fixture_unregistered key:role}}' ) ),
 		$row( 'CB6.16 core/paragraph, a registered tag carrying the legacy option fallback_text (-> Varsity; the legacy option changes nothing here, so a migrate must not change this line)', $paragraph( 'Team: {{text src:site|fixed:Varsity|fallback_text:none}}' ) ),
 	) );
+
+	// CB7 - the text-holding kinds (FW-156 core-block kinds): per block, the text tag, the content
+	// tag and the table tag, grouped by tag in Catalog order.
+	$link_role  = '{{text key:role|linkTo:permalink}}';
+	$sections[] = bws_fixture_gb_section( 'Text CB7 - a text tag in each text-holding core block (FW-156)', array(
+		$row( 'CB7.1 core/verse (-> Director, inside the verse block)', $verse( $role ) ),
+		$row( 'CB7.2 core/preformatted (-> Director, inside the preformatted block)', $preformat( $role ) ),
+		$row( 'CB7.3 core/code (-> Director, inside the code block)', $code( $role ) ),
+		$row( 'CB7.4 core/pullquote (-> Director, as the pullquote text)', $pullquote( $role ) ),
+		$row( 'CB7.5 core/details summary (-> Director as the summary; the body line The details body. is untouched)', $details( $role ) ),
+		$row( 'CB7.6 core/file link text (-> Director as the file link text)', $file( $role ) ),
+		$row( 'CB7.7 core/read-more link text (-> Director as the link text, linking to this page; the hidden screen-reader suffix is WordPress own)', $readmore( $role ) ),
+		$row( 'CB7.8 core/file link text, Link To (-> Director as the file link text, the bare value: no anchor nested inside the file link, same as CB7.6)', $file( $link_role ) ),
+		$row( 'CB7.9 core/read-more link text, Link To (-> Director as the link text, the bare value: no anchor nested inside the read-more link, same as CB7.7)', $readmore( $link_role ) ),
+		$row( 'CB7.24 core/group around a core/image whose caption holds the tag (-> the tag printed literally: enabling the group does nothing for its child)', $group( $image( $role ) ) ),
+		$row( 'CB7.25 core/group around a core/paragraph (-> Director: the paragraph is enabled in its own right)', $group( $paragraph( $role ) ) ),
+		$row( 'CB7.26 core/html (-> Director inside the div)', $html( $role ) ),
+		$row( 'CB7.27 core/navigation-link inside core/navigation (-> Director as the link label)', $navlink( $role ) ),
+		$row( 'CB7.28 core/navigation-link inside core/navigation, Link To (-> Director as the label, the bare value: no anchor nested inside the navigation link)', $navlink( $link_role ) ),
+	) );
+	$sections[] = bws_fixture_gb_section( 'Content CB7 - the content tag in each text-holding core block: preformatted blocks join with a newline, inline ones with a space, link blocks are hidden (FW-156)', array(
+		$row( 'CB7.10 core/verse (-> TWO lines inside the verse block: Plain line one. then Plain line two., joined by a newline)', $verse( $plain ) ),
+		$row( 'CB7.11 core/preformatted (-> TWO lines: Plain line one. then Plain line two., joined by a newline)', $preformat( $plain ) ),
+		$row( 'CB7.12 core/code (-> TWO lines: Plain line one. then Plain line two., joined by a newline)', $code( $plain ) ),
+		$row( 'CB7.13 core/pullquote (-> ONE line: Plain line one. Plain line two., joined by a space)', $pullquote( $plain ) ),
+		$row( 'CB7.14 core/details summary (-> ONE line as the summary: Plain line one. Plain line two., joined by a space)', $details( $plain ) ),
+		$row( 'CB7.15 core/file (-> EMPTY: the file block is hidden, nothing follows this label)', $file( $plain ) ),
+		$row( 'CB7.16 core/read-more (-> EMPTY: the read-more block is hidden, nothing follows this label)', $readmore( $plain ) ),
+		$row( 'CB7.30 core/html (-> TWO paragraphs kept: Plain line one. and Plain line two., no strip)', $html( $plain ) ),
+		$row( 'CB7.31 core/navigation-link inside core/navigation (-> EMPTY: the link is hidden, nothing follows this label)', $navlink( $plain ) ),
+	) );
+	$sections[] = bws_fixture_gb_section( 'Table CB7 - the table tag in each text-holding core block prints nothing, so the block is hidden (FW-156)', array(
+		$row( 'CB7.17 core/verse (-> EMPTY: the block is hidden, nothing follows this label)', $verse( $tbl ) ),
+		$row( 'CB7.18 core/preformatted (-> EMPTY: the block is hidden, nothing follows this label)', $preformat( $tbl ) ),
+		$row( 'CB7.19 core/code (-> EMPTY: the block is hidden, nothing follows this label)', $code( $tbl ) ),
+		$row( 'CB7.20 core/pullquote (-> EMPTY: the block is hidden, nothing follows this label)', $pullquote( $tbl ) ),
+		$row( 'CB7.21 core/details summary (-> EMPTY: the whole details block is hidden, nothing follows this label)', $details( $tbl ) ),
+		$row( 'CB7.22 core/file (-> EMPTY: the block is hidden, nothing follows this label)', $file( $tbl ) ),
+		$row( 'CB7.23 core/read-more (-> EMPTY: the block is hidden, nothing follows this label)', $readmore( $tbl ) ),
+		$row( 'CB7.33 core/html (-> the two-row table, rendered)', $html( $tbl ) ),
+		$row( 'CB7.34 core/navigation-link inside core/navigation (-> EMPTY: the link is hidden, nothing follows this label)', $navlink( $tbl ) ),
+	) );
+
+	// Classic content as the editor saves it has no block delimiters, so it parses with no block name and is
+	// unreachable (matrix N4). Inside a GB element it is just part of that element's own innerHTML, and GB
+	// then replaces the tag string everywhere in the element's output, which fills a literal tag in a
+	// sibling row. So these rows are NOT wrapped in a section element.
+	$sections[] = "<!-- wp:heading {\"className\":\"\"} -->\n<h2 class=\"wp-block-heading\">CB7 core/freeform as the editor saves it, WITHOUT block delimiters (FW-156)</h2>\n<!-- /wp:heading -->"
+		. "\n\n" . $row( 'CB7.36 core/freeform, stored WITHOUT delimiters, a text tag (-> the tag printed literally: editor-made Classic content has no block name, so no setting reaches it)', $freeraw( $role ) )
+		. "\n\n" . $row( 'CB7.37 core/freeform, stored WITHOUT delimiters, the content tag (-> the tag printed literally, as CB7.36)', $freeraw( $plain ) );
 
 	return implode( "\n\n", $sections );
 }

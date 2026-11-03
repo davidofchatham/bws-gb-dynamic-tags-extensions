@@ -4,7 +4,7 @@
 
 > **Re-run trigger:** the three core-block rows in [`CLAUDE.md`](../../CLAUDE.md#update-triggers) (classification, enabled set / allowlist / loop keys, survey). Run the pure harnesses they name FIRST; they own the algorithms. Then this matrix, then `php tools/test/page-snapshots.php`.
 
-**How to run:** every CB1 to CB5 row, and CB6.6 and CB6.7, is a visible block on `/matrix-core-blocks/` (blueprint **v36**, `bin/seed.sh testbed core-structures`). Open the page and compare each label's `->` text with what follows it; the page is the instrument, and `page-snapshots.php` pins the rendered output. Recycle the lsphp workers after a source edit and cache-bust the fetch ([`docs/testbed.md`](../../docs/testbed.md) §Two layers of staleness). `render-tag` cannot reach any of these rows: `$block` is empty there, which is what every guard in this matrix keys on.
+**How to run:** every CB1 to CB5 and CB7 row, and CB6.6, CB6.7 and CB6.16, is a visible block on `/matrix-core-blocks/` (blueprint **v41**, `bin/seed.sh testbed core-structures`). Open the page and compare each label's `->` text with what follows it; the page is the instrument, and `page-snapshots.php` pins the rendered output. Recycle the lsphp workers after a source edit and cache-bust the fetch ([`docs/testbed.md`](../../docs/testbed.md) §Two layers of staleness). `render-tag` cannot reach any of these rows: `$block` is empty there, which is what every guard in this matrix keys on.
 
 Operating the testbed, and why every row must also be a visible block: [`docs/testbed.md`](../../docs/testbed.md).
 
@@ -12,7 +12,7 @@ Operating the testbed, and why every row must also be a visible block: [`docs/te
 
 | Entity | Carries |
 |---|---|
-| settings `core_blocks` | `core/paragraph`, `core/heading`, `core/list-item`, `core/table`, `core/button` ENABLED (the testbed's baseline; the product ships it empty). `core/verse` and `core/preformatted` are deliberately not |
+| settings `core_blocks` | `core/paragraph`, `core/heading`, `core/list-item`, `core/table`, `core/button`, and (blueprint v39) `core/verse`, `core/preformatted`, `core/code`, `core/pullquote`, `core/details`, `core/file`, `core/read-more`, and (blueprint v40) `core/group`, `core/html`, `core/navigation-link` ENABLED (the testbed's baseline; the product ships it empty). `core/image` is deliberately not: unclassified, it is the unselected control; `core/freeform` is not either (N4) |
 | page `matrix-core-blocks` | `role` **Director**, `main_line` **(919) 555-0134**, `sms_number` **+19195550134**, `contact_email` **blocks@example.test**, and its own two-row `team_members`: **Carla Diaz** / `Design`, **Dev Patel** / `Platform`. The page's values differ from every row's, so a block that read the page prints the wrong word |
 | plain meta on that page | `bws_block_plain` (two paragraphs of bare text), `bws_block_formatted` (already `<p>`-wrapped, with a soft break), `bws_block_inline` (bold, italic and a link, no block tag) |
 | staff `jane-partner`, `tom-associate` | `main_line` `(555) 200-3000` and `(555) 200-4000`, the WP_Query loop's items |
@@ -32,8 +32,8 @@ An enabled core block fills in a tag; one that is not enabled prints it as typed
 | CB1.3 | `core/list-item`, enabled | `Director` as the one bullet | PASS 2026-10-26 |
 | CB1.4 | `core/table` cell, enabled | `Director` in the one cell | PASS 2026-10-26 |
 | CB1.5 | GB text block (control) | `Director` | PASS 2026-10-26 |
-| CB1.6 | `core/verse`, NOT enabled | the tag printed literally, `{{text key:role}}` | PASS 2026-10-26 |
-| CB1.7 | `core/preformatted`, NOT enabled | the tag printed literally | PASS 2026-10-26 |
+| CB1.6 | `core/image` caption, NOT enabled | the tag printed literally, `{{text key:role}}` | PASS 2026-11-02 (moved from `core/verse`, which is classified and enabled since blueprint v39; PASS 2026-10-26 on verse) |
+| CB1.7 | `core/image` caption, NOT enabled, `{{email key:contact_email}}` | the tag printed literally | PASS 2026-11-02 (moved from `core/preformatted`, as CB1.6; PASS 2026-10-26 on preformatted) |
 
 ## CB2: loop context
 
@@ -113,7 +113,7 @@ wsl.exe -d Ubuntu -- bash -lc 'cd ~/wp-litespeed && bin/wp.sh testbed eval "echo
 | CB6.1 | `widgets` reports `registered: 3, unregistered: 2` (the phone and the email tag, then the deprecated and the unregistered tag, then at v37 the `text` tag with a legacy option, in the seeded widget) | PASS 2026-10-29 at v37: `bws_core_blocks_survey_run()` reports `widgets` as `registered: 3, unregistered: 2` (it read `registered: 2, unregistered: 2` at v36, before the v37 line was added); the settings page survey button (browser, testbed) shows the same per-block counts as the command |
 | CB6.2 | `core/table` is counted: `registered: 3` (the cells of CB1.4 and CB5.3, and the `table` tag in the CB5 row that holds it: the cell tags are `{"text":1,"table":2}`, see CB6.5) | CORRECTED 2026-10-29: the row said `registered: 2`, which does not match the survey's own tag list for `core/table`, `text` 1 plus `table` 2 (measured by `bws_core_blocks_survey_run()` on the testbed at v36, CB6.5); the wording above is the measured value, and the earlier PASS of 2026-10-26 was against the wrong number. Re-measured 2026-10-29 at v37: `core/table` is `registered: 3, unregistered: 0`, tags `{"text":1,"table":2}`: PASS |
 | CB6.3 | The widget's tags are also counted under `core/paragraph`, merged with the page and pattern rows | PASS 2026-10-26 |
-| CB6.4 | Blocks that are not enabled are counted too: `core/verse` 1 and `core/preformatted` 1 (CB1.6, CB1.7), which is what the Save prompt needs to warn about | PASS 2026-10-26 |
+| CB6.4 | Blocks that are not enabled are counted too: `core/image` 2 (CB1.6, CB1.7, the `text` and the `email` tag), which is what the Save prompt needs to warn about | PASS 2026-11-02 (moved from `core/verse` 1 and `core/preformatted` 1; `bws_core_blocks_survey_run()` on the testbed at v39 reports `core/image` `registered: 2`, tags `{"text":1,"email":1}`, agreeing with the page) |
 | CB6.5 | Each cell names its tags with how many times each was found, split into `registered_tags` and `unregistered_tags`: `core/table` is `{"text":1,"table":2}` and none unregistered; `core/paragraph` lists `post_custom_datetime_single` (the pattern's legacy tag) under `unregistered_tags`; the two counts equal the sums of their tag lists | PASS 2026-10-27 (JSON from the command above; re-measured 2026-10-29 at v36: `core/table` is `{"text":1,"table":2}`, `core/paragraph` unregistered_tags is `{"post_custom_datetime_single":3,"bws_fixture_unregistered":2}` (the pattern, the widget and the CB6.6 and CB6.7 page rows), and every count equals its tag sum; the settings-page rendering, wrapping and chevron were looked at in a browser on hargrave.test 2026-10-27, and `core-block-picker-test.php` pins the markup) |
 | CB6.6 | Visible on `/matrix-core-blocks/`: a selected `core/paragraph` holding `{{post_custom_datetime_single date_time_field:event_midnight}}` (the widget's deprecated tag) prints the tag as typed | PASS 2026-10-29 (page snapshot re-captured; the page prints `{{post_custom_datetime_single date_time_field:event_midnight}}` literally) |
 | CB6.7 | Visible on the same page: a selected `core/paragraph` holding `{{bws_fixture_unregistered key:role}}` (the widget's unregistered tag) prints the tag as typed | PASS 2026-10-29 (page snapshot re-captured; the page prints `{{bws_fixture_unregistered key:role}}` literally) |
@@ -130,3 +130,43 @@ wsl.exe -d Ubuntu -- bash -lc 'cd ~/wp-litespeed && bin/wp.sh testbed eval "echo
 Measured 2026-10-26 on the seeded testbed: `core/paragraph` 12 registered and 1 unregistered (the `wp_block` pattern's legacy tag), `core/heading` 3, `core/button` 8 (a tag in the text and in the `href` count separately), `core/list-item` 1, `core/table` 2, `generateblocks/text` 847 and 13, `generateblocks/media` 5. The counts move whenever any fixture page does; the rows above assert reach, not the totals.
 
 The block-widget answer for FW-73 ("does the survey reach `widget_block` at all") is recorded on its [`future-work.md`](../../docs/future-work.md) row. It is a statement about the mechanism on a seeded widget, not about how common tags in block widgets are on real sites.
+
+## CB7: the text-holding kinds
+
+`core/verse`, `core/preformatted`, `core/code`, `core/pullquote`, `core/details`, `core/file` and `core/read-more` are enabled on the testbed (blueprint v39), and from v40 `core/group`, `core/html` and `core/navigation-link` (CB7.24 onward: a container does nothing for its children, `core/html` takes any content, `core/navigation-link` is measured inside a real `core/navigation`). What each does with a text tag, `{{content}}` and `{{table}}` follows the kind it is classified as ([`tag-reference.md` §Guards by host block](../../docs/tag-reference.md#guards-by-host-block)): the preformatted kinds (verse, preformatted, code) join a block break with a newline, the inline kinds (pullquote, details) with a space, and the link kinds (file, read-more) refuse `{{content}}` and `{{table}}`. Every expectation below is what the page printed at v39 on 2026-11-02, written after the measurement. Tags: `{{text key:role}}`, `{{content use:key|key:bws_block_plain}}`, and the CB5 `{{table …}}` tag.
+
+| # | Host block | Tag | Expected | Status |
+|---|---|---|---|---|
+| CB7.1 | `core/verse` | text | `Director` inside the verse | PASS 2026-11-02 |
+| CB7.2 | `core/preformatted` | text | `Director` inside the preformatted block | PASS 2026-11-02 |
+| CB7.3 | `core/code` | text | `Director` inside the code block | PASS 2026-11-02 |
+| CB7.4 | `core/pullquote` | text | `Director` as the pullquote text | PASS 2026-11-02 |
+| CB7.5 | `core/details` summary | text | `Director` as the summary; the body paragraph `The details body.` is untouched | PASS 2026-11-02 |
+| CB7.6 | `core/file` link text | text | `Director` as the file link text | PASS 2026-11-02 |
+| CB7.7 | `core/read-more` link text | text | `Director` as the link text, linking to this page; WordPress's own hidden screen-reader suffix follows | PASS 2026-11-02 |
+| CB7.8 | `core/file` link text | text with `linkTo:permalink` | `Director`, the bare value: no anchor nested inside the file link (same as CB7.6) | PASS 2026-11-02 |
+| CB7.9 | `core/read-more` link text | text with `linkTo:permalink` | `Director`, the bare value: no anchor nested inside the read-more link (same as CB7.7) | PASS 2026-11-02 |
+| CB7.10 | `core/verse` | content | two lines, `Plain line one.` then `Plain line two.`, joined by a newline (`<pre>` keeps it) | PASS 2026-11-02 |
+| CB7.11 | `core/preformatted` | content | two lines, joined by a newline | PASS 2026-11-02 |
+| CB7.12 | `core/code` | content | two lines, joined by a newline | PASS 2026-11-02 |
+| CB7.13 | `core/pullquote` | content | one line, `Plain line one. Plain line two.`, joined by a space | PASS 2026-11-02 |
+| CB7.14 | `core/details` summary | content | one line as the summary, joined by a space | PASS 2026-11-02 |
+| CB7.15 | `core/file` | content | EMPTY: the file block is hidden | PASS 2026-11-02 |
+| CB7.16 | `core/read-more` | content | EMPTY: the read-more block is hidden | PASS 2026-11-02 |
+| CB7.17 to CB7.23 | verse, preformatted, code, pullquote, details summary, file, read-more | table | EMPTY for each: the block is hidden, nothing follows the label | PASS 2026-11-02 |
+| CB7.24 | `core/group` (enabled) around a `core/image` (not enabled) with the tag in its caption | text | the tag printed LITERALLY: enabling a container does nothing for its child | PASS 2026-11-02 |
+| CB7.25 | `core/group` (enabled) around an enabled `core/paragraph` | text | `Director` in the paragraph: the child fills because it is enabled in its own right | PASS 2026-11-02 |
+| CB7.26 | `core/html` | text | `Director` inside the `<div>` | PASS 2026-11-02 |
+| CB7.27 | `core/navigation-link` inside `core/navigation` | text | `Director` as the link label, inside a real `<li><a><span>` | PASS 2026-11-02 |
+| CB7.28 | `core/navigation-link` inside `core/navigation` | text with `linkTo:permalink` | `Director`, the bare value: no anchor nested inside the navigation link (same as CB7.27) | PASS 2026-11-02 |
+| CB7.30 | `core/html` | content | both paragraphs kept, `<p>Plain line one.</p> <p>Plain line two.</p>` inside the `<div>`: nothing stripped | PASS 2026-11-02 |
+| CB7.31 | `core/navigation-link` inside `core/navigation` | content | EMPTY: the link is hidden, so the navigation block holds no item | PASS 2026-11-02 |
+| CB7.33 | `core/html` | table | the two-row table, rendered | PASS 2026-11-02 |
+| CB7.34 | `core/navigation-link` inside `core/navigation` | table | EMPTY: the link is hidden | PASS 2026-11-02 |
+| CB7.36, CB7.37 | `core/freeform` as the editor saves it, WITHOUT delimiters (top level of the post) | text, content | the tag printed LITERALLY: undelimited classic HTML parses with no block name, so no enabled set reaches it | PASS 2026-11-02 |
+
+**N2: the survey lists no `core/read-more` cell.** The fixture's `core/read-more` blocks hold their text in the comment JSON (`{"content":"…"}`), with no inner HTML. At v39 `bws_core_blocks_survey_run()` lists no `core/read-more` cell although the page holds CB7.7, CB7.9, CB7.16 and CB7.23, while every block whose text is inner HTML (verse, preformatted, code, pullquote, details, file) is counted `registered: 3` (file `4`, because CB7.6 and CB7.8 both hold a text tag). The render is unaffected. Measured: the survey and so the Save prompt report no tag for such a block; a tag held in a block's comment attributes is not counted.
+
+**N3: `core/navigation-link` stays in the built-in map.** Standing alone it measured as the `link` kind (nested `<a>` and `<p>` as for `core/button`), but it is only valid inside `core/navigation`. Measured 2026-11-02 inside a real `core/navigation` block on the testbed: the allowlist and the loop context both reach it (CB7.27), so it was not dropped. Its `url` attribute takes no tag (WordPress blanks the URL before replacement), and its label rides the comment JSON, so a navigation-link row is written as `<!-- wp:navigation-link {"label":"…"} /-->`.
+
+**N4: `core/freeform` is not in the built-in map and not enabled on the testbed.** Measured in the block editor 2026-11-02 (testbed page 2139, nothing saved): a Classic block's content after typing `{{content}}` is `<p>{{content}}</p>`, and `wp.data.select('core/editor').getEditedPostContent()` and `wp.blocks.serialize()` emit it WITHOUT `<!-- wp:freeform -->` delimiters, even for two adjacent Classic blocks. Editor-made Classic content therefore parses with a null block name at the top level of a post (CB7.36, CB7.37) and no setting reaches it: the tag prints as typed. Enabling `core/freeform` would act only on hand-written delimited markup, which the editor never produces, so the kind was dropped (an `unrestricted` entry and the three delimited rows CB7.29, CB7.32 and CB7.35 were measured at blueprint v40 and retired at v41, their ids left unused). Inside a GenerateBlocks element the same undelimited HTML becomes part of that element's own `innerHTML`, and GenerateBlocks then replaces the tag string everywhere in the element's output: a first draft of CB7.24 filled its literal tag from a raw `<p>` row a few rows away. The undelimited rows therefore sit at the top level of the page, outside any section element, and the container rows must stay clear of any raw HTML.
