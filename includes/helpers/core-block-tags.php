@@ -7,7 +7,7 @@
  * this file owns reading them back as one list that every consumer shares.
  *
  * @package BWS_Dynamic_Tags
- * @since Unreleased
+ * @since 1.24.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Whether a string is a well-formed `namespace/name` block slug (lowercase letters, digits and
  * hyphens on each side). The one owner of the shape; it says nothing about registration.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @param mixed $name Candidate.
  * @return bool
  */
@@ -33,7 +33,7 @@ function bws_core_blocks_is_block_name( $name ): bool {
  * deactivated today survives a save. Anything that is not a lowercase `namespace/name`
  * slug is dropped.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @param mixed $raw Candidate list.
  * @return string[]
  */
@@ -53,7 +53,7 @@ function bws_core_blocks_clean( $raw ): array {
  * filter. Unmemoized and called only from bws_core_blocks_resolved(), the one place the filter
  * runs; every other reader goes through that.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @return mixed The filter result (a filter is outside input, so not necessarily an array).
  */
 function bws_core_blocks_filter_result() {
@@ -65,7 +65,7 @@ function bws_core_blocks_filter_result() {
 	 * An entry is a bare name (`'acme/note'`: enabled, content kind unclassified) or
 	 * `name => kind` (`'acme/note' => 'inline'`: enabled AND declared to hold that kind).
 	 *
-	 * @since Unreleased
+	 * @since 1.24.0
 	 * @param array<int|string, string> $blocks Saved block names (empty by default).
 	 */
 	return apply_filters( 'bws_dynamic_tags_core_blocks', is_array( $saved ) ? $saved : array() );
@@ -79,7 +79,7 @@ function bws_core_blocks_filter_result() {
  * five known values is dropped to unclassified, leaving the name enabled. Whether a declared
  * kind applies to a given block is not decided here (see bws_core_block_kind()).
  *
- * @since Unreleased
+ * @since 1.24.0
  * @param mixed $raw A bws_core_blocks_filter_result().
  * @return array{names: string[], kinds: array<string, string>}
  */
@@ -106,7 +106,7 @@ function bws_core_blocks_parse_filter_result( $raw ): array {
  * which is itself per-request; a settings save redirects, so no request reads the list both
  * before and after it.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @param bool $reset Drop the memo instead of reading it (see bws_core_blocks_reset_memo()).
  * @return array{names: string[], kinds: array<string, string>}
  */
@@ -138,7 +138,7 @@ function bws_core_blocks_resolved( bool $reset = false ): array {
  * by value miss it. Remove by KEY (`unset( $blocks['acme/note'] )`), and a bare entry by its
  * value. The saved list stays a list of names; a declared kind is never written back.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @return string[] Block names, e.g. `core/paragraph`.
  */
 function bws_core_blocks_enabled(): array {
@@ -152,7 +152,7 @@ function bws_core_blocks_enabled(): array {
  * for a built-in name is ignored (see bws_core_block_kind()'s PHPDoc for how a block's kind is
  * decided).
  *
- * @since Unreleased
+ * @since 1.24.0
  * @return array<string, string> Block name => a BWS_CORE_BLOCK_KIND_* constant.
  */
 function bws_core_blocks_declared_kinds(): array {
@@ -163,7 +163,7 @@ function bws_core_blocks_declared_kinds(): array {
  * Forget the memoized filter result, so the next read runs the filter again. For harnesses that
  * change the filter or the saved list between assertions.
  *
- * @since Unreleased
+ * @since 1.24.0
  */
 function bws_core_blocks_reset_memo(): void {
 	bws_core_blocks_resolved( true );
@@ -179,7 +179,7 @@ function bws_core_blocks_reset_memo(): void {
  * its tags print literally, rather than allowlisting it without loop context. The enabled set
  * itself stays unpruned, so a deactivated plugin's selection comes back with it.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @param mixed $allowed GB's allowlisted block names.
  * @return string[]
  */
@@ -200,7 +200,7 @@ function bws_core_blocks_allow( $allowed ): array {
  * `generateblocks-pro/`. The one owner of that question; GB allowlists its own blocks already, so
  * the settings list leaves them out.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @param string $name Block name.
  * @return bool
  */
@@ -216,7 +216,7 @@ function bws_core_blocks_is_gb_own( string $name ): bool {
  * Asked of GB itself (so no GB block name is stated here), with bws_core_blocks_allow() lifted
  * off the filter for the call and put back at its own priority. Empty when GB is absent.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @return string[]
  */
 function bws_core_blocks_gb_native(): array {
@@ -239,7 +239,7 @@ function bws_core_blocks_gb_native(): array {
  * GB's block-context keys a tag reads to see the loop item it sits in. Not a block's to
  * declare for itself: a core block does not use them unless we add them.
  *
- * @since Unreleased
+ * @since 1.24.0
  */
 const BWS_CORE_BLOCKS_LOOP_CONTEXT = array(
 	'generateblocks/loopItem',
@@ -259,7 +259,7 @@ const BWS_CORE_BLOCKS_LOOP_CONTEXT = array(
  * ones appended; an unregistered name is skipped; an empty set writes nothing. Runs after every
  * block has registered, so it is one late write rather than a `register_block_type_args` hook.
  *
- * @since Unreleased
+ * @since 1.24.0
  */
 function bws_core_blocks_add_loop_context(): void {
 	$registry = \WP_Block_Type_Registry::get_instance();

@@ -2444,7 +2444,7 @@ function bws_fixture_page_content_matrix_links() {
  * deprecated name, an unregistered one) the widget holds beside its registered pair. The
  * matrix states that exception.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @return string
  */
 function bws_fixture_page_content_matrix_core_blocks() {

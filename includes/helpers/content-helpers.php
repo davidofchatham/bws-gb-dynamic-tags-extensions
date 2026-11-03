@@ -422,7 +422,7 @@ function bws_safe_content_output( $content, $options, $instance ) {
  * unknown or custom tag counts as block-level. `img` is inline because wpautop wraps a
  * bare one in a paragraph.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @return string[] Lowercase tag names.
  */
 if ( ! function_exists( 'bws_markup_inline_tags' ) ) {
@@ -441,7 +441,7 @@ function bws_markup_inline_tags(): array {
  * inline-only core-block strip asks the same vocabulary (bws_markup_inline_tags()), so the
  * two cannot disagree. Comments and doctypes are not tags.
  *
- * @since Unreleased
+ * @since 1.24.0
  *
  * @param string $markup Value to inspect.
  * @return bool True when any tag outside the inline list is present.
@@ -471,7 +471,7 @@ function bws_markup_has_block_level_tag( string $markup ): bool {
  * bws_content_strip_for_host() picks by the host's kind; which blocks are which is
  * bws_core_block_kind()'s.
  *
- * @since Unreleased
+ * @since 1.24.0
  *
  * @param string $markup Value to reduce.
  * @param string $join   What one run of block tags becomes.
@@ -507,7 +507,7 @@ function bws_markup_strip_to_inline( string $markup, string $join = ' ' ): strin
  * in a preformatted host); any other host gets it back untouched.
  * A link host never reaches here: both shells refuse it first (nothing, so GB blanks the block).
  *
- * @since Unreleased
+ * @since 1.24.0
  *
  * @param string $value Final value.
  * @param mixed  $block GB block array passed to the tag callback (arg 2).

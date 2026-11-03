@@ -419,7 +419,7 @@ class MigrationRegistry {
 	 * chain (entries-per-tag, ~7 today) rather than merely the number of distinct entries
 	 * that fire.
 	 *
-	 * @since Unreleased
+	 * @since 1.24.0
 	 * @param string $tag_name   Current (live) tag name.
 	 * @param string $tag_string Full raw tag string.
 	 * @return array{string:string, fired:array[]} The migrated string (the input when nothing fired) and the entries that changed it, in firing order.
@@ -777,7 +777,7 @@ class MigrationRegistry {
 	 * matches nearly every join/try_ tag, which made it reachable at scale.
 	 *
 	 * @since 1.17.0 The last option value keeps its trailing whitespace.
-	 * @since Unreleased The name ends at any `\s` whitespace, not only a space.
+	 * @since 1.24.0 The name ends at any `\s` whitespace, not only a space.
 	 * @param string $tag_string Full tag string including `{{` / `}}`.
 	 * @return array{0: string, 1: array<string,string>}
 	 */

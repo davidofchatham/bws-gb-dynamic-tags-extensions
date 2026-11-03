@@ -765,7 +765,7 @@ class SettingsPage {
 	 * and unsaved-changes state. Each row carries `data-bws-block` (the block name) as the hook
 	 * for per-row additions.
 	 *
-	 * @since Unreleased
+	 * @since 1.24.0
 	 */
 	private static function render_core_blocks_section(): void {
 		$text    = bws_core_blocks_picker_strings();

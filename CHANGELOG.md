@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.24.0] — 2026-11-03
+
 ### Highlights
 
 - Tags typed into core blocks such as Paragraph, Heading, List Item, Table, Verse, Code and Button can now be filled in: pick the block types on the settings page. Off until you do. *(Added)*

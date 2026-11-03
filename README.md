@@ -1,6 +1,6 @@
 # BWS GenerateBlocks Dynamic Tags Extensions
 
-A [GenerateBlocks Pro](https://generatepress.com/blocks/) extension with advanced dynamic tags for both standard post/term fields and custom field data.
+**Tags reimagined:** Tags that work almost everywhere • Dynamic email and phone links, formatted date/time fields, multiple text fields together, even entire tables • Source path options such as parent items and ACF relationship field posts • Repeater field support • And more. Requires [GB Pro](https://generatepress.com/blocks/).
 
 ## Our tags
 
@@ -9,14 +9,14 @@ A [GenerateBlocks Pro](https://generatepress.com/blocks/) extension with advance
 | `text` | Simple meta/option text fields or post title/term name. | | `try_text` |
 | `title` | Post titles, term names, user display names, archive labels, date spans, search and 404 headings, or the site name (for a blog homepage). | | `try_title` |
 | `permalink` | Post/term permalink or site URL. | | `try_permalink` |
-| [`content`](#content-output-long-form-content) | Post content or excerpt, term description, a rich-text meta field, user bio, post type description, or GeneratePress's 404 text, via a processing pipeline that handles block-rendered content safely, including consolidating block CSS for embedded post content into the page footer. | Since there's no site-wide body/content field, an option field name must be supplied to use this tag with the *Site* source. | `try_content` |
+| [`content`](#content-output-long-form-content) | Post content or excerpt, term description, a rich-text meta field, user bio, post type description, or GeneratePress's 404 text, via a processing pipeline that handles block-rendered content safely, including consolidating block CSS for embedded post content into the page footer. Always prints block-level markup, so put it in a `<div>` or other block container, not a `<p>` or `<span>`. | Since there's no site-wide body/content field, an option field name must be supplied to use this tag with the *Site* source. | `try_content` |
 | `image` | An image from a meta field or the post featured image or site logo field, with return options like GB's (alt text, etc.) and a Media Library fallback image selector. | Since terms have no native image fields, a field name must be supplied to retrieve images from a term source. | `try_image` |
 | `datetime_single` | Combined datetime fields, or separate date and time fields, formatted as a single date and time. By default, also hides midnight times and the current year. Multi-result sources can render a delimited date list. | | `try_datetime_single` |
 | `datetime_range` | Like `datetime_single`, but formats a range from separate start and end fields. In a range list, the result separator joins whole ranges while the range separator stays between each start and end. | | `try_datetime_range` |
 | `email` | An email address as a `mailto` link (by default) or plain text. Validates emails (by format) and returns empty if invalid. | | `try_email` |
 | `phone` | A phone number as a `tel` link (by default) or plain text. Normalizes numbers and allows global country code configuration. | | `try_phone` |
 | [`join`](#join-combine-multiple-text-fields) | Up to 10 text fields combined into one string, by separator or format template. | Plain text only; no link options. | — |
-| [`table`](#table-build-a-dynamic-table) | A complete HTML table: one row per repeater row, related post or term, up to 10 columns. | | — |
+| [`table`](#table-build-a-dynamic-table) | A complete HTML table: one row per repeater row, related post or term, up to 10 columns. Always prints block-level markup, so put it in a `<div>` or other block container, not a `<p>` or `<span>`. | | — |
 | [`call`](#call-return-custom-function-output) | The output of a registered PHP function, passed the post ID. | Post sources only. | — |
 
 ## What's different (other than the tag names)?
@@ -85,11 +85,17 @@ Yes! Why?
 
 Available in `text`/`try_text`, `email`/`try_email`, `phone`/`try_phone`, `join` and `table` via the *Fixed* option (*Fixed Text*, *Fixed Email* or *Fixed Phone Number*). It shows once for each source the tag reaches, so a list of posts repeats it and a limit of 1 gives a single result, and it still needs a source to render against: if that source finds nothing, the tag shows its fallback as usual, and a `join` slot or `try_` attempt drops out.
 
-### Tags in core blocks **[UNRELEASED]**
+### Tags in core blocks
 
-GenerateBlocks fills in dynamic tags only inside its own blocks, so a tag typed into a core Paragraph, Heading, List Item, Table, Verse, Code or Button normally shows as typed. A new *Enable Tags in Other Blocks* section on the settings page lists every block type on the site in a table you can filter and search, and the ones you enable get their tags filled in too. Nothing is enabled by default, and you enable a block type, not a single block. Inside a query loop or repeater, a tag in an enabled block reads the row it sits in, not the page.
+GenerateBlocks normally handles dynamic tags only inside its own blocks. An *Enable Tags in Other Blocks* section on the settings page lists every block type on the site, and the ones you select will also be processed for tags. Nothing is enabled by default. Enabling a block that holds other blocks, such as Group or Columns, does not affect the blocks inside it, so be sure to enable the inner blocks.
 
-Core blocks that hold text only get a few adjustments: a `table` tag prints nothing, a `content` tag keeps its text, bold, italics and links and drops headings, lists and images and turns paragraph breaks into a space (a new line in Verse, Preformatted and Code), and in a button-like block (Button, File, Navigation Link, Read More) `content` prints nothing and any tag that would print a link prints just the address, number or text instead. A block that holds other blocks, such as Group or Columns, does nothing for the blocks inside it, so enable those and put the tag in them. A scan on the same section shows how many tags each block already holds, split by whether GenerateBlocks handles them, and asks once before you save a newly enabled block that holds tags GenerateBlocks handles. GenerateBlocks' own rules still apply: a tag that finds no value hides the whole block, and people who can't post unfiltered HTML can't save changes to a post that has `{{` in it along with a block of an enabled type. Details are in [`docs/tag-reference.md`](docs/tag-reference.md#tags-in-core-blocks-unreleased).
+A scan tool in the same section shows how many tags each block type holds, split by whether GenerateBlocks handles them, and asks once before you save a newly enabled block type that already contains tags GenerateBlocks handles.
+
+GenerateBlocks' own rules still apply: a tag that finds no value hides the whole block, and people who can't post unfiltered HTML can't save changes to a post that has `{{` in it along with a block of an enabled type.
+
+Core blocks that hold text only get a few adjustments: a `table` tag prints nothing, a `content` tag keeps its text, bold, italics and links and drops headings, lists and images and turns paragraph breaks into a space (a new line in Verse, Preformatted and Code), and in a button-like block (Button, File, Navigation Link, Read More) `content` prints nothing and any tag that would print a link prints just the address, number or text instead.
+
+Details are in [`docs/tag-reference.md`](docs/tag-reference.md#tags-in-core-blocks).
 
 ### Special handling
 
@@ -115,7 +121,7 @@ One portable tag for long-form content in any context. GeneratePress's Post Cont
 - **Excerpt** returns the post excerpt instead, and **a field key** returns any long-form field, from a related post or a repeater row as much as from the page itself.
 - With a *Site* source, a field key is required, since a site has no body content of its own.
 
-Output is one result, never a list, and has no link options because content may already contain links.
+Output is *always block-level,* limited to one result, and has no link options, since content may already contain links. A value with no block-level markup, such as a term description, an excerpt, a plain-text field, a user bio or the fallback, is wrapped in paragraphs, so one block container suits every source. A value that already has block tags is left as it was. Put the tag in a `<div>`, since a paragraph inside a `<p>` breaks the page. See [`docs/tag-reference.md`](docs/tag-reference.md#content-always-prints-block-level-markup).
 
 ### `join`: Combine multiple text fields
 
@@ -172,7 +178,7 @@ Another plugin can add its own starting point to our source path options, and th
 
 A plugin that decides who may see a post, such as a membership or audience plugin, can hide that post from our tags too, and its own tags can apply the same visibility check ours do. It can only hide content, never reveal what the built-in check refuses. See [`docs/plugin-integration.md` §3](docs/plugin-integration.md#narrowing-who-may-see-an-entity).
 
-**[UNRELEASED]** A plugin that ships its own block can turn tags on for it with a filter, so site owners don't have to find it on the settings page. See [`docs/plugin-integration.md` §7](docs/plugin-integration.md#7-enabling-tags-in-a-block-type-unreleased).
+A plugin that ships its own block can turn tags on for it with a filter, so site owners don't have to find it on the settings page, and can declare what the block holds so the same adjustments as for core blocks apply. See [`docs/plugin-integration.md` §7](docs/plugin-integration.md#7-enabling-tags-in-a-block-type).
 
 ## Requirements
 

@@ -239,7 +239,7 @@ function bws_gb_recheck_tag_ownership(): void {
  * This is the one comparison, shared by the late pass in bws_gb_recheck_tag_ownership() and
  * the settings-page marker so the two cannot disagree.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @internal
  * @param array      $mine Our record for the name, from bws_gb_tags_we_registered().
  * @param array|null $now  GB's entry for the name, or null when it holds none.
@@ -255,7 +255,7 @@ function bws_gb_tag_is_still_ours( array $mine, ?array $now ): bool {
  * The WordPress-side half of bws_gb_tag_held_by_other(): kept this small so the decision stays
  * drivable with a fake registry and the one read of the live one is a single line to check.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @internal
  * @return array<string,array>
  */
@@ -288,7 +288,7 @@ function bws_gb_registered_tags_now(): array {
  * NOT RECORDED. This writes nothing to bws_gb_tag_name_collisions(): that record feeds the
  * settings page's Tag Name Conflicts block, which would then list a tag we do not have.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @internal
  * @param string $tag      The tag name as it appears in post content.
  * @param array  $registry GB's registry, keyed by tag name.
@@ -326,7 +326,7 @@ function bws_gb_tag_held_by_other( string $tag, array $registry, array $ours ): 
  *                        Name Conflicts block says who.
  *   'migration-only'  -- we never registered it; the entry exists for the converter alone.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @internal
  * @param array|null $ours Our record for the name, or null when we never registered it.
  * @param array|null $now  GB's entry for the name, or null when it holds none.

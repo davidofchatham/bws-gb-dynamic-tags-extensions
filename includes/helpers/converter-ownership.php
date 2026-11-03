@@ -128,7 +128,7 @@ const BWS_CONVERTER_OWNERSHIP_OPTIN_OPTION = 'bws_dynamic_tags_ownership_optin';
  * Kept apart from BWS_GB_TAG_OUTPUT_OPTIONS, which is the keys GB's OUTPUT pipeline reads;
  * `required` is read earlier, at replacement time. Pinned by converter-ownership-test.php §O6.
  *
- * @since Unreleased
+ * @since 1.24.0
  */
 const BWS_GB_PASSTHROUGH_TAG_OPTIONS = array( 'required' );
 
@@ -245,7 +245,7 @@ function bws_converter_tag_ownership(
  * register, appear in no option array of ours and are not in the key map either, because GB
  * supplies those controls itself. bws_gb_tag_output() owns that set.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @return string[]
  */
 function bws_converter_known_options(): array {
@@ -276,7 +276,7 @@ function bws_converter_known_options(): array {
  * (`css_handling:strip`); a bare key that is not ours is far more likely the tail of a value
  * split on a `|` inside it (`fallback:a|b`), and dropping it would silently cut the author's text.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @param string $tag_string Full tag string including `{{` / `}}`.
  * @return string The same tag without its unrecognized keys.
  */

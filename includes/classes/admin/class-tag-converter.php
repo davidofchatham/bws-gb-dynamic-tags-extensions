@@ -49,7 +49,7 @@ class TagConverter {
 	 *
 	 * @since 1.6.0
 	 * @since 1.20.0 Deprecated tag rows carry status / reason / count / sample (FW-39).
-	 * @since Unreleased Widget rows follow the post rows; post rows carry `kind` (FW-73).
+	 * @since 1.24.0 Widget rows follow the post rows; post rows carry `kind` (FW-73).
 	 * @return array[] {
 	 *   @type string $kind                 `post` here; `widget` on the rows scan_widgets() adds.
 	 *   @type int    $post_id              Post ID.
@@ -150,7 +150,7 @@ class TagConverter {
 	 * no revision note to make), and `kind` is `widget`. Inactive instances are listed. The
 	 * enumeration is bws_block_widget_rows(); this reads nothing and writes nothing.
 	 *
-	 * @since Unreleased
+	 * @since 1.24.0
 	 * @param array<int, string> $widgets Instance number => block markup.
 	 * @param array<int, string> $names   Instance number => display name of the active sidebar holding it; absent means inactive.
 	 * @return array[] {
@@ -214,7 +214,7 @@ class TagConverter {
 	 * A declined option migration rides `deprecated_tags` (the channels read that list) under its
 	 * base name, marked `option`, which the allowlist skips: a base name is not a retired tag.
 	 *
-	 * @since Unreleased
+	 * @since 1.24.0
 	 * @param string  $content              Post content or a widget's block markup.
 	 * @param string[] $tag_names           MigrationRegistry::get_deprecated_tag_names().
 	 * @param array   $option_migration_map MigrationRegistry::get_option_migrations_by_tag().
@@ -352,7 +352,7 @@ class TagConverter {
 	 * decides it. The future content scanner (FW-128) reads the same verdict.
 	 *
 	 * @since 1.20.0
-	 * @since Unreleased `unchanged`; answers for a base name's option cascade too; `labels` and `string`.
+	 * @since 1.24.0 `unchanged`; answers for a base name's option cascade too; `labels` and `string`.
 	 * @param string $tag    Tag name as stored in post content.
 	 * @param string $stored The matched tag string, exactly as content holds it.
 	 * @return array{status:string, reason:string, exempt:bool, labels:string[], string:string} `status` is one of
@@ -699,7 +699,7 @@ class TagConverter {
 	 * apply_if_owned(), which is where the guard is asked — see
 	 * bws_converter_tag_ownership() for the invariant.
 	 *
-	 * @since Unreleased
+	 * @since 1.24.0
 	 * @param string $content Content holding tag strings.
 	 * @return array {
 	 *   @type string $content      The rewritten content (the input, when nothing applied).
@@ -777,7 +777,7 @@ class TagConverter {
 	 *
 	 * @since 1.6.0
 	 * @since 1.20.0 Every rewrite passes bws_converter_rewrite_allowed() (FW-39).
-	 * @since Unreleased Steps 3 and 4 are migrate_string() (FW-73).
+	 * @since 1.24.0 Steps 3 and 4 are migrate_string() (FW-73).
 	 * @param int $post_id Post ID to migrate.
 	 * @return array {
 	 *   @type bool      $changed       Whether post content was modified.
@@ -870,7 +870,7 @@ class TagConverter {
 	/**
 	 * The option that holds the last widget run's before/after backup. Not autoloaded.
 	 *
-	 * @since Unreleased
+	 * @since 1.24.0
 	 */
 	public const WIDGET_BACKUP_OPTION = 'bws_widget_block_backup';
 
@@ -880,7 +880,7 @@ class TagConverter {
 	 * A widget row's id is the string `widget:<number>` (scan_widgets()'s `row_id`); a post row's is
 	 * its integer ID. Anything else, and any non-positive number, is dropped.
 	 *
-	 * @since Unreleased
+	 * @since 1.24.0
 	 * @param array $raw Decoded `post_ids` field.
 	 * @return array{posts: int[], widgets: int[]}
 	 */
@@ -905,7 +905,7 @@ class TagConverter {
 	 * ownership guard as post content). Every other key, `_multiwidget` included, comes back as it
 	 * went in.
 	 *
-	 * @since Unreleased
+	 * @since 1.24.0
 	 * @param array      $option  The option value.
 	 * @param int[]|null $numbers Instances to migrate; null for all.
 	 * @return array {
@@ -944,7 +944,7 @@ class TagConverter {
 	 * One that differs was edited since and is skipped as `edited`; one that is gone is skipped as
 	 * `missing` and is not re-created. Only `content` is written, so nothing else on an instance moves.
 	 *
-	 * @since Unreleased
+	 * @since 1.24.0
 	 * @param array $option    The option value.
 	 * @param array $instances Number => { before, after }, the backup's `instances`.
 	 * @return array{option: array, restored: int[], skipped: array<int, string>}
@@ -976,7 +976,7 @@ class TagConverter {
 	 * the backup, any other id replaces it. No hook fires beyond WordPress's own
 	 * `update_option_widget_block`; `bws_dynamic_tags_content_written` stays post-only.
 	 *
-	 * @since Unreleased
+	 * @since 1.24.0
 	 * @param int[]|null $numbers Instances to migrate; null for all.
 	 * @param string     $run_id  Identifier shared by every batch of one run.
 	 * @return array<int, array> Number => { changed, tag_count, option_count, declined }.
@@ -1003,7 +1003,7 @@ class TagConverter {
 	/**
 	 * Restore the backed-up block widgets, then drop the backup.
 	 *
-	 * @since Unreleased
+	 * @since 1.24.0
 	 * @return array{restored: int[], skipped: array<int, string>} Skipped is number => `edited`|`missing`.
 	 */
 	public static function restore_widgets(): array {
@@ -1025,7 +1025,7 @@ class TagConverter {
 	/**
 	 * The line shown beside the Restore button, or '' when no backup exists (and so no button).
 	 *
-	 * @since Unreleased
+	 * @since 1.24.0
 	 */
 	public static function widget_backup_line(): string {
 		$backup = get_option( self::WIDGET_BACKUP_OPTION, array() );
@@ -1149,7 +1149,7 @@ class TagConverter {
 	 *
 	 * @since 1.6.0
 	 * @since 1.14.0 Allowlist rebuild gated to the final batch via is_final.
-	 * @since Unreleased Takes `widget:<number>` ids and a run_id (FW-73).
+	 * @since 1.24.0 Takes `widget:<number>` ids and a run_id (FW-73).
 	 */
 	public static function ajax_migrate(): void {
 		check_ajax_referer( 'bws_convert_tag', 'nonce' );
@@ -1215,7 +1215,7 @@ class TagConverter {
 	 * Returns JSON { restored: [N...], skipped: [ { number, label, reason } ] } where every skipped
 	 * instance is named, because an instance edited since the run is the author's to look at.
 	 *
-	 * @since Unreleased
+	 * @since 1.24.0
 	 */
 	public static function ajax_restore_widgets(): void {
 		check_ajax_referer( 'bws_convert_tag', 'nonce' );

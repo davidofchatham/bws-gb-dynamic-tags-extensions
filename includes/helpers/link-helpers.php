@@ -173,7 +173,7 @@ const BWS_CORE_BLOCK_KINDS = array(
  * Takes `$block` the way the media guard does: the array a tag callback receives as arg 2.
  * Anything else classifies as '' (never a fatal).
  *
- * @since Unreleased
+ * @since 1.24.0
  * @param mixed $block GB block array passed to the tag callback (arg 2).
  * @return string A BWS_CORE_BLOCK_KIND_* constant, or '' when unclassified.
  */
@@ -217,7 +217,7 @@ function bws_core_block_kind( $block ): string {
 /**
  * Whether the host block takes inline content only (the inline, preformatted and link kinds).
  *
- * @since Unreleased
+ * @since 1.24.0
  * @param mixed $block GB block array passed to the tag callback (arg 2).
  * @return bool
  */
@@ -230,7 +230,7 @@ function bws_core_block_is_inline_only( $block ): bool {
 /**
  * Whether the host block is the link kind (the host is itself the link).
  *
- * @since Unreleased
+ * @since 1.24.0
  * @param mixed $block GB block array passed to the tag callback (arg 2).
  * @return bool
  */
@@ -254,7 +254,7 @@ function bws_core_block_is_link( $block ): bool {
  * answer to every downstream wrap, including the per-item wrap in `bws_collect_value_list()`.
  * Not `{{call}}`, which is unconstrained here.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @param array $options Tag options.
  * @param mixed $block   GB block array passed to the tag callback (arg 2).
  * @return array The options, with the wrap controls forced off on a link host.

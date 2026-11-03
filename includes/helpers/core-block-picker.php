@@ -9,7 +9,7 @@
  * asks both and states only the consequence.
  *
  * @package BWS_Dynamic_Tags
- * @since Unreleased
+ * @since 1.24.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Every user-facing string of the block list. Backticks mark code, asterisks emphasis (see
  * bws_core_blocks_picker_markup()). A row's `notes` are keys into this array.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @return array<string, string|string[]>
  */
 function bws_core_blocks_picker_strings(): array {
@@ -123,7 +123,7 @@ function bws_core_blocks_picker_strings(): array {
  * Escape a string, then turn `code` into <code> and *emphasis* into <em>. Safe because the
  * escape runs first and neither marker survives it as markup.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @param string $text Plain text with optional markers.
  * @return string HTML.
  */
@@ -152,7 +152,7 @@ function bws_core_blocks_picker_markup( string $text ): string {
  * contents and limits (string keys, see bws_core_blocks_picker_cells()), untested (bool), notes
  * (keys into bws_core_blocks_picker_strings(): `unregistered` and `code_set` when they apply).
  *
- * @since Unreleased
+ * @since 1.24.0
  * @param array[]  $entries    Each: name, title, category (slug), inserter (bool), variations (string[]).
  * @param string[] $categories Category slug => label, in display order.
  * @param string[] $saved      The saved list.
@@ -213,7 +213,7 @@ function bws_core_blocks_picker_rows( array $entries, array $categories, array $
  * not registered right now is unclassified whatever its name says. Tag limits is what THIS plugin
  * enforces, so an unclassified block's Tag limits is "none", never "not tested".
  *
- * @since Unreleased
+ * @since 1.24.0
  * @param string $name       Block name.
  * @param bool   $registered Whether the block is registered on this site now.
  * @return array{contents: string, limits: string, untested: bool}
@@ -273,7 +273,7 @@ function bws_core_blocks_picker_row( string $name, string $title, string $catego
  * depend on the order the scan met them in. They sit behind a disclosure on the count (closed by
  * default; a native details element, so no script is involved). No tags, no disclosure.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @param int|null           $count The last scan's count for this block and kind, or null before any scan.
  * @param array              $text  bws_core_blocks_picker_strings().
  * @param array<string, int> $tags  Tag name => times found, for this block and kind.
@@ -304,7 +304,7 @@ function bws_core_blocks_survey_count_html( ?int $count, array $text, array $tag
  * list is site-wide and can hold more. It is left out when the count is 0, which includes a stored
  * scan that predates the count.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @param array|null    $survey The last scan (bws_core_blocks_survey_last()), or null before the first.
  * @param array[]       $groups bws_core_blocks_picker_rows(); the totals are the sums over the rows in them.
  * @param array         $text   bws_core_blocks_picker_strings().
@@ -350,7 +350,7 @@ function bws_core_blocks_survey_status( ?array $survey, array $groups, array $te
 /**
  * The status line as escaped markup (see bws_core_blocks_survey_status()).
  *
- * @since Unreleased
+ * @since 1.24.0
  * @param array|null    $survey The last scan, or null before the first.
  * @param array[]       $groups bws_core_blocks_picker_rows().
  * @param array         $text   bws_core_blocks_picker_strings().
@@ -365,7 +365,7 @@ function bws_core_blocks_survey_status_html( ?array $survey, array $groups, arra
  * The rows the page lists, built from the saved settings, the server registry and the last scan.
  * The page and the scan's reply both ask it, so the status line's totals are over the same rows.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @param array|null $survey The last scan, or null before the first.
  * @return array[] See bws_core_blocks_picker_rows().
  */
@@ -394,7 +394,7 @@ function bws_core_blocks_picker_sorted( array $rows ): array {
  * Gather the server block registry and its categories for the row builder. Misses blocks
  * registered only in editor JavaScript; the page says so.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @return array{0: array[], 1: string[]} Entries, then category slug => label.
  */
 function bws_core_blocks_picker_registry(): array {

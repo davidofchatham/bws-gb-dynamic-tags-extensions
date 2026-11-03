@@ -8,7 +8,7 @@
  * harness (tools/test/core-block-picker-test.js) can reach them.
  *
  * @package BWS_Dynamic_Tags
- * @since Unreleased
+ * @since 1.24.0
  */
 ( function () {
 	'use strict';

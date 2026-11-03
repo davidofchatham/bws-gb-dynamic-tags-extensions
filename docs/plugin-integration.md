@@ -7,7 +7,7 @@ There are two jobs, and most integrations need only the first:
 - **Let authors read your entity with the built-in tags.** Offer it as a [chain root](#1-offering-your-source-as-a-chain-root). Your entity then appears in the Source control of every base tag and every folded slot, and gets everything those tags do: further steps, per-step limits, field pickers and editor previews.
 - **Ship a tag no built-in tag covers.** Register it with GenerateBlocks yourself ([§3](#3-registering-your-own-tag)).
 
-The rest is housekeeping: [migrating your own old tag names](#4-migrating-your-own-old-tag-names), [hearing about direct content writes](#5-reacting-to-a-direct-content-write), [diagnostic filters](#6-diagnostic-filters) and [enabling tags in a block type](#7-enabling-tags-in-a-block-type-unreleased).
+The rest is housekeeping: [migrating your own old tag names](#4-migrating-your-own-old-tag-names), [hearing about direct content writes](#5-reacting-to-a-direct-content-write), [diagnostic filters](#6-diagnostic-filters) and [enabling tags in a block type](#7-enabling-tags-in-a-block-type).
 
 ---
 
@@ -330,9 +330,9 @@ add_filter( 'bws_dynamic_tags_benchmark_logging', '__return_true' );
 
 ---
 
-## 7. Enabling tags in a block type **[UNRELEASED]**
+## 7. Enabling tags in a block type
 
-GenerateBlocks fills in dynamic tags only inside its own blocks. Site owners opt other block types in from the Tag Extensions settings page; the choice is saved as `core_blocks` in the plugin's settings ([`tag-reference.md` §Tags in core blocks](tag-reference.md#tags-in-core-blocks-unreleased)). Your plugin can switch a block type on itself, for a block it ships, with a filter over that list, and can say what the block holds so the plugin's guards apply to it.
+GenerateBlocks fills in dynamic tags only inside its own blocks. Site owners opt other block types in from the Tag Extensions settings page; the choice is saved as `core_blocks` in the plugin's settings ([`tag-reference.md` §Tags in core blocks](tag-reference.md#tags-in-core-blocks)). Your plugin can switch a block type on itself, for a block it ships, with a filter over that list, and can say what the block holds so the plugin's guards apply to it.
 
 ```php
 add_filter( 'bws_dynamic_tags_core_blocks', function ( $blocks ) {

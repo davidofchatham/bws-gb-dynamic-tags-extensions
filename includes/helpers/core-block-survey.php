@@ -20,7 +20,7 @@
  * with a LIKE per deprecated name.
  *
  * @package BWS_Dynamic_Tags
- * @since Unreleased
+ * @since 1.24.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -51,7 +51,7 @@ const BWS_CORE_BLOCKS_SURVEY_OPTION = 'bws_dynamic_tags_core_block_survey';
  * document order with a parent before its children, counting blocks that hold no tag, because
  * it is what an author counts in the editor's List View.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @param string        $content       Post content or a widget's block markup.
  * @param callable      $is_registered Given a tag name, whether GB has it registered.
  * @param array         $container     `{kind: post|widget, id: int}`, stamped on every record.
@@ -104,7 +104,7 @@ function bws_core_blocks_survey_walk_blocks( array $blocks, callable $is_registe
  * `migratable` is the number of that block's records the Migration Tool would update; the status
  * line's "K need updating" sums it over the rows the picker lists (bws_core_blocks_survey_status()).
  *
- * @since Unreleased
+ * @since 1.24.0
  * @param array $records bws_core_blocks_survey_walk() records.
  * @return array<string, array{registered: int, unregistered: int, registered_tags: array<string, int>, unregistered_tags: array<string, int>, migratable: int}> Block name => counts and, per category, tag name => times found; blocks with no record are absent.
  */
@@ -134,7 +134,7 @@ function bws_core_blocks_survey_count( array $records ): array {
  * `migratable` is the deprecated class. "Convertible" is reserved for FW-31 (GB core tags into
  * ours) and FW-155 (snippet tags) and is not built.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @return callable|null (string $tag, string $stored): ?string
  */
 function bws_core_blocks_survey_classifier(): ?callable {
@@ -157,7 +157,7 @@ function bws_core_blocks_survey_classifier(): ?callable {
 /**
  * An empty per-block cell: the two counts and, per kind, the tag names behind them.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @return array
  */
 function bws_core_blocks_survey_cell(): array {
@@ -173,7 +173,7 @@ function bws_core_blocks_survey_cell(): array {
 /**
  * Add one walk's counts into a running total.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @param array $total Running total (block name => counts).
  * @param array $part  One walk's result.
  * @return array
@@ -196,7 +196,7 @@ function bws_core_blocks_survey_merge( array $total, array $part ): array {
  * A stored result, cleaned for use: ints, well-formed block names only. Null when it is not a
  * result at all (never scanned, or the option holds something else).
  *
- * @since Unreleased
+ * @since 1.24.0
  * @param mixed $raw The stored value.
  * @return array{time: int, blocks: array, widgets: array{registered: int, unregistered: int}}|null Each block cell keeps its `migratable` count; a result stored before the count existed reads 0.
  */
@@ -236,7 +236,7 @@ function bws_core_blocks_survey_clean( $raw ): ?array {
 /**
  * The last scan's result, or null before the first scan.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @return array|null See bws_core_blocks_survey_clean().
  */
 function bws_core_blocks_survey_last(): ?array {
@@ -255,7 +255,7 @@ function bws_core_blocks_survey_last(): ?array {
  * `_multiwidget` marker and anything malformed are not instances. Classic Text and HTML widgets
  * live in other options and are out of scope.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @return array<int, string> Ascending by instance number.
  */
 function bws_block_widget_rows(): array {
@@ -268,7 +268,7 @@ function bws_block_widget_rows(): array {
  * bws_block_widget_rows() over a value instead of the stored option, so a write path that has
  * just read the option itself (TagConverter::migrate_widgets()) asks the same question.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @param array $option The option value.
  * @return array<int, string> Ascending by instance number.
  */
@@ -290,7 +290,7 @@ function bws_block_widget_rows_of( array $option ): array {
  * the result; the caller calls those "Inactive". Widgets sit in `sidebars_widgets` as
  * `block-<number>`, and an instance placed in two sidebars reports the first.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @param array $sidebars_widgets wp_get_sidebars_widgets(): sidebar id => widget ids.
  * @return array<int, string> Instance number => sidebar id.
  */
@@ -316,7 +316,7 @@ function bws_block_widget_placements( array $sidebars_widgets ): array {
  *
  * Reads posts in ID-ordered batches, so memory stays flat on a large site.
  *
- * @since Unreleased
+ * @since 1.24.0
  * @return array{blocks: array, widgets: array{registered: int, unregistered: int}} Each block cell carries its `migratable` count (see bws_core_blocks_survey_count()).
  */
 function bws_core_blocks_survey_run(): array {
@@ -371,7 +371,7 @@ function bws_core_blocks_survey_run(): array {
  * registered_html, unregistered_html }, the last two being each Handled by GB or Not handled by GB cell's content: count and tag list;
  * only blocks with a count; the page shows 0 and no tag list in every other row).
  *
- * @since Unreleased
+ * @since 1.24.0
  */
 function bws_core_blocks_survey_ajax(): void {
 	check_ajax_referer( 'bws_core_blocks_survey', 'nonce' );

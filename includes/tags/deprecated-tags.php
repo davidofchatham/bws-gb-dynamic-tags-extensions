@@ -868,7 +868,7 @@ function bws_register_nxm_tag_migrations() {
  * another (a left-behind key reaches the Migration Tool's ownership guard as unknown vocabulary
  * and the tag is declined).
  *
- * @since Unreleased
+ * @since 1.24.0
  * @return array<string,string> Old option key => new option key.
  */
 function bws_datetime_range_option_renames(): array {

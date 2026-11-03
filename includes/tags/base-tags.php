@@ -974,7 +974,7 @@ function bws_base_content_read_value( array $options, $instance ): array {
  * no knowledge of the source, so a new source kind gets it without a change here.
  *
  * @since 1.21.0
- * @since Unreleased Wraps a bare value in paragraphs.
+ * @since 1.24.0 Wraps a bare value in paragraphs.
  *
  * @param array $options  Tag options.
  * @param mixed $instance GB tag instance.
