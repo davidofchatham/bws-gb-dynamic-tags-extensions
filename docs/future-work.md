@@ -349,6 +349,18 @@ Open: Which request types read the entries (converter, settings, AJAX, editor mo
 
 Blocked by: —  •  Interacts with: FW-38 (the entry record being registered), FW-174 (the `term` call rides the same pass), FW-150
 
+#### FW-186 — Slots repeat their fold config; send it once per tag
+
+Every slot option of a tag carries a byte-identical copy of the tag's `fold` config. On the testbed that is 204 KB of the 341 KB the registry sends to every editor load and to GeneratePress AI, across `join`, `table` and the nine `try_` tags. Emit it on the lead slot only and let the control fall back to it.
+
+Detail home: this row (measured 2026-11-03; no plan yet)
+
+Progress: Measured 2026-11-03: 270 KB of our 299 KB of option data is `fold`; within each of the 11 tags the copies are identical (5 to 10 each), so dropping the non-lead copies removes about 204 KB. The reader is `foldConfig()` at `assets/js/slot-fold-control.js:101`; `slot-fold-migrate.js` and `table-style-preview.js` already read `fold` from the lead slot. Not started.
+
+Open: Whether the control can reach the lead slot at the `foldConfig()` call sites. Whether the near-identical blobs across tags (11 distinct, about 39 KB) are worth a shared reference table. The harness set is the folded-slot control and registration trigger rows.
+
+Blocked by: —  •  Interacts with: FW-184 (the AI payload shrinks with it), FW-148 (slot cards)
+
 ### Feature follow-ups & UX
 
 #### FW-9 — Context-aware base tags — the deferred residue
@@ -820,6 +832,18 @@ Progress: Measured 2026-11-02 for Read More only (matrix note N2 in `tools/test/
 Open: Whether the survey should also read the comment attributes (all of them, or the string-valued ones), which changes what the scan counts for every block, and how the Migration Tool's located walk should treat such a tag.
 
 Blocked by: —  •  Interacts with: FW-73 (closed; the located walk the survey shares), FW-128 (a tags-in-use report would count these too)
+
+#### FW-184 — Descriptions for every tag, and syntax hints for GeneratePress AI
+
+GeneratePress AI lists our tags to its AI client already, but 20 of our 22 tags have no description and the two that do lose their angle brackets to its sanitizer. Write a plain description for every tag (GB shows it under the tag picker too) and add an `aiSyntax` hint to the lead options, only when GeneratePress AI is active.
+
+Detail home: `.scratch/gpai-exposure/spec.md`; the plugin's own facts are in the shared reference's GeneratePress AI file
+
+Progress: Research and spec done 2026-11-03 (measured on the testbed). Not started in code.
+
+Open: The hint text and examples, which avoid `key` and `use` field reads by decision. That an extra string key on an option is ignored by every control of ours and GB's renderer (grep so far, not the editor). The GeneratePress-active predicate. Our own MCP tool stays deferred (prototype measured, works).
+
+Blocked by: —  •  Interacts with: FW-185 (what the hints may name), FW-186 (the payload they ride in)
 
 ### Testing & infrastructure
 
@@ -1402,6 +1426,18 @@ Progress: Not started.
 Open: Step or root (a step can follow `refs`/`parent`; a root reads only the ambient post). Singular names (`previous`/`next`, one each), and whether a list form is wanted. The order-by and filter-by argument grammar under ADR 0004's human-readable wire, and whether it is shared with `children`/`siblings`. Wrap-around at the ends (default: none, the chain resolves empty). Post-type scope (same type only by default). Behavior inside a query loop.
 
 Blocked by: decision:step or root, and the order/filter grammar  •  Interacts with: FW-169 (`siblings` raises the same order/filter questions)
+
+#### FW-185 — An admin opt-in for what the AI may read
+
+GeneratePress AI keeps AI-authored content away from meta, ACF and custom fields by tag name, which our field-reading tags pass. An admin screen could list the fields or field groups a site owner allows AI content to use, and our hints would name only those.
+
+Detail home: this row (user request, 2026-11-03; no plan yet)
+
+Progress: Not started.
+
+Open: Whether this is hints only or enforcement: GeneratePress AI has no hook on its tag list or its meta check, so enforcement has no seam. Granularity (a field, a field group, a source). Whether the policy itself changes first.
+
+Blocked by: decision:a way to reach GeneratePress AI's developers, and its policy  •  Interacts with: FW-184 (the hints this would narrow)
 
 ## Closed / Retired
 
