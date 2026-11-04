@@ -168,7 +168,9 @@ function assert_same( string $label, $expected, $actual ): void {
 	fail( $label, $expected, $actual );
 }
 
-const HINT_BYTE_BUDGET = 350;
+const HINT_BYTE_BUDGET     = 350;
+const HINT_BYTE_BUDGET_OWN = 450; // a tag's own hint that replaces a shared one repeats its syntax
+const HINT_TOTAL_BUDGET    = 15000;
 
 /**
  * The values a registered option offers: a select's `options` values, or for the `src` chain
@@ -238,7 +240,9 @@ function check_hint( string $tag, string $option, $hint, array $tags ): array {
 	if ( ! is_string( $hint ) || '' === trim( $hint ) ) {
 		return array_merge( $broken, array( 'empty' ) );
 	}
-	if ( strlen( $hint ) > HINT_BYTE_BUDGET ) {
+	$all    = bws_ai_syntax_hints();
+	$budget = isset( $all['*'][ $option ], $all[ $tag ][ $option ] ) ? HINT_BYTE_BUDGET_OWN : HINT_BYTE_BUDGET;
+	if ( strlen( $hint ) > $budget ) {
 		$broken[] = 'too-long';
 	}
 	// What sanitize_text_field() would change.
@@ -391,6 +395,7 @@ foreach ( $placements as $where => $hint ) {
 	list( $tag, $option ) = explode( '.', $where, 2 );
 	assert_same( "hint {$where}", array(), check_hint( $tag, $option, $hint, $tags ) );
 }
+assert_same( 'every placed hint together stays under the total budget', true, array_sum( array_map( 'strlen', $placements ) ) <= HINT_TOTAL_BUDGET );
 foreach ( array_keys( $hints['*'] ) as $option ) {
 	$lands = array_filter( array_keys( $placements ), fn( $w ) => str_ends_with( $w, ".{$option}" ) );
 	assert_same( "shared hint {$option} lands on at least one tag", true, count( $lands ) > 0 );
@@ -404,6 +409,10 @@ foreach ( BWS_AI_SYNTAX_UNHINTED_TAGS as $tag ) {
 	assert_same( "{$tag} receives no hint", array(), bws_ai_syntax_hints_for( $tag ) );
 }
 
+foreach ( array( 'email', 'phone' ) as $tag ) {
+	$own = bws_ai_syntax_hints_for( $tag );
+	assert_same( "{$tag}: the shared src hint is withheld, its own fixed hint kept", array( false, true ), array( isset( $own['src'] ), isset( $own['fixed'] ) ) );
+}
 echo "   checker fixtures: each broken hint names its rule\n";
 $good = 'Leave src out for the current post. {{text src:parent|fixed:Back|linkTo:permalink}} links to the parent.';
 assert_same( 'fixture: a good hint is clean', array(), check_hint( 'text', 'src', $good, $tags ) );
@@ -432,6 +441,10 @@ foreach ( array(
 	assert_same( "fixture: teaches-field-read, {$what}", true, in_array( 'teaches-field-read', check_hint( 'text', 'src', $bad, $tags ), true ) );
 }
 assert_same( 'fixture: a step that finds a source through a field is allowed', array(), check_hint( 'text', 'src', 'For example src:refs,x and src:rows,team;refs,y.', $tags ) );
+$own_ok  = $good . str_repeat( ' x', 150 );
+$own_bad = $good . str_repeat( ' x', 200 );
+assert_same( 'fixture: a tag-own replacing hint may pass 350 bytes', false, in_array( 'too-long', check_hint( 'title', 'src', $own_ok, $tags ), true ) );
+assert_same( 'fixture: but not 450', true, in_array( 'too-long', check_hint( 'title', 'src', $own_bad, $tags ), true ) );
 assert_same(
 	'fixture: a use value the option does not offer',
 	true,
@@ -453,7 +466,8 @@ echo "2b. REVIEWED VOCABULARY: a hinted option's values are the ones its hint wa
 
 const REVIEWED_VOCABULARY = array(
 	'src'    => array( 'current', 'parent', 'post', 'refs', 'rows', 'site', 'term', 'terms' ),
-	'use'    => array( '', 'fixed', 'title' ),
+	'use'    => array( '', 'excerpt', 'featured', 'fixed', 'key', 'title' ),
+	'fixed'  => array(),
 	'linkTo' => array( '', 'key', 'permalink' ),
 );
 

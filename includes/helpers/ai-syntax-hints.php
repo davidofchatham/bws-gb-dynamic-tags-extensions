@@ -26,29 +26,53 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Tags that carry no hint at all, shared or their own. `call` returns whatever a registered
- * function returns, which sits beside the field reads we do not teach.
+ * function returns, and the two datetime tags print only a field's date (`key`, `startKey`),
+ * so both sit beside the field reads we do not teach: nothing is left to say about their source.
  */
-const BWS_AI_SYNTAX_UNHINTED_TAGS = array( 'call' );
+const BWS_AI_SYNTAX_UNHINTED_TAGS = array( 'call', 'datetime_single', 'datetime_range' );
 
 /**
  * The hints. `*` holds the SHARED hints, keyed by option key: each lands on every hinted tag
  * that registers that option, so its wording must hold on all of them and names no tag. A
- * tag's own entry, keyed by tag name, adds options or replaces a shared hint for that tag.
+ * tag's own entry, keyed by tag name, adds options or replaces a shared hint for that tag; a
+ * `null` there withholds a shared hint from a tag it would mislead (`email` and `phone` teach
+ * only a typed address, which needs no source).
  *
- * Budget per hint: about 350 bytes, and text `sanitize_text_field()` returns unchanged (no
+ * Budget per hint: about 350 bytes (a tag's own `src` entry, which replaces the shared one whole
+ * and so repeats its chain syntax, may reach 450; the whole set stays under 15000), and text `sanitize_text_field()` returns unchanged (no
  * `<`, `>`, `%` or line break), so what the AI client reads is what is written here.
  *
  * @since Unreleased
- * @return array<string,array<string,string>>
+ * @return array<string,array<string,string|null>>
  */
 function bws_ai_syntax_hints(): array {
 	return array(
-		'*'    => array(
+		'*'         => array(
 			'src'    => "Where the tag reads from; leave it out for the current context. Steps join with semicolons; a step's argument follows a comma. src:parent is the parent, src:post,42 is post 42, src:terms,category the post's categories, src:refs,related_posts the posts in that relationship, src:rows,team;refs,person each repeater row's linked post.",
 			'linkTo' => "Wraps the tag's output in a link. linkTo:permalink links to the post or term the tag read; leave it out for no link.",
 		),
-		'text' => array(
+		'text'      => array(
 			'use' => "Set one of these: use:title prints the title or name of what src names; fixed:Your text prints text you write, with use left out. Examples: {{text use:title}}, {{text fixed:Read more}}.",
+		),
+		'title'     => array(
+			'src' => "Where the tag reads from; leave it out for the current context. Steps join with semicolons; a step's argument follows a comma. src:site is the site itself (its name), src:parent the parent, src:post,42 post 42, src:terms,category the post's categories, src:refs,related_posts the posts in that relationship, src:rows,team;refs,person each repeater row's linked post.",
+		),
+		'permalink' => array(
+			'src' => "Where the tag reads from; leave it out for the current context. Steps join with semicolons; a step's argument follows a comma. src:site is the site itself (its home address), src:parent the parent, src:post,42 post 42, src:terms,category the post's first category, src:refs,related_posts the posts in that relationship, src:rows,team;refs,person each repeater row's linked post.",
+		),
+		'content'   => array(
+			'use' => "Leave use out for the full content of what src names; use:excerpt prints the excerpt. The output is block-level markup (paragraphs, headings), so put the tag in a div or other block container, not inside a paragraph or heading. Example: {{content use:excerpt}}.",
+		),
+		'image'     => array(
+			'use' => "Set use:featured to print the featured image of what src names; with src:site it is the site logo. It prints the image address; as:alt, as:id, as:title or as:caption print that instead. Examples: {{image use:featured}}, {{image src:parent|use:featured|as:alt}}.",
+		),
+		'email'     => array(
+			'src'   => null,
+			'fixed' => "Set fixed to the email address to print, shown as a mailto link. Example: {{email fixed:info@example.com}}.",
+		),
+		'phone'     => array(
+			'src'   => null,
+			'fixed' => "Set fixed to the phone number to print, shown as a tel link. Example: {{phone fixed:555-123-4567}}.",
 		),
 	);
 }
@@ -66,5 +90,5 @@ function bws_ai_syntax_hints_for( string $tag ): array {
 		return array();
 	}
 	$hints = bws_ai_syntax_hints();
-	return array_merge( $hints['*'], $hints[ $tag ] ?? array() );
+	return array_filter( array_merge( $hints['*'], $hints[ $tag ] ?? array() ), 'is_string' );
 }
