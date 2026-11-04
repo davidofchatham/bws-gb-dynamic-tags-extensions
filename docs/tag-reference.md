@@ -778,7 +778,7 @@ Harnesses: `php tools/test/slot-fold-test.php` (grammar + legacy mapping + rende
 
 In the source-agnostic architecture, each template has one GB tag registration. Type names settled (2026-04-14): base tags use `'cross-source'`; try_ tags use `'first-available'`. Both are hyphenated English compounds confirmed valid as GB type strings.
 
-**Tag title** (`title`) is shown in the GB tag picker and is the last-resort editor fallback when a tag can't resolve and no preview label is available.
+**Tag title** (`title`) is shown in the GB tag picker and is the last-resort editor fallback when a tag can't resolve and no preview label is available. Each base tag also registers a `description`, which GB shows under the picker once the tag is selected; it mirrors the "Returns" cell of the [README tag overview](../README.md#our-tags) and `tools/test/tag-description-test.php` holds the two equal.
 
 | Template key | Tag title | GB type | Link wrap | Notes |
 |---|---|---|---|---|

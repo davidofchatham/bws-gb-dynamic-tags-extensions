@@ -56,12 +56,13 @@ function bws_register_phone_tag(): void {
 	$contact_field  = bws_get_contact_field_options( 'phone' );
 
 	bws_gb_register_tag( array(
-		'title'      => __( 'Phone', 'generateblocks' ),
-		'tag'        => 'phone',
-		'type'       => 'cross-source',
-		'supports'   => array(),
+		'title'       => __( 'Phone', 'generateblocks' ),
+		'tag'         => 'phone',
+		'type'        => 'cross-source',
+		'supports'    => array(),
+		'description' => __( 'Return a valid-looking phone number as a tel link or plain text. Link text shows the number as it was entered, but the tel link is normalized, and if a default country code is supplied in the plugin\'s settings, it is added to numbers that have no international prefix. Invalid numbers return nothing, or the fallback number if supplied.', 'generateblocks' ),
 		// VP-vis — mirror GB core term_list / email: hide on interactive/void elements.
-		'visibility' => array(
+		'visibility'  => array(
 			'attributes' => array(
 				array(
 					'name'    => 'tagName',
@@ -73,7 +74,7 @@ function bws_register_phone_tag(): void {
 		// Canonical CONTROL order (FW-52): source → format(none) → link → fallback.
 		// Source group = src → ref/srcTermIn → sep → key. The phone own-anchor
 		// `noLink` is the tag's `link` group → after source, before fallback.
-		'options'    => bws_prepare_registration_options( array_merge(
+		'options'     => bws_prepare_registration_options( array_merge(
 			$source_opt,
 			$traversal_opts,
 			array(
@@ -119,7 +120,7 @@ function bws_register_phone_tag(): void {
 				),
 			)
 		) ),
-		'return'     => 'bws_phone_callback',
+		'return'      => 'bws_phone_callback',
 	) );
 }
 

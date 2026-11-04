@@ -405,9 +405,9 @@ Display format, ext/type affix, per-country rules, a `use` enum, per-tag `cc:`, 
 
 Detail home: `.scratch/plans/phone-tag-future.md`
 
-Progress: Not started.
+Progress: Not started. The registered `phone` description, mirrored from the README tag overview's "Returns" cell, says link text shows the number as entered. That holds today (measured 2026-11-04 on the testbed, matrix rows R0 to R4), so a display format must reword that sentence in both places; `tools/test/tag-description-test.php` holds the two equal.
 
-Blocked by: —  •  Interacts with: —
+Blocked by: —  •  Interacts with: FW-184 (the phone description states the display rule)
 
 #### FW-16 — {{call}} v2 ergonomics cluster
 
@@ -844,6 +844,18 @@ Progress: Research and spec done 2026-11-03 (measured on the testbed). Not start
 Open: The hint text and examples, which avoid `key` and `use` field reads by decision. That an extra string key on an option is ignored by every control of ours and GB's renderer (grep so far, not the editor). The GeneratePress-active predicate. Our own MCP tool stays deferred (prototype measured, works).
 
 Blocked by: —  •  Interacts with: FW-185 (what the hints may name), FW-186 (the payload they ride in)
+
+#### FW-187 — One tag order and one set of tag labels, across the README, the picker, and the registrations
+
+The same twelve base tags are listed in three different orders (the README tag overview, the registration code, and the `tag-reference.md` Catalog), and their picker labels were never reviewed as a set. Choose one order and one label set, then make every surface follow it.
+
+Detail home: this entry. No plan yet.
+
+Progress: The README tag overview was reordered by hand on 2026-11-03, during the review of FW-184's descriptions, to title, content, permalink, text, join, table, datetime_single, datetime_range, image, email, phone, call. Nothing else moved: registration still runs text, content, title, permalink, image, datetime_single, datetime_range, join in `base-tags.php`, then table, email, phone and call from their own files, and the Catalog and the fixture matrices still group rows in the order text, content, title, permalink, image, datetime, email, phone, join, table, call. Picker labels are unchanged ('Text Fields', 'Content', 'Title/Name', 'Permalink', 'Image', 'Date/Time', 'Date/Time Range', 'Join Fields', 'Table', 'Email', 'Phone', 'Call Custom Function'). Two descriptions quote a label ("the Title/Name tag", "the Date/Time tag"), and `tag-description-test.php` section 5 fails if either label is renamed without them.
+
+Open: Which order is canonical. Whether GB's picker follows registration order or sorts (not measured). Whether any label should change (for example 'Text Fields' for a tag that also reads titles and fixed text). What a label rename touches beyond the descriptions: previews, migration output, the Catalog's "Tag title" column, the testbed's "group rows in Catalog order" rule.
+
+Blocked by: —  •  Interacts with: FW-184 (descriptions mirror the README cells and quote two labels)
 
 ### Testing & infrastructure
 

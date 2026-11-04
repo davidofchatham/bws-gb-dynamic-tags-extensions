@@ -303,11 +303,12 @@ function bws_register_call_tag(): void {
 	$ref_opt['help'] = __( 'ACF relationship or post object field key (the related post the function runs on).', 'generateblocks' );
 
 	bws_gb_register_tag( array(
-		'title'    => __( 'Call Custom Function', 'generateblocks' ),
-		'tag'      => 'call',
-		'type'     => 'post',
-		'supports' => array(),
-		'options'  => bws_prepare_registration_options( array_merge(
+		'title'       => __( 'Call Custom Function', 'generateblocks' ),
+		'tag'         => 'call',
+		'type'        => 'post',
+		'supports'    => array(),
+		'description' => __( 'Run a registered PHP function with the post ID and return its output.', 'generateblocks' ),
+		'options'     => bws_prepare_registration_options( array_merge(
 			bws_call_source_option(),
 			array(
 				'ref'      => $ref_opt,
@@ -331,7 +332,7 @@ function bws_register_call_tag(): void {
 				),
 			)
 		) ),
-		'return'   => 'bws_call_callback',
+		'return'      => 'bws_call_callback',
 	) );
 }
 

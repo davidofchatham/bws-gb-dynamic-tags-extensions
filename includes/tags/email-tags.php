@@ -55,12 +55,13 @@ function bws_register_email_tag(): void {
 	$contact_field  = bws_get_contact_field_options( 'email' );
 
 	bws_gb_register_tag( array(
-		'title'      => __( 'Email', 'generateblocks' ),
-		'tag'        => 'email',
-		'type'       => 'cross-source',
-		'supports'   => array(),
+		'title'       => __( 'Email', 'generateblocks' ),
+		'tag'         => 'email',
+		'type'        => 'cross-source',
+		'supports'    => array(),
+		'description' => __( 'Return a valid-looking email address as a mailto link or plain text. Invalid addresses return nothing, or the fallback address if supplied.', 'generateblocks' ),
 		// VE3 — mirror GB core term_list: hide on interactive/void elements.
-		'visibility' => array(
+		'visibility'  => array(
 			'attributes' => array(
 				array(
 					'name'    => 'tagName',
@@ -73,7 +74,7 @@ function bws_register_email_tag(): void {
 		// Source group = src → ref/srcTermIn → sep → key. The email own-anchor
 		// set (subject → noLink) is the tag's `link` group → after source, before
 		// fallback (serialization normalizer keeps it that way in the string too).
-		'options'    => bws_prepare_registration_options( array_merge(
+		'options'     => bws_prepare_registration_options( array_merge(
 			$source_opt,
 			$traversal_opts,
 			array(
@@ -129,7 +130,7 @@ function bws_register_email_tag(): void {
 				),
 			)
 		) ),
-		'return'     => 'bws_email_callback',
+		'return'      => 'bws_email_callback',
 	) );
 }
 

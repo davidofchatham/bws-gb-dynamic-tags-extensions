@@ -6,18 +6,18 @@
 
 | Tag | Returns | Specific limitations | [Multi-attempt variant](#try_-tags-return-the-first-successful-sourcefield-attempt) |
 |---|---|---|---|
-| `text` | Simple meta/option text fields or post title/term name. | | `try_text` |
-| `title` | Post titles, term names, user display names, archive labels, date spans, search and 404 headings, or the site name (for a blog homepage). | | `try_title` |
-| `permalink` | Post/term permalink or site URL. | | `try_permalink` |
-| [`content`](#content-output-long-form-content) | Post content or excerpt, term description, a rich-text meta field, user bio, post type description, or GeneratePress's 404 text, via a processing pipeline that handles block-rendered content safely, including consolidating block CSS for embedded post content into the page footer. Always prints block-level markup, so put it in a `<div>` or other block container, not a `<p>` or `<span>`. | Since there's no site-wide body/content field, an option field name must be supplied to use this tag with the *Site* source. | `try_content` |
-| `image` | An image from a meta field or the post featured image or site logo field, with return options like GB's (alt text, etc.) and a Media Library fallback image selector. | Since terms have no native image fields, a field name must be supplied to retrieve images from a term source. | `try_image` |
-| `datetime_single` | Combined datetime fields, or separate date and time fields, formatted as a single date and time. By default, also hides midnight times and the current year. Multi-result sources can render a delimited date list. | | `try_datetime_single` |
-| `datetime_range` | Like `datetime_single`, but formats a range from separate start and end fields. In a range list, the result separator joins whole ranges while the range separator stays between each start and end. | | `try_datetime_range` |
-| `email` | An email address as a `mailto` link (by default) or plain text. Validates emails (by format) and returns empty if invalid. | | `try_email` |
-| `phone` | A phone number as a `tel` link (by default) or plain text. Normalizes numbers and allows global country code configuration. | | `try_phone` |
-| [`join`](#join-combine-multiple-text-fields) | Up to 10 text fields combined into one string, by separator or format template. | Plain text only; no link options. | — |
-| [`table`](#table-build-a-dynamic-table) | A complete HTML table: one row per repeater row, related post or term, up to 10 columns. Always prints block-level markup, so put it in a `<div>` or other block container, not a `<p>` or `<span>`. | | — |
-| [`call`](#call-return-custom-function-output) | The output of a registered PHP function, passed the post ID. | Post sources only. | — |
+| `title` | Get a post title, term name, user name, archive label, search or 404 heading, or the site name. | | `try_title` |
+| [`content`](#content-output-long-form-content) | Get post content or excerpt, term description, a rich-text meta field, user bio, post type description, or GeneratePress's 404 text. Always prints block-level markup, so put it in a `<div>` or other block container. | Since there's no site-wide body/content field, an option field name must be supplied to use this tag with the *Site* source. | `try_content` |
+| `permalink` | Get the link to a post or term, or to the site. | | `try_permalink` |
+| `text` | Get text from a meta or option field, fixed text, or any title or name the Title/Name tag can return. | | `try_text` |
+| [`join`](#join-combine-multiple-text-fields) | Combine up to 10 text fields (meta or option, fixed text, and title or name) into one string, by separator or format template. | Plain text only; no link options. | — |
+| [`table`](#table-build-a-dynamic-table) | Build a complete HTML table: one row per repeater row, related post, or term, with up to 10 columns. Always prints block-level markup, so put it in a `<div>` or other block container. | | — |
+| `datetime_single` | Format a date and time from a combined field or from separate date and time fields. By default it hides midnight times and the current year. Sources with several results can show a list of dates. | | `try_datetime_single` |
+| `datetime_range` | Format a date and time range from separate start and end fields, like the Date/Time tag does. In a list of ranges, the result separator goes between whole ranges and the range separator between each start and end. | | `try_datetime_range` |
+| `image` | Get an image from a meta or option field, the post featured image, or the site logo, with full return options (URL, `alt` text, etc.) and a fallback image picker. | Since terms have no native image fields, a field name must be supplied to retrieve images from a term source. | `try_image` |
+| `email` | Return a valid-looking email address as a `mailto` link or plain text. Invalid addresses return nothing, or the fallback address if supplied. | | `try_email` |
+| `phone` | Return a valid-looking phone number as a `tel` link or plain text. Link text shows the number as it was entered, but the `tel` link is normalized, and if a default country code is supplied in the plugin's settings, it is added to numbers that have no international prefix. Invalid numbers return nothing, or the fallback number if supplied. | | `try_phone` |
+| [`call`](#call-return-custom-function-output) | Run a registered PHP function with the post ID and return its output. | Post sources only. | — |
 
 ## What's different (other than the tag names)?
 
