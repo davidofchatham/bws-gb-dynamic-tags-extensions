@@ -415,3 +415,13 @@ run `php tools/test/entry-lifecycle-test.php`, then `migration-order-test.php` a
 **Three assertions are only proven by their fixtures.** Measured 2026-10-24, no tag entry shares a name with a tag we register and no entry carries `prefix_removed`, so "a listed tag has no entry", "a retired entry on a registered tag is hidden" and the `prefix_removed` checks pass on the shipped tree because there is nothing to fail on. §3 feeds each a violating fixture and requires that assertion by name. A green §1 is therefore not evidence about these until FW-81 gives them a population; §3 is. Mutation-checked 2026-10-26: a classifier rewritten to read `GenerateBlocks_Register_Dynamic_Tag::get_tags()` fails the placement pin for `is_entry_live()`, and a `prefix_removed` argument added to the bootstrap's generator call fails the real-tree assertion with `no-prefix-removed-key-in-shipped-calls` in the actual.
 
 **What a green run does NOT prove.** The placement pin reads three named methods; a NEW classifier function is invisible to it until its name is added to the list in §2. It matches `GenerateBlocks_`, `get_tags` and `bws_gb_tags_we_registered` in code outside comments, so a registry read routed through a helper with another name passes. Nothing here renders the settings page: that the registration marker shows the record, and that the boxes hold the same population as before, are the testbed's.
+
+## AI-syntax hint change
+
+The hints are invisible to authors and to the editor, so no one sees one go stale. `tools/test/ai-syntax-hint-test.php` is the only thing that notices.
+
+**A clean run proves the hints are well-formed, not that they are true.** It holds every example against the registered keys and values, the byte budget, text `sanitize_text_field()` leaves unchanged, and that no example teaches a field read. It cannot read what a hint claims a value does: a change in what `parent` means fails nothing. Render the examples through `bws render-tag` on the testbed when the wording or the behavior moves, and for a shared hint do it on each tag it lands on, since the harness only proves the option exists there.
+
+**A REVIEWED VOCABULARY failure means re-read, not re-record.** A new or removed value on a hinted option fails that section by name. Re-read the hint against the new value, change it if it should teach the value or say in the commit why it should not, and only then update the list. Updating the list alone clears the failure and defeats the pin.
+
+**Hint text is user-facing prose:** surface it for review before committing.

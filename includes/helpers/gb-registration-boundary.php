@@ -25,6 +25,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/ai-syntax-hints.php';
+
 /**
  * Register one dynamic tag with GenerateBlocks. THE plugin's only registration site.
  *
@@ -109,6 +111,18 @@ function bws_gb_register_tag( array $args ): void {
 	if ( '' === $tag || ! isset( $args['return'], $args['title'] ) ) {
 		new \GenerateBlocks_Register_Dynamic_Tag( $args );
 		return;
+	}
+
+	// `aiSyntax` is AI-only text, and GB sends every tag definition to every editor load, so it
+	// is added only when GeneratePress AI is active (bws_ai_syntax_hints() owns the text).
+	// The one place anything asks.
+	// A hidden tag is registered only to keep old content rendering, so it is taught nothing.
+	if ( ! $hidden && defined( 'GENERATEPRESS_AI_VERSION' ) && isset( $args['options'] ) ) {
+		foreach ( bws_ai_syntax_hints_for( $tag ) as $option => $hint ) {
+			if ( isset( $args['options'][ $option ] ) ) {
+				$args['options'][ $option ]['aiSyntax'] = $hint;
+			}
+		}
 	}
 
 	$existing = \GenerateBlocks_Register_Dynamic_Tag::get_tags();
