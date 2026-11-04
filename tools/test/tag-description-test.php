@@ -22,6 +22,10 @@
  *    (a description is plain text, so angle brackets are spelled out). `try_*` descriptions are generated
  *    from the base text and have no README cell, so they are out of this tie.
  *
+ * 3. TRY_ TAGS. Each of the nine `try_*` tags registers the shared opening sentence, one space,
+ *    and its base tag's description unchanged, and passes the same lint. The text is generated,
+ *    so nine tags cannot drift from their base; this holds the generation.
+ *
  * Both checks are fed a fixture that violates them, and the report must name the rule: the
  * real tree satisfies every rule, so a pass alone would not show the checker can fail
  * (precedent: entry-lifecycle-test.php section 3).
@@ -127,6 +131,7 @@ bws_register_email_tag();
 bws_register_phone_tag();
 bws_register_table_tag();
 bws_register_call_tag();
+\BWS\DynamicTags\TagTemplateRegistry::generate_base_try_tags();
 
 // ---------------------------------------------------------------------------
 
@@ -188,6 +193,7 @@ function lint_description( $description ): array {
 		'brace-pair'   => false !== strpos( $description, '{{' ),
 		'em-dash'      => false !== strpos( $description, "\u{2014}" ),
 		'percent-hex'  => 1 === preg_match( '/%[a-f0-9]{2}/i', $description ),
+		'double-stop'  => false !== strpos( $description, '..' ),
 		'whitespace'   => $description !== trim( preg_replace( '/\s+/', ' ', $description ) ),
 	);
 	foreach ( $checks as $name => $hit ) {
@@ -284,6 +290,7 @@ foreach ( array(
 	'brace-pair'   => 'Use {{text}} here.',
 	'em-dash'      => "A tag \u{2014} a thing.",
 	'percent-hex'  => 'Fifty%20percent.',
+	'double-stop'  => 'Ends twice..',
 	'whitespace'   => 'Two  spaces.',
 ) as $rule => $fixture ) {
 	assert_same( "rule '{$rule}' fires", true, in_array( $rule, lint_description( $fixture ), true ) );
@@ -346,6 +353,32 @@ foreach ( array(
 	list( $label, $target ) = $quote;
 	assert_same( "{$host} description still names the {$label} tag", true, false !== strpos( (string) $described[ $host ], $label . ' tag' ) );
 	assert_same( "...and {$target} is still titled {$label}", $label, $registered[ $target ]['title'] ?? null );
+}
+
+// ---------------------------------------------------------------------------
+// 6. Each try_ tag = the shared opening + its base tag's description, and lints clean.
+// ---------------------------------------------------------------------------
+
+echo "6. try_ descriptions\n";
+
+const TRY_BASES = array(
+	'text', 'title', 'permalink', 'content', 'image', 'datetime_single',
+	'datetime_range', 'email', 'phone',
+);
+$opening = \BWS\DynamicTags\TagTemplateRegistry::TRY_DESCRIPTION_OPENING;
+assert_same( 'the shared opening breaks no lint rule', array(), lint_description( $opening ) );
+assert_same( 'the shared opening ends in one full stop', true, '.' === substr( $opening, -1 ) );
+
+$try_registered = array_values( array_filter( array_keys( $registered ), static fn( $t ) => 0 === strpos( $t, 'try_' ) ) );
+$expected_try   = array_map( static fn( $b ) => 'try_' . $b, TRY_BASES );
+sort( $try_registered );
+sort( $expected_try );
+assert_same( 'exactly the nine try_ tags register', $expected_try, $try_registered );
+
+foreach ( TRY_BASES as $base ) {
+	$got = $registered[ 'try_' . $base ]['description'] ?? null;
+	assert_same( "try_{$base} description is the opening plus the {$base} description", $opening . ' ' . $described[ $base ], $got );
+	assert_same( "try_{$base} description breaks no lint rule", array(), lint_description( $got ) );
 }
 
 // ---------------------------------------------------------------------------

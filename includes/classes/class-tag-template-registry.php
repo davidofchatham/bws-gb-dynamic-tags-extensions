@@ -17,6 +17,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 class TagTemplateRegistry {
 
 	/**
+	 * The sentence every try_ tag's picker description opens with; the base tag's own
+	 * description follows it (generate_base_try_tags()). Plain author text, held by
+	 * tools/test/tag-description-test.php.
+	 *
+	 * @since Unreleased
+	 */
+	public const TRY_DESCRIPTION_OPENING = 'Try several sources in order and return the first one that produces a result.';
+
+	/**
 	 * @var array[] Base template descriptors used by generate_base_try_tags() (try_ constructor)
 	 *              and, through get_modifier_templates(), by the converter's per-template
 	 *              migration-entry generator. The `modifier` in the name is historical.
@@ -533,7 +542,12 @@ class TagTemplateRegistry {
 			// standalone tags carry). Empty for gateless templates (text/content/image).
 			$visibility = $tpl['visibility'] ?? [];
 
-			self::register_gb_tag( $title, $tag_name, 'first-available', $supports, $options, $callback, $visibility );
+			// The base tag's description, read back from what it registered (the base tags
+			// register before this pass), so a try_ tag cannot drift from its base.
+			$base_description = (string) ( $existing_tags[ $tpl['key'] ]['description'] ?? '' );
+			$description      = '' === $base_description ? '' : self::TRY_DESCRIPTION_OPENING . ' ' . $base_description;
+
+			self::register_gb_tag( $title, $tag_name, 'first-available', $supports, $options, $callback, $visibility, $description );
 		}
 	}
 
@@ -553,6 +567,7 @@ class TagTemplateRegistry {
 	 *                             directly. Omitted from the registration array when empty
 	 *                             (preserves byte-identical registration for gateless tags).
 	 *                             [SPEC §32 V11 / VE3 / VP-vis]
+	 * @param string   $description Optional picker description; omitted when empty.
 	 */
 	public static function register_gb_tag(
 		string $title,
@@ -561,7 +576,8 @@ class TagTemplateRegistry {
 		array $supports,
 		array $options,
 		callable $callback,
-		array $visibility = []
+		array $visibility = [],
+		string $description = ''
 	): void {
 		if ( function_exists( 'bws_prepare_registration_options' ) ) {
 			$options = bws_prepare_registration_options( $options );
@@ -576,6 +592,9 @@ class TagTemplateRegistry {
 		];
 		if ( ! empty( $visibility ) ) {
 			$args['visibility'] = $visibility;
+		}
+		if ( '' !== $description ) {
+			$args['description'] = $description;
 		}
 		// THE plugin's one registration site is bws_gb_register_tag(), in
 		// includes/helpers/gb-registration-boundary.php. The try_ constructor reaches GB

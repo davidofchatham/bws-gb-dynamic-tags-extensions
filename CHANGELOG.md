@@ -11,6 +11,7 @@ All notable changes to this project are documented in this file. The format is b
 ### Added
 
 - **A description for every base tag.** Once you select a tag in the picker, GenerateBlocks shows a plain-English line under it saying what it returns. `text`, `title`, `permalink`, `content`, `image`, `datetime_single`, `datetime_range`, `email`, `phone`, `join`, `table` and `call` each have one. The `content` and `table` lines say "a div or other block container" in words, because a description is plain text and cannot hold angle brackets. The README tag overview's "Returns" column carries the same wording.
+- **A description for every `try_*` tag.** Each of the nine `try_*` tags opens with one line saying it tries several sources in order and returns the first one that produces a result, followed by its base tag's description.
 
 ## [1.24.0] — 2026-11-03
 
