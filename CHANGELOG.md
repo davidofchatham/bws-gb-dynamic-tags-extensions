@@ -10,9 +10,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
-- **A description for every base tag.** Once you select a tag in the picker, GenerateBlocks shows a plain-English line under it saying what it returns. `text`, `title`, `permalink`, `content`, `image`, `datetime_single`, `datetime_range`, `email`, `phone`, `join`, `table` and `call` each have one. The `content` and `table` lines say "a div or other block container" in words, because a description is plain text and cannot hold angle brackets. The README tag overview's "Returns" column carries the same wording.
-- **A description for every `try_*` tag.** Each of the nine `try_*` tags opens with one line saying it tries several sources in order and returns the first one that produces a result, followed by its base tag's description.
-- **Syntax hints for GeneratePress AI.** When GeneratePress AI is active, the source and link options of our tags, `{{text}}`'s Text Field option, `{{content}}`'s and `{{image}}`'s Use option, the typed address of `{{email}}` and `{{phone}}`, `{{table}}`'s row source and first column, and the attempts of `{{try_text}}`, `{{try_title}}`, `{{try_permalink}}`, `{{try_content}}` and `{{try_image}}` carry a short note with working examples, so the AI can write our tag strings instead of guessing. Nothing changes when GeneratePress AI is not active.
+- **A description for every tag.** Once you select a tag in the picker, GenerateBlocks shows a plain-English line under it.
+  - **Base tags.** `text`, `title`, `permalink`, `content`, `image`, `datetime_single`, `datetime_range`, `email`, `phone`, `join`, `table` and `call` each say what they return. The `content` and `table` lines say "a div or other block container" in words, because a description is plain text and cannot hold angle brackets. The README tag overview's "Description" column carries the same wording.
+  - **`try_*` tags.** Each of the nine opens with one line saying it tries several sources in order and returns the first one that produces a result, followed by its base tag's description.
+- **Syntax hints for GeneratePress AI.** When GeneratePress AI is active, the source and link options of our tags, `{{text}}`'s Text Field option, `{{content}}`'s and `{{image}}`'s Use option, the typed address of `{{email}}` and `{{phone}}`, `{{table}}`'s row source and first column, and the attempts of `{{try_text}}`, `{{try_title}}`, `{{try_permalink}}`, `{{try_content}}` and `{{try_image}}` carry a short note with working examples, so agents can write our custom option syntax without guessing. Following GeneratePress AI policy, meta/option field syntax is not hinted.
 
 ### Fixed
 
