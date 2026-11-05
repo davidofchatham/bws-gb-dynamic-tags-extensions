@@ -19,6 +19,8 @@
 | `phone` | Return a valid-looking phone number as a `tel` link or plain text. Link text shows the number as it was entered, but the `tel` link is normalized, and if a default country code is supplied in the plugin's settings, it is added to numbers that have no international prefix. Invalid numbers return nothing, or the fallback number if supplied. | | `try_phone` |
 | [`call`](#call-return-custom-function-output) | Run a registered PHP function with the post ID and return its output. | Post sources only. | — |
 
+**[UNRELEASED]** Each tag has a short description, which GenerateBlocks shows under the tag picker once you select the tag; the Returns column above is the same text. If GeneratePress AI is active, our tags also give it short syntax notes with working examples, so its AI can write our tag strings instead of guessing. Nothing changes without GeneratePress AI.
+
 ## What's different (other than the tag names)?
 
 ### Use the same tags almost anywhere

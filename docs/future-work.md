@@ -847,13 +847,13 @@ Blocked by: —  •  Interacts with: FW-73 (closed; the located walk the survey
 
 #### FW-184 — Descriptions for every tag, and syntax hints for GeneratePress AI
 
-GeneratePress AI lists our tags to its AI client already, but 20 of our 22 tags have no description and the two that do lose their angle brackets to its sanitizer. Write a plain description for every tag (GB shows it under the tag picker too) and add an `aiSyntax` hint to the lead options, only when GeneratePress AI is active.
+GeneratePress AI lists our tags to its AI client already, but 19 of our 21 tags had no description and the two that did lose their angle brackets to its sanitizer. Write a plain description for every tag (GB shows it under the tag picker too) and add an `aiSyntax` hint to the lead options, only when GeneratePress AI is active.
 
 Detail home: `.scratch/gpai-exposure/spec.md`; the plugin's own facts are in the shared reference's GeneratePress AI file
 
-Progress: Research and spec done 2026-11-03 (measured on the testbed). Not started in code.
+Progress: Built on branch `gpai-hints`, PR pending. Measured 2026-11-05 on the testbed (GPAI 1.0.0, GB 2.5.0, GB Pro 2.8.0): all 21 of our tags (12 base, 9 `try_`) register a description that `sanitize_text_field()` returns unchanged and that arrives unchanged over an MCP STDIO round trip; with GeneratePress AI active 26 options on 13 tags carry `aiSyntax`, 6,651 bytes against the roughly 15 KB budget; inactive, no definition carries one and the registry differs from the previous build by the 21 `description` keys alone (3,984 bytes, same tag and option order), with 28 of 28 page snapshots unchanged. The GeneratePress AI list is 353,746 bytes active and 346,731 with the hints stripped (the 341 KB baseline was measured 2026-11-03 and not re-run on the previous build; the registry delta for descriptions alone is the 3,984 bytes above). `join` is unhinted until its rebuild (FW-120); the two `datetime` tags, `call`, `try_email` and `try_phone` are unhinted by design.
 
-Open: The hint text and examples, which avoid `key` and `use` field reads by decision. That an extra string key on an option is ignored by every control of ours and GB's renderer (grep so far, not the editor). The GeneratePress-active predicate. Our own MCP tool stays deferred (prototype measured, works).
+Open: Whether the hints prove too thin in use, in which case our own MCP tool (deferred; prototype measured, works) is the next channel. The `join` hint, with FW-120.
 
 Blocked by: —  •  Interacts with: FW-185 (what the hints may name), FW-186 (the payload they ride in)
 
