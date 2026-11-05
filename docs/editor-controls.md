@@ -478,12 +478,7 @@ docblocks):
 
 **A `{{table}}` slot also carries a Header text box**, the column's heading cell, written as the slot's `header(…)` token. The token is shared grammar and parses and round-trips in every container, but the control is offered only where the PHP fold config ships `headerOption` (a `<th>` means nothing in a `{{join}}` or `try_` slot). It is not part of the chain or the read, so a commit rewrites the whole slot with the header changed and nothing else; clearing it drops the token. The rendered tree is the only coverage that sees this rule (`SlotFoldControl` is exported for `slot-fold-repeater-test.js`).
 
-**An absent chain is DISPLAYED as the root it spells**, not as an empty picker — `defaultRoot` on
-slot 1, `same` on slot ≥2 — because a `SelectControl` whose value matches no row paints its first
-row while believing nothing is selected, making that row unpickable and hiding `+ Add step`. This is
-handled once, in `chainSteps()` (shared by both the base-tag source control and the fold control),
-and is display-only: a commit that would merely restate the displayed default is stripped back to
-absence, so looking at a slot never changes its wire.
+**An absent chain is DISPLAYED as the root it spells**, not as an empty picker: `defaultRoot` at every ordinal, because the renderer resolves an absent source against the ambient entity and only an explicit `same` carries the previous slot's. A `SelectControl` whose value matches no row paints its first row while believing nothing is selected, making that row unpickable and hiding `+ Add step`. This is handled once, in `chainSteps()` (shared by both the base-tag source control and the fold control), and is display-only: a commit that would merely restate the displayed default is stripped back to absence, so looking at a slot never changes its wire. The one exception is a slot ≥2, where an explicit `src(current)` is kept (`stripDefaultRoot()`), since absence there was the legacy spelling of a carry-over.
 
 ---
 

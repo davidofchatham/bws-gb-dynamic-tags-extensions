@@ -14,6 +14,10 @@ All notable changes to this project are documented in this file. The format is b
 - **A description for every `try_*` tag.** Each of the nine `try_*` tags opens with one line saying it tries several sources in order and returns the first one that produces a result, followed by its base tag's description.
 - **Syntax hints for GeneratePress AI.** When GeneratePress AI is active, the source and link options of our tags, `{{text}}`'s Text Field option, `{{content}}`'s and `{{image}}`'s Use option, the typed address of `{{email}}` and `{{phone}}`, `{{table}}`'s row source and first column, and the attempts of `{{try_text}}`, `{{try_title}}`, `{{try_permalink}}`, `{{try_content}}` and `{{try_image}}` carry a short note with working examples, so the AI can write our tag strings instead of guessing. Nothing changes when GeneratePress AI is not active.
 
+### Fixed
+
+- **An attempt or slot with no source now shows "Current Context" in the editor, not "Same as Previous Source".** On a `try_` tag or `{{join}}`, a second or later slot with no `src` has always read the current context when rendered; only the editor's label said otherwise. Tags saved from the editor carry an explicit source already, so this shows mostly on hand-written tags and tags written by an AI. Nothing about how tags render changes, and no saved tag changes.
+
 ## [1.24.0] — 2026-11-03
 
 ### Highlights

@@ -554,10 +554,26 @@ check( 'slot 1, no chain: Add step is reachable', hasAddStep( empty1 ), true );
 
 const empty2 = renderChain( [], true );
 const sel2   = selectsIn( empty2 );
-check( 'slot ≥2, no chain: shows the CARRY-OVER row, not `current`', sel2[ 0 ] && sel2[ 0 ].value, 'same' );
-// A carry-over is not a chain to continue — appending to it would state a step off a
-// source this slot has not chosen.
-check( 'slot ≥2, no chain: Add step is NOT offered off a carry-over', hasAddStep( empty2 ), false );
+// An ABSENT source resets to the current context at every ordinal; only an explicit `same`
+// carries (fold matrix F6.1). The row on screen has to say what the renderer does.
+check( 'slot ≥2, no chain: shows `current`, which is what absence renders as, not the carry-over', sel2[ 0 ] && sel2[ 0 ].value, 'current' );
+check( 'slot ≥2, no chain: Add step is reachable, as it is off any real source', hasAddStep( empty2 ), true );
+// Display only. Rendering an absent chain must not write one: looking at a slot cannot change its wire.
+let writes2 = 0;
+rep.chainSteps( {
+	conf: CHAIN_CONF,
+	chain: [],
+	onChange: function () { writes2++; },
+	sameOnEmpty: true,
+	slotNoun: 'attempt',
+	stepContext: function () { return { state: {}, setState: function () {} }; }
+} );
+check( 'slot ≥2, no chain: rendering writes nothing', writes2, 0 );
+// An EXPLICIT carry-over is still a carry-over: it shows `same`, and a carry-over is not a chain
+// to continue, since appending would state a step off a source this slot has not chosen.
+const explicitSame2 = renderChain( [ { slug: 'same', arg: null, limit: null } ], true );
+check( 'slot ≥2, explicit same: shows the CARRY-OVER row', selectsIn( explicitSame2 )[ 0 ] && selectsIn( explicitSame2 )[ 0 ].value, 'same' );
+check( 'slot ≥2, explicit same: Add step is NOT offered off a carry-over', hasAddStep( explicitSame2 ), false );
 
 // A real chain is untouched by the display rule. The picker's value is the stored
 // step's OWN slug — nothing translates between the wire and the row any more.

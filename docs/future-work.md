@@ -361,6 +361,18 @@ Open: Whether the control can reach the lead slot at the `foldConfig()` call sit
 
 Blocked by: —  •  Interacts with: FW-184 (the AI payload shrinks with it), FW-148 (slot cards)
 
+#### FW-188 — Serialize `src(current)` on slot 1 too
+
+A slot 1 whose source is the current context is stored with no source (the control strips the restated default), while a slot 2 or later keeps an explicit `src(current)`, because an absent source there was the legacy flat-wire spelling of "carry the previous slot". Consider writing it on slot 1 as well, so every slot states its source.
+
+Detail home: this row (decided 2026-11-05 to leave slot 1 stripped; no plan)
+
+Progress: The asymmetry is the shipped behavior: `stripDefaultRoot()` in `slot-fold-control.js` strips at slot 1 only. The parser already accepts a hand-written `A:src(current)`, which the control strips back when the slot is touched.
+
+Open: Whether uniformity is worth the churn. `bws_fold_from_flat` emits an empty chain for an absent slot-1 source, so the migrator would emit `src(current)` for every converted slot A, which moves `fold-migration-test`, the chain fixed-point assertions, the serialization-order tests and the harvest/replay baseline. A base tag's `src` default cannot be serialized at all (GB writes named defaults into the string, so the plugin strips them at registration, `gb-constraints.md` §Option Default Serialization), so folded wire would be the only place that spells the default out. A bare `{{try_title}}` stays slotless either way.
+
+Blocked by: —  •  Interacts with: FW-184 (the AI hints teach what an absent source means)
+
 ### Feature follow-ups & UX
 
 #### FW-9 — Context-aware base tags — the deferred residue
