@@ -453,6 +453,8 @@ foreach ( array( 'email', 'phone' ) as $tag ) {
 foreach ( array( 'try_text', 'try_title', 'try_permalink', 'try_content', 'try_image' ) as $tag ) {
 	$own = bws_ai_syntax_hints_for( $tag );
 	assert_same( "{$tag}: a hint on the first attempt and on the later ones", true, isset( $own['A'], $own['B'] ) );
+	// A later attempt keeps the read before it on the three tags with a read axis, and only those.
+	assert_same( "{$tag}: the later-attempt hint says the read carries over, or says nothing of a read", in_array( $tag, array( 'try_text', 'try_content', 'try_image' ), true ), str_contains( $own['B'], 'unless it states its own use' ) );
 }
 foreach ( array_filter( BWS_AI_SYNTAX_UNHINTED_TAGS, fn( $t ) => str_starts_with( $t, 'try_' ) ) as $tag ) {
 	assert_same( "{$tag} receives no hint", array(), bws_ai_syntax_hints_for( $tag ) );

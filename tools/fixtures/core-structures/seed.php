@@ -433,6 +433,14 @@ foreach ( ( $manifest['attachments'] ?? array() ) as $slug => $def ) {
 	}
 }
 
+// A post's featured image (v42) is an attachment slug, applied here for the same reason as the
+// attachment parents above: attachments seed first, but this needs the post id. Converges on a re-seed.
+foreach ( $manifest['posts'] as $slug => $def ) {
+	if ( isset( $def['thumbnail'], $post_ids[ $slug ], $attachment_ids[ $def['thumbnail'] ] ) ) {
+		set_post_thumbnail( $post_ids[ $slug ], $attachment_ids[ $def['thumbnail'] ] );
+	}
+}
+
 foreach ( $manifest['post_terms'] as $slug => $terms ) {
 	if ( ! isset( $post_ids[ $slug ] ) ) {
 		continue;

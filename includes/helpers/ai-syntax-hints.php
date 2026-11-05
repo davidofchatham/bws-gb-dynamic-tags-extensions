@@ -42,14 +42,22 @@ const BWS_AI_SYNTAX_UNHINTED_TAGS = array(
 );
 
 /**
+ * The sentence on a later attempt's hint that says its read is the previous attempt's unless it states
+ * its own. Only the three tags with a read axis carry it; the harness pins that.
+ */
+const BWS_AI_SYNTAX_TRY_CARRY = ' It reads the way the attempt before did, unless it states its own use.';
+
+/**
  * The `try_*` slot hints, generated from one template so five tags cannot drift apart. A try_
  * tag registers its attempts as slot options `A` to `E`, each holding a source chain and, where
  * the tag has one, a read; there is no `src` option, so the chain is taught on `A` and the
  * attempts after it on `B`.
  *
  * Per tag: `site` says what `src(site)` reads there (null when it reads nothing, as on content),
- * `read` is the read every attempt must state, if any (a bare attempt on text or image is a field
- * read, which renders empty), `example` is one rendered chain, and `later` one with three attempts for the hint on `B`.
+ * `read` is what attempt A must state of its read, if anything (a bare attempt on text or image is a field
+ * read, which renders empty; on content it is the full content), `carry` says a later attempt keeps the read
+ * before it (absent on title and permalink, which have no read), `example` is one rendered chain, and `later`
+ * one with three attempts for the hint on `B`.
  *
  * @since Unreleased
  * @return array<string,array<string,string>>
@@ -58,7 +66,8 @@ function bws_ai_syntax_try_hints(): array {
 	$tags = array(
 		'try_text'      => array(
 			'site'    => 'the site name',
-			'read'    => ';use(title), needed in every attempt',
+			'read'    => ';use(title), needed in attempt A',
+			'carry'   => BWS_AI_SYNTAX_TRY_CARRY,
 			'example' => '{{try_text A:src(refs,related_posts);use(title)|B:src(site);use(title)}}',
 			'later'   => '{{try_text A:use(title)|B:src(parent);use(title)|C:src(site);use(title)}}',
 		),
@@ -76,13 +85,15 @@ function bws_ai_syntax_try_hints(): array {
 		),
 		'try_content'   => array(
 			'site'    => null,
-			'read'    => ';use(content) or ;use(excerpt), needed in every attempt',
+			'read'    => ';use(excerpt), or no use for the full content',
+			'carry'   => BWS_AI_SYNTAX_TRY_CARRY,
 			'example' => '{{try_content A:src(refs,related_posts);use(excerpt)|B:src(current);use(excerpt)}}',
-			'later'   => '{{try_content A:src(refs,related_posts);use(content)|B:src(parent);use(content)|C:src(current);use(content)}}',
+			'later'   => '{{try_content A:src(refs,related_posts)|B:src(parent)|C:src(current)}}',
 		),
 		'try_image'     => array(
 			'site'    => 'the site logo',
-			'read'    => ';use(featured), needed in every attempt',
+			'read'    => ';use(featured), needed in attempt A',
+			'carry'   => BWS_AI_SYNTAX_TRY_CARRY,
 			'example' => '{{try_image A:use(featured)|B:src(parent);use(featured)}}',
 			'later'   => '{{try_image A:use(featured)|B:src(parent);use(featured)|C:src(site);use(featured)}}',
 		),
@@ -97,7 +108,7 @@ function bws_ai_syntax_try_hints(): array {
 		) );
 		$out[ $tag ] = array(
 			'A' => 'Attempts A to E, joined with the | character; the first with a result wins. An attempt is src(...)' . $t['read'] . '. No src means the current context: ' . implode( ', ', $sources ) . '. Example: ' . $t['example'],
-			'B' => 'The next attempt, tried only when the one before gives nothing; C, D and E add more. Write its source out, because an attempt with nothing in it is skipped. Example: ' . $t['later'],
+			'B' => 'The next attempt, tried only when the one before gives nothing; C, D and E add more. Write its source out, because an attempt with nothing in it is skipped.' . ( $t['carry'] ?? '' ) . ' Example: ' . $t['later'],
 		);
 	}
 	return $out;

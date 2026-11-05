@@ -15,7 +15,7 @@
 
 return array(
 	'blueprint' => 'core-structures',
-	'version'   => 41, // 41: CORE-BLOCK KINDS, `core/freeform` leaves the built-in map and the settings baseline's `core_blocks` — the editor never saves a Classic block with `<!-- wp:freeform -->` delimiters (measured in the block editor 2026-11-02), so editor-made Classic content parses with no block name and no setting reaches it. `matrix-core-blocks` loses CB7.29, CB7.32 and CB7.35 (the delimited form); CB7.36 and CB7.37 (undelimited, printed literally) stay as the control (core-block-test-matrix.md N4). The page's snapshot moves, no other page's.
+	'version'   => 42, // 42: FEATURED-IMAGE pair (try_ hint ticket 06) — `page-matrix-featured` carries the seeded `fixture-photo` as its featured image (new `thumbnail` manifest key, an attachment slug) and `page-matrix-featured-child` is its child with none, so `use(featured)` has a value to read on a page, on its parent, and nowhere (the child alone). Before this no seeded post had a featured image, so every `use(featured)` row could only render empty and a bare-versus-stated `use` could not be told apart for `try_image`. Neither page carries a builder, so neither is a snapshot page. Additive; no existing row names either. 41: CORE-BLOCK KINDS, `core/freeform` leaves the built-in map and the settings baseline's `core_blocks` — the editor never saves a Classic block with `<!-- wp:freeform -->` delimiters (measured in the block editor 2026-11-02), so editor-made Classic content parses with no block name and no setting reaches it. `matrix-core-blocks` loses CB7.29, CB7.32 and CB7.35 (the delimited form); CB7.36 and CB7.37 (undelimited, printed literally) stay as the control (core-block-test-matrix.md N4). The page's snapshot moves, no other page's.
 	                   // 40: CORE-BLOCK KINDS, container / unrestricted / navigation-link / freeform — the settings baseline `core_blocks` gains `core/group`, `core/html`, `core/navigation-link` and `core/freeform`, and `matrix-core-blocks` gains CB7.24 onward (a group around a not-enabled core/image and around an enabled paragraph, core/html, navigation-link inside core/navigation, the Classic block in both stored forms). No new entity; the page's snapshot moves, no other page's (core-block-test-matrix.md CB7).
 	                   // 39: CORE-BLOCK KINDS, text-holding blocks — the settings baseline `core_blocks` gains `core/verse`, `core/preformatted`, `core/code`, `core/pullquote`, `core/details`, `core/file` and `core/read-more`, and `matrix-core-blocks` gains CB7 (the text, content and table tags in each, the link wrap in file and read-more); the unselected controls CB1.6, CB1.7 and the CB6.4 survey row move from verse/preformatted to `core/image` (the tag in its caption). No new entity; the page's snapshot moves, no other page's (core-block-test-matrix.md CB7).
 	                   // 38: the blueprint's OWN `access_tier` taxonomy and its one `All Users` term, on jane, tom and `matrix-post-meta` (FW-145). The rows that hop `terms` off a ref'd post had read a taxonomy owned by a co-resident plugin, which the plugin then replaced; the rows now read this one, under a name of their own, and every `portal_visibility` in a row or matrix became `access_tier`. No rendered value is meant to move except the rows that went empty when the old taxonomy vanished.
@@ -508,6 +508,22 @@ return array(
 			'post_title'      => 'Matrix: Parent (leaf)',
 			'post_parent'     => 'page-matrix-parent-mid',
 			'content_builder' => 'matrix_parent_leaf',
+		),
+
+		// The FEATURED-IMAGE pair (v42). `thumbnail` is an attachment slug, applied after posts exist.
+		// The child holds no featured image of its own, so a read on it is empty and a read through
+		// `src(parent)` is the parent's. Builder-less, so neither is a snapshot page.
+		'page-matrix-featured' => array(
+			'post_type'  => 'page',
+			'post_name'  => 'matrix-featured',
+			'post_title' => 'Matrix: Featured (parent)',
+			'thumbnail'  => 'fixture-photo',
+		),
+		'page-matrix-featured-child' => array(
+			'post_type'   => 'page',
+			'post_name'   => 'matrix-featured-child',
+			'post_title'  => 'Matrix: Featured (child)',
+			'post_parent' => 'page-matrix-featured',
 		),
 
 		// The QUERY LOOP corpus page (v16, §QL). The only fixture page whose loops

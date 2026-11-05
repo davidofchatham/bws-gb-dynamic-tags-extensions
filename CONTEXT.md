@@ -215,7 +215,7 @@ Enforced at: `bws_fold_chain_root()` / `bws_fold_chain_to_steps()` PHPDoc (slot-
 
 ## I15 — An ambient read must be SPELLED, never reached by fallback
 
-The ambient entity is what a bare tag resolves, so "ambient" is a legitimate answer — but only where the wire *says* so. At slot 1 and on a base tag an **absent** source spells it: absence there has no competing meaning, and `defaultRoot`/`stripDefaultRoot` make it the displayed default. At **slot ≥2** absence means **carry-over**, so ambient is not a default the slot can fall back to. It has to be stated (`src:current`) or carried from something that stated it.
+The ambient entity is what a bare tag resolves, so "ambient" is a legitimate answer — but only where the wire *says* so. An **absent** source spells it, at every ordinal, and `defaultRoot` makes it the displayed default. Only an explicit `same` carries the previous slot's source, and a slot ≥2 may state `src:current` to be explicit (`stripDefaultRoot` leaves it there). What the rule forbids is below: a source the wire NAMES but cannot resolve.
 
 **Rule:** a slot that cannot resolve the source its wire names says NOTHING. It never degrades to the ambient entity. The failure mode this forbids is specific and worth naming: an ambient fallback returns a *plausible value from the wrong entity*, which is strictly worse than empty because nothing looks broken — and in a selecting container an ambient read that succeeds *stops the fallback chain*, so later attempts never run.
 
