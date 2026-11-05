@@ -75,14 +75,16 @@ function bws_register_base_tags(): void {
 	// =========================================================
 
 	bws_gb_register_tag( array(
-		'title'    => __( 'Text Fields', 'generateblocks' ),
-		'tag'      => 'text',
-		'type'     => 'cross-source',
-		'supports' => array(),
+		'title'       => __( 'Text Fields', 'generateblocks' ),
+		'tag'         => 'text',
+		'type'        => 'cross-source',
+		'supports'    => array(),
+		// The picker text mirrors the README tag overview's "Description" cell (tag-description-test.php pins it).
+		'description' => __( 'Get text from a meta or option field, fixed text, or any title or name the Title/Name tag can return.', 'generateblocks' ),
 		// Canonical CONTROL order: source → format → link → fallback (no format group).
 		// Within source: src → ref → srcTermIn → sep → use → key (sep first: list length
 		// is a source property). A stored `limit` ranks before sep (serialization-order.php).
-		'options'  => bws_prepare_registration_options( array_merge(
+		'options'     => bws_prepare_registration_options( array_merge(
 			$source_opt,
 			$traversal_opts,
 			array(
@@ -128,7 +130,7 @@ function bws_register_base_tags(): void {
 				),
 			)
 		) ),
-		'return'   => 'bws_base_text_callback',
+		'return'      => 'bws_base_text_callback',
 	) );
 
 	// =========================================================
@@ -136,14 +138,14 @@ function bws_register_base_tags(): void {
 	// =========================================================
 
 	bws_gb_register_tag( array(
-		'title'    => __( 'Content', 'generateblocks' ),
-		'tag'      => 'content',
-		'type'     => 'cross-source',
-		'supports' => array(),
-		// Help text in the tag selector / modal. Like {{table}}, the output is block-level
-		// markup (post content is wpautop'd), so the host element must be a block container.
-		'description' => __( 'Outputs post content or excerpt, term description, a rich-text meta field, user bio, post type description, or GeneratePress\'s 404 text, as block-level markup. Place it in a <div> or other block container, not inside a <p> or <span>.', 'generateblocks' ),
-		'options'  => bws_prepare_registration_options( array_merge(
+		'title'       => __( 'Content', 'generateblocks' ),
+		'tag'         => 'content',
+		'type'        => 'cross-source',
+		'supports'    => array(),
+		// Like {{table}}, the output is block-level markup, so the host element must be a block
+		// container. The description spells angle brackets out (tag-description-test.php owns why).
+		'description' => __( 'Get post content or excerpt, term description, a rich-text meta field, user bio, post type description, or GeneratePress\'s 404 text. Always prints block-level markup, so put it in a div or other block container.', 'generateblocks' ),
+		'options'     => bws_prepare_registration_options( array_merge(
 			$source_opt_fu,
 			$traversal_opts,
 			$fan_advisory,
@@ -167,7 +169,7 @@ function bws_register_base_tags(): void {
 				),
 			)
 		) ),
-		'return'   => 'bws_base_content_callback',
+		'return'      => 'bws_base_content_callback',
 	) );
 
 	// =========================================================
@@ -175,11 +177,12 @@ function bws_register_base_tags(): void {
 	// =========================================================
 
 	bws_gb_register_tag( array(
-		'title'    => __( 'Title/Name', 'generateblocks' ),
-		'tag'      => 'title',
-		'type'     => 'cross-source',
-		'supports' => array(),
-		'options'  => bws_prepare_registration_options( array_merge(
+		'title'       => __( 'Title/Name', 'generateblocks' ),
+		'tag'         => 'title',
+		'type'        => 'cross-source',
+		'supports'    => array(),
+		'description' => __( 'Get a post title, term name, user name, archive label, search or 404 heading, or the site name.', 'generateblocks' ),
+		'options'     => bws_prepare_registration_options( array_merge(
 			$source_opt,
 			$traversal_opts,
 			array(
@@ -194,7 +197,7 @@ function bws_register_base_tags(): void {
 			),
 			function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array()
 		) ),
-		'return'   => 'bws_base_title_callback',
+		'return'      => 'bws_base_title_callback',
 	) );
 
 	// =========================================================
@@ -202,18 +205,19 @@ function bws_register_base_tags(): void {
 	// =========================================================
 
 	bws_gb_register_tag( array(
-		'title'    => __( 'Permalink', 'generateblocks' ),
-		'tag'      => 'permalink',
-		'type'     => 'cross-source',
-		'supports' => array(),
+		'title'       => __( 'Permalink', 'generateblocks' ),
+		'tag'         => 'permalink',
+		'type'        => 'cross-source',
+		'supports'    => array(),
+		'description' => __( 'Get the link to a post or term, or to the site.', 'generateblocks' ),
 		// No `key`: permalink is the entity's own URL. {{permalink src:site}} → home_url();
 		// URL-valued options via {{text src:site|key:...}}.
-		'options'  => bws_prepare_registration_options( array_merge(
+		'options'     => bws_prepare_registration_options( array_merge(
 			$source_opt_fu,
 			$traversal_opts,
 			$fan_advisory
 		) ),
-		'return'   => 'bws_base_permalink_callback',
+		'return'      => 'bws_base_permalink_callback',
 	) );
 
 	// =========================================================
@@ -224,13 +228,14 @@ function bws_register_base_tags(): void {
 	// =========================================================
 
 	bws_gb_register_tag( array(
-		'title'    => __( 'Image', 'generateblocks' ),
-		'tag'      => 'image',
-		'type'     => 'cross-source',
-		'supports' => array(),
+		'title'       => __( 'Image', 'generateblocks' ),
+		'tag'         => 'image',
+		'type'        => 'cross-source',
+		'supports'    => array(),
+		'description' => __( 'Get an image from a meta or option field, the post featured image, or the site logo, with full return options (URL, alt text, etc.) and a fallback image picker.', 'generateblocks' ),
 		// Canonical CONTROL order: source → format → link(none) → fallback. `as` is FORMAT:
 		// control-LATE, serialize-EARLY (the normalizer lifts it to the front).
-		'options'  => bws_prepare_registration_options( array_merge(
+		'options'     => bws_prepare_registration_options( array_merge(
 			$source_opt_fu,
 			$traversal_opts,
 			$fan_advisory,
@@ -270,7 +275,7 @@ function bws_register_base_tags(): void {
 				),
 			)
 		) ),
-		'return'   => 'bws_base_image_callback',
+		'return'      => 'bws_base_image_callback',
 	) );
 
 	// =========================================================
@@ -278,12 +283,13 @@ function bws_register_base_tags(): void {
 	// =========================================================
 
 	bws_gb_register_tag( array(
-		'title'    => __( 'Date/Time', 'generateblocks' ),
-		'tag'      => 'datetime_single',
-		'type'     => 'cross-source',
-		'supports' => array(),
-		'options'  => bws_prepare_registration_options( bws_get_base_datetime_single_options() ),
-		'return'   => 'bws_base_datetime_single_callback',
+		'title'       => __( 'Date/Time', 'generateblocks' ),
+		'tag'         => 'datetime_single',
+		'type'        => 'cross-source',
+		'supports'    => array(),
+		'description' => __( 'Format a date and time from a combined field or from separate date and time fields. By default it hides midnight times and the current year. Sources with several results can show a list of dates.', 'generateblocks' ),
+		'options'     => bws_prepare_registration_options( bws_get_base_datetime_single_options() ),
+		'return'      => 'bws_base_datetime_single_callback',
 	) );
 
 	// =========================================================
@@ -291,12 +297,13 @@ function bws_register_base_tags(): void {
 	// =========================================================
 
 	bws_gb_register_tag( array(
-		'title'    => __( 'Date/Time Range', 'generateblocks' ),
-		'tag'      => 'datetime_range',
-		'type'     => 'cross-source',
-		'supports' => array(),
-		'options'  => bws_prepare_registration_options( bws_get_base_datetime_range_options() ),
-		'return'   => 'bws_base_datetime_range_callback',
+		'title'       => __( 'Date/Time Range', 'generateblocks' ),
+		'tag'         => 'datetime_range',
+		'type'        => 'cross-source',
+		'supports'    => array(),
+		'description' => __( 'Format a date and time range from separate start and end fields, like the Date/Time tag does. In a list of ranges, the result separator goes between whole ranges and the range separator between each start and end.', 'generateblocks' ),
+		'options'     => bws_prepare_registration_options( bws_get_base_datetime_range_options() ),
+		'return'      => 'bws_base_datetime_range_callback',
 	) );
 
 	// =========================================================
@@ -305,12 +312,13 @@ function bws_register_base_tags(): void {
 	// =========================================================
 
 	bws_gb_register_tag( array(
-		'title'    => __( 'Join Fields', 'generateblocks' ),
-		'tag'      => 'join',
-		'type'     => 'cross-source',
-		'supports' => array(),
-		'options'  => bws_prepare_registration_options( bws_get_join_options() ),
-		'return'   => 'bws_join_callback',
+		'title'       => __( 'Join Fields', 'generateblocks' ),
+		'tag'         => 'join',
+		'type'        => 'cross-source',
+		'supports'    => array(),
+		'description' => __( 'Combine up to 10 text fields (meta or option, fixed text, and title or name) into one string, by separator or format template.', 'generateblocks' ),
+		'options'     => bws_prepare_registration_options( bws_get_join_options() ),
+		'return'      => 'bws_join_callback',
 	) );
 
 	// =========================================================

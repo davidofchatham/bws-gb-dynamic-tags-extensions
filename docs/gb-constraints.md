@@ -487,6 +487,14 @@ What follows from it:
 
 Where it meets ours: [`post-content-processing-reference.md`](post-content-processing-reference.md) §Cross-post inline CSS handling.
 
+## The editor receives every tag definition whole, and shows only its `description` (GB 2.5.0, WP 7.1.4)
+
+Measured 2026-11-03 on the fixture site, in the block editor on a page that holds GB blocks, by reading `window.generateBlocksEditor.dynamicTags`: 77 tags, 342,088 bytes serialized, and no `return` key on any of them. The keys our registrations add to an option (`fold`, `_group`, `_group_lead`) are all present. So whatever a registration carries, a string on a tag or on one of its options included, is sent to every editor load. Read in `includes/general.php:278-308`: the list is `GenerateBlocks_Register_Dynamic_Tag::get_tags()` with `return` unset from each entry; the registry constructor (`class-register-dynamic-tag.php`) stores the array it is given, defaulting only `type` and `supports`.
+
+What the editor does with a definition, read in the built `text` block bundle (the same "Select a dynamic tag" control is in the `element`, `loop-item` and `media` bundles): the tag picker passes `help: se?.description`, where `se` is the selected tag's definition, so the description shows under the picker once a tag is chosen and nowhere else in that bundle. It is a React `help` prop, so it is plain text: a literal `<div>` in a description displays as the characters (seen in the picker on the fixture site, 2026-11-03). The generic option renderer destructures only `type`, `label`, `help`, `options` and `placeholder` from an option and builds the control's props from those, so any other key on an option is carried in the payload and ignored by GB's own controls; an option whose `type` GB does not know is handed on through the `generateblocks.editor.tagSpecificControls` filter.
+
+Not checked: `dist/editor.js` and `dist/blocks.js` were searched for a use of a tag's `description` and none was found, but they are minified and the search was a pattern match.
+
 ## Upstream-documented affordances
 
 Pulled from the [upstream registration doc](https://learn.generatepress.com/developer-doc/dynamic-tag-registration/). Facts here are GB-owned API surface — if upstream changes, that doc wins. Listed here as known extension points; most are not exercised in this plugin (the exception is `visibility`, first used by `{{email}}` in 1.9.0 — see below).

@@ -4,6 +4,21 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Highlights
+
+- Every tag now has a short description in the tag picker, so you can see what it does before you pick it. *(Added)*
+
+### Added
+
+- **A description for every tag.** Once you select a tag in the picker, GenerateBlocks shows a plain-English line under it.
+  - **Base tags.** `text`, `title`, `permalink`, `content`, `image`, `datetime_single`, `datetime_range`, `email`, `phone`, `join`, `table` and `call` each say what they return. The `content` and `table` lines say "a div or other block container" in words, because a description is plain text and cannot hold angle brackets. The README tag overview's "Description" column carries the same wording.
+  - **`try_*` tags.** Each of the nine opens with one line saying it tries several sources in order and returns the first one that produces a result, followed by its base tag's description.
+- **Syntax hints for GeneratePress AI.** When GeneratePress AI is active, the source and link options of our tags, `{{text}}`'s Text Field option, `{{content}}`'s and `{{image}}`'s Use option, the typed address of `{{email}}` and `{{phone}}`, `{{table}}`'s row source and first column, and the attempts of `{{try_text}}`, `{{try_title}}`, `{{try_permalink}}`, `{{try_content}}` and `{{try_image}}` carry a short note with working examples, so agents can write our custom option syntax without guessing. Following GeneratePress AI policy, meta/option field syntax is not hinted.
+
+### Fixed
+
+- **An attempt or slot with no source now shows "Current Context" in the editor, not "Same as Previous Source".** On a `try_` tag or `{{join}}`, a second or later slot with no `src` has always read the current context when rendered; only the editor's label said otherwise. Tags saved from the editor carry an explicit source already, so this shows mostly on hand-written tags and tags written by an AI. Nothing about how tags render changes, and no saved tag changes.
+
 ## [1.24.0] — 2026-11-03
 
 ### Highlights

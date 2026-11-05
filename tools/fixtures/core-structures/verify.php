@@ -141,6 +141,16 @@ $check(
 		. ' support=' . ( $term ? var_export( get_term_meta( $term->term_id, 'blurb', true ), true ) : 'no term' )
 );
 
+// Featured-image pair (v42): the parent holds the fixture photo as its thumbnail, the child holds none.
+$feat_parent = get_page_by_path( 'matrix-featured' );
+$feat_child  = get_page_by_path( 'matrix-featured/matrix-featured-child' );
+$feat_att    = get_posts( array( 'post_type' => 'attachment', 'post_status' => 'any', 'numberposts' => 1, 'meta_key' => '_bws_fixture_slug', 'meta_value' => 'fixture-photo', 'fields' => 'ids' ) );
+$check(
+	'matrix-featured has the fixture photo as its featured image; its child has none and is its child',
+	$feat_parent && $feat_child && ! empty( $feat_att ) && (int) get_post_thumbnail_id( $feat_parent->ID ) === (int) $feat_att[0] && 0 === (int) get_post_thumbnail_id( $feat_child->ID ) && (int) $feat_child->post_parent === (int) $feat_parent->ID,
+	'parent=' . ( $feat_parent ? (int) get_post_thumbnail_id( $feat_parent->ID ) : 'missing' ) . ' child=' . ( $feat_child ? (int) get_post_thumbnail_id( $feat_child->ID ) : 'missing' )
+);
+
 // Author image corpus (v29, #144): every user field holds the SAME seeded attachment id, so the
 // four rows that read them (text matrix T8.13-T8.16) can only differ by the read, never the data.
 $author_user = get_user_by( 'login', 'fixture-author' );

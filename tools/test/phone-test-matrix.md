@@ -32,6 +32,8 @@
 | R1.4 | `07911 123456` | (empty) | `{{phone key:uk_mobile}}` | href `tel:07911-123456` (**national, trunk 0 KEPT**, no `+`) |
 | R1.5 | `9876543210` | (empty) | `{{phone key:sms_number}}` | href `tel:9876543210` (national, no `+`) |
 
+The `phone` picker description (mirrored from the README tag overview) makes two claims, and these rows are what hold them: link text shows the number as entered (R0.1, R0.4, R3.1, R4.1), and the default country code is added only to numbers with no international prefix (R1.1, R1.2, R1.3, R1.5). Both measured on the testbed 2026-11-04 with country code `1` via `render-tag`: `(987) 654-3210`, `9876543210`, `+1 987 654 3210`, `0011 22 3333`, `07911 123456` and `555-867-5309 x99` each print as stored inside the anchor, and only the first, second, fifth and sixth gain `+1` in the href.
+
 ## R2 — separated-CC dedupe (VP-cc-dedupe) — global CC `1`
 
 Author SEPARATED the CC (any non-digit: space/paren/dot/hyphen). Auto-detected, **flag-agnostic** — strip setting makes no difference. No double prefix.

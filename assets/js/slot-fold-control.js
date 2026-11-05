@@ -111,11 +111,11 @@
 			srcRows: c.srcRows || [],
 			srcRowsWithSame: c.srcRowsWithSame || [],
 			// The root an absent source spells. On a base tag that is the tag's ambient
-			// entity; on a SLOT it is slot 1's `current` (a slot ≥2 spells its absence
-			// `same`, which chainSteps holds rather than reading from here). Both are
-			// derived from the row their own enum leads with, so neither can disagree
-			// with the list the author picks from. See bws_build_src_chain_option() /
-			// bws_build_fold_slot_options().
+			// entity; on a SLOT it is `current`, at every ordinal: the renderer resolves an
+			// absent source against the ambient entity, and only an explicit `same` carries
+			// the previous slot's. Both are derived from the row their own enum leads with,
+			// so neither can disagree with the list the author picks from. See
+			// bws_build_src_chain_option() / bws_build_fold_slot_options().
 			defaultRoot: c.defaultRoot || '',
 			// The read-axis twin of defaultRoot: what slot 1's read spells when absent.
 			// See bws_build_fold_slot_options().
@@ -542,9 +542,11 @@
 	}
 
 	/**
-	 * Whether slot n's empty source means "the previous slot's" (`same`) rather than the
-	 * container's default root. A TABLE column never does: its columns hang off the row, and
-	 * "Copy Previous Column's Source" copies a chain instead of pointing at a sibling.
+	 * Whether slot n may carry the previous slot's source (`same`): its first menu offers
+	 * `same`, a new slot is seeded with it, and emptying the chain writes it back. An ABSENT
+	 * source is not `same`; it resolves to the container's default root. A TABLE column never
+	 * carries: its columns hang off the row, and "Copy Previous Column's Source" copies a
+	 * chain instead of pointing at a sibling.
 	 */
 	function carriesOver( ordinal, conf ) {
 		return ordinal >= 2 && ! hangsOffParent( conf );
@@ -849,7 +851,9 @@
 	 *                                        True for a slot ≥2 (losing a carry-over to
 	 *                                        a step deletion is a silent meaning
 	 *                                        change); false where empty legitimately
-	 *                                        means the ambient entity.
+	 *                                        means the ambient entity. It governs what
+	 *                                        a commit WRITES, never what an already
+	 *                                        absent chain DISPLAYS (the default root).
 	 * @param {string}   props.slotNoun       The container's registered unit noun.
 	 * @param {Object}   props.stepContext     fn( step, commit ) — field-picker bridge.
 	 * @param {Array}    props.parentChain     The chain an `inherit` root continues (a table
@@ -867,18 +871,25 @@
 
 		// DISPLAY the root that absence spells, rather than rendering an empty picker.
 		// A SelectControl whose value is `''` matches no row, so the browser paints the
-		// first one — "Current Context" on slot 1, "Same as Previous Source" on slot ≥2 — while
-		// the control believes nothing is selected. The row on screen then cannot be
-		// chosen (selecting the displayed value fires no change event), and with no step
+		// first one ("Same as Previous Source" on slot ≥2, which is NOT what an absent
+		// source means there) while the control believes nothing is selected. The row on
+		// screen then cannot be chosen (selecting the displayed value fires no change
+		// event), and with no step
 		// in hand there is nothing for `+ Add step` to append to, so it never appears.
 		// Same defect the base-tag control carried, same fix; it lives HERE now so both
 		// callers get it from one place.
+		//
+		// What absence spells is the same at every ordinal: the renderer resolves a bare
+		// empty chain against the ambient entity, a RESET and not a carry-over (only an
+		// explicit `same` carries). So a slot ≥2 shows the default root too. Legacy flat
+		// wire read an absent source there as `same`; migration writes that out as an
+		// explicit `src(same)`, so absence never means carry-over on folded wire.
 		//
 		// Display only: the phantom step is never written. A commit that would restate
 		// slot 1's default root is stripped back to absence at the caller, so the wire
 		// is byte-identical to what an untouched slot already serializes.
 		if ( ! chain.length ) {
-			var implied = props.sameOnEmpty ? 'same' : ( conf.defaultRoot || '' );
+			var implied = conf.defaultRoot || '';
 			if ( implied ) {
 				chain = [ step( implied ) ];
 			}

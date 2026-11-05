@@ -64,9 +64,9 @@ function bws_register_table_tag(): void {
 		'tag'         => 'table',
 		'type'        => 'cross-source',
 		'supports'    => array(),
-		// Help text in the tag selector / modal. text-as-div host: the output is a
-		// full <table> block, so the containing element must be a block container.
-		'description' => __( 'Builds a table from repeater rows, related posts, terms or the current context. Outputs a full <table>, so place it in a <div> or other block container, not inside a <p> or <span>.', 'generateblocks' ),
+		// text-as-div host: the output is a full table block, so the containing element must be
+		// a block container. The description spells angle brackets out (tag-description-test.php owns why).
+		'description' => __( 'Build a complete HTML table: one row per repeater row, related post, or term, with up to 10 columns. Always prints block-level markup, so put it in a div or other block container.', 'generateblocks' ),
 		'options'     => bws_get_table_options(),
 		'return'      => 'bws_table_callback',
 		// EXPLICITLY FALSE, never defaulted. {{table}} registers no modifier-template
