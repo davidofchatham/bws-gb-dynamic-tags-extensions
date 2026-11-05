@@ -355,11 +355,11 @@ Every slot option of a tag carries a byte-identical copy of the tag's `fold` con
 
 Detail home: this row (measured 2026-11-03; no plan yet)
 
-Progress: Measured 2026-11-03: 270 KB of our 299 KB of option data is `fold`; within each of the 11 tags the copies are identical (5 to 10 each), so dropping the non-lead copies removes about 204 KB. The reader is `foldConfig()` at `assets/js/slot-fold-control.js:101`; `slot-fold-migrate.js` and `table-style-preview.js` already read `fold` from the lead slot. Not started.
+Progress: Measured 2026-11-03 (rerun with `tools/debug/registry-payload-bloat.php`): 270 KB of our 299 KB of option data is `fold`; within each of the 11 tags the copies are identical (5 to 10 each), so dropping the non-lead copies removes about 204 KB. The reader is `foldConfig()` at `assets/js/slot-fold-control.js:101`; `slot-fold-migrate.js` and `table-style-preview.js` already read `fold` from the lead slot. Not started.
 
 Open: Whether the control can reach the lead slot at the `foldConfig()` call sites. Whether the near-identical blobs across tags (11 distinct, about 39 KB) are worth a shared reference table. The harness set is the folded-slot control and registration trigger rows.
 
-Blocked by: —  •  Interacts with: FW-184 (the AI payload shrinks with it), FW-148 (slot cards)
+Blocked by: —  •  Interacts with: FW-184 (closed; the AI payload shrinks with it), FW-148 (slot cards)
 
 #### FW-188 — Serialize `src(current)` on slot 1 too
 
@@ -371,7 +371,7 @@ Progress: The asymmetry is the shipped behavior: `stripDefaultRoot()` in `slot-f
 
 Open: Whether uniformity is worth the churn. `bws_fold_from_flat` emits an empty chain for an absent slot-1 source, so the migrator would emit `src(current)` for every converted slot A, which moves `fold-migration-test`, the chain fixed-point assertions, the serialization-order tests and the harvest/replay baseline. A base tag's `src` default cannot be serialized at all (GB writes named defaults into the string, so the plugin strips them at registration, `gb-constraints.md` §Option Default Serialization), so folded wire would be the only place that spells the default out. A bare `{{try_title}}` stays slotless either way.
 
-Blocked by: —  •  Interacts with: FW-184 (the AI hints teach what an absent source means)
+Blocked by: —  •  Interacts with: FW-184 (closed; the AI hints teach what an absent source means)
 
 ### Feature follow-ups & UX
 
@@ -419,7 +419,7 @@ Detail home: `.scratch/plans/phone-tag-future.md`
 
 Progress: Not started. The registered `phone` description, mirrored from the README tag overview's "Description" cell, says link text shows the number as entered. That holds today (measured 2026-11-04 on the testbed, matrix rows R0 to R4), so a display format must reword that sentence in both places; `tools/test/tag-description-test.php` holds the two equal.
 
-Blocked by: —  •  Interacts with: FW-184 (the phone description states the display rule)
+Blocked by: —  •  Interacts with: FW-184 (closed; the phone description states the display rule)
 
 #### FW-16 — {{call}} v2 ergonomics cluster
 
@@ -591,7 +591,7 @@ Progress: DESIGNED. First grilled 2026-09-04 and deferred behind `{{table}}`; re
 
 Open: The migration is a bridge, not a permanent parse. The release ships a read-time parse (join's carry kept unfed, so a stranded `src(same)` keeps skipping) and a converter entry over `post_content` that writes every carried axis into the slot using it. The parse is deleted once the converter's count of legacy `{{join}}` wire reaches zero per site, which the converter's block-widget reach no longer holds up; stores the converter cannot reach rest on FW-128's report or the author. Before building, measure in the testbed what a join in a GB attribute substitution does with a typography span. When it builds, revisit the GeneratePress AI `aiSyntax` hint for `{{join}}` (none today; the tag-level `src` makes the placement consistent with `{{table}}`, but the key-free limitation stays, so whether to hint at all is still open; see the plan's revisit section).
 
-Blocked by: —  •  Interacts with: FW-184 (the `aiSyntax` hints, which cover `{{table}}` and wait on this for `{{join}}`), FW-53 (closed; `src(inherit)`, the text-key grammar and the analog dispatcher this promotes all ship there), FW-128 (the unreachable stores), FW-106 (the parse half of the same re-derivation; whether its parse-once record also carries the resolved-source BINDING is FW-106's own scope call), FW-71 (closed), FW-168 (`{{join}}` slots carry type tokens), FW-171 (the per-slot typography gains the same Font Size field), FW-122 (copy-on-select retires `{{join}}`'s sibling carry)
+Blocked by: —  •  Interacts with: FW-184 (closed; the `aiSyntax` hints, which cover `{{table}}` and wait on this for `{{join}}`), FW-53 (closed; `src(inherit)`, the text-key grammar and the analog dispatcher this promotes all ship there), FW-128 (the unreachable stores), FW-106 (the parse half of the same re-derivation; whether its parse-once record also carries the resolved-source BINDING is FW-106's own scope call), FW-71 (closed), FW-168 (`{{join}}` slots carry type tokens), FW-171 (the per-slot typography gains the same Font Size field), FW-122 (copy-on-select retires `{{join}}`'s sibling carry)
 
 #### FW-128 — A multi-purpose content scanner: one walk, several reports
 
@@ -845,18 +845,6 @@ Open: Whether the survey should also read the comment attributes (all of them, o
 
 Blocked by: —  •  Interacts with: FW-73 (closed; the located walk the survey shares), FW-128 (a tags-in-use report would count these too)
 
-#### FW-184 — Descriptions for every tag, and syntax hints for GeneratePress AI
-
-GeneratePress AI lists our tags to its AI client already, but 19 of our 21 tags had no description and the two that did lose their angle brackets to its sanitizer. Write a plain description for every tag (GB shows it under the tag picker too) and add an `aiSyntax` hint to the lead options, only when GeneratePress AI is active.
-
-Detail home: `.scratch/gpai-exposure/spec.md`; the plugin's own facts are in the shared reference's GeneratePress AI file
-
-Progress: Built on branch `gpai-hints`, PR pending. Measured 2026-11-05 on the testbed (GPAI 1.0.0, GB 2.5.0, GB Pro 2.8.0): all 21 of our tags (12 base, 9 `try_`) register a description that `sanitize_text_field()` returns unchanged and that arrives unchanged over an MCP STDIO round trip; with GeneratePress AI active 26 options on 13 tags carry `aiSyntax`, 6,651 bytes against the roughly 15 KB budget; inactive, no definition carries one and the registry differs from the previous build by the 21 `description` keys alone (3,984 bytes, same tag and option order), with 28 of 28 page snapshots unchanged. The GeneratePress AI list is 353,746 bytes active and 346,731 with the hints stripped (the 341 KB baseline was measured 2026-11-03 and not re-run on the previous build; the registry delta for descriptions alone is the 3,984 bytes above). `join` is unhinted until its rebuild (FW-120); the two `datetime` tags, `call`, `try_email` and `try_phone` are unhinted by design.
-
-Open: Whether the hints prove too thin in use, in which case our own MCP tool (deferred; prototype measured, works) is the next channel. The `join` hint, with FW-120.
-
-Blocked by: —  •  Interacts with: FW-185 (what the hints may name), FW-186 (the payload they ride in)
-
 #### FW-187 — One tag order and one set of tag labels, across the README, the picker, and the registrations
 
 The same twelve base tags are listed in three different orders (the README tag overview, the registration code, and the `tag-reference.md` Catalog), and their picker labels were never reviewed as a set. Choose one order and one label set, then make every surface follow it.
@@ -867,7 +855,7 @@ Progress: The README tag overview was reordered by hand on 2026-11-03, during th
 
 Open: Which order is canonical. Whether GB's picker follows registration order or sorts (not measured). Whether any label should change (for example 'Text Fields' for a tag that also reads titles and fixed text). What a label rename touches beyond the descriptions: previews, migration output, the Catalog's "Tag title" column, the testbed's "group rows in Catalog order" rule.
 
-Blocked by: —  •  Interacts with: FW-184 (descriptions mirror the README cells and quote two labels)
+Blocked by: —  •  Interacts with: FW-184 (closed; descriptions mirror the README cells and quote two labels)
 
 ### Testing & infrastructure
 
@@ -1461,7 +1449,7 @@ Progress: Not started.
 
 Open: Whether this is hints only or enforcement: GeneratePress AI has no hook on its tag list or its meta check, so enforcement has no seam. Granularity (a field, a field group, a source). Whether the policy itself changes first.
 
-Blocked by: decision:a way to reach GeneratePress AI's developers, and its policy  •  Interacts with: FW-184 (the hints this would narrow)
+Blocked by: decision:a way to reach GeneratePress AI's developers, and its policy  •  Interacts with: FW-184 (closed; the hints this would narrow)
 
 ## Closed / Retired
 
@@ -1537,6 +1525,7 @@ Append-only ledger of closed, shipped, or cut work — both `FW-N` items deleted
 | FW-159 | `{{table}}` borders | Shipped with FW-53 (1.22.0), folded into v1 rather than following it: `border` touches only the lines it names and `borderRadius` rounds the table's outer corners (rules: `bws_table_border_lines()` PHPDoc). Measured in Chrome 155 and Firefox 149, then 2026-10-20 in Chromium 156, Firefox 157 and WebKit 27.2 (Playwright) with no difference in any used border width and no fill painted outside a rounded corner; Apple Safari itself unmeasured; the screen-reader pass is FW-172 | `tag-reference.md`; `bws_table_border_parse()` / `bws_table_border_lines()` PHPDoc; `table-test-matrix.md` TP15-TP23; decision record `docs/design-history/table-tag.md` §REOPENED 2026-10-20 |
 | FW-176 | Delete the source-contract methods nothing reads | Removed in 1.23.0: the ten `SourceInterface` methods no code called, their `AbstractSource` defaults, and every in-tree override. No shim: an external override of a removed method is a harmless extra method, and only a call to one that is not overridden breaks. Deleting site-views' `ViewSource` overrides is that repo's own follow-up | CHANGELOG (1.23.0) Removed; `docs/plugin-integration.md` §2 |
 | FW-179 | Pin the `matrix-products` page against other fixture sets' products | Fixed 2026-10-29: a `pre_get_posts` hook in the fixture mu-plugin (`bws_fixture_core_structures_scope_product_loops`, `schema.php`) restricts every secondary product query on `/matrix-products/` to the manifest's own products by slug, so both loops (QLP1, QLP2) still run and are still covered and only their population is pinned. Chosen over keeping other sets off the testbed or re-capturing per change because it is the archive's own answer (`?bwsfx_scope=core`) applied where the page, not a query string, is the scope. Measured: with eight `cof-*` products present the page matched the committed baseline unchanged, 28 of 28 pages | `docs/testbed.md` §Page snapshots |
+| FW-184 | Descriptions for every tag, and syntax hints for GeneratePress AI | Merged 2026-11-05 ([PR #161](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/pull/161)), unreleased. All 21 tags (12 base, 9 `try_`) register a plain description that GeneratePress AI's sanitizer leaves unchanged and that arrives unchanged over an MCP STDIO round trip; with GeneratePress AI active, 26 options on 13 tags carry an `aiSyntax` hint (6,651 bytes of a roughly 15 KB budget), and inactive no definition carries one and the registry differs from the previous build by the 21 `description` keys alone. Left unhinted: `join` (waits on FW-120), the two `datetime` tags, `call`, `try_email`, `try_phone`. Not tracked: our own MCP tool, the next channel if the hints prove too thin in use (prototype measured, works; facts in the shared reference's GeneratePress AI file, prototype in `.scratch/archive/gpai-exposure/probes/gpai-proto-*`) | CHANGELOG [Unreleased]; [PR #161](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/pull/161); `tools/test/tag-description-test.php`, `tools/test/ai-syntax-hint-test.php`; `includes/helpers/ai-syntax-hints.php` PHPDoc; CLAUDE.md §Update triggers; the live-registry and MCP-wire re-measurement for a GeneratePress AI update: `tools/debug/gpai-exposure-check.php`, `tools/debug/gpai-mcp-roundtrip.sh`; spec and tickets archived in `.scratch/archive/gpai-exposure/` |
 | #21 | Editor preview: resolve-then-label | Closed 2026-05-19 (commit 9f4fa96), shipped v1.6.2 | Resolve-then-label on all base/modifier/try/datetime callbacks; CHANGELOG v1.6.2 |
 | #26 | Derive try_ slot option DEFS from base builders | Closed 2026-06-26 | `bws_build_slot_traversal_options`; option-DEFINITION derivation only, never the resolve loop |
 | C1 (#2) | Consolidate field extraction logic | Closed 2026-05-01, shipped v1.6.0 | `bws_read_field()`/`bws_read_term_field()` in `content-helpers.php`; CHANGELOG v1.6.0 |

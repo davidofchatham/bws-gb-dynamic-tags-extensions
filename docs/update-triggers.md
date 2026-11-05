@@ -378,13 +378,21 @@ run `php tools/test/page-snapshot-normalize-test.php` (the pure half — normali
 
 ## Dependency version change
 
-**Fires on:** a dependency the fixture site runs on moving version — WordPress core, GenerateBlocks, GB Pro, GB Query Enhancements, ACF Pro, WooCommerce (the set `tools/fixtures/core-structures/env-versions.php` records)
+**Fires on:** a dependency the fixture site runs on moving version — WordPress core, GenerateBlocks, GB Pro, GB Query Enhancements, ACF Pro, WooCommerce, GeneratePress AI (the set `tools/fixtures/core-structures/env-versions.php` records)
 
 run `php tools/test/page-snapshots.php` against the testbed. If output moved and the new output is CORRECT, re-capture the baseline and re-record `env-versions.php` in the same commit; if it moved and is not correct, that is a bug against the new version and the diff is the report.
 
 **This is the one trigger with no code change behind it.** Every other row here fires on an edit somebody made and can review. A dependency update moves rendered output with our tree byte-identical: no harness fires, no diff exists to read, and the next person to see it is a site owner. The version bump itself is therefore the trigger.
 
 **Read the version comparison before the hunks.** `verify.php` prints it first for a reason `env-versions.php`'s header owns — that file states why the record exists, why our own version is excluded, and why a re-capture and a re-record share a commit.
+
+**GeneratePress AI is recorded as an optional entry, and a snapshot run says nothing about it.** It is inert on the front end (28 of 28 pages match with it active), so a move in its version fails no page. The version line is the prompt to re-measure what it does with our registrations (its sanitizer, its tag list, its MCP output), which is not ours to keep true and which the pure harnesses cannot see. Two scripts under `tools/debug/` do that on the testbed; both print a report and assert nothing, so the run is only as good as the reading.
+
+**`gpai-exposure-check.php` reads the live registry and, when GeneratePress AI is active, its tag list.** Read the "ours" count first (21 on 2026-11-05: 12 base, 9 `try_`); a different number means the script's way of finding our tags has drifted from the registry, and everything below it is suspect. Then: every tag reports `desc=ok` with "bad descriptions: none"; "aiSyntax in list" matches "registered aiSyntax" in options and bytes with 0 mismatched; the hint bytes stay under the roughly 15 KB budget; and the list total against "without aiSyntax" is what the hints add. Run it a second time with GeneratePress AI deactivated, which the script cannot do for itself: "contains aiSyntax" must then read "no". The record's `required => false` is what lets that second run happen without `verify.php` failing.
+
+**`gpai-mcp-roundtrip.sh` is the wire half**, the same strings through the MCP Adapter's STDIO server. Both bad-description lists must be empty, and the hint count and bytes must equal the check script's.
+
+**What a clean run does NOT prove.** That an AI client uses a hint well; no script here reads that, and it is the open question FW-184 closed on. A new fact about GeneratePress AI that a run turns up goes in the shared reference's GeneratePress AI file, dated and version-stamped, not here.
 
 **The fixture site is the only corpus this covers.** Running the same question over the harvest corpus — real wire from real sites, our build and the wire both held fixed — is the **dependency replay**, built on both sides since 2026-08 but exercised live for GenerateBlocks only ([`harvest-replay/README.md`](../tools/harvest-replay/README.md) §The replays owns the coverage limit, FW-96). A clean snapshot run says nothing about wire shapes the fixture pages do not contain, and for a dependency the replay has never been run against, neither instrument has said anything.
 

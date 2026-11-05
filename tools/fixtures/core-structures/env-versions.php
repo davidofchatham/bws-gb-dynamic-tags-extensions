@@ -36,10 +36,11 @@
  * there" the only defensible reading of an entry that says nothing, and a dependency added
  * to this record without a flag then fails loudly rather than joining it as an optional
  * extra nobody reads. Writing `'required' => true` on every entry anyway is for the
- * reader, not the code. NO ENTRY IS CURRENTLY `false`: that state exists because this
- * record and the requirement are different questions — the fixture site runs many plugins
- * and records four, so one could legitimately be recorded for provenance alone, and the
- * flag is what keeps that from reading as a hard failure.
+ * reader, not the code. ONE ENTRY IS `false`, GeneratePress AI: this record and the
+ * requirement are different questions. The fixture site runs many plugins and records a few;
+ * GeneratePress AI is recorded so a version move is noticed, and the checks that exercise it
+ * (`tools/debug/gpai-*`) have to run with it deactivated too. The flag is what keeps that
+ * from reading as a hard failure.
  *
  * TWO LISTS, TWO QUESTIONS. `plugins` is the DEPENDENCY record — a short set with versions,
  * and the two axes above are its rules. `active` is a PROVENANCE record: every plugin that
@@ -60,6 +61,12 @@
 return array(
 	// The date the baseline under `tools/test/snapshots/` was captured. Prose only —
 	// nothing compares it; it is here so a reader can place the record in time.
+	//
+	// 2026-11-05: RE-RECORDED, NOT RE-CAPTURED, a departure from the rule in the header made on
+	// purpose. GeneratePress AI 1.0.0 joined the dependency record as an optional entry; it and the
+	// MCP Adapter joined the active set (both were active on the fixture site and warned on every
+	// verify run); ACF Pro moved 6.8.10 -> 6.8.11. A re-capture would write the same files: 28 of 28
+	// pages matched the baseline with all of it in place. `captured` below is still the capture's date.
 	//
 	// 2026-11-02: THE BASELINE STOPPED DEPENDING ON OTHER FIXTURE SETS' POSTS. The Recent Posts widget
 	// (a core/latest-posts block in a widget_block, on every page), the latest-posts home, the Sales
@@ -202,8 +209,10 @@ return array(
 		'gb-query-filter/gb-query-filter.php',
 		'generateblocks-pro/plugin.php',
 		'generateblocks/plugin.php',
+		'generatepress-ai/generatepress-ai.php',
 		'gp-premium/gp-premium.php',
 		'litespeed-cache/litespeed-cache.php',
+		'mcp-adapter/mcp-adapter.php',
 		'meta-box-lite/meta-box-lite.php',
 		'meta-conductor/meta-conductor.php',
 		'ninja-tables-pro/ninja-tables-pro.php',
@@ -240,7 +249,7 @@ return array(
 		),
 		'advanced-custom-fields-pro/acf.php' => array(
 			'label'    => 'ACF Pro',
-			'version'  => '6.8.10',
+			'version'  => '6.8.11',
 			'required' => true,
 		),
 		// Recorded for the same reason as GB Query Enhancements above: it supplies no fixture
@@ -251,6 +260,15 @@ return array(
 			'label'    => 'WooCommerce',
 			'version'  => '11.2.1',
 			'required' => true,
+		),
+		// OPTIONAL. Inert on the front end (28 of 28 pages match with it active), so no baseline
+		// depends on it; it is here because what it does with our registrations is measured by
+		// `tools/debug/gpai-exposure-check.php` and moves with its version. Deactivating it is
+		// part of that check, so it must not fail the run.
+		'generatepress-ai/generatepress-ai.php' => array(
+			'label'    => 'GeneratePress AI',
+			'version'  => '1.0.0',
+			'required' => false,
 		),
 	),
 );
