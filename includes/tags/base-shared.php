@@ -672,7 +672,8 @@ function bws_build_slot_read_rows( int $n, array $base_read, bool $allow_same = 
  * THIS IS WHERE THE CONTROL'S VOCABULARY COMES FROM. GB passes an option's whole config
  * to `generateblocks.editor.tagSpecificControls`, so `fold` carries every enum, label
  * and noun the repeater renders, all DERIVED from the shipped builders.
- * assets/js/slot-fold-control.js hand-authors none of it.
+ * assets/js/slot-fold-control.js hand-authors none of it. Only slot A carries `fold`; a later
+ * slot's `foldFrom` names the slot to read it from.
  *
  * CONTAINER SENSITIVITY, all explicit in $args:
  *   - `combining` ({{join}}, {{table}}) seeds a slot with READ UNSET (choosing a field is
@@ -872,8 +873,14 @@ function bws_build_fold_slot_options( array $args ): array {
 			'type'  => 'bws-slot-fold',
 			/* translators: %s: slot ordinal (A, B, …) */
 			'label' => sprintf( $label_pattern, $ordinal ),
-			'fold'  => $fold,
 		);
+		// The config is identical on every slot and the registry goes whole to the editor and to
+		// AI clients, so it rides once: slot A carries it, each later slot names the slot that does.
+		if ( 1 === $n ) {
+			$options[ $ordinal ]['fold'] = $fold;
+		} else {
+			$options[ $ordinal ]['foldFrom'] = bws_slot_ordinal( 1 );
+		}
 	}
 	return $options;
 }

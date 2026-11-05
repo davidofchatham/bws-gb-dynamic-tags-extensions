@@ -484,9 +484,7 @@ docblocks):
 
 ## Fold registration & resolution
 
-`bws_build_fold_slot_options()` (`includes/tags/base-shared.php`) is the `fold` config every
-container's control reads. `bws_fold_slot_struct()` / `bws_fold_slot_chain_options()`
-(`includes/helpers/slot-fold.php`) are the render seam. Four invariants span the two:
+`bws_build_fold_slot_options()` (`includes/tags/base-shared.php`) is the `fold` config every container's control reads. Slot A carries it once per tag, and each later slot names slot A in `foldFrom`, so anything reading a slot's config follows that pointer. `bws_fold_slot_struct()` / `bws_fold_slot_chain_options()` (`includes/helpers/slot-fold.php`) are the render seam. Four invariants span the two:
 
 - **Registration flips WITH the resolver, one container at a time.** Modes do not mix: a tag is
   folded iff any CAPITAL slot key is present (`A`..`Z`); `bws_slot_ordinal()` is the single owner of

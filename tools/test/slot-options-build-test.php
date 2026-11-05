@@ -277,6 +277,12 @@ assert_same( 'slot key declares the fold control type', 'bws-slot-fold', $joins[
 // panel headed "Field B", and its {{join}} format token is `%B`.
 assert_same( 'per-slot label carries the ordinal spelling, not the number', 'Field B', $joins['B']['label'] );
 
+// The config rides ONCE per tag: the registry goes whole to the editor and to AI clients, and
+// repeating it on every slot was two thirds of that payload.
+assert_same( 'slot A carries the fold config and no pointer', array( true, false ), array( isset( $joins['A']['fold'] ), isset( $joins['A']['foldFrom'] ) ) );
+assert_same( 'a later slot carries no fold config', array( false, false ), array( isset( $joins['B']['fold'] ), isset( $joins['C']['fold'] ) ) );
+assert_same( 'a later slot names slot A as its config', array( 'A', 'A' ), array( $joins['B']['foldFrom'] ?? null, $joins['C']['foldFrom'] ?? null ) );
+
 $fold = $joins['A']['fold'];
 
 // Source enum: DERIVED through the slot twin, so the `site` arm and the `same` row

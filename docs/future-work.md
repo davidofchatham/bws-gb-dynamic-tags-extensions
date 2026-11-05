@@ -349,18 +349,6 @@ Open: Which request types read the entries (converter, settings, AJAX, editor mo
 
 Blocked by: —  •  Interacts with: FW-38 (the entry record being registered), FW-174 (the `term` call rides the same pass), FW-150
 
-#### FW-186 — Slots repeat their fold config; send it once per tag
-
-Every slot option of a tag carries a byte-identical copy of the tag's `fold` config. On the testbed that is 204 KB of the 341 KB the registry sends to every editor load and to GeneratePress AI, across `join`, `table` and the nine `try_` tags. Emit it on the lead slot only and let the control fall back to it.
-
-Detail home: this row (measured 2026-11-03; no plan yet)
-
-Progress: Measured 2026-11-03 (rerun with `tools/debug/registry-payload-bloat.php`): 270 KB of our 299 KB of option data is `fold`; within each of the 11 tags the copies are identical (5 to 10 each), so dropping the non-lead copies removes about 204 KB. The reader is `foldConfig()` at `assets/js/slot-fold-control.js:101`; `slot-fold-migrate.js` and `table-style-preview.js` already read `fold` from the lead slot. Not started.
-
-Open: Whether the control can reach the lead slot at the `foldConfig()` call sites. Whether the near-identical blobs across tags (11 distinct, about 39 KB) are worth a shared reference table. The harness set is the folded-slot control and registration trigger rows.
-
-Blocked by: —  •  Interacts with: FW-184 (closed; the AI payload shrinks with it), FW-148 (slot cards)
-
 #### FW-188 — Serialize `src(current)` on slot 1 too
 
 A slot 1 whose source is the current context is stored with no source (the control strips the restated default), while a slot 2 or later keeps an explicit `src(current)`, because an absent source there was the legacy flat-wire spelling of "carry the previous slot". Consider writing it on slot 1 as well, so every slot states its source.
@@ -372,6 +360,18 @@ Progress: The asymmetry is the shipped behavior: `stripDefaultRoot()` in `slot-f
 Open: Whether uniformity is worth the churn. `bws_fold_from_flat` emits an empty chain for an absent slot-1 source, so the migrator would emit `src(current)` for every converted slot A, which moves `fold-migration-test`, the chain fixed-point assertions, the serialization-order tests and the harvest/replay baseline. A base tag's `src` default cannot be serialized at all (GB writes named defaults into the string, so the plugin strips them at registration, `gb-constraints.md` §Option Default Serialization), so folded wire would be the only place that spells the default out. A bare `{{try_title}}` stays slotless either way.
 
 Blocked by: —  •  Interacts with: FW-184 (closed; the AI hints teach what an absent source means)
+
+#### FW-189 — Deliver `fold` to the editor only
+
+The options still carry one `fold` per multislot tag and per base-tag source chain, 66 KB of the 102 KB of option data GeneratePress AI receives for our tags. Nearly all of it is editor vocabulary (labels, placeholders, help). Moved to an editor-only inline script, the AI list would drop to about 50 KB for our tags.
+
+Detail home: this row (measured 2026-11-05; no plan)
+
+Progress: Measured 2026-11-05 on the testbed, from a dump of the list with `fold` removed: 50,007 bytes raw for our 21 tags, about 12,500 tokens at chars/4, against 115,824 bytes and about 29,000 tokens with one `fold` per tag. Gzipped the two are 6.0 KB and 9.8 KB, so the gain is AI tokens rather than editor transfer. Not started. `tools/debug/registry-payload-bloat.php` remeasures it.
+
+Open: Whether the AI needs the vocabulary. The per-tag read lists and step names would be gone, leaving `aiSyntax` hints, which are examples rather than full lists. GeneratePress AI validates nothing against it, but whether a model reads it and writes better tags because of it has not been measured. Whether a compact value list should stay on the option if it does. The cost: four JS readers (`slot-fold-control.js`, `slot-fold-migrate.js`, `src-chain-control.js`, `table-style-preview.js`), the assertions reading `fold` in `slot-options-build-test.php`, `control-order-test.php` and `ai-syntax-hint-test.php`, and the mechanism stated in `bws_build_fold_slot_options()`'s PHPDoc and `docs/editor-controls.md`. `registration-helpers.php` reads `src`'s `flatAxes` at registration, so the config has to survive until after that pass.
+
+Blocked by: —  •  Interacts with: FW-184 (closed; the hints that would be left), FW-186 (closed; the `foldFrom` pointer this would retire)
 
 ### Feature follow-ups & UX
 
@@ -1526,6 +1526,7 @@ Append-only ledger of closed, shipped, or cut work — both `FW-N` items deleted
 | FW-176 | Delete the source-contract methods nothing reads | Removed in 1.23.0: the ten `SourceInterface` methods no code called, their `AbstractSource` defaults, and every in-tree override. No shim: an external override of a removed method is a harmless extra method, and only a call to one that is not overridden breaks. Deleting site-views' `ViewSource` overrides is that repo's own follow-up | CHANGELOG (1.23.0) Removed; `docs/plugin-integration.md` §2 |
 | FW-179 | Pin the `matrix-products` page against other fixture sets' products | Fixed 2026-10-29: a `pre_get_posts` hook in the fixture mu-plugin (`bws_fixture_core_structures_scope_product_loops`, `schema.php`) restricts every secondary product query on `/matrix-products/` to the manifest's own products by slug, so both loops (QLP1, QLP2) still run and are still covered and only their population is pinned. Chosen over keeping other sets off the testbed or re-capturing per change because it is the archive's own answer (`?bwsfx_scope=core`) applied where the page, not a query string, is the scope. Measured: with eight `cof-*` products present the page matched the committed baseline unchanged, 28 of 28 pages | `docs/testbed.md` §Page snapshots |
 | FW-184 | Descriptions for every tag, and syntax hints for GeneratePress AI | Merged 2026-11-05 ([PR #161](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/pull/161)), unreleased. All 21 tags (12 base, 9 `try_`) register a plain description that GeneratePress AI's sanitizer leaves unchanged and that arrives unchanged over an MCP STDIO round trip; with GeneratePress AI active, 26 options on 13 tags carry an `aiSyntax` hint (6,651 bytes of a roughly 15 KB budget), and inactive no definition carries one and the registry differs from the previous build by the 21 `description` keys alone. Left unhinted: `join` (waits on FW-120), the two `datetime` tags, `call`, `try_email`, `try_phone`. Not tracked: our own MCP tool, the next channel if the hints prove too thin in use (prototype measured, works; facts in the shared reference's GeneratePress AI file, prototype in `.scratch/archive/gpai-exposure/probes/gpai-proto-*`) | CHANGELOG [Unreleased]; [PR #161](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/pull/161); `tools/test/tag-description-test.php`, `tools/test/ai-syntax-hint-test.php`; `includes/helpers/ai-syntax-hints.php` PHPDoc; CLAUDE.md §Update triggers; the live-registry and MCP-wire re-measurement for a GeneratePress AI update: `tools/debug/gpai-exposure-check.php`, `tools/debug/gpai-mcp-roundtrip.sh`; spec and tickets archived in `.scratch/archive/gpai-exposure/` |
+| FW-186 | Slots repeat their fold config; send it once per tag | Committed 2026-11-05, unreleased. Slot A carries `fold`, each later slot a `foldFrom` pointer, which took our option data from 307 KB to 102 KB (measured with `tools/debug/registry-payload-bloat.php`). The gain is AI tokens: gzipped, the list was already only 14.7 KB and is now 9.8 KB. A table shared across tags (about 50 KB of the remaining 66 KB) was measured and declined: `allOptions` is per-tag, so the editor would need a global, which is most of the work of FW-189 for less saving, and an AI client would need the table in the payload to follow it | CHANGELOG `[Unreleased]`; FW-189 |
 | #21 | Editor preview: resolve-then-label | Closed 2026-05-19 (commit 9f4fa96), shipped v1.6.2 | Resolve-then-label on all base/modifier/try/datetime callbacks; CHANGELOG v1.6.2 |
 | #26 | Derive try_ slot option DEFS from base builders | Closed 2026-06-26 | `bws_build_slot_traversal_options`; option-DEFINITION derivation only, never the resolve loop |
 | C1 (#2) | Consolidate field extraction logic | Closed 2026-05-01, shipped v1.6.0 | `bws_read_field()`/`bws_read_term_field()` in `content-helpers.php`; CHANGELOG v1.6.0 |

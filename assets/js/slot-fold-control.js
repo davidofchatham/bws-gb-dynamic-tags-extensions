@@ -1814,11 +1814,13 @@
 			if ( ! cfg || 'bws-slot-fold' !== cfg.type ) {
 				return element;
 			}
+			// Only slot A carries the config; a later slot's `foldFrom` names where it is.
+			var lead = allOptions[ cfg.foldFrom ];
 			return el( SlotFoldControl, {
 				key: element.key,
 				optionKey: element.key,
 				label: cfg.label,
-				conf: foldConfig( cfg ),
+				conf: foldConfig( cfg.fold ? cfg : lead ),
 				context: context
 			} );
 		}

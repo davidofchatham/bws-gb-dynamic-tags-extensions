@@ -663,7 +663,8 @@ foreach ( $tags as $tag => $args ) {
 		assert_same(
 			"{{{$tag}}} slot {$key} — fold takesFirstUsable matches the record",
 			$expect,
-			! empty( $opt['fold']['takesFirstUsable'] )
+			// A later slot's config is the one its `foldFrom` names.
+			! empty( ( $opt['fold'] ?? $args['options'][ $opt['foldFrom'] ?? '' ]['fold'] ?? array() )['takesFirstUsable'] )
 		);
 	}
 }

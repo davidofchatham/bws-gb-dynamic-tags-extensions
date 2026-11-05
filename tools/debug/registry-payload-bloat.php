@@ -3,8 +3,8 @@
  * Registry payload bloat. NOT shipped with the plugin.
  *
  * Where the bytes of our options go in GeneratePress AI's tag list: by option key, by type,
- * the large repeated sub-blobs, and what dropping identical per-slot `fold` copies would save
- * (the measurement behind FW-186). Needs GeneratePress AI active.
+ * the large repeated sub-blobs, and any `fold` left on a non-lead slot (should be 0, FW-186).
+ * Needs GeneratePress AI active.
  *
  *   wsl.exe -d Ubuntu -- bash -lc 'cd ~/wp-litespeed && bin/wp.sh testbed eval-file \
  *     /plugins/bws-gb-dynamic-tags-extensions/tools/debug/registry-payload-bloat.php'
@@ -46,15 +46,21 @@ foreach ( array_slice( $blobs, 0, 6 ) as $h => $b ) { echo "  {$b['key']} x{$b['
 // visibility + top-level non-option keys
 $vis = 0; foreach ( $ai['tags'] as $t ) { if ( ! empty( $ours[ $t['tag'] ] ) ) { $vis += strlen( wp_json_encode( $t['visibility'] ) ); } }
 echo "visibility bytes (ours): $vis\n";
-// Per-tag: slot-fold options carrying fold, identical within tag?
-$save = 0; $rows = array();
+// Per-tag: which slots carry fold. Only the lead should.
+$left = 0; $rows = array();
 foreach ( $ai['tags'] as $t ) {
 	if ( empty( $ours[ $t['tag'] ] ) ) { continue; }
-	$folds = array();
-	foreach ( $t['options'] as $name => $o ) { if ( 'bws-slot-fold' === ( $o['type'] ?? '' ) && isset( $o['fold'] ) ) { $folds[ $name ] = wp_json_encode( $o['fold'] ); } }
-	if ( ! $folds ) { continue; }
-	$distinct = count( array_unique( $folds ) ); $bytes = strlen( reset( $folds ) );
-	$save += $bytes * ( count( $folds ) - $distinct );
-	$rows[] = $t['tag'] . ':' . count( $folds ) . ' slots,' . $distinct . ' distinct,' . $bytes . 'B';
+	$slots = 0; $carrying = 0; $bytes = 0; $lead = true;
+	foreach ( $t['options'] as $name => $o ) {
+		if ( 'bws-slot-fold' !== ( $o['type'] ?? '' ) ) { continue; }
+		$slots++;
+		if ( isset( $o['fold'] ) ) {
+			$carrying++;
+			$b = strlen( wp_json_encode( $o['fold'] ) );
+			if ( $lead ) { $bytes = $b; } else { $left += $b; }
+		}
+		$lead = false;
+	}
+	if ( $slots ) { $rows[] = $t['tag'] . ':' . $slots . ' slots,' . $carrying . ' carrying,' . $bytes . 'B'; }
 }
-echo "saving if non-lead slots within a tag drop identical fold: $save B\n" . implode( ' | ', $rows ) . "\n";
+echo "fold bytes left on non-lead slots: $left B\n" . implode( ' | ', $rows ) . "\n";

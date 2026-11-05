@@ -172,6 +172,19 @@ const HINT_BYTE_BUDGET     = 350;
 const HINT_BYTE_BUDGET_OWN = 450; // a tag's own hint that replaces a shared one repeats its syntax
 const HINT_TOTAL_BUDGET    = 15000;
 
+/**
+ * A tag's options with each later slot's `foldFrom` followed, so the checks below read every slot
+ * the way the control does.
+ */
+function with_slot_folds( array $def ): array {
+	foreach ( $def['options'] ?? array() as $name => $option ) {
+		if ( isset( $option['foldFrom'] ) ) {
+			$def['options'][ $name ]['fold'] = $def['options'][ $option['foldFrom'] ]['fold'] ?? array();
+		}
+	}
+	return $def;
+}
+
 /** The roots and steps a source chain offers, off an option's fold config. */
 function chain_slugs( array $option ): array {
 	return array_merge( array( 'current' ), array_keys( $option['fold']['roots'] ?? array() ), array_keys( $option['fold']['steps'] ?? array() ) );
@@ -385,7 +398,7 @@ echo "1. INACTIVE: no aiSyntax in any registered definition\n";
 // ---------------------------------------------------------------------------
 
 register_real_tree();
-$tags = GenerateBlocks_Register_Dynamic_Tag::get_tags();
+$tags = array_map( 'with_slot_folds', GenerateBlocks_Register_Dynamic_Tag::get_tags() );
 
 assert_same( 'the real tree registered', true, count( $tags ) > 20 );
 assert_same( 'GeneratePress AI constant is not defined in this process', false, defined( 'GENERATEPRESS_AI_VERSION' ) );

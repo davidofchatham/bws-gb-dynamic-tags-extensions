@@ -43,9 +43,12 @@ const vm = require( 'vm' );
 
 const root = path.resolve( __dirname, '../..' );
 
+const filters = {};
+
 global.window = {};
 global.wp = {
-	hooks: { addFilter: function () {} },
+	// Keeps what is registered, for the rows that drive the control's own filter.
+	hooks: { addFilter: function ( hook, ns, fn ) { filters[ ns ] = fn; } },
 	// Recording createElement — chainSteps is the one export whose subject is the
 	// RENDERED tree (which picker exists, what it is showing, whether Add step is
 	// reachable), so the stub has to keep what it was handed. Everything else in this
@@ -1798,6 +1801,19 @@ function readSrc( wire ) {
 }
 check( 'parent: the read picker sees the chain it settles through', readSrc( 'refs,office;parent' ), 'refs,office;parent' );
 check( 'parent: ...and a non-preserving terminal is still just its own token', readSrc( 'refs,office' ), 'refs,office' );
+
+// Only slot A carries the fold config; a later slot reads it through `foldFrom`. Driven through
+// the registered filter, because that call site is the seam a later slot depends on.
+function confOf( key, options ) {
+	return filters[ 'bws/slot-fold-control' ]( { key: key }, options, {} ).props.conf;
+}
+const LEAD = { type: 'bws-slot-fold', fold: { container: 'table', noun: 'column', max: 10 } };
+const FOLLOWER = { type: 'bws-slot-fold', foldFrom: 'A' };
+check( 'foldFrom: slot A reads its own config', confOf( 'A', { A: LEAD, B: FOLLOWER } ).noun, 'column' );
+const FOLLOWED = confOf( 'B', { A: LEAD, B: FOLLOWER } );
+check( 'foldFrom: slot B reads slot A\'s config', [ FOLLOWED.noun, FOLLOWED.container, FOLLOWED.max ].join(), 'column,table,10' );
+check( 'foldFrom: a pointer to nothing stays renderable on the inert defaults', confOf( 'B', { B: FOLLOWER } ).container, 'join' );
+check( 'foldFrom: no config and no pointer stays renderable too', confOf( 'B', { B: { type: 'bws-slot-fold' } } ).container, 'join' );
 
 console.log( '\n' + ( total - fail ) + '/' + total + ' passed' );
 process.exit( fail ? 1 : 0 );
