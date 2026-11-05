@@ -417,7 +417,7 @@ Display format, ext/type affix, per-country rules, a `use` enum, per-tag `cc:`, 
 
 Detail home: `.scratch/plans/phone-tag-future.md`
 
-Progress: Not started. The registered `phone` description, mirrored from the README tag overview's "Returns" cell, says link text shows the number as entered. That holds today (measured 2026-11-04 on the testbed, matrix rows R0 to R4), so a display format must reword that sentence in both places; `tools/test/tag-description-test.php` holds the two equal.
+Progress: Not started. The registered `phone` description, mirrored from the README tag overview's "Description" cell, says link text shows the number as entered. That holds today (measured 2026-11-04 on the testbed, matrix rows R0 to R4), so a display format must reword that sentence in both places; `tools/test/tag-description-test.php` holds the two equal.
 
 Blocked by: —  •  Interacts with: FW-184 (the phone description states the display rule)
 

@@ -15,7 +15,7 @@
  *    none of `<`, `>`, a backtick, `{{`, an em dash, a `%` escape, or any whitespace that
  *    sanitizing would collapse or trim, so the sanitizer returns it byte for byte.
  *
- * 2. README TIE. README's tag overview "Returns" cell is the source and each base tag's
+ * 2. README TIE. README's tag overview "Description" cell is the source and each base tag's
  *    description mirrors it, so the two cannot drift apart unseen. Equality is read after
  *    stripping backticks and unwrapping links. The ONLY declared divergence is the angle
  *    brackets in `content` and `table`: README says `<div>`, the description says "div"
@@ -212,7 +212,7 @@ function normalize_readme_cell( string $cell ): string {
 }
 
 /**
- * The "Returns" cell of each tag in the README tag overview table, keyed by tag name and
+ * The "Description" cell of each tag in the README tag overview table, keyed by tag name and
  * normalized. A row starts with the tag in its first cell, bare or as a link.
  */
 function readme_returns( string $markdown ): array {
@@ -298,7 +298,7 @@ foreach ( array(
 assert_same( 'a clean sentence breaks nothing', array(), lint_description( 'Plain text, nothing else.' ) );
 
 // ---------------------------------------------------------------------------
-// 3. Each base description equals its README "Returns" cell.
+// 3. Each base description equals its README "Description" cell.
 // ---------------------------------------------------------------------------
 
 echo "3. README tie\n";

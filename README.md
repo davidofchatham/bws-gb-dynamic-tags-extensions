@@ -4,7 +4,7 @@
 
 ## Our tags
 
-| Tag | Returns | Specific limitations | [Multi-attempt variant](#try_-tags-return-the-first-successful-sourcefield-attempt) |
+| Tag | Description | Specific limitations | [Multi-attempt variant](#try_-tags-return-the-first-successful-sourcefield-attempt) |
 |---|---|---|---|
 | `title` | Get a post title, term name, user name, archive label, search or 404 heading, or the site name. | | `try_title` |
 | [`content`](#content-output-long-form-content) | Get post content or excerpt, term description, a rich-text meta field, user bio, post type description, or GeneratePress's 404 text. Always prints block-level markup, so put it in a `<div>` or other block container. | Since there's no site-wide body/content field, an option field name must be supplied to use this tag with the *Site* source. | `try_content` |
@@ -19,7 +19,7 @@
 | `phone` | Return a valid-looking phone number as a `tel` link or plain text. Link text shows the number as it was entered, but the `tel` link is normalized, and if a default country code is supplied in the plugin's settings, it is added to numbers that have no international prefix. Invalid numbers return nothing, or the fallback number if supplied. | | `try_phone` |
 | [`call`](#call-return-custom-function-output) | Run a registered PHP function with the post ID and return its output. | Post sources only. | — |
 
-**[UNRELEASED]** Each tag has a short description, which GenerateBlocks shows under the tag picker once you select the tag; the Returns column above is the same text. If GeneratePress AI is active, our tags also give it short syntax notes with working examples, so its AI can write our tag strings instead of guessing. Nothing changes without GeneratePress AI.
+**[UNRELEASED]** Each tag has a short description, which GenerateBlocks shows under the tag picker once you select the tag; the Description column above is the same text. If GeneratePress AI is active, our tags also give it short syntax notes with working examples, so its AI can write our tag strings instead of guessing. Nothing changes without GeneratePress AI.
 
 ## What's different (other than the tag names)?
 

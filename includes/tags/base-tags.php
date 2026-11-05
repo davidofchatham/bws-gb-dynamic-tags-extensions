@@ -79,7 +79,7 @@ function bws_register_base_tags(): void {
 		'tag'         => 'text',
 		'type'        => 'cross-source',
 		'supports'    => array(),
-		// The picker text mirrors the README tag overview's "Returns" cell (tag-description-test.php pins it).
+		// The picker text mirrors the README tag overview's "Description" cell (tag-description-test.php pins it).
 		'description' => __( 'Get text from a meta or option field, fixed text, or any title or name the Title/Name tag can return.', 'generateblocks' ),
 		// Canonical CONTROL order: source → format → link → fallback (no format group).
 		// Within source: src → ref → srcTermIn → sep → use → key (sep first: list length
