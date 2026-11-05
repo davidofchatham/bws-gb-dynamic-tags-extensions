@@ -28,8 +28,80 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Tags that carry no hint at all, shared or their own. `call` returns whatever a registered
  * function returns, and the two datetime tags print only a field's date (`key`, `startKey`),
  * so both sit beside the field reads we do not teach: nothing is left to say about their source.
+ * `try_email` and `try_phone` join them: a slot is a field read unless it types an address, and
+ * a typed address in the first slot always wins, so a chain of them has nothing to fall back to.
  */
-const BWS_AI_SYNTAX_UNHINTED_TAGS = array( 'call', 'datetime_single', 'datetime_range' );
+const BWS_AI_SYNTAX_UNHINTED_TAGS = array(
+	'call',
+	'datetime_single',
+	'datetime_range',
+	'try_datetime_single',
+	'try_datetime_range',
+	'try_email',
+	'try_phone',
+);
+
+/**
+ * The `try_*` slot hints, generated from one template so five tags cannot drift apart. A try_
+ * tag registers its attempts as slot options `A` to `E`, each holding a source chain and, where
+ * the tag has one, a read; there is no `src` option, so the chain is taught on `A` and the
+ * attempts after it on `B`.
+ *
+ * Per tag: `site` says what `src(site)` reads there (null when it reads nothing, as on content),
+ * `read` is the read every attempt must state, if any (a bare attempt on text or image is a field
+ * read, which renders empty), `example` is one rendered chain, and `later` one with three attempts for the hint on `B`.
+ *
+ * @since Unreleased
+ * @return array<string,array<string,string>>
+ */
+function bws_ai_syntax_try_hints(): array {
+	$tags = array(
+		'try_text'      => array(
+			'site'    => 'the site name',
+			'read'    => ';use(title), needed in every attempt',
+			'example' => '{{try_text A:src(refs,related_posts);use(title)|B:src(site);use(title)}}',
+			'later'   => '{{try_text A:use(title)|B:src(parent);use(title)|C:src(site);use(title)}}',
+		),
+		'try_title'     => array(
+			'site'    => 'the site name',
+			'read'    => '',
+			'example' => '{{try_title A:src(refs,related_posts)|B:src(site)}}',
+			'later'   => '{{try_title A:src(refs,related_posts)|B:src(parent)|C:src(site)}}',
+		),
+		'try_permalink' => array(
+			'site'    => 'the home address',
+			'read'    => '',
+			'example' => '{{try_permalink A:src(refs,related_posts)|B:src(site)}}',
+			'later'   => '{{try_permalink A:src(refs,related_posts)|B:src(parent)|C:src(site)}}',
+		),
+		'try_content'   => array(
+			'site'    => null,
+			'read'    => ';use(content) or ;use(excerpt), needed in every attempt',
+			'example' => '{{try_content A:src(refs,related_posts);use(excerpt)|B:src(current);use(excerpt)}}',
+			'later'   => '{{try_content A:src(refs,related_posts);use(content)|B:src(parent);use(content)|C:src(current);use(content)}}',
+		),
+		'try_image'     => array(
+			'site'    => 'the site logo',
+			'read'    => ';use(featured), needed in every attempt',
+			'example' => '{{try_image A:use(featured)|B:src(parent);use(featured)}}',
+			'later'   => '{{try_image A:use(featured)|B:src(parent);use(featured)|C:src(site);use(featured)}}',
+		),
+	);
+
+	$out = array();
+	foreach ( $tags as $tag => $t ) {
+		$sources = array_filter( array(
+			null === $t['site'] ? null : "src(site) is {$t['site']}",
+			'src(parent) the parent',
+			'src(refs,related_posts) related posts',
+		) );
+		$out[ $tag ] = array(
+			'A' => 'Attempts A to E, joined with the | character; the first with a result wins. An attempt is src(...)' . $t['read'] . '. No src means the current context: ' . implode( ', ', $sources ) . '. Example: ' . $t['example'],
+			'B' => 'The next attempt, tried only when the one before gives nothing; C, D and E add more. Write its source out, because an attempt with nothing in it is skipped. Example: ' . $t['later'],
+		);
+	}
+	return $out;
+}
 
 /**
  * The hints. `*` holds the SHARED hints, keyed by option key: each lands on every hinted tag
@@ -46,7 +118,7 @@ const BWS_AI_SYNTAX_UNHINTED_TAGS = array( 'call', 'datetime_single', 'datetime_
  * @return array<string,array<string,string|null>>
  */
 function bws_ai_syntax_hints(): array {
-	return array(
+	return array_merge( array(
 		'*'         => array(
 			'src'    => "Where the tag reads from; leave it out for the current context. Steps join with semicolons; a step's argument follows a comma. src:parent is the parent, src:post,42 is post 42, src:terms,category the post's categories, src:refs,related_posts the posts in that relationship, src:rows,team;refs,person each repeater row's linked post.",
 			'linkTo' => "Wraps the tag's output in a link. linkTo:permalink links to the post or term the tag read; leave it out for no link.",
@@ -78,7 +150,7 @@ function bws_ai_syntax_hints(): array {
 			'src'   => null,
 			'fixed' => "Set fixed to the phone number to print, shown as a tel link. Example: {{phone fixed:555-123-4567}}.",
 		),
-	);
+	), bws_ai_syntax_try_hints() );
 }
 
 /**

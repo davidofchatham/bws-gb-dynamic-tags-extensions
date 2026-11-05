@@ -172,6 +172,11 @@ const HINT_BYTE_BUDGET     = 350;
 const HINT_BYTE_BUDGET_OWN = 450; // a tag's own hint that replaces a shared one repeats its syntax
 const HINT_TOTAL_BUDGET    = 15000;
 
+/** The roots and steps a source chain offers, off an option's fold config. */
+function chain_slugs( array $option ): array {
+	return array_merge( array( 'current' ), array_keys( $option['fold']['roots'] ?? array() ), array_keys( $option['fold']['steps'] ?? array() ) );
+}
+
 /**
  * The values a registered option offers: a select's `options` values, or for the `src` chain
  * the roots and step slugs its fold config names. Null when the option offers no closed set.
@@ -182,7 +187,7 @@ function offered_values( array $option ): ?array {
 		return array_map( fn( $r ) => (string) $r['value'], $option['fold']['readRows'] ?? array() );
 	}
 	if ( isset( $option['fold'] ) ) {
-		return array_merge( array( 'current' ), array_keys( $option['fold']['roots'] ?? array() ), array_keys( $option['fold']['steps'] ?? array() ) );
+		return chain_slugs( $option );
 	}
 	if ( 'select' === ( $option['type'] ?? '' ) && is_array( $option['options'] ?? null ) ) {
 		return array_map( fn( $o ) => is_array( $o ) ? (string) $o['value'] : (string) $o, $option['options'] );
@@ -200,11 +205,11 @@ function value_offered( array $option, string $value ): bool {
 	// parser could not place), start each chain step with a slug the slot offers, and read through
 	// an analog the slot offers.
 	if ( 'bws-slot-fold' === ( $option['type'] ?? '' ) ) {
-		$slot = bws_fold_parse_slot( $value, 'table' );
+		$slot = bws_fold_parse_slot( $value, $option['fold']['container'] ?? 'table' );
 		if ( isset( $slot['error'] ) || ! empty( $slot['extra'] ) ) {
 			return false;
 		}
-		$slugs = array_merge( array( 'current' ), array_keys( $option['fold']['roots'] ?? array() ), array_keys( $option['fold']['steps'] ?? array() ) );
+		$slugs = chain_slugs( $option );
 		foreach ( $slot['chain'] as $step ) {
 			if ( ! in_array( $step['slug'], $slugs, true ) ) {
 				return false;
@@ -443,6 +448,25 @@ foreach ( array( 'email', 'phone' ) as $tag ) {
 	$own = bws_ai_syntax_hints_for( $tag );
 	assert_same( "{$tag}: the shared src hint is withheld, its own fixed hint kept", array( false, true ), array( isset( $own['src'] ), isset( $own['fixed'] ) ) );
 }
+// The try_ tags: five carry a first-attempt and a later-attempt hint; the four whose every read is
+// a field read or a typed address carry none, shared hints included (the list is the constant's).
+foreach ( array( 'try_text', 'try_title', 'try_permalink', 'try_content', 'try_image' ) as $tag ) {
+	$own = bws_ai_syntax_hints_for( $tag );
+	assert_same( "{$tag}: a hint on the first attempt and on the later ones", true, isset( $own['A'], $own['B'] ) );
+}
+foreach ( array_filter( BWS_AI_SYNTAX_UNHINTED_TAGS, fn( $t ) => str_starts_with( $t, 'try_' ) ) as $tag ) {
+	assert_same( "{$tag} receives no hint", array(), bws_ai_syntax_hints_for( $tag ) );
+}
+assert_same(
+	'fixture: a try_ example whose chain step the slot does not offer fails',
+	true,
+	in_array( 'example-unoffered-value', check_hint( 'try_title', 'A', '{{try_title A:src(nope,x)|B:src(site)}}', $tags ), true )
+);
+assert_same(
+	'fixture: a try_ example with a read the tag does not offer fails',
+	true,
+	in_array( 'example-unoffered-value', check_hint( 'try_text', 'A', '{{try_text A:use(excerpt)}}', $tags ), true )
+);
 echo "   checker fixtures: each broken hint names its rule\n";
 $good = 'Leave src out for the current post. {{text src:parent|fixed:Back|linkTo:permalink}} links to the parent.';
 assert_same( 'fixture: a good hint is clean', array(), check_hint( 'text', 'src', $good, $tags ) );
@@ -508,14 +532,18 @@ const REVIEWED_VOCABULARY = array(
 	'src'    => array( 'current', 'parent', 'post', 'refs', 'rows', 'site', 'term', 'terms' ),
 	'use'    => array( '', 'excerpt', 'featured', 'fixed', 'key', 'title' ),
 	'fixed'  => array(),
-	'A'      => array( '', 'fixed', 'key', 'title' ),
+	// A and B (table and the try_ tags) pin the reads a slot offers and the roots and steps of its chain.
+	'A'      => array( '', 'content', 'current', 'excerpt', 'featured', 'fixed', 'key', 'parent', 'post', 'refs', 'rows', 'site', 'term', 'terms', 'title' ),
+	'B'      => array( 'content', 'current', 'excerpt', 'featured', 'fixed', 'key', 'parent', 'post', 'refs', 'rows', 'site', 'term', 'terms', 'title' ),
 	'linkTo' => array( '', 'key', 'permalink' ),
 );
 
 $vocabulary = array();
 foreach ( $placements as $where => $hint ) {
 	list( $tag, $option ) = explode( '.', $where, 2 );
-	$vocabulary[ $option ] = array_merge( $vocabulary[ $option ] ?? array(), offered_values( $tags[ $tag ]['options'][ $option ] ) ?? array() );
+	$def = $tags[ $tag ]['options'][ $option ];
+	// A slot's hint also teaches its chain, so the roots and steps it offers are pinned with its reads.
+	$vocabulary[ $option ] = array_merge( $vocabulary[ $option ] ?? array(), offered_values( $def ) ?? array(), 'bws-slot-fold' === $def['type'] ? chain_slugs( $def ) : array() );
 }
 foreach ( $vocabulary as $option => $values ) {
 	$values = array_values( array_unique( $values ) );
