@@ -17,7 +17,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Changed
 
-- **A much smaller tag list for GeneratePress AI.** The `{{join}}`, `{{table}}` and `try_*` slots no longer each repeat the same control settings: the first slot holds them and the others point to it. Our share of the list drops by about 200 KB, which saves an AI client tokens every time it reads the list. Nothing changes in the editor or in rendered output.
+- **A much smaller tag list for GeneratePress AI.** The `{{join}}`, `{{table}}`, and `try_*` slots no longer each repeat the same control settings: the first slot holds them and the others point to it. Our share of the list drops by about 200 KB, which saves an AI client tokens every time it reads the list. Nothing changes in the editor or in rendered output.
 
 ### Fixed
 
