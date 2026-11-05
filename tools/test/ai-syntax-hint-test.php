@@ -177,6 +177,10 @@ const HINT_TOTAL_BUDGET    = 15000;
  * the roots and step slugs its fold config names. Null when the option offers no closed set.
  */
 function offered_values( array $option ): ?array {
+	// A slot (`A`, `B`, …) is pinned by the reads it offers; its chain is the `src` chain's vocabulary.
+	if ( 'bws-slot-fold' === ( $option['type'] ?? '' ) ) {
+		return array_map( fn( $r ) => (string) $r['value'], $option['fold']['readRows'] ?? array() );
+	}
 	if ( isset( $option['fold'] ) ) {
 		return array_merge( array( 'current' ), array_keys( $option['fold']['roots'] ?? array() ), array_keys( $option['fold']['steps'] ?? array() ) );
 	}
@@ -192,6 +196,23 @@ function offered_values( array $option ): ?array {
  * with no closed set accepts anything.
  */
 function value_offered( array $option, string $value ): bool {
+	// A slot value is parsed by the real slot parser: it must parse clean (no error, no token the
+	// parser could not place), start each chain step with a slug the slot offers, and read through
+	// an analog the slot offers.
+	if ( 'bws-slot-fold' === ( $option['type'] ?? '' ) ) {
+		$slot = bws_fold_parse_slot( $value, 'table' );
+		if ( isset( $slot['error'] ) || ! empty( $slot['extra'] ) ) {
+			return false;
+		}
+		$slugs = array_merge( array( 'current' ), array_keys( $option['fold']['roots'] ?? array() ), array_keys( $option['fold']['steps'] ?? array() ) );
+		foreach ( $slot['chain'] as $step ) {
+			if ( ! in_array( $step['slug'], $slugs, true ) ) {
+				return false;
+			}
+		}
+		$read = $slot['read'] ?? null;
+		return null === $read || 'analog' !== $read['kind'] || in_array( $read['slug'], offered_values( $option ), true );
+	}
 	$offered = offered_values( $option );
 	if ( null === $offered ) {
 		return true;
@@ -217,6 +238,15 @@ function teaches_field_read( string $key, string $value ): bool {
 	}
 	if ( 'linkTo' === $key ) {
 		return 'key' === $value;
+	}
+	// A slot value (`A:...`, `B:...`): a keyed read, or a chain ending in `rows`.
+	if ( 1 === strlen( $key ) && ctype_upper( $key ) ) {
+		$slot = bws_fold_parse_slot( $value, 'table' );
+		if ( isset( $slot['error'] ) ) {
+			return false;
+		}
+		$steps = $slot['chain'] ?? array();
+		return 'key' === ( $slot['read']['kind'] ?? '' ) || ( $steps && 'rows' === end( $steps )['slug'] );
 	}
 	if ( 'src' === $key ) {
 		$steps = explode( ';', $value );
@@ -437,8 +467,18 @@ foreach ( array(
 	'a link target naming a field' => '{{text fixed:x|linkTo:key}}',
 	'a full example ending in rows' => '{{text src:rows,team|use:title}}',
 	'a fragment ending in rows' => 'For example src:refs,x;rows,team reads a row.',
+	'a keyed slot read'        => '{{table A:header(Name);key(name)}}',
+	'a slot chain ending in rows' => '{{table A:src(rows,team);use(title)}}',
 ) as $what => $bad ) {
 	assert_same( "fixture: teaches-field-read, {$what}", true, in_array( 'teaches-field-read', check_hint( 'text', 'src', $bad, $tags ), true ) );
+}
+foreach ( array(
+	'a slot read the slot does not offer' => '{{table A:header(Name);use(titel)}}',
+	'a slot step the chain does not offer' => '{{table A:src(nope,x);use(title)}}',
+	'a slot token the parser cannot place' => '{{table A:head(Name);use(title)}}',
+	'a slot value that does not parse'    => '{{table A:header(Name;use(title)}}',
+) as $what => $bad ) {
+	assert_same( "fixture: example-unoffered-value, {$what}", true, in_array( 'example-unoffered-value', check_hint( 'table', 'A', $bad, $tags ), true ) );
 }
 assert_same( 'fixture: a step that finds a source through a field is allowed', array(), check_hint( 'text', 'src', 'For example src:refs,x and src:rows,team;refs,y.', $tags ) );
 $own_ok  = $good . str_repeat( ' x', 150 );
@@ -468,6 +508,7 @@ const REVIEWED_VOCABULARY = array(
 	'src'    => array( 'current', 'parent', 'post', 'refs', 'rows', 'site', 'term', 'terms' ),
 	'use'    => array( '', 'excerpt', 'featured', 'fixed', 'key', 'title' ),
 	'fixed'  => array(),
+	'A'      => array( '', 'fixed', 'key', 'title' ),
 	'linkTo' => array( '', 'key', 'permalink' ),
 );
 

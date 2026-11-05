@@ -66,6 +66,10 @@ function bws_ai_syntax_hints(): array {
 		'image'     => array(
 			'use' => "Set use:featured to print the featured image of what src names; with src:site it is the site logo. It prints the image address; as:alt, as:id, as:title or as:caption print that instead. Examples: {{image use:featured}}, {{image src:parent|use:featured|as:alt}}.",
 		),
+		'table'     => array(
+			'src' => "Where the table's rows come from; leave it out for one row, the current context. Each result is a row: src:terms,category is a row per category, src:refs,related_posts a row per related post. Steps join with semicolons and a step's argument follows a comma; src:parent is the parent. The table is block-level markup, so put the tag in a div, not inside a paragraph.",
+			'A'   => "The first column; B, C and so on add more. header(Name) is the heading cell and use(title) prints each row's title or name. Example: {{table src:terms,category|A:header(Category);use(title)}}.",
+		),
 		'email'     => array(
 			'src'   => null,
 			'fixed' => "Set fixed to the email address to print, shown as a mailto link. Example: {{email fixed:info@example.com}}.",
