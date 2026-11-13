@@ -588,8 +588,9 @@ seeded `team_members` repeater.
 > **Both mutations first appeared to change NOTHING, and the reason is worth carrying:** the
 > container runs `opcache.revalidate_freq = 120`, so a front-end request inside two minutes of an
 > edit executes STALE BYTECODE while the disk bytes are already correct. Recycle the lsphp workers
-> between mutation arms (`docker compose exec -T litespeed bash -c 'killall lsphp 2>/dev/null;
-> true'`) rather than restarting the container or waiting out the window — see
+> between mutation arms (`pkill -x lsphp` inside the litespeed container, never `killall`, which
+> the image lacks — exact command and `recycle_lsphp` helper in the testbed doc) rather than
+> restarting the container or waiting out the window — see
 > [`docs/testbed.md`](../../docs/testbed.md#the-bytecode-cache--quieter-and-it-invalidates-whole-experiments).
 > WP-CLI is unaffected (`opcache.enable_cli = Off`), which is why the `render-tag` sweeps in §F9b
 > needed no such handling.
