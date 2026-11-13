@@ -12,7 +12,7 @@
 # GeneratePress AI file.
 set -euo pipefail
 cd "${WPLS:-$HOME/wp-litespeed}"
-docker compose run -T --rm --no-deps -e WORDPRESS_DB_NAME=testbed wpcli \
+docker compose run -T --rm --no-deps wpcli \
   --path=/var/www/vhosts/testbed/html mcp-adapter serve --server=generatepress-ai --user=1 2>/dev/null <<'JSONRPC' | python3 -c '
 import sys, json
 for l in sys.stdin:

@@ -23,7 +23,7 @@ There is no `bin/` in this plugin repo.
 **Many renders: one wpcli container, a loop inside it** — never `bin/wp.sh` in a loop, which starts a container per call before WordPress boots. Sequential, from `~/wp-litespeed` (measured 2026-10-22):
 
 ```
-docker compose run --rm --no-deps -e WORDPRESS_DB_NAME=testbed --entrypoint bash wpcli -c '
+docker compose run --rm --no-deps --entrypoint bash wpcli -c '
 for t in "{{text key:email}}" "{{datetime_single src:site|key:org_party_datetime}}"; do
   wp --path=/var/www/vhosts/testbed/html bws render-tag "$t" --url=https://testbed.test/department/support/ --porcelain; echo
 done'
