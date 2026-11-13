@@ -18,7 +18,7 @@ There is no `bin/` in this plugin repo.
 
 **From Windows,** wrap the same call: `wsl.exe -d Ubuntu -- bash -lc 'cd ~/wp-litespeed && bin/wp.sh testbed <cmd>'`. The plugin is mounted at `/plugins/bws-gb-dynamic-tags-extensions` in the wpcli container, so an `eval-file` path starts there.
 
-**wp-cli runs in the `wpcli` container, never through `docker exec` into the web container.** A `docker exec wp-litespeed-litespeed-1 … wp …` puts wp-cli under the web container's memory cap beside the lsphp workers, which makes any jam there worse and harder to diagnose (the env's finding, 2026-10-22). `curl` against `testbed.test` is the exception, because a page fetch IS a web request.
+**wp-cli runs in the `wpcli` container (`bin/wp.sh` does this), never through `docker exec` into the web container** — the env's `testing-against-the-env.md` rule 5 and README §wp-cli own why. `curl` against `testbed.test` is the exception, because a page fetch IS a web request (and see its rule 4 for how to make one).
 
 **Many renders: one wpcli container, a loop inside it** — never `bin/wp.sh` in a loop, which starts a container per call before WordPress boots. Sequential, from `~/wp-litespeed` (measured 2026-10-22):
 
@@ -29,7 +29,7 @@ for t in "{{text key:email}}" "{{datetime_single src:site|key:org_party_datetime
 done'
 ```
 
-A tag census across URLs is the env's `bin/replay-tags.sh`. A sweep that outlives a tool timeout keeps running in the background: check `docker ps` before starting another. A `request failed` or 500 during a page fetch may be a worker the env's memory trap killed, so read its `logs/lsphp-memwatch.log` before retrying.
+A tag census across URLs is the env's `bin/replay-tags.sh`. A sweep that outlives a tool timeout keeps running in the background: check `docker ps` before starting another. A `request failed` or 500 during a page fetch may be the env's memory trap (README: `lsphp-memwatch`); read its log before retrying.
 
 ## Two entrypoints
 
@@ -68,9 +68,9 @@ See `tools/fixtures/core-structures/README.md`. The design record that produced 
 
 ## Sweeping a tag set across contexts — one WP boot per CONTEXT, never one per cell
 
-A before/after sweep (render every tag string in a set against every context in a set, on two builds, and diff) is the measurement a refactor that should move nothing is held to. Do NOT build one out of `wp bws render-tag` calls, one per cell. A fresh `wp` invocation reboots WordPress and reloads the plugin over the 9p `PLUGINS_ROOT` mount: **measured 2026-09-23 on this testbed at roughly 3 seconds per call**, so a 73-tag × 14-context sweep spends about 50 minutes per arm on bootstrap alone, before any tag renders. Both arms are needed, so that is the cost twice. (Measured because a run was profiled while stalled — only `lsphp` was hot and every other container idle. Slowness here is bootstrap COUNT, not machine load.)
+A before/after sweep (render every tag string in a set against every context in a set, on two builds, and diff) is the measurement a refactor that should move nothing is held to. Do NOT build one out of `wp bws render-tag` calls, one per cell: a fresh `wp` invocation reboots WordPress and reloads the plugin over the 9p `PLUGINS_ROOT` mount, about 3 seconds a call, so a 73-tag × 14-context sweep spends about 50 minutes per arm on bootstrap alone, and both arms are needed. Slowness here is bootstrap COUNT, not machine load.
 
-Boot once per CONTEXT instead and render the whole tag list in-process, through the same seam the command wraps. **The same 1022-cell sweep runs in 30 seconds** (measured the same day, against the 50-minute per-cell version it replaced). The whole driver:
+Boot once per CONTEXT instead and render the whole tag list in-process, through the same seam the command wraps; the same 1022-cell sweep runs in 30 seconds. The whole driver:
 
 ```php
 // wp eval-file sweep-tags.php <tags.json> --url=https://testbed.test/<context>/
@@ -112,9 +112,9 @@ Driven by a shell loop over the context list, one `wp eval-file … --url=<ctx>`
 
 ### The bytecode cache — quieter, and it invalidates whole experiments
 
-The container runs `opcache.revalidate_freq = 120`, so a front-end request within two minutes of a source edit runs STALE BYTECODE while the disk bytes are already correct — no cache-bust and no file check can see it.
+The container's opcache can serve a front-end request pre-edit bytecode for about two minutes after a source edit while the disk bytes are already correct — no cache-bust and no file check can see it (env README §"Caching that fails green" owns the mechanism).
 
-That makes front-end MUTATION testing silently vacuous: two mutations that blank a whole fixture section both read as "no change". Recycle the lsphp workers between arms — `docker compose exec -T litespeed bash -c "command -v pkill >/dev/null && { pkill -x lsphp; [ \$? -le 1 ]; }"` — instead of restarting the whole container or waiting the window out. It is `pkill -x`, not `killall`: the OpenLiteSpeed 1.9.4 image has procps but not psmisc, so `killall` is "not found" there, and the old `2>/dev/null; true` tail swallowed that and left the recycle a silent no-op that failed green. Never add `|| true` or `2>/dev/null` back (`pkill` exits 1 for "no worker running", which is fine; the command fails nonzero if `pkill` itself is missing). A script should `. bin/lib/lsphp.sh` (env repo) and call `recycle_lsphp`, which does the same and also confirms every pre-existing worker is gone. Near-instant, and it's the fix this env's own docs already validate for the identical symptom (env repo `README.md` §"Caching that fails green").
+That makes front-end MUTATION testing silently vacuous: two mutations that blank a whole fixture section both read as "no change". Run `./bin/recycle-lsphp.sh || exit 1` from `~/wp-litespeed` between arms, instead of restarting the whole container or waiting the window out. **Never inline `killall` or `pkill` in a script here** — the env's `testing-against-the-env.md` rule 3 owns why.
 
 WP-CLI is exempt (`opcache.enable_cli = Off`), so `render-tag` sweeps need none of this.
 
@@ -167,11 +167,7 @@ container, so a capture under `wp eval-file` can write nothing. Comparison only 
 `posts` entry carrying a `content_builder` is snapshotted, so a new fixture page enters the set
 by existing. Nothing to register.
 
-**The post-type archive is scoped to this blueprint's own posts**, by `?bwsfx_scope=core` on its derived URL. An archive lists every post of its type a visitor may see, and the fixture site is shared, so a visible post from another fixture set moved the first article and the page count while nothing of ours had changed (measured 2026-10-23, `ctx-pta-staff`). The fixture mu-plugin (`bws_fixture_core_structures_scope_archive` in `schema.php`) restricts the main archive query to the manifest's posts of that type by slug, so the list is still rendered and still covered and only its population is pinned. A fixture post of ours added to a type that has an archive snapshot joins it by being in the manifest; one from anywhere else never does.
-
-**The product loops on `/matrix-products/` are scoped the same way**, by `bws_fixture_core_structures_scope_product_loops` (`schema.php`): every secondary product query on that page is restricted to the manifest's `products` by slug, with no query string because the page itself is the scope. Another fixture set's products on the shared site no longer move it (measured 2026-10-29 with eight `cof-*` products present, 28 of 28 pages matching the committed baseline).
-
-**Everything that lists the site's posts is scoped the same way, so another fixture set's posts do not move a baseline.** The Recent Posts widget on every page is a `core/latest-posts` block inside a `widget_block`, not a classic widget (so `widget_posts_args` never runs): `bws_fixture_core_structures_recent_posts_begin` and `_end` hook a `pre_get_posts` narrowing to the manifest's `post` entries for the duration of that one block's render, and no other secondary query is touched. The latest-posts home (`ctx-home-latest`) and the Sales term archive (`ctx-term`) are main queries, so they take `?bwsfx_scope=core` like the post-type archive, which `bws_fixture_core_structures_scope_archive` now reads for `is_home()` (type `post`) and `is_tax()` (any type) as well; their manifest paths carry the query string. The previous and next links under `post-home-lead` are narrowed by `bws_fixture_core_structures_scope_adjacent_post`, with the page itself as the scope. Measured 2026-11-02 with the `vmulti`, `home-lead` and `svtopic` sets present: 28 of 28 pages failed on a widget list or a first article from another set before this, and none do after. **The department term counts on `/matrix-loops/` (QL3.2) are scoped by rewriting the count, not the query.** `{{term_count}}` prints the stored `count` on the term, which includes every set's posts (Sales read 8 with five of ours), and no query filter reaches a count WordPress keeps on the term. `bws_fixture_core_structures_scope_term_counts` (`schema.php`) therefore sets `count` on each term object GB Query Enhancements hands its Term Query loop, through that plugin's `gb_query_enhancements_term_query_data` filter and only while `is_page( 'matrix-loops' )`, to the number of the manifest's published posts holding the term (by slug, in the taxonomy's own post types). Core's `get_terms` filter was tried first and never ran for these loops: it is applied in `get_terms()`, and GBQE builds a `WP_Term_Query` directly (measured 2026-11-02, the count stayed 8). With it the row reads 5, 5, 3 and 0 for Sales, Support, Warehouse and Workshop, and the stored counts of every other set no longer move the page.
+**Every list on a fixture page that shows the site's posts, terms or products is scoped to the manifest, so another fixture set's content does not move a baseline.** The fixture site is shared, and an unscoped listing shows whatever any set seeded. The `bws_fixture_core_structures_scope_*` hooks and the Recent Posts begin/end pair in `schema.php` do the scoping, and their docblocks own each mechanism and why: main-query listings (post-type archive, latest-posts home, taxonomy archive) take `?bwsfx_scope=core`, which the manifest paths carry; secondary queries are scoped by the page itself. A new listing on a fixture page needs its scope added there, or the next unrelated fixture set moves the baseline.
 
 **Cache-busting is built in** (the §page cache rule above applies to this instrument too, and it
 generates its own bust value per request — do not wrap it in one). A reseed does not invalidate
@@ -188,14 +184,11 @@ instead of skipping, so deactivating one is enough to stop a verification.
 
 **Every plugin that was ACTIVE at capture is recorded too**, in the same file's `active` list — not only the four required above. Re-record it from `wp plugin list --status=active --field=file` whenever you re-capture. A plugin activated or deactivated since capture prints as a **WARNING** in both directions and never fails the run: the fixture site is shared, so an unexpected co-resident plugin is something to attribute a diff to, not something to forbid. A warning with no page diff under it needs nothing done — say so in the commit rather than re-capturing to make it quiet.
 
-**A plugin toggle no longer moves the baseline.** The document head is not captured (bar `<title>`, the two description metas and any `bws-*` `<style>`), which is where co-resident stylesheet links live; `docs/update-triggers.md` owns what that costs. The practical consequence for operating this: you can activate and deactivate unrelated plugins on the fixture site without invalidating the committed baseline, and the warning line above is how you find out it happened.
+**A plugin toggle no longer moves the baseline:** the document head is not captured (bar `<title>`, the two description metas and any `bws-*` `<style>`), so you can activate and deactivate unrelated plugins on the fixture site without invalidating it, and the warning line above is how you find out it happened. `docs/update-triggers.md` owns what that costs.
 
 **All four must be ACTIVE on the fixture site, GB Query Enhancements included.** It supplies no fixture row's content; it is a co-resident extension that filters our tag rendering itself, from three PHP hooks that run on every tag render — [`coresident/gb-query-enhancements.md`](coresident/gb-query-enhancements.md#its-php-hooks-on-tag-rendering-and-what-each-means-for-us) enumerates them and owns that half. Every baseline below was therefore captured with them in the chain, and the defect that made that visible is GitHub [#123](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/123).
 
-What makes the declaration load-bearing is that **nothing else in the tree notices if it goes**:
-measured 2026-08-24, with it deactivated all nine snapshot pages still matched the baseline and the
-dependency check was the only failure. Today's agreement is a coincidence nobody measured forward, and it is exactly the
-state in which a silent variable is easiest to acquire.
+What makes the declaration load-bearing is that **nothing else in the tree notices if it goes**: measured 2026-08-24, with it deactivated all nine snapshot pages still matched the baseline and the dependency check was the only failure.
 
 **Re-capture and re-record in the SAME commit** — `env-versions.php`'s header owns why. A capture
 with any page unreachable **writes nothing at all**: every fetch completes before the first write,
