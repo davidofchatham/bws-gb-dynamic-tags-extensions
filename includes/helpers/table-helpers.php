@@ -75,10 +75,12 @@ function bws_table_has_header( array $headers ): bool {
  * @param string   $scope_class The styled table's scope class ('' = unstyled, no class).
  * @param bool     $allow_empty Build a table with an empty body for no rows (the editor
  *                              preview's zero-row state) instead of returning ''.
+ * @param string   $editor_payload The editor preview's style payload (bws_table_editor_payload());
+ *                              carried as an attribute on a styled `<table>`, ignored without a scope class.
  * @return string <table> HTML (wrapped in the scroll region when captioned), or
  *                '' if no rows and not $allow_empty.
  */
-function bws_table_assemble( array $headers, array $matrix, string $caption = '', string $caption_id = '', string $scope_class = '', bool $allow_empty = false ): string {
+function bws_table_assemble( array $headers, array $matrix, string $caption = '', string $caption_id = '', string $scope_class = '', bool $allow_empty = false, string $editor_payload = '' ): string {
 	if ( empty( $matrix ) && ! $allow_empty ) {
 		return '';
 	}
@@ -94,7 +96,7 @@ function bws_table_assemble( array $headers, array $matrix, string $caption = ''
 		$html .= '<div role="region" tabindex="0" aria-labelledby="' . esc_attr( $caption_id ) . '">';
 	}
 
-	$html .= '' === $scope_class ? '<table>' : '<table class="' . esc_attr( $scope_class ) . '">';
+	$html .= '' === $scope_class ? '<table>' : '<table class="' . esc_attr( $scope_class ) . '"' . ( '' === $editor_payload ? '' : ' data-bws-table-style="' . esc_attr( $editor_payload ) . '"' ) . '>';
 
 	if ( $has_caption ) {
 		$html .= '<caption id="' . esc_attr( $caption_id ) . '">' . esc_html( $caption ) . '</caption>';
@@ -799,6 +801,60 @@ function bws_table_column_style_read( array $slot_opts ): array {
 	return array(
 		'width' => isset( $slot_opts['width'] ) ? bws_table_width_value( (string) $slot_opts['width'] ) : null,
 		'text'  => bws_table_text_read( $slot_opts ),
+	);
+}
+
+/**
+ * The presentation tokens a tag or a slot carries, raw and unparsed, in a fixed order.
+ *
+ * The editor preview ships these (not the parsed read) so the editor's grammar twin re-validates
+ * every value: a forged payload can express only what the grammar accepts.
+ *
+ * @since Unreleased
+ * @param array $options     Tag options or a slot's `opts`.
+ * @param bool  $table_level True for the tag's own keys, false for a column's (width and text only).
+ * @return array<string,string>
+ */
+function bws_table_style_source( array $options, bool $table_level ): array {
+	$keys = array_merge( $table_level ? array( 'layout' ) : array(), array( 'width' ), $table_level ? array( 'stripe', 'border', 'borderRadius' ) : array(), array_keys( BWS_TABLE_TEXT_KEYS ) );
+	$out  = array();
+	foreach ( $keys as $key ) {
+		if ( isset( $options[ $key ] ) ) {
+			$out[ $key ] = (string) $options[ $key ];
+		}
+	}
+	return $out;
+}
+
+/**
+ * The editor preview's style payload: everything assets/js/table-editor-style.js needs to build a
+ * table's rules with the grammar twin, as one JSON string.
+ *
+ * `t` the table's raw tokens, `c` one raw-token object per column, `h` whether the table has a
+ * header row, `s` the stripe default pair this request resolved. The scope class is NOT in it: the
+ * editor takes the class from the table's own markup, so the hash is only ever computed here.
+ *
+ * @since Unreleased
+ * @param array   $options    Tag options.
+ * @param array[] $columns    bws_table_columns() records; `style_src` is each column's raw tokens.
+ * @param bool    $has_header Whether the table carries a header row.
+ * @param array   $stripe     `{ color, opacity }`, bws_table_stripe_defaults().
+ * @return string
+ */
+function bws_table_editor_payload( array $options, array $columns, bool $has_header, array $stripe ): string {
+	// false (invalid UTF-8 in a token) casts to '': the caller then emits no attribute.
+	return (string) json_encode(
+		array(
+			't' => (object) bws_table_style_source( $options, true ),
+			'c' => array_map(
+				static function ( array $col ): object {
+					return (object) ( $col['style_src'] ?? array() );
+				},
+				$columns
+			),
+			'h' => $has_header,
+			's' => array( 'color' => $stripe['color'], 'opacity' => $stripe['opacity'] ),
+		)
 	);
 }
 

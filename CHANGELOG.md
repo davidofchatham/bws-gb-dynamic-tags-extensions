@@ -21,6 +21,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
+- **A styled `{{table}}` is styled again in the editor on GenerateBlocks 2.5.1.** The editor preview showed the table's stylesheet as plain text above an unstyled table, for every user, because GenerateBlocks 2.5.1 filters every preview and the filter drops a `<style>` tag. The preview now carries the table's settings on the table itself and the editor builds the stylesheet from them. The front end is unchanged.
 - **An attempt or slot with no source now shows "Current Context" in the editor, not "Same as Previous Source".** On a `try_` tag or `{{join}}`, a second or later slot with no `src` has always read the current context when rendered; only the editor's label said otherwise. Tags saved from the editor carry an explicit source already, so this shows mostly on hand-written tags and tags written by an AI. Nothing about how tags render changes, and no saved tag changes.
 
 ## [1.24.0] — 2026-11-03

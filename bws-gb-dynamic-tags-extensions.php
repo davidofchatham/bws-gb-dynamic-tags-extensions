@@ -646,6 +646,15 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);
+	// The canvas's styled tables: the preview replacement cannot carry their CSS (GB's kses drops a
+	// <style> tag), so this builds each stylesheet from the table's payload with the grammar twin.
+	wp_enqueue_script(
+		'bws-dynamic-tags-table-editor-style',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/table-editor-style.js',
+		array( 'bws-dynamic-tags-table-style-grammar' ),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
 	wp_enqueue_script(
 		'bws-dynamic-tags-slot-fold-control',
 		BWS_DYNAMIC_TAGS_URL . 'assets/js/slot-fold-control.js',

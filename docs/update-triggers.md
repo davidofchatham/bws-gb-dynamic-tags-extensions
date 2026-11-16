@@ -433,3 +433,13 @@ The hints are invisible to authors and to the editor, so no one sees one go stal
 **A REVIEWED VOCABULARY failure means re-read, not re-record.** A new or removed value on a hinted option fails that section by name. Re-read the hint against the new value, change it if it should teach the value or say in the commit why it should not, and only then update the list. Updating the list alone clears the failure and defeats the pin.
 
 **Hint text is user-facing prose:** surface it for review before committing.
+
+## `{{table}}` editor stylesheet change
+
+**Fires on:** the preview payload (`bws_table_editor_payload()`, `bws_table_style_source()`, the `style_src` key on `bws_table_columns()` records, the attribute and its REST gate in `bws_table_html()`) or its reader `assets/js/table-editor-style.js`.
+
+**A clean run proves the two halves agree, not that the editor shows it.** `table-editor-payload-test.php` holds the payload's content and that only a styled table in a REST request carries it. `table-editor-style-test.js` hands every `rules` case of the twin corpus to the PHP builder and requires the injected text to equal it, over a DOM stub. Neither can reach what a real canvas does: whether GB's replacement route returns the attribute past kses, whether the canvas is an iframe, and whether React re-rendering a block leaves the stylesheet in place. Those are the testbed's: `table-test-matrix.md` TE6, in the editor, as an administrator.
+
+**The REST arm is measured through GB's own route.** Call `generateblocks/v1/dynamic-tag-replacements` in-process (`rest_do_request()`, `REST_REQUEST` defined, `bwsEditorPreview` in the context) for a tag taken from `/matrix-table/`, as the administrator and again with `unfiltered_html` removed, and read the attribute off the replacement. A `render-tag` run does not go through GB's kses, so it cannot see this defect at all.
+
+**A payload change is a security change.** The payload is data a replacement can carry, so the script re-validates every value in it through the twin, and puts only a scope class of the PHP shape in a selector. A change that lets a payload value reach a stylesheet without that pass needs the forged-value cases in the node harness extended first, and the harness mutation-checked (loosen the check, confirm the suite fails).

@@ -158,6 +158,8 @@ Rules measured off the rendered page footer.
 
 Only TE1 renders on the front end; TE2-TE5 are read in the EDITOR. Their expectations are in their labels on `/matrix-table/`; this file does not restate them.
 
+**TE6, styled tables in the editor** (no block of its own: it reads the TP blocks already on the page). Open `Matrix: Table` in the editor. Every styled TP block shows its styling (TP5 italic, its header bold uppercase and centered; TP7 row 1 shaded) and no CSS text sits above any table, the placeholder (TE2-TE5) included. Also the REST arm in [`update-triggers.md`](../../docs/update-triggers.md#table-editor-stylesheet-change): the payload attribute comes back, and no `<style>`, for an administrator and with `unfiltered_html` removed. **PASS (measured 2026-11-16, GB 2.5.1, administrator in the editor):** the canvas is an iframe; 47 styled tables got 42 stylesheets (identical scopes share one), each in the iframe's head; the REST arm returned the payload both ways.
+
 ## Not covered, and why
 
 - **The unresolved-source front-end row.** An unresolvable root (`src:post,999999;…`) renders nothing on the front end like TB8; the editor skeleton is TE3-TE5.

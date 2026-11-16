@@ -214,9 +214,10 @@ function bws_get_table_style_options(): array {
  * @param array $options Tag options.
  * @param array $dropped Out: `{ n, skip }` per column dropped for a skip with no header, so the
  *                       editor skeleton can still warn about it.
- * @return array[] `{ header, opts, style, n, skip }` per column; `opts` is bws_fold_slot_chain_options()'s,
+ * @return array[] `{ header, opts, style, style_src, n, skip }` per column; `opts` is bws_fold_slot_chain_options()'s,
  *                 or null for a header-only column; `style` is bws_table_column_style_read() of the
  *                 column's width and text tokens (a token whose brackets are unbalanced is absent);
+ *                 `style_src` those same tokens raw, for the editor preview's payload;
  *                 `n` the slot ordinal and `skip` the seam's skip reason, for the editor skeleton.
  */
 function bws_table_columns( array $options, array &$dropped = array() ): array {
@@ -238,11 +239,12 @@ function bws_table_columns( array $options, array &$dropped = array() ): array {
 			continue;
 		}
 		$columns[] = array(
-			'header' => $header,
-			'opts'   => $opts,
-			'style'  => bws_table_column_style_read( $slot['opts'] ),
-			'n'      => $n,
-			'skip'   => $skip,
+			'header'    => $header,
+			'opts'      => $opts,
+			'style'     => bws_table_column_style_read( $slot['opts'] ),
+			'style_src' => bws_table_style_source( $slot['opts'], false ),
+			'n'         => $n,
+			'skip'      => $skip,
 		);
 	}
 	return $columns;
@@ -452,7 +454,14 @@ function bws_table_html( array $options, array $columns, array $matrix, bool $al
 	);
 	$scope = bws_table_style_class( $rules );
 
-	$html = bws_table_assemble( $headers, $matrix, $caption, $caption_id, $scope, $allow_empty );
+	// The editor's replacement is not a page: nothing prints wp_footer, and GB's preview REST runs
+	// kses over every viewer's replacement, which drops a <style> tag. So a styled table carries its
+	// tokens and the editor builds the stylesheet (assets/js/table-editor-style.js).
+	$payload = '' !== $scope && bws_table_in_editor_preview()
+		? bws_table_editor_payload( $options, $columns, bws_table_has_header( $headers ), bws_table_stripe_defaults() )
+		: '';
+
+	$html = bws_table_assemble( $headers, $matrix, $caption, $caption_id, $scope, $allow_empty, $payload );
 	if ( '' === $html ) {
 		return '';
 	}
@@ -463,17 +472,8 @@ function bws_table_html( array $options, array $columns, array $matrix, bool $al
 	if ( '' !== $caption_id && function_exists( 'bws_queue_inline_css' ) ) {
 		bws_queue_inline_css( 'bws-table-inline-css', BWS_TABLE_INLINE_CSS );
 	}
-	if ( '' !== $scope ) {
-		$css = bws_table_rules_css( $scope, $rules );
-		if ( bws_table_in_editor_preview() ) {
-			// The editor's replacement is not a page: nothing prints wp_footer, so the rules
-			// travel with the table. GB's preview REST runs kses over every viewer's replacement,
-			// so the editor shows these rules as text above an unstyled table; see
-			// docs/tag-reference.md (One CSS vehicle).
-			$html = '<style>' . $css . '</style>' . $html;
-		} elseif ( function_exists( 'bws_queue_inline_css' ) ) {
-			bws_queue_inline_css( $scope, $css );
-		}
+	if ( '' !== $scope && ! bws_table_in_editor_preview() && function_exists( 'bws_queue_inline_css' ) ) {
+		bws_queue_inline_css( $scope, bws_table_rules_css( $scope, $rules ) );
 	}
 	return $html;
 }

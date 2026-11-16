@@ -407,7 +407,7 @@ The rows above are **legacy flat wire** (`2-key`), which is why their format tok
 <a id="table-preview"></a>
 ## `{{table}}` preview
 
-`{{table}}` has **no bracketed label**: nothing in `bws_build_preview_label()` handles it. The editor shows a real table or a placeholder table, built in PHP by `bws_table_callback()` when the request carries `bwsEditorPreview`. JS cannot make the choice, because GB's replacement route returns one string per tag and nothing in `assets/js` reads it.
+`{{table}}` has **no bracketed label**: nothing in `bws_build_preview_label()` handles it. The editor shows a real table or a placeholder table, built in PHP by `bws_table_callback()` when the request carries `bwsEditorPreview`. JS cannot make the choice, because GB's replacement route returns one string per tag and nothing in `assets/js` reads it; the only script that touches the result, `assets/js/table-editor-style.js`, styles the table already in the canvas from its `data-bws-table-style` attribute and decides nothing.
 
 | State | Editor shows |
 |---|---|
@@ -417,7 +417,7 @@ The rows above are **legacy flat wire** (`2-key`), which is why their format tok
 
 The front end never shows the placeholder: there, the last two states render nothing, and a placeholder would show visitors invented content.
 
-**The placeholder has the real table's shape and styling, never invented data.** A header row only when the real table's `<thead>` gate would emit one, then three body rows (`BWS_TABLE_SKELETON_ROWS`). Every body cell holds its column's configuration summary. It goes through the same rule builder and scope class as the real table, so sizing, stripes, typography and borders show on it. Every configured string is escaped.
+**The placeholder has the real table's shape and styling, never invented data.** A header row only when the real table's `<thead>` gate would emit one, then three body rows (`BWS_TABLE_SKELETON_ROWS`). Every body cell holds its column's configuration summary. It goes through the same rule builder, scope class and style attribute as the real table, so sizing, stripes, typography and borders show on it. Every configured string is escaped.
 
 **Two marks say it is a placeholder, because either alone misleads.** The table sits in `<div role="group" aria-label="Placeholder: …" style="border:1px dashed currentColor;padding:.5em">`: the dashed outline and the accessible name mark it, but do not say why. The cell text reads as configuration, but alone reads as data. A note line above the table says why: `⚠ Table: <warnings>`.
 
@@ -437,7 +437,7 @@ Column problems join the note through `bws_slot_warnings_text()`, the same colla
 | `C:header(Page);use(title)` | `Title` |
 | `D:header(Lead);src(inherit;refs);key(city)` | empty; the note gains `D no ref` |
 
-**An author without `unfiltered_html` or `manage_options` sees only GB's fallback, the tag title "Table".** GB blanks such a user's replacement and skips the tag before our callback or the `generateblocks_dynamic_tag_replacement` filter runs (enforced in GB's `GenerateBlocks_Dynamic_Tags`, not here; [`gb-constraints.md`](gb-constraints.md#dynamic-data-is-suppressed-by-post-source-not-by-tag-name-gb-240) owns GB's trust model). Every user who sees a replacement gets the real table or the placeholder through GB's kses pass (since GB 2.5.1; before it, users with `unfiltered_html` skipped it), which keeps the placeholder's role, accessible name, dashed outline, note and scope class (measured 2026-10-16, a trusted user without `unfiltered_html`) but drops the `<style>` tag that carries the table's rules and leaves its CSS as text above an unstyled table (measured 2026-11-16, testbed, GB 2.5.1, an administrator).
+**An author without `unfiltered_html` or `manage_options` sees only GB's fallback, the tag title "Table".** GB blanks such a user's replacement and skips the tag before our callback or the `generateblocks_dynamic_tag_replacement` filter runs (enforced in GB's `GenerateBlocks_Dynamic_Tags`, not here; [`gb-constraints.md`](gb-constraints.md#dynamic-data-is-suppressed-by-post-source-not-by-tag-name-gb-240) owns GB's trust model). Every user who sees a replacement gets the real table or the placeholder through GB's kses pass (since GB 2.5.1; before it, users with `unfiltered_html` skipped it), which keeps the placeholder's role, accessible name, dashed outline, note and scope class (measured 2026-10-16, a trusted user without `unfiltered_html`) but drops a `<style>` tag, so a styled table carries its rules as a `data-bws-table-style` attribute, which kses keeps, and the editor builds the stylesheet from it (measured 2026-11-16, testbed, GB 2.5.1: the REST replacement for an administrator, with and without `unfiltered_html`, has the attribute and no `<style>`).
 
 The placeholder strings are not translated, as no preview label is. A pinned post or term that does not exist (`src:post,999999`) gets the base tag preview's `(not available)` wording in the note (`⚠ Table: post 999999 (not available)`), through `bws_table_unavailable_root_entity()`, which asks the same namer.
 

@@ -857,6 +857,18 @@ Open: Which order is canonical. Whether GB's picker follows registration order o
 
 Blocked by: —  •  Interacts with: FW-184 (closed; descriptions mirror the README cells and quote two labels)
 
+#### FW-190 — The captioned `{{table}}` scroll region is unstyled in the editor
+
+In the editor preview, a captioned `{{table}}`'s scroll-region wrapper is not given `overflow:auto`, so a table wider than its container gets no scroll region there. The front end prints that rule once at `wp_footer` (`BWS_TABLE_INLINE_CSS`, queued by `bws_queue_inline_css()`); a REST request prints no footer, so the preview never gets it.
+
+Detail home: this entry; the editor stylesheet script (`assets/js/table-editor-style.js`) is the place it would land. No design yet.
+
+Progress: Not started. Found while fixing GitHub [#162](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/162), which moved the scoped presentation rules into the editor and left this static rule where it was. Cosmetic and editor-only; the rule is one line and has no payload.
+
+Open: Whether the editor script injects the same constant (and from where, so the rule is owned once) or the wrapper takes the rule another way. Not measured: how a wide captioned table looks in the editor today, or that the rule is absent there (read from the code, not the canvas).
+
+Blocked by: —  •  Interacts with: #162 (the editor stylesheet script this would extend)
+
 ### Testing & infrastructure
 
 #### FW-96 — Dependency replay over the harvest corpus
