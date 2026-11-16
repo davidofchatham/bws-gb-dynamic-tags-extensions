@@ -28,7 +28,8 @@ That contrast is the whole instrument: jane's own content renders her join rows 
 
 **Also browsable.** The seed builds these rows as visible GB blocks on `/matrix-content/`
 (`blocks.php`: `matrix_content` builder). Eyeball the front end with a cache bust —
-`curl -sk "https://testbed.test/matrix-content/?nocache=$RANDOM"`.
+`curl -sk "https://testbed.test/matrix-content/?nocache=$(date +%s%N)"` (generated in the outer
+shell; the bust and its traps are owned by the env `README.md` §"Page cache").
 
 **Why its own page.** A hopped `{{content}}` renders another entity's whole block set inline.
 On a shared matrix page two entities' values land on one screen and neither is legible, so the

@@ -33,7 +33,7 @@ the rewrite's mapping rows in
 and the integrator-facing API in
 [`docs/plugin-integration.md` §1](../../docs/plugin-integration.md#1-offering-your-source-as-a-chain-root).
 
-**Cache-bust with a LITERAL token when curling.** `?nocache=$RANDOM` does not expand in the
+**Cache-bust with a LITERAL token when curling, new on every fetch** (the env `README.md` §"Page cache" owns the bust and the `x-litespeed-cache: miss` check). `?nocache=$RANDOM` does not expand in the
 container's `sh`, so the URL stays constant and LiteSpeed serves the cached page — which reads as
 "the rows are missing" or "the migration changed nothing":
 

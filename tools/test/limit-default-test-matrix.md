@@ -47,8 +47,9 @@ add rows for it.
 `related_staff` = **Jane Partner, Tom Associate** (jane FIRST — the unset-limit rows pin her).
 
 **How to check:** reseed (`bin/seed.sh testbed core-structures`), then
-`curl -sk "https://testbed.test/matrix-post-meta/?nocache=$RANDOM"` — the cache bust is
-mandatory or brand-new rows read as missing. Single rows can also be run through
+`curl -sk "https://testbed.test/matrix-post-meta/?nocache=$(date +%s%N)"` (generated in the outer
+shell; see the env `README.md` §"Page cache") — the cache bust is mandatory or brand-new rows
+read as missing. Single rows can also be run through
 `bin/wp.sh testbed bws render-tag '{{…}}' --url=https://testbed.test/matrix-post-meta/`.
 
 ## L1 — unset `limit` MUST stay 1 (the regression floor)
