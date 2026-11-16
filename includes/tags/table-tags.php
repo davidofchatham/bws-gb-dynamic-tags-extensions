@@ -467,8 +467,9 @@ function bws_table_html( array $options, array $columns, array $matrix, bool $al
 		$css = bws_table_rules_css( $scope, $rules );
 		if ( bws_table_in_editor_preview() ) {
 			// The editor's replacement is not a page: nothing prints wp_footer, so the rules
-			// travel with the table. A trusted user without `unfiltered_html` gets this
-			// `<style>` stripped by GB's kses and sees an unstyled table; accepted.
+			// travel with the table. GB's preview REST runs kses over every viewer's replacement,
+			// so the editor shows these rules as text above an unstyled table; see
+			// docs/tag-reference.md (One CSS vehicle).
 			$html = '<style>' . $css . '</style>' . $html;
 		} elseif ( function_exists( 'bws_queue_inline_css' ) ) {
 			bws_queue_inline_css( $scope, $css );

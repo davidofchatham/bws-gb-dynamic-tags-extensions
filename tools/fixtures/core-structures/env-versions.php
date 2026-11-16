@@ -62,6 +62,13 @@ return array(
 	// The date the baseline under `tools/test/snapshots/` was captured. Prose only —
 	// nothing compares it; it is here so a reader can place the record in time.
 	//
+	// 2026-11-16: a DEPENDENCY MOVE, re-captured. GenerateBlocks 2.5.0 -> 2.5.1 moved NO line: no
+	// rendered tag differs on any of the 28 pages. The only lines that moved are page chrome:
+	// WooCommerce 11.2.1 -> 11.3.0 (`<script id="wc-no-js">` gained its id) and Perfmatters 2.7.0,
+	// newly active, which appears to re-wrap the inline GeneratePress menu scripts. Both
+	// attributions are read off the diff and the verify warnings, not isolated by reverting either.
+	// Perfmatters is now part of every baseline's chrome and joins the active set.
+	//
 	// 2026-11-05: RE-RECORDED, NOT RE-CAPTURED, a departure from the rule in the header made on
 	// purpose. GeneratePress AI 1.0.0 joined the dependency record as an optional entry; it and the
 	// MCP Adapter joined the active set (both were active on the fixture site and warned on every
@@ -170,7 +177,7 @@ return array(
 	// The 2026-09-14 capture is WooCommerce joining the fixture site (chrome only, no
 	// rendered tag moved); the 2026-09-03 one is where the head-deletion rule arrived — a
 	// reader hitting an ~800-line deletion further back in `git log` is looking at that.
-	'captured' => '2026-11-02',
+	'captured' => '2026-11-16',
 
 	// WordPress core, as `get_bloginfo( 'version' )` reports it. A change is a WARNING like a
 	// plugin version change, never a failure. First recorded 2026-09-25, read off the site
@@ -217,6 +224,7 @@ return array(
 		'meta-conductor/meta-conductor.php',
 		'ninja-tables-pro/ninja-tables-pro.php',
 		'ninja-tables/ninja-tables.php',
+		'perfmatters/perfmatters.php',
 		'redirection/redirection.php',
 		'site-views/site-views.php',
 		'slim-seo/slim-seo.php',
@@ -231,7 +239,7 @@ return array(
 	'plugins'  => array(
 		'generateblocks/plugin.php' => array(
 			'label'    => 'GenerateBlocks',
-			'version'  => '2.5.0',
+			'version'  => '2.5.1',
 			'required' => true,
 		),
 		'generateblocks-pro/plugin.php' => array(
@@ -258,7 +266,7 @@ return array(
 		// naming WooCommerce is a better failure than 19 page diffs with no stated cause.
 		'woocommerce/woocommerce.php' => array(
 			'label'    => 'WooCommerce',
-			'version'  => '11.2.1',
+			'version'  => '11.3.0',
 			'required' => true,
 		),
 		// OPTIONAL. Inert on the front end (28 of 28 pages match with it active), so no baseline
