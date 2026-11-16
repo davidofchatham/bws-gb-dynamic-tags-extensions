@@ -147,6 +147,11 @@ button {
   cursor: pointer; font-size: 12px; font-family: inherit;
 }
 button:hover { border-color: var(--accent); color: var(--accent); }
+[hidden] { display: none !important; }
+.perm-filters { display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; white-space: nowrap; }
+.perm-filters .pf-h { font-size: 11px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
+.perm-filters .pf-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+.perm-filters button[aria-pressed="true"] { background: var(--accent-light); border-color: var(--accent); color: var(--accent); font-weight: 600; }
 
 /* ── Permutations tab ───────────────────── */
 /* Invariant-check surfacing: a per-row badge plus a header summary. Deliberately loud on
@@ -292,6 +297,7 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 <header>
   <button class="sb-toggle" id="sb-toggle" aria-label="Toggle settings sidebar" aria-expanded="false" aria-controls="sidebar">☰</button>
   <h1>GB Tag String Preview — Permutations</h1>
+  <div class="perm-filters" id="perm-filters"></div>
 </header>
 
 <div class="layout">
@@ -318,28 +324,48 @@ button:hover { border-color: var(--accent); color: var(--accent); }
       <span class="toggle-desc">fold link → <code>linkTo:key[sep]field</code> (FW-20; already reaches folded slots)</span>
     </label>
     <label class="toggle-row">
-      <input type="checkbox" id="cb-fw81">
+      <input type="checkbox" id="cb-fw81" checked>
       <span class="toggle-desc">collapse datetime keys → <code>{{datetime key:a,b;c}}</code>, <code>use:</code> only for published/modified/now (FW-81, unshipped)</span>
     </label>
     <div class="toggle-desc" style="margin-top:4px">FW-81 fields inside one <code>key:</code> read (date, time)</div>
     <select id="sel-fw81-inner" style="width:100%">
       <option value=",">, (comma): key:a,b;c,d</option>
-      <option value="+">+ (plus): key:a+b;c+d</option>
+      <option value="+" selected>+ (plus): key:a+b;c+d</option>
       <option value="/">/ (slash): key:a/b;c/d</option>
     </select>
-    <div class="toggle-desc" style="margin-top:4px">FW-81 verbs in <code>use:</code></div>
-    <select id="sel-fw81-usesep" style="width:100%">
-      <option value=";">; (semicolon): use:published;key</option>
-      <option value=",">, (comma): use:published,key</option>
+    <div class="toggle-desc" style="margin-top:4px">FW-81 reads (start / end): between <code>key:</code> groups AND between <code>use:</code> verbs, one separator for both; also a <code>when</code> read subject</div>
+    <select id="sel-fw81-readsep" style="width:100%">
+      <option value=";">; (semicolon): key:a+b;c+d · use:published;key</option>
+      <option value="/">/ (slash): key:a+b/c+d · use:published/key</option>
+      <option value="~">~ (tilde): key:a+b~c+d · use:published~key</option>
+      <option value="..">.. (two dots): key:a+b..c+d · use:published..key</option>
+      <option value="...">... (three dots): key:a+b...c+d · use:published...key</option>
     </select>
     <div class="sb-h">when syntax (FW-27, not built)</div>
-    <div class="toggle-desc" style="margin-bottom:4px">No encoding is chosen. Each option is a candidate spelling of the same conditions.</div>
-    <select id="sel-when" style="width:100%">
-      <option value="w1">W1 — key(x),test + has(…) relations</option>
-      <option value="w2">W2 — key,x[,test], negation not(…)</option>
-      <option value="w2br">W2 bracketed — as W2, reads bracketed: key(x), use(content)</option>
-      <option value="w2nv">W2 bracketed, noValue — reads bracketed, key(x),noValue; not(…) on relations + lists only</option>
-      <option value="m">Merged — one key, head-led conditions, mode slug leads: any;term,34;key,x,noValue</option>
+    <div class="toggle-desc" style="margin-bottom:4px">Test-first; reads always bracketed (<code>key(price)</code>, <code>use(content)</code>); relation words are <code>has</code> + a list word (<code>hasAny(term,34)</code>, <code>hasAll</code>, <code>hasNone</code>, <code>hasNotAll</code>), adopted 2026-11-09: all(hasValue,key[price];hasAny[term,34]). The options below are candidate spellings, none chosen.</div>
+    <div class="toggle-desc" style="margin-top:4px">when: several tests on one field</div>
+    <select id="sel-when-testjoin" style="width:100%">
+      <option value="group">any / all groups — any(before;during),key(x) · all(hasValue;isNot[TBD]),key(x)</option>
+      <option value="op">+ and / — before/during,key(x) · hasValue+isNot(TBD),key(x)</option>
+      <option value="plus" selected>+ for AND, any() for OR — hasValue+isNot(TBD),key(x) · any(before;during),key(x)</option>
+    </select>
+    <label class="toggle-row">
+      <input type="checkbox" id="cb-when-ops" checked>
+      <span class="toggle-desc">phase pairs everywhere (all When groups): <code>beforeOrDuring</code>, <code>duringOrAfter</code>, <code>beforeOrAfter</code>. Exceptions: Operators' "Groups (no phase pairs)" baseline is always off, Joiners' "Phase pairs" line always on. Value sets (<code>isAny(Gold;Silver)</code>, <code>isNone(…)</code>) always apply</span>
+    </label>
+    <div class="toggle-desc" style="margin-top:4px">when: value sets: one value</div>
+    <select id="sel-when-singleset" style="width:100%">
+      <option value="is" selected>is(Gold) · isNot(Gold)</option>
+      <option value="set">isAny(Gold) · isNone(Gold)</option>
+    </select>
+    <label class="toggle-row">
+      <input type="checkbox" id="cb-when-readfirst">
+      <span class="toggle-desc">read first: the read leads and the tests follow, <code>when:key(event_date+start_time),beforeDuring</code> for <code>when:beforeDuring,key(event_date+start_time)</code>. Every test syntax follows it (joiners, operators, hoisted lists); a <code>hasAny(term,34)</code> relation has no separate test and stays put</span>
+    </label>
+    <div class="toggle-desc" style="margin-top:4px">when: group separator (list items, grouped tests, relations). Independent of the <code>key:</code> read separator above (a read is bracketed, so they never collide)</div>
+    <select id="sel-when-sep" style="width:100%">
+      <option value=";">; (semicolon): any(a;b)</option>
+      <option value="/">/ (slash): any(a/b)</option>
     </select>
     <div class="sb-h">Table text styling</div>
     <label class="toggle-row">
@@ -461,14 +487,26 @@ const VALUE_PRESETS = {
   // the hierarchical chain step.
   inherit:  ['inherit','row','here'],
   // FW-27 `when` list operators — UNSHIPPED. Rename ids for the words that join conditions or tests;
-  // they apply in W1 (`any(…)` / `all(…)`), W2 (`any[…]` / `all[…]`, and `not(…)` = `not`) and
-  // Merged (`any;a;b`, `none;a`, `notAll;a;b`) alike. W1/W2 spell "none of" as `not(any[…])`, so
-  // `none` and `notAll` only show in Merged.
+  // they apply to both list spellings (`any(…)` bracketed, `any;a;b` merged). `not` is no longer
+  // written by any encoding (it was W2's), kept so the rename column still lists it.
   any:      ['any','either','or','oneOf'],
   all:      ['all','both','and','every'],
   none:     ['none','neither','nor','noneOf'],
   notAll:   ['notAll','notBoth','nand'],
   not:      ['not','no','except'],
+  // FW-27 presence test — UNSHIPPED. Rename id for the lead word of a bare read condition.
+  hasValue: ['hasValue','isSet','present','notEmpty'],
+  // FW-27 boolean tests — UNSHIPPED. Rename ids for the test words (user 2026-11-09: shown as isTrue / isFalse).
+  true:     ['isTrue','true','yes'],
+  false:    ['isFalse','false','no'],
+  // FW-27 date-phase tests — UNSHIPPED. The three phases, then the three pair compounds the expanded
+  // operators write (whenExpand); a compound's rename list carries both the `Or` and the bare spelling.
+  before:   ['before','upcoming','future'],
+  during:   ['during','now','ongoing'],
+  after:    ['after','past','over'],
+  beforeOrDuring: ['beforeOrDuring','beforeDuring','notAfter','upcomingOrNow'],
+  duringOrAfter:  ['duringOrAfter','duringAfter','notBefore','started'],
+  beforeOrAfter:  ['beforeOrAfter','beforeAfter','notDuring','outside'],
 };
 
 // Separator candidates — ALL gb-constraints-safe per gb-constraints.md §Separator-safe
@@ -725,6 +763,35 @@ const SCENARIO_GROUPS = [
     {label:'Range, field → field, then now → field (two key groups)', parts:null,
       collapsed:[{verb:'key',args:['$startKey','$timeKey']},{verb:'now'},{verb:'key',args:['$endKey']}],
       previewOnly:true, note:'Not a sensible range, shown only for how two `key` verbs consume two `;`-groups in order'},
+  ]},
+  // try_datetime: each slot is one whole read-list (single or range) folded into its OWN slot value,
+  // `A:`, `B:`, `C:`... like every other try_ container, so a slot's `use`/`key` and their groups are
+  // separate from every other slot's. Shipped try_datetime_* has no per-slot read axis (all six keys are
+  // tag-level), so every row is Preview-only. `dtKeys.reads` = the slot's read list (see respellEntries).
+  // Added to stress the read/verb separators: inside ONE slot value the inner, read and verb separators
+  // all appear next to the slot option separator, and the slot key and `|` sit between slots.
+  { tmpl:'datetime', path:['Try tags','try_datetime'], isContrast:true,
+    variants:['folded'], foldClass:'try', scenarios:[
+    {label:'2: event datetime, else published', previewOnly:true,
+      slots:[{dtKeys:{reads:[{verb:'key',args:['$dateKey','$timeKey']}]}}, {dtKeys:{reads:[{verb:'published'}]}}],
+      note:'Slot B is verb-only: `use` and no `key`'},
+    {label:'2: range, else single datetime', previewOnly:true,
+      slots:[{dtKeys:{reads:[{verb:'key',args:['$startKey','$timeKey']},{verb:'key',args:['$endKey','$timeKey']}]}},
+             {dtKeys:{reads:[{verb:'key',args:['$dateKey','$timeKey']}]}}],
+      note:'Slot A holds two `key` reads, slot B one: each slot has its own `key` groups'},
+    {label:'2: range, else ongoing range', previewOnly:true,
+      slots:[{dtKeys:{reads:[{verb:'key',args:['$startKey','$timeKey']},{verb:'key',args:['$endKey']}]}},
+             {dtKeys:{reads:[{verb:'key',args:['$startKey','$timeKey']},{verb:'now'}]}}],
+      note:'Slot B mixes a field and a verb: `use` lists both, `key` holds the one group'},
+    {label:'2: published → end field, else published → modified', previewOnly:true,
+      slots:[{dtKeys:{reads:[{verb:'published'},{verb:'key',args:['$endKey']}]}},
+             {dtKeys:{reads:[{verb:'published'},{verb:'modified'}]}}],
+      note:'Slot A mixes verb and field; slot B is all verbs and has no `key`'},
+    {label:'3: range, else published → end field, else published', previewOnly:true,
+      slots:[{dtKeys:{reads:[{verb:'key',args:['$startKey','$timeKey']},{verb:'key',args:['$endKey','$timeKey']}]}},
+             {dtKeys:{reads:[{verb:'published'},{verb:'key',args:['$endKey']}]}},
+             {dtKeys:{reads:[{verb:'published'}]}}],
+      note:'Three slots, all three shapes: two field reads, verb + field, verb only'},
   ]},
   // The unfolded `try_text` group was MERGED into the contrast group below (2026-07-31); its
   // two leftover shipped-only rows (a 3-slot ref+term chain, and chain-level `_link`) folded
@@ -1188,8 +1255,8 @@ const SCENARIO_GROUPS = [
     {label:'Today only (date-only field)', rest:[['use','title'],['_if',{test:'during',subject:{kind:'key',field:'$dateKey'}}]]},
     {label:'Upcoming or no date yet (C1)', rest:[['use','title'],['_if',{any:['before','noValue'],subject:{kind:'key',field:'$dateKey'}}]],
       note:'`any()` mixes families: a missing date is in no phase, so `noValue` has to be listed'},
-    {label:'Not upcoming, INCLUDING no date (W2 gain)', rest:[['use','title'],['_if',{any:['during','after','noValue'],subject:{kind:'key',field:'$dateKey'}}]],
-      note:'W2 spells it as the negation of "upcoming"; W1 has to list `noValue` beside the phases'},
+    {label:'Not upcoming, INCLUDING no date', rest:[['use','title'],['_if',{any:['during','after','noValue'],subject:{kind:'key',field:'$dateKey'}}]],
+      note:'A missing date is in no phase, so `noValue` is listed beside the phases'},
     {label:'All three phases (flagged)', rest:[['use','title'],['_if',{any:['before','during','after'],subject:{kind:'key',field:'$dateKey'}}]],
       note:'Parses; always passes for a set date, so the editor warns (C3b)'},
     {label:'Contradiction (flagged)',   rest:[['use','title'],['_if',{all:['before','after'],subject:{kind:'key',field:'$dateKey'}}]],
@@ -1201,7 +1268,7 @@ const SCENARIO_GROUPS = [
     {label:'Date + time split (FW-81 read)',     rest:[['use','title'],['_if',{test:'before',subject:{kind:'key',field:'$dateKey',time:'start_time'}}]],
       note:'FW-81\'s `key,date,time` read (G7 widening): a time makes the value an instant (G4b)'},
     {label:'Range, time-only end (LATER, G6)',  rest:[['use','title'],['_if',{test:'during',subject:[{kind:'key',field:'$dateKey',time:'start_time'},{kind:'key',field:'end_time'}]}]],
-      note:'FW-81: a time-only end INHERITS the start date; the reads\' `;` sits inside `use()`, so the top level is still subject,test (W1) / property,test (W2)'},
+      note:'FW-81: a time-only end INHERITS the start date; the reads ride one `key` token, bracketed (`key(…)`) only when the read separators collide with the `when` group separator (`use()` today, without the FW-81 toggle), so the top level is still tests,read'},
     {heading:'Relations and `src`'},
     // Property tests (P1–P9 + the 2026-09-27 property list): a step-shaped subject, no read.
     {label:'Filed under term 34 (P1)',        rest:[['use','title'],['_if',{test:'hasValue',subject:{kind:'step',slug:'term',arg:'34'}}]]},
@@ -1405,16 +1472,16 @@ const SCENARIO_GROUPS = [
       note:'Wire bulk with every concern at once; read the depth figure and the length'},
   ]},
 
-  // FW-27 `when` ENCODINGS side by side (user 2026-10-14): W1 and W2, plus the two
-  // newer ones derived from the styling spellings (Merged). Rendered by the `whenEnc` branch of
-  // renderPerms(); the encoders are whenMergedStr(). A cond is the usual shape, or
+  // FW-27 `when` ENCODINGS side by side (user 2026-10-14; test-last ones dropped 2026-11-09).
+  // Rendered by the `whenEnc` branch of renderPerms(); the encoder is whenTestFirst(). A cond is
+  // the usual shape, or
   // {conds:'all'|'any'|'none'|'notAll', items:[cond…]} for a list of conditions (groups nest).
   ...(() => {
     const K = f => ({kind:'key', field:f}), U = s => ({kind:'analog', slug:s}), T = (slug, arg) => ({kind:'step', slug, arg});
     const has = f => ({test:'hasValue', subject:K(f)}), no = f => ({test:'noValue', subject:K(f)}), yes = f => ({test:'true', subject:K(f)});
     const row = (label, cond, extra) => ({label, rest:[['use','title'], ['_if', cond]], ...extra});
     return [{ path:['When','Encodings side by side'], whenEnc:true, tmpl:'text',
-      intro:'Three candidate encodings, none chosen: W1, W2 and Merged. Merged writes one `when` key as head-led conditions (`key,x` / `term,34`), tests after commas, `;` between conditions, a mode slug leading a list, and a bracketed group. The list words (`any`, `all`, `none`, `notAll`, and the `not` of W2) are rename ids in the sidebar and apply in all three. A W1 line reading "Not modelled in W1" means W1 never modelled the row.',
+      intro:'The test-first spelling: each condition is its tests then the read (`is(Yes),key(featured)`), presence always written; a read is always bracketed, and a relation is always a has word over a bracket (`hasAny(term,34)`): `all(hasValue,key[price];hasAny[term,34])`. The trials picked in the sidebar apply here; When > Joiners shows them side by side. The list words (`any`, `all`, `none`, `notAll`) are rename ids in the sidebar.',
       scenarios:[
         {heading:'Tests on a read'},
         row('Has a value', has('sale_price')),
@@ -1422,41 +1489,69 @@ const SCENARIO_GROUPS = [
         row('Boolean true', yes('is_varsity')),
         row('Text `is`', {test:'is', arg:'Yes', subject:K('featured')}),
         row('`is` operand with `;` and (…)', {test:'is', arg:'Red (dark); matte', subject:K('finish')},
-          {note:'The operand is the only bracketed leaf in Merged'}),
+          {note:'Outside a list, the operand is the only bracket'}),
         row('Upcoming incl. today', {any:['before','during'], subject:K('event_date')},
-          {note:'Several tests on one read are an implicit any-of in Merged'}),
+          {note:'Several tests on one read take a list word, FW-81\'s group separator between them'}),
         row('Upcoming or no date yet', {any:['before','noValue'], subject:K('event_date')}),
         row('Has a real value (presence AND a test)', {all:['hasValue', {test:'isNot', arg:'TBD'}], subject:K('status')},
-          {note:'No all-of test list in Merged: it becomes two conditions in an `all` list'}),
+          {note:'The read is written once; the operand drops a bracket level inside the group'}),
         row('Neither of two values', {all:[{test:'isNot', arg:'Archived'}, {test:'isNot', arg:'Draft'}], subject:K('status')}),
         row('Built-in field', {test:'hasValue', subject:U('excerpt')}),
         {heading:'Relations'},
         row('Filed under term 34', {test:'hasValue', subject:T('term','34')}),
         row('NOT filed under term 34', {test:'noValue', subject:T('term','34')},
-          {note:'Merged: `none;term,34`; W2: `not(term,34)`'}),
+          {note:'A relation\'s absence is its own word, `hasNone`'}),
         row('Either of two terms', {props:'any', items:[T('term','34'), T('term','35')]}),
         row('Neither of two terms', {props:'any', neg:true, items:[T('term','34'), T('term','35')]}),
+        row('Is a child page (has a parent)', {test:'hasValue', subject:T('parent')},
+          {note:'`parent` takes no argument, so the relation is the bare slug'}),
+        row('Is a top-level page (no parent)', {test:'noValue', subject:T('parent')}),
+        row('Has child pages (`children` as a test only)', {test:'hasValue', subject:T('children')},
+          {note:'`children` as a test, ahead of the FW-169 step: an existence check needs none of the step\'s open questions (order, fan-out default) except which children count (attachments are children of a post)'}),
+        row('Has no child pages', {test:'noValue', subject:T('children')}),
+        row('A mid-level page: parent AND children', {props:'all', items:[T('parent'), T('children')]},
+          {note:'Different relations share one has word, `hasAll(parent;children)`'}),
+        row('Top-level page with children', {conds:'all', items:[{test:'noValue', subject:T('parent')}, T('children')]}),
         {heading:'Reads that arrive later'},
         row('Range, two reads (LATER)', {test:'during', subject:[K('start_date'), K('end_date')]},
-          {note:'Two reads need `use(…)` around them in every encoding; the only bracket a subject takes'}),
+          {note:'Two reads take one bracket, `key(…;…)` with the FW-81 toggle on (`use(…)` off); the only bracket a subject takes'}),
         row('Date plus time read (FW-81)', {test:'before', subject:{kind:'key', field:'event_date', time:'start_time'}},
-          {note:'Merged writes it flat, `key,event_date,start_time,before`: the test words are reserved, so a field named `before` as the second field would misparse'}),
+          {note:'With FW-81 off the read is flat, `before,key,event_date,start_time`: a reader takes test words until `key`, so tests and fields never share a position'}),
         {heading:'Lists and groups'},
         row('A taxonomy test and a date test in one list', {conds:'all', items:[T('terms','event-type'), {any:['before','during'], subject:K('event_date')}]}),
         row('Either a term or an empty field', {conds:'any', items:[T('term','34'), no('promo')]}),
         row('A and (B or C)', {conds:'all', items:[has('price'), {conds:'any', items:[T('term','34'), has('badge')]}]},
-          {note:'A group is the one bracket in Merged'}),
+          {note:'Merged lists: a group is the one bracket'}),
         row('(A and B) or C', {conds:'any', items:[{conds:'all', items:[has('price'), yes('in_stock')]}, T('term','34')]},
           {note:'The GB Pro / extension group shape (J11)'}),
         row('Two groups, either passing', {conds:'any', items:[{conds:'all', items:[has('price'), yes('in_stock')]}, {conds:'all', items:[T('term','34'), no('hidden')]}]}),
         row('None of a term and a flag', {conds:'none', items:[T('term','34'), yes('is_hidden')]}),
         row('Not all of two', {conds:'notAll', items:[has('price'), yes('in_stock')]},
-          {note:'Merged: `notAll;…`; W2 needs `not(all[…])`'}),
+          {note:'`notAll` is a list word of its own, no `not(…)` wrapper'}),
         row('Operand with brackets inside a group', {conds:'any', items:[{test:'is', arg:'Red (dark); matte', subject:K('finish')}, T('term','34')]}),
         {heading:'Inside `src`, tables and joins'},
         row('Provider phone if THIS post uses a 3rd party (`src`)', {src:[{slug:'current'}], test:'is', arg:'3rd-party', subject:K('support_source')},
           {chain:[{slug:'refs', arg:'support_provider'}], rest:[['key','support_phone'], ['_if', {src:[{slug:'current'}], test:'is', arg:'3rd-party', subject:K('support_source')}]],
-           note:'`src` inside `when` is held out of v1 (R3); the leading `src(…);` is the one depth-0 `;`'}),
+           note:'`src` is part of the condition and leads it with a comma (user 2026-11-10); it replaces the default subject (the resolved source of the tag), so it is only written to override it'}),
+        row('Related titles only if THIS post opts in (`src(current)`)', {src:[{slug:'current'}], test:'true', subject:K('show_related')},
+          {chain:[{slug:'refs', arg:'related_posts'}], rest:[['sep',', '], ['use','title'], ['_if', {src:[{slug:'current'}], test:'true', subject:K('show_related')}]],
+           note:'One answer for the whole list: the test reads the post the tag sits on, never the related posts'}),
+        row('Related titles that are child pages (no `src`)', {test:'hasValue', subject:T('parent')},
+          {chain:[{slug:'refs', arg:'related_posts'}], rest:[['sep',', '], ['use','title'], ['_if', {test:'hasValue', subject:T('parent')}]],
+           note:'Contrast with the row above: no `src`, so each related post is tested and only the child pages show'}),
+        row('"Members only" if the PARENT page is in term 34 (`src(parent)`)', {src:[{slug:'parent'}], test:'hasValue', subject:T('term','34')},
+          {rest:[['_fixed', {text:'Members only'}], ['_if', {src:[{slug:'parent'}], test:'hasValue', subject:T('term','34')}]],
+           note:'A section flag set once on the parent, read from every child page'}),
+        row('Child-page notice if the parent is archived (`src(parent)`)', {src:[{slug:'parent'}], test:'true', subject:K('is_archived')},
+          {rest:[['_fixed', {text:'This section is archived'}], ['_if', {src:[{slug:'parent'}], test:'true', subject:K('is_archived')}]]}),
+        row('Event title if its venue is step-free (`src(refs,…)`)', {src:[{slug:'refs', arg:'venue'}], test:'true', subject:K('step_free_access')},
+          {note:'Tests the venue, shows the event: the tag\'s own source stays the event'}),
+        row('Event title if its venue is step-free AND has parking (one `src`, a list)', {src:[{slug:'refs', arg:'venue'}], conds:'all', items:[yes('step_free_access'), has('parking_info')]},
+          {note:'A list that leads with `src` covers every item; the items carry none of their own'}),
+        row('Venue in a list beside the tag\'s own source', {conds:'all', items:[{src:[{slug:'refs', arg:'venue'}], test:'true', subject:K('step_free_access')}, {any:['before','during'], subject:K('event_date')}]},
+          {note:'Only the first item reads the venue; the date test reads the event, the default subject'}),
+        row('Talk title if the speaker\'s organization is a sponsor (`src(refs,…;refs,…)`)', {src:[{slug:'refs', arg:'speaker'}, {slug:'refs', arg:'organization'}], test:'hasValue', subject:T('term','sponsor')},
+          {note:'`src` is a whole chain from an explicit root, two hops here'}),
         {label:'Table column `when`: empty the cell, keep the row', fold:'table',
           rowChain:[{slug:'refs', arg:'related_staff'}],
           slots:[{label:'Name', tag:'title', read:{kind:'analog', slug:'title'}},
@@ -1485,7 +1580,7 @@ const SCENARIO_GROUPS = [
     const has = f => ({test:'hasValue', subject:K(f)}), no = f => ({test:'noValue', subject:K(f)});
     const row = (label, cond, extra) => ({label, rest:[['use','title'], ['_if', cond]], ...extra});
     return [{ path:['When','Negatives beside positives'], whenEnc:true, tmpl:'text',
-      intro:'Three levels of negative. ON A READ, a test word: `noValue`, `false`, `isNot(x)`; each flips one positive and PASSES on an empty field. ON A RELATION, there is no negative test, so absence is a `none` list of one (W1: `hasNot`, W2: `not(…)`). ON A LIST, `none` (no item passes) and `notAll` (not every item passes). The last block puts each list negative beside the list of negated items that means the same. Rename the list words in the sidebar (`none`, `notAll`, `not`).',
+      intro:'Three levels of negative. ON A READ, a test word: `noValue`, `false`, `isNot(x)`; each flips one positive and PASSES on an empty field. ON A RELATION, there is no negative test, so absence is a `none` list of one (written as its own word, `hasNone`). ON A LIST, `none` (no item passes) and `notAll` (not every item passes). The last block puts each list negative beside the list of negated items that means the same. Rename the list words in the sidebar (`none`, `notAll`).',
       scenarios:[
         // 1. tests on a read
         {heading:'On a read'},
@@ -1514,16 +1609,146 @@ const SCENARIO_GROUPS = [
         row('NOT both terms', {props:'all', neg:true, items:[T('term','34'), T('term','35')]}, {note:'`notAll`: true unless every item passes. No real fixture needs it yet'}),
         // 4. the same meaning, two spellings
         {heading:'Same meaning, two spellings'},
-        row('NEITHER field has a value', {conds:'none', items:[has('price'), has('badge')]}, {note:'`none` of two presences...'}),
-        row('BOTH fields are empty', {conds:'all', items:[no('price'), no('badge')]}, {note:'...is `all` of two `noValue`s'}),
-        row('NOT both fields set', {conds:'notAll', items:[has('price'), has('badge')]}, {note:'`notAll` of two presences...'}),
-        row('AT LEAST ONE field is empty', {conds:'any', items:[no('price'), no('badge')]}, {note:'...is `any` of two `noValue`s'}),
+        {subheading:'Neither field set'},
+        row('NEITHER field has a value', {conds:'none', items:[has('price'), has('badge')]}, {note:'`none` of two presences'}),
+        row('BOTH fields are empty', {conds:'all', items:[no('price'), no('badge')]}, {note:'`all` of two `noValue`s'}),
+        {subheading:'Not both fields set'},
+        row('NOT both fields set', {conds:'notAll', items:[has('price'), has('badge')]}, {note:'`notAll` of two presences'}),
+        row('AT LEAST ONE field is empty', {conds:'any', items:[no('price'), no('badge')]}, {note:'`any` of two `noValue`s'}),
+        {subheading:'Not upcoming, including no date'},
         row('NOT upcoming, including no date', {conds:'none', items:[{any:['before','during'], subject:K('event_date')}]},
-          {note:'`none` of the upcoming test...'}),
-        row('During, after, or no date', {any:['during','after','noValue'], subject:K('event_date')},
-          {note:'...is the other three outcomes on one read, `noValue` listed'}),
+          {note:'`none` of the upcoming test'}),
+        row('Past, or no date', {any:['after','noValue'], subject:K('event_date')},
+          {note:'The remaining outcomes on one read, `noValue` listed'}),
         {heading:'Mixing a relation and a read'},
         row('No term and no value', {conds:'none', items:[T('term','34'), has('badge')]}, {note:'`none` mixes a relation and a read in one list'}),
+      ]}];
+  })(),
+
+  // FW-27 `when` JOINERS (user 2026-11-09): FW-81's `+` / `/` trial applied to `when`. Each row is
+  // spelled two ways (WHEN_JOIN_ENCS): `+` AND / `/` OR on tests, or any / all groups on tests, each
+  // with the shared test written once and has-words over relations. The FW-81 rows set
+  // reads with the sidebar's FW-81 toggle and separators, so FW-81's characters and `when`'s sit in
+  // one string as picked there.
+  ...(() => {
+    const K = (f, time) => ({kind:'key', field:f, ...(time ? {time} : {})}), T = (slug, arg) => ({kind:'step', slug, arg});
+    const has = f => ({test:'hasValue', subject:K(f)}), no = f => ({test:'noValue', subject:K(f)});
+    const row = (label, cond, extra) => ({label, rest:[['use','title'], ['_if', cond]], ...extra});
+    const dt = K('event_date', 'start_time'), range = [K('event_date', 'start_time'), K('end_date', 'end_time')], rangeT = [K('event_date', 'start_time'), K('end_time')];
+    return [{ path:['When','Joiners'], whenEnc:'join', tmpl:'text',
+      intro:'Two trials. `Shared test once`: a test every item of a list shares is written in front of it (`hasValue,all(key,a;key,b)`), the tests of one field join with FW-81\'s `/` = OR and `+` = AND (`before/during`, `hasValue+isNot(TBD)`), and a list of relations is one `has` word (`hasNone(term,34;term,35)`, and `hasAny(term,34;refs,rel)` where the relations differ). `Groups, hasAny, once`: the same, with `any` / `all` groups instead of `+` / `/`. Only ADJACENT conditions on the same read, or bare relations, fold; anything else stays a list.',
+      scenarios:[
+        {heading:'Tests on one field'},
+        row('Upcoming incl. today', {any:['before','during'], subject:K('event_date')},
+          {note:'A group says its logic in a word; `/` says it in a character'}),
+        row('Upcoming or no date yet', {any:['before','noValue'], subject:K('event_date')}),
+        row('Has a value and is upcoming', {all:['hasValue','before'], subject:K('event_date')},
+          {note:'The `hasValue+before` case. Redundant for a self-gate (an empty date is in no phase, so `before` alone fails on it); kept as the plainest AND'}),
+        row('Has a real value', {all:['hasValue', {test:'isNot', arg:'TBD'}], subject:K('status')},
+          {note:'The read is no longer repeated. The operand keeps its own bracket: `isNot(TBD)`'}),
+        row('Neither of two values', {all:[{test:'isNot', arg:'Archived'}, {test:'isNot', arg:'Draft'}], subject:K('status')}),
+        row('Either of two values', {any:[{test:'is', arg:'Gold'}, {test:'is', arg:'Silver'}], subject:K('tier')},
+          {note:'Author text inside a test is bracketed, so a `/` or `+` in it never reads as a joiner: `is(A/B)` is one value'}),
+        row('Value with a slash in it', {test:'is', arg:'In/Out', subject:K('status')}),
+        row('Vegan AND (gluten-free OR nut-free), multi-value field', {conds:'all', items:[{test:'contains', arg:'Vegan', subject:K('dietary')}, {any:[{test:'contains', arg:'Gluten-free'}, {test:'contains', arg:'Nut-free'}], subject:K('dietary')}]},
+          {note:'Uses `contains`, a later test: every v1 test reads one value, so any AND-of-an-OR on one field flattens to a single list or value set. Groups nest, so it is one condition. `+ /` cannot nest: `contains(Vegan)+contains(Gluten-free)/contains(Nut-free)` would need a precedence rule, so the `Shared test once` line keeps the list'}),
+        {heading:'With FW-81 reads (toggle and separators from the sidebar)'},
+        row('Date + time, upcoming or now', {any:['before','during'], subject:dt},
+          {note:'With FW-81 on `+`, a `+` AND before `key` would sit beside the field join inside its bracket, but a date read has no AND worth writing (the phases exclude each other, and each implies a value), so the two never meet'}),
+        row('Date + time, upcoming', {test:'before', subject:dt}),
+        row('Range, happening now', {test:'during', subject:range},
+          {note:'Two reads sit in one bracket, FW-81\'s read separator between them'}),
+        row('Range, now or past', {any:['during','after'], subject:range}),
+        row('Range, time-only end, happening now', {test:'during', subject:rangeT}),
+        {heading:'Several relations'},
+        row('Either of two terms', {props:'any', items:[T('term','34'), T('term','35')]}),
+        row('Both terms', {props:'all', items:[T('term','34'), T('term','35')]}),
+        row('Neither term', {props:'any', neg:true, items:[T('term','34'), T('term','35')]},
+          {note:'`hasNone` says neither outright; the shared-test lines write it as one word over the relations, `hasNone(…)`'}),
+        row('Not both terms', {props:'all', neg:true, items:[T('term','34'), T('term','35')]},
+          {note:'No not-all word, so the list stays'}),
+        row('Terms in either of two taxonomies', {props:'any', items:[T('terms','category'), T('terms','event-type')]}),
+        row('Three terms, any', {props:'any', items:[T('term','34'), T('term','35'), T('term','36')]}),
+        row('Two terms or an empty field', {conds:'any', items:[T('term','34'), T('term','35'), no('promo')]},
+          {note:'Only the adjacent relations fold into the has word; the read stays a list item'}),
+        row('Both terms and a price', {conds:'all', items:[T('term','34'), T('term','35'), has('price')]}),
+        row('A term and a related post', {conds:'any', items:[T('term','34'), T('refs','related_staff')]},
+          {note:'Relations of different kinds fold too: the has word names each one'}),
+        {heading:'Fields sharing one test'},
+        row('Either field has a value', {conds:'any', items:[has('price'), has('badge')]}),
+        row('Both fields have a value', {conds:'all', items:[has('price'), has('badge')]}),
+        row('Neither field has a value', {conds:'none', items:[has('price'), has('badge')]},
+          {note:'Fields never join; the shared test is written once instead'}),
+        row('Not both fields have a value', {conds:'notAll', items:[has('price'), has('badge')]}),
+        row('Either date is upcoming', {conds:'any', items:[{test:'before', subject:K('early_date')}, {test:'before', subject:K('late_date')}]}),
+        row('Both fields not TBD', {conds:'all', items:[{test:'isNot', arg:'TBD', subject:K('status')}, {test:'isNot', arg:'TBD', subject:K('phase')}]}),
+        row('Two fields, two tests each', {conds:'any', items:[{all:['hasValue', {test:'isNot', arg:'TBD'}], subject:K('status')}, {all:['hasValue', {test:'isNot', arg:'TBD'}], subject:K('phase')}]},
+          {note:'A joined test is shared whole: `hasValue+isNot(TBD),any(…)`'}),
+        {heading:'Two fields vs one FW-81 read'},
+        row('Both date and time set (two fields)', {conds:'all', items:[has('event_date'), has('start_time')]},
+          {note:'Two conditions; the AND is the list word'}),
+        row('Date + time read has a value', {test:'hasValue', subject:dt},
+          {note:'One combined date-time value: the field join after `key` is FW-81\'s alone'}),
+        {heading:'Shared test written once'},
+        row('A term or a related post', {conds:'any', items:[T('term','34'), T('refs','related_staff')]},
+          {note:'Different relations share the has word, `hasAny(term,34;refs,related_staff)`'}),
+        row('A term or a field (mixed, no hoist)', {conds:'any', items:[T('term','34'), has('badge')]},
+          {note:'`has` and `hasValue` differ, so nothing is shared'}),
+        row('Upcoming, on either of two dates', {conds:'any', items:[{any:['before','during'], subject:K('start_date')}, {any:['before','during'], subject:K('end_date')}]},
+          {note:'A joined test hoists whole: `before/during,any(…)`'}),
+        row('Both FW-81 reads set', {conds:'all', items:[{test:'hasValue', subject:dt}, {test:'hasValue', subject:K('end_date', 'end_time')}]},
+          {note:'The field join stays FW-81\'s; the AND is the list word'}),
+        row('Three fields, one in a group', {conds:'all', items:[has('price'), {conds:'any', items:[has('badge'), has('ribbon')]}]},
+          {note:'Only a flat list hoists; the inner group hoists on its own'}),
+        {heading:'Inside a slot'},
+        {label:'Join slot: either of two terms, varsity', fold:'join',
+          slots:[{tag:'text', read:{kind:'key', field:'team_name'}},
+                 {tag:'text', read:{kind:'fixed', text:'Varsity'}, if:{conds:'all', items:[{test:'true', subject:K('is_varsity')}, {props:'any', items:[T('term','34'), T('term','35')]}]}}],
+          note:'Folding removes a bracket level inside the slot token'},
+      ]}];
+  })(),
+  // FW-27 EXPANDED OPERATORS (user 2026-11-09): value sets (adopted) and phase compounds (trial)
+  // absorb the common lists; each row shows the no-phase-pairs baseline, then each residual spelling.
+  ...(() => {
+    const K = (f, time) => ({kind:'key', field:f, ...(time ? {time} : {})}), T = (slug, arg) => ({kind:'step', slug, arg});
+    const row = (label, cond, extra) => ({label, rest:[['use','title'], ['_if', cond]], ...extra});
+    const is = a => ({test:'is', arg:a}), isNot = a => ({test:'isNot', arg:a});
+    const range = [K('event_date', 'start_time'), K('end_date', 'end_time')];
+    return [{ path:['When','Operators'], whenEnc:'ops', tmpl:'text',
+      intro:'Expanded operators. VALUE SETS always apply: an OR of values is `isAny(a;b)`, an AND of negated values `isNone(a;b)` (sidebar: whether ONE value is `is(a)` or `isAny(a)`). PHASE PAIRS are a sidebar option: an OR of two phases is one word, `beforeOrDuring` (each phase and pair is renameable, e.g. `beforeDuring`). Each row: the baseline (groups, no phase pairs), then the leftover combinations spelled three ways: (b) groups, (c) `+` / `/`, (d) `+` with `any()` for OR. Lines (b)–(d) follow the sidebar\'s "phase pairs" box.',
+      scenarios:[
+        {heading:'Phases'},
+        row('Upcoming incl. today', {any:['before','during'], subject:K('event_date')}),
+        row('Started (now or past)', {any:['during','after'], subject:K('event_date')}),
+        row('Not happening now', {any:['before','after'], subject:K('event_date')},
+          {note:'Means outside the event, not "before and after"'}),
+        row('Range, now or past', {any:['during','after'], subject:range}),
+        row('All three phases', {any:['before','during','after'], subject:K('event_date')},
+          {note:'Always true for a dated field; no compound, the editor flags it'}),
+        {heading:'Values'},
+        row('One value', {test:'is', arg:'Gold', subject:K('tier')}),
+        row('Not one value', {test:'isNot', arg:'Archived', subject:K('status')}),
+        row('Either of two values', {any:[is('Gold'), is('Silver')], subject:K('tier')}),
+        row('Any of three values', {any:[is('Gold'), is('Silver'), is('Bronze')], subject:K('tier')}),
+        row('Neither of two values', {all:[isNot('Archived'), isNot('Draft')], subject:K('status')}),
+        row('Value with a semicolon', {any:[is('Red; matte'), is('Blue')], subject:K('finish')},
+          {note:'`;` separates values in a set, so one inside a value is escaped `\\;`'}),
+        {heading:'Left over: still needs a combination'},
+        row('Has a real value', {all:['hasValue', isNot('TBD')], subject:K('status')},
+          {note:'A negative passes on an empty field, so presence stays a second test'}),
+        row('Upcoming or no date yet', {any:['before','during','noValue'], subject:K('event_date')},
+          {note:'The phase pair compounds; `noValue` stays beside it'}),
+        row('Gold or Silver, or no tier yet', {any:[is('Gold'), is('Silver'), 'noValue'], subject:K('tier')}),
+        row('Not Archived AND (not Draft OR Pending)', {conds:'all', items:[{test:'isNot', arg:'Archived', subject:K('status')}, {any:[isNot('Draft'), is('Pending')], subject:K('status')}]}),
+        {heading:'Beside other conditions'},
+        row('Gold or Silver tier, and upcoming', {conds:'all', items:[{any:[is('Gold'), is('Silver')], subject:K('tier')}, {any:['before','during'], subject:K('event_date')}]}),
+        row('Upcoming, on either of two dates', {conds:'any', items:[{any:['before','during'], subject:K('start_date')}, {any:['before','during'], subject:K('end_date')}]},
+          {note:'One shared test hoists in front of the list'}),
+        row('Either term, and Gold or Silver', {conds:'all', items:[{props:'any', items:[T('term','34'), T('term','35')]}, {any:[is('Gold'), is('Silver')], subject:K('tier')}]}),
+        {heading:'Inside a slot'},
+        {label:'Join slot: Gold or Silver, upcoming', fold:'join',
+          slots:[{tag:'text', read:{kind:'key', field:'team_name'}},
+                 {tag:'text', read:{kind:'fixed', text:'Featured'}, if:{conds:'all', items:[{any:[is('Gold'), is('Silver')], subject:K('tier')}, {any:['before','during'], subject:K('event_date')}]}}]},
       ]}];
   })(),
 ];
@@ -1599,9 +1824,13 @@ const S = {
                         // use:key,field / linkTo:key,field, no bracket. (Radio dropped; 'off' is
                         // the decision — mirrors chainPair.)
   linkCombined: false,  // fold linkKey into linkTo value → linkTo:key,<field> (else separate keys)
-  fw81DtCollapse: false, fw81Inner: ',', fw81UseSep: ';', // FW-81 (parked): show the collapsed use: reading beside today's six-key wire; the two seps are sidebar-picked (inner = fields inside one `key:` read, useSep = verbs in `use:`).
+  fw81DtCollapse: true, fw81Inner: '+', fw81ReadSep: ';', // FW-81 (parked): show the collapsed use: reading beside today's six-key wire; both seps are sidebar-picked (inner = fields inside one `key:` read, readSep = between reads, in `key:` and `use:` alike, since `use:published;key` is itself a start/end pair).
   styleBackground: false, // text-styling group: include the background property (deferred past v1, not shipped; on makes each line it appears in a Preview).
-  whenMode: 'w1',       // FW-27 `when` encoding: 'w1' decided wire | 'w2' / 'w2br' / 'w2nv' the OPEN W2 proposal (serializeIf).
+  whenTestJoin: 'plus', // FW-27 tests on one field: 'plus' (default, user 2026-11-09) hasValue+isNot(TBD) / any(before;during) | 'group' all(…) / any(…) | 'op' + and / (whenJoinItems).
+  whenPhasePairs: true, // FW-27 phase-pair compounds (whenExpand): sidebar checkbox for every group (default on, matching its checked box); Operators' baseline line forces off, Joiners' third line forces on. Value sets always apply.
+  whenSingleSet: false, // FW-27 one value: false = is(a) / isNot(a), true = isAny(a) / isNone(a).
+  whenReadFirst: false, // FW-27 position trial: false = test-first `tests,read`, true = read-first `read,tests` (`key(x),beforeDuring`). Flips every test-bearing condition, hoisted lists included; a has-word relation (`hasAny(term,34)`) has no separate test, so it is unaffected.
+  whenSep: ';',         // FW-27 group separator in a `when` (list items, grouped tests, relation groups); independent of fw81ReadSep, which only separates reads inside `key:` / a `when` read subject.
   dummies: {key1:'custom_field',key2:'other_field',imgKey:'image_field',dateKey:'event_date',timeKey:'event_time',startKey:'start_date',endKey:'end_date',ref:'rel_post',tax:'category',urlKey:'url_field',fallback:'N/A',rangeSep:' – ',format:'F j, Y'},
 };
 
@@ -1902,7 +2131,10 @@ function respellEntries(chain, read, link, dtKeys, typeTag, fallback, ifCond, al
   if (chainStr) E.push({name:'src', val:chainStr, chainStr:true, rank:RESPELL_KEY_MAP.src});
   if (dtKeys) {
     if(dtKeys.as) push('as',dtKeys.as,false);
-    if (S.fw81DtCollapse) {
+    if (dtKeys.reads) {
+      // an explicit read list (try_datetime slots): always the collapsed spelling, whatever the toggle says.
+      fw81CollapsedPairs(dtKeys.reads).forEach(([k,v])=>push(k,v,k==='key'?rb:false));
+    } else if (S.fw81DtCollapse) {
       // FW-81 toggle reaches a folded slot's own dtKeys too, not just the standalone datetime_single/
       // datetime_range groups — same merge rule (datetimeCollapseFromParts), so a datetime slot inside
       // join/table collapses to one `use:` read-list instead of always showing the pre-collapse keys.
@@ -1964,48 +2196,54 @@ const RESPELL_FREEFORM = new Set(['format','fallback','sep','valueSep','rangeSep
 // GB; our own balance-aware sub-parser handles balanced inner brackets.
 function escFreeform(v) { return String(v).replace(/([:|])/g, '\\$1'); }
 // FW-27 `when` VALUE (unshipped; if-option.md). `depth` = the level of the bracket ENCLOSING the
-// value, as serializeStep: 0 on the `when:` colon form, 1 inside a slot's `when(…)`. S.whenMode
-// picks the encoding (sidebar; none is chosen): 'w1' = W1, 'w2' = the W2 proposal
-// (one condition shape, property[,test], `not(…)` negates), 'w2br' = W2 with reads kept
-// BRACKETED as the slot read spells them (`key(x)`, `use(content)`, FW-81's `use(key,date,time)`);
-// relations stay step-shaped (`term,34`). Unlike W1 it still cuts hasValue / noValue / has / hasNot.
-// 'w2nv' = 'w2br' with a READ's absence spelled as the test `noValue` (`key(x),noValue`, so it
-// joins test lists: `any(before,noValue)`); `not(…)` then wraps relations and lists only, never a
-// read. `hasValue` is the read's STRIPPED DEFAULT test: emitted only inside a test list
-// (`all(hasValue,isNot[TBD])`), never alone (`key(x)`); both forms parse.
-// Ruled out 2026-09-28: `has(…)` around every W2 condition; W2 with a field's presence still
-// spelled `key,x,hasValue`; W2 with only `use` bracketed (superseded by 'w2br').
+// value, as serializeStep: 0 on the `when:` colon form, 1 inside a slot's `when(…)`. The encoding is
+// TEST-FIRST (test-last W1 / W2 / Merged dropped 2026-11-09, merged lists too): a condition is
+// `tests,read` — `hasValue,key(price)`, `is(Yes),key(featured)`, `before/during,key(event_date)`;
+// presence is always written, and a lone absence is its own word (`noValue,key(x)`). ADOPTED
+// (user 2026-11-09): a read is ALWAYS bracketed, the shipped slot-read spelling, one or several
+// reads alike; a relation is ALWAYS a `has` + list-word bracket — hasAny (one relation's
+// default) / hasAll / hasNone / hasNotAll — so no bare `has` / `hasNot`:
+// `any(all[hasValue,key(price);true,key(in_stock)];hasAny[term,34])`.
+// Trials still open (user 2026-11-09): S.whenTestJoin picks how a field's tests join, 'group' =
+// `any(before;during),key(x)` (the default) or 'op' = `/` OR, `+` AND (`hasValue+isNot(TBD),key(status)`); a test shared by every item of a list is always written once. Adjacent
+// bare relations always join under one has word, `hasAny(term,34;term,35)`. `+` / `/` between
+// ids or fields was dropped the same day. See whenJoinItems() / whenListParts().
 // Cond shape: {subject, test, arg?} single, or {subject, any:[…]} / {subject, all:[…]} of bare
 // names or {test, arg}; a subject is {kind:'key'|'analog'|'step'} or an array (FW-81's two reads).
-// A PROPERTY LIST is {props:'any'|'all', items:[step subjects], neg?}. `src` (optional) is a chain
-// [{slug,arg}] anchored at the current context (W2 round 1), led with `;` in every mode.
+// A PROPERTY LIST is {props:'any'|'all', items:[step subjects], neg?}; a CONDITION LIST is
+// {conds:'all'|'any'|'none'|'notAll', items:[cond…]}. `src` (optional) is a chain [{slug,arg}]
+// anchored at the current context, led with `;`.
 function whenWrap(name, v, d) { const b = bracketAt(d) || (d % 2 ? '()' : '[]'); return name + b[0] + v + b[1]; }
-function whenSrcPrefix(c, depth) {
-  return c.src ? whenWrap(kn('src'), c.src.map(h => serializeStep({...h, arg:resolveVal(h.arg||'')}, depth + 1)).join(S.chainSep.hop), depth + 1) + ';' : '';
+// FW-81 read subject in a `when`, once the FW-81 toggle is on: fields ride `key` (never `use`, which
+// carries only verbs), a read's fields join on S.fw81Inner and several reads on S.fw81ReadSep, so
+// `key(date+time)` / `key(start+time;end)`. Returns [name, value], or null when the legacy spelling
+// applies: toggle off, a non-`key` read in the subject, or a plain single field. The caller always
+// brackets it, so its separators never meet S.whenSep or the test operators.
+function whenFwRead(subj) {
+  if (!S.fw81DtCollapse || !subj.every(s => s.kind === 'key') || (subj.length === 1 && !subj[0].time)) return null;
+  const fields = s => [resolveVal(s.field), ...(s.time ? [resolveVal(s.time)] : [])];
+  return [kn('key'), subj.map(s => fields(s).join(S.fw81Inner)).join(S.fw81ReadSep)];
 }
-function serializeIf(c, depth) {
-  const wrap = whenWrap;
-  const src = whenSrcPrefix(c, depth);
-  // A list of CONDITIONS (reads and relations mixed, groups) is only modelled by W2 and the two newer
-  // encodings; W1's scenario model never spelled one.
-  if (c.conds) return S.whenMode === 'w1' ? WHEN_UNMODELLED : src + w2Cond(w2FromNorm(whenNorm(c)), depth, wrap);
-  return src + (S.whenMode === 'w1' ? whenW1(c, depth, wrap) : w2Cond(w2Tree(c), depth, wrap));
+// `src` is PART OF A CONDITION (user 2026-11-10; supersedes the when-global `src(…);` prefix): it leads the
+// condition, or the LIST, it belongs to, then a comma: `src(current),hasAny(term,34)`. It is a complete
+// chain from an explicit root that REPLACES the default subject (the tag's / slot's resolved source,
+// never written). A list that leads with a `src` covers its items, which then carry none of their own
+// (`own` below). Written only when authored: the default has no spelling.
+function whenSrcStr(src, depth) {
+  return src ? whenWrap(kn('src'), src.map(h => serializeStep({...h, arg:resolveVal(h.arg||'')}, depth + 1)).join(S.chainSep.hop), depth + 1) + ',' : '';
 }
 // The `when` entries a cond writes: [[option id, value], …]. One entry in every encoding.
 function serializeIfEntries(c, depth) {
-  if (S.whenMode === 'm') return [['if', whenSrcPrefix(c, depth) + whenMergedStr(whenNorm(c), depth)]];
-  return [['if', serializeIf(c, depth)]];
+  return [['if', whenTestFirst(whenCollapse(whenNorm(c)), depth)]];
 }
-// ── FW-27 `when`, the Merged encoding derived from the table-styling spelling (user 2026-10-14) ───
 // Reads one NORMALIZED tree: a condition {k:'c', subject, tests} (tests are an implicit any-of
-// list; none = "has a value") or a list {k:'l', mode:'all'|'any'|'none'|'notAll', items}.
-//   'm'  MERGED: one `when` key. Conditions are head-led (`key,x` / `use,content` / `term,34` /
-//        `terms,tax` / `refs,rel`), tests follow after commas, `;` between conditions, and a list
-//        leads with its mode (`any;term,34;key,x,noValue`). A group is the one bracket: (all;a;b).
-// The four list words are rename ids (VALUE_PRESETS any / all / none / notAll, plus `not` for W2's
-// negation), applied in W1, W2 and Merged alike. A by-mode encoding (separate when / whenAny / unless
-// keys) was tried and dropped as uninteresting, 2026-10-14.
-function whenNorm(c) {
+// list; none = "has a value") or a list {k:'l', mode:'all'|'any'|'none'|'notAll', items}. After
+// whenJoinItems a condition may also carry `tj` (the char between its tests), `rels` (a relation
+// group's subjects) and `word` (a test word that replaces its tests: hasAny / hasNone / hasNotAll / …).
+// The four list words are rename ids (VALUE_PRESETS any / all / none / notAll). A by-mode encoding
+// (separate when / whenAny / unless keys) was tried and dropped as uninteresting, 2026-10-14.
+function whenNorm(c) { const n = whenNormBase(c); return c.src ? {...n, src:c.src} : n; }
+function whenNormBase(c) {
   const cond = (subject, tests) => ({k:'c', subject, tests});
   const testItem = t => typeof t === 'string' ? t : (t.arg != null ? {test:t.test, arg:t.arg} : t.test);
   if (c.kind) return cond(c, []);   // a bare subject inside a list: has a value / has the relation
@@ -2021,103 +2259,151 @@ function whenNorm(c) {
 function whenCollapse(n) {
   if (n.k !== 'l') return n;
   const items = n.items.map(whenCollapse);
-  return items.length === 1 && (n.mode === 'all' || n.mode === 'any') ? items[0] : {...n, items};
+  return items.length === 1 && (n.mode === 'all' || n.mode === 'any') ? (n.src ? {...items[0], src:n.src} : items[0]) : {...n, items};
 }
-function whenCondStr(n, depth) {
+const whenIsStep = n => [].concat(n.subject)[0].kind === 'step';
+// THE JOINER TRIALS. Fold ADJACENT conditions of one list into one condition, joined by the list's
+// own logic: OR in an any-of list (`any`, and `none` = not any), AND in an all-of list (`all`,
+// `notAll`).
+//   Tests: same read, so `all(hasValue,key[s];isNot[TBD],key[s])` → one condition whose tests are a
+//     TREE: a test is a name, {test, arg}, or {join:'/'|'+', items}. S.whenTestJoin 'group' writes a
+//     join as `all(hasValue;isNot[TBD]),key(s)` (S.whenSep between tests) and so NESTS:
+//     `all(contains[Vegan];any[contains[Gluten-free];contains[Nut-free]]),key(dietary)`. 'op' writes
+//     `hasValue+isNot(TBD),key(s)` and has no nesting, so a condition whose tests are already OR-joined
+//     never folds into an AND (and the reverse): `contains(Vegan)+contains(Gluten-free)/contains(Nut-free)`
+//     would need a precedence rule nobody has decided.
+//   Relations (always): bare relations, no tests, any slugs, so `any(hasAny[term,34];hasAny[term,35])` →
+//     `hasAny(term,34;term,35)`: the mode as a `has` word over the relations. A lone relation is
+//     `hasAny(term,34)`. Fields never join; a shared test is written once instead (whenListParts).
+function whenJoinItems(mode, items) {
+  const sep = mode === 'any' || mode === 'none' ? '/' : '+';
+  const nest = S.whenTestJoin !== 'op';   // 'group' and 'plus' keep a mixed tree
+  // A condition's tests as ONE expression, for nesting: none = hasValue, one = itself, several = a join.
+  const exprOf = n => !n.tests.length ? 'hasValue' : n.tests.length === 1 ? n.tests[0] : {join: n.tj || '/', items: n.tests};
+  const sameJoin = n => n.tests.length > 1 && (n.tj || '/') === sep;
+  const testsFold = n => n.k === 'c' && !whenIsStep(n) && !n.word && (nest || n.tests.length <= 1 || sameJoin(n));
+  const relFold = n => n.k === 'c' && whenIsStep(n) && !n.tests.length && !n.word;
+  const out = [];
+  for (const it of items) {
+    const prev = out[out.length - 1];
+    const sameSrc = prev && JSON.stringify(prev.src || null) === JSON.stringify(it.src || null);   // a fold never crosses a source
+    if (prev && sameSrc && testsFold(prev) && testsFold(it)
+        && JSON.stringify(prev.subject) === JSON.stringify(it.subject)) {
+      const part = n => sameJoin(n) ? n.tests : [exprOf(n)];   // a same-logic join flattens into this one
+      out[out.length - 1] = {...prev, tests:[...part(prev), ...part(it)], tj:sep};
+    } else if (prev && sameSrc && relFold(it) && (prev.rels || relFold(prev))) {
+      out[out.length - 1] = {...prev, rels:[...(prev.rels || [].concat(prev.subject)), ...[].concat(it.subject)]};
+    } else out.push(it);
+  }
+  // A folded relation group reads hasAny / hasAll, positive inside its list (a `none` list's items
+  // are OR'd, so hasAny there too).
+  return out.map(it => it.rels && !it.word ? {...it, word: sep === '/' ? 'hasAny' : 'hasAll'} : it);
+}
+// A list's items after the joiner trial; `one` when the whole list folds to one condition.
+// HOISTED TEST (always, user 2026-11-09): when every item of a list carries the SAME lead (test
+// words, or has / hasValue), the lead is written once in front of the list and the list holds only
+// the reads and relations: `hasValue,all(key,event_date;key,start_time)`.
+// The list keeps its own mode word, so `hasValue,none(key,a;key,b)` = neither has a value. Mixed
+// leads (`has` beside `hasValue`) never hoist.
+function whenListParts(n) {
+  // An inner list that folds to one condition counts as that condition here, so it can join or hoist.
+  const pre = n.items.map(it => { const o = it.k === 'l' && whenListParts(it).one; return o ? (it.src ? {...o, src:it.src} : o) : it; });
+  const items = whenJoinItems(n.mode, pre);
+  // A relation never hoists (it has no test to share); two relations that differ only by src stay apart.
+  if (items.length > 1 && items.every(it => it.k === 'c' && !it.word && !whenIsStep(it))) {
+    const leads = items.map(it => whenCondParts(it, 0).lead);
+    if (leads.every(l => l === leads[0])) return {hoist:items};
+  }
+  if (items.length !== 1 || items[0].k !== 'c') return {items};
+  const it = items[0];
+  if (n.mode === 'any' || n.mode === 'all') return {one:it};
+  // A relation's negative is `has` + the list's word: `hasNone(term,34)` for one (none and not-all
+  // agree there), `hasNone(term,34;term,35)` / `hasNotAll(term,34;term,35)` for a group.
+  if (whenIsStep(it) && !it.tests.length) {
+    if (!it.rels || n.mode === 'none') return {one:{...it, word:'hasNone'}};
+    if (n.mode === 'notAll') return {one:{...it, word:'hasNotAll'}};
+  }
+  if (!whenIsStep(it) && !it.tests.length && n.mode === 'none') return {one:{...it, tests:['noValue']}};
+  return {items};
+}
+// A relation's step: `term,34`, or the bare slug for an argless step (`parent`, `children`).
+const whenStepStr = s => s.arg == null || s.arg === '' ? vn(s.slug) : `${vn(s.slug)},${resolveVal(s.arg)}`;
+function whenCondStr(n, depth, own) {
+  const sl = own ? '' : whenSrcStr(n.src, depth);
+  if (n.rels) return sl + whenWrap(n.word, n.rels.map(whenStepStr).join(S.whenSep), depth + 1);
+  const p = whenCondParts(n, depth);
+  // A lone relation is a has-word bracket like a folded group: `hasAny(term,34)` beside `hasAny(term,34;term,35)`.
+  if (whenIsStep(n) && !n.tests.length && /^has(Any|None)$/.test(p.lead)) return sl + whenWrap(p.lead, p.head, depth + 1);
+  return sl + (S.whenReadFirst ? p.head + ',' + p.lead : p.lead + ',' + p.head);
+}
+function whenCondParts(n, depth) {
   const subj = [].concat(n.subject), r = subj[0];
   const keyRead = s => [kn('key'), resolveVal(s.field), ...(s.time ? [resolveVal(s.time)] : [])].join(',');
-  const head = subj.length > 1 ? whenWrap(kn('use'), subj.map(s => s.kind === 'key' ? keyRead(s) : vn(s.slug)).join(';'), depth + 1)
-    : r.kind === 'step' ? `${vn(r.slug)},${resolveVal(r.arg)}`
-    : r.kind === 'key' ? keyRead(r)
-    : `${kn('use')},${vn(r.slug)}`;
-  const tests = n.tests.map(t => typeof t === 'string' ? t : whenWrap(t.test, escFreeform(resolveVal(t.arg)), depth + 1));
-  return [head, ...tests].join(',');
+  const fw = whenFwRead(subj);
+  // Reads always bracketed (adopted 2026-11-09); only the FW-81-off legacy `key,date,time` stays flat.
+  const head = fw ? whenWrap(fw[0], fw[1], depth + 1)
+    : subj.length > 1 ? whenWrap(kn('use'), subj.map(s => s.kind === 'key' ? keyRead(s) : vn(s.slug)).join(';'), depth + 1)
+    : r.kind === 'step' ? whenStepStr(r)
+    : r.kind === 'key' ? (r.time ? keyRead(r) : whenWrap(kn('key'), resolveVal(r.field), depth + 1))
+    : whenWrap(kn('use'), vn(r.slug), depth + 1);
+  const expr = !n.tests.length ? null : whenExpand(n.tests.length === 1 ? n.tests[0] : {join: n.tj || '/', items: n.tests});
+  const lead = n.word ? n.word
+    : expr ? whenTestStr(expr, depth)
+    : r.kind === 'step' ? 'hasAny' : vn('hasValue');
+  return {lead, head, expr};
 }
-function whenMergedStr(n, depth) {
-  n = whenCollapse(n);
-  if (n.k === 'c') return whenCondStr(n, depth);
-  const parts = n.items.map(it => it.k === 'l' ? whenWrap('', whenMergedStr(it, depth + 1), depth + 1) : whenCondStr(it, depth));
-  return [vn(n.mode), ...parts].join(';');
+// A test tree: 'op' writes `/` or `+` between flat tests; otherwise each join is bracketed under its
+// list word with S.whenSep (`any(before;during)`, operands one level down). A value SET
+// ({test, args}, from whenExpand) lists its values on `;`, a `;` inside a value escaped.
+function whenTestStr(t, d) {
+  return typeof t === 'string' ? vn(t)   // a bare test word; renameable where VALUE_PRESETS lists it (true / false)
+    : t.join ? (S.whenTestJoin === 'op' || (S.whenTestJoin === 'plus' && t.join === '+')   // 'plus': `+` = AND, OR stays an any() group
+        ? t.items.map(x => whenTestStr(x, d)).join(t.join)
+        : whenWrap(vn(t.join === '+' ? 'all' : 'any'), t.items.map(x => whenTestStr(x, d + 1)).join(S.whenSep), d + 1))
+    : t.args ? whenWrap(t.test, t.args.map(a => escFreeform(resolveVal(a)).replace(/;/g, '\\;')).join(';'), d + 1)
+    : whenWrap(t.test, escFreeform(resolveVal(t.arg)), d + 1);
 }
-// W2 spells a list of conditions as the property list it already had: `any(term,34;key[x],noValue)`.
-function w2FromNorm(n) {
-  n = whenCollapse(n);
-  if (n.k === 'c') {
-    const t = n.tests.length === 0 ? undefined : n.tests.length === 1 ? n.tests[0] : {list:'any', items:n.tests};
-    return {prop:n.subject, ...(t !== undefined ? {test:t} : {})};
-  }
-  const neg = n.mode === 'none' || n.mode === 'notAll';
-  return {list: neg ? (n.mode === 'none' ? 'any' : 'all') : n.mode, neg, items:n.items.map(w2FromNorm)};
-}
-const stepProp = s => vn(s.slug) + ',' + resolveVal(s.arg);
-// W1: SLOT-SHAPED read — `key(x)` meta, `use(content)` built-in,
-// `use(key,a,b;key,c)` FW-81's read list — then `,` then the TEST (W1). A single test is bare
-// (`hasValue`, `before`) or takes a bracketed operand (`is(Yes)`); several combine under
-// `any(…)` / `all(…)` (C1), operands one bracket level down. A step subject is a relation test,
-// `has(term,34)` / `hasNot(…)` (P1), no read; a property list is `has(any[term,34;term,35])`.
-function whenW1(c, depth, wrap) {
-  if (c.props) return wrap(c.neg ? 'hasNot' : 'has', wrap(vn(c.props), c.items.map(stepProp).join(';'), depth + 2), depth + 1);
-  const subj = [].concat(c.subject);
-  if (subj[0].kind === 'step') return wrap(c.test === 'noValue' ? 'hasNot' : 'has', stepProp(subj[0]), depth + 1);
-  const one = (t, d) => typeof t === 'string' ? t
-    : t.arg != null ? wrap(t.test, escFreeform(resolveVal(t.arg)), d) : t.test;
-  const list = c.any ? 'any' : c.all ? 'all' : null;
-  const test = list ? wrap(vn(list), c[list].map(t => one(t, depth + 2)).join(','), depth + 1) : one(c, depth + 1);
-  const keyRead = s => [kn('key'), resolveVal(s.field), ...(s.time ? [resolveVal(s.time)] : [])].join(',');
-  const read = subj.length === 1 && subj[0].kind === 'key' && !subj[0].time && !S.readViaUse
-    ? wrap(kn('key'), resolveVal(subj[0].field), depth + 1)
-    : wrap(kn('use'), subj.map(s => s.kind === 'key' ? keyRead(s) : vn(s.slug)).join(';'), depth + 1);
-  return read + ',' + test;
-}
-// W2 (OPEN): recast a cond as {prop, test?, neg?} or {list, items, neg?}. Presence is the bare
-// property (hasValue → nothing, noValue → negated); a negative test passes on empty (Q7 (A),
-// the complement rule), so `all(hasValue,…)` becomes two conditions; `any(<phases>,noValue)` becomes the negated complement (the "including empty"
-// negation C1 recorded as unstatable).
-const W2_PHASES = ['before', 'during', 'after'];
-function w2Tree(c) {
-  if (c.props) return {list:c.props, neg:!!c.neg, items:c.items.map(s => ({prop:s}))};
-  const prop = c.subject, list = c.any ? 'any' : c.all ? 'all' : null;
-  const nv = S.whenMode === 'w2nv' && [].concat(prop)[0].kind !== 'step';
-  if (!list && nv && c.test === 'noValue') return {prop, test:'noValue'};
-  if (!list) return c.test === 'hasValue' ? {prop} : c.test === 'noValue' ? {prop, neg:true} : {prop, test:c};
-  let items = c[list];
-  // Q7 (A): a negative test PASSES on empty, so presence is its own condition, not implied.
-  if (list === 'all' && items.includes('hasValue') && !nv) {
-    const rest = items.filter(t => t !== 'hasValue');
-    return {list:'all', items:[{prop}, {prop, test: rest.length === 1 ? rest[0] : {list, items:rest}}]};
-  }
-  if (list === 'any' && items.includes('noValue') && !nv) {
-    // ponytail: assumes the rest are phases (every fixture row is); a non-phase mix needs an outer list
-    const rest = W2_PHASES.filter(p => !items.includes(p));
-    return {prop, neg:true, test: rest.length === 1 ? rest[0] : {list:'any', items:rest}};
-  }
-  return {prop, test: items.length === 1 ? items[0] : {list, items}};
-}
-// Step-shaped property: `key,x`, `use,excerpt` (`key(x)` / `use(excerpt)` under 'w2br'), `terms,category`; FW-81's multi-part read keeps
-// its slot form as the property, `use(key,date,time)` (W2 round 1, Q1).
-function w2Prop(s, d, wrap) {
-  const subj = [].concat(s), r = subj[0];
-  if (subj.length === 1 && r.kind === 'step') return stepProp(r);
-  const br = S.whenMode === 'w2br' || S.whenMode === 'w2nv';
-  if (subj.length === 1 && r.kind === 'key' && !r.time)
-    return br ? wrap(kn('key'), resolveVal(r.field), d + 1) : kn('key') + ',' + resolveVal(r.field);
-  if (subj.length === 1 && r.kind === 'analog')
-    return br ? wrap(kn('use'), vn(r.slug), d + 1) : kn('use') + ',' + vn(r.slug);
-  return wrap(kn('use'), subj.map(x => x.kind === 'key'
-    ? [kn('key'), resolveVal(x.field), ...(x.time ? [resolveVal(x.time)] : [])].join(',') : vn(x.slug)).join(';'), d + 1);
-}
-function w2Test(t, d, wrap) {
+// EXPANDED OPERATORS (2026-11-09). VALUE SETS always apply (adopted): an OR of `is` values is
+// `isAny(a;b)`, an AND of `isNot` values `isNone(a;b)`; S.whenSingleSet also writes one value as
+// `isAny(a)` / `isNone(a)`. PHASE PAIRS stay a trial (S.whenPhasePairs): an OR of two phases is one
+// compound word (beforeOrDuring / duringOrAfter / beforeOrAfter, rename ids like the phases).
+// What is left joined is the residual the joiner trial spells.
+const WHEN_PHASES = ['before', 'during', 'after'];
+function whenExpand(t) {
   if (typeof t === 'string') return t;
-  if (t.list) return wrap(vn(t.list), t.items.map(x => w2Test(x, d + 1, wrap)).join(','), d + 1);
-  return t.arg != null ? wrap(t.test, escFreeform(resolveVal(t.arg)), d + 1) : t.test;
+  if (!t.join) return S.whenSingleSet && (t.test === 'is' || t.test === 'isNot') ? {test: t.test === 'is' ? 'isAny' : 'isNone', args:[t.arg]} : t;
+  let items = t.items.map(whenExpand);
+  const merge = (kinds, word) => {
+    const m = items.filter(x => x && kinds.includes(x.test));
+    if (m.length < 2) return;
+    const at = items.indexOf(m[0]);
+    items = items.filter(x => !m.includes(x));
+    items.splice(at, 0, {test: word, args: m.flatMap(x => x.args || [x.arg])});
+  };
+  if (t.join === '/') {
+    const ph = WHEN_PHASES.filter(p => items.includes(p));
+    if (S.whenPhasePairs && ph.length === 2) {
+      const at = items.findIndex(x => ph.includes(x));
+      items = items.filter(x => !ph.includes(x));
+      items.splice(at, 0, ph[0] + 'Or' + ph[1][0].toUpperCase() + ph[1].slice(1));   // a VALUE_PRESETS id; whenTestStr renders its name
+    }
+    merge(['is', 'isAny'], 'isAny');
+  } else merge(['isNot', 'isNone'], 'isNone');
+  return items.length === 1 ? items[0] : {...t, items};
 }
-function w2Cond(n, d, wrap) {
-  const word = n.neg ? vn('not') : '';
-  const inner = word ? d + 1 : d;
-  const body = n.list
-    ? wrap(vn(n.list), n.items.map(x => w2Cond(x, inner + 1, wrap)).join(';'), inner + 1)
-    : w2Prop(n.prop, inner, wrap) + (n.test ? ',' + w2Test(n.test, inner, wrap) : '');
-  return word ? wrap(word, body, d + 1) : body;
+// Only the list words take brackets; a test operand sits one level below its list
+// (`all(isNot[TBD],key,status;…)`). The outermost bracket sits at depth + 1.
+function whenTestFirst(n, d, own) {
+  if (n.k === 'c') return whenCondStr(n, d, own);
+  const p = whenListParts(n), pre = own ? '' : whenSrcStr(n.src, d);
+  own = own || !!n.src;   // a list that leads with a src covers its items
+  if (p.one) return pre + whenCondStr(p.one, d, own);
+  if (p.hoist) {
+    // Only the TEST is shared; each head keeps its own [src,]read (the source is part of the subject).
+    const lead = whenCondParts(p.hoist[0], d).lead, list = whenWrap(vn(n.mode), p.hoist.map(it => (own ? '' : whenSrcStr(it.src, d + 1)) + whenCondParts(it, d + 1).head).join(S.whenSep), d + 1);
+    return pre + (S.whenReadFirst ? list + ',' + lead : lead + ',' + list);
+  }
+  return pre + whenWrap(vn(n.mode), p.items.map(it => whenTestFirst(it, d + 1, own)).join(S.whenSep), d + 1);
 }
 // FW-141 fixed-text read (shipped 1.21.0). The token name
 // implies the read (a `BWS_USE_IMPLIED_BY_TOKEN` row, FW-142), so no `use` at any depth. Returns
@@ -2393,17 +2679,17 @@ function datetimeCollapseFromParts(parts) {
   return reads.length ? reads : null;
 }
 // FW-81 wire shape for a collapsed read-list (grilling 2026-10-24): fields ALWAYS ride `key:`, reads
-// `;`-joined, each read's fields `,`-joined (primary, then optional time field). `use:` is written
+// joined on S.fw81ReadSep (default `;`; `/`, `~`, `..` under trial), each read's fields joined on S.fw81Inner. `use:` is written
 // only when a read is a non-`key` verb (published/modified/now): it lists the reads in order as bare
-// verbs joined by S.fw81UseSep (default `;`; 2026-10-26), and each `key` there takes the next `;`-group from `key:`
+// verbs joined by the SAME S.fw81ReadSep (user 2026-11-09), and each `key` there takes the next group from `key:`
 // (non-positional; a read's fields join on S.fw81Inner, default `,`, `+` under trial). No folded
 // `use:key,field` form exists. ONE site so the standalone tag's dtCollapse variant and a folded
 // slot's dtKeys collapse (respellEntries) can't drift apart on how a merge renders.
 function fw81CollapsedPairs(reads) {
   const groups = reads.filter(r => r.verb === 'key').map(r => (r.args||[]).map(a=>String(resolveVal(a))).join(S.fw81Inner));
   const pairs = [];
-  if (reads.some(r => r.verb !== 'key')) pairs.push(['use', reads.map(r => r.verb).join(S.fw81UseSep)]);
-  if (groups.length) pairs.push(['key', groups.join(';')]);
+  if (reads.some(r => r.verb !== 'key')) pairs.push(['use', reads.map(r => r.verb).join(S.fw81ReadSep)]);
+  if (groups.length) pairs.push(['key', groups.join(S.fw81ReadSep)]);
   return pairs;
 }
 const CONTRAST_VARIANTS = {
@@ -2809,23 +3095,31 @@ function buildStyleEncTag(enc, group, sc) {
 
 // ── FW-27 `when` ENCODINGS group (user 2026-10-14): the same cond spelled by each encoding at once.
 // A scenario is a base-tag row (`rest` + optional `chain`) or, with `fold`, a folded table/join with
-// `slots` (a slot's `if` and a table's `rowIf` ride the same serializer). S.whenMode is set for the
-// build and restored.
+// `slots` (a slot's `if` and a table's `rowIf` ride the same serializer).
+// An encoding line is {label, set?}: `set` overrides S keys for the build (the joiner trials), and a
+// scenario's own `set` wins (the FW-81 rows fix their separators). A group with `whenEnc:'join'`
+// renders WHEN_JOIN_ENCS.
 const WHEN_ENCS = [
-  { mode:'w1',   label:'W1',      cls:'perm-chain' },
-  { mode:'w2nv', label:'W2',      cls:'perm-chain' },
-  { mode:'m',    label:'Merged',  cls:'perm-chain' },
+  { label:'when', cls:'perm-chain' },
 ];
-// A condition W1 has no spelling for yields this marker in place of its text; buildWhenEncTag then
-// returns null for the WHOLE tag, so the notice never sits inside a tag string.
-const WHEN_UNMODELLED = 'Not modelled in W1';
-function buildWhenEncTag(group, sc, mode) {
-  const str = buildWhenEncTagRaw(group, sc, mode);
-  return str.includes(WHEN_UNMODELLED) ? null : str;
-}
-function buildWhenEncTagRaw(group, sc, mode) {
-  const prev = S.whenMode;
-  S.whenMode = mode;
+const WHEN_JOIN_ENCS = [
+  { label:'Shared test once', set:{whenTestJoin:'op'}, cls:'perm-chain' },
+  { label:'Groups, hasAny, once', set:{whenTestJoin:'group'}, cls:'perm-chain' },
+  { label:'Phase pairs (sidebar joiner)', set:{whenPhasePairs:true}, cls:'perm-chain' },
+];
+// The Operators group (whenEnc:'ops'): today's groups, then the expanded operators with each
+// residual spelling (b) groups, (c) `+` / `/`, (d) `+` with any() for OR. (a), the read restated in a condition list, was cut 2026-11-09.
+const WHEN_OPS_ENCS = [
+  { label:'Groups (no phase pairs)', set:{whenPhasePairs:false, whenTestJoin:'group'} },
+  // (b)–(d) follow the sidebar's "phase pairs" checkbox; the first line is the fixed baseline.
+  { label:'(b) groups', set:{whenTestJoin:'group'}, cls:'perm-chain' },
+  { label:'(c) / and +', set:{whenTestJoin:'op'}, cls:'perm-chain' },
+  { label:'(d) + and any()', set:{whenTestJoin:'plus'}, cls:'perm-chain' },
+];
+function buildWhenEncTag(group, sc, enc) {
+  const over = {...enc.set, ...sc.set};
+  const prev = Object.fromEntries(Object.keys(over).map(k => [k, S[k]]));
+  Object.assign(S, over);
   try {
     if (sc.fold) return buildFoldedTag({ ...group, foldClass: sc.fold, tableV1: sc.fold === 'table' }, sc);
     const order = groupOrder(group);
@@ -2838,7 +3132,7 @@ function buildWhenEncTagRaw(group, sc, mode) {
     if (chainVal) parts.push(`${kn('src')}:${chainVal}`);
     parts.push(...renderSlotParts(sortParts(sc.rest || []), '', false));
     return `{{${tmplName(group.tmpl)}${parts.length ? ' ' + parts.join('|') : ''}}}`;
-  } finally { S.whenMode = prev; }
+  } finally { Object.assign(S, prev); }
 }
 
 // Build a whole folded-container tag (try_ / join / table). scenario.slots = [slot,…].
@@ -3041,7 +3335,7 @@ const OUTLINE = {
   'Text':     { subs:['Options and sources', 'Fixed text'] },
   'Image':    { subs:[] },
   'Content':  { subs:[] },
-  'Try tags': { subs:['try_text', 'try_image', 'try_content'] },
+  'Try tags': { subs:['try_text', 'try_image', 'try_content', 'try_datetime'] },
   'Join':     { subs:['Slots', 'Template mode', 'Datetime slots', 'Escape hazards'] },
   'Table':    { subs:['Rows and columns', 'Sizing, stripes and borders', 'Text styling', 'Datetime columns', 'Escape hazards'] },
   'Datetime': { subs:['Single date', 'Date ranges'],
@@ -3058,7 +3352,7 @@ function orderedGroups() {
 function permHeading(level, text, extra) {
   const h = document.createElement('h' + Math.min(level + 1, 6));
   h.className = 'perm-h perm-h' + Math.min(level, 4) + (extra ? ' ' + extra : '');
-  h.textContent = text;
+  appendMarkup(h, text);
   return h;
 }
 function renderPerms() {
@@ -3079,6 +3373,7 @@ function renderPerms() {
     const tags=document.createElement('div'); tags.className='perm-tags';
     group.scenarios.forEach(sc=>{
       if (sc.heading) { tags.appendChild(permHeading(path.length+1, sc.heading, 'perm-subrow')); return; }
+      if (sc.subheading) { tags.appendChild(permHeading(path.length+2, sc.subheading, 'perm-subrow')); return; }   // one level under `heading`, e.g. a pair of twins
       const row=document.createElement('div'); row.className='perm-row';
       // A label with " — " splits there: the head is the row label, the tail a quieter description.
       // A dash inside parentheses is part of the label, not a split point.
@@ -3105,12 +3400,17 @@ function renderPerms() {
       } else if (group.whenEnc) {
         const stack=document.createElement('div'); stack.className='perm-stack';
         const ff=scenarioFreeform(sc);
-        WHEN_ENCS.forEach(enc=>{
-          const str=buildWhenEncTag(group, sc, enc.mode);
-          const line=document.createElement('div'); line.className='perm-line'+(str===null?' perm-none':enc.cls?' '+enc.cls:'');
-          const t=document.createElement('span'); t.className='perm-tagname'; t.textContent=enc.label;
-          const s=document.createElement('div'); s.className='perm-str'; s.textContent=str===null?WHEN_UNMODELLED:str;
-          if (str===null) { line.appendChild(t); line.appendChild(s); stack.appendChild(line); return; }
+        // Lines that render the SAME tag collapse into one, labels joined, so only real differences stack.
+        const encLines=[];
+        (group.whenEnc === 'join' ? WHEN_JOIN_ENCS : group.whenEnc === 'ops' ? WHEN_OPS_ENCS : WHEN_ENCS).forEach(enc=>{
+          const str=buildWhenEncTag(group, sc, enc);
+          const same=encLines.find(l=>l.str===str);
+          if (same) same.labels.push(enc.label); else encLines.push({str, labels:[enc.label], cls:enc.cls});
+        });
+        encLines.forEach(({str, labels, cls})=>{
+          const line=document.createElement('div'); line.className='perm-line'+(cls?' '+cls:'');
+          const t=document.createElement('span'); t.className='perm-tagname'; t.textContent=labels.join(' = ');
+          const s=document.createElement('div'); s.className='perm-str'; s.textContent=str;
           const m=document.createElement('span'); m.className='perm-meta'; m.textContent=`depth ${maxBracketDepth(str, ff)} · ${str.length} ch`;
           line.appendChild(t); line.appendChild(s); line.appendChild(m); stack.appendChild(line);
           totalIssues += flagIssues(stack, str, ff);
@@ -3151,11 +3451,85 @@ function renderPerms() {
         row.appendChild(str);
         totalIssues += flagIssues(row, tag, scenarioFreeform(sc));
       }
+      // Filter keys (applyFilters): the row's tag name off its first wire line, and whether it sits under When.
+      const m = (row.querySelector('.perm-str')?.textContent || '').match(/^\{\{(\w+)/);
+      if (m) row.dataset.tag = m[1];
+      if (path[0] === 'When') row.dataset.when = '1';
+      // Datetime is a concept as well as a tag: also a row whose scenario carries a datetime slot/read or a phase test (before/during/after).
+      if (/"datetime|dtKeys|"(?:before|during|after|beforeOrDuring|duringOrAfter|beforeOrAfter)"/.test(JSON.stringify(sc))) row.dataset.date = '1';
       tags.appendChild(row);
     });
     div.appendChild(tags); el.appendChild(div);
   });
   renderIssueSummary(totalIssues);
+  applyFilters();
+}
+
+// ── Filters ───────────────────────────────────────────────────────────────────
+// Cross-cutting, not per-section: a row matches by the tag its line writes (`try_text` counts as
+// Text) or by concept (Try = any `try_` tag; When = anywhere under the When section). Within the
+// tag-type chips the selection is OR; the concept chips then narrow it (AND). No chip = everything.
+const FILTER_KINDS = [['text','Text'], ['image','Image'], ['content','Content'], ['join','Join'], ['table','Table'], ['datetime','Datetime']];
+const FILTER_CONCEPTS = [['try','Try'], ['when','When']];
+const FILTER_STORAGE_KEY = 'bws-tag-preview-filters-v1';
+let activeFilters = new Set();
+try { JSON.parse(localStorage.getItem(FILTER_STORAGE_KEY) || '[]').forEach(k => activeFilters.add(k)); } catch (e) { /* none saved */ }
+
+function rowMatches(row) {
+  const tag = row.dataset.tag || '', base = tag.replace(/^try_/, '');
+  const kinds = FILTER_KINDS.map(k => k[0]).filter(k => activeFilters.has(k));
+  if (kinds.length && !kinds.some(k => base === k || (k === 'datetime' && (base.startsWith('datetime') || row.dataset.date)))) return false;
+  if (activeFilters.has('try') && !tag.startsWith('try_')) return false;
+  if (activeFilters.has('when') && !row.dataset.when) return false;
+  return true;
+}
+function applyFilters() {
+  const out = document.getElementById('perm-output');
+  // Document order: headings, section notes and rows. A heading shows iff a row shows before the
+  // next heading of the same or a higher level; a section note shows with its heading.
+  const items = [...out.querySelectorAll('.perm-h, .perm-sec-note, .perm-row')];
+  items.filter(x => x.classList.contains('perm-row')).forEach(r => { r.hidden = !rowMatches(r); });
+  const lvl = h => +h.tagName[1];
+  let lastHeading = null;
+  items.forEach((x, i) => {
+    if (x.classList.contains('perm-sec-note')) { x.hidden = !!(lastHeading && lastHeading.hidden); return; }
+    if (!x.classList.contains('perm-h')) return;
+    let any = false;
+    for (let j = i + 1; j < items.length; j++) {
+      const y = items[j];
+      if (y.classList.contains('perm-h') && lvl(y) <= lvl(x)) break;
+      if (y.classList.contains('perm-row') && !y.hidden) { any = true; break; }
+    }
+    x.hidden = !any; lastHeading = x;
+  });
+  out.querySelectorAll('.perm-group').forEach(g => { g.hidden = !g.querySelector('.perm-row:not([hidden])'); });
+}
+function renderFilterBar() {
+  const bar = document.getElementById('perm-filters'); bar.innerHTML = '';
+  const h = document.createElement('span'); h.className = 'pf-h'; h.textContent = 'Filter'; bar.appendChild(h);
+  h.title = 'Tag chips combine with OR (Text + Join shows both); Try and When then narrow the result. A tag chip also matches its try_ twin and lines under When. Datetime also matches any line with a datetime slot or a before/during/after test.';
+  const chip = ([key, label]) => {
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = label;
+    b.setAttribute('aria-pressed', activeFilters.has(key));
+    b.addEventListener('click', () => {
+      activeFilters.has(key) ? activeFilters.delete(key) : activeFilters.add(key);
+      try { localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify([...activeFilters])); } catch (e) { /* session only */ }
+      renderFilterBar(); applyFilters();
+    });
+    bar.appendChild(b);
+  };
+  FILTER_KINDS.forEach(chip);
+  const sep = document.createElement('span'); sep.className = 'pf-sep'; bar.appendChild(sep);
+  FILTER_CONCEPTS.forEach(chip);
+  if (activeFilters.size) {
+    const c = document.createElement('button'); c.type = 'button'; c.textContent = 'Clear';
+    c.addEventListener('click', () => {
+      activeFilters.clear();
+      try { localStorage.removeItem(FILTER_STORAGE_KEY); } catch (e) { /* session only */ }
+      renderFilterBar(); applyFilters();
+    });
+    bar.appendChild(c);
+  }
 }
 
 // Header banner: silent when clean, loud when not. Placed above the groups so a violation is
@@ -3200,14 +3574,16 @@ document.getElementById('cb-fw81').addEventListener('change',e=>{
 document.getElementById('cb-stylebg').addEventListener('change',e=>{
   S.styleBackground=e.target.checked; renderPerms();
 });
-document.getElementById('sel-when').addEventListener('change',e=>{
-  S.whenMode=e.target.value; renderPerms();
-});
+document.getElementById('sel-when-testjoin').addEventListener('change',e=>{ S.whenTestJoin=e.target.value; renderPerms(); });
+document.getElementById('sel-when-sep').addEventListener('change',e=>{ S.whenSep=e.target.value; renderPerms(); });
+document.getElementById('cb-when-ops').addEventListener('change',e=>{ S.whenPhasePairs=e.target.checked; renderPerms(); });
+document.getElementById('cb-when-readfirst').addEventListener('change',e=>{ S.whenReadFirst=e.target.checked; renderPerms(); });
+document.getElementById('sel-when-singleset').addEventListener('change',e=>{ S.whenSingleSet=e.target.value==='set'; renderPerms(); });
 document.getElementById('sel-fw81-inner').addEventListener('change',e=>{
   S.fw81Inner=e.target.value; renderPerms();
 });
-document.getElementById('sel-fw81-usesep').addEventListener('change',e=>{
-  S.fw81UseSep=e.target.value; renderPerms();
+document.getElementById('sel-fw81-readsep').addEventListener('change',e=>{
+  S.fw81ReadSep=e.target.value; renderPerms();
 });
 document.getElementById('add-name-row').addEventListener('click', addNameRow);
 
@@ -3221,6 +3597,7 @@ document.addEventListener('click',()=>{ document.querySelectorAll('.preset-menu.
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 loadNamesFromStorage();
+renderFilterBar();
 fullRender();
 </script>
 </body>
