@@ -810,7 +810,7 @@ function bws_table_column_style_read( array $slot_opts ): array {
  * The editor preview ships these (not the parsed read) so the editor's grammar twin re-validates
  * every value: a forged payload can express only what the grammar accepts.
  *
- * @since Unreleased
+ * @since 1.25.0
  * @param array $options     Tag options or a slot's `opts`.
  * @param bool  $table_level True for the tag's own keys, false for a column's (width and text only).
  * @return array<string,string>
@@ -834,7 +834,7 @@ function bws_table_style_source( array $options, bool $table_level ): array {
  * header row, `s` the stripe default pair this request resolved. The scope class is NOT in it: the
  * editor takes the class from the table's own markup, so the hash is only ever computed here.
  *
- * @since Unreleased
+ * @since 1.25.0
  * @param array   $options    Tag options.
  * @param array[] $columns    bws_table_columns() records; `style_src` is each column's raw tokens.
  * @param bool    $has_header Whether the table carries a header row.

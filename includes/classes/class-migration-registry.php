@@ -130,7 +130,7 @@ class MigrationRegistry {
 						is_scalar( $args['lifecycle'] ) ? (string) $args['lifecycle'] : gettype( $args['lifecycle'] ),
 						(string) ( $args['match_tag'] ?? '' )
 					),
-					'Unreleased'
+					'1.25.0'
 				);
 				$args['lifecycle'] = 'retired';
 			}

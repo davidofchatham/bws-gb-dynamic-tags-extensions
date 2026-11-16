@@ -4,9 +4,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
-### Highlights
-
-- Every tag now has a short description in the tag picker, so you can see what it does before you pick it. *(Added)*
+## [1.25.0] — 2026-11-16
 
 ### Added
 

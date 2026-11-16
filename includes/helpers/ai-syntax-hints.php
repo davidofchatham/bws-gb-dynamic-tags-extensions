@@ -17,7 +17,7 @@
  * and values, so a renamed option cannot leave a stale example behind.
  *
  * @package BWS_Dynamic_Tags
- * @since Unreleased
+ * @since 1.25.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -59,7 +59,7 @@ const BWS_AI_SYNTAX_TRY_CARRY = ' It reads the way the attempt before did, unles
  * before it (absent on title and permalink, which have no read), `example` is one rendered chain, and `later`
  * one with three attempts for the hint on `B`.
  *
- * @since Unreleased
+ * @since 1.25.0
  * @return array<string,array<string,string>>
  */
 function bws_ai_syntax_try_hints(): array {
@@ -125,7 +125,7 @@ function bws_ai_syntax_try_hints(): array {
  * and so repeats its chain syntax, may reach 450; the whole set stays under 15000), and text `sanitize_text_field()` returns unchanged (no
  * `<`, `>`, `%` or line break), so what the AI client reads is what is written here.
  *
- * @since Unreleased
+ * @since 1.25.0
  * @return array<string,array<string,string|null>>
  */
 function bws_ai_syntax_hints(): array {
@@ -168,7 +168,7 @@ function bws_ai_syntax_hints(): array {
  * The hints one tag receives, option key to text: the shared hints overlaid by its own.
  * Whether an option exists on the tag is the caller's to check.
  *
- * @since Unreleased
+ * @since 1.25.0
  * @param string $tag Tag name.
  * @return array<string,string>
  */

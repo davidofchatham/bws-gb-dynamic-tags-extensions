@@ -21,7 +21,7 @@ class TagTemplateRegistry {
 	 * description follows it (generate_base_try_tags()). Plain author text, held by
 	 * tools/test/tag-description-test.php.
 	 *
-	 * @since Unreleased
+	 * @since 1.25.0
 	 */
 	public const TRY_DESCRIPTION_OPENING = 'Try several sources in order and return the first one that produces a result.';
 
