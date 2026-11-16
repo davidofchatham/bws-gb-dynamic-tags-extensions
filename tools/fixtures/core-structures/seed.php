@@ -646,6 +646,9 @@ if ( ! empty( $manifest['products'] ) && class_exists( 'WC_Product_Simple' ) ) {
 		// filtered out of the very loop it is seeded for.
 		$product->set_catalog_visibility( 'visible' );
 		$product->set_stock_status( 'instock' );
+		if ( ! empty( $def['image'] ) && isset( $attachment_ids[ $def['image'] ] ) ) {
+			$product->set_image_id( $attachment_ids[ $def['image'] ] );
+		}
 
 		$product_ids[ $slug ] = (int) $product->save();
 

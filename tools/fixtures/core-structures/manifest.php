@@ -99,6 +99,17 @@ return array(
 			'filename'    => 'parent-step-diagram.png',
 			'post_parent' => 'page-matrix-parent-mid',
 		),
+		// The desk riser's product image. Without one WooCommerce serves its own lazily generated
+		// placeholder attachment, whose URL moves whenever anything regenerates its image sizes
+		// (measured 2026-11-16: `woocommerce-placeholder.webp` became `-600x600.webp` with no
+		// WooCommerce version change). Only this ONE product carries it, as only its single page
+		// is snapshotted.
+		'product-desk-riser-photo' => array(
+			'title'    => 'Desk Riser Photo',
+			'alt'      => 'Adjustable desk riser photo alt text',
+			'color'    => 'c27c0e',
+			'filename' => 'desk-riser-photo.png',
+		),
 		'fixture-photo' => array(
 			'title'    => 'Fixture Photo',
 			'alt'      => 'Fixture photo alt text',
@@ -162,6 +173,7 @@ return array(
 			'regular_price'   => '149.00',
 			'description'     => 'Sit-stand converter for a standard office desk.',
 			'content_builder' => 'product_single',
+			'image'           => 'product-desk-riser-photo', // an `attachments` key.
 			// PLAIN postmeta, not ACF: what §C-PROD.3 measures is that a product custom
 			// field is ordinary postmeta read by the ordinary route, and an ACF field
 			// group scoped to products would put ACF's own resolution in front of it.
