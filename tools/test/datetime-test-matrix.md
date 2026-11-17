@@ -166,13 +166,13 @@ Also worth knowing when reading D8.1: the same-instant case (`start === end`) no
 
 ## D9 — the merged `{{datetime}}` tag (FW-81, Unreleased)
 
-One tag, no stated mode: how many `;`-separated entries `key:` holds decides it. One entry is a single value, two are a range, and a `+` joins at most two operands inside one entry (a date or datetime field, then an optional time field). `{{datetime}}` renders through the merged seam `bws_base_datetime_resolve_value()`, which sends one read to the single seam and two to the range seam; the old tags keep their own callbacks and still render byte-identically.
+One tag, no stated mode: how many `;`-separated entries `key:` holds decides it. One entry is a single value, two are a range, and a `+` joins at most two operands inside one entry (a date or datetime field, then an optional time field). `{{datetime}}` renders through `bws_base_datetime_resolve_value()`, the one seam the two old tags and their two `try_` templates also read through, each with its family fixed, so an old tag keeps its family whatever its options say (D9.54 to D9.57) and still renders byte-identically.
 
 **Measured 2026-11-17 (datetime-tag-collapse/02):** 66 old-tag renders across `/matrix-post-meta/`, the three term pages and the two department archives, taken on the PREVIOUS build, then every one rendered again as the merged tag fed its equivalent wire (`startKey`+`startTimeKey` become `a+b`, the range keys become two `;` entries, a single-ended range keeps its trailing `;`). All 66 old renders were unchanged and all 66 merged renders were byte-identical to the previous build's output, 64 of them non-empty. The two empty ones are the matrix's own expected-empty rows (D8.3, D7.7).
 
 **A one-ended range and a single value differ for a time-only display, and that is a defect to unify, not a spelling rule.** The single and range cores resolve the time format separately. Measured 2026-11-17 on the testbed against the same field: `as:time` on `event_datetime` prints `9:00 AM` as a single and `9:00 am` as a one-ended range; `as:time` on `event_time` the same; `event_time` with no `as` prints `9:00 AM` against `Start time: 9:00 AM`; `as:time` on `event_midnight` prints nothing against `12:00 am`. Every other pair tried (dates, `as:date`, custom formats, a separate time field, the current-year flag) was identical. D9.15 and D9.16 below pin the range core's current output through a trailing `;` so the equivalence stays measurable; they do not endorse it. Tracked as `datetime-tag-collapse/02c`.
 
-Every row below is a visible block on `/matrix-datetime/` (blueprint v43), pinned to `/matrix-post-meta/`'s fields by id where it reads one, and its label states the expected output. "Same as" names the old row whose output it must match byte for byte.
+Every row below is a visible block on `/matrix-datetime/` (blueprint v43, D9.54 to D9.57 in v44), pinned to `/matrix-post-meta/`'s fields by id where it reads one, and its label states the expected output. "Same as" names the old row whose output it must match byte for byte.
 
 | # | Tag | Same as | Expected |
 |---|---|---|---|
@@ -216,6 +216,10 @@ Every row below is a visible block on `/matrix-datetime/` (blueprint v43), pinne
 | D9.38 | `{{datetime src:post,<meta id>|key:event_start_date;missing_field|fallback:FB}}` | new combination | `August 1, 2030` |
 | D9.52 | `{{datetime src:post,<meta id>|key:event_start_date+event_time;event_end_time}}` | new combination | `August 1, 2030, 9:00–11:30 am` |
 | D9.53 | `{{datetime src:post,<meta id>|key:event_datetime;event_end_time}}` | new combination | `August 12, 2030, 9:00–11:30 AM` |
+| D9.54 | `{{datetime_range src:post,<meta id>|key:event_datetime|as:time}}` | new combination | `9:00 am` (the range core prints `am` lowercase; the single core prints `9:00 AM`, so this row tells the two cores apart) |
+| D9.55 | `{{datetime_single src:post,<meta id>|key:event_start_date;event_end_date}}` | new combination | `August 1, 2030` (a single tag reads only the first entry) |
+| D9.56 | `{{try_datetime_range src:post,<meta id>|key:event_datetime|as:time}}` | D9.54 | `9:00 am` |
+| D9.57 | `{{try_datetime_single src:post,<meta id>|key:event_start_date;event_end_date}}` | D9.55 | `August 1, 2030` |
 | D9.39 | `{{datetime src:post,<meta id>;refs,related_staff,limit[5]|key:event_datetime}}` | D4.6 | `May 1, 2030 10:00 AM, June 1, 2030 11:00 AM` |
 | D9.40 | `{{datetime src:post,<meta id>;refs,related_staff,limit[3]|key:event_datetime;event_end_datetime|sep:; }}` | D4.7 | `May 1 10:00 AM–May 3, 2030 3:00 PM; June 1 11:00 AM–June 5, 2030 12:00 PM` |
 | D9.41 | `{{datetime src:post,<meta id>;refs,related_staff,limit[5]|key:event_datetime|linkTo:permalink}}` | D4.8 | `<a href="https://testbed.test/staff/jane-partner/">May 1, 2030 10:00 AM</a>, <a href="https://testbed.test/staff/tom-associate/">June 1, 2030 11:00 AM</a>` |

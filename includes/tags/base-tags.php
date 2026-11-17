@@ -485,7 +485,7 @@ function bws_register_base_tags(): void {
 		'options'         => function_exists( 'bws_get_datetime_single_template_options' )
 			? bws_get_datetime_single_template_options()
 			: array(),
-		'resolve_fn'   => 'bws_base_datetime_single_resolve_value',
+		'resolve_fn'   => static fn( array $opts, $inst ): array => bws_base_datetime_resolve_value( $opts, $inst, false ),
 		'try_allow_site_slot' => true,
 		'supports_try' => true,
 		'is_image'     => false,
@@ -501,7 +501,7 @@ function bws_register_base_tags(): void {
 		'options'         => function_exists( 'bws_get_datetime_range_template_options' )
 			? bws_get_datetime_range_template_options()
 			: array(),
-		'resolve_fn'   => 'bws_base_datetime_range_resolve_value',
+		'resolve_fn'   => static fn( array $opts, $inst ): array => bws_base_datetime_resolve_value( $opts, $inst, true ),
 		'try_allow_site_slot' => true,
 		'supports_try' => true,
 		'is_image'     => false,

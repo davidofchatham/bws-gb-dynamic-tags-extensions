@@ -2429,6 +2429,16 @@ function bws_fixture_page_content_matrix_datetime() {
 		bws_fixture_gb_row( 'D9.50 (= R5.3) expect "September 20, 2030 6:00 PM"', "{{datetime src:site|key:org_party_datetime;}}" ),
 	) );
 
+	// An OLD tag keeps its family whatever its options say (02b): the range tag given a bare `key`
+	// still reads through the range core, the single tag given `a;b` still reads only `a`. The
+	// derived mode would send the first to the single core and read both for the second.
+	$sections[] = bws_fixture_gb_section( 'Datetime D9 - an old tag keeps its family', array(
+		bws_fixture_gb_row( 'D9.54 (= new combination) expect "9:00 am" (the RANGE core prints am lowercase; the single core would print 9:00 AM)', "{{datetime_range src:post,{$meta_id}|key:event_datetime|as:time}}" ),
+		bws_fixture_gb_row( 'D9.55 (= new combination) expect "August 1, 2030" (a single tag reads only the first entry)', "{{datetime_single src:post,{$meta_id}|key:event_start_date;event_end_date}}" ),
+		bws_fixture_gb_row( 'D9.56 (= D9.54, try_ twin) expect "9:00 am"', "{{try_datetime_range src:post,{$meta_id}|key:event_datetime|as:time}}" ),
+		bws_fixture_gb_row( 'D9.57 (= D9.55, try_ twin) expect "August 1, 2030"', "{{try_datetime_single src:post,{$meta_id}|key:event_start_date;event_end_date}}" ),
+	) );
+
 	return implode( "\n\n", $sections );
 }
 

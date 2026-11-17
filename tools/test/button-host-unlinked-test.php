@@ -77,7 +77,7 @@ foreach ( array( 'null' => null, 'string' => 'core/button', 'int' => 7, 'false' 
 echo "§4 — every shell that can wrap its output asks the helper\n";
 $shells = array(
 	'includes/tags/base-tags.php'                       => array( 'bws_base_text_callback', 'bws_base_title_callback' ),
-	'includes/tags/datetime-tags.php'                   => array( 'bws_base_datetime_single_callback', 'bws_base_datetime_range_callback' ),
+	'includes/tags/datetime-tags.php'                   => array( 'bws_base_datetime_shell' ),
 	'includes/tags/email-tags.php'                      => array( 'bws_email_callback' ),
 	'includes/tags/phone-tags.php'                      => array( 'bws_phone_callback' ),
 );
@@ -90,6 +90,14 @@ foreach ( $shells as $file => $fns ) {
 		$body  = false === $start ? '' : substr( $src, $start, false === $next ? null : $next - $start );
 		assert_same( "{$fn} calls bws_host_unlinked_options()", true, str_contains( $body, 'bws_host_unlinked_options(' ) );
 	}
+}
+// The three datetime callbacks are one-line wrappers; the shell above is the one that asks.
+$dt = (string) file_get_contents( $root . '/includes/tags/datetime-tags.php' );
+foreach ( array( 'bws_base_datetime_single_callback', 'bws_base_datetime_range_callback', 'bws_base_datetime_callback' ) as $fn ) {
+	$start = strpos( $dt, "function {$fn}(" );
+	$next  = false === $start ? false : strpos( $dt, "\nfunction ", $start + 1 );
+	$body  = false === $start ? '' : substr( $dt, $start, false === $next ? null : $next - $start );
+	assert_same( "{$fn} hands the options to bws_base_datetime_shell()", true, str_contains( $body, 'bws_base_datetime_shell(' ) );
 }
 $registry = (string) file_get_contents( $root . '/includes/classes/class-tag-template-registry.php' );
 $start    = strpos( $registry, '= bws_try_run_attempts(' );

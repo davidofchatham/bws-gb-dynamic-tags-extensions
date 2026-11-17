@@ -139,6 +139,10 @@
 <p class="gb-text">D9.37 (= new combination) expect &#8220;August 1, 2030, 9:00 am&#8221;: August 1, 2030, 9:00 am</p>
 
 <p class="gb-text">D9.38 (= new combination) expect &#8220;August 1, 2030&#8221;: August 1, 2030</p>
+
+<p class="gb-text">D9.52 (= new combination) expect &#8220;August 1, 2030, 9:00-11:30 am&#8221; (a time-only END field takes the start date): August 1, 2030, 9:00–11:30 am</p>
+
+<p class="gb-text">D9.53 (= new combination) expect &#8220;August 12, 2030, 9:00-11:30 AM&#8221; (a datetime start, a time-only end): August 12, 2030, 9:00–11:30 AM</p>
 </div>
 
 <div>
@@ -167,6 +171,18 @@
 <p class="gb-text">D9.49 (= new combination) expect &#8220;No field&#8221;: No field</p>
 
 <p class="gb-text">D9.50 (= R5.3) expect &#8220;September 20, 2030 6:00 PM&#8221;: September 20, 2030 6:00 PM</p>
+</div>
+
+<div>
+<h2 class="wp-block-heading">Datetime D9 &#8211; an old tag keeps its family</h2>
+
+<p class="gb-text">D9.54 (= new combination) expect &#8220;9:00 am&#8221; (the RANGE core prints am lowercase; the single core would print 9:00 AM): 9:00 am</p>
+
+<p class="gb-text">D9.55 (= new combination) expect &#8220;August 1, 2030&#8221; (a single tag reads only the first entry): August 1, 2030</p>
+
+<p class="gb-text">D9.56 (= D9.54, try_ twin) expect &#8220;9:00 am&#8221;: 9:00 am</p>
+
+<p class="gb-text">D9.57 (= D9.55, try_ twin) expect &#8220;August 1, 2030&#8221;: August 1, 2030</p>
 </div>
 		</div>
 
