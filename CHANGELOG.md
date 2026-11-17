@@ -6,7 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
-- **`{{datetime}}`: one tag for a single date and a range.** Fill in the `key` option and the number of fields decides the rest. `key:event_datetime` prints one date, and `key:start_date;end_date` prints a range, so adding an end date no longer means switching tags and starting over. A `+` joins a date field to a separate time field (`key:event_date+start_time`), and a time-only end takes the start's date (`key:event_date+start_time;end_time`). The format, separator, current-year, midnight, link, fallback and source options work as they do on the two old tags, and so do list results. A one-ended range keeps its trailing `;` (`key:event_datetime;`), because one field without it prints as a single value. The old `datetime_single` and `datetime_range` tags are unchanged and still in the picker for now. `key` is a plain text field until the editor control for it ships.
+- **`{{datetime}}`: one tag for a single date and a range.** Fill in the `key` option and the number of fields decides the rest. `key:event_datetime` prints one date, and `key:start_date;end_date` prints a range, so adding an end date no longer means switching tags and starting over. A `+` joins a date field to a separate time field (`key:event_date+start_time`), and a time-only end takes the start's date (`key:event_date+start_time;end_time`). The format, separator, current-year, midnight, link, fallback and source options work as they do on the two old tags, and so do list results. The old `datetime_single` and `datetime_range` tags are unchanged and still in the picker for now. `key` is a plain text field until the editor control for it ships.
 
 
 ## [1.25.0] — 2026-11-16
