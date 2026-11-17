@@ -328,110 +328,6 @@ function bws_get_base_datetime_options(): array {
 }
 
 // ===============================================
-// CORE FUNCTIONS — DATE TEMPLATES
-// ===============================================
-
-/**
- * Core date-only single logic (shared by source-specific callbacks).
- *
- * @since 1.0.0
- * @since 1.15.0 First arg accepts a resolved-source payload (FW-3a); legacy
- *               scalars (post id / 'option' / "{tax}_{id}") still coerced.
- * @param array|int|string|false $target   Resolved source (or legacy scalar).
- * @param array                  $options  Tag options.
- * @param object                 $instance Block instance.
- * @return string
- */
-function bws_date_single_core( $target, $options, $instance ) {
-	$source = bws_datetime_coerce_read_target( $target );
-	if ( 'site' !== $source['kind'] && empty( $source['id'] ) ) {
-		return bws_handle_date_time_fallback( $options, $instance, 'single' );
-	}
-
-	$date_field = sanitize_text_field( $options['date_time_field'] ?? '' );
-
-	if ( empty( $date_field ) ) {
-		return bws_handle_date_time_fallback( $options, $instance, 'single' );
-	}
-
-	// Force date_only mode — no time handling.
-	$date_options = array_merge( $options, array(
-		'date_only'     => true,
-		'time_only'     => false,
-		'hide_midnight' => false,
-		'time_field'    => '',
-	) );
-
-	$result = bws_parse_combined_date_time( $source, $date_field, '', 'datetime', null, $date_options, $instance );
-
-	if ( ! $result['date'] || ! is_a( $result['date'], 'DateTime' ) ) {
-		return bws_handle_date_time_fallback( $options, $instance, 'single' );
-	}
-
-	$format = bws_build_single_format( $date_options, $result, true, false );
-
-	$formatted = bws_format_single_date_time( $result['date'], $format, $date_options );
-
-	return bws_gb_tag_output( $formatted, $options, $instance );
-}
-
-/**
- * Core date-only range logic (shared by source-specific callbacks).
- *
- * @since 1.0.0
- * @since 1.15.0 First arg accepts a resolved-source payload (FW-3a); legacy
- *               scalars still coerced.
- * @param array|int|string|false $target   Resolved source (or legacy scalar).
- * @param array                  $options  Tag options.
- * @param object                 $instance Block instance.
- * @return string
- */
-function bws_date_range_core( $target, $options, $instance ) {
-	$source = bws_datetime_coerce_read_target( $target );
-	if ( 'site' !== $source['kind'] && empty( $source['id'] ) ) {
-		return bws_handle_date_time_fallback( $options, $instance, 'range' );
-	}
-
-	$start_field = sanitize_text_field( $options['start_field'] ?? '' );
-	$end_field   = sanitize_text_field( $options['end_field'] ?? '' );
-
-	if ( empty( $start_field ) ) {
-		return bws_handle_date_time_fallback( $options, $instance, 'range' );
-	}
-
-	// Force date_only mode — no time handling.
-	$date_options = array_merge( $options, array(
-		'date_only'        => true,
-		'time_only'        => false,
-		'hide_midnight'    => false,
-		'start_time_field' => '',
-		'end_time_field'   => '',
-	) );
-
-	$start_result = bws_parse_combined_date_time( $source, $start_field, '', 'start', null, $date_options, $instance );
-
-	$end_result = null;
-	if ( ! empty( $end_field ) ) {
-		$end_result = bws_parse_combined_date_time( $source, $end_field, '', 'end', $start_result['date'], $date_options, $instance );
-	}
-
-	if ( ! $start_result['date'] ) {
-		return bws_handle_date_time_fallback( $options, $instance, 'range' );
-	}
-
-	$format = bws_build_range_format( $date_options, $start_result, $end_result, false );
-
-	$formatted = bws_format_date_range(
-		$start_result['date'],
-		$end_result ? $end_result['date'] : null,
-		$format,
-		$date_options
-	);
-
-	return bws_gb_tag_output( $formatted, $options, $instance );
-}
-
-// ===============================================
 // CORE FUNCTIONS — DATETIME TEMPLATES
 // ===============================================
 
@@ -446,17 +342,19 @@ function bws_date_range_core( $target, $options, $instance ) {
  * can still resolve subfield values from `$loop_item[$key]`. Bailing before that
  * path runs produces silent fallback output. (Bugfix v1.7.2, issue #22.)
  *
+ * A read with no date, or `as:time`, is a TIME display and goes to
+ * bws_format_time_display(), the same function the range core calls.
+ *
  * @since 1.0.0
- * @since 1.15.0 First arg accepts a resolved-source payload (FW-3a); legacy
- *               scalars (post id / 'option' / "{tax}_{id}") still coerced —
- *               the registry template closures pin the scalar forms.
- * @param array|int|string|false $target   Resolved source (or legacy scalar).
- * @param array                  $options  Tag options.
- * @param object                 $instance Block instance.
+ * @since 1.15.0 First arg is a resolved-source payload (FW-3a).
+ * @since Unreleased The first arg is always the payload (the scalar shim is gone), and the
+ *               time half renders through bws_format_time_display().
+ * @param array  $source   Resolved source (the factory's payload shape).
+ * @param array  $options  Tag options.
+ * @param object $instance Block instance.
  * @return string
  */
-function bws_datetime_single_core( $target, $options, $instance ) {
-	$source         = bws_datetime_coerce_read_target( $target );
+function bws_datetime_single_core( array $source, $options, $instance ) {
 	// The INVARIANT above is about repeater rows, and this is the predicate that says
 	// so: a post or a repeater row, never bare `in_loop`. A TERM or USER loop item
 	// reaching the read below leaves it with no entity and no row, and it answers with
@@ -470,37 +368,35 @@ function bws_datetime_single_core( $target, $options, $instance ) {
 	$has_entity     = 'site' === $source['kind'] || 'meta_row' === $source['kind'] || ! empty( $source['id'] );
 
 	if ( ! $has_entity && ! $read_may_serve ) {
-		return bws_handle_date_time_fallback( $options, $instance, 'single' );
+		return bws_handle_date_time_fallback( $options, $instance );
 	}
 
 	$date_time_field = sanitize_text_field( $options['date_time_field'] ?? '' );
 	$time_field      = sanitize_text_field( $options['time_field'] ?? '' );
 
 	if ( empty( $date_time_field ) && empty( $time_field ) ) {
-		return bws_handle_date_time_fallback( $options, $instance, 'single' );
+		return bws_handle_date_time_fallback( $options, $instance );
 	}
 
 	$result = bws_parse_combined_date_time( $source, $date_time_field, $time_field, 'datetime', null, $options, $instance );
 
 	if ( ! $result['date'] && ! $result['time_only'] ) {
-		return bws_handle_date_time_fallback( $options, $instance, 'single' );
+		return bws_handle_date_time_fallback( $options, $instance );
 	}
 
-	// Handle true time-only case.
-	if ( $result['time_only'] && ! $result['date'] ) {
-		$formatted = wp_date( 'g:i A', $result['time_only']->getTimestamp() );
-		return bws_gb_tag_output( $formatted, $options, $instance );
+	// A time display: `as:time`, or a field with no date (a time-only field). Empty when
+	// there is no time to show, which takes the fallback like any other empty read.
+	if ( ! empty( $options['time_only'] ) || ! $result['date'] ) {
+		return bws_gb_tag_output( bws_format_time_display( $result, null, $options ), $options, $instance );
 	}
 
-	$time_only    = ! empty( $options['time_only'] );
 	$date_only    = ! empty( $options['date_only'] );
 	$include_time = ! $date_only && $result['has_time'];
-	$include_date = ! $time_only;
 
-	$format = bws_build_single_format( $options, $result, $include_date, $include_time );
+	$format = bws_build_single_format( $options, $result, true, $include_time );
 
 	if ( ! $result['date'] || ! is_a( $result['date'], 'DateTime' ) ) {
-		return bws_handle_date_time_fallback( $options, $instance, 'single' );
+		return bws_handle_date_time_fallback( $options, $instance );
 	}
 
 	$formatted = bws_format_single_date_time( $result['date'], $format, $options );
@@ -515,23 +411,27 @@ function bws_datetime_single_core( $target, $options, $instance ) {
  * field read can still be served from (see bws_datetime_single_core() for full
  * rationale). Bugfix v1.7.2, issue #22.
  *
+ * `as:time`, or a start with no date, is a TIME display and goes to
+ * bws_format_time_display(), the same function the single core calls. A range with no
+ * start reads nothing, whatever its end holds.
+ *
  * @since 1.0.0
- * @since 1.15.0 First arg accepts a resolved-source payload (FW-3a); legacy
- *               scalars (post id / 'option' / "{tax}_{id}") still coerced —
- *               the registry template closures pin the scalar forms.
- * @param array|int|string|false $target   Resolved source (or legacy scalar).
- * @param array                  $options  Tag options.
- * @param object                 $instance Block instance.
+ * @since 1.15.0 First arg is a resolved-source payload (FW-3a).
+ * @since Unreleased The first arg is always the payload (the scalar shim is gone), the time
+ *               half renders through bws_format_time_display(), and the "Start time:" /
+ *               "End time:" / "End date/time:" diagnostic strings are gone.
+ * @param array  $source   Resolved source (the factory's payload shape).
+ * @param array  $options  Tag options.
+ * @param object $instance Block instance.
  * @return string
  */
-function bws_datetime_range_core( $target, $options, $instance ) {
-	$source         = bws_datetime_coerce_read_target( $target );
+function bws_datetime_range_core( array $source, $options, $instance ) {
 	// Same predicate as the single core above, same reason — and the same `meta_row` term.
 	$read_may_serve = bws_loop_item_is_post_or_row( $instance );
 	$has_entity     = 'site' === $source['kind'] || 'meta_row' === $source['kind'] || ! empty( $source['id'] );
 
 	if ( ! $has_entity && ! $read_may_serve ) {
-		return bws_handle_date_time_fallback( $options, $instance, 'range' );
+		return bws_handle_date_time_fallback( $options, $instance );
 	}
 
 	$start_field      = sanitize_text_field( $options['start_field'] ?? '' );
@@ -540,7 +440,7 @@ function bws_datetime_range_core( $target, $options, $instance ) {
 	$end_time_field   = sanitize_text_field( $options['end_time_field'] ?? '' );
 
 	if ( empty( $start_field ) && empty( $start_time_field ) ) {
-		return bws_handle_date_time_fallback( $options, $instance, 'range' );
+		return bws_handle_date_time_fallback( $options, $instance );
 	}
 
 	$start_result = bws_parse_combined_date_time( $source, $start_field, $start_time_field, 'start', null, $options, $instance );
@@ -550,56 +450,15 @@ function bws_datetime_range_core( $target, $options, $instance ) {
 		$end_result = bws_parse_combined_date_time( $source, $end_field, $end_time_field, 'end', $start_result['date'], $options, $instance );
 	}
 
-	if ( ! $start_result['date'] && ! $start_result['time_only'] && ! $end_result ) {
-		return bws_handle_date_time_fallback( $options, $instance, 'range' );
+	// No start reads nothing, whatever the end holds.
+	if ( ! $start_result['date'] && ! $start_result['time_only'] ) {
+		return bws_handle_date_time_fallback( $options, $instance );
 	}
 
-	$time_only = ! empty( $options['time_only'] );
-
-	// Handle time-only range (`as:time`). Accept either `date` or `time_only` from
-	// parse results — start-side time-only values have no date to inherit and live
-	// under `time_only`, while end-side values that inherited a start date live
-	// under `date`. Must run before the partial-parts diagnostic branch below,
-	// otherwise `as:time` ranges built from two time-only fields fall through to
-	// "Start time: …; End time: …" output.
-	if ( $time_only ) {
-		$start_dt = $start_result['date'] ?: $start_result['time_only'];
-		$end_dt   = $end_result ? ( $end_result['date'] ?: $end_result['time_only'] ) : null;
-		if ( $start_dt ) {
-			if ( $end_dt ) {
-				// Two-ended time range (#25): resolve the format via the same chain
-				// the single-ended case uses (custom token → ACF time format → WP
-				// default); consolidation applies only for 12-hour formats.
-				$hide_midnight = ! empty( $options['hide_midnight'] );
-				$time_format   = bws_resolve_time_only_format( $options, $start_result );
-				$time_range    = bws_format_time_range( $start_dt, $end_dt, $hide_midnight, $time_format );
-				return bws_gb_tag_output( $time_range, $options, $instance );
-			}
-			// Single-ended time: honor custom format (time tokens only), then the
-			// ACF field's time format, then the WordPress time_format option.
-			$time_format = bws_resolve_time_only_format( $options, $start_result );
-			$formatted   = wp_date( $time_format, $start_dt->getTimestamp() );
-			return bws_gb_tag_output( $formatted, $options, $instance );
-		}
-	}
-
-	// Handle partial information.
-	$partial_parts = array();
-	if ( $start_result['time_only'] ) {
-		$partial_parts[] = __( 'Start time: ', 'generateblocks' ) . wp_date( 'g:i A', $start_result['time_only']->getTimestamp() );
-	}
-	if ( $end_result && $end_result['time_only'] ) {
-		$partial_parts[] = __( 'End time: ', 'generateblocks' ) . wp_date( 'g:i A', $end_result['time_only']->getTimestamp() );
-	} elseif ( $end_result && $end_result['date'] && ! $start_result['date'] ) {
-		$partial_parts[] = __( 'End date/time: ', 'generateblocks' ) . wp_date( 'F j, Y g:i A', $end_result['date']->getTimestamp() );
-	}
-	if ( ! empty( $partial_parts ) && ! $start_result['date'] ) {
-		$formatted = implode( '; ', $partial_parts );
-		return bws_gb_tag_output( $formatted, $options, $instance );
-	}
-
-	if ( ! $start_result['date'] && ! $time_only ) {
-		return bws_handle_date_time_fallback( $options, $instance, 'range' );
+	// A time display: `as:time`, or a start with no date (a time-only field). Empty when
+	// there is no time to show, which takes the fallback like any other empty read.
+	if ( ! empty( $options['time_only'] ) || ! $start_result['date'] ) {
+		return bws_gb_tag_output( bws_format_time_display( $start_result, $end_result, $options ), $options, $instance );
 	}
 
 	// Normal range formatting.
@@ -617,48 +476,33 @@ function bws_datetime_range_core( $target, $options, $instance ) {
 }
 
 /**
- * Term datetime single core — validates the term, delegates a term-kind
- * resolved source (FW-3a; the term read is kind-dispatched inside
- * bws_parse_combined_date_time, no object-id string smuggle).
+ * The resolved source for a term the datetime cores read, or the entity-less post source
+ * when the term does not validate (the cores then take the fallback, or read a query-loop
+ * item they can be served from). The term read is kind-dispatched inside
+ * bws_parse_combined_date_time(), with no object-id string smuggle (FW-3a).
  *
- * @since 1.2.0
- * @param int|false $term_id  Resolved term ID.
- * @param array     $options  Tag options.
- * @param object    $instance Block instance.
- * @return string
+ * @since Unreleased Replaces the two term-core wrappers, which differed only by core.
+ * @param int|false $term_id Resolved term ID.
+ * @return array The factory's resolved-source payload.
  */
-function bws_term_datetime_single_core( $term_id, $options, $instance ) {
+function bws_datetime_term_source( $term_id ): array {
 	$term = $term_id ? bws_get_validated_term( $term_id ) : null;
 	if ( ! $term ) {
-		return bws_datetime_single_core( false, $options, $instance );
+		return array( 'kind' => 'post', 'id' => false );
 	}
-	return bws_datetime_single_core(
-		array( 'kind' => 'term', 'id' => $term->term_id, 'taxonomy' => $term->taxonomy ),
-		$options,
-		$instance
-	);
+	return array( 'kind' => 'term', 'id' => $term->term_id, 'taxonomy' => $term->taxonomy );
 }
 
 /**
- * Term datetime range core — validates the term, delegates a term-kind
- * resolved source (FW-3a).
+ * The resolved source for a post id the datetime cores read (a non-numeric id is the
+ * entity-less read, which a query-loop item may still serve).
  *
- * @since 1.2.0
- * @param int|false $term_id  Resolved term ID.
- * @param array     $options  Tag options.
- * @param object    $instance Block instance.
- * @return string
+ * @since Unreleased
+ * @param mixed $post_id A post id, or anything else for no entity.
+ * @return array The factory's resolved-source payload.
  */
-function bws_term_datetime_range_core( $term_id, $options, $instance ) {
-	$term = $term_id ? bws_get_validated_term( $term_id ) : null;
-	if ( ! $term ) {
-		return bws_datetime_range_core( false, $options, $instance );
-	}
-	return bws_datetime_range_core(
-		array( 'kind' => 'term', 'id' => $term->term_id, 'taxonomy' => $term->taxonomy ),
-		$options,
-		$instance
-	);
+function bws_datetime_post_source( $post_id ): array {
+	return array( 'kind' => 'post', 'id' => is_numeric( $post_id ) ? (int) $post_id : false );
 }
 
 // ===============================================
@@ -896,15 +740,13 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 	$mapped   = bws_normalize_datetime_options( $options, $range );
 	$is_range = $mapped['is_range'];
 
-	// The family's core pair, chosen once: the date-time core for a post, a row or the site,
-	// the term core for a term.
-	$core      = $is_range ? 'bws_datetime_range_core' : 'bws_datetime_single_core';
-	$term_core = $is_range ? 'bws_term_datetime_range_core' : 'bws_term_datetime_single_core';
+	// The family's core, chosen once. Every kind of source goes to it as a resolved-source payload.
+	$core = $is_range ? 'bws_datetime_range_core' : 'bws_datetime_single_core';
 
 	$link_id   = 0;
 	$link_type = 'post';
 
-	// src:site — ACF options-page date field. Pass 'option' object-id to the core; the
+	// src:site — ACF options-page date field. The core gets the site source; the
 	// DT-1 bws_read_field branch (allowlist-gated get_field($key,'option')) performs
 	// the value read, and the format chain (bws_build_single_format / bws_build_range_format)
 	// recovers the field's return format. Link identity is the sentinel pair (id 1, 'site'),
@@ -912,7 +754,7 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 	// test the wrap used to carry here.
 	if ( 'site' === $res['kind'] ) {
 		return array(
-			'value'     => $core( 'option', $mapped, $instance ),
+			'value'     => $core( array( 'kind' => 'site' ), $mapped, $instance ),
 			'link_id'   => 1,
 			'link_type' => 'site',
 		);
@@ -945,7 +787,7 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 			// through the term core, never the analog reader — FW-3's remaining half
 			// is gated on a field-object-formats read the seam does not expose, so
 			// the seam's own value for a datetime tag is '' by construction.
-			$value     = $term_core( (int) $ambient['link_id'], $mapped, $instance );
+			$value     = $core( bws_datetime_term_source( (int) $ambient['link_id'] ), $mapped, $instance );
 			$link_id   = (int) $ambient['link_id'];
 			$link_type = 'term';
 		} else {
@@ -961,9 +803,9 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 			function_exists( 'bws_base_term_ids_from_source' )
 				? bws_base_term_ids_from_source( $base, $options )
 				: array(),
-			static function ( $tid, array $item_opts ) use ( $term_core, $instance ) {
+			static function ( $tid, array $item_opts ) use ( $core, $instance ) {
 				return array(
-					'value' => $term_core( (int) $tid, $item_opts, $instance ),
+					'value' => $core( bws_datetime_term_source( (int) $tid ), $item_opts, $instance ),
 					'link'  => array( 'kind' => 'term', 'id' => (int) $tid ),
 				);
 			},
@@ -980,7 +822,7 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 			$post_ids,
 			static function ( $oid, array $item_opts ) use ( $core, $instance ) {
 				return array(
-					'value' => $core( $oid, $item_opts, $instance ),
+					'value' => $core( bws_datetime_post_source( $oid ), $item_opts, $instance ),
 					'link'  => array( 'kind' => 'post', 'id' => (int) $oid ),
 				);
 			},
@@ -1000,8 +842,7 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 		// own INVARIANT is written about, the issue #22 repeater row a query loop
 		// positions us inside and bws_read_field() re-infers.
 		//
-		// The core takes the resolved SOURCE (bws_datetime_coerce_read_target() passes a
-		// kind-carrying array through verbatim), and the row's VALUE read is the only half
+		// The core takes the resolved SOURCE, and the row's VALUE read is the only half
 		// that changes down there: the field-config object id stays the core's own
 		// derivation, so a row parses format-agnostically — the boundary
 		// bws_parse_combined_date_time() states and FW-3 closes.
@@ -1020,7 +861,7 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 		$post_id   = function_exists( 'bws_base_post_id_from_source' )
 			? bws_base_post_id_from_source( $base, $options )
 			: get_the_ID();
-		$value     = $core( $post_id, $mapped, $instance );
+		$value     = $core( bws_datetime_post_source( $post_id ), $mapped, $instance );
 		$link_id   = (int) $post_id;
 		$link_type = 'post';
 	}
@@ -1034,7 +875,7 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 	// editor preview: an empty read there is the shell's preview label, which carries the
 	// fallback beside the read target (bws_base_text_callback() does the same).
 	if ( '' === $value && empty( $instance->context['bwsEditorPreview'] ) ) {
-		$value   = bws_handle_date_time_fallback( $mapped, $instance, $is_range ? 'range' : 'single' );
+		$value   = bws_handle_date_time_fallback( $mapped, $instance );
 		$link_id = 0;
 	}
 

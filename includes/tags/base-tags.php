@@ -1462,7 +1462,7 @@ function bws_site_allowlist_ok( string $key ): bool {
  * Used by the text/title/permalink/image/content callbacks' early gate. Site
  * has no entity ID, so this bypasses bws_resolve_post_by_source() entirely.
  * Datetime tags do NOT route here — they read ACF options-page fields via
- * bws_datetime_single_core('option', ...) (see datetime callbacks).
+ * a site-kind source handed to the datetime cores (see bws_base_datetime_resolve_value()).
  *
  * Dispatch by `use`, UNIFORM with every other source (Model B): the `use` VALUE is the
  * analog-vs-option lever, `use:key` a wp_options read. There is NO `use:option` value.

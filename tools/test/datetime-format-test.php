@@ -12,9 +12,11 @@
  *   - bws_format_time_range()          — #25 surface (12-hour consolidation)
  *   - bws_format_date_range()          — separator / year-omission / smart-time
  *   - bws_format_single_date_time()    — year-omission / midnight suppression
- *   - bws_resolve_time_only_format()   — custom → ACF → WP-default chain (v1.7.4)
+ *   - bws_resolve_time_only_format()   — custom → separate time field → field's own tokens →
+ *                                        WP-default chain (v1.7.4, field tokens FW-81 / 02c)
  *   - bws_build_single_format() / bws_build_range_format() — format assembly
- *   - bws_datetime_coerce_read_target() — FW-3a legacy-scalar → resolved-source shim
+ *   - bws_format_time_display()       — the ONE time display, single core and range core
+ *                                       alike (FW-81 / 02c)
  *   - the option-key normalizer        — public→core key mapping (FW-2 baseline;
  *     bws_normalize_datetime_options(), the one parse site. The pre-FW-2
  *     mapper fallback went with the wrappers themselves in 1.21.0 —
@@ -337,6 +339,128 @@ assert_same( 'F6 no custom, no ACF format → WP time_format default',
 	bws_resolve_time_only_format( array(), $res_no_fmt )
 );
 
+// The field's OWN return format is the next rule down the chain (FW-81 / 02c): a datetime
+// field whose format carries time tokens supplies them, ahead of the WordPress option.
+// Every expectation below differs from the WP shim's `g:i A`, so a pass cannot come from it.
+$res_combined_lower = $empty_result;
+$res_combined_lower['formats']['combined_format'] = 'F j, Y g:i a';
+$res_combined_24h = $empty_result;
+$res_combined_24h['formats']['combined_format'] = 'Y-m-d H:i';
+$res_combined_date = $empty_result;
+$res_combined_date['formats']['combined_format'] = 'F j, Y';
+$res_both = $empty_result;
+$res_both['formats']['time_format']     = 'H:i';
+$res_both['formats']['combined_format'] = 'F j, Y g:i a';
+
+assert_same( 'F7 no custom, no separate time format → the datetime field\'s own time tokens',
+	'g:i a',
+	bws_resolve_time_only_format( array(), $res_combined_lower )
+);
+assert_same( 'F8 24-hour field format keeps its style (not the WP 12-hour option)',
+	'H:i',
+	bws_resolve_time_only_format( array(), $res_combined_24h )
+);
+assert_same( 'F9 a separate time field\'s format outranks the combined format',
+	'H:i',
+	bws_resolve_time_only_format( array(), $res_both )
+);
+assert_same( 'F10 a combined format with NO time tokens contributes nothing → WP default',
+	'g:i A',
+	bws_resolve_time_only_format( array(), $res_combined_date )
+);
+assert_same( 'F11 custom format still outranks the field\'s own tokens',
+	'H:i',
+	bws_resolve_time_only_format( array( 'format_type' => 'custom', 'custom_format' => 'H:i' ), $res_combined_lower )
+);
+
+// ===========================================================================
+echo "\nU — bws_format_time_display (the ONE time display; single core, range core, FW-81 / 02c)\n";
+// ===========================================================================
+// Pure over parse results. One side is a start only; two sides are a time range. A side
+// "has a time" when its parse says so (has_time / time_only), never because a DateTime
+// exists: a date-only value carries the parser's noon safety buffer, and showing it is a leak.
+
+$u_dt = static function ( string $when, string $combined, bool $has_time = true ) use ( $empty_result ): array {
+	$r = $empty_result;
+	$r['date']     = dt( $when );
+	$r['has_time'] = $has_time;
+	$r['formats']['combined_format'] = $combined;
+	return $r;
+};
+$u_time_only = static function ( string $when, string $format ) use ( $empty_result ): array {
+	$r = $empty_result;
+	$r['time_only'] = dt( $when );
+	$r['formats']['time_format'] = $format;
+	return $r;
+};
+$show = array( 'hide_midnight' => false );
+$hide = array( 'hide_midnight' => true );
+
+assert_same( 'U1 datetime field: its own time tokens, not the WP option (field g:i a, WP g:i A)',
+	'9:00 am',
+	bws_format_time_display( $u_dt( '2030-08-12 09:00', 'F j, Y g:i a' ), null, $hide )
+);
+assert_same( 'U2 date-only field: no time part, so nothing (the 12:00 noon buffer never shows)',
+	'',
+	bws_format_time_display( $u_dt( '2030-08-12 12:00', 'F j, Y', false ), null, $hide )
+);
+assert_same( 'U3 time-only field: bare time in the field\'s own format',
+	'9:00 AM',
+	bws_format_time_display( $u_time_only( '2030-08-12 09:00', 'g:i A' ), null, $hide )
+);
+assert_same( 'U4 midnight is hidden by default (hide_midnight)',
+	'',
+	bws_format_time_display( $u_dt( '2030-08-12 00:00', 'F j, Y g:i A' ), null, $hide )
+);
+assert_same( 'U5 midnight prints once showMidnight is on (hide_midnight false)',
+	'12:00 AM',
+	bws_format_time_display( $u_dt( '2030-08-12 00:00', 'F j, Y g:i A' ), null, $show )
+);
+assert_same( 'U6 a time-only field at midnight follows the same rule (hidden)',
+	'',
+	bws_format_time_display( $u_time_only( '2030-08-12 00:00', 'g:i A' ), null, $hide )
+);
+assert_same( 'U7 two-ended: same meridiem consolidates, in the START field\'s own tokens',
+	'9:00–11:30 am',
+	bws_format_time_display( $u_dt( '2030-08-12 09:00', 'F j, Y g:i a' ), $u_dt( '2030-08-12 11:30', 'F j, Y g:i a' ), $hide )
+);
+assert_same( 'U8 two-ended time-only fields: the same range, no labels',
+	'9:00–11:30 AM',
+	bws_format_time_display( $u_time_only( '2030-08-12 09:00', 'g:i A' ), $u_dt( '2030-08-12 11:30', 'g:i A' ), $hide )
+);
+assert_same( 'U9 two-ended all-day span (00:00 to 23:59) is hidden by default',
+	'',
+	bws_format_time_display( $u_dt( '2030-08-12 00:00', 'F j, Y g:i A' ), $u_dt( '2030-08-12 23:59', 'F j, Y g:i A' ), $hide )
+);
+assert_same( 'U10 two-ended all-day span prints in full with showMidnight',
+	'12:00 AM–11:59 PM',
+	bws_format_time_display( $u_dt( '2030-08-12 00:00', 'F j, Y g:i A' ), $u_dt( '2030-08-12 23:59', 'F j, Y g:i A' ), $show )
+);
+assert_same( 'U11 a time-only start with a date-time end prints both times and drops the end\'s date',
+	'9:00 AM–5:00 PM',
+	bws_format_time_display( $u_time_only( '2030-08-12 09:00', 'g:i A' ), $u_dt( '2030-08-13 17:00', 'F j, Y g:i A' ), $hide )
+);
+assert_same( 'U12 a date-only start with a timed end shows the end\'s time alone (no noon)',
+	'5:00 PM',
+	bws_format_time_display( $u_dt( '2030-08-12 12:00', 'F j, Y', false ), $u_dt( '2030-08-12 17:00', 'F j, Y g:i A' ), $hide )
+);
+assert_same( 'U13 two date-only sides: nothing',
+	'',
+	bws_format_time_display( $u_dt( '2030-08-12 12:00', 'F j, Y', false ), $u_dt( '2030-08-14 12:00', 'F j, Y', false ), $hide )
+);
+assert_same( 'U14 custom format beats the field\'s own tokens, one side',
+	'09:00',
+	bws_format_time_display( $u_dt( '2030-08-12 09:00', 'F j, Y g:i a' ), null, array( 'hide_midnight' => true, 'format_type' => 'custom', 'custom_format' => 'H:i' ) )
+);
+assert_same( 'U15 custom format on a TIME-ONLY field is honored (it used to print a hardcoded g:i A)',
+	'09:00',
+	bws_format_time_display( $u_time_only( '2030-08-12 09:00', 'g:i A' ), null, array( 'hide_midnight' => true, 'format_type' => 'custom', 'custom_format' => 'H:i' ) )
+);
+assert_same( 'U16 no start time at all: nothing, even when an end exists',
+	'',
+	bws_format_time_display( $empty_result, $u_dt( '2030-08-12 17:00', 'F j, Y g:i A' ), $hide )
+);
+
 // ===========================================================================
 echo "\nT — bws_format_time_range (two-ended time; #25 baseline)\n";
 // ===========================================================================
@@ -632,43 +756,6 @@ assert_same( 'B9 range: custom time-only format kept under time_only',
 assert_same( 'B10 range: no formats → WP defaults, date-only',
 	'F j, Y',
 	bws_build_range_format( array(), $empty_result, null, false )
-);
-
-// ===========================================================================
-echo "\nK — bws_datetime_coerce_read_target (FW-3a legacy-scalar shim)\n";
-// ===========================================================================
-
-assert_same( 'K1 resolved-source array passes through verbatim (idempotent)',
-	array( 'kind' => 'term', 'id' => 7, 'taxonomy' => 'department' ),
-	bws_datetime_coerce_read_target( array( 'kind' => 'term', 'id' => 7, 'taxonomy' => 'department' ) )
-);
-assert_same( 'K2 \'option\' sentinel → site kind',
-	array( 'kind' => 'site' ),
-	bws_datetime_coerce_read_target( 'option' )
-);
-assert_same( 'K3 ACF term object-id string → term kind + taxonomy split',
-	array( 'kind' => 'term', 'id' => 5, 'taxonomy' => 'department' ),
-	bws_datetime_coerce_read_target( 'department_5' )
-);
-assert_same( 'K4 underscored taxonomy keeps full slug (greedy prefix)',
-	array( 'kind' => 'term', 'id' => 12, 'taxonomy' => 'product_cat' ),
-	bws_datetime_coerce_read_target( 'product_cat_12' )
-);
-assert_same( 'K5 bare int → post kind',
-	array( 'kind' => 'post', 'id' => 42 ),
-	bws_datetime_coerce_read_target( 42 )
-);
-assert_same( 'K6 numeric string → post kind (no term-regex false positive)',
-	array( 'kind' => 'post', 'id' => 123 ),
-	bws_datetime_coerce_read_target( '123' )
-);
-assert_same( 'K7 false → post kind, id false (loop-item entity-less read)',
-	array( 'kind' => 'post', 'id' => false ),
-	bws_datetime_coerce_read_target( false )
-);
-assert_same( 'K8 empty string → post kind, id false',
-	array( 'kind' => 'post', 'id' => false ),
-	bws_datetime_coerce_read_target( '' )
 );
 
 echo "\n" . ( $failures ? "FAILED {$failures}/{$count}\n" : "PASSED {$count}/{$count}\n" );

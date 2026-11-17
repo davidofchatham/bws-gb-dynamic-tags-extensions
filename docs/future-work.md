@@ -49,7 +49,7 @@ Route datetime reads through the same L1/L2 source-resolution seam as text/title
 
 Detail home: `.scratch/plans/fw3-datetime-seam.md` (the open decision); half (a)'s record `docs/design-history/fw3-term-ambient-parity.md`; payload half's record `docs/design-history/traversal-convergence-fw49.md`
 
-Progress: Half (a) shipped 1.15.0 — term-ambient parity, the resolved-source rethread, and the `bws_datetime_coerce_read_target()` compat shim for legacy scalars; bare datetime tags on a term archive read the term's date field. The payload half of (b) shipped 1.16.0 as part of FW-49 — the four datetime call sites ride the shared `bws_collect_value_list()` fold and `bws_datetime_collect_list()` is deleted.
+Progress: Half (a) shipped 1.15.0 — term-ambient parity, the resolved-source rethread, and the `bws_datetime_coerce_read_target()` compat shim for legacy scalars (deleted since, unreleased: FW-81 ticket 02c made every caller build the resolved-source payload itself); bare datetime tags on a term archive read the term's date field. The payload half of (b) shipped 1.16.0 as part of FW-49 — the four datetime call sites ride the shared `bws_collect_value_list()` fold and `bws_datetime_collect_list()` is deleted.
 
 Open: Full seam routing (datetime VALUE reads going through `bws_resolve_field_values` rather than the cores) still needs the field-object-formats read the seam does not currently expose. For a REPEATER-ROW source the inputs that read needs are now recorded — FW-74 ticket 02 (1.21.0) stamps `parent_kind`, `parent_id`, `repeater` and `index` on every row a `rows` step produces — but the read itself is still this item's, and datetime on a wire row ships format-agnostic until it lands.
 

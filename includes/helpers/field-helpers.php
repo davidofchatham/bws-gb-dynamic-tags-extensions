@@ -757,7 +757,7 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
 	}
 
 	// src:site datetime — ACF options-page field value read. The 'option' sentinel
-	// reaches here only from bws_datetime_single_core('option', ...) (site datetime
+	// reaches here only from bws_parse_combined_date_time()'s site-kind value read (site datetime
 	// path). It is an explicit target like a post id, so it is answered FIRST: neither a
 	// loop item nor any other ambient entity may answer for an option the wire named.
 	// Gated through the SAME TWO gates as use:option and site linkTo:key — the

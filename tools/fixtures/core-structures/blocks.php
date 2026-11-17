@@ -691,9 +691,9 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'D8.1 expect "August 12, 2030" (no stray 11:59 PM)', '{{datetime_range startKey:event_midnight|endKey:event_allday_end}}' ),
 		bws_fixture_gb_row( 'D8.2 expect "August 12-August 14, 2030" (multi-day, both ends bare)', '{{datetime_range startKey:event_midnight|endKey:event_allday_end_multi}}' ),
 		bws_fixture_gb_empty_row( 'D8.3 expect EMPTY (as:time on an all-day span has no time to show)', '{{datetime_range startKey:event_midnight|endKey:event_allday_end|as:time}}' ),
-		bws_fixture_gb_row( 'D8.4 expect "12:00 am-11:59 pm" (showMidnight opts back in to both ends)', '{{datetime_range startKey:event_midnight|endKey:event_allday_end|as:time|showMidnight}}' ),
+		bws_fixture_gb_row( 'D8.4 expect "12:00 AM-11:59 PM" (showMidnight opts back in to both ends)', '{{datetime_range startKey:event_midnight|endKey:event_allday_end|as:time|showMidnight}}' ),
 		bws_fixture_gb_row( 'D8.5 expect "9:00-11:30 am" consolidated EVEN WITH showMidnight on (#125)', '{{datetime_range startKey:event_time|endKey:event_end_time|as:time|showMidnight}}' ),
-		bws_fixture_gb_row( 'D8.6 expect "9:00 am-5:00 pm" (cross-meridiem stays full under showMidnight)', '{{datetime_range startKey:event_datetime|endKey:event_end_datetime|as:time|showMidnight}}' ),
+		bws_fixture_gb_row( 'D8.6 expect "9:00 AM-5:00 PM" (cross-meridiem stays full under showMidnight)', '{{datetime_range startKey:event_datetime|endKey:event_end_datetime|as:time|showMidnight}}' ),
 		bws_fixture_gb_row( 'D8.7 expect "09:00-11:30" (24-hour format gate still blocks consolidation)', '{{datetime_range startKey:event_time|endKey:event_end_time|as:time|format:H:i|showMidnight}}' ),
 	) );
 
@@ -2384,17 +2384,17 @@ function bws_fixture_page_content_matrix_datetime() {
 		bws_fixture_gb_row( 'D9.11 (= D0.11) expect "15/08/2030"', "{{datetime src:post,{$meta_id}|key:event_date_dmy}}" ),
 		bws_fixture_gb_row( 'D9.12 (= D1.1) expect "August 12, 2030"', "{{datetime src:post,{$meta_id}|key:event_datetime|as:date}}" ),
 		bws_fixture_gb_row( 'D9.13 (= D1.2) expect "9:00 AM"', "{{datetime src:post,{$meta_id}|key:event_datetime|as:time}}" ),
-		bws_fixture_gb_row( 'D9.14 (= D1.3) expect "9:00 AM"', "{{datetime src:post,{$meta_id}|key:event_time|as:time}}" ),
+		bws_fixture_gb_row( 'D9.14 (= D1.3) expect "9:00 am"', "{{datetime src:post,{$meta_id}|key:event_time|as:time}}" ),
 	) );
 
 	$sections[] = bws_fixture_gb_section( 'Datetime D9 - merged tag, two reads (key:a;b)', array(
-		bws_fixture_gb_row( 'D9.15 (= D1.4) expect "9:00 am"', "{{datetime src:post,{$meta_id}|key:event_datetime;|as:time}}" ),
+		bws_fixture_gb_row( 'D9.15 (= D1.4) expect "9:00 AM"', "{{datetime src:post,{$meta_id}|key:event_datetime;|as:time}}" ),
 		bws_fixture_gb_row( 'D9.16 (= D1.5) expect "09:00"', "{{datetime src:post,{$meta_id}|key:event_datetime;|as:time|format:H:i}}" ),
 		bws_fixture_gb_row( 'D9.17 (= D2.1) expect "August 1-9, 2030"', "{{datetime src:post,{$meta_id}|key:event_start_date;event_end_date}}" ),
 		bws_fixture_gb_row( 'D9.18 (= D2.2) expect "August 1 to 9, 2030"', "{{datetime src:post,{$meta_id}|key:event_start_date;event_end_date|rangeSep: to }}" ),
 		bws_fixture_gb_row( 'D9.19 (= D2.3) expect "August 12, 2030, 9:00 AM-5:00 PM"', "{{datetime src:post,{$meta_id}|key:event_datetime;event_end_datetime}}" ),
 		bws_fixture_gb_row( 'D9.20 (= D2.4) expect "August 12, 2030, 5:00 PM"', "{{datetime src:post,{$meta_id}|key:event_midnight;event_end_datetime}}" ),
-		bws_fixture_gb_row( 'D9.21 (= D2.5) expect "9:00 am-5:00 pm"', "{{datetime src:post,{$meta_id}|key:event_datetime;event_end_datetime|as:time}}" ),
+		bws_fixture_gb_row( 'D9.21 (= D2.5) expect "9:00 AM-5:00 PM"', "{{datetime src:post,{$meta_id}|key:event_datetime;event_end_datetime|as:time}}" ),
 		bws_fixture_gb_row( 'D9.22 (= D2.6) expect "9:00-11:30 am"', "{{datetime src:post,{$meta_id}|key:event_time;event_end_time|as:time}}" ),
 		bws_fixture_gb_row( 'D9.23 (= D3.1) expect "09:00-17:00"', "{{datetime src:post,{$meta_id}|key:event_datetime;event_end_datetime|as:time|format:H:i}}" ),
 		bws_fixture_gb_row( 'D9.24 (= D3.2) expect "9:00-5:00"', "{{datetime src:post,{$meta_id}|key:event_datetime;event_end_datetime|as:time|format:g:i}}" ),
@@ -2403,9 +2403,9 @@ function bws_fixture_page_content_matrix_datetime() {
 		bws_fixture_gb_row( 'D9.27 (= D8.1) expect "August 12, 2030"', "{{datetime src:post,{$meta_id}|key:event_midnight;event_allday_end}}" ),
 		bws_fixture_gb_row( 'D9.28 (= D8.2) expect "August 12-August 14, 2030"', "{{datetime src:post,{$meta_id}|key:event_midnight;event_allday_end_multi}}" ),
 		bws_fixture_gb_empty_row( 'D9.29 (= D8.3) expect EMPTY (no time part on either end)', "{{datetime src:post,{$meta_id}|key:event_midnight;event_allday_end|as:time}}" ),
-		bws_fixture_gb_row( 'D9.30 (= D8.4) expect "12:00 am-11:59 pm"', "{{datetime src:post,{$meta_id}|key:event_midnight;event_allday_end|as:time|showMidnight}}" ),
+		bws_fixture_gb_row( 'D9.30 (= D8.4) expect "12:00 AM-11:59 PM"', "{{datetime src:post,{$meta_id}|key:event_midnight;event_allday_end|as:time|showMidnight}}" ),
 		bws_fixture_gb_row( 'D9.31 (= D8.5) expect "9:00-11:30 am"', "{{datetime src:post,{$meta_id}|key:event_time;event_end_time|as:time|showMidnight}}" ),
-		bws_fixture_gb_row( 'D9.32 (= D8.6) expect "9:00 am-5:00 pm"', "{{datetime src:post,{$meta_id}|key:event_datetime;event_end_datetime|as:time|showMidnight}}" ),
+		bws_fixture_gb_row( 'D9.32 (= D8.6) expect "9:00 AM-5:00 PM"', "{{datetime src:post,{$meta_id}|key:event_datetime;event_end_datetime|as:time|showMidnight}}" ),
 		bws_fixture_gb_row( 'D9.33 (= D8.7) expect "09:00-11:30"', "{{datetime src:post,{$meta_id}|key:event_time;event_end_time|as:time|format:H:i|showMidnight}}" ),
 		bws_fixture_gb_row( 'D9.34 (= new combination) expect "August 1, 9:00 am-August 9, 2030, 11:30 am"', "{{datetime src:post,{$meta_id}|key:event_start_date+event_time;event_end_date+event_end_time}}" ),
 		bws_fixture_gb_row( 'D9.35 (= new combination) expect "August 1, 2030, 9:00-11:30 am"', "{{datetime src:post,{$meta_id}|key:event_start_date+event_time;+event_end_time}}" ),
@@ -2450,11 +2450,75 @@ function bws_fixture_page_content_matrix_datetime() {
 	// still reads through the range core, the single tag given `a;b` still reads only `a`. The
 	// derived mode would send the first to the single core and read both for the second.
 	$sections[] = bws_fixture_gb_section( 'Datetime D9 - an old tag keeps its family', array(
-		bws_fixture_gb_row( 'D9.54 (= new combination) expect "9:00 am" (the RANGE core prints am lowercase; the single core would print 9:00 AM)', "{{datetime_range src:post,{$meta_id}|key:event_datetime|as:time}}" ),
+		bws_fixture_gb_row( 'D9.54 (= new combination) expect "9:00 AM-5:00 PM" (the RANGE core reads both entries; the single core would read only the first and print 9:00 AM)', "{{datetime_range src:post,{$meta_id}|key:event_datetime;event_end_datetime|as:time}}" ),
 		bws_fixture_gb_row( 'D9.55 (= new combination) expect "August 1, 2030" (a single tag reads only the first entry)', "{{datetime_single src:post,{$meta_id}|key:event_start_date;event_end_date}}" ),
-		bws_fixture_gb_row( 'D9.56 (= D9.54, try_ twin) expect "9:00 am"', "{{try_datetime_range src:post,{$meta_id}|key:event_datetime|as:time}}" ),
+		bws_fixture_gb_row( 'D9.56 (= D9.54, try_ twin) expect "9:00 AM-5:00 PM"', "{{try_datetime_range src:post,{$meta_id}|key:event_datetime;event_end_datetime|as:time}}" ),
 		bws_fixture_gb_row( 'D9.57 (= D9.55, try_ twin) expect "August 1, 2030"', "{{try_datetime_single src:post,{$meta_id}|key:event_start_date;event_end_date}}" ),
 	) );
+
+	// ONE time display (02c). Each case below is rendered through the old single tag, the old
+	// range tag and the merged tag, and every spelling of a case must print the same bytes: the
+	// single core and the range core now share bws_format_time_display(), so a case that splits
+	// by tag is the defect. `event_time` returns `g:i a` and `event_datetime` returns
+	// `F j, Y g:i A`, so the field's OWN format, not the WP `time_format` (`g:i a`), decides
+	// the case of the meridiem on `event_datetime`.
+	$time_cases = array(
+		array( 'D10.1', '9:00 AM', 'as:time on a datetime field uses the field\'s own tokens (the WP option is g:i a)', array(
+			array( 'datetime_single', 'key:event_datetime|as:time' ), array( 'datetime_range', 'startKey:event_datetime|as:time' ),
+			array( 'datetime', 'key:event_datetime|as:time' ), array( 'datetime', 'key:event_datetime;|as:time' ) ) ),
+		array( 'D10.2', '9:00 am', 'as:time on a time-only field, in its own return format', array(
+			array( 'datetime_single', 'key:event_time|as:time' ), array( 'datetime_range', 'startKey:event_time|as:time' ),
+			array( 'datetime', 'key:event_time|as:time' ), array( 'datetime', 'key:event_time;|as:time' ) ) ),
+		array( 'D10.3', '9:00 am', 'a time-only field with no `as` prints the bare time, never a "Start time:" label', array(
+			array( 'datetime_single', 'key:event_time' ), array( 'datetime_range', 'startKey:event_time' ),
+			array( 'datetime', 'key:event_time' ), array( 'datetime', 'key:event_time;' ) ) ),
+		array( 'D10.4', '', 'as:time on a midnight value is hidden by default', array(
+			array( 'datetime_single', 'key:event_midnight|as:time' ), array( 'datetime_range', 'startKey:event_midnight|as:time' ),
+			array( 'datetime', 'key:event_midnight|as:time' ), array( 'datetime', 'key:event_midnight;|as:time' ) ) ),
+		array( 'D10.5', '12:00 AM', 'as:time on a midnight value prints once showMidnight is on', array(
+			array( 'datetime_single', 'key:event_midnight|as:time|showMidnight' ), array( 'datetime_range', 'startKey:event_midnight|as:time|showMidnight' ),
+			array( 'datetime', 'key:event_midnight|as:time|showMidnight' ), array( 'datetime', 'key:event_midnight;|as:time|showMidnight' ) ) ),
+		array( 'D10.6', '', 'as:time on a date-only field has no time to show (the parser\'s noon buffer never prints)', array(
+			array( 'datetime_single', 'key:event_start_date|as:time' ), array( 'datetime_range', 'startKey:event_start_date|as:time' ),
+			array( 'datetime', 'key:event_start_date|as:time' ), array( 'datetime', 'key:event_start_date;|as:time' ) ) ),
+		array( 'D10.7', 'FB', 'the same date-only read takes the stated fallback', array(
+			array( 'datetime_single', 'key:event_start_date|as:time|fallback:FB' ), array( 'datetime_range', 'startKey:event_start_date|as:time|fallback:FB' ),
+			array( 'datetime', 'key:event_start_date|as:time|fallback:FB' ), array( 'datetime', 'key:event_start_date;|as:time|fallback:FB' ) ) ),
+		array( 'D10.8', '09:00', 'a custom format is honored on a time-only field', array(
+			array( 'datetime_single', 'key:event_time|format:H:i' ), array( 'datetime_range', 'startKey:event_time|format:H:i' ),
+			array( 'datetime', 'key:event_time|format:H:i' ), array( 'datetime', 'key:event_time;|format:H:i' ) ) ),
+		array( 'D10.9', '9:00 AM-5:00 PM', 'a two-ended as:time range, in the start field\'s own tokens', array(
+			array( 'datetime_range', 'startKey:event_datetime|endKey:event_end_datetime|as:time' ),
+			array( 'datetime', 'key:event_datetime;event_end_datetime|as:time' ) ) ),
+		array( 'D10.10', '9:00-11:30 am', 'two time-only fields with no `as` print the time range, never labels', array(
+			array( 'datetime_range', 'startKey:event_time|endKey:event_end_time' ),
+			array( 'datetime', 'key:event_time;event_end_time' ) ) ),
+		array( 'D10.11', '9:00 am-5:00 pm', 'a time-only start with a date-time end prints both times and drops the end\'s date', array(
+			array( 'datetime_range', 'startKey:event_time|endKey:event_end_datetime' ),
+			array( 'datetime', 'key:event_time;event_end_datetime' ) ) ),
+		array( 'D10.12', '', 'a missing start reads nothing, even when the end has a value', array(
+			array( 'datetime_range', 'startKey:missing_a|endKey:event_end_time' ),
+			array( 'datetime', 'key:missing_a;event_end_time' ) ) ),
+		array( 'D10.13', 'FB', 'the same missing start takes the stated fallback (it used to print "End time: ..." instead)', array(
+			array( 'datetime_range', 'startKey:missing_a|endKey:event_end_time|fallback:FB' ),
+			array( 'datetime', 'key:missing_a;event_end_time|fallback:FB' ) ) ),
+		array( 'D10.14', '9:00 am', 'a start given only as a time key is a time-only start', array(
+			array( 'datetime_single', 'timeKey:event_time' ), array( 'datetime_range', 'startTimeKey:event_time' ),
+			array( 'datetime', 'key:+event_time' ), array( 'datetime', 'key:+event_time;' ) ) ),
+		array( 'D10.15', '9:00 am-5:00 pm', 'a time-key-only start with a date-time end', array(
+			array( 'datetime_range', 'startTimeKey:event_time|endKey:event_end_datetime' ),
+			array( 'datetime', 'key:+event_time;event_end_datetime' ) ) ),
+	);
+	$rows = array();
+	foreach ( $time_cases as $case ) {
+		list( $id, $expect, $what, $spellings ) = $case;
+		foreach ( $spellings as $i => $sp ) {
+			$tag    = '{{' . $sp[0] . ' src:post,' . $meta_id . '|' . $sp[1] . '}}';
+			$label  = sprintf( '%s%s expect %s (%s)', $id, chr( 97 + $i ), '' === $expect ? 'EMPTY' : '"' . $expect . '"', $what );
+			$rows[] = '' === $expect ? bws_fixture_gb_empty_row( $label, $tag ) : bws_fixture_gb_row( $label, $tag );
+		}
+	}
+	$sections[] = bws_fixture_gb_section( 'Datetime D10 - one time display (single, range and merged agree)', $rows );
 
 	return implode( "\n\n", $sections );
 }

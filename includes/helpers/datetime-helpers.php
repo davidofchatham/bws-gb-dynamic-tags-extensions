@@ -219,48 +219,6 @@ function bws_value_looks_time_only( $value ) {
 // ===============================================
 
 /**
- * Coerce a datetime read target into the factory's resolved-source payload.
- *
- * FW-3(a) compat shim: the datetime cores' public signatures historically took
- * a bare post id, the `'option'` site sentinel, or an ACF term object-id string
- * ("{taxonomy}_{term_id}") in their first arg. Callers still pass those forms
- * (the callbacks pass the `'option'` sentinel), so every legacy shape maps
- * here onto the payload shape the source factory emits
- * (`bws_resolve_base_source()`), and the cores + parse layer
- * branch on `kind` — never on string-shape sniffing. This shim is FW-3 residue:
- * it dies when those closures thread resolved sources themselves.
- *
- * NO EXTERNAL CALLER REMAINS. One integrating plugin mapped `bws_datetime_*_core`
- * by name in its template map until 2026-09-08, when it deleted that map along
- * with the whole prefixed tag family it generated; its only surviving
- * integration is a registered chain root. Retiring this shim is therefore an
- * in-repo refactor, not the cross-plugin coordination it was scoped for.
- *
- * Payload: `['kind' => 'post'|'term'|'site', 'id' => int|false, 'taxonomy' => string]`
- * — 'taxonomy' on term kind only; a false 'id' means no entity (a repeater row
- * may still resolve its read via the block instance). Idempotent: an array with a
- * 'kind' passes through verbatim.
- *
- * @since 1.15.0
- * @param mixed $target Resolved-source array, post id, 'option', or "{tax}_{id}".
- * @return array Resolved-source payload.
- */
-if ( ! function_exists( 'bws_datetime_coerce_read_target' ) ) {
-function bws_datetime_coerce_read_target( $target ) {
-    if ( is_array( $target ) && isset( $target['kind'] ) ) {
-        return $target;
-    }
-    if ( 'option' === $target ) {
-        return [ 'kind' => 'site' ];
-    }
-    if ( is_string( $target ) && preg_match( '/^([a-z][a-z0-9_-]*)_(\d+)$/', $target, $m ) ) {
-        return [ 'kind' => 'term', 'id' => (int) $m[2], 'taxonomy' => $m[1] ];
-    }
-    return [ 'kind' => 'post', 'id' => is_numeric( $target ) ? (int) $target : false ];
-}
-}
-
-/**
  * Parse combined date/time from separate or combined fields.
  *
  * INVARIANT: ACF field-config lookups (`bws_get_acf_return_format()`,
@@ -280,18 +238,17 @@ function bws_datetime_coerce_read_target( $target ) {
  * numeric coercion.
  *
  * @invariant Kind dispatch (FW-3a): the read target is the factory's
- * resolved-source payload; legacy scalar forms are coerced by
- * `bws_datetime_coerce_read_target()` at the boundary. All branching below is
- * on `kind` — never reintroduce string-shape sniffing of the first arg.
+ * resolved-source payload, built by the callers (bws_datetime_term_source() /
+ * bws_datetime_post_source() and the site payload). All branching below is on `kind` — never reintroduce string-shape sniffing
+ * of the first arg.
  *
  * @since 3.0.0
- * @since 1.15.0 First arg accepts a resolved-source payload (FW-3a); legacy
- *               scalars still coerced.
+ * @since 1.15.0 First arg accepts a resolved-source payload (FW-3a).
+ * @since Unreleased The first arg is only ever the payload; the legacy-scalar shim is gone.
  * @since 1.21.0 `meta_row` VALUE leg (FW-74) — a repeater row reads its sub-field
  *               through the L2 seam. Format-agnostic by construction; see the
  *               read closure below for why, and what closes it.
- * @param array|int|string|false $target Resolved source (or legacy post id /
- *                                       'option' / "{tax}_{id}" via the shim)
+ * @param array $target Resolved source (the factory's payload shape)
  * @param string $date_field Primary date/datetime/time field key
  * @param string $time_field Optional time field key
  * @param string $context 'start', 'end', or 'datetime'
@@ -313,7 +270,7 @@ function bws_parse_combined_date_time( $target, $date_field, $time_field, $conte
     ];
 
     // Kind-dispatched read target (FW-3a).
-    $source  = bws_datetime_coerce_read_target( $target );
+    $source  = $target;
     $is_term = 'term' === ( $source['kind'] ?? '' );
     $is_site = 'site' === ( $source['kind'] ?? '' );
     $is_row  = 'meta_row' === ( $source['kind'] ?? '' );
@@ -466,6 +423,13 @@ function bws_parse_combined_date_time( $target, $date_field, $time_field, $conte
         $result['has_time'] = true;
         $result['formats']['time_format'] = $time_format;
         $result['formats']['combined_format'] = $time_format ?: 'g:i A';
+    }
+    // A time field given with no primary field and no date to inherit is a time-only read
+    // (a start given only as `startTimeKey`, or an end after a time-only start), the same
+    // result a time-only primary field produces above.
+    elseif ( $time_obj && ! $date_field ) {
+        $result['time_only'] = $time_obj;
+        $result['formats']['time_format'] = $time_format;
     }
 
     return $result;
@@ -701,15 +665,20 @@ function bws_build_range_format( $options, $start_result, $end_result, $include_
 }
 
 /**
- * Resolve the time format string for a time-only ('as:time') display.
+ * Resolve the time format string for a time display — THE one place the time half of
+ * a read gets its style (FW-81 / 02c), for a single read, a one-ended range and both
+ * ends of a two-ended one.
  *
  * Precedence: a custom format string (reduced to its time tokens, if it
- * contains any) → the ACF field's own time format → the WordPress time_format
- * option. Never hardcodes 'g:i A' except as the final WP-default fallback.
+ * contains any) → the format of a separate time field or a time-only field →
+ * the time tokens of the datetime field's own return format → the WordPress
+ * time_format option. Never hardcodes 'g:i A' except as the final WP-default fallback.
  *
  * @since 1.7.4
+ * @since Unreleased The datetime field's own return format joins the chain, ahead of
+ *                   the WordPress option.
  * @param array $options      Tag options (may contain format_type / custom_format).
- * @param array $start_result Parsed start result (formats.time_format).
+ * @param array $start_result Parsed start result (formats.time_format, formats.combined_format).
  * @return string A PHP date() time-format string.
  */
 if ( ! function_exists( 'bws_resolve_time_only_format' ) ) {
@@ -724,8 +693,73 @@ function bws_resolve_time_only_format( $options, $start_result ) {
         }
     }
 
-    // 2. ACF field's own time format. 3. WordPress option default.
-    return $start_result['formats']['time_format'] ?: get_option( 'time_format', 'g:i A' );
+    // 2. A separate time field's (or a time-only field's) own format.
+    if ( ! empty( $start_result['formats']['time_format'] ) ) {
+        return $start_result['formats']['time_format'];
+    }
+
+    // 3. The datetime field's own return format, when it carries time tokens.
+    $combined = $start_result['formats']['combined_format'] ?? '';
+    if ( $combined && $utils['has_time']( $combined ) ) {
+        return $utils['clean_format']( $utils['remove_date']( $combined ) );
+    }
+
+    // 4. WordPress option default.
+    return get_option( 'time_format', 'g:i A' );
+}
+}
+
+/**
+ * Format the time half of a read — THE one time display, for the single core and the
+ * range core alike (FW-81 / 02c).
+ *
+ * `$start` and `$end` are parse results from bws_parse_combined_date_time(). A side
+ * shows a time only when its parse says it has one (`time_only`, or `has_time` on a
+ * dated value): a date-only value carries the parser's noon safety buffer, and
+ * printing it would present an internal artifact as a real time. A side with no time
+ * is skipped, one side prints bare, two print as a time range. The style comes from
+ * bws_resolve_time_only_format() for both sides; the midnight rule is the same one the
+ * date-time display applies (`hide_midnight`).
+ *
+ * Returns '' when there is nothing to show, which the caller turns into the fallback.
+ *
+ * @since Unreleased
+ * @param array      $start   Parsed start result.
+ * @param array|null $end     Parsed end result, or null for a one-sided read.
+ * @param array      $options Normalized tag options.
+ * @return string
+ */
+if ( ! function_exists( 'bws_format_time_display' ) ) {
+function bws_format_time_display( $start, $end, $options ) {
+    // No start at all means no read, even when an end exists.
+    if ( ! $start['date'] && ! $start['time_only'] ) {
+        return '';
+    }
+
+    $moment = static function ( $result ) {
+        if ( ! $result ) {
+            return null;
+        }
+        if ( $result['time_only'] ) {
+            return $result['time_only'];
+        }
+        return ( $result['date'] && $result['has_time'] ) ? $result['date'] : null;
+    };
+
+    $first  = $moment( $start );
+    $second = $moment( $end );
+    $time_format   = bws_resolve_time_only_format( $options, $start );
+    $hide_midnight = ! empty( $options['hide_midnight'] );
+
+    if ( $first && $second ) {
+        return bws_format_time_range( $first, $second, $hide_midnight, $time_format );
+    }
+
+    $only = $first ?: $second;
+    if ( ! $only || ( $hide_midnight && $only->format( 'H:i' ) === '00:00' ) ) {
+        return '';
+    }
+    return wp_date( $time_format, $only->getTimestamp() );
 }
 }
 
@@ -1079,11 +1113,10 @@ function bws_format_multi_day_range( $start, $end, $format, $separator, $omit_cu
  * @since 3.0.0
  * @param array $options Tag options
  * @param object $instance Block instance
- * @param string $tag_type 'single' or 'range'
  * @return string
  */
 if ( ! function_exists( 'bws_handle_date_time_fallback' ) ) {
-function bws_handle_date_time_fallback( $options, $instance, $tag_type ) {
+function bws_handle_date_time_fallback( $options, $instance ) {
     $fallback_text = sanitize_text_field( $options['fallback'] ?? '' );
 
     if ( empty( $fallback_text ) ) {

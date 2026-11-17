@@ -86,13 +86,13 @@
 
 <p class="gb-text">D9.13 (= D1.2) expect &#8220;9:00 AM&#8221;: 9:00 AM</p>
 
-<p class="gb-text">D9.14 (= D1.3) expect &#8220;9:00 AM&#8221;: 9:00 AM</p>
+<p class="gb-text">D9.14 (= D1.3) expect &#8220;9:00 am&#8221;: 9:00 am</p>
 </div>
 
 <div>
 <h2 class="wp-block-heading">Datetime D9 &#8211; merged tag, two reads (key:a;b)</h2>
 
-<p class="gb-text">D9.15 (= D1.4) expect &#8220;9:00 am&#8221;: 9:00 am</p>
+<p class="gb-text">D9.15 (= D1.4) expect &#8220;9:00 AM&#8221;: 9:00 AM</p>
 
 <p class="gb-text">D9.16 (= D1.5) expect &#8220;09:00&#8221;: 09:00</p>
 
@@ -104,7 +104,7 @@
 
 <p class="gb-text">D9.20 (= D2.4) expect &#8220;August 12, 2030, 5:00 PM&#8221;: August 12, 2030, 5:00 PM</p>
 
-<p class="gb-text">D9.21 (= D2.5) expect &#8220;9:00 am-5:00 pm&#8221;: 9:00 am–5:00 pm</p>
+<p class="gb-text">D9.21 (= D2.5) expect &#8220;9:00 AM-5:00 PM&#8221;: 9:00 AM–5:00 PM</p>
 
 <p class="gb-text">D9.22 (= D2.6) expect &#8220;9:00-11:30 am&#8221;: 9:00–11:30 am</p>
 
@@ -122,11 +122,11 @@
 
 <p class="gb-text">D9.29 (= D8.3) expect EMPTY (no time part on either end):</p>
 
-<p class="gb-text">D9.30 (= D8.4) expect &#8220;12:00 am-11:59 pm&#8221;: 12:00 am–11:59 pm</p>
+<p class="gb-text">D9.30 (= D8.4) expect &#8220;12:00 AM-11:59 PM&#8221;: 12:00 AM–11:59 PM</p>
 
 <p class="gb-text">D9.31 (= D8.5) expect &#8220;9:00-11:30 am&#8221;: 9:00–11:30 am</p>
 
-<p class="gb-text">D9.32 (= D8.6) expect &#8220;9:00 am-5:00 pm&#8221;: 9:00 am–5:00 pm</p>
+<p class="gb-text">D9.32 (= D8.6) expect &#8220;9:00 AM-5:00 PM&#8221;: 9:00 AM–5:00 PM</p>
 
 <p class="gb-text">D9.33 (= D8.7) expect &#8220;09:00-11:30&#8221;: 09:00–11:30</p>
 
@@ -201,13 +201,113 @@
 <div>
 <h2 class="wp-block-heading">Datetime D9 &#8211; an old tag keeps its family</h2>
 
-<p class="gb-text">D9.54 (= new combination) expect &#8220;9:00 am&#8221; (the RANGE core prints am lowercase; the single core would print 9:00 AM): 9:00 am</p>
+<p class="gb-text">D9.54 (= new combination) expect &#8220;9:00 AM-5:00 PM&#8221; (the RANGE core reads both entries; the single core would read only the first and print 9:00 AM): 9:00 AM–5:00 PM</p>
 
 <p class="gb-text">D9.55 (= new combination) expect &#8220;August 1, 2030&#8221; (a single tag reads only the first entry): August 1, 2030</p>
 
-<p class="gb-text">D9.56 (= D9.54, try_ twin) expect &#8220;9:00 am&#8221;: 9:00 am</p>
+<p class="gb-text">D9.56 (= D9.54, try_ twin) expect &#8220;9:00 AM-5:00 PM&#8221;: 9:00 AM–5:00 PM</p>
 
 <p class="gb-text">D9.57 (= D9.55, try_ twin) expect &#8220;August 1, 2030&#8221;: August 1, 2030</p>
+</div>
+
+<div>
+<h2 class="wp-block-heading">Datetime D10 &#8211; one time display (single, range and merged agree)</h2>
+
+<p class="gb-text">D10.1a expect &#8220;9:00 AM&#8221; (as:time on a datetime field uses the field&#8217;s own tokens (the WP option is g:i a)): 9:00 AM</p>
+
+<p class="gb-text">D10.1b expect &#8220;9:00 AM&#8221; (as:time on a datetime field uses the field&#8217;s own tokens (the WP option is g:i a)): 9:00 AM</p>
+
+<p class="gb-text">D10.1c expect &#8220;9:00 AM&#8221; (as:time on a datetime field uses the field&#8217;s own tokens (the WP option is g:i a)): 9:00 AM</p>
+
+<p class="gb-text">D10.1d expect &#8220;9:00 AM&#8221; (as:time on a datetime field uses the field&#8217;s own tokens (the WP option is g:i a)): 9:00 AM</p>
+
+<p class="gb-text">D10.2a expect &#8220;9:00 am&#8221; (as:time on a time-only field, in its own return format): 9:00 am</p>
+
+<p class="gb-text">D10.2b expect &#8220;9:00 am&#8221; (as:time on a time-only field, in its own return format): 9:00 am</p>
+
+<p class="gb-text">D10.2c expect &#8220;9:00 am&#8221; (as:time on a time-only field, in its own return format): 9:00 am</p>
+
+<p class="gb-text">D10.2d expect &#8220;9:00 am&#8221; (as:time on a time-only field, in its own return format): 9:00 am</p>
+
+<p class="gb-text">D10.3a expect &#8220;9:00 am&#8221; (a time-only field with no `as` prints the bare time, never a &#8220;Start time:&#8221; label): 9:00 am</p>
+
+<p class="gb-text">D10.3b expect &#8220;9:00 am&#8221; (a time-only field with no `as` prints the bare time, never a &#8220;Start time:&#8221; label): 9:00 am</p>
+
+<p class="gb-text">D10.3c expect &#8220;9:00 am&#8221; (a time-only field with no `as` prints the bare time, never a &#8220;Start time:&#8221; label): 9:00 am</p>
+
+<p class="gb-text">D10.3d expect &#8220;9:00 am&#8221; (a time-only field with no `as` prints the bare time, never a &#8220;Start time:&#8221; label): 9:00 am</p>
+
+<p class="gb-text">D10.4a expect EMPTY (as:time on a midnight value is hidden by default):</p>
+
+<p class="gb-text">D10.4b expect EMPTY (as:time on a midnight value is hidden by default):</p>
+
+<p class="gb-text">D10.4c expect EMPTY (as:time on a midnight value is hidden by default):</p>
+
+<p class="gb-text">D10.4d expect EMPTY (as:time on a midnight value is hidden by default):</p>
+
+<p class="gb-text">D10.5a expect &#8220;12:00 AM&#8221; (as:time on a midnight value prints once showMidnight is on): 12:00 AM</p>
+
+<p class="gb-text">D10.5b expect &#8220;12:00 AM&#8221; (as:time on a midnight value prints once showMidnight is on): 12:00 AM</p>
+
+<p class="gb-text">D10.5c expect &#8220;12:00 AM&#8221; (as:time on a midnight value prints once showMidnight is on): 12:00 AM</p>
+
+<p class="gb-text">D10.5d expect &#8220;12:00 AM&#8221; (as:time on a midnight value prints once showMidnight is on): 12:00 AM</p>
+
+<p class="gb-text">D10.6a expect EMPTY (as:time on a date-only field has no time to show (the parser&#8217;s noon buffer never prints)):</p>
+
+<p class="gb-text">D10.6b expect EMPTY (as:time on a date-only field has no time to show (the parser&#8217;s noon buffer never prints)):</p>
+
+<p class="gb-text">D10.6c expect EMPTY (as:time on a date-only field has no time to show (the parser&#8217;s noon buffer never prints)):</p>
+
+<p class="gb-text">D10.6d expect EMPTY (as:time on a date-only field has no time to show (the parser&#8217;s noon buffer never prints)):</p>
+
+<p class="gb-text">D10.7a expect &#8220;FB&#8221; (the same date-only read takes the stated fallback): FB</p>
+
+<p class="gb-text">D10.7b expect &#8220;FB&#8221; (the same date-only read takes the stated fallback): FB</p>
+
+<p class="gb-text">D10.7c expect &#8220;FB&#8221; (the same date-only read takes the stated fallback): FB</p>
+
+<p class="gb-text">D10.7d expect &#8220;FB&#8221; (the same date-only read takes the stated fallback): FB</p>
+
+<p class="gb-text">D10.8a expect &#8220;09:00&#8221; (a custom format is honored on a time-only field): 09:00</p>
+
+<p class="gb-text">D10.8b expect &#8220;09:00&#8221; (a custom format is honored on a time-only field): 09:00</p>
+
+<p class="gb-text">D10.8c expect &#8220;09:00&#8221; (a custom format is honored on a time-only field): 09:00</p>
+
+<p class="gb-text">D10.8d expect &#8220;09:00&#8221; (a custom format is honored on a time-only field): 09:00</p>
+
+<p class="gb-text">D10.9a expect &#8220;9:00 AM-5:00 PM&#8221; (a two-ended as:time range, in the start field&#8217;s own tokens): 9:00 AM–5:00 PM</p>
+
+<p class="gb-text">D10.9b expect &#8220;9:00 AM-5:00 PM&#8221; (a two-ended as:time range, in the start field&#8217;s own tokens): 9:00 AM–5:00 PM</p>
+
+<p class="gb-text">D10.10a expect &#8220;9:00-11:30 am&#8221; (two time-only fields with no `as` print the time range, never labels): 9:00–11:30 am</p>
+
+<p class="gb-text">D10.10b expect &#8220;9:00-11:30 am&#8221; (two time-only fields with no `as` print the time range, never labels): 9:00–11:30 am</p>
+
+<p class="gb-text">D10.11a expect &#8220;9:00 am-5:00 pm&#8221; (a time-only start with a date-time end prints both times and drops the end&#8217;s date): 9:00 am–5:00 pm</p>
+
+<p class="gb-text">D10.11b expect &#8220;9:00 am-5:00 pm&#8221; (a time-only start with a date-time end prints both times and drops the end&#8217;s date): 9:00 am–5:00 pm</p>
+
+<p class="gb-text">D10.12a expect EMPTY (a missing start reads nothing, even when the end has a value):</p>
+
+<p class="gb-text">D10.12b expect EMPTY (a missing start reads nothing, even when the end has a value):</p>
+
+<p class="gb-text">D10.13a expect &#8220;FB&#8221; (the same missing start takes the stated fallback (it used to print &#8220;End time: &#8230;&#8221; instead)): FB</p>
+
+<p class="gb-text">D10.13b expect &#8220;FB&#8221; (the same missing start takes the stated fallback (it used to print &#8220;End time: &#8230;&#8221; instead)): FB</p>
+
+<p class="gb-text">D10.14a expect &#8220;9:00 am&#8221; (a start given only as a time key is a time-only start): 9:00 am</p>
+
+<p class="gb-text">D10.14b expect &#8220;9:00 am&#8221; (a start given only as a time key is a time-only start): 9:00 am</p>
+
+<p class="gb-text">D10.14c expect &#8220;9:00 am&#8221; (a start given only as a time key is a time-only start): 9:00 am</p>
+
+<p class="gb-text">D10.14d expect &#8220;9:00 am&#8221; (a start given only as a time key is a time-only start): 9:00 am</p>
+
+<p class="gb-text">D10.15a expect &#8220;9:00 am-5:00 pm&#8221; (a time-key-only start with a date-time end): 9:00 am–5:00 pm</p>
+
+<p class="gb-text">D10.15b expect &#8220;9:00 am-5:00 pm&#8221; (a time-key-only start with a date-time end): 9:00 am–5:00 pm</p>
 </div>
 		</div>
 
