@@ -161,9 +161,9 @@ function assert_same( string $label, $expected, $actual ): void {
 	fail( $label, $expected, $actual );
 }
 
-/** The twelve base tags. Order is irrelevant: everything is keyed by tag name. */
+/** The thirteen base tags. Order is irrelevant: everything is keyed by tag name. */
 const BASE_TAGS = array(
-	'text', 'title', 'permalink', 'content', 'image', 'datetime_single',
+	'text', 'title', 'permalink', 'content', 'image', 'datetime', 'datetime_single',
 	'datetime_range', 'email', 'phone', 'join', 'table', 'call',
 );
 
@@ -307,7 +307,7 @@ $readme_path = BWS_DYNAMIC_TAGS_PATH . 'README.md';
 assert_same( 'README.md is readable', true, is_readable( $readme_path ) );
 $returns = readme_returns( (string) file_get_contents( $readme_path ) );
 
-assert_same( 'README tie holds for the twelve base tags', array(), readme_disagreements( $returns, $described ) );
+assert_same( 'README tie holds for the thirteen base tags', array(), readme_disagreements( $returns, $described ) );
 
 // The divergence is declared, so it must still be needed: a README that stopped spelling the
 // angle brackets would leave the declaration silently unused.

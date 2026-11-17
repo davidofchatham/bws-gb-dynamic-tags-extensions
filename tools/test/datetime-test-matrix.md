@@ -163,3 +163,85 @@ Fixture: `event_allday_end` = `2030-08-12 23:59` and `event_allday_end_multi` = 
 D8.4/D8.6/D8.7 are pinned-unchanged rows, and they carry the load here: they are what separates "consolidation was ungated" from "the format gate or the sentinel was widened too far".
 
 Also worth knowing when reading D8.1: the same-instant case (`start === end`) now collapses to one value instead of rendering `X–X`. No row covers it, because the one production caller (`bws_format_same_day_range()`) only calls the time formatter when the two ends differ — it is reachable only through a direct call to the documented helper, and `datetime-format-test.php` §T23–T25 pins it there.
+
+## D9 — the merged `{{datetime}}` tag (FW-81, Unreleased)
+
+One tag, no stated mode: how many `;`-separated entries `key:` holds decides it. One entry is a single value, two are a range, and a `+` joins at most two operands inside one entry (a date or datetime field, then an optional time field). `{{datetime}}` renders through the merged seam `bws_base_datetime_resolve_value()`, which sends one read to the single seam and two to the range seam; the old tags keep their own callbacks and still render byte-identically.
+
+**Measured 2026-11-17 (datetime-tag-collapse/02):** 66 old-tag renders across `/matrix-post-meta/`, the three term pages and the two department archives, taken on the PREVIOUS build, then every one rendered again as the merged tag fed its equivalent wire (`startKey`+`startTimeKey` become `a+b`, the range keys become two `;` entries, a single-ended range keeps its trailing `;`). All 66 old renders were unchanged and all 66 merged renders were byte-identical to the previous build's output, 64 of them non-empty. The two empty ones are the matrix's own expected-empty rows (D8.3, D7.7).
+
+**The one-ended range is spelled `key:a;`, never `key:a`.** One entry is a single read, so `{{datetime key:event_datetime|as:time}}` prints `9:00 AM` (the single core, as D1.2), while the old `{{datetime_range startKey:event_datetime|as:time}}` prints `9:00 am` (D1.4, the range core's one-ended path). `key:event_datetime;` prints `9:00 am`. The converter and the mount migration must emit the trailing `;` to keep that output.
+
+Every row below is a visible block on `/matrix-datetime/` (blueprint v43), pinned to `/matrix-post-meta/`'s fields by id where it reads one, and its label states the expected output. "Same as" names the old row whose output it must match byte for byte.
+
+| # | Tag | Same as | Expected |
+|---|---|---|---|
+| D9.1 | `{{datetime src:post,<meta id>|key:event_start_date}}` | D0.1 | `August 1, 2030` |
+| D9.2 | `{{datetime src:post,<meta id>|key:event_datetime}}` | D0.2 | `August 12, 2030 9:00 AM` |
+| D9.3 | `{{datetime src:post,<meta id>|key:event_datetime|format:Y-m-d}}` | D0.3 | `2030-08-12 9:00 am` |
+| D9.4 | `{{datetime src:post,<meta id>|key:event_thisyear}}` | D0.4 | `April 10` |
+| D9.5 | `{{datetime src:post,<meta id>|key:event_thisyear|showCurrentYear}}` | D0.5 | `April 10, ` and the current year |
+| D9.6 | `{{datetime src:post,<meta id>|key:event_midnight}}` | D0.6 | `August 12, 2030` |
+| D9.7 | `{{datetime src:post,<meta id>|key:event_midnight|showMidnight}}` | D0.7 | `August 12, 2030 12:00 AM` |
+| D9.8 | `{{datetime src:post,<meta id>|key:event_start_date+event_time}}` | D0.8 | `August 1, 2030, 9:00 am` |
+| D9.9 | `{{datetime src:post,<meta id>|key:event_start_date+event_time|timeSep: @ }}` | D0.9 | `August 1, 2030 @ 9:00 am` |
+| D9.10 | `{{datetime src:post,<meta id>|key:plain_meta_date}}` | D0.10 | `June 15, 2030` |
+| D9.11 | `{{datetime src:post,<meta id>|key:event_date_dmy}}` | D0.11 | `15/08/2030` |
+| D9.12 | `{{datetime src:post,<meta id>|key:event_datetime|as:date}}` | D1.1 | `August 12, 2030` |
+| D9.13 | `{{datetime src:post,<meta id>|key:event_datetime|as:time}}` | D1.2 | `9:00 AM` |
+| D9.14 | `{{datetime src:post,<meta id>|key:event_time|as:time}}` | D1.3 | `9:00 AM` |
+| D9.15 | `{{datetime src:post,<meta id>|key:event_datetime;|as:time}}` | D1.4 | `9:00 am` |
+| D9.16 | `{{datetime src:post,<meta id>|key:event_datetime;|as:time|format:H:i}}` | D1.5 | `09:00` |
+| D9.17 | `{{datetime src:post,<meta id>|key:event_start_date;event_end_date}}` | D2.1 | `August 1–9, 2030` |
+| D9.18 | `{{datetime src:post,<meta id>|key:event_start_date;event_end_date|rangeSep: to }}` | D2.2 | `August 1 to 9, 2030` |
+| D9.19 | `{{datetime src:post,<meta id>|key:event_datetime;event_end_datetime}}` | D2.3 | `August 12, 2030, 9:00 AM–5:00 PM` |
+| D9.20 | `{{datetime src:post,<meta id>|key:event_midnight;event_end_datetime}}` | D2.4 | `August 12, 2030, 5:00 PM` |
+| D9.21 | `{{datetime src:post,<meta id>|key:event_datetime;event_end_datetime|as:time}}` | D2.5 | `9:00 am–5:00 pm` |
+| D9.22 | `{{datetime src:post,<meta id>|key:event_time;event_end_time|as:time}}` | D2.6 | `9:00–11:30 am` |
+| D9.23 | `{{datetime src:post,<meta id>|key:event_datetime;event_end_datetime|as:time|format:H:i}}` | D3.1 | `09:00–17:00` |
+| D9.24 | `{{datetime src:post,<meta id>|key:event_datetime;event_end_datetime|as:time|format:g:i}}` | D3.2 | `9:00–5:00` |
+| D9.25 | `{{datetime src:post,<meta id>|key:event_time;event_end_time|as:time|format:g:i A}}` | D3.3 | `9:00–11:30 AM` |
+| D9.26 | `{{datetime src:post,<meta id>|key:event_midnight;event_end_datetime|as:time|format:H:i}}` | D3.4 | `17:00` |
+| D9.27 | `{{datetime src:post,<meta id>|key:event_midnight;event_allday_end}}` | D8.1 | `August 12, 2030` |
+| D9.28 | `{{datetime src:post,<meta id>|key:event_midnight;event_allday_end_multi}}` | D8.2 | `August 12–August 14, 2030` |
+| D9.29 | `{{datetime src:post,<meta id>|key:event_midnight;event_allday_end|as:time}}` | D8.3 | empty |
+| D9.30 | `{{datetime src:post,<meta id>|key:event_midnight;event_allday_end|as:time|showMidnight}}` | D8.4 | `12:00 am–11:59 pm` |
+| D9.31 | `{{datetime src:post,<meta id>|key:event_time;event_end_time|as:time|showMidnight}}` | D8.5 | `9:00–11:30 am` |
+| D9.32 | `{{datetime src:post,<meta id>|key:event_datetime;event_end_datetime|as:time|showMidnight}}` | D8.6 | `9:00 am–5:00 pm` |
+| D9.33 | `{{datetime src:post,<meta id>|key:event_time;event_end_time|as:time|format:H:i|showMidnight}}` | D8.7 | `09:00–11:30` |
+| D9.34 | `{{datetime src:post,<meta id>|key:event_start_date+event_time;event_end_date+event_end_time}}` | new combination | `August 1, 9:00 am–August 9, 2030, 11:30 am` |
+| D9.35 | `{{datetime src:post,<meta id>|key:event_start_date+event_time;+event_end_time}}` | new combination | `August 1, 2030, 9:00–11:30 am` |
+| D9.36 | `{{datetime src:post,<meta id>|key:event_datetime;+event_end_time}}` | new combination | `August 12, 2030, 9:00–11:30 AM` |
+| D9.37 | `{{datetime src:post,<meta id>|key:event_start_date+event_time;}}` | new combination | `August 1, 2030, 9:00 am` |
+| D9.38 | `{{datetime src:post,<meta id>|key:event_start_date;missing_field|fallback:FB}}` | new combination | `August 1, 2030` |
+| D9.52 | `{{datetime src:post,<meta id>|key:event_start_date+event_time;event_end_time}}` | new combination | `August 1, 2030, 9:00–11:30 am` |
+| D9.53 | `{{datetime src:post,<meta id>|key:event_datetime;event_end_time}}` | new combination | `August 12, 2030, 9:00–11:30 AM` |
+| D9.39 | `{{datetime src:post,<meta id>;refs,related_staff,limit[5]|key:event_datetime}}` | D4.6 | `May 1, 2030 10:00 AM, June 1, 2030 11:00 AM` |
+| D9.40 | `{{datetime src:post,<meta id>;refs,related_staff,limit[3]|key:event_datetime;event_end_datetime|sep:; }}` | D4.7 | `May 1 10:00 AM–May 3, 2030 3:00 PM; June 1 11:00 AM–June 5, 2030 12:00 PM` |
+| D9.41 | `{{datetime src:post,<meta id>;refs,related_staff,limit[5]|key:event_datetime|linkTo:permalink}}` | D4.8 | `<a href="https://testbed.test/staff/jane-partner/">May 1, 2030 10:00 AM</a>, <a href="https://testbed.test/staff/tom-associate/">June 1, 2030 11:00 AM</a>` |
+| D9.42 | `{{datetime src:post,<meta id>;refs,related_staff,limit[3]|key:event_datetime;event_end_datetime|sep:; |linkTo:permalink}}` | D4.8b | `<a href="https://testbed.test/staff/jane-partner/">May 1 10:00 AM–May 3, 2030 3:00 PM</a>; <a href="https://testbed.test/staff/tom-associate/">June 1 11:00 AM–June 5, 2030 12:00 PM</a>` |
+| D9.43 | `{{datetime src:post,<meta id>;refs,related_staff,limit[1]|key:event_datetime|linkTo:permalink}}` | D4.9 | `<a href="https://testbed.test/staff/jane-partner/">May 1, 2030 10:00 AM</a>` |
+| D9.44 | `{{datetime src:site|key:organization_founded}}` | D5.1 | `20200115` |
+| D9.45 | `{{datetime src:site|key:organization_founded|format:F j, Y}}` | D5.2 | `January 15, 2020` |
+| D9.46 | `{{datetime src:site|key:org_party_datetime}}` | D5.3 | `September 20, 2030 6:00 PM` |
+| D9.47 | `{{datetime src:post,<meta id>;refs,related_staff,limit[1]|key:event_datetime}}` | D5.4 | `May 1, 2030 10:00 AM` |
+| D9.48 | `{{datetime key:missing_dt_field|fallback:Date TBA}}` | D5.6 | `Date TBA` |
+| D9.49 | `{{datetime fallback:No field}}` | new combination | `No field` |
+| D9.50 | `{{datetime src:site|key:org_party_datetime;}}` | R5.3 | `September 20, 2030 6:00 PM` |
+
+**Render-tag only** (a visible block cannot host them): the ambient and loop-item rows, and one empty-read row.
+
+| # | Tag | Same as | Expected |
+|---|---|---|---|
+| D9.T1 | `{{datetime srcTermIn:department|key:event_date|limit:5}}` on `/matrix-terms-valid/` | D4.1 | `November 12, 2030, October 5, 2030` |
+| D9.T2 | `{{datetime srcTermIn:department|key:event_date;|limit:5|sep:; }}` on `/matrix-terms-valid/` | D4.5 | `November 12, 2030; October 5, 2030` |
+| D9.T3 | `{{datetime key:event_date}}` on `/department/support/` | D7.1 | `October 5, 2030` (ambient term read) |
+| D9.T4 | `{{datetime key:event_date;}}` on `/department/support/` | D7.5 | `October 5, 2030` |
+| D9.T5 | `{{datetime key:event_date|fallback:Date TBA}}` on `/department/warehouse/` | D7.6 | `Date TBA` |
+| D9.T6 | `{{datetime key:event_datetime}}` with `--loop-item=<jane id>` | D5.5 | `May 1, 2030 10:00 AM` |
+| D9.T7 | `{{datetime key:event_datetime;event_end_datetime}}` with `--loop-item=<jane id>` | D5.5 | `May 1 10:00 AM–May 3, 2030 3:00 PM` (the loop item wins over page context) |
+| D9.T8 | `{{datetime key:;event_end_date|fallback:FB}}` on `/matrix-post-meta/` | D26 | `FB` (an end with no start prints the fallback, as the old range does) |
+| D9.T9 | `{{datetime key:event_start_date+event_time+event_end_time}}` | — | `August 1, 2030, 9:00 am` (a third operand is ignored; its warning is ticket 05) |
+| D9.T10 | `{{datetime}}` (no `key`) | — | empty, and `fallback:No field` prints `No field` (the read-less tag shows its fallback) |
+
+**A pinned explicit post source prints no fallback.** `{{datetime_single src:post,22|key:missing_dt_field|fallback:Date TBA}}` renders empty on the previous build and on this one, where `{{text src:post,22|key:missing_dt_field|fallback:Date TBA}}` prints the fallback. The merged tag inherits it from the two seams it routes to, which is why D9.48, D9.49 and D9.T8 do not pin a source. Surfaced, not fixed here.

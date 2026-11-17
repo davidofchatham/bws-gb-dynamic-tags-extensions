@@ -234,6 +234,76 @@ assert_same(
 	) ), array( 'omit_current_year', 'hide_midnight' ) )
 );
 
+// FW-81: the merged tag's one `key` option. `;` separates reads (the entry count is the
+// mode), `+` joins a primary field to a supplementary time field, a third operand is ignored.
+$reads_of = static function ( array $options ): array {
+	return pick( bws_normalize_datetime_options( $options, null ), array(
+		'is_range', 'date_time_field', 'time_field',
+		'start_field', 'start_time_field', 'end_field', 'end_time_field',
+	) );
+};
+$unset6 = array(
+	'is_range' => '(unset)', 'date_time_field' => '(unset)', 'time_field' => '(unset)',
+	'start_field' => '(unset)', 'start_time_field' => '(unset)',
+	'end_field' => '(unset)', 'end_time_field' => '(unset)',
+);
+
+assert_same( 'N8 one entry is a single read',
+	array_merge( $unset6, array( 'is_range' => false, 'date_time_field' => 'event_datetime' ) ),
+	$reads_of( array( 'key' => 'event_datetime' ) )
+);
+assert_same( 'N9 `a+b` is one read from two fields',
+	array_merge( $unset6, array( 'is_range' => false, 'date_time_field' => 'event_date', 'time_field' => 'start_time' ) ),
+	$reads_of( array( 'key' => 'event_date+start_time' ) )
+);
+assert_same( 'N10 a third operand is ignored',
+	$reads_of( array( 'key' => 'a+b' ) ),
+	$reads_of( array( 'key' => 'a+b+c' ) )
+);
+assert_same( 'N11 two entries are a range, start then end',
+	array_merge( $unset6, array( 'is_range' => true, 'start_field' => 'start_dt', 'end_field' => 'end_dt' ) ),
+	$reads_of( array( 'key' => 'start_dt;end_dt' ) )
+);
+assert_same( 'N12 `a+b;c` is a range whose start is two fields and whose end is a time-only field',
+	array_merge( $unset6, array( 'is_range' => true, 'start_field' => 'event_date', 'start_time_field' => 'start_time', 'end_field' => 'end_time' ) ),
+	$reads_of( array( 'key' => 'event_date+start_time;end_time' ) )
+);
+assert_same( 'N13 `a;` is still a range (an empty second read), `a;b;c` ignores the third',
+	array( true, '', 'b' ),
+	array(
+		$reads_of( array( 'key' => 'a;' ) )['is_range'],
+		$reads_of( array( 'key' => 'a;' ) )['end_field'],
+		$reads_of( array( 'key' => 'a;b;c' ) )['end_field'],
+	)
+);
+assert_same( 'N14 a blank or absent `key` is a read-less single (the fallback path)',
+	array_merge( $unset6, array( 'is_range' => false ) ),
+	$reads_of( array( 'key' => '  ' ) )
+);
+assert_same( 'N14b ...and so is no key at all',
+	$reads_of( array( 'key' => '' ) ),
+	$reads_of( array() )
+);
+assert_same( 'N15 the old range keys still derive a range, the old single keys a single',
+	array( true, false ),
+	array(
+		bws_normalize_datetime_options( array( 'endKey' => 'x' ), null )['is_range'],
+		bws_normalize_datetime_options( array( 'key' => 'x', 'timeKey' => 't' ), null )['is_range'],
+	)
+);
+assert_same( 'N16 a stray `key` beside the old range keys stays inert on the old range tag',
+	array( 'start_field' => 'a', 'end_field' => '(unset)' ),
+	pick( norm_range( array( 'startKey' => 'a', 'key' => 'x;y' ) ), array( 'start_field', 'end_field' ) )
+);
+assert_same( 'N17 the old tags\' fixed families ignore the derive: a single stays single on `a;b`',
+	array( 'date_time_field' => 'a', 'is_range' => false ),
+	pick( norm_single( array( 'key' => 'a;b' ) ), array( 'date_time_field', 'is_range' ) )
+);
+assert_same( 'N18 the old `timeKey` wins over a `+` operand (the old family keeps its own spelling)',
+	'old_t',
+	norm_single( array( 'key' => 'a+new_t', 'timeKey' => 'old_t' ) )['time_field']
+);
+
 // ===========================================================================
 echo "\nF — bws_resolve_time_only_format (custom → ACF → WP default; v1.7.4)\n";
 // ===========================================================================

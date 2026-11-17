@@ -290,6 +290,43 @@ function bws_get_base_datetime_range_options(): array {
 	);
 }
 
+/**
+ * Options for the merged `datetime` base tag (FW-81).
+ *
+ * One `key` option carries every read (bws_datetime_key_reads() owns the grammar), and no
+ * option states a mode: bws_normalize_datetime_options() derives it. The old six field options
+ * are NOT registered here: only the old tags offer them, and the normalizer still reads
+ * them for those tags.
+ *
+ * @since Unreleased
+ * @return array
+ */
+function bws_get_base_datetime_options(): array {
+	return array_merge(
+		bws_build_src_chain_option(),
+		bws_base_traversal_options(),
+		bws_get_datetime_list_options( true ),
+		array(
+			'key' => array(
+				'type'        => 'text',
+				'label'       => __( 'Date/Time Field Keys', 'generateblocks' ),
+				'help'        => __( 'Field to read. Join a date field and a time field with +, and add a second field after ; to show a range.', 'generateblocks' ),
+				'placeholder' => 'event_date+start_time;end_time',
+			),
+		),
+		bws_get_datetime_range_leading_options(),
+		function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array(),
+		array(
+			'fallback' => array(
+				'type'        => 'text',
+				'label'       => __( 'Fallback Text', 'generateblocks' ),
+				'help'        => __( 'Text to display when no valid date/time is found.', 'generateblocks' ),
+				'placeholder' => 'Date/time TBA',
+			),
+		)
+	);
+}
+
 // ===============================================
 // CORE FUNCTIONS — DATE TEMPLATES
 // ===============================================
@@ -629,6 +666,40 @@ function bws_term_datetime_range_core( $term_id, $options, $instance ) {
 // ===============================================
 
 /**
+ * The reads a `key` value spells, in order — the grammar of the merged `datetime` tag's
+ * one read option (FW-81).
+ *
+ * A `;` separates reads, and an entry that is empty is still a read (an empty one, which
+ * takes the fallback). A `+` joins at
+ * most two operands inside one entry: the primary field, which may be a date, a datetime
+ * or a time, then an optional supplementary time field. A third operand is ignored.
+ *
+ * This is the only place `;` and `+` are read as datetime grammar. The folded slot grammar
+ * in slot-fold.php is untouched: `+` stays reserved there (ADR 0006), because a flat
+ * option value is parsed by its own tag and not by the slot splitter.
+ *
+ * @since Unreleased
+ * @param array $options Raw tag options.
+ * @return array<int, array{field:string, time:string}> One record per entry; empty when
+ *                                                     `key` is absent or blank.
+ */
+function bws_datetime_key_reads( array $options ): array {
+	$key = isset( $options['key'] ) && is_scalar( $options['key'] ) ? trim( (string) $options['key'] ) : '';
+	if ( '' === $key ) {
+		return array();
+	}
+	$reads = array();
+	foreach ( explode( ';', $key ) as $entry ) {
+		$operands = explode( '+', $entry );
+		$reads[]  = array(
+			'field' => trim( $operands[0] ),
+			'time'  => trim( $operands[1] ?? '' ),
+		);
+	}
+	return $reads;
+}
+
+/**
  * Normalize public datetime option keys to the canonical core keys — THE single
  * parse point for datetime options (FW-2).
  *
@@ -642,11 +713,14 @@ function bws_term_datetime_range_core( $term_id, $options, $instance ) {
  * INVARIANT: this function is the ONLY place public datetime keys are parsed.
  * Both render paths (base callbacks, try_ template closures) and the
  * editor preview call it — they can never disagree about what an option means.
- * A future folded key value is an edit to this function alone, not a re-sweep of
- * the read sites. FW-41 (`key:date,time`) was the original form of that change;
- * it retired into FW-81 2026-08-19, which collapses the two datetime tags and all
- * six key options into one ordered read list — landing at this same single site,
- * with the $range parameter derived from the read COUNT rather than passed in.
+ * The reads themselves are spelled by bws_datetime_key_reads(), which only this
+ * function and the merged tag's mode test below it call.
+ *
+ * MODE (FW-81): `$range` true/false is a fixed family — the two old tags pass it, and
+ * the old `startKey` family and `key`/`timeKey` keep mapping exactly as they did, with
+ * a `key` read filling only what those leave unset. `null` is the merged tag: the mode
+ * is range when the old range keys are present or the `key` option spells two or more
+ * reads, and the result says which in `is_range`. Nothing else states a mode.
  *
  * Canonical keys already present in $options are preserved (legacy
  * template-tag callers pass them directly; the isset guards keep them
@@ -657,12 +731,23 @@ function bws_term_datetime_range_core( $term_id, $options, $instance ) {
  *               wrappers kept their names as external API.
  * @since 1.21.0 Those wrappers deleted — their only known caller, an
  *               integrating plugin's template map, dropped the pin.
- * @param array $options Raw tag options from GenerateBlocks.
- * @param bool  $range   Range-tag mapping (startKey/endKey family) when true.
- * @return array Options with canonical core keys populated.
+ * @since Unreleased `$range` accepts null (the merged tag derives its mode from the
+ *               reads); the `key` option spells one read per `;` entry; `is_range` out.
+ * @param array     $options Raw tag options from GenerateBlocks.
+ * @param bool|null $range   Range-tag mapping (startKey/endKey family) when true; null
+ *                           derives the mode from the options.
+ * @return array Options with canonical core keys populated, plus `is_range`.
  */
-function bws_normalize_datetime_options( array $options, bool $range = false ): array {
+function bws_normalize_datetime_options( array $options, ?bool $range = false ): array {
 	$mapped = $options;
+
+	$reads        = bws_datetime_key_reads( $options );
+	$legacy_range = isset( $options['startKey'] ) || isset( $options['startTimeKey'] )
+		|| isset( $options['endKey'] ) || isset( $options['endTimeKey'] );
+	if ( null === $range ) {
+		$range = $legacy_range || count( $reads ) >= 2;
+	}
+	$mapped['is_range'] = $range;
 
 	// as → date_only / time_only.
 	$as                  = $options['as'] ?? '';
@@ -691,19 +776,23 @@ function bws_normalize_datetime_options( array $options, bool $range = false ): 
 	$mapped['hide_midnight'] = ! bws_flag_is_on( $options, 'showMidnight' );
 
 	if ( ! $range ) {
-		// key → date_time_field, timeKey → time_field.
-		if ( isset( $options['key'] ) && ! isset( $options['date_time_field'] ) ) {
-			$mapped['date_time_field'] = $options['key'];
-		}
+		// timeKey → time_field (the old tag's own spelling), then the first `key` read
+		// → date_time_field (+ time_field when it names a second operand).
 		if ( isset( $options['timeKey'] ) && ! isset( $options['time_field'] ) ) {
 			$mapped['time_field'] = $options['timeKey'];
+		}
+		if ( isset( $reads[0] ) && ! isset( $options['date_time_field'] ) ) {
+			$mapped['date_time_field'] = $reads[0]['field'];
+		}
+		if ( isset( $reads[0] ) && '' !== $reads[0]['time'] && ! isset( $mapped['time_field'] ) ) {
+			$mapped['time_field'] = $reads[0]['time'];
 		}
 		return $mapped;
 	}
 
-	// Range: start/end field family (the single-tag field keys stay unmapped —
-	// a range tag's `key` option, if present, belongs to the range core's own
-	// start_field mapping below, never date_time_field).
+	// Range: start/end field family. The range's own four keys win, and a `key` beside
+	// any of them stays inert; `key` reads fill the start and end only when none of the
+	// four is present (the merged tag).
 	if ( isset( $options['startKey'] ) && ! isset( $options['start_field'] ) ) {
 		$mapped['start_field'] = $options['startKey'];
 	}
@@ -715,6 +804,19 @@ function bws_normalize_datetime_options( array $options, bool $range = false ): 
 	}
 	if ( isset( $options['endTimeKey'] ) && ! isset( $options['end_time_field'] ) ) {
 		$mapped['end_time_field'] = $options['endTimeKey'];
+	}
+	if ( ! $legacy_range ) {
+		foreach ( array( array( 'start_field', 'start_time_field' ), array( 'end_field', 'end_time_field' ) ) as $i => $names ) {
+			if ( ! isset( $reads[ $i ] ) ) {
+				continue;
+			}
+			if ( ! isset( $options[ $names[0] ] ) ) {
+				$mapped[ $names[0] ] = $reads[ $i ]['field'];
+			}
+			if ( '' !== $reads[ $i ]['time'] && ! isset( $options[ $names[1] ] ) ) {
+				$mapped[ $names[1] ] = $reads[ $i ]['time'];
+			}
+		}
 	}
 
 	// rangeSep → separator (used by bws_format_date_range()).
@@ -1172,4 +1274,60 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 	}
 
 	return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'datetime_range' ) : '';
+}
+
+/**
+ * Resolve the merged `datetime` tag's VALUE (FW-81): the read count picks the family seam.
+ *
+ * A range goes to bws_base_datetime_range_resolve_value() and anything else to
+ * bws_base_datetime_single_resolve_value(), a read-less tag included, which shows its
+ * fallback exactly as a read-less old tag does. Which one is bws_normalize_datetime_options()'s
+ * to decide (its MODE clause). Both seams stay
+ * whole behind this one, so their FW-116 empty-value tails and every source arm are the
+ * merged tag's without a copy.
+ *
+ * @since Unreleased
+ * @param array $options  Tag options.
+ * @param mixed $instance GB tag instance.
+ * @return array{value:string, link_id:int, link_type:string} As the two seams return it.
+ */
+function bws_base_datetime_resolve_value( array $options, $instance ): array {
+	return bws_normalize_datetime_options( $options, null )['is_range']
+		? bws_base_datetime_range_resolve_value( $options, $instance )
+		: bws_base_datetime_single_resolve_value( $options, $instance );
+}
+
+/**
+ * Callback for the merged `datetime` base tag: a shell over bws_base_datetime_resolve_value(),
+ * the same shell the two old callbacks are (link-wrap what a singular arm returned, the
+ * editor preview label on empty output). The preview label is still the old tags' until the
+ * merged tag's own preview branch lands.
+ *
+ * @since Unreleased
+ */
+function bws_base_datetime_callback( $options, $block, $instance ): string {
+	$options    = bws_host_unlinked_options( $options, $block );
+	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
+
+	$resolved = bws_base_datetime_resolve_value( (array) $options, $instance );
+	$value    = $resolved['value'];
+
+	if ( '' !== $value ) {
+		if ( $resolved['link_id'] && function_exists( 'bws_wrap_with_link' ) ) {
+			$value = bws_wrap_with_link(
+				$value,
+				$options['linkTo'] ?? 'none',
+				$options['linkKey'] ?? '',
+				bws_flag_is_on( $options, 'newTab' ),
+				$resolved['link_id'],
+				$resolved['link_type']
+			);
+		}
+		return $value;
+	}
+
+	if ( ! $is_preview || ! function_exists( 'bws_build_preview_label' ) ) {
+		return '';
+	}
+	return bws_build_preview_label( $options, bws_normalize_datetime_options( (array) $options, null )['is_range'] ? 'datetime_range' : 'datetime_single' );
 }

@@ -2344,6 +2344,95 @@ function bws_fixture_page_content_matrix_table() {
 }
 
 /**
+ * Page content: matrix-datetime (page-matrix-datetime).
+ *
+ * Split axis is the DATETIME FAMILY, not source-state: rows for the merged `{{datetime}}`
+ * tag (FW-81), single and range alike. matrix-post-meta is saturated, so the family gets
+ * a page and later datetime work has somewhere to land that is not post 22.
+ *
+ * Every row reads matrix-post-meta's fields, pinned by id the way the table page's rows are
+ * (`src:post,<id>`), so this page seeds no data of its own. Each D9 row is the merged
+ * spelling of a row the old tags already have, and its label names that row: the assertion
+ * is that the two print the same bytes, so the expected text in a label is the old row's.
+ * `{{datetime}}` renders from the merged seam, the old tags from their own callbacks, which
+ * is what makes the equality a measurement and not a tautology.
+ */
+function bws_fixture_page_content_matrix_datetime() {
+	$meta_id = function_exists( 'bws_fixture_seeded_post_id' ) ? bws_fixture_seeded_post_id( 'matrix-post-meta', 'page' ) : false;
+	if ( ! $meta_id ) {
+		return bws_fixture_gb_text_block(
+			'MATRIX-DATETIME FIXTURE ERROR: the "matrix-post-meta" page was not found. Reseed pages before this page.',
+			'matrix-datetime-missing-source'
+		);
+	}
+
+	$sections = array();
+
+	$sections[] = bws_fixture_gb_section( 'Datetime D9 - merged tag, one read (key:a, key:a+b)', array(
+		bws_fixture_gb_row( 'D9.1 (= D0.1) expect "August 1, 2030"', "{{datetime src:post,{$meta_id}|key:event_start_date}}" ),
+		bws_fixture_gb_row( 'D9.2 (= D0.2) expect "August 12, 2030 9:00 AM"', "{{datetime src:post,{$meta_id}|key:event_datetime}}" ),
+		bws_fixture_gb_row( 'D9.3 (= D0.3) expect "2030-08-12 9:00 am"', "{{datetime src:post,{$meta_id}|key:event_datetime|format:Y-m-d}}" ),
+		bws_fixture_gb_row( 'D9.4 (= D0.4) expect "April 10"', "{{datetime src:post,{$meta_id}|key:event_thisyear}}" ),
+		bws_fixture_gb_row( 'D9.5 (= D0.5) expect "April 10 and the current year"', "{{datetime src:post,{$meta_id}|key:event_thisyear|showCurrentYear}}" ),
+		bws_fixture_gb_row( 'D9.6 (= D0.6) expect "August 12, 2030"', "{{datetime src:post,{$meta_id}|key:event_midnight}}" ),
+		bws_fixture_gb_row( 'D9.7 (= D0.7) expect "August 12, 2030 12:00 AM"', "{{datetime src:post,{$meta_id}|key:event_midnight|showMidnight}}" ),
+		bws_fixture_gb_row( 'D9.8 (= D0.8) expect "August 1, 2030, 9:00 am"', "{{datetime src:post,{$meta_id}|key:event_start_date+event_time}}" ),
+		bws_fixture_gb_row( 'D9.9 (= D0.9) expect "August 1, 2030 @ 9:00 am"', "{{datetime src:post,{$meta_id}|key:event_start_date+event_time|timeSep: @ }}" ),
+		bws_fixture_gb_row( 'D9.10 (= D0.10) expect "June 15, 2030"', "{{datetime src:post,{$meta_id}|key:plain_meta_date}}" ),
+		bws_fixture_gb_row( 'D9.11 (= D0.11) expect "15/08/2030"', "{{datetime src:post,{$meta_id}|key:event_date_dmy}}" ),
+		bws_fixture_gb_row( 'D9.12 (= D1.1) expect "August 12, 2030"', "{{datetime src:post,{$meta_id}|key:event_datetime|as:date}}" ),
+		bws_fixture_gb_row( 'D9.13 (= D1.2) expect "9:00 AM"', "{{datetime src:post,{$meta_id}|key:event_datetime|as:time}}" ),
+		bws_fixture_gb_row( 'D9.14 (= D1.3) expect "9:00 AM"', "{{datetime src:post,{$meta_id}|key:event_time|as:time}}" ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Datetime D9 - merged tag, two reads (key:a;b)', array(
+		bws_fixture_gb_row( 'D9.15 (= D1.4) expect "9:00 am"', "{{datetime src:post,{$meta_id}|key:event_datetime;|as:time}}" ),
+		bws_fixture_gb_row( 'D9.16 (= D1.5) expect "09:00"', "{{datetime src:post,{$meta_id}|key:event_datetime;|as:time|format:H:i}}" ),
+		bws_fixture_gb_row( 'D9.17 (= D2.1) expect "August 1-9, 2030"', "{{datetime src:post,{$meta_id}|key:event_start_date;event_end_date}}" ),
+		bws_fixture_gb_row( 'D9.18 (= D2.2) expect "August 1 to 9, 2030"', "{{datetime src:post,{$meta_id}|key:event_start_date;event_end_date|rangeSep: to }}" ),
+		bws_fixture_gb_row( 'D9.19 (= D2.3) expect "August 12, 2030, 9:00 AM-5:00 PM"', "{{datetime src:post,{$meta_id}|key:event_datetime;event_end_datetime}}" ),
+		bws_fixture_gb_row( 'D9.20 (= D2.4) expect "August 12, 2030, 5:00 PM"', "{{datetime src:post,{$meta_id}|key:event_midnight;event_end_datetime}}" ),
+		bws_fixture_gb_row( 'D9.21 (= D2.5) expect "9:00 am-5:00 pm"', "{{datetime src:post,{$meta_id}|key:event_datetime;event_end_datetime|as:time}}" ),
+		bws_fixture_gb_row( 'D9.22 (= D2.6) expect "9:00-11:30 am"', "{{datetime src:post,{$meta_id}|key:event_time;event_end_time|as:time}}" ),
+		bws_fixture_gb_row( 'D9.23 (= D3.1) expect "09:00-17:00"', "{{datetime src:post,{$meta_id}|key:event_datetime;event_end_datetime|as:time|format:H:i}}" ),
+		bws_fixture_gb_row( 'D9.24 (= D3.2) expect "9:00-5:00"', "{{datetime src:post,{$meta_id}|key:event_datetime;event_end_datetime|as:time|format:g:i}}" ),
+		bws_fixture_gb_row( 'D9.25 (= D3.3) expect "9:00-11:30 AM"', "{{datetime src:post,{$meta_id}|key:event_time;event_end_time|as:time|format:g:i A}}" ),
+		bws_fixture_gb_row( 'D9.26 (= D3.4) expect "17:00"', "{{datetime src:post,{$meta_id}|key:event_midnight;event_end_datetime|as:time|format:H:i}}" ),
+		bws_fixture_gb_row( 'D9.27 (= D8.1) expect "August 12, 2030"', "{{datetime src:post,{$meta_id}|key:event_midnight;event_allday_end}}" ),
+		bws_fixture_gb_row( 'D9.28 (= D8.2) expect "August 12-August 14, 2030"', "{{datetime src:post,{$meta_id}|key:event_midnight;event_allday_end_multi}}" ),
+		bws_fixture_gb_empty_row( 'D9.29 (= D8.3) expect EMPTY (no time part on either end)', "{{datetime src:post,{$meta_id}|key:event_midnight;event_allday_end|as:time}}" ),
+		bws_fixture_gb_row( 'D9.30 (= D8.4) expect "12:00 am-11:59 pm"', "{{datetime src:post,{$meta_id}|key:event_midnight;event_allday_end|as:time|showMidnight}}" ),
+		bws_fixture_gb_row( 'D9.31 (= D8.5) expect "9:00-11:30 am"', "{{datetime src:post,{$meta_id}|key:event_time;event_end_time|as:time|showMidnight}}" ),
+		bws_fixture_gb_row( 'D9.32 (= D8.6) expect "9:00 am-5:00 pm"', "{{datetime src:post,{$meta_id}|key:event_datetime;event_end_datetime|as:time|showMidnight}}" ),
+		bws_fixture_gb_row( 'D9.33 (= D8.7) expect "09:00-11:30"', "{{datetime src:post,{$meta_id}|key:event_time;event_end_time|as:time|format:H:i|showMidnight}}" ),
+		bws_fixture_gb_row( 'D9.34 (= new combination) expect "August 1, 9:00 am-August 9, 2030, 11:30 am"', "{{datetime src:post,{$meta_id}|key:event_start_date+event_time;event_end_date+event_end_time}}" ),
+		bws_fixture_gb_row( 'D9.35 (= new combination) expect "August 1, 2030, 9:00-11:30 am"', "{{datetime src:post,{$meta_id}|key:event_start_date+event_time;+event_end_time}}" ),
+		bws_fixture_gb_row( 'D9.36 (= new combination) expect "August 12, 2030, 9:00-11:30 AM"', "{{datetime src:post,{$meta_id}|key:event_datetime;+event_end_time}}" ),
+		bws_fixture_gb_row( 'D9.37 (= new combination) expect "August 1, 2030, 9:00 am"', "{{datetime src:post,{$meta_id}|key:event_start_date+event_time;}}" ),
+		bws_fixture_gb_row( 'D9.38 (= new combination) expect "August 1, 2030"', "{{datetime src:post,{$meta_id}|key:event_start_date;missing_field|fallback:FB}}" ),
+		bws_fixture_gb_row( 'D9.52 (= new combination) expect "August 1, 2030, 9:00-11:30 am" (a time-only END field takes the start date)', "{{datetime src:post,{$meta_id}|key:event_start_date+event_time;event_end_time}}" ),
+		bws_fixture_gb_row( 'D9.53 (= new combination) expect "August 12, 2030, 9:00-11:30 AM" (a datetime start, a time-only end)', "{{datetime src:post,{$meta_id}|key:event_datetime;event_end_time}}" ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Datetime D9 - merged tag, sources, lists, fallback', array(
+		bws_fixture_gb_row( 'D9.39 (= D4.6) expect "May 1, 2030 10:00 AM, June 1, 2030 11:00 AM"', "{{datetime src:post,{$meta_id};refs,related_staff,limit[5]|key:event_datetime}}" ),
+		bws_fixture_gb_row( 'D9.40 (= D4.7) expect "May 1 10:00 AM-May 3, 2030 3:00 PM; June 1 11:00 AM-June 5, 2030 12:00 PM"', "{{datetime src:post,{$meta_id};refs,related_staff,limit[3]|key:event_datetime;event_end_datetime|sep:; }}" ),
+		bws_fixture_gb_row( 'D9.41 (= D4.8) expect EACH date in its own link to the staff post it was read from, Jane then Tom', "{{datetime src:post,{$meta_id};refs,related_staff,limit[5]|key:event_datetime|linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'D9.42 (= D4.8b) expect EACH whole range in its own link to its own staff post, the ; separator outside both anchors', "{{datetime src:post,{$meta_id};refs,related_staff,limit[3]|key:event_datetime;event_end_datetime|sep:; |linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'D9.43 (= D4.9) expect ONE link, to Jane Partner, wrapping the date', "{{datetime src:post,{$meta_id};refs,related_staff,limit[1]|key:event_datetime|linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'D9.44 (= D5.1) expect "20200115"', "{{datetime src:site|key:organization_founded}}" ),
+		bws_fixture_gb_row( 'D9.45 (= D5.2) expect "January 15, 2020"', "{{datetime src:site|key:organization_founded|format:F j, Y}}" ),
+		bws_fixture_gb_row( 'D9.46 (= D5.3) expect "September 20, 2030 6:00 PM"', "{{datetime src:site|key:org_party_datetime}}" ),
+		bws_fixture_gb_row( 'D9.47 (= D5.4) expect "May 1, 2030 10:00 AM"', "{{datetime src:post,{$meta_id};refs,related_staff,limit[1]|key:event_datetime}}" ),
+		bws_fixture_gb_row( 'D9.48 (= D5.6) expect "Date TBA"', "{{datetime key:missing_dt_field|fallback:Date TBA}}" ),
+		bws_fixture_gb_row( 'D9.49 (= new combination) expect "No field"', "{{datetime fallback:No field}}" ),
+		bws_fixture_gb_row( 'D9.50 (= R5.3) expect "September 20, 2030 6:00 PM"', "{{datetime src:site|key:org_party_datetime;}}" ),
+	) );
+
+	return implode( "\n\n", $sections );
+}
+
+/**
  * Page content: matrix-links (page-matrix-links).
  *
  * Split axis is the LINK DESTINATION, not source-state: every row here is a fanning tag
@@ -2940,6 +3029,7 @@ function bws_fixture_build_page_content( $builder ) {
 		'matrix_repeaters'     => 'bws_fixture_page_content_matrix_repeaters',
 		'matrix_links'         => 'bws_fixture_page_content_matrix_links',
 		'matrix_table'         => 'bws_fixture_page_content_matrix_table',
+		'matrix_datetime'      => 'bws_fixture_page_content_matrix_datetime',
 		'matrix_core_blocks'   => 'bws_fixture_page_content_matrix_core_blocks',
 		'pattern_legacy_wire'  => 'bws_fixture_pattern_content_legacy_wire',
 		'context_header'       => 'bws_fixture_element_content_context_header',

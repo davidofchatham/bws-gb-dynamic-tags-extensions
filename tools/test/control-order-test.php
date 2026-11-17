@@ -385,6 +385,19 @@ assert_same(
 	array_keys( $registered['try_datetime_range']['options'] ?? array() )
 );
 
+// The merged datetime tag (FW-81): ONE `key` read option in the field group, then the
+// format run, link, fallback. The six old field options are NOT registered on it.
+assert_same(
+	'{{datetime}} — full option order',
+	array(
+		'src', 'sep', 'key',
+		'as', 'rangeSep', 'format', 'timeSep', 'showCurrentYear', 'showMidnight',
+		'linkTo', 'linkKey', 'newTab',
+		'fallback',
+	),
+	array_keys( $registered['datetime']['options'] ?? array() )
+);
+
 // ===========================================================================
 echo "\n§3 fallback is last wherever it is registered\n";
 // ===========================================================================
@@ -517,7 +530,7 @@ foreach ( $registered as $tag => $args ) {
 // The sweep is only worth its name if it actually reaches the families the ticket names,
 // so the floor is asserted rather than assumed: an empty or half-loaded registry would
 // otherwise sail through every "does not register" check below.
-foreach ( array( 'text', 'title', 'email', 'phone', 'datetime_single', 'datetime_range', 'try_text' ) as $named ) {
+foreach ( array( 'text', 'title', 'email', 'phone', 'datetime', 'datetime_single', 'datetime_range', 'try_text' ) as $named ) {
 	assert_same( "{{{$named}}} — is in the swept set", true, in_array( $named, $chain_authoring, true ) );
 }
 
@@ -530,7 +543,7 @@ foreach ( $chain_authoring as $tag ) {
 // halves fail differently and a copy-paste removal of both should name itself. The base
 // six are the ticket's own list; the `try_` half is DERIVED from the template flag that
 // decides it (`try_list_options`), so this file holds no third copy of that set.
-$sep_expected = array( 'text', 'title', 'email', 'phone', 'datetime_single', 'datetime_range' );
+$sep_expected = array( 'text', 'title', 'email', 'phone', 'datetime', 'datetime_single', 'datetime_range' );
 foreach ( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() as $tpl ) {
 	if ( ! empty( $tpl['supports_try'] ) && ! empty( $tpl['try_list_options'] ) ) {
 		$sep_expected[] = 'try_' . $tpl['key'];

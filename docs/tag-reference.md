@@ -787,6 +787,7 @@ In the source-agnostic architecture, each template has one GB tag registration. 
 | `title` | `'Title/Name'` | `'cross-source'` | ✅ | Zero options aside from link; shares pipeline with `text use:title`. |
 | `permalink` | `'Permalink'` | `'cross-source'` | ❌ | Output is already a URL |
 | `image` | `'Image Fields'` | `'cross-source'` | ❌ | URL output nonsensical to wrap; image linking deferred |
+| `datetime` | `'Date/Time'` | `'cross-source'` | ✅ | **[UNRELEASED]** One tag for a single value and a range; the mode is the number of reads in `key`. See [§`datetime`](#datetime). |
 | `datetime_single` | `'Format Date/Time Fields'` | `'cross-source'` | ✅ | |
 | `datetime_range` | `'Format Date/Time Fields as Range'` | `'cross-source'` | ✅ | |
 | `email` | `'Email'` | `'cross-source'` | `mailto:` (own anchor, not `linkTo`) | Default-ON mailto wrap toggled by `noLink`; `visibility`-gated off `a`/`button`/`img`/`picture`. See [§Email tag](#email-tag). |
@@ -1050,6 +1051,21 @@ Control order `source → format → fallback` (no `link` group on `image`; `for
 | 6 | fallback | | `[fallback option]` | media picker → image ID; see [Fallback group](#fallback-group) + `custom-image-controls.md` |
 
 ---
+
+## `datetime`
+
+**[UNRELEASED]** One tag for a single date and time and for a range, registered at `datetime_single`'s place in the base-tag order (FW-81). The two old tags keep registering and rendering, and the section below still describes them. Link-wrappable, per item in list mode. GB type `'cross-source'`. Its picker title is `'Date/Time'`, the same as `datetime_single` until the old tags leave the picker.
+
+**The mode is never stated.** The `key` option holds the reads: a `;` separates reads, so one entry is a single value and two are a range, and a `+` joins at most two operands inside one entry, a primary field (date, datetime or time) and an optional time field. A third operand is ignored. An empty entry is still a read, an empty one, so `key:a;` is a range with no end, which prints exactly what `datetime_range` with only `startKey` prints, and `key:a` is a single value, which prints what `datetime_single` prints. These two differ for `as:time` (`9:00 AM` against `9:00 am`), so a one-ended range is spelled with its trailing `;`. A time-only entry in the end position inherits the start's date. No `key`, or a blank one, is a read-less tag and shows its fallback.
+
+| Wire | Reads |
+|---|---|
+| `key:event_datetime` | single |
+| `key:event_date+start_time` | single, a date field and a time field |
+| `key:event_date+start_time;end_time` | range, a time-only end taking the start's date |
+| `key:start_dt;end_dt` | range, two datetimes |
+
+The old six field options (`key`, `timeKey`, `startKey`, `startTimeKey`, `endKey`, `endTimeKey`) are not registered on this tag. `bws_normalize_datetime_options()` is still the only place any of them, or `key`, is parsed, so the old tags and the merged tag hand the cores the same fields for the same reads; passing `null` for its `$range` argument is what lets the merged tag's mode come from the reads. The other options are the old tags' union: [Source](#source-group) + `sep`, `as`, `rangeSep`, `format`, `timeSep`, `showCurrentYear`, `showMidnight`, [Link wrap](#link-wrap-group) and [Fallback](#fallback-group), in that order. `use` is not read yet (the verbs `now`, `published` and `modified` are a later piece of FW-81), and `key` is a plain text control until the read control ships.
 
 ## `datetime_single` and `datetime_range`
 

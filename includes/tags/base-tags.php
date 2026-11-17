@@ -6,7 +6,7 @@
  * selected at render time via the `src`/`ref`/`srcTermIn` options, not at
  * registration time.
  *
- * Registered tags: text, content, title, permalink, image, datetime_single, datetime_range
+ * Registered tags: text, content, title, permalink, image, datetime, datetime_single, datetime_range
  *
  * Resolution (traversal pipeline, NOT source classes):
  *   L1 base source — `bws_resolve_base_source()` (traversal-pipeline.php): a known-shape
@@ -276,6 +276,22 @@ function bws_register_base_tags(): void {
 			)
 		) ),
 		'return'      => 'bws_base_image_callback',
+	) );
+
+	// =========================================================
+	// datetime — one tag for a single date/time and a range (FW-81); the mode is derived
+	// from `key` (see bws_normalize_datetime_options()). Registered at datetime_single's
+	// slot in the order, ahead of the two old tags it replaces.
+	// =========================================================
+
+	bws_gb_register_tag( array(
+		'title'       => __( 'Date/Time', 'generateblocks' ),
+		'tag'         => 'datetime',
+		'type'        => 'cross-source',
+		'supports'    => array(),
+		'description' => __( 'Format a date and time, or a start and end range, from custom fields. A separate time field can be joined to a date field, and a second field makes it a range. By default it hides midnight times and the current year. Sources with several results can show a list.', 'generateblocks' ),
+		'options'     => bws_prepare_registration_options( bws_get_base_datetime_options() ),
+		'return'      => 'bws_base_datetime_callback',
 	) );
 
 	// =========================================================

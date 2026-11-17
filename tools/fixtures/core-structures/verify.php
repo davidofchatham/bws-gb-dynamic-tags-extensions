@@ -1014,6 +1014,10 @@ $check( 'page matrix-repeaters exists', $roster_page instanceof WP_Post );
 $table_page = get_page_by_path( 'matrix-table' );
 $check( 'page matrix-table exists with its {{table}} rows (not the missing-source error block)', $table_page instanceof WP_Post && false !== strpos( $table_page->post_content, '{{table ' ) && false === strpos( $table_page->post_content, 'FIXTURE ERROR' ) );
 
+// v43: the datetime page reads matrix-post-meta's fields by id and seeds none, so the same missing-source error block stands in for it.
+$datetime_page = get_page_by_path( 'matrix-datetime' );
+$check( 'page matrix-datetime exists with its {{datetime}} rows (not the missing-source error block)', $datetime_page instanceof WP_Post && false !== strpos( $datetime_page->post_content, '{{datetime ' ) && false === strpos( $datetime_page->post_content, 'FIXTURE ERROR' ) );
+
 if ( $roster_page instanceof WP_Post && function_exists( 'bws_run_step' ) ) {
 	$outer_rows = bws_run_step(
 		array( 'type' => 'rows', 'field' => 'duty_roster' ),
