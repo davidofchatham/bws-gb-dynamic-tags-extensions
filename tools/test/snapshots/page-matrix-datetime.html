@@ -174,6 +174,31 @@
 </div>
 
 <div>
+<h2 class="wp-block-heading">Datetime D9 &#8211; a pinned source prints the fallback</h2>
+
+<p class="gb-text">D9.58 (= D9.48, pinned post) expect &#8220;Date TBA&#8221;: Date TBA</p>
+
+<p class="gb-text">D9.59 (= D9.58, single tag) expect &#8220;Date TBA&#8221;: Date TBA</p>
+
+<p class="gb-text">D9.60 (= D9.58, range tag) expect &#8220;FB&#8221;: FB</p>
+
+<p class="gb-text">D9.61 (= control) expect &#8220;August 1, 2030&#8221; (the value wins, fallback idle): August 1, 2030</p>
+
+<p class="gb-text">D9.62 (= D9.58, pinned term) expect &#8220;Date TBA&#8221;: Date TBA</p>
+
+<p class="gb-text">D9.63 (= D7.6, pinned term) expect &#8220;Date TBA&#8221; (a real key, an empty term field): Date TBA</p>
+
+<p class="gb-text">D9.64 (= D9.60, pinned term) expect &#8220;FB&#8221;: FB</p>
+
+<p class="gb-text">D9.65 (= control) expect &#8220;November 12, 2030&#8221; (the value wins, fallback idle): November 12, 2030</p>
+
+<p class="gb-text">D9.66 (= new combination) expect &#8220;Date TBA&#8221; with NO link around it: Date TBA</p>
+
+<p class="gb-text">D9.67 (= new combination) expect EMPTY (no fallback stated):</p>
+
+</div>
+
+<div>
 <h2 class="wp-block-heading">Datetime D9 &#8211; an old tag keeps its family</h2>
 
 <p class="gb-text">D9.54 (= new combination) expect &#8220;9:00 am&#8221; (the RANGE core prints am lowercase; the single core would print 9:00 AM): 9:00 am</p>

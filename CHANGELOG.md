@@ -8,6 +8,10 @@ All notable changes to this project are documented in this file. The format is b
 
 - **`{{datetime}}`: one tag for a single date and a range.** Fill in the `key` option and the number of fields decides the rest. `key:event_datetime` prints one date, and `key:start_date;end_date` prints a range, so adding an end date no longer means switching tags and starting over. A `+` joins a date field to a separate time field (`key:event_date+start_time`), and a time-only end takes the start's date (`key:event_date+start_time;end_time`). The format, separator, current-year, midnight, link, fallback and source options work as they do on the two old tags, and so do list results. The old `datetime_single` and `datetime_range` tags are unchanged and still in the picker for now. `key` is a plain text field until the editor control for it ships.
 
+### Fixed
+
+- **A date/time tag pinned to a specific post or term now prints its fallback when the field is empty.** With a post or term chosen as the source and a fallback set, `datetime_single` and `datetime_range` printed nothing where the same tag with no source, or `{{text}}` with the same source, printed the fallback. The fallback now prints once, as plain text with no link around it, like `{{text}}`'s.
+- **The editor preview of a date/time tag with an empty field on a repeater-row or related-post source now matches `{{text}}`'s.** It shows the usual description of the date with the fallback noted in parentheses, where it used to show the bare fallback text. A tag pinned to a specific post or term keeps that preview, and the front end prints the fallback as above.
 
 ## [1.25.0] — 2026-11-16
 

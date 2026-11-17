@@ -853,15 +853,15 @@ function bws_normalize_datetime_options( array $options, ?bool $range = false ):
  * THE STATED FALLBACK STAYS HERE, not in the shell, and it is not a departure from the
  * seam contract so much as the only place it can be stated: the cores emit it themselves
  * on a read that found nothing (bws_handle_date_time_fallback(), four sites in
- * bws_datetime_single_core()), and the compensating tail below exists for exactly the
- * arms where no core ran. Which arms those are — fanning, refused, ambient-claimed — is
- * a fact only this function holds. Under a `try_` attempt the whole thing is inert:
+ * bws_datetime_single_core()), and the tail below applies it to any empty result, unwrapped
+ * (why, and which arms need it, is stated there), except in the editor preview, where an
+ * empty read is left for the shell's label. Under a `try_` attempt the whole thing is inert:
  * bws_try_run_attempts() strips `fallback` before the resolver is called, so both the
  * cores' emit and the tail resolve to '' and the walk moves on, which is the contract
  * the shell's own once-per-tag fallback needs.
  *
- * FW-116's per-tag fix for this family rides the tail's `null !== $ambient` term (see
- * there). Carried verbatim; the structural flip is FW-116's, not this seam's.
+ * FW-116's per-tag fix for this family is that same tail, which covers an ambient claim
+ * with every other arm. The structural flip is FW-116's, not this seam's.
  *
  * List mode (#30, V14 parity with base text/title): srcTermIn and src:ref collect up to
  * `limit` results joined with `sep`; empty items are skipped; the fallback is suppressed
@@ -1025,16 +1025,15 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 		$link_type = 'post';
 	}
 
-	// List-mode all-empty → the fallback fires once, unwrapped. A chain that FANS
-	// is exactly the old ( srcTermIn || src:ref ) test, stated on the wire instead
-	// of on two tokens (FW-63). A REFUSED tag joins it whether or not it fans: the
-	// fallback it would otherwise have got is the one the core emits, and the core is
-	// exactly what a refusal must not run. An ambient claim joins it too, for the
-	// same reason: a non-term claim carries the seam's own '' straight through without
-	// ever calling the date-time core, and a term claim routes through the term core
-	// instead of the post one — either way the core whose falsy-entity branch normally
-	// self-applies this SAME fallback never ran, so nothing else would apply it.
-	if ( '' === $value && ( $res['fans'] || $refused || null !== $ambient ) ) {
+	// All-empty → the stated fallback fires once, unwrapped, for EVERY arm. The date-time
+	// core self-applies it on a read that found nothing, so an empty value that reaches
+	// here is one where no core ran with `fallback` intact: a list arm (the fold strips
+	// `fallback` per item), a refusal, an ambient claim. A pinned singular post or term is
+	// a list arm of one, which is why the tail cannot ask whether the chain fans.
+	// A core that DID apply it returned non-empty, so this never fires twice. Not in the
+	// editor preview: an empty read there is the shell's preview label, which carries the
+	// fallback beside the read target (bws_base_text_callback() does the same).
+	if ( '' === $value && empty( $instance->context['bwsEditorPreview'] ) ) {
 		$value   = bws_handle_date_time_fallback( $mapped, $instance, $is_range ? 'range' : 'single' );
 		$link_id = 0;
 	}
@@ -1053,8 +1052,8 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
  * editor preview label.
  *
  * NO STATED FALLBACK HERE — this family's fallback is emitted inside the seam, by the
- * cores on a read that found nothing and by the seam's own compensating tail where no
- * core ran. See there for why it cannot move up.
+ * cores on a read that found nothing and by the seam's own tail on any other empty result.
+ * See there for why it cannot move up.
  *
  * The preview label is the family's own: `datetime_range` for a tag that read as a range,
  * `datetime_single` otherwise.

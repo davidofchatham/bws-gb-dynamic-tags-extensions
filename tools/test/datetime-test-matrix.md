@@ -112,6 +112,7 @@ Datetime previews are **excluded from the pure preview harness** (live-clock `wp
 |---|---|
 | D6.1 | Open `/matrix-post-meta/` in the editor: an unresolved datetime block shows `[Date-Time like "…"]` (live current time in the active format), range blocks `[Date-Time Range like "…"]`, `as:` variants swap the prefix (Date / Time / Date Range / Time Range). |
 | D6.2 | `limit` / `sep` controls appear ONLY when `srcTermIn` is set or `src` = Related Post Field (post-#30; conditional-options JS). |
+| D6.3 | A datetime tag whose source is a pinned post or term (`src:post,<id>`, `src:term,<id>`), a repeater row (`src:rows,<field>`) or a related post (`src:ref`), with a `key` that reads empty and `fallback:Date TBA`: the preview shows the description with the fallback noted, e.g. `[Date-Time like "…" from Post: … (fallback: “Date TBA”)]`, matching `{{text}}`, not the bare `Date TBA`. A tag with no `src` shows the bare fallback. A resolved value shows the value. Measured with `render-tag --preview` on 2026-11-17 (all four sources); the editor itself has not been opened for this row. |
 
 ## D7 — FW-3(a) term-ambient parity — ✅ shipped (testbed-verified 2026-07-18)
 
@@ -172,7 +173,7 @@ One tag, no stated mode: how many `;`-separated entries `key:` holds decides it.
 
 **A one-ended range and a single value differ for a time-only display, and that is a defect to unify, not a spelling rule.** The single and range cores resolve the time format separately. Measured 2026-11-17 on the testbed against the same field: `as:time` on `event_datetime` prints `9:00 AM` as a single and `9:00 am` as a one-ended range; `as:time` on `event_time` the same; `event_time` with no `as` prints `9:00 AM` against `Start time: 9:00 AM`; `as:time` on `event_midnight` prints nothing against `12:00 am`. Every other pair tried (dates, `as:date`, custom formats, a separate time field, the current-year flag) was identical. D9.15 and D9.16 below pin the range core's current output through a trailing `;` so the equivalence stays measurable; they do not endorse it. Tracked as `datetime-tag-collapse/02c`.
 
-Every row below is a visible block on `/matrix-datetime/` (blueprint v43, D9.54 to D9.57 in v44), pinned to `/matrix-post-meta/`'s fields by id where it reads one, and its label states the expected output. "Same as" names the old row whose output it must match byte for byte.
+Every row below is a visible block on `/matrix-datetime/` (blueprint v43, D9.54 to D9.57 in v44, D9.58 to D9.67 in v45), pinned to `/matrix-post-meta/`'s fields by id where it reads one, and its label states the expected output. "Same as" names the old row whose output it must match byte for byte.
 
 | # | Tag | Same as | Expected |
 |---|---|---|---|
@@ -233,6 +234,21 @@ Every row below is a visible block on `/matrix-datetime/` (blueprint v43, D9.54 
 | D9.49 | `{{datetime fallback:No field}}` | new combination | `No field` |
 | D9.50 | `{{datetime src:site|key:org_party_datetime;}}` | R5.3 | `September 20, 2030 6:00 PM` |
 
+**A pinned post or term prints the stated fallback on an empty read**, unwrapped even with `linkTo`, as `{{text}}` does for a pinned source. A repeater-row source does too.
+
+| # | Tag | Same as | Expected |
+|---|---|---|---|
+| D9.58 | `{{datetime src:post,<meta id>|key:missing_dt_field|fallback:Date TBA}}` | D9.48 | `Date TBA` |
+| D9.59 | `{{datetime_single src:post,<meta id>|key:missing_dt_field|fallback:Date TBA}}` | D9.58 | `Date TBA` |
+| D9.60 | `{{datetime_range src:post,<meta id>|startKey:missing_a|endKey:missing_b|fallback:FB}}` | D9.58 | `FB` |
+| D9.61 | `{{datetime src:post,<meta id>|key:event_start_date|fallback:Date TBA}}` | control | `August 1, 2030` (the value wins, fallback idle) |
+| D9.62 | `{{datetime src:term,<sales id>|key:missing_dt_field|fallback:Date TBA}}` | D9.58 | `Date TBA` |
+| D9.63 | `{{datetime_single src:term,<warehouse id>|key:event_date|fallback:Date TBA}}` | D7.6 | `Date TBA` (a real key, an empty term field) |
+| D9.64 | `{{datetime_range src:term,<sales id>|startKey:missing_a|endKey:missing_b|fallback:FB}}` | D9.60 | `FB` |
+| D9.65 | `{{datetime src:term,<sales id>|key:event_date|fallback:Date TBA}}` | control | `November 12, 2030` (the value wins, fallback idle) |
+| D9.66 | `{{datetime src:post,<meta id>|key:missing_dt_field|fallback:Date TBA|linkTo:permalink}}` | new combination | `Date TBA` with no link around it |
+| D9.67 | `{{datetime src:post,<meta id>|key:missing_dt_field}}` | new combination | empty (no fallback stated) |
+
 **Render-tag only** (a visible block cannot host them): the ambient and loop-item rows, and one empty-read row.
 
 | # | Tag | Same as | Expected |
@@ -247,5 +263,3 @@ Every row below is a visible block on `/matrix-datetime/` (blueprint v43, D9.54 
 | D9.T8 | `{{datetime key:;event_end_date|fallback:FB}}` on `/matrix-post-meta/` | D26 | `FB` (an end with no start prints the fallback, as the old range does) |
 | D9.T9 | `{{datetime key:event_start_date+event_time+event_end_time}}` | — | `August 1, 2030, 9:00 am` (a third operand is ignored; its warning is ticket 05) |
 | D9.T10 | `{{datetime}}` (no `key`) | — | empty, and `fallback:No field` prints `No field` (the read-less tag shows its fallback) |
-
-**A pinned explicit post source prints no fallback.** `{{datetime_single src:post,22|key:missing_dt_field|fallback:Date TBA}}` renders empty on the previous build and on this one, where `{{text src:post,22|key:missing_dt_field|fallback:Date TBA}}` prints the fallback. The merged tag inherits it from the two seams it routes to, which is why D9.48, D9.49 and D9.T8 do not pin a source. Surfaced, not fixed here.

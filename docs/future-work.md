@@ -373,6 +373,18 @@ Open: Whether the AI needs the vocabulary. The per-tag read lists and step names
 
 Blocked by: —  •  Interacts with: FW-184 (closed; the hints that would be left), FW-186 (closed; the `foldFrom` pointer this would retire)
 
+#### FW-191 — Whether a stated fallback is link-wrapped depends on which code path emitted it
+
+With `linkTo` set, a fallback is wrapped in the link when it comes from a singular read (a tag with no `src`, `src:site`, an ambient term) and prints as plain text when it comes from a pinned post or term, a repeater row, a related post or `srcTermIn`. The documented rule says the opposite of the second case: `tag-reference.md` says the fallback is wrapped "if a link resolves", and a pinned post has one.
+
+Detail home: this row
+
+Progress: Read from the code 2026-11-17. The shell wraps whatever the resolver returns when it reports a `link_id`. A core emitting the fallback on a singular read leaves the entity's id, so it is wrapped. The resolver's tail, which fires after a list arm or a refusal, resets `link_id` to 0, so it is not. Measured 2026-11-17 on the testbed: `{{datetime}}` with no `src` wraps the fallback, and a pinned post or term prints it plain; `{{text}}` with a pinned post prints it plain. `{{text}}` with no `src` is not measured and should match `{{datetime}}` by the same structure (`bws_base_text_resolve_value()` and `bws_base_datetime_resolve_value()` shape their returns alike). The pinned-source behavior was left as found when GH #163 made the fallback print at all, and `tag-reference.md` states the split.
+
+Open: Which behavior is intended. Wrap in every case the documented rule covers, which needs the tail to recover the link identity of a pinned singular source that the list fold reports as 0. Or print plain in every case, which stops wrapping core-emitted fallbacks and changes the front end of existing tags with no `src`. Or keep the split and state it as the rule. Measure `{{text}}`, `{{title}}`, the `try_` tags and `{{join}}` with `linkTo` before choosing, since the answer is per family or once.
+
+Blocked by: decision:which fallback link-wrap behavior is wanted  •  Interacts with: FW-98 (the fallback emit sites), FW-149 (the same fallback-versus-preview ordering question in the editor)
+
 ### Feature follow-ups & UX
 
 #### FW-9 — Context-aware base tags — the deferred residue

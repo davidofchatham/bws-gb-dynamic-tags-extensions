@@ -2359,9 +2359,11 @@ function bws_fixture_page_content_matrix_table() {
  */
 function bws_fixture_page_content_matrix_datetime() {
 	$meta_id = function_exists( 'bws_fixture_seeded_post_id' ) ? bws_fixture_seeded_post_id( 'matrix-post-meta', 'page' ) : false;
-	if ( ! $meta_id ) {
+	$sales_id     = function_exists( 'bws_fixture_seeded_term_id' ) ? bws_fixture_seeded_term_id( 'sales', 'department' ) : false;
+	$warehouse_id = function_exists( 'bws_fixture_seeded_term_id' ) ? bws_fixture_seeded_term_id( 'warehouse', 'department' ) : false;
+	if ( ! $meta_id || ! $sales_id || ! $warehouse_id ) {
 		return bws_fixture_gb_text_block(
-			'MATRIX-DATETIME FIXTURE ERROR: the "matrix-post-meta" page was not found. Reseed pages before this page.',
+			'MATRIX-DATETIME FIXTURE ERROR: the "matrix-post-meta" page or a department term was not found. Reseed pages before this page.',
 			'matrix-datetime-missing-source'
 		);
 	}
@@ -2427,6 +2429,21 @@ function bws_fixture_page_content_matrix_datetime() {
 		bws_fixture_gb_row( 'D9.48 (= D5.6) expect "Date TBA"', "{{datetime key:missing_dt_field|fallback:Date TBA}}" ),
 		bws_fixture_gb_row( 'D9.49 (= new combination) expect "No field"', "{{datetime fallback:No field}}" ),
 		bws_fixture_gb_row( 'D9.50 (= R5.3) expect "September 20, 2030 6:00 PM"', "{{datetime src:site|key:org_party_datetime;}}" ),
+	) );
+
+	// A pinned post or term with an empty read prints the stated fallback, unwrapped, as `{{text}}`
+	// does. The rule is stated at the tail of bws_base_datetime_resolve_value().
+	$sections[] = bws_fixture_gb_section( 'Datetime D9 - a pinned source prints the fallback', array(
+		bws_fixture_gb_row( 'D9.58 (= D9.48, pinned post) expect "Date TBA"', "{{datetime src:post,{$meta_id}|key:missing_dt_field|fallback:Date TBA}}" ),
+		bws_fixture_gb_row( 'D9.59 (= D9.58, single tag) expect "Date TBA"', "{{datetime_single src:post,{$meta_id}|key:missing_dt_field|fallback:Date TBA}}" ),
+		bws_fixture_gb_row( 'D9.60 (= D9.58, range tag) expect "FB"', "{{datetime_range src:post,{$meta_id}|startKey:missing_a|endKey:missing_b|fallback:FB}}" ),
+		bws_fixture_gb_row( 'D9.61 (= control) expect "August 1, 2030" (the value wins, fallback idle)', "{{datetime src:post,{$meta_id}|key:event_start_date|fallback:Date TBA}}" ),
+		bws_fixture_gb_row( 'D9.62 (= D9.58, pinned term) expect "Date TBA"', "{{datetime src:term,{$sales_id}|key:missing_dt_field|fallback:Date TBA}}" ),
+		bws_fixture_gb_row( 'D9.63 (= D7.6, pinned term) expect "Date TBA" (a real key, an empty term field)', "{{datetime_single src:term,{$warehouse_id}|key:event_date|fallback:Date TBA}}" ),
+		bws_fixture_gb_row( 'D9.64 (= D9.60, pinned term) expect "FB"', "{{datetime_range src:term,{$sales_id}|startKey:missing_a|endKey:missing_b|fallback:FB}}" ),
+		bws_fixture_gb_row( 'D9.65 (= control) expect "November 12, 2030" (the value wins, fallback idle)', "{{datetime src:term,{$sales_id}|key:event_date|fallback:Date TBA}}" ),
+		bws_fixture_gb_row( 'D9.66 (= new combination) expect "Date TBA" with NO link around it', "{{datetime src:post,{$meta_id}|key:missing_dt_field|fallback:Date TBA|linkTo:permalink}}" ),
+		bws_fixture_gb_empty_row( 'D9.67 (= new combination) expect EMPTY (no fallback stated)', "{{datetime src:post,{$meta_id}|key:missing_dt_field}}" ),
 	) );
 
 	// An OLD tag keeps its family whatever its options say (02b): the range tag given a bare `key`

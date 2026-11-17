@@ -961,7 +961,7 @@ Excluded: `content`, `permalink`, `image`. (`email`/`phone` have their own
 | `permalink` | Permalink | Entity permalink (`get_permalink` / `get_term_link`); under `src:site` → `home_url()` (the site permalink-analog — there is no separate `linkTo:site`). |
 | `key` | URL Meta/Option Field | URL read from the meta/option field named in `linkKey` (allowlist-gated under `src:site`). |
 
-Link wrap is applied **after fallback resolves** — fallback text is also wrapped if a link resolves. On a base tag it is the entity the chain lands on, and in list mode each value is wrapped against its own identity (§List mode). On `try_` tags, the single `linkTo`/`linkKey`/`newTab` applies to the winning slot's entity (post or term), and per value where that slot fans.
+Link wrap is applied **after fallback resolves** — fallback text is also wrapped if a link resolves. The exception is a date/time tag with a post, term, repeater-row or related-post source: its fallback prints once and unwrapped, as `{{text}}`'s does for a pinned post. With no `src` it is wrapped like a value. Which behavior is intended is open (FW-191 in [`future-work.md`](future-work.md)). On a base tag it is the entity the chain lands on, and in list mode each value is wrapped against its own identity (§List mode). On `try_` tags, the single `linkTo`/`linkKey`/`newTab` applies to the winning slot's entity (post or term), and per value where that slot fans.
 
 **`email`/`phone` are the exception — their link is NOT a `linkTo` option.** They do not participate
 in the `linkTo`/`linkKey`/`newTab` family above (those wrap an *entity URL*). Their only link is the

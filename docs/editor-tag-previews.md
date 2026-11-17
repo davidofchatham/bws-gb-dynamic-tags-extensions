@@ -34,6 +34,8 @@ Not on front end — gated by `$instance->context['bwsEditorPreview']`, injected
 
 Fallback appended when set: ` (fallback: “{value}”)`.
 
+The label stands in for an empty read of a configured source, so it shows both the read target and the fallback that would replace it on the front end. This is the case for a pinned post or term (`src:post,<id>`, `src:term,<id>`), a repeater row and a related post. A read that resolves shows its value, with the fallback unused. A tag with no `src` that reads empty shows the bare fallback text in the editor, with no label. Measured 2026-11-17 on `{{text}}` and `{{datetime}}`; the other families are unmeasured. `{{image}}` in an output-attribute mode shows no label either (see the Accepted hole note below).
+
 ## Context part
 
 Space-joined segments. The `→` separator precedes the term-step segment only.
