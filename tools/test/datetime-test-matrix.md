@@ -44,8 +44,8 @@ Fixture keys are the blueprint's (`manifest.php` authoritative): `event_datetime
 |---|---|---|
 | D1.1 | `{{datetime_single key:event_datetime|as:date}}` | `August 12, 2030` |
 | D1.2 | `{{datetime_single key:event_datetime|as:time}}` | `9:00 AM` |
-| D1.3 | `{{datetime_single key:event_time|as:time}}` | `9:00 am` (time-only field, in its own return format `g:i a`; before 02c a hardcoded `g:i A` printed `9:00 AM`) |
-| D1.4 | `{{datetime_range startKey:event_datetime|as:time}}` | `9:00 AM` (single-ended, the field's own `F j, Y g:i A` tokens; before 02c the WP `time_format` printed `9:00 am`) |
+| D1.3 | `{{datetime_single key:event_time|as:time}}` | `9:00 am` (time-only field, in its own return format `g:i a`) |
+| D1.4 | `{{datetime_range startKey:event_datetime|as:time}}` | `9:00 AM` (single-ended, the field's own `F j, Y g:i A` tokens, not the WP `time_format`) |
 | D1.5 | `{{datetime_range startKey:event_datetime|as:time|format:H:i}}` | `09:00` (single-ended custom format honored) |
 
 ## D2 — range basics (`/matrix-post-meta/`)
@@ -56,7 +56,7 @@ Fixture keys are the blueprint's (`manifest.php` authoritative): `event_datetime
 | D2.2 | `… |rangeSep: to ` | `August 1 to 9, 2030` |
 | D2.3 | `{{datetime_range startKey:event_datetime|endKey:event_end_datetime}}` | `August 12, 2030, 9:00 AM–5:00 PM` (same-day, time range) |
 | D2.4 | `{{datetime_range startKey:event_midnight|endKey:event_end_datetime}}` | `August 12, 2030, 5:00 PM` (midnight start suppressed, smart default) |
-| D2.5 | `{{datetime_range startKey:event_datetime|endKey:event_end_datetime|as:time}}` | `9:00 AM–5:00 PM` (cross-meridiem, both sides full, in the start field's own tokens; before 02c the WP `time_format` printed `9:00 am–5:00 pm`) |
+| D2.5 | `{{datetime_range startKey:event_datetime|endKey:event_end_datetime|as:time}}` | `9:00 AM–5:00 PM` (cross-meridiem, both sides full, in the start field's own tokens) |
 | D2.6 | `{{datetime_range startKey:event_time|endKey:event_end_time|as:time}}` | `9:00–11:30 am` (same-meridiem consolidation; lowercase per the fields' own `g:i a`, matching D1.3) |
 
 ## D3 — #25 two-ended `as:time` custom format — ✅ shipped (Stage 2, testbed-verified)
@@ -156,9 +156,9 @@ Fixture: `event_allday_end` = `2030-08-12 23:59` and `event_allday_end_multi` = 
 | D8.1 | `{{datetime_range startKey:event_midnight|endKey:event_allday_end}}` | `August 12, 2030` | `August 12, 2030, 11:59 PM` |
 | D8.2 | `{{datetime_range startKey:event_midnight|endKey:event_allday_end_multi}}` | `August 12–August 14, 2030` (day-collapse still blocked by the format's time token, as D2.3/R11) | `August 12–August 14, 2030 11:59 PM` |
 | D8.3 | `… |endKey:event_allday_end|as:time` | empty (no time part on either end) | `11:59 pm` |
-| D8.4 | `… |endKey:event_allday_end|as:time|showMidnight` | `12:00 AM–11:59 PM` (the flag opts both ends back in; the start field's own tokens, 02c) | `12:00 am–11:59 pm` |
+| D8.4 | `… |endKey:event_allday_end|as:time|showMidnight` | `12:00 AM–11:59 PM` (the flag opts both ends back in) | `12:00 am–11:59 pm` |
 | D8.5 | `{{datetime_range startKey:event_time|endKey:event_end_time|as:time|showMidnight}}` | `9:00–11:30 am` (**consolidates despite showMidnight** — the #125 fix) | `9:00 am–11:30 am` |
-| D8.6 | `…startKey:event_datetime|endKey:event_end_datetime|as:time|showMidnight` | `9:00 AM–5:00 PM` (cross-meridiem, both sides full either way; the start field's own tokens, 02c) | `9:00 am–5:00 pm` |
+| D8.6 | `…startKey:event_datetime|endKey:event_end_datetime|as:time|showMidnight` | `9:00 AM–5:00 PM` (cross-meridiem, both sides full either way) | `9:00 am–5:00 pm` |
 | D8.7 | `…startKey:event_time|endKey:event_end_time|as:time|format:H:i|showMidnight` | `09:00–11:30` (24-hour: the format gate still blocks consolidation) | `09:00–11:30` (unchanged) |
 
 D8.4/D8.6/D8.7 are pinned-unchanged rows, and they carry the load here: they are what separates "consolidation was ungated" from "the format gate or the sentinel was widened too far".
@@ -171,7 +171,7 @@ One tag, no stated mode: how many `;`-separated entries `key:` holds decides it.
 
 **Measured 2026-11-17 (datetime-tag-collapse/02):** 66 old-tag renders across `/matrix-post-meta/`, the three term pages and the two department archives, taken on the PREVIOUS build, then every one rendered again as the merged tag fed its equivalent wire (`startKey`+`startTimeKey` become `a+b`, the range keys become two `;` entries, a single-ended range keeps its trailing `;`). All 66 old renders were unchanged and all 66 merged renders were byte-identical to the previous build's output, 64 of them non-empty. The two empty ones are the matrix's own expected-empty rows (D8.3, D7.7).
 
-**A one-ended range and a single value now print a time display identically (02c).** Measured 2026-11-17 on the previous build against the same fields: `as:time` on `event_datetime` printed `9:00 AM` as a single and `9:00 am` as a one-ended range; `event_time` with no `as` printed `9:00 AM` against `Start time: 9:00 AM`; `as:time` on `event_midnight` printed nothing against `12:00 am`; `as:time` on a date-only field printed nothing against the parser's noon buffer, `12:00 pm`. The single core and the range core now share one function, `bws_format_time_display()`, and D10 pins every case through both old tags and the merged tag. The rules: the style comes from the custom `format`, then a separate time field or a time-only field's own format, then the datetime field's own return format, then the WP `time_format`; a side shows a time only when its value has one; midnight follows `showMidnight`; a start with no date is a time display with or without `as`; a missing start reads nothing; no label text is ever printed. D9.15 and D9.16 keep the trailing-`;` spelling of the one-ended range so the equivalence stays measurable.
+**A one-ended range and a single value now print a time display identically (02c).** Measured 2026-11-17 on the previous build against the same fields: `as:time` on `event_datetime` printed `9:00 AM` as a single and `9:00 am` as a one-ended range; `event_time` with no `as` printed `9:00 AM` against `Start time: 9:00 AM`; `as:time` on `event_midnight` printed nothing against `12:00 am`; `as:time` on a date-only field printed nothing against the parser's noon buffer, `12:00 pm`. The single core and the range core now share one function, `bws_format_time_display()`, and D10 pins every case through both old tags and the merged tag. The consequences: a side shows a time only when its value has one; midnight follows `showMidnight`; a start with no date is a time display with or without `as`; a missing start reads nothing; no label text is ever printed; and the style of the time (the case of the meridiem, 12-hour or 24-hour) comes from the field before it comes from the WP `time_format`, in the order `bws_resolve_time_only_format()` states. D9.15 and D9.16 keep the trailing-`;` spelling of the one-ended range so the equivalence stays measurable.
 
 Every row below is a visible block on `/matrix-datetime/` (blueprint v43, D9.54 to D9.57 in v44, D9.58 to D9.67 in v45), pinned to `/matrix-post-meta/`'s fields by id where it reads one, and its label states the expected output. "Same as" names the old row whose output it must match byte for byte.
 

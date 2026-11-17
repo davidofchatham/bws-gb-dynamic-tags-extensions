@@ -347,8 +347,8 @@ function bws_get_base_datetime_options(): array {
  *
  * @since 1.0.0
  * @since 1.15.0 First arg is a resolved-source payload (FW-3a).
- * @since Unreleased The first arg is always the payload (the scalar shim is gone), and the
- *               time half renders through bws_format_time_display().
+ * @since Unreleased The first arg is always the payload, and the time half renders through
+ *               bws_format_time_display().
  * @param array  $source   Resolved source (the factory's payload shape).
  * @param array  $options  Tag options.
  * @param object $instance Block instance.
@@ -417,9 +417,8 @@ function bws_datetime_single_core( array $source, $options, $instance ) {
  *
  * @since 1.0.0
  * @since 1.15.0 First arg is a resolved-source payload (FW-3a).
- * @since Unreleased The first arg is always the payload (the scalar shim is gone), the time
- *               half renders through bws_format_time_display(), and the "Start time:" /
- *               "End time:" / "End date/time:" diagnostic strings are gone.
+ * @since Unreleased The first arg is always the payload, and the time half renders through
+ *               bws_format_time_display().
  * @param array  $source   Resolved source (the factory's payload shape).
  * @param array  $options  Tag options.
  * @param object $instance Block instance.
@@ -481,7 +480,7 @@ function bws_datetime_range_core( array $source, $options, $instance ) {
  * item they can be served from). The term read is kind-dispatched inside
  * bws_parse_combined_date_time(), with no object-id string smuggle (FW-3a).
  *
- * @since Unreleased Replaces the two term-core wrappers, which differed only by core.
+ * @since Unreleased
  * @param int|false $term_id Resolved term ID.
  * @return array The factory's resolved-source payload.
  */

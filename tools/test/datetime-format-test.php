@@ -13,10 +13,10 @@
  *   - bws_format_date_range()          — separator / year-omission / smart-time
  *   - bws_format_single_date_time()    — year-omission / midnight suppression
  *   - bws_resolve_time_only_format()   — custom → separate time field → field's own tokens →
- *                                        WP-default chain (v1.7.4, field tokens FW-81 / 02c)
+ *                                        WP-default chain (v1.7.4)
  *   - bws_build_single_format() / bws_build_range_format() — format assembly
  *   - bws_format_time_display()       — the ONE time display, single core and range core
- *                                       alike (FW-81 / 02c)
+ *                                       alike
  *   - the option-key normalizer        — public→core key mapping (FW-2 baseline;
  *     bws_normalize_datetime_options(), the one parse site. The pre-FW-2
  *     mapper fallback went with the wrappers themselves in 1.21.0 —
@@ -339,7 +339,7 @@ assert_same( 'F6 no custom, no ACF format → WP time_format default',
 	bws_resolve_time_only_format( array(), $res_no_fmt )
 );
 
-// The field's OWN return format is the next rule down the chain (FW-81 / 02c): a datetime
+// The field's OWN return format is the next rule down the chain: a datetime
 // field whose format carries time tokens supplies them, ahead of the WordPress option.
 // Every expectation below differs from the WP shim's `g:i A`, so a pass cannot come from it.
 $res_combined_lower = $empty_result;
@@ -374,7 +374,7 @@ assert_same( 'F11 custom format still outranks the field\'s own tokens',
 );
 
 // ===========================================================================
-echo "\nU — bws_format_time_display (the ONE time display; single core, range core, FW-81 / 02c)\n";
+echo "\nU — bws_format_time_display (the ONE time display; single core, range core)\n";
 // ===========================================================================
 // Pure over parse results. One side is a start only; two sides are a time range. A side
 // "has a time" when its parse says so (has_time / time_only), never because a DateTime
@@ -455,6 +455,14 @@ assert_same( 'U14 custom format beats the field\'s own tokens, one side',
 assert_same( 'U15 custom format on a TIME-ONLY field is honored (it used to print a hardcoded g:i A)',
 	'09:00',
 	bws_format_time_display( $u_time_only( '2030-08-12 09:00', 'g:i A' ), null, array( 'hide_midnight' => true, 'format_type' => 'custom', 'custom_format' => 'H:i' ) )
+);
+assert_same( 'U17 an end alone is held to the same all-day sentinel as a pair: 23:59 is no time, hidden',
+	'',
+	bws_format_time_display( $u_dt( '2030-08-12 12:00', 'F j, Y', false ), $u_dt( '2030-08-12 23:59', 'F j, Y g:i A' ), $hide )
+);
+assert_same( 'U18 the same end prints once showMidnight is on',
+	'11:59 PM',
+	bws_format_time_display( $u_dt( '2030-08-12 12:00', 'F j, Y', false ), $u_dt( '2030-08-12 23:59', 'F j, Y g:i A' ), $show )
 );
 assert_same( 'U16 no start time at all: nothing, even when an end exists',
 	'',

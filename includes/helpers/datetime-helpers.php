@@ -237,14 +237,14 @@ function bws_value_looks_time_only( $value ) {
  * (v1.9.0, DT-1b). `$value_id` carries the sentinel; don't fold it into a
  * numeric coercion.
  *
- * @invariant Kind dispatch (FW-3a): the read target is the factory's
- * resolved-source payload, built by the callers (bws_datetime_term_source() /
- * bws_datetime_post_source() and the site payload). All branching below is on `kind` — never reintroduce string-shape sniffing
- * of the first arg.
+ * @invariant Kind dispatch (FW-3a): the read target is the factory's resolved-source payload,
+ * built by the callers (bws_datetime_term_source() / bws_datetime_post_source() and the site
+ * payload). All branching below is on `kind` — never reintroduce string-shape sniffing of the
+ * first arg.
  *
  * @since 3.0.0
  * @since 1.15.0 First arg accepts a resolved-source payload (FW-3a).
- * @since Unreleased The first arg is only ever the payload; the legacy-scalar shim is gone.
+ * @since Unreleased The first arg is only ever the payload.
  * @since 1.21.0 `meta_row` VALUE leg (FW-74) — a repeater row reads its sub-field
  *               through the L2 seam. Format-agnostic by construction; see the
  *               read closure below for why, and what closes it.
@@ -666,7 +666,7 @@ function bws_build_range_format( $options, $start_result, $end_result, $include_
 
 /**
  * Resolve the time format string for a time display — THE one place the time half of
- * a read gets its style (FW-81 / 02c), for a single read, a one-ended range and both
+ * a read gets its style, for a single read, a one-ended range and both
  * ends of a two-ended one.
  *
  * Precedence: a custom format string (reduced to its time tokens, if it
@@ -711,7 +711,7 @@ function bws_resolve_time_only_format( $options, $start_result ) {
 
 /**
  * Format the time half of a read — THE one time display, for the single core and the
- * range core alike (FW-81 / 02c).
+ * range core alike.
  *
  * `$start` and `$end` are parse results from bws_parse_combined_date_time(). A side
  * shows a time only when its parse says it has one (`time_only`, or `has_time` on a
@@ -755,8 +755,14 @@ function bws_format_time_display( $start, $end, $options ) {
         return bws_format_time_range( $first, $second, $hide_midnight, $time_format );
     }
 
+    // One side alone is held to the sentinels bws_format_time_range() applies to that side of
+    // a pair: 00:00 is no start time, and 23:59 on an END is no end time.
     $only = $first ?: $second;
-    if ( ! $only || ( $hide_midnight && $only->format( 'H:i' ) === '00:00' ) ) {
+    if ( ! $only ) {
+        return '';
+    }
+    $no_time = $first ? array( '00:00' ) : array( '00:00', '23:59' );
+    if ( $hide_midnight && in_array( $only->format( 'H:i' ), $no_time, true ) ) {
         return '';
     }
     return wp_date( $time_format, $only->getTimestamp() );
