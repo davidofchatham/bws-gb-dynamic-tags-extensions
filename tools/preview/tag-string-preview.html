@@ -314,14 +314,10 @@ button:hover { border-color: var(--accent); color: var(--accent); }
     <div id="sb-names"></div>
     <button id="add-name-row" style="margin-top:4px;width:100%">+ add rename</button>
 
-    <div class="sb-h">Option Combining (FW-20, FW-81)</div>
+    <div class="sb-h">Option Combining (FW-20)</div>
     <label class="toggle-row">
       <input type="checkbox" id="cb-linkcombined">
       <span class="toggle-desc">fold link → <code>linkTo:key[sep]field</code> (FW-20; already reaches folded slots)</span>
-    </label>
-    <label class="toggle-row">
-      <input type="checkbox" id="cb-fw81" checked>
-      <span class="toggle-desc">merged datetime → <code>{{datetime key:a+b;c}}</code>: <code>+</code> joins a date field and a time field into one read, <code>;</code> separates two reads; <code>use:</code> only when a verb (published/modified/now) is mixed in (FW-81, unreleased)</span>
     </label>
     <div class="sb-h">when syntax (FW-27, not built)</div>
     <div class="toggle-desc" style="margin-bottom:4px">Test-first; reads always bracketed (<code>key(price)</code>, <code>use(content)</code>); relation words are <code>has</code> + a list word (<code>hasAny(term,34)</code>, <code>hasAll</code>, <code>hasNone</code>, <code>hasNotAll</code>), adopted 2026-11-09: all(hasValue,key[price];hasAny[term,34]). The options below are candidate spellings, none chosen.</div>
@@ -701,8 +697,8 @@ const SCENARIO_GROUPS = [
     {label:'In `term`',               parts:[['_inTerm','$tax']],
       chain:[{slug:'terms',arg:'$tax'}], rest:[]},
   ]},
-  // isContrast + a toggled Preview variant (toggle cb-fw81): the six-key wire always shows; the merged
-  // `{{datetime}}` line joins it only when the sidebar toggle is on. See datetimeCollapseFromParts() —
+  // isContrast + the FW-81 pair: the six-key wire is Legacy, the merged `{{datetime}}` line is Current
+  // (built, so not a Preview). See datetimeCollapseFromParts() —
   // the merged line is DERIVED from `parts`, not hand-duplicated, for the rows that have a six-key
   // form at all. It renders under the merged tag's name `datetime`, not this group's own `tmpl` — see
   // buildOneVariant's dtCollapse branch. `tmpl` stays `datetime_single`/`datetime_range` because that is still the
@@ -1125,7 +1121,7 @@ const SCENARIO_GROUPS = [
   // DATETIME folded slots — the multi-key pivot (user 2026-07-29). rule2 can only carry ONE
   // terminal key → these BREAK/lose keys in rule2, resolve fully in respell. dtKeys = the flat
   // option set (as/format + 1-4 keys). Shown in join (agnostic → type leads) + table columns.
-  { path:['Join','Datetime slots'], isContrast:true, variants:['foldedCurrent','folded'], foldClass:'join', scenarios:[
+  { path:['Join','Datetime slots'], isContrast:true, variants:['foldedLegacyDt','foldedDt'], foldClass:'join', scenarios:[
     {label:'Name + 1 key single date',   slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_date'},dtKeys:{as:'date',key:'event_date',format:'F j, Y'}}]},
     {label:'Name + 2 key single datetime',slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_date'},dtKeys:{key:'event_date',timeKey:'event_time'}}]},
     {label:'Name + 2 key date range',    slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_range',read:{kind:'key',field:'start_date'},dtKeys:{as:'date',startKey:'start_date',endKey:'end_date'}}]},
@@ -1138,7 +1134,7 @@ const SCENARIO_GROUPS = [
     {label:'Template `format` + datetime slot `format`', format:'%1 - %2',
       slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_date'},dtKeys:{as:'date',key:'event_date',format:'F j, Y'}}]},
   ]},
-  { path:['Table','Datetime columns'], isContrast:true, tableV1:true, variants:['foldedCurrent','folded'], foldClass:'table', scenarios:[
+  { path:['Table','Datetime columns'], isContrast:true, tableV1:true, variants:['foldedLegacyDt','foldedDt'], foldClass:'table', scenarios:[
     {label:'Event rows: name + date range',
       rowChain:[{slug:'refs',arg:'events'}],
       slots:[{label:'Event',tag:'title',read:{kind:'analog',slug:'title'}},
@@ -1809,7 +1805,7 @@ const S = {
                         // linkTo:key,field, no bracket. (Radio dropped; 'off' is
                         // the decision — mirrors chainPair.)
   linkCombined: false,  // fold linkKey into linkTo value → linkTo:key,<field> (else separate keys)
-  fw81DtCollapse: true, // FW-81 (unreleased): show the merged `{{datetime}}` reading beside today's six-key wire (separators: FW_DT_JOIN, FW_DT_READ_SEP).
+  dtLegacy: false,      // FW-81: a folded datetime slot spells its six keys (Legacy variants pin this); off = the merged reads (separators: FW_DT_JOIN, FW_DT_READ_SEP).
   styleBackground: false, // text-styling group: include the background property (deferred past v1, not shipped; on makes each line it appears in a Preview).
   whenTestJoin: 'plus', // FW-27 tests on one field: 'plus' (default, user 2026-11-09) hasValue+isNot(TBD) / any(before;during) | 'group' all(…) / any(…) | 'op' + and / (whenJoinItems).
   whenPhasePairs: true, // FW-27 phase-pair compounds (whenExpand): sidebar checkbox for every group (default on, matching its checked box); Operators' baseline line forces off, Joiners' third line forces on. Value sets always apply.
@@ -2119,10 +2115,10 @@ function respellEntries(chain, read, link, dtKeys, typeTag, fallback, ifCond, al
     if (dtKeys.reads) {
       // an explicit read list (try_datetime slots): always the collapsed spelling, whatever the toggle says.
       fw81CollapsedPairs(dtKeys.reads).forEach(([k,v])=>push(k,v,k==='key'?rb:false));
-    } else if (S.fw81DtCollapse) {
-      // FW-81 toggle reaches a folded slot's own dtKeys too, not just the standalone datetime_single/
-      // datetime_range groups — same merge rule (datetimeCollapseFromParts), so a datetime slot inside
-      // join/table shows the merged `key:` / `use:` reads instead of always showing the pre-collapse keys.
+    } else if (!S.dtLegacy) {
+      // A folded slot's own dtKeys merge by the same rule as the standalone groups
+      // (datetimeCollapseFromParts), so a datetime slot inside join/table shows the merged `key:` /
+      // `use:` reads. S.dtLegacy (pinned by a Legacy variant only) spells the six keys instead.
       const reads = datetimeCollapseFromParts(Object.entries(dtKeys).filter(([k])=>DT_KEY_IDS.has(k)));
       if (reads) fw81CollapsedPairs(reads).forEach(([k,v])=>push(k,v,k==='key'?rb:false));
     } else {
@@ -2627,10 +2623,9 @@ function groupOrder(group) {
 //   'chain'/'folded' — Preview: the toggle-driven line, the tool's exploration surface (candidate
 //                       spellings, look-backs); it shows only while some toggle differs from what ships.
 // A row that is Preview alone (`previewOnly`) is a shape that ships on no wire yet. A shipped feature
-// belongs on a Current line; Preview is for unshipped features and syntax changes.
+// belongs on a Current line; Preview is for what is not built yet and for trial toggles.
 // {{table}} has no flat side (folded-only), so its groups list only the folded lines. The FW-81 pair
-// (datetime) puts today's six-key wire beside the merged `{{datetime}}` reading; the merged line renders
-// under a placeholder tag name (the name is open), and shows through the shared `previewActive()`.
+// (datetime) is Legacy (the six-key wire) then Current (the merged `{{datetime}}` reading, built).
 const DT_KEY_IDS = new Set(['key','timeKey','startKey','startTimeKey','endKey','endTimeKey']);
 // Derive the FW-81 read-list from today's six flat keys — mechanical, mirrors the plan's own
 // migration mapping (§Migration): key[,timeKey] → one read; start*/end* → two reads. Returns null
@@ -2672,15 +2667,22 @@ const CONTRAST_VARIANTS = {
   chain:         { label:'Preview', how:'chain', cls:'perm-chain', needs:sc => !!(sc.chain || sc.rest || sc.parts) },
   foldedCurrent: { label:'Current', how:'fold',  cls:'',           needs:sc => !!sc.slots, frozen:true },
   folded:        { label:'Preview', how:'fold',  cls:'perm-chain', needs:sc => !!sc.slots },
-  sixKey:        { label:'Current', how:'parts',      cls:'',           needs:sc => !!sc.parts },
-  collapsed:     { label:'Preview', how:'dtCollapse', cls:'perm-chain', needs:sc => !!(sc.collapsed || datetimeCollapseFromParts(sc.parts)) },
+  // The FW-81 datetime pair: the merged `{{datetime}}` is Current, the old six-key wire is Legacy. A
+  // `solo` variant is the one a `previewOnly` row renders alone (a row with no six-key form).
+  // `check` runs the bracket-structure check on the line although it is not a Preview line.
+  sixKey:        { label:'Legacy',  how:'parts',      cls:'',           needs:sc => !!sc.parts },
+  collapsed:     { label:'Current', how:'dtCollapse', cls:'',           needs:sc => !!(sc.collapsed || datetimeCollapseFromParts(sc.parts)), frozen:true, solo:true, check:true },
+  // The same pair for a folded datetime slot (join, table): Legacy spells the slot's six keys
+  // through S.dtLegacy, pinned for the build only. `needs` skips a row with no six-key slot.
+  foldedLegacyDt: { label:'Legacy', how:'fold', cls:'', frozen:true, pin:{ dtLegacy:true }, needs:sc => !!(sc.slots && sc.slots.some(s => s.dtKeys && Object.keys(s.dtKeys).some(k => DT_KEY_IDS.has(k)))) },
+  foldedDt:      { label:'Current', how:'fold',  cls:'',           needs:sc => !!sc.slots, frozen:true, check:true },
 };
 // ONE shared Preview state (user 2026-09-02), not a per-group flag: every variant marked
 // cls:'perm-chain' is a Preview column, and Preview columns exist only while some toggle differs
 // from what ships. Flipping ANY toggle below reveals every group's Preview line at once; there is no
 // per-feature "this group's preview is on" concept, so `group.variants` is always a plain array.
 function previewActive() {
-  return S.linkCombined || S.fw81DtCollapse;
+  return S.linkCombined;
 }
 function allVariantsFor(group) {
   const keys = group.variants || ['shipped','chainCurrent','chain'];
@@ -2701,10 +2703,10 @@ const SHIPPED_GRAMMAR = {
   valueSep: ',', chainPair: 'off', linkCombined: false,
   chainSep: { hop: ';', step: ',' },
 };
-function withShippedGrammar(fn) {
-  const backup = {};
-  for (const k of Object.keys(SHIPPED_GRAMMAR)) backup[k] = S[k];
-  Object.assign(S, SHIPPED_GRAMMAR);
+function withShippedGrammar(fn, extra = {}) {
+  const pinned = { ...SHIPPED_GRAMMAR, ...extra }, backup = {};
+  for (const k of Object.keys(pinned)) backup[k] = S[k];
+  Object.assign(S, pinned);
   try { return fn(); } finally { Object.assign(S, backup); }
 }
 
@@ -2713,13 +2715,11 @@ function withShippedGrammar(fn) {
 // an explicit "no equivalent" line, which is itself information (e.g. join has no shipped
 // unfolded form for a heterogeneous slot).
 //
-// `sc.previewOnly` is the opposite case: a shape neither wire actually ships (a `when` token, a
-// merged-datetime verb), included so the tool can show its intended spelling.
-// Rendering it as Legacy or Current would claim it works today; rendering it as a "missing" line
-// on the side that DOES exist would bury the one thing worth showing under filler about the side
-// that doesn't. So a previewOnly scenario skips straight to a single Preview line, always shown
-// (a proposal isn't gated behind the live-toggle-differs check every other Preview column uses)
-// — `sc.note` still carries the "why doesn't this exist yet" explanation underneath.
+// `sc.previewOnly` is the opposite case: a shape only one wire has. A shape that is NOT built yet (a
+// `when` token) renders as a single Preview line, always shown (a proposal isn't gated behind the
+// live-toggle-differs check every other Preview column uses). A shape that IS built but has no old
+// form (a merged-datetime verb) renders as its group's `solo` variant, Current. Either way the other
+// side's "missing" line would bury the one thing worth showing — `sc.note` carries the explanation.
 function buildContrastVariants(group, sc) {
   if (sc.tmpl) group = { ...group, tmpl: sc.tmpl };   // a row may name its own base tag (the FW-27 group mixes them)
   const order = groupOrder(group);
@@ -2731,18 +2731,19 @@ function buildContrastVariants(group, sc) {
   const wrap = (parts) => `{{${name}${parts.length?' '+parts.join('|'):''}}}`;
 
   if (sc.previewOnly) {
-    const base = allVariantsFor(group).find(v => v.cls === 'perm-chain') || { label:'Preview' };
+    const all = allVariantsFor(group);
+    const base = all.find(v => v.solo) || all.find(v => v.cls === 'perm-chain') || { label:'Preview', cls:'perm-chain' };
     const v = sc.previewHow ? { ...base, how:sc.previewHow } : base;
     const build = () => buildOneVariant(v, group, sc, sortParts, wrap);
-    const str = v.frozen ? withShippedGrammar(build) : build();
-    return [{ label: v.label || 'Preview', str, cls:'perm-chain', missing:false }];
+    const str = v.frozen ? withShippedGrammar(build, v.pin) : build();
+    return [{ label: v.label || 'Preview', str, cls:v.cls, check:v.check, missing:false }];
   }
 
   return variantsFor(group).map(v => {
     if (v.needs && !v.needs(sc)) return { label:v.label, str:null, cls:v.cls, missing:true };
     const build = () => buildOneVariant(v, group, sc, sortParts, wrap);
-    const str = v.frozen ? withShippedGrammar(build) : build();
-    return { label:v.label, str, cls:v.cls, missing:false };
+    const str = v.frozen ? withShippedGrammar(build, v.pin) : build();
+    return { label:v.label, str, cls:v.cls, check:v.check, missing:false };
   });
 }
 function buildOneVariant(v, group, sc, sortParts, wrap) {
@@ -3304,7 +3305,7 @@ const OUTLINE = {
   'Join':     { subs:['Slots', 'Template mode', 'Datetime slots', 'Escape hazards'] },
   'Table':    { subs:['Rows and columns', 'Sizing, stripes and borders', 'Text styling', 'Datetime columns', 'Escape hazards'] },
   'Datetime': { subs:['Single date', 'Date ranges'],
-    note:'Today\'s six-key `{{datetime_single}}` and `{{datetime_range}}` beside the merged `{{datetime}}` (FW-81). The merge is not shipped, so its lines are Preview.' },
+    note:'The merged `{{datetime}}` (FW-81, built, unreleased) is Current; the six-key `{{datetime_single}}` and `{{datetime_range}}` it replaces are Legacy.' },
   'When':     { subs:['Base tags', 'Join slots', 'Try attempts', 'Table', 'Encodings side by side', 'Negatives beside positives'],
     note:'The `when` option (FW-27) is not built. Every line is Preview, except a baseline written beside its gated twin, which ships.' },
 };
@@ -3406,7 +3407,7 @@ function renderPerms() {
           line.appendChild(t); line.appendChild(s); stack.appendChild(line);
           // Check only PROPOSED spellings. The shipped/current wire predates the locked grammar
           // and legitimately does not satisfy it (no brackets at all), so checking it is noise.
-          if (!v.missing && v.cls==='perm-chain') totalIssues += flagIssues(stack, v.str, ff);
+          if (!v.missing && (v.cls==='perm-chain' || v.check)) totalIssues += flagIssues(stack, v.str, ff);
         });
         if (sc.note) { const n=document.createElement('div'); n.className='perm-note'; n.textContent='↳ '; appendMarkup(n, sc.note); stack.appendChild(n); }
         row.appendChild(stack);
@@ -3500,9 +3501,10 @@ function renderFilterBar() {
 // Header banner: silent when clean, loud when not. Placed above the groups so a violation is
 // visible without scrolling the full permutation list. Scope is narrow, and the wording says
 // so: checkTag() only walks bracket well-formedness (+ a dead hop/step separator check, since
-// chainSep is hardcoded), and only on Preview-class lines — Legacy/Current predate the locked
-// grammar and are never checked. With no toggle flipped, that's every always-on `previewOnly`
-// rows; flipping a toggle widens it to every Preview line that differs from Current.
+// chainSep is hardcoded), and only on Preview-class lines and the datetime Current lines (`check`) —
+// the other Legacy/Current lines predate the locked grammar and are never checked. With no toggle
+// flipped, that's every always-on `previewOnly` row; flipping a toggle widens it to every Preview
+// line that differs from Current.
 function renderIssueSummary(n) {
   const bar = document.getElementById('perm-issue-summary');
   if (!bar) return;
@@ -3529,9 +3531,6 @@ document.addEventListener('keydown',e=>{ if(e.key==='Escape') setSidebar(false);
 
 document.getElementById('cb-linkcombined').addEventListener('change',e=>{
   S.linkCombined=e.target.checked; renderPerms();
-});
-document.getElementById('cb-fw81').addEventListener('change',e=>{
-  S.fw81DtCollapse=e.target.checked; renderPerms();
 });
 document.getElementById('cb-stylebg').addEventListener('change',e=>{
   S.styleBackground=e.target.checked; renderPerms();
