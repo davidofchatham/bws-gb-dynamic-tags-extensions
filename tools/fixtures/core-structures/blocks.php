@@ -767,7 +767,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F5.1 no-read shape: an EMPTY slot 1 value is the default attempt (-> Matrix: Post Meta)', '{{try_title 1:|B:src(site)}}' ),
 		bws_fixture_gb_row( 'F5.2 same, via an explicit src(current) - the 5f bug was this rendering NOTHING', '{{try_title A:src(current)|B:src(site)}}' ),
 		bws_fixture_gb_row( 'F5.3 (-> https://testbed.test/staff/jane-partner/)', '{{try_permalink A:src(refs,related_staff)|B:src(site)}}' ),
-		bws_fixture_gb_row( 'F5.5 slot 1 genuinely wins - jane\'s date, not the page\'s (-> May 1, 2030 10:00 AM)', '{{try_datetime_single A:src(refs,related_staff)|B:src(current)|key:event_datetime}}' ),
+		bws_fixture_gb_row( 'F5.5 slot 1 genuinely wins - the staff list, not the page\'s own date (-> May 1, 2030 10:00 AM, June 1, 2030 11:00 AM)', '{{try_datetime_single A:src(refs,related_staff)|B:src(current)|key:event_datetime}}' ),
 		bws_fixture_gb_row( 'F5.6 legacy twin of F5.4 - slot 1 hop misses, slot 2 reads current (-> August 12, 2030 9:00 AM)', '{{try_datetime_single src:ref|ref:missing_rel|2-src:current|key:event_datetime}}' ),
 		bws_fixture_gb_row( 'F5.8 try_datetime twin of F5.4 - slot 1 hop misses, slot 2 reads current (-> August 12, 2030 9:00 AM)', '{{try_datetime A:src(refs,missing_rel)|B:src(current)|key:event_datetime}}' ),
 		bws_fixture_gb_row( 'F5.9 try_datetime twin of F5.5 - slot 1 wins with the staff list, not the current post (-> May 1, 2030 10:00 AM, June 1, 2030 11:00 AM)', '{{try_datetime A:src(refs,related_staff)|B:src(current)|key:event_datetime}}' ),
