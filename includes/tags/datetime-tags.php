@@ -354,6 +354,22 @@ function bws_get_base_datetime_options(): array {
 	);
 }
 
+/**
+ * Template-specific options for the merged `datetime` modifier template (`try_datetime`):
+ * the format cluster, then the tag-level `use`/`key` reads and `fallback`, each the base
+ * tag's own definition. The template has no per-slot read axis, so `use`/`key` stay
+ * tag-level and every attempt reads them as the base tag does.
+ *
+ * @since Unreleased
+ * @return array
+ */
+function bws_get_datetime_template_options(): array {
+	return array_merge(
+		bws_get_datetime_range_leading_options(),
+		array_intersect_key( bws_get_base_datetime_options(), array_flip( array( 'use', 'key', 'fallback' ) ) )
+	);
+}
+
 // ===============================================
 // CORE FUNCTIONS — DATETIME TEMPLATES
 // ===============================================

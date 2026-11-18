@@ -141,7 +141,7 @@ Era is per SLOT, not per tag. Both directions, `/matrix-post-meta/`.
 
 ## §F5 — try_: no-read shape
 
-`try_title` / `try_permalink` / `try_datetime_single` / `try_datetime_range` — the read is a
+`try_title` / `try_permalink` / `try_datetime` / `try_datetime_single` / `try_datetime_range` — the read is a
 TAG-level option; a slot is a bare source chain.
 
 | # | Tag | Context | Expected |
@@ -153,6 +153,8 @@ TAG-level option; a slot is a bare source chain.
 | F5.5 | `{{try_datetime_single A:src(refs,related_staff)\|B:src(current)\|key:event_datetime}}` | post-meta | `May 1, 2030 10:00 AM` — jane's value, so slot 1 genuinely won |
 | F5.6 | `{{try_datetime_single src:ref\|ref:missing_rel\|2-src:current\|key:event_datetime}}` | post-meta | legacy twin of F5.4 |
 | F5.7 | `{{try_permalink A:src(current)\|B:src(site)}}` | jane | `https://testbed.test/staff/jane-partner/` |
+| F5.8 | `{{try_datetime A:src(refs,missing_rel)\|B:src(current)\|key:event_datetime}}` | post-meta | `August 12, 2030 9:00 AM` — F5.4's `try_datetime` twin (FW-81): the merged template has no per-slot read either, so `key` is tag-level and slot 1's hop finding nothing falls to slot 2 |
+| F5.9 | `{{try_datetime A:src(refs,related_staff)\|B:src(current)\|key:event_datetime}}` | post-meta | `May 1, 2030 10:00 AM, June 1, 2030 11:00 AM` — F5.5's twin, byte for byte what `try_datetime_single` prints there (the staff list, slot 2 never reached) |
 
 ## §F6 — carry-forward, carry over, and reset
 

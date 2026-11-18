@@ -22,9 +22,9 @@
  *    (a description is plain text, so angle brackets are spelled out). `try_*` descriptions are generated
  *    from the base text and have no README cell, so they are out of this tie.
  *
- * 3. TRY_ TAGS. Each of the nine `try_*` tags registers the shared opening sentence, one space,
+ * 3. TRY_ TAGS. Each of the ten `try_*` tags registers the shared opening sentence, one space,
  *    and its base tag's description unchanged, and passes the same lint. The text is generated,
- *    so nine tags cannot drift from their base; this holds the generation.
+ *    so ten tags cannot drift from their base; this holds the generation.
  *
  * Both checks are fed a fixture that violates them, and the report must name the rule: the
  * real tree satisfies every rule, so a pass alone would not show the checker can fail
@@ -362,7 +362,7 @@ foreach ( array(
 echo "6. try_ descriptions\n";
 
 const TRY_BASES = array(
-	'text', 'title', 'permalink', 'content', 'image', 'datetime_single',
+	'text', 'title', 'permalink', 'content', 'image', 'datetime', 'datetime_single',
 	'datetime_range', 'email', 'phone',
 );
 $opening = \BWS\DynamicTags\TagTemplateRegistry::TRY_DESCRIPTION_OPENING;
@@ -373,7 +373,7 @@ $try_registered = array_values( array_filter( array_keys( $registered ), static 
 $expected_try   = array_map( static fn( $b ) => 'try_' . $b, TRY_BASES );
 sort( $try_registered );
 sort( $expected_try );
-assert_same( 'exactly the nine try_ tags register', $expected_try, $try_registered );
+assert_same( 'exactly the ten try_ tags register', $expected_try, $try_registered );
 
 foreach ( TRY_BASES as $base ) {
 	$got = $registered[ 'try_' . $base ]['description'] ?? null;

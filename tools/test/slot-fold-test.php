@@ -1263,7 +1263,7 @@ check( 'P13.8 empty chain at slot 2 resets to current, not carry over', '' === (
 // each resolves differently, so each is walked separately:
 //   psu  — per-slot `use` enum + key   (text / content / image)
 //   psk  — per-slot key, no `use` enum (email / phone)
-//   none — no per-slot read at all     (title / permalink / datetime_*)
+//   none — no per-slot read at all     (title / permalink / datetime / datetime_*)
 
 /**
  * The flat option set the shipped try_ resolver built for one slot, transcribed from
@@ -1459,7 +1459,7 @@ foreach ( $psk_cases as $name => $legacy ) {
 $psk_wire = bws_fold_emit_slot( bws_fold_from_flat( 2, array( '2-src' => 'site' ), false, false )['slot'] );
 check( 'P14.3 no read axis → no read token on the wire', 'src(site)' === $psk_wire, var_export( $psk_wire, true ) );
 
-// P14.4 — `none` shape (title/permalink/datetime_*): source chain only, read is a
+// P14.4 — `none` shape (title/permalink/datetime/datetime_*): source chain only, read is a
 // TAG-level option, so the wire must carry no read token at all.
 $none_cases = array(
 	'bare tag reads ambient' => array(),

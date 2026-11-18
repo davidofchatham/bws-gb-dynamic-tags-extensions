@@ -475,6 +475,20 @@ function bws_register_base_tags(): void {
 		'takes_first_usable'    => true,
 	) );
 
+	// try_datetime (FW-81): the merged tag's template. Its resolve seam is the base tag's, with
+	// the mode derived from the options (`null`), so an attempt reads as `{{datetime}}` does.
+	TagTemplateRegistry::register_modifier_template( array(
+		'key'                => 'datetime',
+		'title'              => __( 'Date/Time', 'generateblocks' ),
+		'supports_link_wrap' => true,
+		'leading_options'    => bws_get_datetime_range_leading_options(),
+		'options'            => bws_get_datetime_template_options(),
+		'resolve_fn'         => static fn( array $opts, $inst ): array => bws_base_datetime_resolve_value( $opts, $inst, null ),
+		'try_allow_site_slot' => true,
+		'supports_try'       => true,
+		'is_image'           => false,
+	) );
+
 	TagTemplateRegistry::register_modifier_template( array(
 		'key'                => 'datetime_single',
 		'title'              => __( 'Date/Time', 'generateblocks' ),

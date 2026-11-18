@@ -342,7 +342,7 @@ class TagTemplateRegistry {
 			// The three READ shapes are the template flags, unchanged in meaning:
 			//   per_slot_use  — a `use` enum plus a key picker (text/content/image).
 			//   per_slot_key  — a key picker alone (email/phone: no `use` axis exists).
-			//   neither       — no per-slot read at all (title/permalink/datetime_*),
+			//   neither       — no per-slot read at all (title/permalink/datetime/datetime_*),
 			//                   whose `use`/`key`, where they exist, stay TAG-level
 			//                   options in the trailing group below.
 			// `base_read`/`base_key` are handed over empty for the shapes that lack the

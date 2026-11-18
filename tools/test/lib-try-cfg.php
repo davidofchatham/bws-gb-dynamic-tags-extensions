@@ -18,6 +18,7 @@ const TRY_CFG = array(
 	'title'           => array( 'per_slot_key' => false, 'per_slot_use' => false, 'flat_per_slot_use' => false, 'no_key_uses' => array(),                       'default_use' => '',        'collapse' => false ),
 	'permalink'       => array( 'per_slot_key' => false, 'per_slot_use' => false, 'flat_per_slot_use' => false, 'no_key_uses' => array(),                       'default_use' => '',        'collapse' => true ),
 	'image'           => array( 'per_slot_key' => true,  'per_slot_use' => true,  'flat_per_slot_use' => true, 'no_key_uses' => array( 'featured' ),           'default_use' => 'key',     'collapse' => true ),
+	'datetime'        => array( 'per_slot_key' => false, 'per_slot_use' => false, 'flat_per_slot_use' => false, 'no_key_uses' => array(),                       'default_use' => 'key',     'collapse' => false ),
 	'datetime_single' => array( 'per_slot_key' => false, 'per_slot_use' => false, 'flat_per_slot_use' => false, 'no_key_uses' => array(),                       'default_use' => '',        'collapse' => false ),
 	'datetime_range'  => array( 'per_slot_key' => false, 'per_slot_use' => false, 'flat_per_slot_use' => false, 'no_key_uses' => array(),                       'default_use' => '',        'collapse' => false ),
 	'email'           => array( 'per_slot_key' => true,  'per_slot_use' => true,  'flat_per_slot_use' => false, 'no_key_uses' => array( 'fixed' ),            'default_use' => 'key',     'collapse' => false ),

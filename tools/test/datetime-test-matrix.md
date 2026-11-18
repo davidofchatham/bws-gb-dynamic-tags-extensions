@@ -333,3 +333,27 @@ Every row is a visible block on `/matrix-datetime/` and pinned to `/matrix-post-
 | D11.T4 | `{{datetime use:key;now\|key:event_date\|as:date\|format:Y\|showCurrentYear}}` | `/department/support/` | `2030–` and the current year (the ambient term's field, until now) |
 | D11.T5 | the same | `/no-such-page-xyz/`, the blog home | empty (no post or term for the field to read; `now` alone cannot make it a range) |
 | D11.T6 | `{{datetime use:published}}` with `--loop-item=<meta id>` | `/matrix-datetime/` | `March 3, 2025` (a loop item is a post for a post verb) |
+
+## D12 — `try_datetime` (FW-81, Unreleased, ticket 04)
+
+`try_datetime` replaces `try_datetime_single` and `try_datetime_range`. Each attempt reads exactly as `{{datetime}}` does, so a single date, a range, a `+` join and a verb all work in an attempt, and the first attempt that prints something wins. The read (`key`, `use`) is the tag's, not the attempt's: every attempt reads the same fields from its own source, so the attempts differ by source only, as they did on the old two. The old two forms keep rendering.
+
+**Measured 2026-11-17** on the testbed, `render-tag` and then the front end, and each old-form twin (D12.3, D12.5) on the build before this ticket as well, byte for byte the same.
+
+`refs,missing_rel` is an attempt that reads nothing on this page; the two pinned posts are the attempts that do, with different dates (the second is the staff post `jane-partner`, whose `event_datetime` is May 1, 2030), so a walk that stops at the wrong attempt prints the wrong date.
+
+| # | Tag | Expected |
+|---|---|---|
+| D12.1 | `{{try_datetime A:src(post,<meta id>)\|B:src(post,<jane id>)\|key:event_datetime}}` | `August 12, 2030 9:00 AM` (the first attempt reads, so it wins) |
+| D12.2 | `{{try_datetime A:src(refs,missing_rel)\|B:src(post,<jane id>)\|key:event_datetime}}` | `May 1, 2030 10:00 AM` (the first reads nothing, the second wins) |
+| D12.3 | D12.2 as `try_datetime_single` | the same |
+| D12.4 | `{{try_datetime A:src(refs,missing_rel)\|B:src(post,<meta id>)\|key:event_start_date;event_end_date}}` | `August 1–9, 2030` |
+| D12.5 | D12.4 as `try_datetime_range` with `startKey` and `endKey` | the same |
+| D12.6 | `{{try_datetime A:src(refs,missing_rel)\|B:src(post,<meta id>)\|key:event_start_date+event_time}}` | `August 1, 2030, 9:00 am` (= D9.8) |
+| D12.7 | `{{try_datetime A:src(refs,missing_rel)\|B:src(post,<meta id>)\|use:published}}` | `March 3, 2025` |
+| D12.8 | `{{try_datetime A:src(refs,missing_rel)\|B:src(post,<meta id>)\|use:key;published\|key:event_start_date}}` | `August 1, 2030–March 3, 2025` |
+| D12.9 | `{{try_datetime A:src(refs,missing_rel)\|B:src(site)\|key:event_datetime\|fallback:Date TBA}}` | `Date TBA` (printed once, after every attempt read nothing) |
+| D12.10 | `{{try_datetime}}` | empty (no read, no fallback) |
+| D12.11 | `{{try_datetime A:src(post,<meta id>)\|key:event_datetime\|linkTo:permalink}}` | `August 12, 2030 9:00 AM` linked to the `matrix-post-meta` page (the link follows the winning attempt) |
+
+Every row is a visible block on `/matrix-datetime/`.

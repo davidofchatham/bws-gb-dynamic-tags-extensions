@@ -385,6 +385,20 @@ assert_same(
 	array_keys( $registered['try_datetime_range']['options'] ?? array() )
 );
 
+// try_datetime (FW-81): the attempts, then the TAG-level `use`/`key` reads (no per-slot axis),
+// the format run, link, fallback. No `sep`: the old try_ datetime templates registered none.
+assert_same(
+	'{{try_datetime}} — full option order',
+	array(
+		'A', 'B', 'C', 'D', 'E',
+		'use', 'key',
+		'as', 'rangeSep', 'format', 'timeSep', 'showCurrentYear', 'showMidnight',
+		'linkTo', 'linkKey', 'newTab',
+		'fallback',
+	),
+	array_keys( $registered['try_datetime']['options'] ?? array() )
+);
+
 // The merged datetime tag (FW-81): ONE `key` read option in the field group, then the
 // format run, link, fallback. The six old field options are NOT registered on it.
 assert_same(
@@ -715,7 +729,11 @@ foreach ( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() as $tpl
 	$psu      = ! empty( $tpl['try_per_slot_use'] );
 	$mapped   = '' !== bws_use_stripped_default( $key );
 
-	assert_same( "{$key} — a `use` enum iff try_per_slot_use", $has_enum, $psu );
+	// `datetime` is the one template whose `use` enum is TAG-level: its read grammar spends
+	// `;` and `+`, which the slot grammar cannot carry, so every attempt reads the tag's
+	// own `use`/`key` as the base tag does (try_slot_axes() keeps both out of the slot).
+	$tag_level_use = 'datetime' === $key;
+	assert_same( "{$key} — a `use` enum iff try_per_slot_use", $has_enum, $psu || $tag_level_use );
 	assert_same( "{$key} — a template `use` enum iff a BWS_USE_STRIPPED_DEFAULTS row", $has_enum, $mapped );
 
 	if ( $has_enum ) {
