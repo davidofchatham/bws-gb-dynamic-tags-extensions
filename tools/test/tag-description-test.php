@@ -20,7 +20,8 @@
  *    stripping backticks and unwrapping links. The ONLY declared divergence is the angle
  *    brackets in `content` and `table`: README says `<div>`, the description says "div"
  *    (a description is plain text, so angle brackets are spelled out). `try_*` descriptions are generated
- *    from the base text and have no README cell, so they are out of this tie.
+ *    from the base text and have no README cell, so they are out of this tie, as are the hidden
+ *    `datetime_single` and `datetime_range` (HIDDEN_TAGS), which the README no longer lists.
  *
  * 3. TRY_ TAGS. Each of the ten `try_*` tags registers the shared opening sentence, one space,
  *    and its base tag's description unchanged, and passes the same lint. The text is generated,
@@ -162,11 +163,16 @@ function assert_same( string $label, $expected, $actual ): void {
 	fail( $label, $expected, $actual );
 }
 
-/** The thirteen base tags. Order is irrelevant: everything is keyed by tag name. */
+/** The eleven base tags the README lists. Order is irrelevant: everything is keyed by tag name. */
 const BASE_TAGS = array(
-	'text', 'title', 'permalink', 'content', 'image', 'datetime', 'datetime_single',
-	'datetime_range', 'email', 'phone', 'join', 'table', 'call',
+	'text', 'title', 'permalink', 'content', 'image', 'datetime', 'email', 'phone', 'join', 'table', 'call',
 );
+
+/**
+ * Registered but hidden from the picker and gone from the README (replaced by `datetime`): linted
+ * like the rest, out of the README tie because no README cell exists for them.
+ */
+const HIDDEN_TAGS = array( 'datetime_single', 'datetime_range' );
 
 /**
  * The declared README-to-description divergence: tags whose README cell spells an angle-bracket
@@ -271,7 +277,7 @@ echo "1. Lint, over the real registrations\n";
 $registered = GenerateBlocks_Register_Dynamic_Tag::get_tags();
 $described  = array();
 
-foreach ( BASE_TAGS as $tag ) {
+foreach ( array_merge( BASE_TAGS, HIDDEN_TAGS ) as $tag ) {
 	assert_same( "{$tag} is registered", true, isset( $registered[ $tag ] ) );
 	$described[ $tag ] = $registered[ $tag ]['description'] ?? null;
 	assert_same( "{$tag} description breaks no lint rule", array(), lint_description( $described[ $tag ] ) );
@@ -308,7 +314,7 @@ $readme_path = BWS_DYNAMIC_TAGS_PATH . 'README.md';
 assert_same( 'README.md is readable', true, is_readable( $readme_path ) );
 $returns = readme_returns( (string) file_get_contents( $readme_path ) );
 
-assert_same( 'README tie holds for the thirteen base tags', array(), readme_disagreements( $returns, $described ) );
+assert_same( 'README tie holds for the eleven base tags', array(), readme_disagreements( $returns, $described ) );
 
 // The divergence is declared, so it must still be needed: a README that stopped spelling the
 // angle brackets would leave the declaration silently unused.
