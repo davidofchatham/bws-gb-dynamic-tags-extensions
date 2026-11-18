@@ -392,6 +392,18 @@
 
 <p class="gb-text">D12.12 expect &#8220;August 12, 2030 9:00 AM&#8221; (= D12.1 through the old try_datetime_single, which still renders): August 12, 2030 9:00 AM</p>
 </div>
+
+<div>
+<h2 class="wp-block-heading">Datetime D13 &#8211; an old range with no start (the Migration Tool leaves it whole)</h2>
+
+<p class="gb-text">D13.1 expect &#8220;FB&#8221; (an end date and no start: the range prints its fallback): FB</p>
+
+<p class="gb-text">D13.2 expect EMPTY (the same range with no fallback stated):</p>
+
+<p class="gb-text">D13.3 expect &#8220;FB&#8221; (an end time and no start): FB</p>
+
+<p class="gb-text">D13.4 expect &#8220;FB&#8221; (= D13.1 through the old try_datetime_range): FB</p>
+</div>
 		</div>
 
 			</div>

@@ -1054,9 +1054,11 @@ preg_match( '/const BWS_MODIFIER_SKIP_REASONS = array\((.*?)\);/s', $dep_src, $c
 preg_match_all( "/'([a-z_]+)'/", $const_m[1] ?? '', $listed_m );
 $listed = $listed_m[1] ?? array();
 
-// Every `return '…';` in the function body, which is every value a caller can meet.
+// Every `return '…';` in the two bodies that name one — the modifier rules, and the tag-string reader
+// that also names the old datetime tags' end-only range — which is every value a caller can meet.
 preg_match( '/function bws_modifier_skip_reason\(.*?\n\}/s', $dep_src, $fn_m );
-preg_match_all( "/return '([a-z_]+)';/", $fn_m[0] ?? '', $returned_m );
+preg_match( '/function bws_modifier_skip_reason_for_tag\(.*?\n\}/s', $dep_src, $fn_tag_m );
+preg_match_all( "/return '([a-z_]+)';/", ( $fn_m[0] ?? '' ) . ( $fn_tag_m[0] ?? '' ), $returned_m );
 $returned = array_values( array_filter( $returned_m[1] ?? array() ) );
 
 check(
@@ -1076,8 +1078,10 @@ check(
 // THE CENSUS PROPER: a reason added without a case fails here. The cases live in
 // modifier-base-migration-test.php §V6, which is the harness with the live registry the
 // predicate needs; this asserts that each member is named there, not that it is named
-// anywhere at all.
-$cases_src = file_get_contents( __DIR__ . '/modifier-base-migration-test.php' );
+// anywhere at all. The old datetime tags' reason is driven by report-run-agreement-census-test.php
+// §C3, the harness that loads their entries and both readers.
+$cases_src = file_get_contents( __DIR__ . '/modifier-base-migration-test.php' )
+	. file_get_contents( __DIR__ . '/report-run-agreement-census-test.php' );
 $uncovered = array();
 foreach ( $listed as $reason ) {
 	if ( false === strpos( $cases_src, "'" . $reason . "'" ) ) {
@@ -1086,7 +1090,7 @@ foreach ( $listed as $reason ) {
 }
 
 check(
-	'M13.3 every reason is driven by a case in modifier-base-migration-test.php',
+	'M13.3 every reason is driven by a case in modifier-base-migration-test.php or report-run-agreement-census-test.php',
 	array() === $uncovered,
 	'no case for: ' . implode( ',', $uncovered )
 );

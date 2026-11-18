@@ -82,6 +82,8 @@ require $root . '/includes/classes/class-migration-registry.php';
 require $root . '/includes/classes/class-deprecated-tag-registry.php';
 require $root . '/includes/classes/class-tag-template-registry.php';
 require $root . '/includes/tags/deprecated-tags.php';
+require $root . '/includes/helpers/registration-helpers.php';
+require $root . '/includes/tags/datetime-tags.php'; // The rewrite rule the four old datetime entries run.
 require $root . '/includes/classes/admin/class-tag-converter.php';
 
 use BWS\DynamicTags\Admin\TagConverter;
@@ -93,6 +95,7 @@ foreach ( array( 'text', 'content', 'image' ) as $key ) {
 bws_register_nxm_tag_migrations();
 bws_register_early_deprecated_tag_migrations();
 bws_register_option_migrations();
+bws_register_deprecated_tags(); // The four old datetime tags (FW-81).
 
 $pass = 0;
 $fail = 0;
@@ -163,6 +166,110 @@ foreach ( array_keys( $deprecated ) as $name ) {
 	compare_verdict( '{{' . $name . '}}', 'C1' );
 }
 check( 'C1.1 at least one bare deprecated name converts', $stats['convert'] > 0 );
+
+// ===========================================================================
+echo "\n§C3 the four old datetime tags (FW-81): the shared mount corpus, through every name\n";
+// ===========================================================================
+// The corpus is the editor mount step's (datetime-migration-test.php §D8 holds the rewrite rule on it); here it is
+// run through the SHIPPED entries and both readers, so the report's verdict and the run agree on every
+// input, and the end-only range is skipped and reported rather than renamed.
+$corpus = json_decode( (string) file_get_contents( __DIR__ . '/datetime-mount-corpus.json' ), true );
+check( 'C3.0 the shared corpus parses', ! empty( $corpus['cases'] ) );
+
+$families = array(
+	'single' => array( 'datetime_single', 'try_datetime_single' ),
+	'range'  => array( 'datetime_range', 'try_datetime_range' ),
+);
+// What the run writes where the rewrite rule itself changes nothing (`expect` null in the corpus): a
+// rename alone, or the tag left whole. Literals, written from the rule that a rename must move no output.
+$no_rewrite = array(
+	'single: key alone is already the new form'          => 'key:a',
+	'single: a + in the key is not a clean entry'        => null,
+	'single: a ; in the time key is not a clean entry'   => null,
+	'range: all four empty is left alone'                => null,
+	'range: key alone is already the new form'           => 'key:s;e',
+	'range: a ; in an operand is not a clean entry'      => 'startKey:a;b|endKey:e',
+);
+$new_names = array(
+	'datetime_single'     => 'datetime',
+	'datetime_range'      => 'datetime',
+	'try_datetime_single' => 'try_datetime',
+	'try_datetime_range'  => 'try_datetime',
+);
+
+$end_only_seen = 0;
+foreach ( (array) ( $corpus['cases'] ?? array() ) as $case ) {
+	foreach ( $families[ $case['family'] ] as $old ) {
+		$stored  = MigrationRegistry::format_tag_string( $old, $case['options'] );
+		$verdict = TagConverter::classify_tag( $old, $stored );
+		$ran     = TagConverter::migrate_string( $stored )['content'];
+
+		if ( null !== $case['expect'] ) {
+			check( "C3.9 the run writes the rewrite ({$stored})", MigrationRegistry::format_tag_string( $new_names[ $old ], $case['expect'] ) === $ran, $ran );
+		} elseif ( empty( $case['endOnly'] ) ) {
+			check( "C3.10 every no-rewrite case has a stated outcome ({$case['label']})", array_key_exists( $case['label'], $no_rewrite ) );
+			$want = ( $no_rewrite[ $case['label'] ] ?? null );
+			check(
+				"C3.11 {$case['label']}: {$old}",
+				null === $want ? $stored === $ran : '{{' . $new_names[ $old ] . ' ' . $want . '}}' === $ran,
+				$ran
+			);
+		}
+
+		compare_verdict( $stored, 'C3' );
+		check( "C3.1 never declined by the ownership guard ({$stored})", 'declined' !== $verdict['status'], json_encode( $verdict ) );
+
+		if ( ! empty( $case['endOnly'] ) ) {
+			++$end_only_seen;
+			check(
+				"C3.2 an end-only range is skipped with the datetime reason ({$stored})",
+				'skipped' === $verdict['status'] && 'range_without_start' === $verdict['reason'],
+				json_encode( $verdict )
+			);
+			check( "C3.3 and the run leaves it whole ({$stored})", $stored === $ran, $ran );
+		} else {
+			check( "C3.4 nothing else is skipped ({$stored})", 'skipped' !== $verdict['status'], json_encode( $verdict ) );
+		}
+	}
+}
+check( 'C3.5 every end-only case met both of its names', 8 === $end_only_seen, (string) $end_only_seen );
+
+// A single that names a range key would turn into a range under the new name (the merged tag derives its
+// mode from the options), so it is left whole, unreported.
+check(
+	'C3.12 a single stating a range key is left whole',
+	'{{datetime_single key:a|startKey:s}}' === TagConverter::migrate_string( '{{datetime_single key:a|startKey:s}}' )['content']
+		&& 'unchanged' === TagConverter::classify_tag( 'datetime_single', '{{datetime_single key:a|startKey:s}}' )['status']
+);
+
+// The old tags ignore `use`, which the merged tag reads, so a tag stating one is left whole too.
+check(
+	'C3.13 a tag stating `use` is left whole',
+	'{{datetime_range use:published;key|key:a;b}}' === TagConverter::migrate_string( '{{datetime_range use:published;key|key:a;b}}' )['content']
+);
+
+// A chained rename from an older name rewrites the options ONCE, on the last hop.
+$chained = TagConverter::resolve_full_chain( 'post_custom_datetime_range', '{{post_custom_datetime_range start_field:s|end_field:e}}' );
+check(
+	'C3.6 an older range name chains on to `datetime` with the one `key`',
+	1 === preg_match( '/^\{\{datetime [^}]*\bkey:s;e\b[^}]*\}\}$/', $chained ) && false === strpos( $chained, 'startKey' ),
+	$chained
+);
+
+// The option cascade the OLD name owns still runs: `source` is GB's eaten key, repaired to `src` by an
+// entry registered under the old name, which the rename would otherwise strand.
+check(
+	'C3.7 the old name\'s option repair runs before the rename',
+	'{{datetime src:post,3|key:a+t}}' === TagConverter::migrate_string( '{{datetime_single source:post,3|key:a|timeKey:t}}' )['content'],
+	TagConverter::migrate_string( '{{datetime_single source:post,3|key:a|timeKey:t}}' )['content']
+);
+
+// A skip keeps the OLD name's repairs for the option pass, as before: the cascade is not lost.
+check(
+	'C3.8 a skipped end-only range still gets its old name\'s option repair',
+	'{{datetime_range src:post,3|endKey:e}}' === TagConverter::migrate_string( '{{datetime_range source:post,3|endKey:e}}' )['content'],
+	TagConverter::migrate_string( '{{datetime_range source:post,3|endKey:e}}' )['content']
+);
 
 echo "\n§C2 census\n";
 $census = $argv[1] ?? ( getenv( 'BWS_CENSUS' ) ?: '' );

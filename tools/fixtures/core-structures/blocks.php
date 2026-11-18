@@ -2584,6 +2584,17 @@ function bws_fixture_page_content_matrix_datetime() {
 		bws_fixture_gb_row( 'D12.12 expect "August 12, 2030 9:00 AM" (= D12.1 through the old try_datetime_single, which still renders)', "{{try_datetime_single A:src(post,{$meta_id})|B:src(post,{$jane_id})|key:event_datetime}}" ),
 	) );
 
+	// The Migration Tool on the old tags (FW-81). Every old-form row on this page is rewritten
+	// by a run and must print the same afterwards; these are the one shape a run leaves whole: a range
+	// that states an end and no start. Each prints its fallback today, a rename would give it a read, so
+	// the tool lists it as needing a hand fix and leaves it under its old name.
+	$sections[] = bws_fixture_gb_section( 'Datetime D13 - an old range with no start (the Migration Tool leaves it whole)', array(
+		bws_fixture_gb_row( 'D13.1 expect "FB" (an end date and no start: the range prints its fallback)', "{{datetime_range src:post,{$meta_id}|endKey:event_end_date|fallback:FB}}" ),
+		bws_fixture_gb_empty_row( 'D13.2 expect EMPTY (the same range with no fallback stated)', "{{datetime_range src:post,{$meta_id}|endKey:event_end_date}}" ),
+		bws_fixture_gb_row( 'D13.3 expect "FB" (an end time and no start)', "{{datetime_range src:post,{$meta_id}|endTimeKey:event_end_time|fallback:FB}}" ),
+		bws_fixture_gb_row( 'D13.4 expect "FB" (= D13.1 through the old try_datetime_range)', "{{try_datetime_range A:src(post,{$meta_id})|endKey:event_end_date|fallback:FB}}" ),
+	) );
+
 	return implode( "\n\n", $sections );
 }
 

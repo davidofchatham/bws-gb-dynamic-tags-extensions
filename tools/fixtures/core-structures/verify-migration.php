@@ -224,6 +224,105 @@ foreach ( $converted as $new ) {
 $check( 'the retired flat source controls are gone from every converted tag', array() === $retired, implode( '; ', $retired ) );
 
 // ---------------------------------------------------------------------------
+// 4b. DATETIME (FW-81) — the four old datetime tags on /matrix-datetime/. Unlike the
+// modifier corpus above, these tags are STILL REGISTERED and render, so this half has a real
+// "before": every old tag is rendered first, the run rewrites the page, and each rewritten string
+// must print byte for byte what its old form printed. The one shape a run leaves whole is a range
+// that states an end and no start (it prints its fallback today, and a rename would give it a
+// read): it must be REPORTED by the scan, still be on the page afterwards, and still print the same.
+// ---------------------------------------------------------------------------
+$dt_page = get_page_by_path( 'matrix-datetime' );
+$check( 'page matrix-datetime exists', $dt_page instanceof WP_Post );
+
+if ( $dt_page instanceof WP_Post ) {
+	$old_datetime = static function ( string $content ): array {
+		preg_match_all( '/\{\{(?:try_)?datetime_(?:single|range)(?:\s[^}]*)?\}\}/', $content, $m );
+		return $m[0];
+	};
+	$dt_row       = static function () use ( $dt_page ) {
+		foreach ( \BWS\DynamicTags\Admin\TagConverter::scan() as $r ) {
+			if ( 'widget' !== ( $r['kind'] ?? 'post' ) && (int) $r['post_id'] === (int) $dt_page->ID ) {
+				return $r;
+			}
+		}
+		return null;
+	};
+
+	$dt_before = $dt_page->post_content;
+	$dt_old    = array_values( array_unique( $old_datetime( $dt_before ) ) );
+	$check( 'the datetime page holds old datetime tags to migrate', count( $dt_old ) >= 20, 'distinct=' . count( $dt_old ) );
+
+	$dt_render_before = array();
+	foreach ( $dt_old as $tag ) {
+		$dt_render_before[ $tag ] = $render( $tag );
+	}
+
+	// REPORT: a convertible tag is listed to convert, and each end-only range is listed as SKIPPED
+	// under the datetime reason, once per old range name.
+	$row = $dt_row();
+	$check( 'scan reports the datetime page', null !== $row );
+	$by_status = array();
+	foreach ( (array) ( $row['deprecated_tags'] ?? array() ) as $r ) {
+		$by_status[ $r['status'] ][] = $r['tag'] . ( '' !== $r['reason'] ? ':' . $r['reason'] : '' );
+	}
+	$check( 'the scan lists old datetime tags to convert', ! empty( $by_status['convert'] ), 'statuses=' . wp_json_encode( $by_status ) );
+	$skipped_listed = (array) ( $by_status['skipped'] ?? array() );
+	sort( $skipped_listed );
+	$check(
+		'the scan lists the end-only ranges as skipped (the range_without_start reason), each old range name once',
+		array( 'datetime_range:range_without_start', 'try_datetime_range:range_without_start' ) === $skipped_listed,
+		'skipped=' . implode( ',', $skipped_listed )
+	);
+
+	// RUN.
+	$dt_result = \BWS\DynamicTags\Admin\TagConverter::migrate_post( (int) $dt_page->ID );
+	$check( 'migrate_post rewrote the datetime page', ! empty( $dt_result['changed'] ), 'result=' . wp_json_encode( $dt_result ) );
+	$dt_after = get_post( $dt_page->ID )->post_content;
+	$dt_left  = array_values( array_unique( $old_datetime( $dt_after ) ) );
+
+	// WHAT IS LEFT is the end-only ranges (reported above), plus the tags a rename cannot carry (the old
+	// single read `key:a;b` as one field name, and the old tags ignore `use`). The plan is the shipped
+	// decision for which; the render check below is what proves leaving or rewriting each one moved nothing.
+	// (The option pass may still fold a flat `src` into a slot on a `try_` tag, so a left tag is compared
+	// by the plan and not byte for byte.)
+	$planned_whole = array_values( array_filter( $dt_left, static fn( $t ) => $t !== bws_datetime_legacy_plan( $t )['string'] ) );
+	$check( 'every tag the run left is one the plan leaves whole', array() === $planned_whole, 'not whole: ' . implode( ' ', $planned_whole ) );
+	$end_only = array_values( array_filter( $dt_left, static fn( $t ) => 1 === preg_match( '/^\{\{(?:try_)?datetime_range\s/', $t ) && function_exists( 'bws_datetime_legacy_range_is_end_only' ) && bws_datetime_legacy_range_is_end_only( \BWS\DynamicTags\MigrationRegistry::parse_tag_string( $t )[1] ) ) );
+	$check( 'the end-only ranges are still on the page under their old names', count( $end_only ) >= 4, 'end-only left=' . count( $end_only ) );
+	$check( 'and nothing else with a clean range or single is left', array() === array_filter( $dt_left, static fn( $t ) => ! in_array( $t, $end_only, true ) && 1 === preg_match( '/^\{\{(?:try_)?datetime_range\s/', $t ) ), 'left=' . implode( ' ', $dt_left ) );
+
+	// REPORT/RUN AGREEMENT: a second scan has no convertible tag left on the page, and still lists the skips.
+	$row2 = $dt_row();
+	$st2  = array();
+	foreach ( (array) ( $row2['deprecated_tags'] ?? array() ) as $r ) {
+		$st2[ $r['status'] ] = true;
+	}
+	$check( 'a second scan has nothing left to convert on the datetime page', empty( $st2['convert'] ), 'statuses=' . implode( ',', array_keys( $st2 ) ) );
+	$check( 'and still lists the end-only ranges as skipped', ! empty( $st2['skipped'] ) );
+
+	// RENDER — byte identity, tag by tag. The converted string is derived by the converter's own two calls
+	// and must be on the stored page (as §3 does for the modifier corpus), then print what the old tag did.
+	$bad = array();
+	$n   = 0;
+	foreach ( $dt_old as $tag ) {
+		[ $name ] = \BWS\DynamicTags\MigrationRegistry::parse_tag_string( $tag );
+		$renamed  = \BWS\DynamicTags\Admin\TagConverter::resolve_full_chain( $name, $tag );
+		[ $now ]  = \BWS\DynamicTags\MigrationRegistry::parse_tag_string( $renamed );
+		$new      = \BWS\DynamicTags\MigrationRegistry::apply_option_migration( $now, $renamed );
+		if ( $new !== $tag ) {
+			++$n;
+			if ( false === strpos( $dt_after, $new ) ) {
+				$bad[] = "not on the page: {$new}";
+			}
+		}
+		if ( $render( $new ) !== $dt_render_before[ $tag ] ) {
+			$bad[] = "{$tag} => " . var_export( $dt_render_before[ $tag ], true ) . ' became ' . var_export( $render( $new ), true ) . " ({$new})";
+		}
+	}
+	$check( 'every migrated datetime tag prints byte for byte what its old form printed (' . $n . ' rewritten, ' . count( $dt_old ) . ' checked)', array() === $bad && $n >= 20, implode( '; ', array_slice( $bad, 0, 5 ) ) );
+}
+
+// ---------------------------------------------------------------------------
 // 5. REACH — asserted, not merely stated. scan() reaches two stores: the POSTS table and, since
 // FW-73, the `widget_block` option (one row per instance, `kind: widget`). Any OTHER option
 // is out of reach: it is neither reported nor rewritten, and once the prefix is retired it

@@ -359,3 +359,20 @@ Every row is a visible block on `/matrix-datetime/` and pinned to `/matrix-post-
 | D12.12 | D12.1 as `try_datetime_single` | `August 12, 2030 9:00 AM`, the same (the old form's first-attempt row, measured on the build before this ticket too) |
 
 Every row is a visible block on `/matrix-datetime/`.
+
+## D13 — the Migration Tool on the old tags (FW-81, Unreleased, ticket 11)
+
+The tool renames `datetime_single`, `datetime_range`, `try_datetime_single` and `try_datetime_range` to `datetime` / `try_datetime` and rewrites their six datetime options to the one `key` (the rule is `bws_datetime_legacy_reads_rewrite()`, shared with the editor's mount step and run through `tools/test/datetime-mount-corpus.json`). Every rewritten tag must print what its old form printed. One shape is left whole: a range that states an end and no start, which prints its fallback today and would gain a read under `key`. The scan lists it as skipped (reason `range_without_start`), and the run does not touch it.
+
+The converted half has no rows of its own, because every old-form row on `/matrix-datetime/` (D0 to D12) is converted by the run and compared: `tools/fixtures/core-structures/verify-migration.php` §4b renders each old tag before the run and its rewrite after (36 rewritten, 42 checked, all byte-identical when measured 2026-11-18), and `php tools/test/page-snapshots.php` after a full run shows `/matrix-datetime/` unchanged. Run it, then reseed (it mutates the corpus).
+
+| # | Tag | Expected |
+|---|---|---|
+| D13.1 | `{{datetime_range src:post,<meta id>\|endKey:event_end_date\|fallback:FB}}` | `FB` (an end and no start; the run leaves it, the scan lists it as skipped) |
+| D13.2 | `{{datetime_range src:post,<meta id>\|endKey:event_end_date}}` | empty (the same range, no fallback) |
+| D13.3 | `{{datetime_range src:post,<meta id>\|endTimeKey:event_end_time\|fallback:FB}}` | `FB` (an end time and no start) |
+| D13.4 | `{{try_datetime_range A:src(post,<meta id>)\|endKey:event_end_date\|fallback:FB}}` | `FB` (= D13.1 through the old `try_datetime_range`) |
+
+Left whole and not reported (the new form would read each differently): a single holding `;` or `+` in a field key, a single that sets a range option or `use`, and a range that states no read at all. The pure side of this is `report-run-agreement-census-test.php` §C3.
+
+Every row is a visible block on `/matrix-datetime/`.
