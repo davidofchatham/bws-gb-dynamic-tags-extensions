@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file. The format is b
 ### Added
 
 - **`{{datetime}}`: one tag for a single date and a range.** Fill in the `key` option and the number of fields decides the rest. `key:event_datetime` prints one date, and `key:start_date;end_date` prints a range, so adding an end date no longer means switching tags and starting over. A `+` joins a date field to a separate time field (`key:event_date+start_time`), and a time-only end takes the start's date (`key:event_date+start_time;end_time`). The format, separator, current-year, midnight, link, fallback and source options work as they do on the two old tags, and so do list results. The old `datetime_single` and `datetime_range` tags are unchanged and still in the picker for now. `key` is a plain text field until the editor control for it ships.
+- **`{{datetime}}` can show a post's published or modified date, or the current time.** A new Date/Time Read option (`use`) takes `published`, `modified` or `now`, and a list of reads in order mixes them with fields: `use:key;now|key:event_date+start_time` runs from a field until now, and `use:now;key|key:end_date` runs from now until a field. A published or modified date prints as a date, a verb takes the time display of the field beside it, and on a term or the site source `published` and `modified` print the fallback. A `use` that lists only `key` is redundant and reads as no `use` at all. The old `datetime_single` and `datetime_range` tags do not read `use`.
 
 ### Fixed
 

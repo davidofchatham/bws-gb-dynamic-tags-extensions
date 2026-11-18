@@ -291,12 +291,38 @@ function bws_get_base_datetime_range_options(): array {
 }
 
 /**
+ * The merged `datetime` tag's `use` leaf: the stripped-default select every read axis has
+ * (BWS_USE_STRIPPED_DEFAULTS), its first value `key`.
+ *
+ * The select names one read. An ordered list that mixes a verb with fields (`key;now`) is
+ * hand-written wire until the read control writes it, and use-read-control.js leaves such a
+ * list alone.
+ *
+ * @since Unreleased
+ * @return array The `use` option definition.
+ */
+function bws_get_datetime_use_option(): array {
+	return array(
+		'type'           => 'select',
+		'label'          => __( 'Date/Time Read', 'generateblocks' ),
+		'options'        => array(
+			array( 'value' => 'key',       'label' => __( 'Date/Time Field', 'generateblocks' ) ),
+			array( 'value' => 'now',       'label' => __( 'Current Date/Time', 'generateblocks' ) ),
+			array( 'value' => 'published', 'label' => __( 'Post Published Date', 'generateblocks' ) ),
+			array( 'value' => 'modified',  'label' => __( 'Post Modified Date', 'generateblocks' ) ),
+		),
+		'_strip_default' => true,
+		'readTag'        => 'datetime',
+	);
+}
+
+/**
  * Options for the merged `datetime` base tag (FW-81).
  *
- * One `key` option carries every read (bws_datetime_key_reads() owns the grammar), and no
- * option states a mode: bws_normalize_datetime_options() derives it. The old six field options
- * are NOT registered here: only the old tags offer them, and the normalizer still reads
- * them for those tags.
+ * One `key` option carries every field read and `use` the verbs (bws_datetime_reads() owns
+ * the grammar), and no option states a mode: bws_normalize_datetime_options() derives it.
+ * The old six field options are NOT registered here: only the old tags offer them, and the
+ * normalizer still reads them for those tags.
  *
  * @since Unreleased
  * @return array
@@ -307,6 +333,7 @@ function bws_get_base_datetime_options(): array {
 		bws_base_traversal_options(),
 		bws_get_datetime_list_options( true ),
 		array(
+			'use' => bws_get_datetime_use_option(),
 			'key' => array(
 				'type'        => 'text',
 				'label'       => __( 'Date/Time Field Keys', 'generateblocks' ),
@@ -343,7 +370,9 @@ function bws_get_base_datetime_options(): array {
  * path runs produces silent fallback output. (Bugfix v1.7.2, issue #22.)
  *
  * A read with no date, or `as:time`, is a TIME display and goes to
- * bws_format_time_display(), the same function the range core calls.
+ * bws_format_time_display(), the same function the range core calls. A verb read
+ * (`verb`: `now`, `published`, `modified`) takes the place of the field parse, through
+ * bws_datetime_verb_result().
  *
  * @since 1.0.0
  * @since 1.15.0 First arg is a resolved-source payload (FW-3a).
@@ -367,18 +396,23 @@ function bws_datetime_single_core( array $source, $options, $instance ) {
 	// row reaches here as a post source with a falsy id, and is what $read_may_serve is for.
 	$has_entity     = 'site' === $source['kind'] || 'meta_row' === $source['kind'] || ! empty( $source['id'] );
 
-	if ( ! $has_entity && ! $read_may_serve ) {
+	// A verb read (`now`, `published`, `modified`) reads no field, so the entity gate above
+	// is about the field read only.
+	$verb = $options['verb'] ?? '';
+	if ( '' === $verb && ! $has_entity && ! $read_may_serve ) {
 		return bws_handle_date_time_fallback( $options, $instance );
 	}
 
 	$date_time_field = sanitize_text_field( $options['date_time_field'] ?? '' );
 	$time_field      = sanitize_text_field( $options['time_field'] ?? '' );
 
-	if ( empty( $date_time_field ) && empty( $time_field ) ) {
+	if ( '' === $verb && empty( $date_time_field ) && empty( $time_field ) ) {
 		return bws_handle_date_time_fallback( $options, $instance );
 	}
 
-	$result = bws_parse_combined_date_time( $source, $date_time_field, $time_field, 'datetime', null, $options, $instance );
+	$result = '' !== $verb
+		? bws_datetime_verb_result( $verb, $source )
+		: bws_parse_combined_date_time( $source, $date_time_field, $time_field, 'datetime', null, $options, $instance );
 
 	if ( ! $result['date'] && ! $result['time_only'] ) {
 		return bws_handle_date_time_fallback( $options, $instance );
@@ -413,7 +447,8 @@ function bws_datetime_single_core( array $source, $options, $instance ) {
  *
  * `as:time`, or a start with no date, is a TIME display and goes to
  * bws_format_time_display(), the same function the single core calls. A range with no
- * start reads nothing, whatever its end holds.
+ * start reads nothing, whatever its end holds. A side may be a verb read (`start_verb` /
+ * `end_verb`) in place of a field parse.
  *
  * @since 1.0.0
  * @since 1.15.0 First arg is a resolved-source payload (FW-3a).
@@ -429,24 +464,40 @@ function bws_datetime_range_core( array $source, $options, $instance ) {
 	$read_may_serve = bws_loop_item_is_post_or_row( $instance );
 	$has_entity     = 'site' === $source['kind'] || 'meta_row' === $source['kind'] || ! empty( $source['id'] );
 
-	if ( ! $has_entity && ! $read_may_serve ) {
-		return bws_handle_date_time_fallback( $options, $instance );
-	}
-
+	$start_verb       = $options['start_verb'] ?? '';
+	$end_verb         = $options['end_verb'] ?? '';
 	$start_field      = sanitize_text_field( $options['start_field'] ?? '' );
 	$start_time_field = sanitize_text_field( $options['start_time_field'] ?? '' );
 	$end_field        = sanitize_text_field( $options['end_field'] ?? '' );
 	$end_time_field   = sanitize_text_field( $options['end_time_field'] ?? '' );
 
-	if ( empty( $start_field ) && empty( $start_time_field ) ) {
+	// One side's read: a verb's moment, a field read (only where the entity gate lets it
+	// read), or null for a side that names nothing.
+	$may_read_fields = $has_entity || $read_may_serve;
+	$read_side       = static function ( $verb, $field, $time, $context, $inherit ) use ( $source, $options, $instance, $may_read_fields ) {
+		if ( '' !== $verb ) {
+			return bws_datetime_verb_result( $verb, $source );
+		}
+		if ( ! $may_read_fields || ( '' === $field && '' === $time ) ) {
+			return null;
+		}
+		return bws_parse_combined_date_time( $source, $field, $time, $context, $inherit, $options, $instance );
+	};
+
+	$start_result = $read_side( $start_verb, $start_field, $start_time_field, 'start', null );
+	if ( ! $start_result ) {
 		return bws_handle_date_time_fallback( $options, $instance );
 	}
 
-	$start_result = bws_parse_combined_date_time( $source, $start_field, $start_time_field, 'start', null, $options, $instance );
+	$end_result = $read_side( $end_verb, $end_field, $end_time_field, 'end', $start_result['date'] );
 
-	$end_result = null;
-	if ( ! empty( $end_field ) || ! empty( $end_time_field ) ) {
-		$end_result = bws_parse_combined_date_time( $source, $end_field, $end_time_field, 'end', $start_result['date'], $options, $instance );
+	// A verb has no field to say whether its time shows or in what style, so it takes the
+	// other side's: `now` against a date-only field stays a date, and not the parser's noon.
+	if ( $end_result && '' !== $start_verb && '' === $end_verb ) {
+		$start_result['has_time'] = $end_result['has_time'];
+		$start_result['formats']  = $end_result['formats'];
+	} elseif ( $end_result && '' === $start_verb && '' !== $end_verb ) {
+		$end_result['has_time'] = $start_result['has_time'];
 	}
 
 	// No start reads nothing, whatever the end holds.
@@ -509,13 +560,19 @@ function bws_datetime_post_source( $post_id ): array {
 // ===============================================
 
 /**
- * The reads a `key` value spells, in order — the grammar of the merged `datetime` tag's
- * one read option (FW-81).
+ * The reads a datetime tag spells, in order — the grammar of the merged `datetime` tag's
+ * two read options, `key` and `use` (FW-81).
  *
- * A `;` separates reads, and an entry that is empty is still a read (an empty one, which
- * takes the fallback). A `+` joins at
- * most two operands inside one entry: the primary field, which may be a date, a datetime
- * or a time, then an optional supplementary time field. A third operand is ignored.
+ * A `;` separates `key` entries, and an entry that is empty is still a read (an empty one,
+ * which takes the fallback). A `+` joins at most two operands inside one entry: the primary
+ * field, which may be a date, a datetime or a time, then an optional supplementary time
+ * field. A third operand is ignored.
+ *
+ * `use` is read through bws_use_effective(). With no verb in it, the reads are the `key`
+ * entries, one each. With a verb (`now`, `published`, `modified`) it is the full ORDERED list:
+ * each `key` in it takes the next `key` entry (none left is an empty read), a verb takes
+ * none, a surplus `key` entry is ignored, and a name that is neither is dropped. Position
+ * is what tells "from a field until now" from "from now until a field".
  *
  * This is the only place `;` and `+` are read as datetime grammar. The folded slot grammar
  * in slot-fold.php is untouched: `+` stays reserved there (ADR 0006), because a flat
@@ -523,21 +580,40 @@ function bws_datetime_post_source( $post_id ): array {
  *
  * @since Unreleased
  * @param array $options Raw tag options.
- * @return array<int, array{field:string, time:string}> One record per entry; empty when
- *                                                     `key` is absent or blank.
+ * @param bool  $verbs   Whether `use` is read: the merged tag only. The old tags have no `use`.
+ * @return array<int, array{verb:string, field:string, time:string}> One record per read;
+ *                         `verb` is '' for a field read. Empty when there is nothing to read.
  */
-function bws_datetime_key_reads( array $options ): array {
-	$key = isset( $options['key'] ) && is_scalar( $options['key'] ) ? trim( (string) $options['key'] ) : '';
-	if ( '' === $key ) {
-		return array();
+function bws_datetime_reads( array $options, bool $verbs = true ): array {
+	$key     = isset( $options['key'] ) && is_scalar( $options['key'] ) ? trim( (string) $options['key'] ) : '';
+	$entries = array();
+	if ( '' !== $key ) {
+		foreach ( explode( ';', $key ) as $entry ) {
+			$operands  = explode( '+', $entry );
+			$entries[] = array(
+				'verb'  => '',
+				'field' => trim( $operands[0] ),
+				'time'  => trim( $operands[1] ?? '' ),
+			);
+		}
 	}
+
+	if ( ! $verbs ) {
+		return $entries;
+	}
+	$use = bws_use_effective( 'datetime', $options );
+	if ( bws_use_stripped_default( 'datetime' ) === $use ) {
+		return $entries;
+	}
+
 	$reads = array();
-	foreach ( explode( ';', $key ) as $entry ) {
-		$operands = explode( '+', $entry );
-		$reads[]  = array(
-			'field' => trim( $operands[0] ),
-			'time'  => trim( $operands[1] ?? '' ),
-		);
+	foreach ( explode( ';', $use ) as $name ) {
+		$name = trim( $name );
+		if ( 'key' === $name ) {
+			$reads[] = array_shift( $entries ) ?? array( 'verb' => '', 'field' => '', 'time' => '' );
+		} elseif ( in_array( $name, array( 'now', 'published', 'modified' ), true ) ) {
+			$reads[] = array( 'verb' => $name, 'field' => '', 'time' => '' );
+		}
 	}
 	return $reads;
 }
@@ -556,14 +632,16 @@ function bws_datetime_key_reads( array $options ): array {
  * INVARIANT: this function is the ONLY place public datetime keys are parsed.
  * Both render paths (base callbacks, try_ template closures) and the
  * editor preview call it — they can never disagree about what an option means.
- * The reads themselves are spelled by bws_datetime_key_reads(), which only this
- * function and the merged tag's mode test below it call.
+ * The reads themselves are spelled by bws_datetime_reads(), which only this function
+ * calls.
  *
  * MODE (FW-81): `$range` true/false is a fixed family — the two old tags pass it, and
  * the old `startKey` family and `key`/`timeKey` keep mapping exactly as they did, with
  * a `key` read filling only what those leave unset. `null` is the merged tag: the mode
- * is range when the old range keys are present or the `key` option spells two or more
- * reads, and the result says which in `is_range`. Nothing else states a mode.
+ * is range when the old range keys are present or the options spell two or more reads
+ * (`key` entries and verbs, bws_datetime_reads()), and the result says which in
+ * `is_range`. Nothing else states a mode. A verb read maps to `verb` on a single, and to
+ * `start_verb` / `end_verb` on a range; only the merged tag reads `use`.
  *
  * Canonical keys already present in $options are preserved (legacy
  * template-tag callers pass them directly; the isset guards keep them
@@ -575,7 +653,8 @@ function bws_datetime_key_reads( array $options ): array {
  * @since 1.21.0 Those wrappers deleted — their only known caller, an
  *               integrating plugin's template map, dropped the pin.
  * @since Unreleased `$range` accepts null (the merged tag derives its mode from the
- *               reads); the `key` option spells one read per `;` entry; `is_range` out.
+ *               reads); the `key` option spells one read per `;` entry, and `use` adds the
+ *               verbs; `is_range` out.
  * @param array     $options Raw tag options from GenerateBlocks.
  * @param bool|null $range   Range-tag mapping (startKey/endKey family) when true; null
  *                           derives the mode from the options.
@@ -584,7 +663,7 @@ function bws_datetime_key_reads( array $options ): array {
 function bws_normalize_datetime_options( array $options, ?bool $range = false ): array {
 	$mapped = $options;
 
-	$reads        = bws_datetime_key_reads( $options );
+	$reads        = bws_datetime_reads( $options, null === $range );
 	$legacy_range = isset( $options['startKey'] ) || isset( $options['startTimeKey'] )
 		|| isset( $options['endKey'] ) || isset( $options['endTimeKey'] );
 	if ( null === $range ) {
@@ -624,7 +703,9 @@ function bws_normalize_datetime_options( array $options, ?bool $range = false ):
 		if ( isset( $options['timeKey'] ) && ! isset( $options['time_field'] ) ) {
 			$mapped['time_field'] = $options['timeKey'];
 		}
-		if ( isset( $reads[0] ) && ! isset( $options['date_time_field'] ) ) {
+		if ( isset( $reads[0] ) && '' !== $reads[0]['verb'] ) {
+			$mapped['verb'] = $reads[0]['verb'];
+		} elseif ( isset( $reads[0] ) && ! isset( $options['date_time_field'] ) ) {
 			$mapped['date_time_field'] = $reads[0]['field'];
 		}
 		if ( isset( $reads[0] ) && '' !== $reads[0]['time'] && ! isset( $mapped['time_field'] ) ) {
@@ -649,8 +730,12 @@ function bws_normalize_datetime_options( array $options, ?bool $range = false ):
 		$mapped['end_time_field'] = $options['endTimeKey'];
 	}
 	if ( ! $legacy_range ) {
-		foreach ( array( array( 'start_field', 'start_time_field' ), array( 'end_field', 'end_time_field' ) ) as $i => $names ) {
+		foreach ( array( array( 'start_field', 'start_time_field', 'start_verb' ), array( 'end_field', 'end_time_field', 'end_verb' ) ) as $i => $names ) {
 			if ( ! isset( $reads[ $i ] ) ) {
+				continue;
+			}
+			if ( '' !== $reads[ $i ]['verb'] ) {
+				$mapped[ $names[2] ] = $reads[ $i ]['verb'];
 				continue;
 			}
 			if ( ! isset( $options[ $names[0] ] ) ) {
@@ -744,6 +829,19 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 
 	$link_id   = 0;
 	$link_type = 'post';
+
+	// A tag whose every read is `now` reads no source, so no source (or the lack of one: a 404,
+	// a search, the blog home) may decide whether it prints, and there is nothing to link to.
+	$only_now = $is_range
+		? ( 'now' === ( $mapped['start_verb'] ?? '' ) && 'now' === ( $mapped['end_verb'] ?? '' ) )
+		: ( 'now' === ( $mapped['verb'] ?? '' ) );
+	if ( $only_now ) {
+		return array(
+			'value'     => $core( bws_datetime_post_source( false ), $mapped, $instance ),
+			'link_id'   => 0,
+			'link_type' => 'post',
+		);
+	}
 
 	// src:site — ACF options-page date field. The core gets the site source; the
 	// DT-1 bws_read_field branch (allowlist-gated get_field($key,'option')) performs

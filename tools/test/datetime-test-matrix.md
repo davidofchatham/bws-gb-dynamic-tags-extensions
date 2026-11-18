@@ -288,3 +288,48 @@ One function, `bws_format_time_display()`, renders the time half of every read: 
 | D10.16 | `as:date` on a time-only field: no date to show | the same four, `event_time\|as:date` | empty | single `9:00 AM`, range `Start time: 9:00 AM` |
 
 D10.4, D10.12 and D10.16 are expected-empty rows, so each renders as a label with nothing after it (`bws_fixture_gb_empty_row`). The two-ended cases that were already right stay where they are: D2.6 (same-meridiem consolidation), D3.1 to D3.4 (custom format, both ends), D8.1 to D8.7 (the all-day span). The pure half is `datetime-format-test.php` §F7 to §F11 (the format chain) and §U (the display); the first change to either rule that is not mirrored there fails by name.
+
+## D11 — verbs and the `use` list (FW-81, Unreleased, ticket 03)
+
+`use` is absent unless a verb (`now`, `published`, `modified`) is mixed in, and then it is the full ordered list, `key` included: each `key` in it takes the next `;` entry of `key:`, and a verb takes none, so `use:key;now` and `use:now;key` are different ranges over the same fields. A `use` made only of `key` reads as no `use` at all. A verb read is a moment with no field behind it. `now` carries a time. `published` and `modified` are a post's own dates and print as dates, and `published` and `modified` read only from a post source (a term, the site and a repeater row print the fallback). A verb takes the time display of the field beside it, which is why D11.8 prints no time of day and D11.11 prints both. The pure half is `datetime-format-test.php` §V and `use-stripped-default-test.php` §5 (the list collapse, held to the editor twin by `editor-filter-chain-test.js`).
+
+**The fixture pins `matrix-post-meta`'s dates** (blueprint v47: `post_date` 2025-03-03 09:15, `post_modified` 2025-04-04 18:30, the seed writing the second last because every reseed's `wp_update_post` moves it to now), in a past year on purpose, since this year's date prints without its year. D11.12 to D11.14 carry `now`, so each states the current year, which is the one part that cannot differ between two loads and the one part that needs a re-capture each January, as D0.5 and D9.5 do.
+
+**Measured 2026-11-17** on the testbed, one wpcli container per context: every row below through `render-tag` and then through the front end, all matching. `published` before the pin printed the page's insert date and `modified` printed the reseed day, which is what made the pin necessary.
+
+Every row is a visible block on `/matrix-datetime/` and pinned to `/matrix-post-meta/` by id where it reads a post.
+
+| # | Tag | Expected |
+|---|---|---|
+| D11.1 | `{{datetime src:post,<meta id>\|use:published}}` | `March 3, 2025` |
+| D11.2 | `{{datetime src:post,<meta id>\|use:modified}}` | `April 4, 2025` |
+| D11.3 | `{{datetime src:post,<meta id>\|use:published\|format:Y-m-d}}` | `2025-03-03` |
+| D11.4 | `{{datetime src:post,<meta id>\|use:published\|as:time\|fallback:FB}}` | `FB` (a post date carries no time) |
+| D11.5 | `{{datetime src:term,<sales id>\|use:published\|fallback:Date TBA}}` | `Date TBA` |
+| D11.6 | `{{datetime src:site\|use:modified\|fallback:Date TBA}}` | `Date TBA` |
+| D11.7 | `{{datetime src:term,<sales id>\|use:modified}}` | empty |
+| D11.8 | `{{datetime src:post,<meta id>\|use:published;key\|key:event_start_date}}` | `March 3, 2025–August 1, 2030` |
+| D11.9 | `{{datetime src:post,<meta id>\|use:key;modified\|key:event_start_date}}` | `August 1, 2030–April 4, 2025` (the order spelled is the order printed) |
+| D11.10 | `{{datetime src:post,<meta id>\|use:published;modified}}` | `March 3–April 4, 2025` |
+| D11.11 | `{{datetime src:post,<meta id>\|use:published;key\|key:event_datetime}}` | `March 3, 2025 9:15 AM–August 12, 2030 9:00 AM` |
+| D11.12 | `{{datetime use:now\|as:date\|format:Y\|showCurrentYear}}` | the current year |
+| D11.13 | `{{datetime src:site\|use:key;now\|key:organization_founded\|format:Y}}` | `2020–` and the current year |
+| D11.14 | `{{datetime src:site\|use:now;key\|key:organization_founded\|format:Y}}` | the current year and `–2020` |
+| D11.15 | `{{datetime src:post,<meta id>\|use:key;key\|key:event_start_date;event_end_date}}` | `August 1–9, 2030` (= D9.17) |
+| D11.16 | `{{datetime src:post,<meta id>\|use:key\|key:event_start_date;event_end_date}}` | `August 1–9, 2030` (`use:key` is no `use`, so two entries are a range) |
+| D11.17 | `{{datetime src:post,<meta id>\|use:key;published\|fallback:FB}}` | `FB` (a `key` with no entry is an empty read; an empty start reads nothing) |
+| D11.18 | `{{datetime src:post,<meta id>\|use:published;key\|key:event_start_date;event_end_date}}` | `March 3, 2025–August 1, 2030` (a surplus entry is ignored) |
+| D11.19 | `{{datetime src:post,<meta id>\|use:published\|key:event_start_date}}` | `March 3, 2025` (a `key` beside a verb-only list is ignored) |
+| D11.20 | `{{datetime src:post,<meta id>\|use:nope;key\|key:event_start_date}}` | `August 1, 2030` (a name that is neither is dropped) |
+| D11.21 | `{{datetime_single src:post,<meta id>\|use:published\|key:event_start_date}}` | `August 1, 2030` (the old tags have no `use`) |
+
+**Render-tag only** (a bare tag on a context with no post, which a visible block cannot host):
+
+| # | Tag | Context | Expected |
+|---|---|---|---|
+| D11.T1 | `{{datetime use:now\|as:date\|format:Y\|showCurrentYear}}` | `/no-such-page-xyz/`, `/?bwsfx_scope=core` (the blog home), `/department/support/` | the current year (a tag whose every read is `now` reads no source, so no context can empty it) |
+| D11.T2 | the same, with `\|linkTo:permalink` | the same | the current year, no link (there is nothing to link to) |
+| D11.T3 | `{{datetime use:published\|fallback:FB}}` | the same | `FB` |
+| D11.T4 | `{{datetime use:key;now\|key:event_date\|as:date\|format:Y\|showCurrentYear}}` | `/department/support/` | `2030–` and the current year (the ambient term's field, until now) |
+| D11.T5 | the same | `/no-such-page-xyz/`, the blog home | empty (no post or term for the field to read; `now` alone cannot make it a range) |
+| D11.T6 | `{{datetime use:published}}` with `--loop-item=<meta id>` | `/matrix-datetime/` | `March 3, 2025` (a loop item is a post for a post verb) |

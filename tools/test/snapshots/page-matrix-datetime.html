@@ -318,6 +318,52 @@
 <p class="gb-text">D10.16d expect EMPTY (as:date on a time-only field has no date to show):</p>
 
 </div>
+
+<div>
+<h2 class="wp-block-heading">Datetime D11 &#8211; verbs and the use list (published, modified, now)</h2>
+
+<p class="gb-text">D11.1 expect &#8220;March 3, 2025&#8221; (the post&#8217;s published date, as a date): March 3, 2025</p>
+
+<p class="gb-text">D11.2 expect &#8220;April 4, 2025&#8221; (the post&#8217;s modified date): April 4, 2025</p>
+
+<p class="gb-text">D11.3 expect &#8220;2025-03-03&#8221; (a custom format applies to a verb): 2025-03-03</p>
+
+<p class="gb-text">D11.4 expect &#8220;FB&#8221; (a published date carries no time, so as:time has nothing to show): FB</p>
+
+<p class="gb-text">D11.5 expect &#8220;Date TBA&#8221; (a post verb on a term falls through to the fallback): Date TBA</p>
+
+<p class="gb-text">D11.6 expect &#8220;Date TBA&#8221; (a post verb on the site source): Date TBA</p>
+
+<p class="gb-text">D11.7 expect EMPTY (a post verb on a term, no fallback stated):</p>
+
+<p class="gb-text">D11.8 expect &#8220;March 3, 2025-August 1, 2030&#8221; (published until a field): March 3, 2025–August 1, 2030</p>
+
+<p class="gb-text">D11.9 expect &#8220;August 1, 2030-April 4, 2025&#8221; (a field until modified: the order spelled is the order printed): August 1, 2030–April 4, 2025</p>
+
+<p class="gb-text">D11.10 expect &#8220;March 3-April 4, 2025&#8221; (two verbs, no key at all): March 3–April 4, 2025</p>
+
+<p class="gb-text">D11.11 expect &#8220;March 3, 2025 9:15 AM-August 12, 2030 9:00 AM&#8221; (a verb takes the time display of the field beside it): March 3, 2025 9:15 AM–August 12, 2030 9:00 AM</p>
+
+<p class="gb-text">D11.12 expect the CURRENT YEAR alone (now, alone, as a date): 2026</p>
+
+<p class="gb-text">D11.13 expect &#8220;2020-&#8221; then the current year (from a field until now): 2020–2026</p>
+
+<p class="gb-text">D11.14 expect the current year, then &#8220;-2020&#8221; (from now until a field: the same field, the other order): 2026–2020</p>
+
+<p class="gb-text">D11.15 expect &#8220;August 1-9, 2030&#8221; (an all-key list is the default: two entries, a range): August 1–9, 2030</p>
+
+<p class="gb-text">D11.16 expect &#8220;August 1-9, 2030&#8221; (use:key alone is no use at all, so the two entries still make a range): August 1–9, 2030</p>
+
+<p class="gb-text">D11.17 expect &#8220;FB&#8221; (a key in the list with no key entry is an empty read, and an empty start reads nothing): FB</p>
+
+<p class="gb-text">D11.18 expect &#8220;March 3, 2025-August 1, 2030&#8221; (a surplus key entry is ignored): March 3, 2025–August 1, 2030</p>
+
+<p class="gb-text">D11.19 expect &#8220;March 3, 2025&#8221; (a key beside a verb-only use is ignored): March 3, 2025</p>
+
+<p class="gb-text">D11.20 expect &#8220;August 1, 2030&#8221; (a name that is neither key nor a verb is dropped): August 1, 2030</p>
+
+<p class="gb-text">D11.21 expect &#8220;August 1, 2030&#8221; (the old single tag has no use: it reads its key): August 1, 2030</p>
+</div>
 		</div>
 
 			</div>

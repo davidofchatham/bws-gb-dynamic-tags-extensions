@@ -2523,6 +2523,35 @@ function bws_fixture_page_content_matrix_datetime() {
 	}
 	$sections[] = bws_fixture_gb_section( 'Datetime D10 - one time display (single, range and merged agree)', $rows );
 
+	// THE `use` READ LIST (03). `page-matrix-post-meta` pins its published and modified dates
+	// (manifest v47), so a post verb has a date a label can state. A post verb reads only from a
+	// post, so a term and the site print the fallback. `now` moves, so a row that shows it states
+	// the current YEAR, which is the one part that cannot differ between two loads (and the one
+	// part that needs a re-capture each January, as D0.5 and D9.5 do).
+	$sections[] = bws_fixture_gb_section( 'Datetime D11 - verbs and the use list (published, modified, now)', array(
+		bws_fixture_gb_row( 'D11.1 expect "March 3, 2025" (the post\'s published date, as a date)', "{{datetime src:post,{$meta_id}|use:published}}" ),
+		bws_fixture_gb_row( 'D11.2 expect "April 4, 2025" (the post\'s modified date)', "{{datetime src:post,{$meta_id}|use:modified}}" ),
+		bws_fixture_gb_row( 'D11.3 expect "2025-03-03" (a custom format applies to a verb)', "{{datetime src:post,{$meta_id}|use:published|format:Y-m-d}}" ),
+		bws_fixture_gb_row( 'D11.4 expect "FB" (a published date carries no time, so as:time has nothing to show)', "{{datetime src:post,{$meta_id}|use:published|as:time|fallback:FB}}" ),
+		bws_fixture_gb_row( 'D11.5 expect "Date TBA" (a post verb on a term falls through to the fallback)', "{{datetime src:term,{$sales_id}|use:published|fallback:Date TBA}}" ),
+		bws_fixture_gb_row( 'D11.6 expect "Date TBA" (a post verb on the site source)', "{{datetime src:site|use:modified|fallback:Date TBA}}" ),
+		bws_fixture_gb_empty_row( 'D11.7 expect EMPTY (a post verb on a term, no fallback stated)', "{{datetime src:term,{$sales_id}|use:modified}}" ),
+		bws_fixture_gb_row( 'D11.8 expect "March 3, 2025-August 1, 2030" (published until a field)', "{{datetime src:post,{$meta_id}|use:published;key|key:event_start_date}}" ),
+		bws_fixture_gb_row( 'D11.9 expect "August 1, 2030-April 4, 2025" (a field until modified: the order spelled is the order printed)', "{{datetime src:post,{$meta_id}|use:key;modified|key:event_start_date}}" ),
+		bws_fixture_gb_row( 'D11.10 expect "March 3-April 4, 2025" (two verbs, no key at all)', "{{datetime src:post,{$meta_id}|use:published;modified}}" ),
+		bws_fixture_gb_row( 'D11.11 expect "March 3, 2025 9:15 AM-August 12, 2030 9:00 AM" (a verb takes the time display of the field beside it)', "{{datetime src:post,{$meta_id}|use:published;key|key:event_datetime}}" ),
+		bws_fixture_gb_row( 'D11.12 expect the CURRENT YEAR alone (now, alone, as a date)', "{{datetime use:now|as:date|format:Y|showCurrentYear}}" ),
+		bws_fixture_gb_row( 'D11.13 expect "2020-" then the current year (from a field until now)', "{{datetime src:site|use:key;now|key:organization_founded|format:Y}}" ),
+		bws_fixture_gb_row( 'D11.14 expect the current year, then "-2020" (from now until a field: the same field, the other order)', "{{datetime src:site|use:now;key|key:organization_founded|format:Y}}" ),
+		bws_fixture_gb_row( 'D11.15 expect "August 1-9, 2030" (an all-key list is the default: two entries, a range)', "{{datetime src:post,{$meta_id}|use:key;key|key:event_start_date;event_end_date}}" ),
+		bws_fixture_gb_row( 'D11.16 expect "August 1-9, 2030" (use:key alone is no use at all, so the two entries still make a range)', "{{datetime src:post,{$meta_id}|use:key|key:event_start_date;event_end_date}}" ),
+		bws_fixture_gb_row( 'D11.17 expect "FB" (a key in the list with no key entry is an empty read, and an empty start reads nothing)', "{{datetime src:post,{$meta_id}|use:key;published|fallback:FB}}" ),
+		bws_fixture_gb_row( 'D11.18 expect "March 3, 2025-August 1, 2030" (a surplus key entry is ignored)', "{{datetime src:post,{$meta_id}|use:published;key|key:event_start_date;event_end_date}}" ),
+		bws_fixture_gb_row( 'D11.19 expect "March 3, 2025" (a key beside a verb-only use is ignored)', "{{datetime src:post,{$meta_id}|use:published|key:event_start_date}}" ),
+		bws_fixture_gb_row( 'D11.20 expect "August 1, 2030" (a name that is neither key nor a verb is dropped)', "{{datetime src:post,{$meta_id}|use:nope;key|key:event_start_date}}" ),
+		bws_fixture_gb_row( 'D11.21 expect "August 1, 2030" (the old single tag has no use: it reads its key)', "{{datetime_single src:post,{$meta_id}|use:published|key:event_start_date}}" ),
+	) );
+
 	return implode( "\n\n", $sections );
 }
 

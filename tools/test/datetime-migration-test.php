@@ -92,6 +92,7 @@ require __DIR__ . '/../../includes/classes/class-deprecated-tag-registry.php';
 require __DIR__ . '/../../includes/classes/class-tag-template-registry.php';
 require __DIR__ . '/../../includes/tags/deprecated-tags.php';
 // The MODERN read half of the equivalence property.
+require __DIR__ . '/../../includes/helpers/registration-helpers.php'; // bws_use_effective(): the merged tag's `use`.
 require __DIR__ . '/../../includes/tags/datetime-tags.php';
 
 use BWS\DynamicTags\MigrationRegistry;

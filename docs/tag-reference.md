@@ -1064,8 +1064,17 @@ Control order `source → format → fallback` (no `link` group on `image`; `for
 | `key:event_date+start_time` | single, a date field and a time field |
 | `key:event_date+start_time;end_time` | range, a time-only end taking the start's date |
 | `key:start_dt;end_dt` | range, two datetimes |
+| `use:published` | single, the post's published date |
+| `use:modified` | single, the post's modified date |
+| `use:now` | single, the current date and time |
+| `use:key;now\|key:event_date+start_time` | range, from a field until now |
+| `use:now;key\|key:end_date` | range, from now until a field |
 
-The old six field options (`key`, `timeKey`, `startKey`, `startTimeKey`, `endKey`, `endTimeKey`) are not registered on this tag. `bws_normalize_datetime_options()` is still the only place any of them, or `key`, is parsed, so the old tags and the merged tag hand the cores the same fields for the same reads; passing `null` for its `$range` argument is what lets the merged tag's mode come from the reads. The other options are the old tags' union: [Source](#source-group) + `sep`, `as`, `rangeSep`, `format`, `timeSep`, `showCurrentYear`, `showMidnight`, [Link wrap](#link-wrap-group) and [Fallback](#fallback-group), in that order. `use` is not read yet (the verbs `now`, `published` and `modified` are a later piece of FW-81), and `key` is a plain text control until the read control ships.
+The old six field options (`key`, `timeKey`, `startKey`, `startTimeKey`, `endKey`, `endTimeKey`) are not registered on this tag. `bws_normalize_datetime_options()` is still the only place any of them, or `key`, is parsed, so the old tags and the merged tag hand the cores the same fields for the same reads; passing `null` for its `$range` argument is what lets the merged tag's mode come from the reads. The other options are the old tags' union: [Source](#source-group) + `sep`, `use`, `key`, `as`, `rangeSep`, `format`, `timeSep`, `showCurrentYear`, `showMidnight`, [Link wrap](#link-wrap-group) and [Fallback](#fallback-group), in that order. `use` and `key` are plain controls until the read control ships.
+
+**`use` adds the verbs `now`, `published` and `modified`** (FW-81). With no verb, `use` is absent and `key` alone holds every read. With a verb, `use` is the full ordered list, `key` included, because position is what tells `use:key;now` (from a field until now) from `use:now;key` (from now until a field): each `key` in it takes the next `;` entry of `key:`, and a verb takes none. A `use` made only of `key` (`key;key`, `key`) is the stripped default and reads exactly as no `use` at all. A verb read is a moment with no field behind it: `now` is the current date and time, and `published` and `modified` are a post's own dates, shown as dates with no time of day. A verb takes the time display of the field beside it, so `now` against a date-only field stays a date. `published` and `modified` read only from a post source; on a term, the site, or a repeater row they are an empty read and take the fallback, and `now` reads on any source. An absent `use` reads no verb, so a keyless tag still shows its fallback.
+
+A `use` and `key:` that disagree degrade without breaking the page. A `key` in `use` with no entry left is an empty read, which reads nothing as a start and prints the start alone as an end (as `key:a;` does). A surplus `key:` entry is ignored, and a name in `use` that is neither `key` nor a verb is dropped. The two old tags have no `use` and ignore one. The warning text for each mismatch is a later piece of FW-81.
 
 ## `datetime_single` and `datetime_range`
 

@@ -390,7 +390,7 @@ assert_same(
 assert_same(
 	'{{datetime}} — full option order',
 	array(
-		'src', 'sep', 'key',
+		'src', 'sep', 'use', 'key',
 		'as', 'rangeSep', 'format', 'timeSep', 'showCurrentYear', 'showMidnight',
 		'linkTo', 'linkKey', 'newTab',
 		'fallback',

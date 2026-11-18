@@ -289,7 +289,7 @@ function bws_register_base_tags(): void {
 		'tag'         => 'datetime',
 		'type'        => 'cross-source',
 		'supports'    => array(),
-		'description' => __( 'Format a date and time, or a start and end range, from custom fields. A separate time field can be joined to a date field, and a second field makes it a range. By default it hides midnight times and the current year. Sources with several results can show a list.', 'generateblocks' ),
+		'description' => __( 'Format a date and time, or a start and end range, from custom fields, the published or modified date of a post, or the current time. A separate time field can be joined to a date field, and a second read makes it a range. By default it hides midnight times and the current year. Sources with several results can show a list.', 'generateblocks' ),
 		'options'     => bws_prepare_registration_options( bws_get_base_datetime_options() ),
 		'return'      => 'bws_base_datetime_callback',
 	) );

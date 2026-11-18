@@ -76,6 +76,7 @@ if ( ! function_exists( 'wp_validate_boolean' ) ) {
 }
 
 require __DIR__ . '/../../includes/helpers/slot-fold.php'; // bws_flag_is_on().
+require __DIR__ . '/../../includes/helpers/registration-helpers.php'; // bws_use_effective(): the merged tag's `use`.
 require __DIR__ . '/../../includes/helpers/datetime-helpers.php';
 require __DIR__ . '/../../includes/tags/datetime-tags.php';
 
@@ -304,6 +305,118 @@ assert_same( 'N17 the old tags\' fixed families ignore the derive: a single stay
 assert_same( 'N18 the old `timeKey` wins over a `+` operand (the old family keeps its own spelling)',
 	'old_t',
 	norm_single( array( 'key' => 'a+new_t', 'timeKey' => 'old_t' ) )['time_field']
+);
+
+// ===========================================================================
+echo "\nV — verbs and `use` (FW-81, datetime-tag-collapse/03)\n";
+// ===========================================================================
+
+// `use` lists the reads in order once a verb is present; each `key` in it takes the next
+// `key` entry and a verb takes none. Everything below goes through the merged tag's normalizer.
+$vreads = static function ( array $options ): array {
+	return pick( bws_normalize_datetime_options( $options, null ), array(
+		'is_range', 'verb', 'date_time_field', 'time_field',
+		'start_verb', 'start_field', 'start_time_field',
+		'end_verb', 'end_field', 'end_time_field',
+	) );
+};
+$unsetv = array(
+	'is_range' => '(unset)', 'verb' => '(unset)', 'date_time_field' => '(unset)', 'time_field' => '(unset)',
+	'start_verb' => '(unset)', 'start_field' => '(unset)', 'start_time_field' => '(unset)',
+	'end_verb' => '(unset)', 'end_field' => '(unset)', 'end_time_field' => '(unset)',
+);
+
+foreach ( array( 'now', 'published', 'modified' ) as $verb ) {
+	assert_same( "V1 `use:{$verb}` alone is a single verb read",
+		array_merge( $unsetv, array( 'is_range' => false, 'verb' => $verb ) ),
+		$vreads( array( 'use' => $verb ) )
+	);
+}
+assert_same( 'V2 a field then a verb: a range from the field until now',
+	array_merge( $unsetv, array( 'is_range' => true, 'start_field' => 'event_date', 'start_time_field' => 'start_time', 'end_verb' => 'now' ) ),
+	$vreads( array( 'use' => 'key;now', 'key' => 'event_date+start_time' ) )
+);
+assert_same( 'V3 a verb then a field: a range from now until the field (position is the difference)',
+	array_merge( $unsetv, array( 'is_range' => true, 'start_verb' => 'now', 'end_field' => 'end_date' ) ),
+	$vreads( array( 'use' => 'now;key', 'key' => 'end_date' ) )
+);
+assert_same( 'V4 a verb takes no `key` entry: now;key;key hands its two entries to the two fields, in order',
+	array( 'is_range' => true, 'start_verb' => 'now', 'start_field' => '(unset)', 'end_field' => 'a' ),
+	array_intersect_key( $vreads( array( 'use' => 'now;key;key', 'key' => 'a;b' ) ), array_flip( array( 'is_range', 'start_verb', 'start_field', 'end_field' ) ) )
+);
+assert_same( 'V5 two verbs, no key at all, are a range',
+	array_merge( $unsetv, array( 'is_range' => true, 'start_verb' => 'published', 'end_verb' => 'now' ) ),
+	$vreads( array( 'use' => 'published;now' ) )
+);
+assert_same( 'V6 an all-`key` use normalizes away: use:key;key|key:a;b reads as key:a;b',
+	$vreads( array( 'key' => 'a;b' ) ),
+	$vreads( array( 'use' => 'key;key', 'key' => 'a;b' ) )
+);
+assert_same( 'V7 ...and use:key alone, with or without a key entry, as no use at all',
+	array( $vreads( array( 'key' => 'a' ) ), $vreads( array() ) ),
+	array( $vreads( array( 'use' => 'key', 'key' => 'a' ) ), $vreads( array( 'use' => 'key' ) ) )
+);
+assert_same( 'V8 use:key|key:a;b is the range key:a;b says (the normalized-away form must not move output)',
+	true,
+	$vreads( array( 'use' => 'key', 'key' => 'a;b' ) )['is_range']
+);
+assert_same( 'V9 a missing entry is an empty read: use:key;now with no key is a range with an empty start',
+	array_merge( $unsetv, array( 'is_range' => true, 'start_field' => '', 'end_verb' => 'now' ) ),
+	$vreads( array( 'use' => 'key;now' ) )
+);
+assert_same( 'V10 a surplus entry is ignored: use:now;key|key:a;b;c reads only a',
+	$vreads( array( 'use' => 'now;key', 'key' => 'a' ) ),
+	$vreads( array( 'use' => 'now;key', 'key' => 'a;b;c' ) )
+);
+assert_same( 'V11 a verb with a key beside it ignores the key: use:now|key:a is the single verb read',
+	$vreads( array( 'use' => 'now' ) ),
+	$vreads( array( 'use' => 'now', 'key' => 'a' ) )
+);
+assert_same( 'V12 a name that is neither `key` nor a verb is dropped, not read as an empty read',
+	$vreads( array( 'key' => 'a' ) ),
+	$vreads( array( 'use' => 'nope;key', 'key' => 'a' ) )
+);
+assert_same( 'V13 the old tags have no `use`: their families ignore it',
+	array( 'date_time_field' => 'a', 'verb' => '(unset)' ),
+	pick( norm_single( array( 'use' => 'now', 'key' => 'a' ) ), array( 'date_time_field', 'verb' ) )
+);
+assert_same( 'V13b ...and so does the old range family',
+	array( 'start_field' => 'a', 'start_verb' => '(unset)' ),
+	pick( norm_range( array( 'use' => 'now;key', 'startKey' => 'a' ) ), array( 'start_field', 'start_verb' ) )
+);
+assert_same( 'V14 a `+` pair rides its own entry across a verb: use:now;key|key:d+t',
+	array_merge( $unsetv, array( 'is_range' => true, 'start_verb' => 'now', 'end_field' => 'd', 'end_time_field' => 't' ) ),
+	$vreads( array( 'use' => 'now;key', 'key' => 'd+t' ) )
+);
+
+// The verb's parse result: `now` a timed moment, a post date a date, anything else nothing.
+function get_post_datetime( $post, $field = 'date' ) {
+	$map = array( 7 => array( 'date' => '2026-03-03 09:15:00', 'modified' => '2026-04-04 18:30:00' ) );
+	return isset( $map[ $post ] ) ? new DateTimeImmutable( $map[ $post ][ $field ], wp_timezone() ) : false;
+}
+$post7  = array( 'kind' => 'post', 'id' => 7 );
+$vr_now = bws_datetime_verb_result( 'now', array( 'kind' => 'term', 'id' => 3 ) );
+assert_same( 'V16 `now` reads on any source, and carries a time',
+	array( true, true ),
+	array( $vr_now['date'] instanceof DateTime, $vr_now['has_time'] )
+);
+assert_same( 'V17 `published` is the post date, as a date (no time shown)',
+	array( '2026-03-03 09:15', false ),
+	array( bws_datetime_verb_result( 'published', $post7 )['date']->format( 'Y-m-d H:i' ), bws_datetime_verb_result( 'published', $post7 )['has_time'] )
+);
+assert_same( 'V18 `modified` is the post modified date',
+	'2026-04-04 18:30',
+	bws_datetime_verb_result( 'modified', $post7 )['date']->format( 'Y-m-d H:i' )
+);
+assert_same( 'V19 a post verb on a term, the site, a row, no entity, or a post with no date reads nothing',
+	array( null, null, null, null, null ),
+	array(
+		bws_datetime_verb_result( 'published', array( 'kind' => 'term', 'id' => 7 ) )['date'],
+		bws_datetime_verb_result( 'published', array( 'kind' => 'site' ) )['date'],
+		bws_datetime_verb_result( 'modified', array( 'kind' => 'meta_row' ) )['date'],
+		bws_datetime_verb_result( 'published', array( 'kind' => 'post', 'id' => false ) )['date'],
+		bws_datetime_verb_result( 'published', array( 'kind' => 'post', 'id' => 99 ) )['date'],
+	)
 );
 
 // ===========================================================================

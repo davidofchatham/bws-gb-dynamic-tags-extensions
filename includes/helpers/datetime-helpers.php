@@ -437,6 +437,43 @@ function bws_parse_combined_date_time( $target, $date_field, $time_field, $conte
 }
 
 /**
+ * The parse result for a VERB read (`now`, `published`, `modified`): the same shape
+ * bws_parse_combined_date_time() returns, with no field behind it.
+ *
+ * `now` is a moment with a time. `published` and `modified` are the post's own dates and
+ * read only from a post source with an entity; any other source (a term, the site, a row,
+ * nothing) leaves `date` null, the empty read that takes the fallback. A post date is shown
+ * as a date, with no time.
+ *
+ * @since Unreleased
+ * @param string $verb   `now`, `published` or `modified`.
+ * @param array  $source Resolved source (the factory's payload shape).
+ * @return array Parse result; `date` is null when there is nothing to read.
+ */
+if ( ! function_exists( 'bws_datetime_verb_result' ) ) {
+function bws_datetime_verb_result( $verb, $source ) {
+    $result = [
+        'date'      => null,
+        'has_time'  => false,
+        'time_only' => null,
+        'formats'   => [ 'date_format' => null, 'time_format' => null, 'combined_format' => null ],
+    ];
+
+    if ( 'now' === $verb ) {
+        $result['date']     = new DateTime( 'now', wp_timezone() );
+        $result['has_time'] = true;
+    } elseif ( 'post' === ( $source['kind'] ?? '' ) && ! empty( $source['id'] ) ) {
+        $when = get_post_datetime( (int) $source['id'], 'published' === $verb ? 'date' : 'modified' );
+        if ( $when ) {
+            $result['date'] = DateTime::createFromImmutable( $when );
+        }
+    }
+
+    return $result;
+}
+}
+
+/**
  * Parse ACF date value with intelligent format detection and timezone handling
  *
  * CRITICAL TIMEZONE HANDLING:

@@ -897,7 +897,7 @@ check( 'a chain fanning at TWO steps shows the advisory once', 1 === countAdviso
 console.log( '\n`use` read rule — the editor twin (FW-142)\n' );
 
 const USE_CASES = [];
-[ 'text', 'content', 'image', 'email', 'phone', 'title', 'permalink' ].forEach( function ( tag ) {
+[ 'text', 'content', 'image', 'email', 'phone', 'datetime', 'title', 'permalink' ].forEach( function ( tag ) {
 	[
 		{},
 		{ key: 'foo' },
@@ -914,7 +914,13 @@ const USE_CASES = [];
 		{ key: 'foo', fixed: 'Bar' },
 		{ use: 'title', fixed: 'Bar' },
 		{ fixed: '' },
-		{ use: 'fixed' }
+		{ use: 'fixed' },
+		// FW-81 — an ordered read list: all-default collapses, anything else stays whole.
+		{ use: 'key;key' },
+		{ use: 'key;key', key: 'foo' },
+		{ use: 'key ; key', key: 'foo' },
+		{ use: 'key;now', key: 'foo' },
+		{ use: 'now;key', key: 'foo' }
 	].forEach( function ( state ) {
 		USE_CASES.push( [ tag, state ] );
 	} );
@@ -934,8 +940,8 @@ const useRead = global.window.bwsUseRead;
 
 check( 'the read twin loaded', !! useRead );
 check(
-	'the inline carries the map and the five stripped defaults (non-vacuity)',
-	'key' === phpUse.rules.implied.key && 5 === Object.keys( phpUse.rules.defaults ).length,
+	'the inline carries the map and the six stripped defaults (non-vacuity)',
+	'key' === phpUse.rules.implied.key && 6 === Object.keys( phpUse.rules.defaults ).length,
 	JSON.stringify( phpUse.rules )
 );
 
@@ -956,6 +962,12 @@ check( 'effective() agrees with bws_use_effective() on all ' + USE_CASES.length 
 ].forEach( function ( row ) {
 	check( 'display — ' + row[ 3 ], row[ 2 ] === useRead.displayValue( row[ 0 ], row[ 1 ] ), JSON.stringify( useRead.displayValue( row[ 0 ], row[ 1 ] ) ) );
 } );
+
+// FW-81: an ordered read list is not a mode. Its `key` token is the list's operands, so the
+// mount normalize must NOT drop it as stale; an all-default list is redundant and goes.
+const listState = { use: 'key;now', key: 'event_date' };
+check( 'mount normalize leaves an ordered read list and its key alone', listState === useRead.normalize( 'datetime', listState ), JSON.stringify( useRead.normalize( 'datetime', listState ) ) );
+check( 'mount normalize drops an all-default list, keeping the key', JSON.stringify( { key: 'event_date' } ) === JSON.stringify( useRead.normalize( 'datetime', { use: 'key;key', key: 'event_date' } ) ), JSON.stringify( useRead.normalize( 'datetime', { use: 'key;key', key: 'event_date' } ) ) );
 
 // WRITE: picking a mode. Every row asserts the WHOLE next state, so a stale token written
 // as '' instead of deleted fails by name.
