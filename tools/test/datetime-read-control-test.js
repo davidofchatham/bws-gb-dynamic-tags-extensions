@@ -155,8 +155,10 @@ const KEY_DEF = {
 	timeLabel: 'Time Field Key (optional)',
 	timeHelp: 'A time field.',
 	timePlaceholder: 'event_time',
-	noun: 'Date/Time',
-	addLabel: 'Add Date/Time',
+	entryLabels: [ 'Start Date/Time', 'End Date/Time' ],
+	addLabel: 'Add End Date/Time',
+	timeAddLabel: 'Add Time Field',
+	timeRemoveLabel: 'Remove Time Field',
 	removeLabel: 'Remove',
 	max: 2,
 	typeDefault: GROUP,
@@ -184,7 +186,9 @@ const pickers = function ( tree ) { return findAll( tree, FieldCombo ); };
 const buttons = function ( tree ) { return findAll( tree, 'Button' ); };
 const headings = function ( tree ) { return findAll( tree, 'strong' ).map( function ( n ) { return n.children[ 0 ]; } ); };
 const addButton = function ( tree ) { return buttons( tree ).filter( function ( b ) { return 'secondary' === b.props.variant; } )[ 0 ]; };
-const removeButtons = function ( tree ) { return buttons( tree ).filter( function ( b ) { return b.props.isDestructive; } ); };
+const addTimeButtons = function ( tree ) { return buttons( tree ).filter( function ( b ) { return 'link' === b.props.variant && ! b.props.isDestructive; } ); };
+const removeTimeButtons = function ( tree ) { return buttons( tree ).filter( function ( b ) { return 'link' === b.props.variant && b.props.isDestructive; } ); };
+const removeButtons = function ( tree ) { return buttons( tree ).filter( function ( b ) { return b.props.isDestructive && 'tertiary' === b.props.variant; } ); };
 
 /** Mount the control on a tag state; `writes` collects every state it commits. */
 async function mount( state ) {
@@ -192,6 +196,13 @@ async function mount( state ) {
 	const element = filter( { key: 'key' }, { key: KEY_DEF }, { state: state, setState: function ( u ) { writes.push( u ); } } );
 	const tree = await render( element.type, element.props );
 	return { tree: tree, writes: writes, element: element };
+}
+
+/** Click every "Add Time Field" and render again, so each read shows both its pickers. */
+async function revealTime( m ) {
+	addTimeButtons( m.tree ).forEach( function ( b ) { b.props.onClick(); } );
+	m.tree = await render( m.element.type, m.element.props, true );
+	return m;
 }
 
 /** The `key` wire the control committed last, or `undefined` when it deleted the key. */
@@ -227,11 +238,11 @@ async function main() {
 	 * ================================================================== */
 
 	const empty = await mount( {} );
-	check( 'D1.1 no `key` shows ONE read: a date picker and an optional time picker', pickers( empty.tree ).map( function ( p ) { return p.props.label; } ), [ 'Date/Time Field Key', 'Time Field Key (optional)' ] );
+	check( 'D1.1 no `key` shows ONE read: a date picker, the optional time picker held back', pickers( empty.tree ).map( function ( p ) { return p.props.label; } ), [ 'Date/Time Field Key' ] );
 	check( 'D1.2 ...with no per-read heading and no Remove, since there is nothing to go back to', [ headings( empty.tree ), removeButtons( empty.tree ).length ], [ [], 0 ] );
-	check( 'D1.3 ...and Add offered', addButton( empty.tree ).children[ 0 ], '+ Add Date/Time' );
+	check( 'D1.3 ...and Add offered', addButton( empty.tree ).children[ 0 ], '+ Add End Date/Time' );
 	const blank = await mount( { key: '  ' } );
-	check( 'D1.4 a blank `key` reads the same as an absent one', pickers( blank.tree ).length, 2 );
+	check( 'D1.4 a blank `key` reads the same as an absent one', pickers( blank.tree ).length, 1 );
 
 	/* =====================================================================
 	 * §D2 — Add writes an EXPLICIT seed
@@ -246,14 +257,14 @@ async function main() {
 	check( 'D2.3 ...and every other option of the tag untouched', one.writes[ 0 ].src, 'site' );
 
 	const seeded = await mount( { key: ';' } );
-	check( 'D2.4 the seed is two reads on reopen, each empty', [ headings( seeded.tree ), pickers( seeded.tree ).length ], [ [ 'Date/Time 1', 'Date/Time 2' ], 4 ] );
+	check( 'D2.4 the seed is two reads on reopen, each empty', [ headings( seeded.tree ), pickers( seeded.tree ).length ], [ [ 'Start Date/Time', 'End Date/Time' ], 2 ] );
 
 	/* =====================================================================
 	 * §D3 — removal COMPACTS
 	 * ================================================================== */
 
 	const two = await mount( { key: 'event_date+start_time;end_dt' } );
-	check( 'D3.1 two reads are headed by number, never by start and end', headings( two.tree ), [ 'Date/Time 1', 'Date/Time 2' ] );
+	check( 'D3.1 two reads are headed Start and End', headings( two.tree ), [ 'Start Date/Time', 'End Date/Time' ] );
 	removeButtons( two.tree )[ 0 ].props.onClick();
 	check( 'D3.2 removing the FIRST of two shifts the second into its place', lastKey( two ), 'end_dt' );
 	removeButtons( two.tree )[ 1 ].props.onClick();
@@ -276,7 +287,7 @@ async function main() {
 	 * §D5 — the operand pair writes `a+b`
 	 * ================================================================== */
 
-	const date = await mount( { key: 'event_date' } );
+	const date = await revealTime( await mount( { key: 'event_date' } ) );
 	pick( date, 1, 'start_time' );
 	check( 'D5.1 a time field picked beside a date field writes `date+time`', lastKey( date ), 'event_date+start_time' );
 
@@ -286,7 +297,7 @@ async function main() {
 	pick( pair, 0, null );
 	check( 'D5.3 clearing the date field leaves the time operand where it was', lastKey( pair ), '+start_time' );
 
-	const range = await mount( { key: 'event_date+start_time;end_dt' } );
+	const range = await revealTime( await mount( { key: 'event_date+start_time;end_dt' } ) );
 	pick( range, 3, 'end_time' );
 	check( 'D5.4 a second read takes its own pair, the first untouched', lastKey( range ), 'event_date+start_time;end_dt+end_time' );
 	pick( range, 2, null );
@@ -299,6 +310,45 @@ async function main() {
 	const fresh = await mount( {} );
 	pick( fresh, 0, 'event_date' );
 	check( 'D5.7 picking the first field on an absent `key` writes just that field', lastKey( fresh ), 'event_date' );
+
+	/* =====================================================================
+	 * §D5b — the time picker is behind "Add Time Field" until a read has one
+	 * ================================================================== */
+
+	const hidden = await mount( { key: 'event_date;end_dt+end_time' } );
+	check( 'D5b.1 a read with no time field offers Add Time Field, and one with a time field shows its picker', [ addTimeButtons( hidden.tree ).map( function ( b ) { return b.children[ 0 ]; } ), pickers( hidden.tree ).length ], [ [ '+ Add Time Field' ], 3 ] );
+	await revealTime( hidden );
+	check( 'D5b.2 clicking it shows the picker and writes nothing to the wire', [ pickers( hidden.tree ).length, hidden.writes.length ], [ 4, 0 ] );
+	check( 'D5b.3 ...and the button is gone', addTimeButtons( hidden.tree ).length, 0 );
+
+	const drop = await mount( { key: 'event_date+start_time;end_dt+end_time' } );
+	check( 'D5b.4 each read with a time field has its own Remove Time Field, apart from the reads Remove', [ removeTimeButtons( drop.tree ).map( function ( b ) { return b.children[ 0 ]; } ), removeButtons( drop.tree ).length ], [ [ 'Remove Time Field', 'Remove Time Field' ], 2 ] );
+	removeTimeButtons( drop.tree )[ 0 ].props.onClick();
+	check( 'D5b.5 Remove Time Field clears the time operand of that read and keeps the read', lastKey( drop ), 'event_date;end_dt+end_time' );
+	const shownEmpty = await revealTime( await mount( { key: 'event_date' } ) );
+	removeTimeButtons( shownEmpty.tree )[ 0 ].props.onClick();
+	shownEmpty.tree = await render( shownEmpty.element.type, shownEmpty.element.props, true );
+	check( 'D5b.6 on an empty revealed picker it only hides it, writing nothing', [ shownEmpty.writes.length, pickers( shownEmpty.tree ).length, addTimeButtons( shownEmpty.tree ).length ], [ 0, 1, 1 ] );
+
+	// Open state follows the reads. Two reads, the second's picker opened by Add Time Field; the
+	// control then sees the wire after the first read was removed (the harness's state is static,
+	// so the re-render hands it the wire the write would have produced).
+	const open2 = await mount( { key: 'a;b' } );
+	addTimeButtons( open2.tree )[ 1 ].props.onClick();
+	open2.tree = await render( open2.element.type, open2.element.props, true );
+	removeButtons( open2.tree )[ 0 ].props.onClick();
+	const afterRm = Object.assign( {}, open2.element.props, { context: { state: { key: 'b' }, setState: function () {} } } );
+	open2.tree = await render( open2.element.type, afterRm, true );
+	check( 'D5b.7 removing a read takes its open time picker with it: the second read keeps its own', [ pickers( open2.tree ).length, addTimeButtons( open2.tree ).length ], [ 2, 0 ] );
+
+	const sticky = await mount( { key: 'a+b' } );
+	const clearedWire = Object.assign( {}, sticky.element.props, { context: { state: { key: 'a' }, setState: function () {} } } );
+	sticky.tree = await render( sticky.element.type, clearedWire, true );
+	check( 'D5b.8 a time field that came from the wire keeps its picker open once cleared, so retyping it is not interrupted', [ pickers( sticky.tree ).length, addTimeButtons( sticky.tree ).length ], [ 2, 0 ] );
+
+	const thirdOp = await mount( { key: 'a+b+c' } );
+	removeTimeButtons( thirdOp.tree )[ 0 ].props.onClick();
+	check( 'D5b.9 Remove Time Field on a hand-written third operand clears the time operand and keeps the third (the wire stays hand-editable)', lastKey( thirdOp ), 'a++c' );
 
 	/* =====================================================================
 	 * §D6 — what the control leaves alone
@@ -320,7 +370,7 @@ async function main() {
 	 * ================================================================== */
 
 	const twoState = { key: 'a;b', src: 'site' };
-	const live = await mount( twoState );
+	const live = await revealTime( await mount( twoState ) );
 	const ps = pickers( live.tree );
 	check( 'D7.1 the date and time pickers of each read all name the tag\'s `key` option', ps.map( function ( p ) { return p.props.optionKey; } ), [ 'key', 'key', 'key', 'key' ] );
 	check( 'D7.2 every picker is handed the tag\'s other options, a read at a time (the source it reads from)', ps.map( function ( p ) { return p.props.context.state.src + ':' + p.props.context.state.key; } ), [ 'site:a', 'site:', 'site:b', 'site:' ] );
@@ -339,7 +389,7 @@ async function main() {
 
 	// The author picks a member type in the ONE visible filter; every picker follows it.
 	// (A fresh mount: the hook cells above now belong to the last picker rendered.)
-	const live2 = await mount( { key: ';' } );
+	const live2 = await revealTime( await mount( { key: ';' } ) );
 	pickers( live2.tree )[ 0 ].props.sharedFilters.setType( 'time_picker' );
 	const after = await render( live2.element.type, live2.element.props, true );
 	const followed = [];

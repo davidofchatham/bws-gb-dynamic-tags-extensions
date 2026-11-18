@@ -24,7 +24,11 @@
  * the rest hide theirs (the field combo's own `scopeToRepeater` hides a pair the same way). Two
  * pairs would be two places to set one view of the same pool.
  *
- * Every noun, label and count arrives on the option definition (bws_get_datetime_reads_option()).
+ * THE TIME PICKER IS BEHIND "Add Time Field" until the read has a time field. A read that names
+ * one opens its picker and keeps it open until Remove Time Field; the open state is local and
+ * never on the wire.
+ *
+ * Every heading, label and count arrives on the option definition (bws_get_datetime_reads_option()).
  *
  * @package BWS_Dynamic_Tags
  * @since   Unreleased
@@ -39,6 +43,7 @@
 	var el        = wp.element.createElement;
 	var Fragment  = wp.element.Fragment;
 	var useState  = wp.element.useState;
+	var useEffect = wp.element.useEffect;
 	var Button    = wp.components.Button;
 	var __        = ( wp.i18n && wp.i18n.__ ) || function ( s ) { return s; };
 
@@ -99,9 +104,31 @@
 
 		var locState  = useState( null );
 		var typeState = useState( null );
-
 		var entries = parse( state.key );
 		var count   = entries.length;
+
+		// Per read, whether its time picker is open. Editor-only, never on the wire, and dense
+		// (one boolean per read) so removing a read can drop its slot.
+		var timeState = useState( [] );
+		var timeOpen  = timeState[ 0 ];
+
+		function setTimeOpen( i, open ) {
+			timeState[ 1 ]( function ( prev ) {
+				var next = prev.slice();
+				while ( next.length <= i ) { next.push( false ); }
+				next[ i ] = open;
+				return next;
+			} );
+		}
+
+		// A read that names a time field opens its picker and keeps it open, so clearing the
+		// field (or emptying it to retype) leaves the picker where it was. Only Remove Time
+		// Field closes it.
+		useEffect( function () {
+			entries.forEach( function ( ops, i ) {
+				if ( ops[ 1 ] && ! timeOpen[ i ] ) { setTimeOpen( i, true ); }
+			} );
+		} );
 
 		function write( next ) {
 			var upd = Object.assign( {}, state );
@@ -157,19 +184,50 @@
 					el( 'strong', {
 						key: 'ttl',
 						style: { fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.4px' }
-					}, cfg.noun + ' ' + ( i + 1 ) ),
+					}, ( cfg.entryLabels && cfg.entryLabels[ i ] ) || '' ),
 					el( Button, {
 						key: 'rm',
 						variant: 'tertiary',
 						isDestructive: true,
 						style: { marginRight: '-8px' },
 						onClick: function () {
+							timeState[ 1 ]( function ( prev ) { return prev.filter( function ( s, n ) { return n !== i; } ); } );
 							write( entries.filter( function ( e, n ) { return n !== i; } ) );
 						}
 					}, cfg.removeLabel )
 				] ) );
 			}
-			kids.push( picker( i, 0 ), picker( i, 1 ) );
+			kids.push( picker( i, 0 ) );
+			if ( ops[ 1 ] || timeOpen[ i ] ) {
+				// Not the read's Remove: a link in the picker's label row, named for the field it
+				// drops. The label is the combo's own, so the link is laid over its right end.
+				kids.push( el( 'div', { key: 'time-' + i, style: { position: 'relative', marginBottom: '12px' } }, [
+					picker( i, 1 ),
+					el( Button, {
+						key: 'rm-time',
+						variant: 'link',
+						isDestructive: true,
+						// `top` puts the link on the combo's label line: the label row sits about
+						// 11px below the wrapper's top edge. Tuned by eye in the testbed editor.
+						style: { position: 'absolute', top: '11px', right: 0, height: 'auto', fontSize: '12px' },
+						onClick: function () {
+							setTimeOpen( i, false );
+							if ( ops[ 1 ] ) {
+								write( setOperand( entries, i, 1, '' ) );
+							}
+						}
+					}, cfg.timeRemoveLabel )
+				] ) );
+			} else {
+				kids.push( el( Button, {
+					key: 'add-time',
+					variant: 'link',
+					style: { display: 'block', margin: '8px 0 12px' },
+					onClick: function () {
+						setTimeOpen( i, true );
+					}
+				}, '+ ' + cfg.timeAddLabel ) );
+			}
 			children.push( el( Fragment, { key: 'entry-' + i }, kids ) );
 		} );
 
@@ -177,6 +235,7 @@
 			children.push( el( Button, {
 				key: 'add',
 				variant: 'secondary',
+				style: { marginTop: '12px' },
 				onClick: function () { write( entries.concat( [ [ '' ] ] ) ); }
 			}, '+ ' + cfg.addLabel ) );
 		}
@@ -205,8 +264,10 @@
 					timeLabel: cfg.timeLabel,
 					timeHelp: cfg.timeHelp,
 					timePlaceholder: cfg.timePlaceholder,
-					noun: cfg.noun,
+					entryLabels: cfg.entryLabels,
 					addLabel: cfg.addLabel,
+					timeAddLabel: cfg.timeAddLabel,
+					timeRemoveLabel: cfg.timeRemoveLabel,
 					removeLabel: cfg.removeLabel,
 					max: cfg.max,
 					typeDefault: cfg.typeDefault

@@ -1397,6 +1397,7 @@ $dt_key = bws_get_base_datetime_options()['key'];
 assert_same( 'datetime: key is the read control', 'bws-datetime-reads', $dt_key['type'] );
 assert_same( 'try_datetime: the same key definition, not a copy', $dt_key, bws_get_datetime_template_options()['key'] );
 assert_same( 'datetime: the control stops offering Add at the most reads the normalizer takes', BWS_DATETIME_MAX_READS, $dt_key['max'] );
+assert_same( 'datetime: a non-empty heading for every read the control offers', true, count( array_filter( $dt_key['entryLabels'], 'strlen' ) ) >= BWS_DATETIME_MAX_READS );
 assert_same( 'datetime: its Type filter opens on a group that exists', true, in_array( $dt_key['typeDefault'], array_column( bws_field_type_groups(), 'value' ), true ) );
 assert_same( 'datetime: the old field options are not registered on the merged tag', array(), array_values( array_intersect( array( 'timeKey', 'startKey', 'startTimeKey', 'endKey', 'endTimeKey' ), array_keys( bws_get_base_datetime_options() ) ) ) );
 

@@ -329,10 +329,11 @@ const BWS_DATETIME_MAX_READS = 2;
  *
  * `bws-datetime-reads` (assets/js/datetime-read-control.js) owns the whole `key` value, one
  * `;` entry per read and one `+` pair inside an entry (bws_datetime_reads() owns that
- * grammar). Every noun, label and count the control shows arrives here and is never typed
- * in the control. The pickers it renders are the field combo, whose Type filter opens on
- * the date and time types (`typeDefault`) and stays reachable to All for a date stored as
- * Text or plain meta.
+ * grammar). Every heading, label and count the control shows arrives here and is never typed
+ * in the control. `entryLabels` is indexed by read, so it must cover BWS_DATETIME_MAX_READS
+ * (control-order-test.php pins it). The pickers it renders are the field combo, whose Type
+ * filter opens on the date and time types (`typeDefault`) and stays reachable to All for a
+ * date stored as Text or plain meta.
  *
  * @since Unreleased
  * @return array The `key` option definition.
@@ -346,8 +347,14 @@ function bws_get_datetime_reads_option(): array {
 		'timeLabel'      => __( 'Time Field Key (optional)', 'generateblocks' ),
 		'timeHelp'       => __( 'ACF time picker field to override or add time component.', 'generateblocks' ),
 		'timePlaceholder' => 'event_time',
-		'noun'           => __( 'Date/Time', 'generateblocks' ),
-		'addLabel'       => __( 'Add Date/Time', 'generateblocks' ),
+		// One heading per read, by position: a second read is a range's end.
+		'entryLabels'    => array(
+			__( 'Start Date/Time', 'generateblocks' ),
+			__( 'End Date/Time', 'generateblocks' ),
+		),
+		'addLabel'       => __( 'Add End Date/Time', 'generateblocks' ),
+		'timeAddLabel'   => __( 'Add Time Field', 'generateblocks' ),
+		'timeRemoveLabel' => __( 'Remove Time Field', 'generateblocks' ),
 		'removeLabel'    => __( 'Remove', 'generateblocks' ),
 		'max'            => BWS_DATETIME_MAX_READS,
 		'typeDefault'    => BWS_FIELD_TYPE_GROUP_DATETIME,
