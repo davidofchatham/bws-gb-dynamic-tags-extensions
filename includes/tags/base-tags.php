@@ -297,7 +297,7 @@ function bws_register_base_tags(): void {
 	// =========================================================
 	// datetime_single — single date/time field(s) with mode switch. Hidden from the picker
 	// (FW-81), still registered so stored content renders; the type:'tag' entry that declares
-	// it deprecated is in bws_register_nxm_tag_migrations().
+	// it deprecated is in bws_register_deprecated_tags().
 	// =========================================================
 
 	bws_gb_register_tag( array(

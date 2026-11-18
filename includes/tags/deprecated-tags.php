@@ -24,16 +24,34 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Register deprecated dynamic tags (old names that delegate to new ones).
  *
  * @since 1.0.0
- * @invariant Body stays empty. Any future deprecated-tag family is registered
- *            here ONLY if it needs live GB rendering again — otherwise its
+ * @invariant Body holds only the type:'tag' entries of tags that are STILL REGISTERED
+ *            (hidden), today the four datetime tags (FW-81). Any other deprecated-tag family
+ *            goes here ONLY if it needs live GB rendering again — otherwise its
  *            data belongs solely in bws_register_nxm_tag_migrations()
  *            and bws_register_early_deprecated_tag_migrations(). A tag kept out
  *            of the picker passes `hidden => true` to bws_gb_register_tag().
  */
 function bws_register_deprecated_tags() {
-	// Deprecated tags are no longer registered with GenerateBlocks.
-	// Migration data is preserved in MigrationRegistry via bws_register_nxm_tag_migrations()
-	// and bws_register_early_deprecated_tag_migrations() for the Tag Converter tool.
+	// ==========================================
+	// THE FOUR TAGS `datetime` / `try_datetime` REPLACE (FW-81). Unlike the N×M entries these
+	// tags are still REGISTERED (hidden from the picker, see bws_register_base_tags()) and
+	// render as before, so `lifecycle` is set to `deprecated` (MigrationRegistry::register()
+	// owns what it means). Hiding and declaring land together, and the lifecycle harness holds
+	// them in agreement.
+	// ==========================================
+
+	foreach ( array(
+		'datetime_single'     => 'datetime',
+		'datetime_range'      => 'datetime',
+		'try_datetime_single' => 'try_datetime',
+		'try_datetime_range'  => 'try_datetime',
+	) as $old_tag => $new_tag ) {
+		\BWS\DynamicTags\MigrationRegistry::register( array(
+			'old_tag'   => $old_tag,
+			'new_tag'   => $new_tag,
+			'lifecycle' => 'deprecated',
+		) );
+	}
 }
 // Registration is called directly from bws_dynamic_tags_register_all() in the main plugin file.
 
@@ -853,27 +871,6 @@ function bws_register_nxm_tag_migrations() {
 			'since'              => $since,
 			'transform_callback' => 'bws_migrate_post_term_related_post_chain',
 			'gb_link_remap'      => true,
-		) );
-	}
-
-	// ==========================================
-	// THE FOUR TAGS `datetime` / `try_datetime` REPLACE (FW-81). Unlike every entry above these
-	// tags are still REGISTERED (hidden from the picker, see bws_register_base_tags()) and
-	// render as before, so `lifecycle` is set to `deprecated` (MigrationRegistry::register()
-	// owns what it means). Hiding and declaring land together, and the lifecycle harness holds
-	// them in agreement.
-	// ==========================================
-
-	foreach ( array(
-		'datetime_single'     => 'datetime',
-		'datetime_range'      => 'datetime',
-		'try_datetime_single' => 'try_datetime',
-		'try_datetime_range'  => 'try_datetime',
-	) as $old_tag => $new_tag ) {
-		$reg::register( array(
-			'old_tag'   => $old_tag,
-			'new_tag'   => $new_tag,
-			'lifecycle' => 'deprecated',
 		) );
 	}
 }
