@@ -1395,6 +1395,30 @@ function bws_datetime_fault_text( array $faults ): string {
 }
 
 /**
+ * The sentence for what a text tag ignored of its `key`, or '' for none.
+ *
+ * Wording owner for the text read warnings; what counts as a fault is
+ * bws_text_first_read_options()'s. Clauses join with `; `, the later ones lower-cased.
+ *
+ * @since Unreleased
+ * @param array $faults The `$faults` out-param of bws_text_first_read_options().
+ * @return string Warning text without the `⚠` prefix.
+ */
+if ( ! function_exists( 'bws_text_fault_text' ) ) {
+function bws_text_fault_text( array $faults ): string {
+	$parts = array();
+	foreach ( $faults as $fault ) {
+		if ( 'reads' === $fault ) {
+			$parts[] = 'Only one field can be read here, so the extra reads are ignored';
+		} elseif ( 'operand' === $fault ) {
+			$parts[] = 'Fields cannot be joined with + here, so the extra part is ignored';
+		}
+	}
+	return implode( '; ', array_map( static fn( $part, $i ) => $i ? lcfirst( $part ) : $part, $parts, array_keys( $parts ) ) );
+}
+}
+
+/**
  * Build the datetime portion of a datetime preview label (e.g. "Date like \"Apr 24\"").
  *
  * THE one datetime preview: the base tags' label and the try_ label both build it here.
@@ -1499,6 +1523,12 @@ function bws_build_preview_label( array $options, string $template ): string {
 	);
 	$context_part = implode( ' ', $ctx_segments );
 
+	// A text tag reads one field, so the label names the field that renders; what the read
+	// ignored is warned about below (bws_text_first_read_options()).
+	$text_faults = array();
+	if ( 'text' === $template ) {
+		$options = bws_text_first_read_options( $options, $text_faults );
+	}
 	$key = $options['key'] ?? '';
 	$use = bws_use_effective( $template, $options );
 	// Image `as` may carry a folded `,<size>` arg (as+size fold, FW-52) — read the
@@ -1582,6 +1612,16 @@ function bws_build_preview_label( array $options, string $template ): string {
 			$warning .= '; fixed ' . $fixed_noun . ' not entered';
 		}
 		$inner = '⚠ ' . $warning;
+		if ( $fallback ) {
+			$inner .= ' (fallback: “' . $fallback . '”)';
+		}
+		return bws_wrap_preview_label_with_link( '[' . $inner . ']', $options );
+	}
+
+	// A keyed text read that ignored part of its `key`: the warning replaces the label, like the
+	// datetime read warnings below. A title or fixed read has no `key` to guard.
+	if ( $text_faults && 'key' === $use ) {
+		$inner = '⚠ ' . bws_text_fault_text( $text_faults );
 		if ( $fallback ) {
 			$inner .= ' (fallback: “' . $fallback . '”)';
 		}

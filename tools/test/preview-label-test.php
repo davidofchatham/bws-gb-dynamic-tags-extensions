@@ -1535,5 +1535,31 @@ check( 'try dt warn: extra operand',  dt_mask( try_preview( [ 'key' => 'a+b+c' ]
 check( 'try dt warn: surplus',        dt_mask( try_preview( [ 'use' => 'now;key', 'key' => 'a;b' ], 'datetime' ) ), '[⚠ Try: 1 field read but 2 field keys set, so extra keys are ignored]' );
 // One datetime preview builder: the old try_-only one is gone.
 check( 'dt: the duplicate builder is gone', function_exists( 'bws_try_preview_datetime_part' ) ? 'present' : 'gone', 'gone' );
+
+// ---------------------------------------------------------------------------
+echo "\ntext read guards — a datetime-shaped `key` pasted onto {{text}}\n";
+// The first read's first operand is what renders, so the label names that field; the rest is
+// a warning that replaces the whole preview (like the datetime ones), with the fallback appended.
+function tx_read( string $key ): string {
+	$o = bws_text_first_read_options( [ 'key' => $key, 'use' => 'key' ], $faults );
+	return $o['key'] . '|' . implode( ',', $faults );
+}
+check( 'tx read: a plain key is untouched',        tx_read( 'a' ),            'a|' );
+check( 'tx read: two reads keep the first',        tx_read( 'a;b' ),          'a|reads' );
+check( 'tx read: a joined operand is dropped',     tx_read( 'a+b' ),          'a|operand' );
+check( 'tx read: both',                            tx_read( 'a+b;c' ),        'a|reads,operand' );
+check( 'tx read: spaces trim',                     tx_read( ' a + b ' ),      'a|operand' );
+check( 'tx read: an empty first read stays empty', tx_read( ';b' ),           '|reads' );
+check( 'tx read: no key at all',                   json_encode( bws_text_first_read_options( [ 'use' => 'title' ], $f ) ) . '|' . count( $f ), '{"use":"title"}|0' );
+check( 'tx read: other options pass through',      bws_text_first_read_options( [ 'key' => 'a;b', 'src' => 'site' ] )['src'], 'site' );
+
+check( 'tx label: plain key is the same label',    bws_build_preview_label( [ 'key' => 'a' ], 'text' ),     "['a']" );
+check( 'tx label: two reads warn',                 bws_build_preview_label( [ 'key' => 'a;b' ], 'text' ),   '[⚠ Only one field can be read here, so the extra reads are ignored]' );
+check( 'tx label: a joined operand warns',         bws_build_preview_label( [ 'key' => 'a+b' ], 'text' ),   '[⚠ Fields cannot be joined with + here, so the extra part is ignored]' );
+check( 'tx label: both clauses join',              bws_build_preview_label( [ 'key' => 'a+b;c' ], 'text' ), '[⚠ Only one field can be read here, so the extra reads are ignored; fields cannot be joined with + here, so the extra part is ignored]' );
+check( 'tx label: fallback appends',               bws_build_preview_label( [ 'key' => 'a;b', 'fallback' => 'TBA' ], 'text' ), '[⚠ Only one field can be read here, so the extra reads are ignored (fallback: “TBA”)]' );
+check( 'tx label: an empty first read is a missing key', bws_build_preview_label( [ 'key' => ';b' ], 'text' ), '[⚠ No meta key set]' );
+check( 'tx label: title read has no key to guard',  bws_build_preview_label( [ 'key' => 'a;b', 'use' => 'title' ], 'text' ), '[Title]' );
+check( 'tx label: only {{text}} is guarded',       dt_mask( bws_build_preview_label( [ 'key' => 'a;b' ], 'datetime' ) ), '[Date-Time Range like “…”]' );
 echo "\n" . ( $failures ? "FAILED {$failures}/{$count}\n" : "PASSED {$count}/{$count}\n" );
 exit( $failures ? 1 : 0 );

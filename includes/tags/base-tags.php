@@ -562,6 +562,7 @@ function bws_register_base_tags(): void {
  * @since 1.14.1 Extracted from bws_base_text_callback().
  * @since 1.16.0 List branches ride bws_collect_value_list.
  * @since 1.21.0 The `meta_row` list branch.
+ * @since Unreleased `key` narrowed to its first read, bws_text_first_read_options().
  *
  * @param array $options  Tag options.
  * @param mixed $instance GB tag instance.
@@ -570,7 +571,9 @@ function bws_register_base_tags(): void {
  *                        value came from a list arm that already wrapped per item.
  */
 function bws_base_text_resolve_value( array $options, $instance ): array {
-	$res = bws_base_src_resolution( $options );
+	// A datetime-shaped `key` reads its first field only (bws_text_first_read_options()).
+	$options = bws_text_first_read_options( $options );
+	$res     = bws_base_src_resolution( $options );
 
 	// Site read — no entity; site value with sentinel link identity (id 1, 'site' type).
 	if ( 'site' === $res['kind'] ) {

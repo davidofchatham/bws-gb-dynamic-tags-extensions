@@ -1621,3 +1621,40 @@ function bws_is_valid_meta_key( $meta_key ) {
 	return (bool) preg_match( '/^[a-zA-Z0-9_-]+$/', $meta_key );
 }
 }
+
+/**
+ * The one field a `{{text}}` tag reads from its `key` option, and what the tag ignored to get it.
+ *
+ * `key` is a bare field name on a text tag. A datetime-shaped value pasted onto one (`key:a;b`
+ * for two reads, `key:a+b` for a field joined to another) names no field, so passing it on
+ * would render nothing. The first read's first operand is read instead, and `$faults` reports
+ * what was dropped for the editor preview: `reads` (a second `;` entry) and `operand` (a `+`
+ * part), in that order. Nothing else changes, and a plain key comes back untouched.
+ *
+ * This is the only place `;` and `+` are read on a text tag, which does not compose reads:
+ * ranges and joined fields are `{{datetime}}`'s and `{{join}}`'s.
+ *
+ * @since Unreleased
+ * @param array      $options Raw tag options.
+ * @param array|null $faults  Out: `reads` and/or `operand`, whichever were ignored.
+ * @return array The options, with `key` narrowed to the field that is read.
+ */
+if ( ! function_exists( 'bws_text_first_read_options' ) ) {
+function bws_text_first_read_options( array $options, ?array &$faults = null ): array {
+	$faults = array();
+	$key    = $options['key'] ?? null;
+	if ( ! is_string( $key ) || false === strpbrk( $key, ';+' ) ) {
+		return $options;
+	}
+	$entries  = explode( ';', $key );
+	$operands = explode( '+', $entries[0] );
+	if ( count( $entries ) > 1 ) {
+		$faults[] = 'reads';
+	}
+	if ( count( $operands ) > 1 ) {
+		$faults[] = 'operand';
+	}
+	$options['key'] = trim( $operands[0] );
+	return $options;
+}
+}

@@ -221,6 +221,17 @@ A configuration the tag forgives at render raises a warning instead of the sampl
 
 Like every label here it is built only when the tag reads empty, so a configuration that still resolves to a value (an ignored third field, or surplus keys) shows its value and no warning. A name in `use` that is neither `key` nor a verb is dropped without a warning.
 
+### Text read warnings **[UNRELEASED]**
+
+A `{{text}}` whose `key` carries more than one field reads the first and warns about the rest, the same way a datetime tag warns about what it forgave: the warning replaces the whole preview, the fallback still appends, and two clauses join with `; `. The deciding rule and the wording live with the code (`bws_text_first_read_options()` and `bws_text_fault_text()`).
+
+| What the author set | Warning |
+|---|---|
+| A second read (`key:a;b`) | `⚠ Only one field can be read here, so the extra reads are ignored` |
+| A field joined with `+` (`key:a+b`) | `⚠ Fields cannot be joined with + here, so the extra part is ignored` |
+
+Like every label here it is built only when the tag reads empty, so a `key` whose first field has a value shows that value and no warning. A `title` or `fixed` read has no `key` to guard. An empty first read (`key:;b`) is the ordinary `⚠ No meta key set`.
+
 ## Examples
 
 | Tag | Preview |

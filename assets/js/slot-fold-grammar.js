@@ -321,14 +321,13 @@
 	/**
 	 * Parse a folded slot value into its structure.
 	 *
-	 * Container shapes the parse in exactly two already-settled places: a TYPE token
-	 * leads only in format-AGNOSTIC containers (join/table — a try_ slot inherits its
-	 * template's type), and on a `datetime_*` type `key` is that tag's own field
-	 * option rather than the read.
+	 * Container shapes the parse in exactly one place: a TYPE token leads only in
+	 * format-AGNOSTIC containers (join/table — a try_ slot inherits its template's
+	 * type). The type never changes what `key` means, on a `datetime_*` slot included.
 	 *
-	 * The read axis and the datetime `key` meaning resolve AFTER the token loop, never
-	 * inside it: a hand-edited wire may state the type last, and assigning during the
-	 * scan is what made the spike's read order-dependent.
+	 * The read axis resolves AFTER the token loop, never inside it: a hand-edited wire
+	 * may state the type last, and assigning during the scan is what made the spike's
+	 * read order-dependent.
 	 *
 	 * @param {string} value     Slot value (escaped or not — normalized here).
 	 * @param {string} container 'try' | 'join' | 'table'.
@@ -382,12 +381,6 @@
 			} else {
 				slot.extra.push( tokens[ i ] );
 			}
-		}
-
-		// `key` on a datetime slot is that tag's own field option, not the read.
-		if ( null !== slot.type && 0 === String( slot.type ).indexOf( 'datetime' ) && null !== keyTok ) {
-			slot.opts.key = keyTok;
-			keyTok = null;
 		}
 
 		// Read axis — NAME precedence, order-independent, mirroring the shipped

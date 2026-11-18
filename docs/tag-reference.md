@@ -993,6 +993,8 @@ Reads a text field (ACF/meta) or the source's **title/name** analog (`use:title`
 
 **Tag-specific options:** none beyond the shared groups — `text` is the canonical user of [Source](#source-group) + [Field](#field-group) + [Link wrap](#link-wrap-group) + [Fallback](#fallback-group). `use` values: `key` (default, key-mode — **`key` required**), `title` (the analog) or `fixed` (the author's text — **`fixed` required**).
 
+**[UNRELEASED]** **`key` names one field.** A datetime-shaped value pasted onto `{{text}}` degrades instead of rendering nothing: `key:a;b` (two reads) prints the first field's value only, `key:a+b` (a field joined to another) prints the first operand only, and the editor preview warns about what was ignored ([editor-tag-previews.md](editor-tag-previews.md#text-read-warnings-unreleased)). Ranges are `{{datetime}}`'s and composing two fields is `{{join}}`'s.
+
 **Control order** (`source → link → fallback` — no `format` group on `text`):
 - **`source`:** `[source options]` → `use` (`key` (unset default in single-slot tags); `title`; `fixed`) → `key` (shown when `use` unset [in single-slot tags] or `use:key`) → `fixed` (shown when `use:fixed`)
 - **`link`:** `linkTo` → `linkKey` (shown when `linkTo:key`) → `newTab` (shown when `linkTo` not empty)

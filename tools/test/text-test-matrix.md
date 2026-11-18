@@ -245,8 +245,21 @@ A `try_text` attempt can be the fixed read. It takes its turn like any attempt: 
 | T13.7 | `{{try_text A:src(refs,related_staff);fixed(Read more)\|linkTo:permalink}}` | `Read more` twice, each linked to its own staff page |
 | T13.8 | `{{try_text A:fixed(Note\: see \| this, and; more)}}` | `Note: see \| this, and; more` — escapes and slot separators inert inside the bracket |
 
+## T14 — a datetime-shaped `key` pasted onto `{{text}}`
+
+`{{text}}` reads one field. A second `;` read or a `+` operand in `key` is ignored, and the editor preview warns (`preview-label-test.php`, "text read guards"). Visible on `/matrix-post-meta/` (section "Text T14"). Two different values, the main line number and the zero probe, make "first" observable in both orders. Measured 2026-11-18 via `render-tag`.
+
+| # | Tag (on `/matrix-post-meta/`) | Expected |
+|---|---|---|
+| T14.1 | `{{text key:main_line;bws_zero_probe}}` | `(987) 654-3210` only |
+| T14.2 | `{{text key:bws_zero_probe;main_line}}` | `0` only (plus the T5.1 pad byte) |
+| T14.3 | `{{text key:main_line+bws_zero_probe}}` | `(987) 654-3210` only |
+| T14.4 | `{{text key:bws_zero_probe+main_line}}` | `0` only (plus the T5.1 pad byte) |
+| T14.5 | `{{text key:no_such_field;main_line\|fallback:NONE}}` | `NONE` — the first read is empty and the second does not rescue it |
+
 ## Fail triage
 
+- **T14.x empty:** `bws_text_first_read_options()` not applied at the top of `bws_base_text_resolve_value()`, so the whole `a;b` / `a+b` string went to the read as one field name.
 - **T1.2/T3.3/T4.2/T7.4 value right but unlinked:** shell wrap gate — `link_id`/`link_type` not
   threading out of `bws_base_text_resolve_value` for that arm.
 - **T3.2/T7.3 one anchor around the whole joined list, or no anchor at all:** the per-item wrap

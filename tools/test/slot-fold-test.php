@@ -233,7 +233,7 @@ $corpus = array(
 	array( 'table', 'header(Price);key(price);width(8rem);color(#c00);textAlign(right;header,center)' ),
 	array( 'table', 'header(Price);textAlign(header,center)' ),
 	array( 'join', 'key(a);textAlign(right)' ),
-	// datetime slots — `key` is the datetime field option, not the read
+	// datetime slots — `key` is the read like any other slot's (no reroute, FW-81 D25)
 	array( 'join', 'datetime_range;as(date);format(M j);startKey(start_date);endKey(end_date)' ),
 	array( 'join', 'datetime_single;key(event_date);timeKey(event_time)' ),
 	// combining slot with a chain and NO read: legal folded wire meaning SKIP —
@@ -260,6 +260,18 @@ foreach ( $corpus as $i => $case ) {
 	$out = bws_fold_emit_slot( $slot );
 	check( "P1.$i identity: $wire", $out === $wire, "got: $out" );
 }
+
+// A `key` on a datetime-typed slot is the slot's READ like any other slot's, never a tag-level
+// opts['key'] (which no read path consumes, so such a slot would read nothing). `datetime` is
+// not a slot type token.
+$dt = bws_fold_parse_slot( 'datetime_single;key(x)', 'join' );
+check( 'P1.dt key on a datetime slot is its read', array( 'kind' => 'key', 'field' => 'x' ) === ( $dt['read'] ?? null ), var_export( $dt, true ) );
+check( 'P1.dt and not a tag-level option', ! isset( $dt['opts']['key'] ), var_export( $dt, true ) );
+check( 'P1.dt the type survives', 'datetime_single' === ( $dt['type'] ?? null ), var_export( $dt, true ) );
+check( 'P1.dt datetime is not a slot type token', ! in_array( 'datetime', BWS_FOLD_TYPES, true ), '' );
+check( 'P1.dt BWS_FOLD_TYPES unchanged', array( 'title', 'content', 'email', 'phone', 'permalink', 'image', 'datetime_single', 'datetime_range' ) === BWS_FOLD_TYPES, var_export( BWS_FOLD_TYPES, true ) );
+$dt_try = bws_fold_parse_slot( 'key(x)', 'try' );
+check( 'P1.dt a try slot is unaffected', array( 'kind' => 'key', 'field' => 'x' ) === ( $dt_try['read'] ?? null ), var_export( $dt_try, true ) );
 
 // The presentation tokens canonicalize: a hand-written order is rewritten to rank order, the
 // header first, the read next, then width and the text keys in control order.
@@ -371,8 +383,8 @@ $slot2 = array(
 	'header' => null,
 	'type'  => 'datetime_single',
 	'chain' => array(),
-	'read'  => null,
-	'opts'  => array( 'key' => 'event_time', 'as' => 'time', 'format' => 'g:i A' ),
+	'read'  => array( 'kind' => 'key', 'field' => 'event_time' ),
+	'opts'  => array( 'as' => 'time', 'format' => 'g:i A' ),
 	'extra' => array(),
 );
 $v1             = bws_fold_emit_slot( $slot1 );
@@ -406,8 +418,8 @@ $content = array(
 	'header' => null,
 	'type'  => 'datetime_single',
 	'chain' => array(),
-	'read'  => null,
-	'opts'  => array( 'key' => 'd', 'fallback' => 'Date/time TBA', 'format' => 'F j, Y g:i A' ),
+	'read'  => array( 'kind' => 'key', 'field' => 'd' ),
+	'opts'  => array( 'fallback' => 'Date/time TBA', 'format' => 'F j, Y g:i A' ),
 	'extra' => array(),
 );
 $vc = bws_fold_emit_slot( $content );
@@ -469,8 +481,8 @@ $dt_format = array(
 	'header' => null,
 	'type'  => 'datetime_single',
 	'chain' => array(),
-	'read'  => null,
-	'opts'  => array( 'key' => 'event', 'format' => 'l, F jS \\a\\t g:i A' ),
+	'read'  => array( 'kind' => 'key', 'field' => 'event' ),
+	'opts'  => array( 'format' => 'l, F jS \\a\\t g:i A' ),
 	'extra' => array(),
 );
 $vf = bws_fold_emit_slot( $dt_format );

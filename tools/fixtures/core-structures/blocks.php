@@ -420,6 +420,17 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'T13.8 (expect Note: see | this, and; more)', '{{try_text A:fixed(Note\: see \| this, and; more)}}' ),
 	) );
 
+	// T14 — a datetime-shaped `key` pasted onto {{text}} reads its first field only;
+	// text-test-matrix.md §T14. Two different values (the number, and the zero) make "first"
+	// observable in both orders.
+	$sections[] = bws_fixture_gb_section( 'Text T14 - datetime-shaped key on text', array(
+		bws_fixture_gb_row( 'T14.1 (expect the main line number only - the first read)', '{{text key:main_line;bws_zero_probe}}' ),
+		bws_fixture_gb_row( 'T14.2 (expect 0 only - the first read, the order reversed)', '{{text key:bws_zero_probe;main_line}}' ),
+		bws_fixture_gb_row( 'T14.3 (expect the main line number only - the first operand)', '{{text key:main_line+bws_zero_probe}}' ),
+		bws_fixture_gb_row( 'T14.4 (expect 0 only - the first operand, the order reversed)', '{{text key:bws_zero_probe+main_line}}' ),
+		bws_fixture_gb_row( 'T14.5 (expect NONE - the first read is empty and the second does not rescue it)', '{{text key:no_such_field;main_line|fallback:NONE}}' ),
+	) );
+
 	// src:site matrix (src-site-test-matrix.md) — R7 try_ site-slot rows (FW-4,
 	// 1.15.0). R7.8 (WYSIWYG option), R7.9-positive (site logo) and R7.12
 	// (org_email) need [SUB] state the fixture doesn't seed — matrix notes them;
