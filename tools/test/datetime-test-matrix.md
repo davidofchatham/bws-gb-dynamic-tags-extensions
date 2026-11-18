@@ -338,7 +338,7 @@ Every row is a visible block on `/matrix-datetime/` and pinned to `/matrix-post-
 
 `try_datetime` replaces `try_datetime_single` and `try_datetime_range`. Each attempt reads exactly as `{{datetime}}` does, so a single date, a range, a `+` join and a verb all work in an attempt, and the first attempt that prints something wins. The read (`key`, `use`) is the tag's, not the attempt's: every attempt reads the same fields from its own source, so the attempts differ by source only, as they did on the old two. The old two forms keep rendering.
 
-**Measured 2026-11-17** on the testbed, `render-tag` and then the front end, and each old-form twin (D12.3, D12.5) on the build before this ticket as well, byte for byte the same.
+**Measured 2026-11-17** on the testbed, `render-tag` and then the front end, and each old-form twin (D12.3, D12.5, D12.12) on the build before this ticket as well, byte for byte the same.
 
 `refs,missing_rel` is an attempt that reads nothing on this page; the two pinned posts are the attempts that do, with different dates (the second is the staff post `jane-partner`, whose `event_datetime` is May 1, 2030), so a walk that stops at the wrong attempt prints the wrong date.
 
@@ -355,5 +355,6 @@ Every row is a visible block on `/matrix-datetime/` and pinned to `/matrix-post-
 | D12.9 | `{{try_datetime A:src(refs,missing_rel)\|B:src(site)\|key:event_datetime\|fallback:Date TBA}}` | `Date TBA` (printed once, after every attempt read nothing) |
 | D12.10 | `{{try_datetime}}` | empty (no read, no fallback) |
 | D12.11 | `{{try_datetime A:src(post,<meta id>)\|key:event_datetime\|linkTo:permalink}}` | `August 12, 2030 9:00 AM` linked to the `matrix-post-meta` page (the link follows the winning attempt) |
+| D12.12 | D12.1 as `try_datetime_single` | `August 12, 2030 9:00 AM`, the same (the old form's first-attempt row, measured on the build before this ticket too) |
 
 Every row is a visible block on `/matrix-datetime/`.

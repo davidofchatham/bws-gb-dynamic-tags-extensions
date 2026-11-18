@@ -2570,6 +2570,7 @@ function bws_fixture_page_content_matrix_datetime() {
 		bws_fixture_gb_row( 'D12.9 expect "Date TBA" (every attempt reads nothing, so the fallback prints once)', "{{try_datetime A:src(refs,missing_rel)|B:src(site)|key:event_datetime|fallback:Date TBA}}" ),
 		bws_fixture_gb_empty_row( 'D12.10 expect EMPTY (a bare try_datetime has no read and no fallback)', "{{try_datetime}}" ),
 		bws_fixture_gb_row( 'D12.11 expect "August 12, 2030 9:00 AM" LINKED to the matrix-post-meta page (the link follows the attempt that won)', "{{try_datetime A:src(post,{$meta_id})|key:event_datetime|linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'D12.12 expect "August 12, 2030 9:00 AM" (= D12.1 through the old try_datetime_single, which still renders)', "{{try_datetime_single A:src(post,{$meta_id})|B:src(post,{$jane_id})|key:event_datetime}}" ),
 	) );
 
 	return implode( "\n\n", $sections );
