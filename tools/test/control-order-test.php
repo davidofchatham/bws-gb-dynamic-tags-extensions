@@ -1407,6 +1407,20 @@ assert_same( 'datetime: only published and modified are limited to a source kind
 assert_same( 'datetime: its Type filter opens on a group that exists', true, in_array( $dt_key['typeDefault'], array_column( bws_field_type_groups(), 'value' ), true ) );
 assert_same( 'datetime: the old field options are not registered on the merged tag', array(), array_values( array_intersect( array( 'timeKey', 'startKey', 'startTimeKey', 'endKey', 'endTimeKey' ), array_keys( bws_get_base_datetime_options() ) ) ) );
 
+// The OLD tags carry the same control on `key` so their modal shows the reads the mount
+// rewrite produced, and keep their old options registered beside it. They read no `use`, so the
+// control offers the field row only, and a read count the family can use.
+foreach ( array(
+	'datetime_single' => array( 'single', 1, bws_get_base_datetime_single_options(), array( 'timeKey' ) ),
+	'datetime_range'  => array( 'range', BWS_DATETIME_MAX_READS, bws_get_base_datetime_range_options(), array( 'startKey', 'startTimeKey', 'endKey', 'endTimeKey' ) ),
+) as $old_tag => list( $family, $max, $old_opts, $old_names ) ) {
+	assert_same( "{$old_tag}: key is the read control, naming its family", array( 'bws-datetime-reads', $family, $max ), array( $old_opts['key']['type'], $old_opts['key']['legacy'], $old_opts['key']['max'] ) );
+	assert_same( "{$old_tag}: the control offers the field row only (the old tags read no use)", array( 'key' ), array_column( $old_opts['key']['reads'], 'value' ) );
+	assert_same( "{$old_tag}: the old field options stay registered", array(), array_values( array_diff( $old_names, array_keys( $old_opts ) ) ) );
+	assert_same( "{$old_tag}: no use option", false, isset( $old_opts['use'] ) );
+}
+assert_same( 'the merged tag\'s key names no legacy family', false, isset( $dt_key['legacy'] ) );
+
 // ---------------------------------------------------------------------------
 
 echo "\n";

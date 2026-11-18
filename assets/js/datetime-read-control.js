@@ -48,6 +48,94 @@
 ( function () {
 	'use strict';
 
+	// ── The old tags' mount rewrite (the pure layer) ────────────────────────
+	// TWIN of bws_datetime_legacy_reads_rewrite() (includes/tags/datetime-tags.php), which
+	// states every rule. The two must agree on the same inputs, key order included: the
+	// shared corpus tools/test/datetime-mount-corpus.json is run through both
+	// (datetime-migration-test.php D8). Exported before the editor guard below so a harness
+	// can load it without WordPress.
+
+	var LEGACY_KEYS = {
+		single: [ 'key', 'timeKey' ],
+		range: [ 'startKey', 'startTimeKey', 'endKey', 'endTimeKey' ]
+	};
+
+	function legacyText( state, name ) {
+		var v = state[ name ];
+		return ( null === v || undefined === v ) ? '' : String( v ).trim();
+	}
+
+	function legacyEntry( field, time ) {
+		return '' === time ? field : field + '+' + time;
+	}
+
+	/**
+	 * @param {Object} state  The tag's options.
+	 * @param {string} family `single` or `range`: the old tag's own family.
+	 * @return {Object|null} Rewritten options in canonical order, or null when nothing changes.
+	 */
+	function legacyRewrite( state, family ) {
+		var names = LEGACY_KEYS[ family ];
+		var text  = {};
+		var clean = true;
+		if ( ! names ) {
+			return null;
+		}
+		names.forEach( function ( name ) {
+			text[ name ] = legacyText( state, name );
+			clean = clean && -1 === text[ name ].indexOf( ';' ) && -1 === text[ name ].indexOf( '+' );
+		} );
+		if ( ! clean ) {
+			return null;
+		}
+		var key;
+		if ( 'range' === family ) {
+			// No start: the end-only range, or nothing stated at all.
+			if ( '' === text.startKey + text.startTimeKey ) {
+				return null;
+			}
+			var start = legacyEntry( text.startKey, text.startTimeKey );
+			var end   = legacyEntry( text.endKey, text.endTimeKey );
+			key = '' === end ? start : start + ';' + end;
+		} else {
+			if ( ! Object.prototype.hasOwnProperty.call( state, 'timeKey' ) ) {
+				return null;
+			}
+			key = legacyEntry( text.key, text.timeKey );
+		}
+		var out = {};
+		Object.keys( state ).forEach( function ( name ) {
+			if ( -1 === names.indexOf( name ) ) {
+				out[ name ] = state[ name ];
+			}
+		} );
+		if ( '' !== key ) {
+			out.key = key;
+		}
+		var keys = Object.keys( out );
+		if ( 'function' === typeof window.bwsReorderKeys ) {
+			keys = window.bwsReorderKeys( keys );
+		}
+		var ordered = {};
+		keys.forEach( function ( name ) {
+			ordered[ name ] = out[ name ];
+		} );
+		return ordered;
+	}
+
+	/**
+	 * Whether an old RANGE tag holds its old options: some are set and the rewrite declines
+	 * (the end-only range, or an operand that is not a clean entry). A single never holds, so
+	 * its `key` control is never taken away.
+	 */
+	function legacyHold( state, family ) {
+		return 'range' === family
+			&& LEGACY_KEYS.range.some( function ( name ) { return '' !== legacyText( state, name ); } )
+			&& null === legacyRewrite( state, family );
+	}
+
+	window.bwsDatetimeLegacy = { rewrite: legacyRewrite, hold: legacyHold };
+
 	if ( ! window.wp || ! wp.hooks || ! wp.element || ! wp.components || ! wp.components.SelectControl ) {
 		return;
 	}
@@ -252,21 +340,24 @@
 			}
 			// Which read this is, by its own select. Picking a row replaces the read: a verb
 			// takes no operands, and a field starts empty, so no stale field rides a verb.
-			kids.push( el( 'div', { key: 'read', style: { marginBottom: '12px' } },
-				el( SelectControl, {
-					label: cfg.readLabel,
-					value: read.verb || 'key',
-					options: rowsFor( read ),
-					__nextHasNoMarginBottom: true,
-					onChange: function ( v ) {
-						if ( v === ( read.verb || 'key' ) ) { return; }
-						setTimeOpen( i, false );
-						write( reads.map( function ( r, n ) {
-							return n !== i ? r : ( 'key' === v ? fieldRead( [ '' ] ) : { verb: v, ops: [] } );
-						} ) );
-					}
-				} )
-			) );
+			// An old tag offers only the field row, so there is nothing to choose and no select.
+			if ( choices.length > 1 ) {
+				kids.push( el( 'div', { key: 'read', style: { marginBottom: '12px' } },
+					el( SelectControl, {
+						label: cfg.readLabel,
+						value: read.verb || 'key',
+						options: rowsFor( read ),
+						__nextHasNoMarginBottom: true,
+						onChange: function ( v ) {
+							if ( v === ( read.verb || 'key' ) ) { return; }
+							setTimeOpen( i, false );
+							write( reads.map( function ( r, n ) {
+								return n !== i ? r : ( 'key' === v ? fieldRead( [ '' ] ) : { verb: v, ops: [] } );
+							} ) );
+						}
+					} )
+				) );
+			}
 			if ( read.verb ) {
 				children.push( el( Fragment, { key: 'entry-' + i }, kids ) );
 				return;
@@ -317,6 +408,20 @@
 		return el( Fragment, null, children );
 	}
 
+	/** Renders nothing; rewrites an old tag's six options into `key` when its modal opens. */
+	function LegacyMountMigrator( props ) {
+		var setState = props.setState;
+		var family   = props.family;
+		useEffect( function () {
+			// A function updater, so it composes with the order normalizer's whole-object write; the
+			// SAME reference back is the loop guard that stops React re-rendering a settled tag.
+			setState( function ( prev ) {
+				return legacyRewrite( prev || {}, family ) || prev;
+			} );
+		} );
+		return null;
+	}
+
 	wp.hooks.addFilter(
 		'generateblocks.editor.tagSpecificControls',
 		'bws/datetime-read-control',
@@ -330,11 +435,23 @@
 			if ( 'use' === element.key && allOptions.key && 'bws-datetime-reads' === allOptions.key.type ) {
 				return null;
 			}
+			// An OLD tag (`legacy` names its family) carries this control on `key` beside its
+			// old options. The old options show only while an end-only range holds them
+			// (nothing rewrote it, so the control would fight them); every other old tag has
+			// them rewritten into `key` on mount, and the control stands alone.
+			var family = allOptions.key && 'bws-datetime-reads' === allOptions.key.type ? allOptions.key.legacy : '';
+			var hold   = !! family && legacyHold( context.state || {}, family );
+			if ( family && 'key' !== element.key && -1 !== LEGACY_KEYS[ family ].indexOf( element.key ) ) {
+				return hold ? element : null;
+			}
 			var cfg = allOptions[ element.key ];
 			if ( ! cfg || 'bws-datetime-reads' !== cfg.type ) {
 				return element;
 			}
-			return el( DatetimeReadControl, {
+			if ( hold ) {
+				return null;
+			}
+			var control = el( DatetimeReadControl, {
 				key: element.key,
 				cfg: {
 					label: cfg.label,
@@ -355,6 +472,14 @@
 				},
 				context: context
 			} );
+			// The wrapper carries the option key, so a later filter anchoring on `element.key`
+			// still finds it.
+			return family ? el(
+				Fragment,
+				{ key: element.key },
+				el( LegacyMountMigrator, { key: 'bws-datetime-legacy-mount', setState: context.setState, family: family } ),
+				control
+			) : control;
 		}
 	);
 }() );

@@ -117,6 +117,7 @@ function bws_get_base_datetime_single_options(): array {
 		bws_base_traversal_options(),
 		bws_get_datetime_list_options( false ),
 		bws_get_datetime_single_field_key_options(),
+		array( 'key' => bws_get_datetime_legacy_reads_option( 'single' ) ), // Replaces the plain key picker, in its place.
 		bws_get_datetime_single_leading_options(),
 		function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array(),
 		array(
@@ -276,6 +277,7 @@ function bws_get_base_datetime_range_options(): array {
 		bws_build_src_chain_option(),
 		bws_base_traversal_options(),
 		bws_get_datetime_list_options( true ),
+		array( 'key' => bws_get_datetime_legacy_reads_option( 'range' ) ),
 		bws_get_datetime_range_field_key_options(),
 		bws_get_datetime_range_leading_options(),
 		function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array(),
@@ -387,6 +389,28 @@ function bws_get_datetime_reads_option(): array {
 		'max'            => BWS_DATETIME_MAX_READS,
 		'typeDefault'    => BWS_FIELD_TYPE_GROUP_DATETIME,
 	);
+}
+
+/**
+ * The `key` option of an OLD datetime tag (`datetime_single`, `datetime_range`): the read control, so
+ * the modal shows the author's reads once the mount rewrite has turned the old field options into
+ * `key` (assets/js/datetime-read-control.js; the rule is bws_datetime_legacy_reads_rewrite()).
+ *
+ * `legacy` names the family and is what makes the control run that rewrite. The old tags keep their
+ * family whatever `key` says and read no `use`, so the read count is the family's (a single reads
+ * one) and the only row is the field. The old options stay registered beside it: GenerateBlocks
+ * hands them to the modal from the stored tag, and an end-only range (never rewritten) still shows them.
+ *
+ * @since Unreleased
+ * @param string $family `single` or `range`.
+ * @return array The `key` option definition.
+ */
+function bws_get_datetime_legacy_reads_option( string $family ): array {
+	$option           = bws_get_datetime_reads_option();
+	$option['legacy'] = $family;
+	$option['max']    = 'range' === $family ? BWS_DATETIME_MAX_READS : 1;
+	$option['reads']  = array_slice( $option['reads'], 0, 1 );
+	return $option;
 }
 
 /**
@@ -878,6 +902,87 @@ function bws_normalize_datetime_options( array $options, ?bool $range = false ):
 	}
 
 	return $mapped;
+}
+
+/**
+ * Whether an old range tag's wire is an END-ONLY range: both start fields empty, an end field
+ * set. Such a tag prints its fallback today (bws_datetime_range_core() reads nothing without a
+ * start), and `key` would give it a read, so no migration touches it and so no migration
+ * touches it.
+ *
+ * @since Unreleased
+ * @param array $options Raw options of a `datetime_range` tag.
+ * @return bool
+ */
+function bws_datetime_legacy_range_is_end_only( array $options ): bool {
+	$text = static function ( string $name ) use ( $options ): string {
+		return isset( $options[ $name ] ) && is_scalar( $options[ $name ] ) ? trim( (string) $options[ $name ] ) : '';
+	};
+	return '' === $text( 'startKey' ) && '' === $text( 'startTimeKey' )
+		&& ( '' !== $text( 'endKey' ) || '' !== $text( 'endTimeKey' ) );
+}
+
+/**
+ * Rewrite an old datetime tag's field options to the one `key` the merged tag reads (FW-81).
+ *
+ * THE RULE for both migration paths: the editor's mount step (assets/js/datetime-read-control.js,
+ * `bwsDatetimeLegacy.rewrite()`, its twin) and the Migration Tool. Pure: options in, rewritten
+ * options out, `null` when the tag is left alone. `$range` names the old tag's family, because
+ * the old tags have a fixed one.
+ *
+ * - single: `key` and `timeKey` become one entry, `key+timeKey`, or just the key when the time
+ *   field is empty. Only a tag that states `timeKey` has anything to rewrite.
+ * - range: the four start/end options become two `;` entries, each built the same way, and a
+ *   trailing empty end entry is stripped.
+ * - an end-only range is NOT rewritten (bws_datetime_legacy_range_is_end_only()): `key` would
+ *   give a tag that prints its fallback a read, and a migration must not change output.
+ * - an operand holding `;` or `+` is not a clean entry, so that tag is left alone too.
+ *
+ * Equivalence (the same fields reach the cores) is pinned in datetime-migration-test.php D8,
+ * from the shared corpus the JS twin also runs.
+ *
+ * @since Unreleased
+ * @param array $options Raw tag options.
+ * @param bool  $range   True for `datetime_range`, false for `datetime_single`.
+ * @return array|null Rewritten options in canonical order, or null when nothing changes.
+ */
+function bws_datetime_legacy_reads_rewrite( array $options, bool $range ): ?array {
+	$names = $range ? array( 'startKey', 'startTimeKey', 'endKey', 'endTimeKey' ) : array( 'key', 'timeKey' );
+	$text  = array();
+	foreach ( $names as $name ) {
+		$value = $options[ $name ] ?? '';
+		if ( ! is_scalar( $value ) ) {
+			return null;
+		}
+		$text[ $name ] = trim( (string) $value );
+		if ( false !== strpbrk( $text[ $name ], ';+' ) ) {
+			return null;
+		}
+	}
+	$entry = static function ( string $field, string $time ): string {
+		return '' === $time ? $field : $field . '+' . $time;
+	};
+
+	if ( $range ) {
+		// No start: the end-only range, or nothing stated at all.
+		if ( '' === $text['startKey'] . $text['startTimeKey'] ) {
+			return null;
+		}
+		$start = $entry( $text['startKey'], $text['startTimeKey'] );
+		$end   = $entry( $text['endKey'], $text['endTimeKey'] );
+		$key   = '' === $end ? $start : $start . ';' . $end;
+	} else {
+		if ( ! array_key_exists( 'timeKey', $options ) ) {
+			return null;
+		}
+		$key = $entry( $text['key'], $text['timeKey'] );
+	}
+
+	$out = array_diff_key( $options, array_flip( $names ) );
+	if ( '' !== $key ) {
+		$out['key'] = $key;
+	}
+	return bws_serialization_order_sort_map( $out );
 }
 
 /**

@@ -1,0 +1,31 @@
+{
+	"_note": "Shared by datetime-migration-test.php (D8, the PHP rewrite) and datetime-mount-driver.js (the editor's mount rewrite). `expect` is the rewritten option map, key order included, or null when the tag is left alone.",
+	"cases": [
+		{ "label": "single: key alone is already the new form", "family": "single", "options": { "key": "a" }, "expect": null },
+		{ "label": "single: key + timeKey", "family": "single", "options": { "key": "a", "timeKey": "t" }, "expect": { "key": "a+t" } },
+		{ "label": "single: timeKey alone", "family": "single", "options": { "timeKey": "t" }, "expect": { "key": "+t" } },
+		{ "label": "single: empty timeKey is dropped", "family": "single", "options": { "key": "a", "timeKey": "" }, "expect": { "key": "a" } },
+		{ "label": "single: both empty leave no key", "family": "single", "options": { "key": "", "timeKey": "" }, "expect": {} },
+		{ "label": "single: operands are trimmed", "family": "single", "options": { "key": " a ", "timeKey": " t " }, "expect": { "key": "a+t" } },
+		{ "label": "single: other options survive, in canonical order", "family": "single", "options": { "fallback": "TBA", "timeKey": "t", "key": "a", "as": "time" }, "expect": { "as": "time", "key": "a+t", "fallback": "TBA" } },
+		{ "label": "single: a + in the key is not a clean entry", "family": "single", "options": { "key": "a+b", "timeKey": "t" }, "expect": null },
+		{ "label": "single: a ; in the time key is not a clean entry", "family": "single", "options": { "key": "a", "timeKey": "t;u" }, "expect": null },
+		{ "label": "range: start only", "family": "range", "options": { "startKey": "s" }, "expect": { "key": "s" } },
+		{ "label": "range: start with time", "family": "range", "options": { "startKey": "s", "startTimeKey": "st" }, "expect": { "key": "s+st" } },
+		{ "label": "range: start and end", "family": "range", "options": { "startKey": "s", "endKey": "e" }, "expect": { "key": "s;e" } },
+		{ "label": "range: all four", "family": "range", "options": { "startKey": "s", "startTimeKey": "st", "endKey": "e", "endTimeKey": "et" }, "expect": { "key": "s+st;e+et" } },
+		{ "label": "range: end time only on the end", "family": "range", "options": { "startKey": "s", "endTimeKey": "et" }, "expect": { "key": "s;+et" } },
+		{ "label": "range: start time only on the start", "family": "range", "options": { "startTimeKey": "st", "endKey": "e" }, "expect": { "key": "+st;e" } },
+		{ "label": "range: start with no time, end with one", "family": "range", "options": { "startKey": "s", "endKey": "e", "endTimeKey": "et" }, "expect": { "key": "s;e+et" } },
+		{ "label": "range: trailing empties are stripped", "family": "range", "options": { "startKey": "s", "startTimeKey": "", "endKey": "", "endTimeKey": "" }, "expect": { "key": "s" } },
+		{ "label": "range: a stray key is replaced", "family": "range", "options": { "key": "x", "startKey": "s" }, "expect": { "key": "s" } },
+		{ "label": "range: other options survive, in canonical order", "family": "range", "options": { "fallback": "TBA", "endKey": "e", "startKey": "s", "rangeSep": "to" }, "expect": { "rangeSep": "to", "key": "s;e", "fallback": "TBA" } },
+		{ "label": "range: end only is NOT migrated", "endOnly": true, "family": "range", "options": { "endKey": "e" }, "expect": null },
+		{ "label": "range: end time only is NOT migrated", "endOnly": true, "family": "range", "options": { "endTimeKey": "et" }, "expect": null },
+		{ "label": "range: end pair is NOT migrated", "endOnly": true, "family": "range", "options": { "endKey": "e", "endTimeKey": "et" }, "expect": null },
+		{ "label": "range: empty start beside an end is NOT migrated", "endOnly": true, "family": "range", "options": { "startKey": "", "startTimeKey": "", "endKey": "e" }, "expect": null },
+		{ "label": "range: all four empty is left alone", "family": "range", "options": { "startKey": "", "startTimeKey": "", "endKey": "", "endTimeKey": "" }, "expect": null },
+		{ "label": "range: key alone is already the new form", "family": "range", "options": { "key": "s;e" }, "expect": null },
+		{ "label": "range: a ; in an operand is not a clean entry", "family": "range", "options": { "startKey": "a;b", "endKey": "e" }, "expect": null }
+	]
+}

@@ -383,6 +383,8 @@ The four composites (Sizing and Width, Typography, Stripes, Borders) and the Liv
 
 **Add stops at `max`** (`BWS_DATETIME_MAX_READS`, the most reads the normalizer takes: a third `;` entry is ignored). `node tools/test/datetime-read-control-test.js` holds the four behaviors, the operand pair, the verbs and the join with the real picker.
 
+**The old tags carry the same control** (`datetime_single`, `datetime_range`), which is how their modal shows a stored tag's reads. Their `key` definition adds `legacy` (the family), a `max` the family can use (one for a single), and the field row only, since they read no `use`; with one row the control draws no per-read select. A `legacy` control runs the mount rewrite: the old options become `key` through the function updater when the modal opens, the same rule as the Migration Tool's (`bws_datetime_legacy_reads_rewrite()` owns it, `bwsDatetimeLegacy.rewrite()` is its twin, and `datetime-migration-test.php` §D8 runs both over `tools/test/datetime-mount-corpus.json`). The old options stay registered and are hidden once rewritten, and the read control is hidden instead for an end-only range, which no rewrite touches, so such a tag opens exactly as it was. The cancel boundary is the fold migration's: the rewrite reaches stored content only when the author confirms the tag.
+
 ## Option grouping (visual)
 
 GB renders every option as a flat sibling in a 15px-gap flex column (see [`gb-constraints.md`

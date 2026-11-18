@@ -223,6 +223,14 @@ async function mount( state ) {
 	return { tree: tree, writes: writes, element: element };
 }
 
+/** Mount the control on another option definition (an old tag's); returns the rendered tree. */
+async function mount2( def, state ) {
+	let element = filter( { key: 'key' }, { key: def }, { state: state, setState: function () {} } );
+	// An old tag's control comes wrapped with its mount migrator; draw the control itself.
+	if ( 'Fragment' === element.type ) { element = element.children[ 1 ]; }
+	return render( element.type, element.props );
+}
+
 /** Click every "Add Time Field" and render again, so each read shows both its pickers. */
 async function revealTime( m ) {
 	addTimeButtons( m.tree ).forEach( function ( b ) { b.props.onClick(); } );
@@ -506,6 +514,72 @@ async function main() {
 	const useEl = { key: 'use' };
 	check( 'D8.20 the `use` select is hidden on a tag whose `key` is this control', filter( useEl, { use: { type: 'select' }, key: KEY_DEF }, { state: {} } ), null );
 	check( 'D8.21 ...and left alone on any other tag', filter( useEl, { use: { type: 'select' }, key: { type: 'bws-field-combo' } }, { state: {} } ), useEl );
+
+	/* =====================================================================
+	 * §D9 — an OLD tag's modal: the six old options rewrite to `key` on mount
+	 * ================================================================== */
+
+	// The old tags register the same control with `legacy` (their family), no verb rows, and
+	// a read count the family can use. The rewrite itself is pinned by the shared corpus in
+	// datetime-migration-test.php D8; this holds what the editor does with it.
+	const oldRow = KEY_DEF.reads.slice( 0, 1 );
+	const SINGLE_DEF = Object.assign( {}, KEY_DEF, { legacy: 'single', max: 1, reads: oldRow } );
+	const RANGE_DEF = Object.assign( {}, KEY_DEF, { legacy: 'range', max: 2, reads: oldRow } );
+	const oldOpts = function ( def, names ) {
+		const o = { key: def };
+		names.forEach( function ( n ) { o[ n ] = { type: 'bws-field-combo' }; } );
+		return o;
+	};
+	const SINGLE_OPTS = oldOpts( SINGLE_DEF, [ 'timeKey' ] );
+	const RANGE_OPTS = oldOpts( RANGE_DEF, [ 'startKey', 'startTimeKey', 'endKey', 'endTimeKey' ] );
+	const through = function ( name, opts, state ) {
+		return filter( { key: name }, opts, { state: state, setState: function () {} } );
+	};
+	/** Mount the migrator a `key` element carries and return what it does to `state`. */
+	async function mountMigrates( element, state ) {
+		const child = ( element.children || [] ).filter( function ( c ) { return c && c.props && c.props.setState; } )[ 0 ];
+		if ( ! child ) { return '(no migrator)'; }
+		const updaters = [];
+		const patched = Object.assign( {}, child.props, { setState: function ( fn ) { updaters.push( fn ); } } );
+		await render( child.type, patched );
+		const next = updaters[ 0 ]( state );
+		return { next: next, again: updaters[ 0 ]( next ), same: next === state };
+	}
+
+	const oldSingle = { key: 'a', timeKey: 't' };
+	const mig = await mountMigrates( through( 'key', SINGLE_OPTS, oldSingle ), oldSingle );
+	check( 'D9.1 an old single tag rewrites on mount: key and timeKey become `key:a+t`', mig.next, { key: 'a+t' } );
+	check( 'D9.2 ...and the rewrite is a fixed point: a second pass returns the same object, so React stops', mig.again === mig.next, true );
+
+	const oldRange = { startKey: 's', endKey: 'e', endTimeKey: 'et', fallback: 'TBA' };
+	const migR = await mountMigrates( through( 'key', RANGE_OPTS, oldRange ), oldRange );
+	// Key order is the PHP twin's corpus pin (D8); this harness loads no order normalizer.
+	check( 'D9.3 an old range tag rewrites on mount, other options kept', [ migR.next.key, migR.next.fallback, Object.keys( migR.next ).length ], [ 's;e+et', 'TBA', 2 ] );
+
+	check( 'D9.4 once migrated, the old controls are hidden and the read control (with its mount migrator) is the only thing left',
+		[ through( 'timeKey', SINGLE_OPTS, { key: 'a+t' } ), through( 'startKey', RANGE_OPTS, { key: 's;e' } ), through( 'endTimeKey', RANGE_OPTS, { key: 's;e' } ), 'Fragment' === through( 'key', RANGE_OPTS, { key: 's;e' } ).type ],
+		[ null, null, null, true ] );
+	check( 'D9.5 before the rewrite lands the old controls are already hidden (no flash of six blank fields)',
+		[ through( 'startKey', RANGE_OPTS, oldRange ), through( 'timeKey', SINGLE_OPTS, oldSingle ) ], [ null, null ] );
+
+	// An end-only range is not rewritten, so it opens as it was: its own four fields,
+	// and no read control to fight them.
+	const endOnly = { endKey: 'e' };
+	const heldEls = [ 'startKey', 'startTimeKey', 'endKey', 'endTimeKey' ].map( function ( n ) { return through( n, RANGE_OPTS, endOnly ); } );
+	check( 'D9.6 an end-only old range keeps its four old controls', heldEls.map( function ( e ) { return e && e.key; } ), [ 'startKey', 'startTimeKey', 'endKey', 'endTimeKey' ] );
+	check( 'D9.7 ...and shows no read control', through( 'key', RANGE_OPTS, endOnly ), null );
+
+	// What the control draws for an old tag.
+	const oneRead = await mount2( SINGLE_DEF, { key: 'a+t' } );
+	check( 'D9.8 an old single tag offers one read: no Add, no read select (only one row to pick)', [ !! addButton( oneRead ), readSelects( oneRead ).length, pickers( oneRead ).length ], [ false, 0, 2 ] );
+	const twoRead = await mount2( RANGE_DEF, { key: 's;e' } );
+	check( 'D9.9 an old range tag shows its two reads with Start/End headings and no read select', [ headings( twoRead ), readSelects( twoRead ).length ], [ [ 'Start Date/Time', 'End Date/Time' ], 0 ] );
+	const range1 = await mount2( RANGE_DEF, { key: 's' } );
+	check( 'D9.10 ...and offers Add End Date/Time at one read', addButton( range1 ).children[ 0 ], '+ Add End Date/Time' );
+
+	// The merged tag has no `legacy`, so none of this touches it.
+	check( 'D9.11 a tag without `legacy` is untouched: no migrator, old-named keys pass through',
+		[ 'Fragment' === through( 'key', { key: KEY_DEF }, { key: 'a', timeKey: 't' } ).type, through( 'timeKey', { key: KEY_DEF, timeKey: { type: 'x' } }, { timeKey: 't' } ).key ], [ false, 'timeKey' ] );
 
 	console.log( '' );
 	if ( fail ) {
