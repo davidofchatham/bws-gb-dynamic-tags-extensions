@@ -6,9 +6,9 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Highlights
 
-- **One `{{datetime}}` tag for a single date and a range.** The number of fields in `key` decides which, a `+` joins a date field to a time field, and a post's published or modified date or the current time can stand in for a field.
-- **The Migration Tool converts the old datetime tags.** `datetime_single`, `datetime_range` and their `try_` forms leave the picker and are rewritten to `{{datetime}}` and `try_datetime`, printing the same as before.
-- **A time on its own prints the same from every datetime tag.** The single and range tags used to style a time differently, and a range could print "Start time:" labels that skipped the fallback.
+- **One `{{datetime}}` tag for a single date and a range.** The number of fields in `key` decides which, a `+` joins a date field to a time field, and a post's published or modified date or the current time can stand in for a field. *(Added)*
+- **The Migration Tool converts the old datetime tags.** `datetime_single`, `datetime_range` and their `try_` forms leave the picker and are rewritten to `{{datetime}}` and `try_datetime`, printing the same as before. *(Changed)*
+- **A time on its own prints the same from every datetime tag.** The single and range tags used to style a time differently, and a range could print "Start time:" labels that skipped the fallback. *(Fixed)*
 
 ### Added
 
