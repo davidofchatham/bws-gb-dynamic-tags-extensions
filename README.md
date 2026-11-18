@@ -41,7 +41,7 @@ Rather than being prefixed and locked to particular contexts, our tags work acro
 
 **Post** is a single post or page, a post query loop item, a post you pick, or a *Posts in Reference/Relational Field* step. **Term** is a term archive, a term query loop item, a term you pick, or a *Terms in Taxonomy* step. **User** is the user an author archive or a user query loop item is about, never the logged-in visitor. **Repeater row** is a repeater query loop item or a *Rows in Repeater Field* step. The last page column is a date or post type archive, search results, a 404, or a blog homepage with no page assigned. **Site** is the *Site* source. The GP/GB alternatives each cover only some of a row's cells; `archive_title` and `archive_description` work only on the archive page itself.
 
-`try_` variants, `join` slots and `table` columns follow the same rows, except that `try_datetime_` slots take no *Site* source. Measurement details are in [the tag reference](docs/tag-reference.md#coverage-by-ambient-context).
+`try_` variants, `join` slots and `table` columns follow the same rows. Measurement details are in [the tag reference](docs/tag-reference.md#coverage-by-ambient-context).
 
 ### Build source paths to access related data
 
@@ -153,7 +153,7 @@ Styles are written to one small stylesheet per distinct table design, never as i
 
 `try_*` tags (e.g. `try_text`, `try_image`, `try_content`, `try_datetime` **[UNRELEASED]**, `try_email`, `try_phone`) allow using the first available (populated) field from an editor-selected list of up to five sources/fields. Each slot resolves exactly as the standalone tag would (`try_email` outputs a finished `mailto:` link per slot, `try_phone` a `tel:` link), so a contact chain like "personal email → team email → site-wide address" works without multiple blocks and complicated visibility conditions.
 
-Other than `try_datetime_`, the `try_` tags accept a site source per slot, so a chain can end in a site-wide fallback value.
+The `try_` tags accept a site source per slot, so a chain can end in a site-wide fallback value.
 
 ### `call`: Return custom function output
 
