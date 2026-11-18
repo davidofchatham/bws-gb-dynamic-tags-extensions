@@ -594,18 +594,29 @@ function bws_datetime_post_source( $post_id ): array {
  * in slot-fold.php is untouched: `+` stays reserved there (ADR 0006), because a flat
  * option value is parsed by its own tag and not by the slot splitter.
  *
+ * `$faults` is how the editor preview learns what that tolerance hid: the same parse reports
+ * each inconsistency it forgave, so the preview cannot disagree with the render about which
+ * reads exist. One record per fault, in this order: `extra` (an operand past the second was
+ * ignored), `bare` (`reads` lists the 1-based reads that are a `key` with no field),
+ * `missing` or `surplus` (`reads` key reads in `use` against `keys` entries in `key`).
+ * Nothing about the faults changes what is returned.
+ *
  * @since Unreleased
- * @param array $options Raw tag options.
- * @param bool  $verbs   Whether `use` is read: the merged tag only. The old tags have no `use`.
+ * @param array      $options Raw tag options.
+ * @param bool       $verbs   Whether `use` is read: the merged tag only. The old tags have no `use`.
+ * @param array|null $faults  Out: the inconsistencies forgiven, as above.
  * @return array<int, array{verb:string, field:string, time:string}> One record per read;
  *                         `verb` is '' for a field read. Empty when there is nothing to read.
  */
-function bws_datetime_reads( array $options, bool $verbs = true ): array {
+function bws_datetime_reads( array $options, bool $verbs = true, ?array &$faults = null ): array {
+	$faults  = array();
 	$key     = isset( $options['key'] ) && is_scalar( $options['key'] ) ? trim( (string) $options['key'] ) : '';
 	$entries = array();
+	$extra   = false;
 	if ( '' !== $key ) {
 		foreach ( explode( ';', $key ) as $entry ) {
 			$operands  = explode( '+', $entry );
+			$extra     = $extra || count( $operands ) > 2;
 			$entries[] = array(
 				'verb'  => '',
 				'field' => trim( $operands[0] ),
@@ -613,23 +624,53 @@ function bws_datetime_reads( array $options, bool $verbs = true ): array {
 			);
 		}
 	}
-
-	if ( ! $verbs ) {
-		return $entries;
+	if ( $extra ) {
+		$faults[] = array( 'kind' => 'extra' );
 	}
-	$use = bws_use_effective( 'datetime', $options );
+
+	$use  = $verbs ? bws_use_effective( 'datetime', $options ) : bws_use_stripped_default( 'datetime' );
+	$bare = array();
+	$keys = count( $entries );
+
 	if ( bws_use_stripped_default( 'datetime' ) === $use ) {
-		return $entries;
+		$reads = $entries;
+		foreach ( $reads as $i => $read ) {
+			if ( '' === $read['field'] ) {
+				$bare[] = $i + 1;
+			}
+		}
+	} else {
+		$reads     = array();
+		$key_reads = 0;
+		foreach ( explode( ';', $use ) as $name ) {
+			$name = trim( $name );
+			if ( 'key' === $name ) {
+				++$key_reads;
+				$read = array_shift( $entries );
+				if ( null === $read ) {
+					$read = array( 'verb' => '', 'field' => '', 'time' => '' );
+					// No entry at all is a bare read; some entries but too few is a count mismatch.
+					if ( 0 === $keys ) {
+						$bare[] = count( $reads ) + 1;
+					}
+				} elseif ( '' === $read['field'] ) {
+					$bare[] = count( $reads ) + 1;
+				}
+				$reads[] = $read;
+			} elseif ( in_array( $name, array( 'now', 'published', 'modified' ), true ) ) {
+				$reads[] = array( 'verb' => $name, 'field' => '', 'time' => '' );
+			}
+		}
+		if ( $keys && $keys !== $key_reads ) {
+			$mismatch = array( 'kind' => $keys < $key_reads ? 'missing' : 'surplus', 'reads' => $key_reads, 'keys' => $keys );
+		}
 	}
 
-	$reads = array();
-	foreach ( explode( ';', $use ) as $name ) {
-		$name = trim( $name );
-		if ( 'key' === $name ) {
-			$reads[] = array_shift( $entries ) ?? array( 'verb' => '', 'field' => '', 'time' => '' );
-		} elseif ( in_array( $name, array( 'now', 'published', 'modified' ), true ) ) {
-			$reads[] = array( 'verb' => $name, 'field' => '', 'time' => '' );
-		}
+	if ( $bare ) {
+		$faults[] = array( 'kind' => 'bare', 'reads' => $bare );
+	}
+	if ( isset( $mismatch ) ) {
+		$faults[] = $mismatch;
 	}
 	return $reads;
 }
@@ -1009,8 +1050,8 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
  * cores on a read that found nothing and by the seam's own tail on any other empty result.
  * See there for why it cannot move up.
  *
- * The preview label is the family's own: `datetime_range` for a tag that read as a range,
- * `datetime_single` otherwise.
+ * The preview label is the tag's own: `datetime` for the merged tag, whose mode the preview
+ * derives from the reads, and the fixed family's for each old one.
  *
  * @since Unreleased One shell for the three tags, replacing a copy per callback.
  *
@@ -1043,7 +1084,7 @@ function bws_base_datetime_shell( $options, $block, $instance, ?bool $range ): s
 	if ( ! $is_preview || ! function_exists( 'bws_build_preview_label' ) ) {
 		return '';
 	}
-	return bws_build_preview_label( $options, bws_normalize_datetime_options( (array) $options, $range )['is_range'] ? 'datetime_range' : 'datetime_single' );
+	return bws_build_preview_label( $options, null === $range ? 'datetime' : ( $range ? 'datetime_range' : 'datetime_single' ) );
 }
 
 /**

@@ -12,14 +12,13 @@
  *   bws_try_preview_field_part()          (mode-value / quoted-key field parts)
  *   bws_try_preview_source_part()         (source segments off a slot's chain wire)
  *   bws_wrap_preview_label_with_link()    (link annotation + <a> wrap)
- *   bws_build_preview_label()             (base tags, NON-datetime)
- *   bws_build_try_preview_label()         (try_ slot chains, NON-datetime)
+ *   bws_build_preview_label()             (base tags)
+ *   bws_build_try_preview_label()         (try_ slot chains)
  *
- * EXCLUDED — datetime templates (datetime_single / datetime_range). Those branches
- * call wp_date()/DateTime('now')/bws_format_date_range() against the live clock and
- * WP timezone, so their output is non-deterministic and not worth string-exact
- * asserts here. Cover datetime formatting separately if/when bws_format_date_range
- * gets its own harness.
+ * DATETIME — the live-clock sample (wp_date()/DateTime('now')/bws_format_date_range()) is
+ * not asserted, so the datetime cases mask it (`like “…”`) and pin the rest of the label:
+ * prefix, mode, source, fallback and the read-grammar warnings. The sample's own
+ * formatting is the datetime format harness's.
  *
  * Run:
  *   php tools/test/preview-label-test.php
@@ -148,6 +147,37 @@ require __DIR__ . '/../../includes/helpers/try-slot-loop.php';
 // Each try_ template's walk config (TRY_CFG), pinned against the live descriptors by
 // control-order-test.php §8c.
 require __DIR__ . '/lib-try-cfg.php';
+// Datetime previews (FW-81 ticket 05): the sample value is a live-clock format, so the cases
+// below mask it and pin the label's SHAPE (prefix, mode, source, warning). The two files are
+// the grammar owner (bws_datetime_reads / the normalizer) and the range formatter the sample
+// calls; their WP surface is a UTC clock and two format options.
+define( 'DAY_IN_SECONDS', 86400 );
+define( 'HOUR_IN_SECONDS', 3600 );
+if ( ! function_exists( '__' ) ) {
+	function __( $s, $d = null ) { return $s; }
+}
+if ( ! function_exists( 'wp_timezone' ) ) {
+	function wp_timezone() { return new DateTimeZone( 'UTC' ); }
+}
+if ( ! function_exists( 'wp_date' ) ) {
+	function wp_date( $format, $timestamp = null ) {
+		$dt = new DateTime( '@' . ( null === $timestamp ? time() : $timestamp ) );
+		$dt->setTimezone( wp_timezone() );
+		return $dt->format( $format );
+	}
+}
+if ( ! function_exists( 'get_option' ) ) {
+	function get_option( $name, $default = false ) {
+		$map = array( 'date_format' => 'F j, Y', 'time_format' => 'g:i A' );
+		return $map[ $name ] ?? $default;
+	}
+}
+if ( ! function_exists( 'sanitize_text_field' ) ) {
+	function sanitize_text_field( $s ) { return is_string( $s ) ? trim( $s ) : $s; }
+}
+require __DIR__ . '/../../includes/helpers/datetime-helpers.php';
+require __DIR__ . '/../../includes/tags/datetime-tags.php';
+
 
 /**
  * The try_ preview, called with the template's real walk config.
@@ -1452,5 +1482,58 @@ check( 'summary: step-first terms reads as the row', slot_summary( 'src(terms,ca
 check( 'summary: join default (current) names a rootless step chain Current', slot_summary( 'src(rows,team);key(name)', false, 'current' ), '{"text":"\'name\' from Current Rows \'team\'","warning":""}' );
 check( 'summary: explicit current still names Current', slot_summary( 'src(current;rows,team);key(name)' ), '{"text":"\'name\' from Current Rows \'team\'","warning":""}' );
 
+
+// ---------------------------------------------------------------------------
+echo "\ndatetime preview — {{datetime}}, the old pair, try_datetime (value masked)\n";
+// The sample is the live clock formatted, so mask it; what is pinned is everything around it.
+function dt_mask( string $label ): string {
+	return preg_replace( '/like “[^”]*”/u', 'like “…”', $label );
+}
+function dt_label( array $o, string $tpl = 'datetime' ): string {
+	return dt_mask( bws_build_preview_label( $o, $tpl ) );
+}
+// Single, range, and the mode the reads decide (nothing states it).
+check( 'dt single',                   dt_label( [ 'key' => 'event_date' ] ),                      '[Date-Time like “…”]' );
+check( 'dt single as:date',           dt_label( [ 'key' => 'event_date', 'as' => 'date' ] ),     '[Date like “…”]' );
+check( 'dt single + joined time',     dt_label( [ 'key' => 'event_date+start_time' ] ),          '[Date-Time like “…”]' );
+check( 'dt range: two entries',       dt_label( [ 'key' => 'a;b' ] ),                            '[Date-Time Range like “…”]' );
+check( 'dt range as:time',            dt_label( [ 'key' => 'a+t;t2', 'as' => 'time' ] ),         '[Time Range like “…”]' );
+check( 'dt range as:date',            dt_label( [ 'key' => 'a;b', 'as' => 'date' ] ),            '[Date Range like “…”]' );
+// A verb beside a key: the list is the ordered reads, and its length is the mode.
+check( 'dt verb + key = range',       dt_label( [ 'use' => 'key;now', 'key' => 'a' ] ),          '[Date-Time Range like “…”]' );
+check( 'dt key after verb = range',   dt_label( [ 'use' => 'now;key', 'key' => 'a' ] ),          '[Date-Time Range like “…”]' );
+// `use` alone: one verb read is a single.
+check( 'dt use alone is single',      dt_label( [ 'use' => 'published' ] ),                      '[Date-Time like “…”]' );
+check( 'dt now alone is single',      dt_label( [ 'use' => 'now' ] ),                            '[Date-Time like “…”]' );
+// A read-less tag is not a fault: a bare datetime tag still reads the ambient date.
+check( 'dt no reads, no warning',     dt_label( [] ),                                            '[Date-Time like “…”]' );
+// Source and fallback ride the same assembly as every other tag.
+check( 'dt source',                   dt_label( [ 'key' => 'a', 'src' => 'site' ] ),             '[Date-Time like “…” from Site]' );
+check( 'dt fallback',                 dt_label( [ 'key' => 'a', 'fallback' => 'TBA' ] ),         '[Date-Time like “…” (fallback: “TBA”)]' );
+// The old pair keeps their fixed family, whatever their options say.
+check( 'dt old single',               dt_label( [ 'as' => 'date' ], 'datetime_single' ),         '[Date like “…”]' );
+check( 'dt old range',                dt_label( [ 'as' => 'date' ], 'datetime_range' ),          '[Date Range like “…”]' );
+check( 'dt old single ignores +',     dt_label( [ 'key' => 'a+b+c' ], 'datetime_single' ),       '[Date-Time like “…”]' );
+
+// Warnings replace the whole preview, like the missing-input ones.
+check( 'dt warn: extra operand',      dt_label( [ 'key' => 'a+b+c' ] ),                          '[⚠ Only a date and a time can be joined with +, so extra parts are ignored]' );
+check( 'dt warn: missing entry',      dt_label( [ 'use' => 'key;key;now', 'key' => 'a' ] ),      '[⚠ 2 field reads but only 1 field key set]' );
+check( 'dt warn: surplus entry',      dt_label( [ 'use' => 'now;key', 'key' => 'a;b' ] ),        '[⚠ 1 field read but 2 field keys set, so extra keys are ignored]' );
+check( 'dt warn: bare key, no entry', dt_label( [ 'use' => 'now;key' ] ),                        '[⚠ No field key set for read 2]' );
+check( 'dt warn: bare key, entry empty', dt_label( [ 'key' => 'a;' ] ),                          '[⚠ No field key set for read 2]' );
+check( 'dt warn: two bare reads',     dt_label( [ 'use' => 'key;key;now' ] ),                    '[⚠ No field key set for reads 1, 2]' );
+check( 'dt warn: clauses join',       dt_label( [ 'key' => 'a+b+c;' ] ),                         '[⚠ Only a date and a time can be joined with +, so extra parts are ignored; no field key set for read 2]' );
+check( 'dt warn: fallback appends',   dt_label( [ 'key' => 'a+b+c', 'fallback' => 'TBA' ] ),     '[⚠ Only a date and a time can be joined with +, so extra parts are ignored (fallback: “TBA”)]' );
+// A matched count is not a fault, in either direction of the verb order.
+check( 'dt no warn: counts match',    dt_label( [ 'use' => 'key;now', 'key' => 'a' ] ),          '[Date-Time Range like “…”]' );
+
+// try_datetime: the same part and the same warnings, behind `Try`.
+check( 'try dt single',               dt_mask( try_preview( [ 'key' => 'a' ], 'datetime' ) ),    '[Try Date-Time like “…”]' );
+check( 'try dt range',                dt_mask( try_preview( [ 'key' => 'a;b' ], 'datetime' ) ),  '[Try Date-Time Range like “…”]' );
+check( 'try dt verb + key',           dt_mask( try_preview( [ 'use' => 'now;key', 'key' => 'a' ], 'datetime' ) ), '[Try Date-Time Range like “…”]' );
+check( 'try dt warn: extra operand',  dt_mask( try_preview( [ 'key' => 'a+b+c' ], 'datetime' ) ), '[⚠ Try: Only a date and a time can be joined with +, so extra parts are ignored]' );
+check( 'try dt warn: surplus',        dt_mask( try_preview( [ 'use' => 'now;key', 'key' => 'a;b' ], 'datetime' ) ), '[⚠ Try: 1 field read but 2 field keys set, so extra keys are ignored]' );
+// One datetime preview builder: the old try_-only one is gone.
+check( 'dt: the duplicate builder is gone', function_exists( 'bws_try_preview_datetime_part' ) ? 'present' : 'gone', 'gone' );
 echo "\n" . ( $failures ? "FAILED {$failures}/{$count}\n" : "PASSED {$count}/{$count}\n" );
 exit( $failures ? 1 : 0 );

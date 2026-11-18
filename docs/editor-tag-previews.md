@@ -4,7 +4,7 @@
 
 When a base tag can't resolve in the editor, the callback returns this structured preview string instead of an empty string. Built by `bws_build_preview_label( $options, $template )` in `includes/helpers/preview-helpers.php`. (The function name retains the historical `_label` suffix; the text it builds is the configuration-preview described here.)
 
-**Scope:** `text`, `content`, `title`, `email`, `datetime_single`, and `datetime_range`. Image tags: only when `as:alt` or `as:caption` — excluded for `as:url` and `as:id` (attribute values; bracket string silently breaks the element). `permalink` excluded entirely (URL context — bracket string breaks `<a href>`). The slot-based composing tags have their own builders: `try_*` (§try_ tag previews) and `{{join}}` (§join preview), both below.
+**Scope:** `text`, `content`, `title`, `email`, `datetime`, `datetime_single`, and `datetime_range`. Image tags: only when `as:alt` or `as:caption` — excluded for `as:url` and `as:id` (attribute values; bracket string silently breaks the element). `permalink` excluded entirely (URL context — bracket string breaks `<a href>`). The slot-based composing tags have their own builders: `try_*` (§try_ tag previews) and `{{join}}` (§join preview), both below.
 
 Not on front end — gated by `$instance->context['bwsEditorPreview']`, injected only by the editor JS filter.
 
@@ -116,7 +116,7 @@ Template-specific. Missing required input triggers a warning instead of the fiel
 | `email` / `phone` | `fixed:X` set (the fixed read, FW-141) | `Email: “X”` / `Phone: “X”` — the tag label stays (unlike `text`, which has none), the typed value follows in curly quotes. No field key needed |
 | `email` / `phone` | `use:fixed` + `fixed` unset | *(missing — triggers warning: `Fixed email not entered` / `Fixed phone number not entered`)* |
 | `phone` | `key:X` set | `Phone: 'X'` |
-| `datetime_` | — | *(see datetime section below)* |
+| `datetime`, `datetime_` | — | *(see datetime section below)* |
 
 ## Warnings
 
@@ -206,6 +206,21 @@ Datetime tags compute a live preview from the current time rather than a static 
 [{prefix} like “{formatted value}”]   — no context
 ```
 
+**[UNRELEASED]** **`{{datetime}}` and `try_datetime`.** The same shape, with the single or range prefix matching what the tag will print. The preview names no field and no verb, so `key:event_date`, `use:published` and `use:now` all read `Date-Time like “…”`, and `key:a;b` and `use:key;now|key:a` both read `Date-Time Range like “…”`. A tag with no read at all is not a fault: it still previews, because a bare datetime tag reads the ambient date. The two old tags keep their fixed single or range prefix. `try_datetime` builds the same part behind `Try`, and a source that varies across its slots lists them as every other `try_` datetime does.
+
+### Datetime read warnings **[UNRELEASED]**
+
+A configuration the tag forgives at render raises a warning instead of the sample, for `{{datetime}}` and `try_datetime` only (`⚠ Try: …` on the latter). Like the other warnings it replaces the whole preview, the fallback still appends, and several clauses join with `; `. Each describes what the author set and what the tag did with it. The deciding rules and the wording live with the code (`bws_datetime_reads()` and `bws_datetime_fault_text()`).
+
+| What the author set | Warning |
+|---|---|
+| A third field joined with `+` (`key:a+b+c`) | `⚠ Only a date and a time can be joined with +, so extra parts are ignored` |
+| A field read with no field key at all (`use:now;key` and no `key`), or a `key` entry left empty (`key:a;`) | `⚠ No field key set for read 2` (`for reads 1, 2` for more than one) |
+| More field reads than field keys, some set (`use:key;key;now` with `key:a`) | `⚠ 2 field reads but only 1 field key set` |
+| More field keys than field reads (`use:now;key` with `key:a;b`) | `⚠ 1 field read but 2 field keys set, so extra keys are ignored` |
+
+Like every label here it is built only when the tag reads empty, so a configuration that still resolves to a value (an ignored third field, or surplus keys) shows its value and no warning. A name in `use` that is neither `key` nor a verb is dropped without a warning.
+
 ## Examples
 
 | Tag | Preview |
@@ -240,6 +255,14 @@ Datetime tags compute a live preview from the current time rather than a static 
 | `{{email fixed:info@example.com}}` | `[Email: “info@example.com”]` |
 | `{{phone fixed:555-867-5309}}` | `[Phone: “555-867-5309”]` |
 | `{{email use:fixed}}` | `[⚠ Fixed email not entered]` |
+| `{{datetime key:event_date}}` | `[Date-Time like “November 18, 2026 1:44 PM”]` |
+| `{{datetime key:start_dt;end_dt\|as:date}}` | `[Date Range like “November 18–19”]` |
+| `{{datetime use:key;now\|key:event_date}}` | `[Date-Time Range like “November 18, 1:44–2:44 PM”]` |
+| `{{datetime use:published}}` | `[Date-Time like “November 18, 2026 1:44 PM”]` |
+| `{{datetime key:event_date+start_time+end_time}}` | `[⚠ Only a date and a time can be joined with +, so extra parts are ignored]` |
+| `{{datetime use:now;key}}` | `[⚠ No field key set for read 2]` |
+| `{{datetime use:key;key;now\|key:a}}` | `[⚠ 2 field reads but only 1 field key set]` |
+| `{{try_datetime key:a;b}}` | `[Try Date-Time Range like “November 18, 1:44–2:44 PM”]` |
 | `{{datetime_single as:date}}` | `[Date like “April 24, 2026”]` |
 | `{{datetime_single as:time\|src:ref\|ref:event_date}}` | `[Time like “2:20 PM” from Ref 'event_date']` |
 | `{{datetime_range as:date\|src:ref\|ref:event}}` | `[Date Range like “April 24 – April 25” from Ref 'event']` |
@@ -254,7 +277,7 @@ Datetime tags compute a live preview from the current time rather than a static 
 - Mode-value keywords capitalized: `Title`, `Excerpt`, `Content`, `Featured`.
 - User-supplied identifiers wrapped in straight single quotes: `'meta_key'`, `'rel_post'`.
 - `from` precedes source segments. `Current` rendered explicitly only when source list contains a varying mix that needs the anchor. The anchor stays the bare word `Current` even though the Source dropdown's row reads "Current Context" (1.20.0); why the two surfaces take different words is stated at the emit site, `bws_preview_source_segments()` in [`preview-helpers.php`](../includes/helpers/preview-helpers.php).
-- Datetime templates render base shape (`<Date|Time|Date-Time> like "X"`) then optional source list.
+- Datetime templates render base shape (`<Date|Time|Date-Time> like "X"`) then optional source list. `try_datetime` also raises the [datetime read warnings](#datetime-read-warnings-unreleased) as `⚠ Try: …`.
 - Single slot at template default for `content`/`image` collapses to bare `[Try Content]` / `[Try Image Alt Text]`.
 - Image excluded for `as:url` / `as:id` (bracket string would break HTML attribute). Permalink excluded entirely (URL context).
 
@@ -463,13 +486,13 @@ So the preview is **config-describing only**, built by the `call` branch in `bws
 
 ## Tests
 
-Non-datetime label assembly is pinned by a standalone harness — **no WordPress, no PHPUnit**:
+Label assembly is pinned by a standalone harness — **no WordPress, no PHPUnit**:
 
 ```
 php tools/test/preview-label-test.php
 ```
 
-**Run it after any change to `preview-helpers.php` or to a label shape in this doc.** It asserts `bws_build_preview_label`, `bws_build_try_preview_label`, `bws_build_join_preview_label`, and the sub-builders against the marker/assembly rules above. Datetime templates are excluded (live clock + `wp_date` → non-deterministic).
+**Run it after any change to `preview-helpers.php` or to a label shape in this doc.** It asserts `bws_build_preview_label`, `bws_build_try_preview_label`, `bws_build_join_preview_label`, and the sub-builders against the marker/assembly rules above. Datetime labels are pinned with the live-clock sample masked (`like “…”`): prefix, mode, source, fallback and warnings are asserted, the sample value is the datetime format harness's.
 
 Behaviors the harness locks in (correct-by-design, easy to regress):
 

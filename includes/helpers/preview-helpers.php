@@ -520,8 +520,12 @@ function bws_build_try_preview_label( array $options, string $base_template, arr
 	$uniform_source = 1 === count( array_unique( $source_parts ) );
 
 	// Datetime templates: same field across slots; render base shape + source list.
-	if ( str_starts_with( $base_template, 'datetime_' ) ) {
-		$datetime_part = bws_try_preview_datetime_part( $base_template, $options );
+	if ( bws_preview_is_datetime( $base_template ) ) {
+		$warning_label = bws_preview_datetime_warning( $options, $base_template, '⚠ Try: ', (string) $fallback );
+		if ( '' !== $warning_label ) {
+			return $warning_label;
+		}
+		$datetime_part = bws_preview_datetime_part( $options, bws_preview_datetime_range( $base_template ) );
 		if ( $uniform_source ) {
 			// Single slot or all sources match — drop source list, keep base form.
 			$inner = 'Try ' . $datetime_part;
@@ -1307,16 +1311,106 @@ function bws_try_preview_source_part( string $src_wire, bool $named_current = fa
 }
 
 /**
- * Build the datetime portion of a try_ preview label (e.g. "Date like \"Apr 24\"").
+ * Whether a template key names a datetime tag: the merged `datetime` or either old one.
  *
- * Reuses the same shape as bws_build_preview_label() for datetime base tags.
+ * @since Unreleased
+ */
+if ( ! function_exists( 'bws_preview_is_datetime' ) ) {
+function bws_preview_is_datetime( string $template ): bool {
+	return 'datetime' === $template || str_starts_with( $template, 'datetime_' );
+}
+}
+
+/**
+ * The family bws_normalize_datetime_options() takes for a datetime template key: null for the
+ * merged tag (its reads decide), true for `datetime_range`, false for `datetime_single`.
+ *
+ * @since Unreleased
+ */
+if ( ! function_exists( 'bws_preview_datetime_range' ) ) {
+function bws_preview_datetime_range( string $template ): ?bool {
+	return 'datetime' === $template ? null : 'datetime_range' === $template;
+}
+}
+
+/**
+ * The whole warning label for a merged datetime tag whose reads are inconsistent, or '' when
+ * there is none to give (consistent, or an old tag, which has no read grammar to misuse).
+ *
+ * @since Unreleased
+ * @param string $lead     The label's opening: `⚠ ` on a base tag, `⚠ Try: ` on try_datetime.
+ * @param string $fallback The tag's fallback text, appended when set.
+ */
+if ( ! function_exists( 'bws_preview_datetime_warning' ) ) {
+function bws_preview_datetime_warning( array $options, string $template, string $lead, string $fallback ): string {
+	if ( 'datetime' !== $template ) {
+		return '';
+	}
+	bws_datetime_reads( $options, true, $faults );
+	$warning = bws_datetime_fault_text( $faults );
+	if ( '' === $warning ) {
+		return '';
+	}
+	$inner = $lead . $warning;
+	if ( $fallback ) {
+		$inner .= ' (fallback: “' . $fallback . '”)';
+	}
+	return bws_wrap_preview_label_with_link( '[' . $inner . ']', $options );
+}
+}
+
+/**
+ * The sentence for the inconsistencies bws_datetime_reads() forgave, or '' for none.
+ *
+ * Wording owner for the datetime warnings; the faults themselves, and what counts as one,
+ * are that function's. Clauses join with `; ` like the missing-input warning, the later
+ * ones lower-cased.
+ *
+ * @since Unreleased
+ * @param array $faults The `$faults` out-param of bws_datetime_reads().
+ * @return string Warning text without the `⚠` prefix.
+ */
+if ( ! function_exists( 'bws_datetime_fault_text' ) ) {
+function bws_datetime_fault_text( array $faults ): string {
+	$plural = static fn( int $n, string $noun ): string => $n . ' ' . $noun . ( 1 === $n ? '' : 's' );
+	$parts  = array();
+	foreach ( $faults as $fault ) {
+		switch ( $fault['kind'] ) {
+			case 'extra':
+				$parts[] = 'Only a date and a time can be joined with +, so extra parts are ignored';
+				break;
+			case 'bare':
+				$parts[] = 'No field key set for read' . ( count( $fault['reads'] ) > 1 ? 's ' : ' ' ) . implode( ', ', $fault['reads'] );
+				break;
+			case 'missing':
+				$parts[] = $plural( $fault['reads'], 'field read' ) . ' but only ' . $plural( $fault['keys'], 'field key' ) . ' set';
+				break;
+			case 'surplus':
+				$parts[] = $plural( $fault['reads'], 'field read' ) . ' but ' . $plural( $fault['keys'], 'field key' ) . ' set, so extra keys are ignored';
+				break;
+		}
+	}
+	return implode( '; ', array_map( static fn( $part, $i ) => $i ? lcfirst( $part ) : $part, $parts, array_keys( $parts ) ) );
+}
+}
+
+/**
+ * Build the datetime portion of a datetime preview label (e.g. "Date like \"Apr 24\"").
+ *
+ * THE one datetime preview: the base tags' label and the try_ label both build it here.
+ * `$range` follows bws_normalize_datetime_options(): true and false are an old tag's fixed
+ * family, null is the merged tag, whose mode the reads decide.
  *
  * @since 1.6.0
+ * @since Unreleased Takes the family as `$range` (null = merged) and serves the base label too.
+ * @param array     $options Parsed tag options.
+ * @param bool|null $range   The family, as bws_normalize_datetime_options().
  */
-if ( ! function_exists( 'bws_try_preview_datetime_part' ) ) {
-function bws_try_preview_datetime_part( string $base_template, array $options ): string {
-	$is_range = 'datetime_range' === $base_template;
-	$as       = $options['as'] ?? '';
+if ( ! function_exists( 'bws_preview_datetime_part' ) ) {
+function bws_preview_datetime_part( array $options, ?bool $range ): string {
+	$normalized = bws_normalize_datetime_options( $options, $range );
+	$is_range   = $normalized['is_range'];
+	$as         = $options['as'] ?? '';
 
 	switch ( $as ) {
 		case 'date':
@@ -1348,10 +1442,7 @@ function bws_try_preview_datetime_part( string $base_template, array $options ):
 		$end->modify( '+' . $offset . ' seconds' );
 		// One parse point (FW-2): the shared normalizer maps rangeSep/showCurrentYear/
 		// showMidnight to the canonical keys bws_format_date_range() reads.
-		$range_options = function_exists( 'bws_normalize_datetime_options' )
-				? bws_normalize_datetime_options( $options, true )
-				: $options;
-		$formatted     = bws_format_date_range( $now, $end, $wp_format, $range_options );
+		$formatted = bws_format_date_range( $now, $end, $wp_format, $normalized );
 	} else {
 		$formatted = $now->format( $wp_format );
 	}
@@ -1497,50 +1588,16 @@ function bws_build_preview_label( array $options, string $template ): string {
 		return bws_wrap_preview_label_with_link( '[' . $inner . ']', $options );
 	}
 
-	// Datetime templates: live preview using current time.
-	if ( str_starts_with( $template, 'datetime_' ) ) {
-		$is_range = 'datetime_range' === $template;
-
-		switch ( $as ) {
-			case 'date':
-				$prefix    = $is_range ? 'Date Range' : 'Date';
-				$offset    = DAY_IN_SECONDS;
-				$wp_format = get_option( 'date_format', 'F j, Y' );
-				break;
-			case 'time':
-				$prefix    = $is_range ? 'Time Range' : 'Time';
-				$offset    = HOUR_IN_SECONDS;
-				$wp_format = get_option( 'time_format', 'g:i A' );
-				break;
-			default:
-				$prefix    = $is_range ? 'Date-Time Range' : 'Date-Time';
-				$offset    = HOUR_IN_SECONDS;
-				$wp_format = get_option( 'date_format', 'F j, Y' ) . ' ' . get_option( 'time_format', 'g:i A' );
+	// Datetime templates: live preview using current time. THE merged tag also warns about the
+	// inconsistencies its read grammar forgave (bws_datetime_reads()); the old tags have no
+	// such grammar to be inconsistent in.
+	if ( bws_preview_is_datetime( $template ) ) {
+		$warning_label = bws_preview_datetime_warning( $options, $template, '⚠ ', (string) $fallback );
+		if ( '' !== $warning_label ) {
+			return $warning_label;
 		}
 
-		// Respect custom format option if set.
-		$custom_format = $options['format'] ?? $options['custom_format'] ?? '';
-		if ( $custom_format ) {
-			$wp_format = $custom_format;
-		}
-
-		$tz  = wp_timezone();
-		$now = new DateTime( 'now', $tz );
-
-		if ( $is_range ) {
-			$end = clone $now;
-			$end->modify( '+' . $offset . ' seconds' );
-			// One parse point (FW-2): the shared normalizer maps rangeSep/showCurrentYear/
-			// showMidnight to the canonical keys bws_format_date_range() reads.
-			$range_options = function_exists( 'bws_normalize_datetime_options' )
-				? bws_normalize_datetime_options( $options, true )
-				: $options;
-			$formatted     = bws_format_date_range( $now, $end, $wp_format, $range_options );
-		} else {
-			$formatted = $now->format( $wp_format );
-		}
-
-		$inner = $prefix . ' like “' . $formatted . '”';
+		$inner = bws_preview_datetime_part( $options, bws_preview_datetime_range( $template ) );
 		if ( $context_part ) {
 			$inner .= ' from ' . $context_part;
 		}
