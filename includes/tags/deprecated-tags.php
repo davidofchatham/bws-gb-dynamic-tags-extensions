@@ -2,9 +2,10 @@
 /**
  * Deprecated tag migration data.
  *
- * No deprecated tag is registered with GB or renders. This file provides
- * MigrationRegistry data only, so the admin Tag Converter and settings page can
- * find and migrate old content.
+ * No deprecated tag is registered with GB or renders, except the four datetime tags
+ * `datetime` / `try_datetime` replace (FW-81): those stay registered, hidden from the picker,
+ * in base-tags.php. This file provides MigrationRegistry data, so the admin Tag Converter and
+ * settings page can find and migrate old content.
  *
  * bws_deprecated_tag_notice() and bws_build_deprecation_preview_label() are
  * KEPT BY DESIGN with no callers — candidate starting points for FW-153 (an
@@ -852,6 +853,27 @@ function bws_register_nxm_tag_migrations() {
 			'since'              => $since,
 			'transform_callback' => 'bws_migrate_post_term_related_post_chain',
 			'gb_link_remap'      => true,
+		) );
+	}
+
+	// ==========================================
+	// THE FOUR TAGS `datetime` / `try_datetime` REPLACE (FW-81). Unlike every entry above these
+	// tags are still REGISTERED (hidden from the picker, see bws_register_base_tags()) and
+	// render as before, so `lifecycle` is set to `deprecated` (MigrationRegistry::register()
+	// owns what it means). Hiding and declaring land together, and the lifecycle harness holds
+	// them in agreement.
+	// ==========================================
+
+	foreach ( array(
+		'datetime_single'     => 'datetime',
+		'datetime_range'      => 'datetime',
+		'try_datetime_single' => 'try_datetime',
+		'try_datetime_range'  => 'try_datetime',
+	) as $old_tag => $new_tag ) {
+		$reg::register( array(
+			'old_tag'   => $old_tag,
+			'new_tag'   => $new_tag,
+			'lifecycle' => 'deprecated',
 		) );
 	}
 }

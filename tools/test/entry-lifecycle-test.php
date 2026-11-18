@@ -262,6 +262,21 @@ assert_same( 'the real run scanned shipped sources', true, count( $shipped ) > 1
 
 assert_same( 'real tree: every assertion holds', array(), check_agreement( $real_entries, $real_registered, $shipped ) );
 
+// The real population (FW-81): the four tags the merged `datetime` / `try_datetime` replace are
+// registered hidden AND carry a `deprecated` entry. Without this, the two assertions that need
+// a population (a listed tag has no entry, a deprecated one is hidden) pass over nothing.
+$real_life = array();
+foreach ( $real_entries as $e ) {
+	$real_life[ $e['match_tag'] ?? '' ] = $e['lifecycle'] ?? 'retired';
+}
+foreach ( array( 'datetime_single', 'datetime_range', 'try_datetime_single', 'try_datetime_range' ) as $old ) {
+	assert_same( "{$old} is registered hidden", true, ! empty( $real_registered[ $old ]['hidden'] ) );
+	assert_same( "{$old} has a deprecated entry", 'deprecated', $real_life[ $old ] ?? null );
+}
+foreach ( array( 'datetime', 'try_datetime' ) as $live ) {
+	assert_same( "{$live} stays listed, with no entry", array( true, false ), array( isset( $real_registered[ $live ] ) && empty( $real_registered[ $live ]['hidden'] ), isset( $real_life[ $live ] ) ) );
+}
+
 // ===========================================================================
 // §2. Placement pin (CONTEXT.md I10: placement never reads registration state)
 // ===========================================================================

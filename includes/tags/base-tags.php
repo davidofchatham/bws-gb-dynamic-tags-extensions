@@ -295,13 +295,16 @@ function bws_register_base_tags(): void {
 	) );
 
 	// =========================================================
-	// datetime_single — single date/time field(s) with mode switch
+	// datetime_single — single date/time field(s) with mode switch. Hidden from the picker
+	// (FW-81), still registered so stored content renders; the type:'tag' entry that declares
+	// it deprecated is in bws_register_nxm_tag_migrations().
 	// =========================================================
 
 	bws_gb_register_tag( array(
 		'title'       => __( 'Date/Time', 'generateblocks' ),
 		'tag'         => 'datetime_single',
 		'type'        => 'cross-source',
+		'hidden'      => true,
 		'supports'    => array(),
 		'description' => __( 'Format a date and time from a combined field or from separate date and time fields. By default it hides midnight times and the current year. Sources with several results can show a list of dates.', 'generateblocks' ),
 		'options'     => bws_prepare_registration_options( bws_get_base_datetime_single_options() ),
@@ -316,6 +319,7 @@ function bws_register_base_tags(): void {
 		'title'       => __( 'Date/Time Range', 'generateblocks' ),
 		'tag'         => 'datetime_range',
 		'type'        => 'cross-source',
+		'hidden'      => true,
 		'supports'    => array(),
 		'description' => __( 'Format a date and time range from separate start and end fields, like the Date/Time tag does. In a list of ranges, the result separator goes between whole ranges and the range separator between each start and end.', 'generateblocks' ),
 		'options'     => bws_prepare_registration_options( bws_get_base_datetime_range_options() ),
@@ -491,6 +495,7 @@ function bws_register_base_tags(): void {
 
 	TagTemplateRegistry::register_modifier_template( array(
 		'key'                => 'datetime_single',
+		'hidden'             => true,
 		'title'              => __( 'Date/Time', 'generateblocks' ),
 		'supports_link_wrap' => true,
 		'leading_options'    => function_exists( 'bws_get_datetime_single_leading_options' )
@@ -507,6 +512,7 @@ function bws_register_base_tags(): void {
 
 	TagTemplateRegistry::register_modifier_template( array(
 		'key'                => 'datetime_range',
+		'hidden'             => true,
 		'title'              => __( 'Date/Time Range', 'generateblocks' ),
 		'supports_link_wrap' => true,
 		'leading_options'    => function_exists( 'bws_get_datetime_range_leading_options' )
