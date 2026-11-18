@@ -41,6 +41,7 @@ function bws_get_datetime_single_template_options(): array {
 	return array_merge(
 		bws_get_datetime_single_leading_options(),
 		bws_get_datetime_single_field_key_options(),
+		array( 'key' => bws_get_datetime_legacy_reads_option( 'single' ) ), // The read control, in the plain picker's place.
 		array(
 			'fallback' => array(
 				'type'        => 'text',
@@ -184,6 +185,7 @@ function bws_get_datetime_list_options( bool $range = false ): array {
 function bws_get_datetime_range_template_options(): array {
 	return array_merge(
 		bws_get_datetime_range_leading_options(),
+		array( 'key' => bws_get_datetime_legacy_reads_option( 'range' ) ), // The read control, ahead of the old four.
 		bws_get_datetime_range_field_key_options(),
 		array(
 			'fallback' => array(
@@ -392,7 +394,8 @@ function bws_get_datetime_reads_option(): array {
 }
 
 /**
- * The `key` option of an OLD datetime tag (`datetime_single`, `datetime_range`): the read control, so
+ * The `key` option of an OLD datetime tag (`datetime_single`, `datetime_range`, and their `try_` forms
+ * through the two template option builders): the read control, so
  * the modal shows the author's reads once the mount rewrite has turned the old field options into
  * `key` (assets/js/datetime-read-control.js; the rule is bws_datetime_legacy_reads_rewrite()).
  *

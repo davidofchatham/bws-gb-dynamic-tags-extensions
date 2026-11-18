@@ -15,7 +15,7 @@ All notable changes to this project are documented in this file. The format is b
 ### Changed
 
 - **`datetime_single`, `datetime_range`, `try_datetime_single` and `try_datetime_range` leave the tag picker.** Authors now see `{{datetime}}` and `try_datetime`. Existing content using the old four renders exactly as before.
-- **Opening an old `datetime_single` or `datetime_range` tag shows its fields in the new control.** The Date/Time Field Key, Time Field Key and start and end options become one list of reads when the tag opens, and the tag prints the same as before. A range that sets only an end (which prints its fallback today) is left as it was.
+- **Opening an old `datetime_single`, `datetime_range`, `try_datetime_single` or `try_datetime_range` tag shows its fields in the new control.** The Date/Time Field Key, Time Field Key and start and end options become one list of reads when the tag opens, and the tag prints the same as before. A range that sets only an end (which prints its fallback today) is left as it was.
 - **`{{text}}` reads the first field when its `key` names more than one.** A datetime-style `key` pasted onto a text tag used to name no field and print the fallback or nothing. `key:a;b` and `key:a+b` now print the first field's value. The editor preview warns about what was ignored when the tag has nothing to show.
 
 ### Fixed

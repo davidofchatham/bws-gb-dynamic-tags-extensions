@@ -369,7 +369,7 @@ assert_same(
 	'{{try_datetime_range}} — full option order',
 	array(
 		'A', 'B', 'C', 'D', 'E',
-		'startKey', 'startTimeKey', 'endKey', 'endTimeKey',
+		'key', 'startKey', 'startTimeKey', 'endKey', 'endTimeKey',
 		// The two checkboxes register showCurrentYear FIRST. tag-reference.md §datetime
 		// listed them the other way round from 1.16.0 until this harness read the
 		// registration.
@@ -1420,6 +1420,28 @@ foreach ( array(
 	assert_same( "{$old_tag}: no use option", false, isset( $old_opts['use'] ) );
 }
 assert_same( 'the merged tag\'s key names no legacy family', false, isset( $dt_key['legacy'] ) );
+
+// The `try_` forms of the old tags carry the very same definition as their base tag (the rewrite
+// is one rule, so two spellings of the control would be two answers), keep the old options
+// registered beside it, and leave `key` a TAG-level option: never a slot axis the fold migrator
+// would move into attempt A.
+foreach ( array(
+	'try_datetime_single' => array( 'single', array( 'timeKey' ) ),
+	'try_datetime_range'  => array( 'range', array( 'startKey', 'startTimeKey', 'endKey', 'endTimeKey' ) ),
+) as $try_tag => list( $family, $old_names ) ) {
+	$try_opts = $registered[ $try_tag ]['options'] ?? array();
+	// The registration pass stamps its own `_group` markers on the stored option; the definition is the rest.
+	assert_same( "{$try_tag}: key is the old tag's read control, same definition", bws_get_datetime_legacy_reads_option( $family ), array_filter( $try_opts['key'] ?? array(), function ( $k ) { return 0 !== strpos( $k, '_' ); }, ARRAY_FILTER_USE_KEY ) );
+	assert_same( "{$try_tag}: the old field options stay registered", array(), array_values( array_diff( $old_names, array_keys( $try_opts ) ) ) );
+	assert_same( "{$try_tag}: no use option", false, isset( $try_opts['use'] ) );
+	// What the editor's fold mount migrator may fold: none of the datetime keys, `key` included.
+	$flat_axes = $try_opts['A']['fold']['flatAxes'] ?? null;
+	assert_same( "{$try_tag}: the fold's flat axes name no datetime key", array(), is_array( $flat_axes ) ? array_values( array_intersect( $flat_axes, array_merge( array( 'key', 'timeKey' ), $old_names ) ) ) : array( '(no flatAxes)' ) );
+}
+foreach ( array( 'datetime_single', 'datetime_range' ) as $tpl_key ) {
+	$tpl = \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates()[ $tpl_key ] ?? array();
+	assert_same( "{$tpl_key}: `key` is tag-level on its try_ form (no per-slot read axis)", array(), \BWS\DynamicTags\TagTemplateRegistry::try_slot_axes( $tpl )['slot_read'] );
+}
 
 // ---------------------------------------------------------------------------
 
