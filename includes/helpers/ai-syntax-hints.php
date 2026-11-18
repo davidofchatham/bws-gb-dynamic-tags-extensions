@@ -26,8 +26,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Tags that carry no hint at all, shared or their own. `call` returns whatever a registered
- * function returns, and the two datetime tags print only a field's date (`key`, `startKey`),
- * so both sit beside the field reads we do not teach: nothing is left to say about their source.
+ * function returns, and the four old datetime tags print only a field's date (`key`, `startKey`),
+ * so all of them sit beside the field reads we do not teach: nothing is left to say about their source.
  * `try_email` and `try_phone` join them: a slot is a field read unless it types an address, and
  * a typed address in the first slot always wins, so a chain of them has nothing to fall back to.
  */
@@ -46,6 +46,15 @@ const BWS_AI_SYNTAX_UNHINTED_TAGS = array(
  * its own. Only the three tags with a read axis carry it; the harness pins that.
  */
 const BWS_AI_SYNTAX_TRY_CARRY = ' It reads the way the attempt before did, unless it states its own use.';
+
+/**
+ * The `use` hint of `{{datetime}}` and `try_datetime`: the verbs, which are not a field read. The ordered
+ * form that mixes a verb with a field (`use:key;now`) needs a `key` read, which no hint teaches, so the
+ * example orders two verbs instead.
+ *
+ * @since Unreleased
+ */
+const BWS_AI_SYNTAX_DATETIME_USE = "Set use to read something other than a custom field: use:published or use:modified is the post's own date (posts only), use:now is the current date and time. Two reads make a range, listed in order, so use:published;now runs from the published date until now. Examples: {{datetime use:published}}, {{datetime use:published;now}}.";
 
 /**
  * The `try_*` slot hints, generated from one template so five tags cannot drift apart. A try_
@@ -90,6 +99,12 @@ function bws_ai_syntax_try_hints(): array {
 			'example' => '{{try_content A:src(refs,related_posts);use(excerpt)|B:src(current);use(excerpt)}}',
 			'later'   => '{{try_content A:src(refs,related_posts)|B:src(parent)|C:src(current)}}',
 		),
+		'try_datetime'  => array(
+			'site'    => null,
+			'read'    => '',
+			'example' => '{{try_datetime use:published|A:src(refs,related_posts)|B:src(parent)}}',
+			'later'   => '{{try_datetime use:published|A:src(refs,related_posts)|B:src(parent)|C:src(current)}}',
+		),
 		'try_image'     => array(
 			'site'    => 'the site logo',
 			'read'    => ';use(featured), needed in attempt A',
@@ -111,6 +126,8 @@ function bws_ai_syntax_try_hints(): array {
 			'B' => 'The next attempt, tried only when the one before gives nothing; C, D and E add more. Write its source out, because an attempt with nothing in it is skipped.' . ( $t['carry'] ?? '' ) . ' Example: ' . $t['later'],
 		);
 	}
+	// The read is the tag's own `use`, not a slot's, so it rides beside the two slot hints.
+	$out['try_datetime']['use'] = BWS_AI_SYNTAX_DATETIME_USE;
 	return $out;
 }
 
@@ -148,6 +165,9 @@ function bws_ai_syntax_hints(): array {
 		),
 		'image'     => array(
 			'use' => "Set use:featured to print the featured image of what src names; with src:site it is the site logo. It prints the image address; as:alt, as:id, as:title or as:caption print that instead. Examples: {{image use:featured}}, {{image src:parent|use:featured|as:alt}}.",
+		),
+		'datetime'  => array(
+			'use' => BWS_AI_SYNTAX_DATETIME_USE,
 		),
 		'table'     => array(
 			'src' => "Where the table's rows come from; leave it out for one row, the current context. Each result is a row: src:terms,category is a row per category, src:refs,related_posts a row per related post. Steps join with semicolons and a step's argument follows a comma; src:parent is the parent. The table is block-level markup, so put the tag in a div, not inside a paragraph.",
