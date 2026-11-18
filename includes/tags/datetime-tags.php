@@ -294,9 +294,10 @@ function bws_get_base_datetime_range_options(): array {
  * The merged `datetime` tag's `use` leaf: the stripped-default select every read axis has
  * (BWS_USE_STRIPPED_DEFAULTS), its first value `key`.
  *
- * The select names one read. An ordered list that mixes a verb with fields (`key;now`) is
- * hand-written wire until the read control writes it, and use-read-control.js leaves such a
- * list alone.
+ * The wire value is the full ordered read list once a verb is mixed in (`key;now`). The
+ * editor never shows this select: the read control (`bws-datetime-reads`, on `key`) writes
+ * `use` itself, one entry per read, and the registration stays for the wire and the GB
+ * option allowlist. use-read-control.js leaves a list alone.
  *
  * @since Unreleased
  * @return array The `use` option definition.
@@ -305,14 +306,38 @@ function bws_get_datetime_use_option(): array {
 	return array(
 		'type'           => 'select',
 		'label'          => __( 'Date/Time Read', 'generateblocks' ),
-		'options'        => array(
-			array( 'value' => 'key',       'label' => __( 'Date/Time Field', 'generateblocks' ) ),
-			array( 'value' => 'now',       'label' => __( 'Current Date/Time', 'generateblocks' ) ),
-			array( 'value' => 'published', 'label' => __( 'Post Published Date', 'generateblocks' ) ),
-			array( 'value' => 'modified',  'label' => __( 'Post Modified Date', 'generateblocks' ) ),
+		'options'        => array_map(
+			function ( $row ) {
+				return array(
+					'value' => $row['value'],
+					'label' => $row['label'],
+				);
+			},
+			bws_get_datetime_read_choices()
 		),
 		'_strip_default' => true,
 		'readTag'        => 'datetime',
+	);
+}
+
+/**
+ * What one read can be: a field (`key`) or a verb, as the read control's per-read select
+ * offers them, in order (FW-81).
+ *
+ * `kinds` lists the source kinds a row is offered for; no `kinds` is offered for every source.
+ * `published` and `modified` read a post's own date, so only a post source offers them
+ * (bws_datetime_verb_result() is where any other source takes the fallback). The `use` option
+ * above lists the same values, so the two cannot name different verbs.
+ *
+ * @since Unreleased
+ * @return array<int, array{value:string, label:string, kinds?:string[]}>
+ */
+function bws_get_datetime_read_choices(): array {
+	return array(
+		array( 'value' => 'key',       'label' => __( 'Date/Time Field', 'generateblocks' ) ),
+		array( 'value' => 'now',       'label' => __( 'Current Date/Time', 'generateblocks' ) ),
+		array( 'value' => 'published', 'label' => __( 'Post Published Date', 'generateblocks' ), 'kinds' => array( 'post' ) ),
+		array( 'value' => 'modified',  'label' => __( 'Post Modified Date', 'generateblocks' ), 'kinds' => array( 'post' ) ),
 	);
 }
 
@@ -328,9 +353,9 @@ const BWS_DATETIME_MAX_READS = 2;
  * The merged `datetime` tag's `key` option: the read control's definition (FW-81).
  *
  * `bws-datetime-reads` (assets/js/datetime-read-control.js) owns the whole `key` value, one
- * `;` entry per read and one `+` pair inside an entry (bws_datetime_reads() owns that
- * grammar). Every heading, label and count the control shows arrives here and is never typed
- * in the control. `entryLabels` is indexed by read, so it must cover BWS_DATETIME_MAX_READS
+ * `;` entry per read and one `+` pair inside an entry, and the `use` value with it (a verb
+ * in any read; bws_datetime_reads() owns that grammar). Every heading, label and count the
+ * control shows arrives here and is never typed in the control. `entryLabels` is indexed by read, so it must cover BWS_DATETIME_MAX_READS
  * (control-order-test.php pins it). The pickers it renders are the field combo, whose Type
  * filter opens on the date and time types (`typeDefault`) and stays reachable to All for a
  * date stored as Text or plain meta.
@@ -344,6 +369,9 @@ function bws_get_datetime_reads_option(): array {
 		'label'          => __( 'Date/Time Field Key', 'generateblocks' ),
 		'help'           => __( 'ACF field key for a date, date-time, or time picker field.', 'generateblocks' ),
 		'placeholder'    => 'event_date',
+		// Each read's own select (a field or a verb) and the rows it offers.
+		'readLabel'      => __( 'Date/Time Read', 'generateblocks' ),
+		'reads'          => bws_get_datetime_read_choices(),
 		'timeLabel'      => __( 'Time Field Key (optional)', 'generateblocks' ),
 		'timeHelp'       => __( 'ACF time picker field to override or add time component.', 'generateblocks' ),
 		'timePlaceholder' => 'event_time',

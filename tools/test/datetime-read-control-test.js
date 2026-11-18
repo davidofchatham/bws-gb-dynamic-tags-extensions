@@ -11,8 +11,11 @@
  * stub of the picker would hold only half of §D7. The tag modal is not here: GenerateBlocks
  * owns it, so a test drives the control through the filter it registers, exactly as GB does.
  *
+ * THE VERBS (§D8): each read is a field or a verb, `use` is written only when a verb is among the
+ * reads and then as the full ordered list, and the rows a source offers.
+ *
  * WHAT THIS DOES NOT COVER, stated so a passing run is not read as full coverage: the grammar
- * (`bws_datetime_reads()`, owned and tested in PHP), the verbs (a later control), and anything needing
+ * (`bws_datetime_reads()`, owned and tested in PHP), and anything needing
  * a real DOM. How the grouped Type select renders, keyboard-navigates and announces is measured
  * in the testbed editor, not here.
  *
@@ -152,6 +155,13 @@ const KEY_DEF = {
 	label: 'Date/Time Field Key',
 	help: 'A date field.',
 	placeholder: 'event_date',
+	readLabel: 'Date/Time Read',
+	reads: [
+		{ value: 'key', label: 'Date/Time Field' },
+		{ value: 'now', label: 'Current Date/Time' },
+		{ value: 'published', label: 'Post Published Date', kinds: [ 'post' ] },
+		{ value: 'modified', label: 'Post Modified Date', kinds: [ 'post' ] },
+	],
 	timeLabel: 'Time Field Key (optional)',
 	timeHelp: 'A time field.',
 	timePlaceholder: 'event_time',
@@ -189,6 +199,21 @@ const addButton = function ( tree ) { return buttons( tree ).filter( function ( 
 const addTimeButtons = function ( tree ) { return buttons( tree ).filter( function ( b ) { return 'link' === b.props.variant && ! b.props.isDestructive; } ); };
 const removeTimeButtons = function ( tree ) { return buttons( tree ).filter( function ( b ) { return 'link' === b.props.variant && b.props.isDestructive; } ); };
 const removeButtons = function ( tree ) { return buttons( tree ).filter( function ( b ) { return b.props.isDestructive && 'tertiary' === b.props.variant; } ); };
+
+const readSelects = function ( tree ) { return findAll( tree, 'SelectControl' ); };
+const readValues = function ( tree ) { return readSelects( tree ).map( function ( s ) { return s.props.value; } ); };
+const offered = function ( tree, n ) { return readSelects( tree )[ n ].props.options.map( function ( o ) { return o.value; } ); };
+/** Choose a row in read `n`'s select. */
+function choose( m, n, value ) { readSelects( m.tree )[ n ].props.onChange( value ); }
+/** The last committed state's `use`, or `undefined` when it deleted the key. */
+function lastUse( m ) {
+	const last = m.writes[ m.writes.length - 1 ];
+	return last && Object.prototype.hasOwnProperty.call( last, 'use' ) ? last.use : undefined;
+}
+/** Mount again on what the control last wrote (a reload of the editor over the saved tag). */
+async function reload( m, base ) {
+	return mount( Object.assign( {}, base, m.writes[ m.writes.length - 1 ] ) );
+}
 
 /** Mount the control on a tag state; `writes` collects every state it commits. */
 async function mount( state ) {
@@ -360,7 +385,7 @@ async function main() {
 
 	const verbs = await mount( { use: 'now;key', key: 'event_date' } );
 	pick( verbs, 0, 'other' );
-	check( 'D6.2 it writes `key` only: a `use` already on the tag is not its to touch', verbs.writes[ 0 ], { use: 'now;key', key: 'other' } );
+	check( 'D6.2 editing a field of a verb-mixed tag keeps the ordered `use` and the other options as they were', verbs.writes[ 0 ], { use: 'now;key', key: 'other' } );
 
 	check( 'D6.3 another option type is returned untouched', filter( { key: 'format' }, { format: { type: 'text' } }, { state: {} } ).type, undefined );
 	check( 'D6.4 a control a prior filter hid stays hidden', filter( null, { key: KEY_DEF }, { state: {} } ), null );
@@ -403,6 +428,84 @@ async function main() {
 		followed,
 		[ 0, 1, 2, 3 ].map( function () { return [ "Start Time (Time, 'start_time')" ]; } )
 	);
+
+	/* =====================================================================
+	 * §D8 — verbs: each read is a field or a verb, and `use` follows without being seen
+	 * ================================================================== */
+
+	const v0 = await mount( {} );
+	check( 'D8.1 one read shows ONE select, on the field row it spells (absent displays as the default)', [ readValues( v0.tree ), readSelects( v0.tree )[ 0 ].props.label ], [ [ 'key' ], 'Date/Time Read' ] );
+	check( 'D8.2 with no source kind named, every row is offered', offered( v0.tree, 0 ), [ 'key', 'now', 'published', 'modified' ] );
+
+	choose( v0, 0, 'now' );
+	check( 'D8.3 a verb picked on the only read writes `use` and leaves no `key`', [ lastUse( v0 ), lastKey( v0 ) ], [ 'now', undefined ] );
+	check( 'D8.4 ...and a verb read shows no field picker', ( await ( async function () { const m = await mount( { use: 'now' } ); return [ pickers( m.tree ).length, addTimeButtons( m.tree ).length ]; }() ) ), [ 0, 0 ] );
+
+	const f1 = await mount( { key: 'start_dt' } );
+	addButton( f1.tree ).props.onClick();
+	f1.tree = await render( f1.element.type, Object.assign( {}, f1.element.props, { context: { state: { key: 'start_dt;' }, setState: function ( u ) { f1.writes.push( u ); } } } ), true );
+	choose( f1, 1, 'now' );
+	check( 'D8.5 a field then now writes the full ordered list, `key` first, and the one field entry', [ lastUse( f1 ), lastKey( f1 ) ], [ 'key;now', 'start_dt' ] );
+
+	const f2 = await mount( { key: 'end_dt;x' } );
+	choose( f2, 0, 'now' );
+	check( 'D8.6 now then a field: the verb takes no entry, so the field read keeps ITS entry (the second)', [ lastUse( f2 ), lastKey( f2 ) ], [ 'now;key', 'x' ] );
+
+	const f3 = await mount( { use: 'now;key', key: 'end_dt' } );
+	check( 'D8.7 a stored ordered list reads back in its order: the verb, then the field read with its entry', [ readValues( f3.tree ), pickers( f3.tree ).map( function ( p ) { return p.props.context.state.key; } ) ], [ [ 'now', 'key' ], [ 'end_dt' ] ] );
+	const f4 = await mount( { use: 'key;now', key: 'start_dt' } );
+	check( 'D8.8 ...and the other order is a different read', [ readValues( f4.tree ), pickers( f4.tree ).map( function ( p ) { return p.props.context.state.key; } ) ], [ [ 'key', 'now' ], [ 'start_dt' ] ] );
+	const f5 = await mount( { use: 'key;now' } );
+	check( 'D8.9 a `key` in `use` with no entry is an empty field read (it displays, it is not dropped)', [ readValues( f5.tree ), pickers( f5.tree ).length ], [ [ 'key', 'now' ], 1 ] );
+
+	// Removing the last verb removes `use`; an all-field list never leaves one behind.
+	const r1 = await mount( { use: 'key;now', key: 'start_dt', format: 'F j' } );
+	removeButtons( r1.tree )[ 1 ].props.onClick();
+	check( 'D8.10 removing the last verb removes `use`, keeping the field and the rest of the tag', r1.writes[ 0 ], { key: 'start_dt', format: 'F j' } );
+	const r2 = await mount( { use: 'key;now', key: 'start_dt' } );
+	choose( r2, 1, 'key' );
+	check( 'D8.11 turning the verb back into a field removes `use` and keeps a second, empty field read', [ lastUse( r2 ), lastKey( r2 ) ], [ undefined, 'start_dt;' ] );
+	const r3 = await mount( { use: 'key;now', key: 'start_dt' } );
+	removeButtons( r3.tree )[ 0 ].props.onClick();
+	check( 'D8.12 removing the field leaves the verb alone: `use:now`, no `key`', [ lastUse( r3 ), lastKey( r3 ) ], [ 'now', undefined ] );
+	const r4 = await mount( { use: 'now;published' } );
+	check( 'D8.13 two verbs fill the control: no Add, each read has a Remove', [ !! addButton( r4.tree ), removeButtons( r4.tree ).length ], [ false, 2 ] );
+	const r5 = await mount( { use: 'key;key', key: 'a;b' } );
+	pick( r5, 0, 'c' );
+	check( 'D8.14 a redundant all-field `use` is not carried: an edit writes no `use`', [ lastUse( r5 ), lastKey( r5 ) ], [ undefined, 'c;b' ] );
+
+	// Position is by add and remove only: nothing offers a reorder.
+	check( 'D8.15 no reorder control: the only buttons are Add, Remove, and the time-field links', buttons( f4.tree ).map( function ( b ) { return b.children[ 0 ]; } ).filter( function ( t ) { return ! /^(\+ Add|Remove)/.test( t ); } ), [] );
+
+	// Round trip: what the control writes, a reload shows as the same reads.
+	const rt = await mount( {} );
+	pick( rt, 0, 'start_dt' );
+	let rtState = Object.assign( {}, rt.writes[ rt.writes.length - 1 ] );
+	const rtAdd = await mount( rtState );
+	addButton( rtAdd.tree ).props.onClick();
+	rtState = rtAdd.writes[ rtAdd.writes.length - 1 ];
+	const rtVerb = await mount( rtState );
+	choose( rtVerb, 1, 'modified' );
+	const back = await reload( rtVerb, {} );
+	check( 'D8.16 serialize then reload shows the same reads (a field, then a verb), the field picker holding its field', [ readValues( back.tree ), pickers( back.tree ).map( function ( p ) { return p.props.context.state.key; } ), rtVerb.writes[ 0 ] ], [ [ 'key', 'modified' ], [ 'start_dt' ], { key: 'start_dt', use: 'key;modified' } ] );
+
+	// Which verbs a source offers: `now` everywhere, the post dates for a post. The chain
+	// vocabulary names the three roots only here: elsewhere a `site` source would narrow the picker.
+	global.window.bwsChainKinds = { steps: {}, settles: '', roots: { site: 'site', term: 'term', post: 'post' } };
+	const postSrc = await mount( { src: 'post,22' } );
+	const termSrc = await mount( { src: 'term' } );
+	const siteSrc = await mount( { src: 'site' } );
+	check( 'D8.17 a post source offers every row', offered( postSrc.tree, 0 ), [ 'key', 'now', 'published', 'modified' ] );
+	check( 'D8.18 a term source and a site source offer the field and now, not the post dates', [ offered( termSrc.tree, 0 ), offered( siteSrc.tree, 0 ) ], [ [ 'key', 'now' ], [ 'key', 'now' ] ] );
+	const heldTerm = await mount( { src: 'term', use: 'published' } );
+	check( 'D8.19 a read already on a post date keeps its row when the source is not a post, so it still displays as itself', [ readValues( heldTerm.tree ), offered( heldTerm.tree, 0 ) ], [ [ 'published' ], [ 'key', 'now', 'published' ] ] );
+
+	global.window.bwsChainKinds = { steps: {}, settles: '', roots: {} };
+
+	// The `use` select is the control's to write, so the editor does not show it.
+	const useEl = { key: 'use' };
+	check( 'D8.20 the `use` select is hidden on a tag whose `key` is this control', filter( useEl, { use: { type: 'select' }, key: KEY_DEF }, { state: {} } ), null );
+	check( 'D8.21 ...and left alone on any other tag', filter( useEl, { use: { type: 'select' }, key: { type: 'bws-field-combo' } }, { state: {} } ), useEl );
 
 	console.log( '' );
 	if ( fail ) {

@@ -1493,4 +1493,8 @@
 	// (slot-fold-control.js labelAction()), which asks it rather than copying the rule.
 	FieldComboControl.reachableLabel = reachableLabel;
 
+	// The kind the sibling `src` chain resolves to, for a control that offers reads by source
+	// kind (the datetime read control's verbs). One answer, asked here rather than re-derived.
+	FieldComboControl.presetKind = presetKind;
+
 } )();

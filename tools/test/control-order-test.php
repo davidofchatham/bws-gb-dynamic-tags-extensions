@@ -1398,6 +1398,12 @@ assert_same( 'datetime: key is the read control', 'bws-datetime-reads', $dt_key[
 assert_same( 'try_datetime: the same key definition, not a copy', $dt_key, bws_get_datetime_template_options()['key'] );
 assert_same( 'datetime: the control stops offering Add at the most reads the normalizer takes', BWS_DATETIME_MAX_READS, $dt_key['max'] );
 assert_same( 'datetime: a non-empty heading for every read the control offers', true, count( array_filter( $dt_key['entryLabels'], 'strlen' ) ) >= BWS_DATETIME_MAX_READS );
+// The per-read select offers what the `use` enum lists and nothing else, field row first, and only
+// the post dates are limited to a kind (the verb result reads no other source's dates).
+$dt_use = bws_get_base_datetime_options()['use'];
+assert_same( 'datetime: the read control offers exactly the values `use` lists, in order', array_column( $dt_use['options'], 'value' ), array_column( $dt_key['reads'], 'value' ) );
+assert_same( 'datetime: the first read row is the stripped default `use` (a field read)', bws_use_stripped_default( 'datetime' ), $dt_key['reads'][0]['value'] );
+assert_same( 'datetime: only published and modified are limited to a source kind, and only to post', array( 'published' => array( 'post' ), 'modified' => array( 'post' ) ), array_column( array_filter( $dt_key['reads'], function ( $r ) { return isset( $r['kinds'] ); } ), 'kinds', 'value' ) );
 assert_same( 'datetime: its Type filter opens on a group that exists', true, in_array( $dt_key['typeDefault'], array_column( bws_field_type_groups(), 'value' ), true ) );
 assert_same( 'datetime: the old field options are not registered on the merged tag', array(), array_values( array_intersect( array( 'timeKey', 'startKey', 'startTimeKey', 'endKey', 'endTimeKey' ), array_keys( bws_get_base_datetime_options() ) ) ) );
 

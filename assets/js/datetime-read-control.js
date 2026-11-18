@@ -6,10 +6,17 @@
  *   key:event_date+start_time               one read, date and time in two fields
  *   key:event_date+start_time;end_time      two reads: a range
  *
+ *   use:key;now|key:event_date               two reads: a field, then now (an ongoing range)
+ *   use:published                            one verb read, no `key`
+ *
  * THE GRAMMAR IS bws_datetime_reads()'s: PHP owns what the value means, and this file only edits
- * the value it reads, splitting it into reads and a read's fields as that function does.
- * It writes `key` and nothing else, so the stripped-default `use` rule and the serialization
- * order stay with the controls that own them.
+ * the values it reads, splitting them into reads and a read's fields as that function does.
+ * It writes `key` and `use` and nothing else. `use` is written only when a verb is among the
+ * reads, and then as the full ordered list, `key` included (the position is what tells "from a
+ * field until now" from "from now until a field"); with only field reads there is no `use`.
+ * That is the stripped-default rule's output, stated here as a consequence: the owner is
+ * bws_use_effective(). The `use` select the editor would otherwise show is hidden, since this
+ * control is the only thing that writes it. The serialization order stays with its own control.
  *
  * THE CONCEPTS ARE THE SLOT REPEATER'S, NOT ITS MACHINERY (slot-fold-control.js):
  *   1. ADD WRITES AN EXPLICIT SEED. A second read is the entry `''`, written as a real `;`, not
@@ -28,6 +35,11 @@
  * one opens its picker and keeps it open until Remove Time Field; the open state is local and
  * never on the wire.
  *
+ * EACH READ HAS ITS OWN SELECT: a field, or a verb. The rows come from the option definition
+ * (`reads`, bws_get_datetime_read_choices()), and a row that lists `kinds` is offered only when
+ * the source resolves to one of them, or to no known kind (a render-time source). The row a read
+ * already holds is always kept, so a read written for another source still displays as itself.
+ *
  * Every heading, label and count arrives on the option definition (bws_get_datetime_reads_option()).
  *
  * @package BWS_Dynamic_Tags
@@ -36,7 +48,7 @@
 ( function () {
 	'use strict';
 
-	if ( ! window.wp || ! wp.hooks || ! wp.element || ! wp.components ) {
+	if ( ! window.wp || ! wp.hooks || ! wp.element || ! wp.components || ! wp.components.SelectControl ) {
 		return;
 	}
 
@@ -45,22 +57,44 @@
 	var useState  = wp.element.useState;
 	var useEffect = wp.element.useEffect;
 	var Button    = wp.components.Button;
-	var __        = ( wp.i18n && wp.i18n.__ ) || function ( s ) { return s; };
+	var SelectControl = wp.components.SelectControl;
+	var __       = ( wp.i18n && wp.i18n.__ ) || function ( s ) { return s; };
 
-	/**
-	 * `key` wire → entries, each an array of operands (`['date', 'time']`). An absent or blank
-	 * wire is ONE empty entry: the read it spells (concept 2).
-	 *
-	 * @param {string} raw The `key` value.
-	 * @return {string[][]} Entries, at least one.
-	 */
-	function parse( raw ) {
+	/** `key` wire → entries, each an array of operands (`['date', 'time']`). Blank is no entries. */
+	function entriesOf( raw ) {
 		var wire = String( raw || '' ).trim();
 		if ( '' === wire ) {
-			return [ [ '' ] ];
+			return [];
 		}
 		return wire.split( ';' ).map( function ( entry ) {
 			return entry.split( '+' ).map( function ( op ) { return op.trim(); } );
+		} );
+	}
+	/** A field read: `ops` is its operands, the primary field first. */
+	function fieldRead( ops ) {
+		return { verb: '', ops: ops };
+	}
+	/**
+	 * The tag's state → reads, in order, each `{ verb, ops }` (`verb` '' for a field read).
+	 *
+	 * With no verb in `use` the reads are the `key` entries, one each, and none at all is ONE
+	 * empty read: the read an absent value spells (concept 2). With a verb, `use` is the list:
+	 * each `key` in it takes the next entry (none left is an empty read), a verb takes none.
+	 *
+	 * @param {Object}   state `extraTagParams`.
+	 * @param {string[]} verbs The verb names the option definition offers.
+	 * @return {Object[]} Reads, at least one.
+	 */
+	function parseReads( state, verbs ) {
+		var entries = entriesOf( state.key );
+		var names   = String( state.use || '' ).split( ';' ).map( function ( n ) { return n.trim(); } ).filter( function ( n ) {
+			return 'key' === n || -1 !== verbs.indexOf( n );
+		} );
+		if ( ! names.some( function ( n ) { return 'key' !== n; } ) ) {
+			return entries.length ? entries.map( fieldRead ) : [ fieldRead( [ '' ] ) ];
+		}
+		return names.map( function ( n ) {
+			return 'key' === n ? fieldRead( entries.shift() || [ '' ] ) : { verb: n, ops: [] };
 		} );
 	}
 
@@ -83,14 +117,14 @@
 		return ( 1 === parts.length && '' === parts[ 0 ] ) ? '' : parts.join( ';' );
 	}
 
-	/** Entries with operand `j` of entry `i` set to `value`; the rest of the entry is kept. */
-	function setOperand( entries, i, j, value ) {
-		return entries.map( function ( ops, n ) {
-			if ( n !== i ) { return ops; }
-			var next = ops.slice();
+	/** Reads with operand `j` of read `i` set to `value`; the rest of the read is kept. */
+	function setOperand( reads, i, j, value ) {
+		return reads.map( function ( read, n ) {
+			if ( n !== i ) { return read; }
+			var next = read.ops.slice();
 			while ( next.length <= j ) { next.push( '' ); }
 			next[ j ] = value;
-			return next;
+			return fieldRead( next );
 		} );
 	}
 
@@ -104,8 +138,13 @@
 
 		var locState  = useState( null );
 		var typeState = useState( null );
-		var entries = parse( state.key );
-		var count   = entries.length;
+		var choices = cfg.reads || [];
+		var verbs   = choices.map( function ( c ) { return c.value; } ).filter( function ( v ) { return 'key' !== v; } );
+		var reads   = parseReads( state, verbs );
+		var count   = reads.length;
+		// The kind the source chain resolves to, or null when it names none (a render-time
+		// source): a row limited to some kinds is offered for null too, since it may be one.
+		var kind    = ( FieldCombo && FieldCombo.presetKind ) ? FieldCombo.presetKind( state, 'key' ) : null;
 
 		// Per read, whether its time picker is open. Editor-only, never on the wire, and dense
 		// (one boolean per read) so removing a read can drop its slot.
@@ -125,14 +164,20 @@
 		// field (or emptying it to retype) leaves the picker where it was. Only Remove Time
 		// Field closes it.
 		useEffect( function () {
-			entries.forEach( function ( ops, i ) {
-				if ( ops[ 1 ] && ! timeOpen[ i ] ) { setTimeOpen( i, true ); }
+			reads.forEach( function ( read, i ) {
+				if ( read.ops[ 1 ] && ! timeOpen[ i ] ) { setTimeOpen( i, true ); }
 			} );
 		} );
 
+		/** Commit the reads: `use` only when a verb is among them, `key` for the field reads. */
 		function write( next ) {
-			var upd = Object.assign( {}, state );
-			var wire = emit( next );
+			var upd  = Object.assign( {}, state );
+			var wire = emit( next.filter( function ( r ) { return ! r.verb; } ).map( function ( r ) { return r.ops; } ) );
+			if ( next.some( function ( r ) { return r.verb; } ) ) {
+				upd.use = next.map( function ( r ) { return r.verb || 'key'; } ).join( ';' );
+			} else {
+				delete upd.use;
+			}
 			if ( wire ) {
 				upd.key = wire;
 			} else {
@@ -141,12 +186,20 @@
 			setState( upd );
 		}
 
+		/** The rows read `i` can show: the kind-limited ones only where the source allows, its own always. */
+		function rowsFor( read ) {
+			var cur = read.verb || 'key';
+			return choices.filter( function ( c ) {
+				return c.value === cur || ! c.kinds || ! kind || -1 !== c.kinds.indexOf( kind );
+			} ).map( function ( c ) { return { value: c.value, label: c.label }; } );
+		}
+
 		/** A picker's context: the tag's own state with `key` replaced by the one operand it edits. */
 		function operandContext( i, j ) {
 			return {
-				state: Object.assign( {}, state, { key: entries[ i ][ j ] || '' } ),
+				state: Object.assign( {}, state, { key: reads[ i ].ops[ j ] || '' } ),
 				setState: function ( upd ) {
-					write( setOperand( entries, i, j, ( upd && 'undefined' !== typeof upd.key ) ? upd.key : '' ) );
+					write( setOperand( reads, i, j, ( upd && 'undefined' !== typeof upd.key ) ? upd.key : '' ) );
 				}
 			};
 		}
@@ -174,7 +227,7 @@
 
 		var children = [];
 
-		entries.forEach( function ( ops, i ) {
+		reads.forEach( function ( read, i ) {
 			var kids = [];
 			if ( count > 1 ) {
 				kids.push( el( 'div', {
@@ -192,13 +245,34 @@
 						style: { marginRight: '-8px' },
 						onClick: function () {
 							timeState[ 1 ]( function ( prev ) { return prev.filter( function ( s, n ) { return n !== i; } ); } );
-							write( entries.filter( function ( e, n ) { return n !== i; } ) );
+							write( reads.filter( function ( e, n ) { return n !== i; } ) );
 						}
 					}, cfg.removeLabel )
 				] ) );
 			}
+			// Which read this is, by its own select. Picking a row replaces the read: a verb
+			// takes no operands, and a field starts empty, so no stale field rides a verb.
+			kids.push( el( 'div', { key: 'read', style: { marginBottom: '12px' } },
+				el( SelectControl, {
+					label: cfg.readLabel,
+					value: read.verb || 'key',
+					options: rowsFor( read ),
+					__nextHasNoMarginBottom: true,
+					onChange: function ( v ) {
+						if ( v === ( read.verb || 'key' ) ) { return; }
+						setTimeOpen( i, false );
+						write( reads.map( function ( r, n ) {
+							return n !== i ? r : ( 'key' === v ? fieldRead( [ '' ] ) : { verb: v, ops: [] } );
+						} ) );
+					}
+				} )
+			) );
+			if ( read.verb ) {
+				children.push( el( Fragment, { key: 'entry-' + i }, kids ) );
+				return;
+			}
 			kids.push( picker( i, 0 ) );
-			if ( ops[ 1 ] || timeOpen[ i ] ) {
+			if ( read.ops[ 1 ] || timeOpen[ i ] ) {
 				// Not the read's Remove: a link in the picker's label row, named for the field it
 				// drops. The label is the combo's own, so the link is laid over its right end.
 				kids.push( el( 'div', { key: 'time-' + i, style: { position: 'relative', marginBottom: '12px' } }, [
@@ -212,8 +286,8 @@
 						style: { position: 'absolute', top: '11px', right: 0, height: 'auto', fontSize: '12px' },
 						onClick: function () {
 							setTimeOpen( i, false );
-							if ( ops[ 1 ] ) {
-								write( setOperand( entries, i, 1, '' ) );
+							if ( read.ops[ 1 ] ) {
+								write( setOperand( reads, i, 1, '' ) );
 							}
 						}
 					}, cfg.timeRemoveLabel )
@@ -236,7 +310,7 @@
 				key: 'add',
 				variant: 'secondary',
 				style: { marginTop: '12px' },
-				onClick: function () { write( entries.concat( [ [ '' ] ] ) ); }
+				onClick: function () { write( reads.concat( [ fieldRead( [ '' ] ) ] ) ); }
 			}, '+ ' + cfg.addLabel ) );
 		}
 
@@ -251,6 +325,11 @@
 			if ( ! element || ! allOptions || ! context ) {
 				return element;
 			}
+			// The `use` select is this control's to write, so the author never sees it. Told
+			// apart structurally: a tag whose `key` is this control hides its `use`.
+			if ( 'use' === element.key && allOptions.key && 'bws-datetime-reads' === allOptions.key.type ) {
+				return null;
+			}
 			var cfg = allOptions[ element.key ];
 			if ( ! cfg || 'bws-datetime-reads' !== cfg.type ) {
 				return element;
@@ -261,6 +340,8 @@
 					label: cfg.label,
 					help: cfg.help,
 					placeholder: cfg.placeholder,
+					readLabel: cfg.readLabel,
+					reads: cfg.reads,
 					timeLabel: cfg.timeLabel,
 					timeHelp: cfg.timeHelp,
 					timePlaceholder: cfg.timePlaceholder,
