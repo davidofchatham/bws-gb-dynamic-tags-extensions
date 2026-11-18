@@ -736,6 +736,12 @@ function bws_format_time_display( $start, $end, $options ) {
         return '';
     }
 
+    // `as:date` only reaches here for a start with no date (a time-only field), which has no
+    // date to show.
+    if ( ! empty( $options['date_only'] ) ) {
+        return '';
+    }
+
     $moment = static function ( $result ) {
         if ( ! $result ) {
             return null;

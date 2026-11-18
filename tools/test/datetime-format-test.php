@@ -464,6 +464,14 @@ assert_same( 'U18 the same end prints once showMidnight is on',
 	'11:59 PM',
 	bws_format_time_display( $u_dt( '2030-08-12 12:00', 'F j, Y', false ), $u_dt( '2030-08-12 23:59', 'F j, Y g:i A' ), $show )
 );
+assert_same( 'U19 as:date on a time-only field: it has no date to show, so nothing',
+	'',
+	bws_format_time_display( $u_time_only( '2030-08-12 09:00', 'g:i A' ), null, array( 'hide_midnight' => true, 'date_only' => true ) )
+);
+assert_same( 'U20 as:date on a time-only start with a timed end: still nothing',
+	'',
+	bws_format_time_display( $u_time_only( '2030-08-12 09:00', 'g:i A' ), $u_dt( '2030-08-12 17:00', 'F j, Y g:i A' ), array( 'hide_midnight' => true, 'date_only' => true ) )
+);
 assert_same( 'U16 no start time at all: nothing, even when an end exists',
 	'',
 	bws_format_time_display( $empty_result, $u_dt( '2030-08-12 17:00', 'F j, Y g:i A' ), $hide )

@@ -2508,6 +2508,9 @@ function bws_fixture_page_content_matrix_datetime() {
 		array( 'D10.15', '9:00 am-5:00 pm', 'a time-key-only start with a date-time end', array(
 			array( 'datetime_range', 'startTimeKey:event_time|endKey:event_end_datetime' ),
 			array( 'datetime', 'key:+event_time;event_end_datetime' ) ) ),
+		array( 'D10.16', '', 'as:date on a time-only field has no date to show', array(
+			array( 'datetime_single', 'key:event_time|as:date' ), array( 'datetime_range', 'startKey:event_time|as:date' ),
+			array( 'datetime', 'key:event_time|as:date' ), array( 'datetime', 'key:event_time;|as:date' ) ) ),
 	);
 	$rows = array();
 	foreach ( $time_cases as $case ) {
