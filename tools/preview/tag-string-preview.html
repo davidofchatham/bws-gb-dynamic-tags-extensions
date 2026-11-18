@@ -316,10 +316,6 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 
     <div class="sb-h">Option Combining (FW-20, FW-81)</div>
     <label class="toggle-row">
-      <input type="checkbox" id="cb-fromkey">
-      <span class="toggle-desc">use + key → <code>use:key[sep]field</code> (FW-20; base tag only, folded slots not yet wired)</span>
-    </label>
-    <label class="toggle-row">
       <input type="checkbox" id="cb-linkcombined">
       <span class="toggle-desc">fold link → <code>linkTo:key[sep]field</code> (FW-20; already reaches folded slots)</span>
     </label>
@@ -1758,7 +1754,6 @@ const S = {
   // its sidebar radio were cut 2026-09-02 (user): the Legacy contrast line's `N-` prefix already
   // shows the digit style, so a separate toggle was redundant.
   slotKeySpelling: 'alpha',
-  fromKeyCombined: false,
   // FW-56 value-side src chain: LOCKED ON (user 2026-07-29). The chain OWNS the source string
   // (src:<chain>), EXCLUDING use+key — those are the read, kept as their own options so datetime's
   // 1-4 keys survive. No toggle: one src string is the decision.
@@ -1797,7 +1792,6 @@ const S = {
   bracketMode: 'depth-alt',
   bracketL1: '()',      // level-1 (outermost) bracket char; level 2 = the opposite. Frontrunner: L1=().
   slotForceSrc: false,  // always serialize a src value (src:current) on slot 1 of join/try_.
-  readViaUse: false,    // fold a slot's META read under use(key,field) for parity with use(same)/use(title).
   respellReadBracket: false, // read target: false → flat key=field; true → Rule-2 key(field).
   // FW-57 POST-READ HANDLER placement. A "handler" = any post-read stage: the Option-R type
   // TRANSFORM (phone/email/…) AND the per-slot LINK. Three models (user 2026-07-28):
@@ -1806,13 +1800,13 @@ const S = {
   //                                                 key(mobile)/phone,linkTo(permalink)
   //   'sibling'    → link only: separate {N}-linkTo: off the value (transform still piped).
   handlerMode: 'zone',
-  valueSep: ',',        // general composite-value glue (as:url,med / use:key,field / linkTo:key,field)
+  valueSep: ',',        // general composite-value glue (as:url,med / linkTo:key,field)
   chainPair: 'off',     // LOCKED FLAT (user 2026-07-29): src chain step BODIES are bare-comma
                         // `slug,arg`, no step brackets. (Radio dropped; 'off' is the decision.)
                         // NB `limit` is the one bracketed intra-step token — bracket-kv `limit[5]`,
                         // decided 2026-07-31; see serializeStep. Not a knob either.
   valuePair: 'off',     // LOCKED FLAT (user 2026-09-02): resolution-read fold is bare-comma
-                        // use:key,field / linkTo:key,field, no bracket. (Radio dropped; 'off' is
+                        // linkTo:key,field, no bracket. (Radio dropped; 'off' is
                         // the decision — mirrors chainPair.)
   linkCombined: false,  // fold linkKey into linkTo value → linkTo:key,<field> (else separate keys)
   fw81DtCollapse: true, // FW-81 (unreleased): show the merged `{{datetime}}` reading beside today's six-key wire (separators: FW_DT_JOIN, FW_DT_READ_SEP).
@@ -1959,7 +1953,7 @@ const PAIR_CLOSE = { '()':')', '[]':']' };
 function pairWrap(mode, arg) { return `${PAIR_OPEN[mode]}${arg}${PAIR_CLOSE[mode]}`; }
 
 // Join a folded token TAIL onto a head. RULE 2 (locked 2026-07-28) split the two folds; the
-// RESOLUTION-read half (use:key,field / linkTo:key,field) briefly considered bracketing the read
+// RESOLUTION-read half (linkTo:key,field) briefly considered bracketing the read
 // target, but the bracket-CHAR picker was dropped 2026-09-02 — LOCKED FLAT instead, matching the
 // src chain's flat step bodies (S.chainPair) and the FW-81 collapse form: head<valueSep>tail.
 //   - RENDER-MODIFIER folds (as:url,medium) — size only TUNES the render → ALWAYS flat sep:
@@ -2138,21 +2132,12 @@ function respellEntries(chain, read, link, dtKeys, typeTag, fallback, ifCond, al
   }
   if (read && read.kind==='fixed') fixedReadPairs(read).forEach(([k,v])=>E.push({name:k, val:v, rank:RESPELL_KEY_MAP.use}));
   else if (read && !dtKeys) {
-    // READ-VIA-USE (user 2026-07-29): unify the read under a single `use(...)` token for parity —
-    //   analog  → use(title)      same → use(same)      meta → use(key,field)
-    // vs the default MIXED form: analog/same via use(...), meta as a bare key(field). The composite
-    // `key,field` value glues with valueSep; base tag's `use:key,field` combine mirrors this.
-    if (S.readViaUse) {
-      if (read.kind==='same') push('use',vn('same'),false);
-      else if (read.kind==='key') E.push({name:'use', val:`key${S.valueSep}${read.field||''}`, rank:RESPELL_KEY_MAP.use});
-      // analog: still DROP when it equals the type token (type-lead already says it — no title;use(title)).
-      // Comparisons stay against the RAW slug id — vn() renames only the emitted value.
-      else if (read.slug && read.slug!=='default' && read.slug!==typeTag) push('use',vn(read.slug),false);
-    } else {
-      if (read.kind==='same') push('use',vn('same'),false);
-      else if (read.kind==='key') push('key',read.field||'',rb);
-      else if (read.slug && read.slug!=='default' && read.slug!==typeTag) push('use',vn(read.slug),false);
-    }
+    // analog/same ride `use(...)`, a meta read rides a bare `key(field)`. An analog read is DROPPED when
+    // it equals the type token (the type lead already says it). Comparisons stay against the RAW slug
+    // id — vn() renames only the emitted value.
+    if (read.kind==='same') push('use',vn('same'),false);
+    else if (read.kind==='key') push('key',read.field||'',rb);
+    else if (read.slug && read.slug!=='default' && read.slug!==typeTag) push('use',vn(read.slug),false);
   }
   if (link && link.to && S.handlerMode!=='sibling') {
     if (link.to==='key') {
@@ -2540,16 +2525,12 @@ function renderSlotParts(parts, p, t2p) {
     }
     if (id==='_content_key') {
       const field = typeof rv==='string' ? rv : '';
-      if (S.fromKeyCombined) { if(field) out.push(`${p}${uk}:${foldJoin('key',field)}`); else out.push(`${p}${uk}:key`); }
-      else { out.push(`${p}${uk}:key`); if(field) out.push(`${p}${kn('key')}:${field}`); }
+      out.push(`${p}${uk}:key`); if(field) out.push(`${p}${kn('key')}:${field}`);
       continue;
     }
     if (id==='key' && !hasExplicitUse) {
       const field = typeof rv==='string' ? rv : '';
-      // bare meta key → custom-field mode is use:key (NOT use:meta — base-tags.php `use` value
-      // for a meta/option field is 'key'). Folded: use:key<sep><field>.
-      if (S.fromKeyCombined) { if(field) out.push(`${p}${uk}:${foldJoin('key',field)}`); }
-      else { if(field) out.push(`${p}${kn('key')}:${field}`); }
+      if (field) out.push(`${p}${kn('key')}:${field}`);
       continue;
     }
     if (id==='_if')    { serializeIfEntries(val, 0).forEach(([k, v]) => out.push(`${p}${kn(k)}:${v}`)); continue; }
@@ -2699,7 +2680,7 @@ const CONTRAST_VARIANTS = {
 // from what ships. Flipping ANY toggle below reveals every group's Preview line at once; there is no
 // per-feature "this group's preview is on" concept, so `group.variants` is always a plain array.
 function previewActive() {
-  return S.fromKeyCombined || S.linkCombined || S.fw81DtCollapse;
+  return S.linkCombined || S.fw81DtCollapse;
 }
 function allVariantsFor(group) {
   const keys = group.variants || ['shipped','chainCurrent','chain'];
@@ -2716,8 +2697,8 @@ const SHIPPED_GRAMMAR = {
   slotKeySpelling: 'alpha', perStepSep: false,
   slotSchema: 'bracket-kv', slotOptSep: SLOT_SCHEMAS['bracket-kv'].optSep, slotKvChar: SLOT_SCHEMAS['bracket-kv'].kvChar,
   slotBracket: '[]', bracketMode: 'depth-alt', bracketL1: '()',
-  slotForceSrc: false, readViaUse: false, respellReadBracket: false, handlerMode: 'zone',
-  valueSep: ',', chainPair: 'off', linkCombined: false, fromKeyCombined: false,
+  slotForceSrc: false, respellReadBracket: false, handlerMode: 'zone',
+  valueSep: ',', chainPair: 'off', linkCombined: false,
   chainSep: { hop: ';', step: ',' },
 };
 function withShippedGrammar(fn) {
@@ -3546,9 +3527,6 @@ sbBtn.addEventListener('click',e=>{ e.stopPropagation(); setSidebar(!sbEl.classL
 sbScrim.addEventListener('click',()=>setSidebar(false));
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') setSidebar(false); });
 
-document.getElementById('cb-fromkey').addEventListener('change',e=>{
-  S.fromKeyCombined=e.target.checked; renderPerms();
-});
 document.getElementById('cb-linkcombined').addEventListener('change',e=>{
   S.linkCombined=e.target.checked; renderPerms();
 });
