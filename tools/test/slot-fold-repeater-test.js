@@ -85,6 +85,7 @@ load( 'assets/js/slot-fold-grammar.js' );
 // The migrate twin owns which legacy sibling keys a container has; the control is a hard
 // dependency on it (it will not mount without it), so it loads here too.
 load( 'assets/js/slot-fold-migrate.js' );
+load( 'assets/js/option-nodes.js' );
 load( 'assets/js/slot-fold-control.js' );
 
 const fold = global.window.bwsSlotFold;

@@ -123,6 +123,7 @@ class GenerateBlocks_Dynamic_Tag_Callbacks {
 require $root . '/autoload.php';
 
 foreach ( array(
+	'includes/rest/field-discovery.php',
 	'includes/helpers/gb-output-boundary.php',
 	'includes/helpers/gb-registration-boundary.php',
 	'includes/helpers/image-helpers.php',
@@ -1386,6 +1387,18 @@ assert_same(
 // stranger on `try_text` again, and says nothing further.
 \BWS\DynamicTags\TagTemplateRegistry::generate_base_try_tags();
 assert_same( 'a re-entered constructor does not report the same yield twice', 1, count( $GLOBALS['bws_doing_it_wrong'] ) );
+
+// ---------------------------------------------------------------------------
+
+// The merged datetime tag's key is the read control's option, and try_datetime carries the very
+// same definition (FW-81): a second spelling would be two controls for one wire. Its Type filter
+// opens on a group the page really inlines, or the control would preset a filter listing nothing.
+$dt_key = bws_get_base_datetime_options()['key'];
+assert_same( 'datetime: key is the read control', 'bws-datetime-reads', $dt_key['type'] );
+assert_same( 'try_datetime: the same key definition, not a copy', $dt_key, bws_get_datetime_template_options()['key'] );
+assert_same( 'datetime: the control stops offering Add at the most reads the normalizer takes', BWS_DATETIME_MAX_READS, $dt_key['max'] );
+assert_same( 'datetime: its Type filter opens on a group that exists', true, in_array( $dt_key['typeDefault'], array_column( bws_field_type_groups(), 'value' ), true ) );
+assert_same( 'datetime: the old field options are not registered on the merged tag', array(), array_values( array_intersect( array( 'timeKey', 'startKey', 'startTimeKey', 'endKey', 'endTimeKey' ), array_keys( bws_get_base_datetime_options() ) ) ) );
 
 // ---------------------------------------------------------------------------
 

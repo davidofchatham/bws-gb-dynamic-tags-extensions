@@ -387,6 +387,9 @@ global.window.bwsChainKinds = {
 const grammarFile = path.join( root, 'assets/js/slot-fold-grammar.js' );
 vm.runInThisContext( fs.readFileSync( grammarFile, 'utf8' ), { filename: grammarFile } );
 
+const optionNodesFile = path.join( root, 'assets/js/option-nodes.js' );
+vm.runInThisContext( fs.readFileSync( optionNodesFile, 'utf8' ), { filename: optionNodesFile } );
+
 const file = path.join( root, 'assets/js/field-combo-control.js' );
 vm.runInThisContext( fs.readFileSync( file, 'utf8' ), { filename: file } );
 
@@ -1726,6 +1729,112 @@ async function main() {
 		// here. The two narrowings compose; neither one silently overrules the other.
 		await refTailList( 'refs,dept_lead' )
 	);
+
+	/* =====================================================================
+	 * §F18 — the Type filter's GROUPS, and filters shared across pickers
+	 *
+	 * `window.bwsFieldTypeGroups` (bws_field_type_groups()) names a group once, holding its
+	 * member types. The fixture gains the other two date types and a type that sorts BEFORE
+	 * "Date & time", so the group's place in the alphabetical list is observable as
+	 * something other than first.
+	 * ================================================================== */
+
+	const GROUP = 'group:datetime';
+	const groupCfg = [ {
+		value: GROUP,
+		label: 'Date & time',
+		allLabel: 'All date & time',
+		members: [
+			{ type: 'date_time_picker', label: 'Date/Time' },
+			{ type: 'date_picker', label: 'Date' },
+			{ type: 'time_picker', label: 'Time' },
+		],
+	} ];
+	const added = [
+		{ name: 'event_start', label: 'Event Start', type: 'date_time_picker' },
+		{ name: 'event_time', label: 'Event Time', type: 'time_picker' },
+		{ name: 'accent', label: 'Accent', type: 'color_picker' },
+	];
+	added.forEach( function ( f ) { global.window.bwsFieldEnvelope.post[ 0 ].fields.push( f ); } );
+
+	/** The Type select's entries as an author reads them: a label, or `{ group, rows }`. */
+	function typeShape( tree ) {
+		const props = selects( tree )[ 1 ];
+		if ( props.options ) {
+			return labels( props.options );
+		}
+		return props.children.map( function ( n ) {
+			if ( 'optgroup' !== n.type ) { return n.children[ 0 ]; }
+			return { group: n.props.label, rows: n.children[ 0 ].map( function ( o ) { return o.children[ 0 ]; } ) };
+		} );
+	}
+
+	global.window.bwsFieldTypeGroups = groupCfg;
+
+	const grouped = await render( FieldComboControl, { optionKey: 'key', label: 'Field', context: ctx( {} ) } );
+	check(
+		'F18.1 on a tag with no typeDefault the group is one more entry, sorted with the plain types, its members nested',
+		typeShape( grouped ),
+		[
+			'All field types', 'Loop fields', 'Color Picker',
+			{ group: 'Date & time', rows: [ 'All date & time', 'Date/Time', 'Date', 'Time' ] },
+			'Email', 'Image', 'Post Object', 'Relationship', 'Repeater', 'Text', 'Text Area',
+		]
+	);
+	check( 'F18.2 ...and nothing is selected by default there', selects( grouped )[ 1 ].value, '__all_types' );
+
+	const dated = await render( FieldComboControl, { optionKey: 'key', label: 'Field', typeDefault: GROUP, context: ctx( {} ) } );
+	check( 'F18.3 the group is the default selection where an option names it', selects( dated )[ 1 ].value, GROUP );
+	check(
+		'F18.4 ...and selecting it keeps a field of ANY of its three member types, and no other',
+		labels( combo( dated ).options ),
+		[ "Event Start (Date & Time, 'event_start')", "Event Time (Time, 'event_time')", 'event_date (Date)' ]
+	);
+
+	const justTime = await render( FieldComboControl, { optionKey: 'key', label: 'Field', typeDefault: 'time_picker', context: ctx( {} ) } );
+	check( 'F18.5 a member type picked on its own filters to that type alone', labels( combo( justTime ).options ), [ "Event Time (Time, 'event_time')" ] );
+
+	// A group with no discovered member is not offered, and a default that names it falls to All.
+	global.window.bwsFieldTypeGroups = [ { value: 'group:none', label: 'Nothing', allLabel: 'All nothing', members: [ { type: 'gallery', label: 'Gallery' } ] } ];
+	const noMember = await render( FieldComboControl, { optionKey: 'key', label: 'Field', typeDefault: 'group:none', context: ctx( {} ) } );
+	check( 'F18.6 a group none of whose types was discovered is not offered', typeShape( noMember ).filter( function ( s ) { return 'string' !== typeof s; } ), [] );
+	check( 'F18.7 ...so a default naming it falls back to All rather than opening on nothing', selects( noMember )[ 1 ].value, '__all_types' );
+
+	// The page that inlines no groups gets the list it always had.
+	delete global.window.bwsFieldTypeGroups;
+	const noGroups = await render( FieldComboControl, { optionKey: 'key', label: 'Field', context: ctx( {} ) } );
+	check( 'F18.8 with no groups inlined the Type list is flat, as before', typeShape( noGroups ), [ 'All field types', 'Loop fields', 'Color Picker', 'Date', 'Date & Time', 'Email', 'Image', 'Post Object', 'Relationship', 'Repeater', 'Text', 'Text Area', 'Time' ] );
+	check( 'F18.8b ...with no group entry in it', typeShape( noGroups ).some( function ( s ) { return 'string' !== typeof s; } ), false );
+
+	// SHARED FILTERS: one pair for a control that owns several pickers.
+	global.window.bwsFieldTypeGroups = groupCfg;
+	const sets = [];
+	const sharedFor = function ( show, over ) {
+		return Object.assign( {
+			loc: null, type: null, show: show,
+			setLoc: function ( v ) { sets.push( [ 'loc', v ] ); },
+			setType: function ( v ) { sets.push( [ 'type', v ] ); },
+		}, over || {} );
+	};
+	const drawing = await render( FieldComboControl, { optionKey: 'key', label: 'Field', sharedFilters: sharedFor( true ), context: ctx( {} ) } );
+	const hiding  = await render( FieldComboControl, { optionKey: 'key', label: 'Field', sharedFilters: sharedFor( false ), context: ctx( {} ) } );
+	check( 'F18.9 the picker told to draw the filters draws both', selects( drawing ).length, 2 );
+	check( 'F18.10 a picker told not to draws none of them', selects( hiding ).length, 0 );
+
+	selects( drawing )[ 1 ].onChange( 'time_picker' );
+	selects( drawing )[ 0 ].onChange( 'Post fields' );
+	check( 'F18.11 the drawn filters write to the SHARED state, not the picker\'s own', sets, [ [ 'type', 'time_picker' ], [ 'loc', 'Post fields' ] ] );
+
+	const readsShared = await render( FieldComboControl, { optionKey: 'key', label: 'Field', sharedFilters: sharedFor( false, { type: 'time_picker' } ), context: ctx( {} ) } );
+	check(
+		'F18.12 a hiding picker lists what the SHARED type filter selects',
+		labels( combo( readsShared ).options ),
+		[ "Event Time (Time, 'event_time')" ]
+	);
+
+	// Leave the fixture as the earlier sections expect it.
+	delete global.window.bwsFieldTypeGroups;
+	added.forEach( function () { global.window.bwsFieldEnvelope.post[ 0 ].fields.pop(); } );
 
 	console.log( '' );
 	if ( fail ) {

@@ -382,6 +382,7 @@ function shows( key, state ) {
 // differently. The rows below mirror §C8 of fold-chain-compile-test.php one for one.
 console.log( '\nbase-tag source chain — legacy reading + conversion\n' );
 
+load( 'assets/js/option-nodes.js' );
 load( 'assets/js/slot-fold-control.js' );
 load( 'assets/js/src-chain-control.js' );
 

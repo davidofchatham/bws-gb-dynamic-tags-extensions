@@ -317,6 +317,44 @@ function bws_get_datetime_use_option(): array {
 }
 
 /**
+ * The most reads a datetime tag shows a control for: a start and an end. A third `key` entry
+ * is ignored by the normalizer, so the control stops offering Add at this count.
+ *
+ * @since Unreleased
+ */
+const BWS_DATETIME_MAX_READS = 2;
+
+/**
+ * The merged `datetime` tag's `key` option: the read control's definition (FW-81).
+ *
+ * `bws-datetime-reads` (assets/js/datetime-read-control.js) owns the whole `key` value, one
+ * `;` entry per read and one `+` pair inside an entry (bws_datetime_reads() owns that
+ * grammar). Every noun, label and count the control shows arrives here and is never typed
+ * in the control. The pickers it renders are the field combo, whose Type filter opens on
+ * the date and time types (`typeDefault`) and stays reachable to All for a date stored as
+ * Text or plain meta.
+ *
+ * @since Unreleased
+ * @return array The `key` option definition.
+ */
+function bws_get_datetime_reads_option(): array {
+	return array(
+		'type'           => 'bws-datetime-reads',
+		'label'          => __( 'Date/Time Field Key', 'generateblocks' ),
+		'help'           => __( 'ACF field key for a date, date-time, or time picker field.', 'generateblocks' ),
+		'placeholder'    => 'event_date',
+		'timeLabel'      => __( 'Time Field Key (optional)', 'generateblocks' ),
+		'timeHelp'       => __( 'ACF time picker field to override or add time component.', 'generateblocks' ),
+		'timePlaceholder' => 'event_time',
+		'noun'           => __( 'Date/Time', 'generateblocks' ),
+		'addLabel'       => __( 'Add Date/Time', 'generateblocks' ),
+		'removeLabel'    => __( 'Remove', 'generateblocks' ),
+		'max'            => BWS_DATETIME_MAX_READS,
+		'typeDefault'    => BWS_FIELD_TYPE_GROUP_DATETIME,
+	);
+}
+
+/**
  * Options for the merged `datetime` base tag (FW-81).
  *
  * One `key` option carries every field read and `use` the verbs (bws_datetime_reads() owns
@@ -334,12 +372,7 @@ function bws_get_base_datetime_options(): array {
 		bws_get_datetime_list_options( true ),
 		array(
 			'use' => bws_get_datetime_use_option(),
-			'key' => array(
-				'type'        => 'text',
-				'label'       => __( 'Date/Time Field Keys', 'generateblocks' ),
-				'help'        => __( 'Field to read. Join a date field and a time field with +, and add a second field after ; to show a range.', 'generateblocks' ),
-				'placeholder' => 'event_date+start_time;end_time',
-			),
+			'key' => bws_get_datetime_reads_option(),
 		),
 		bws_get_datetime_range_leading_options(),
 		function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array(),

@@ -214,7 +214,7 @@
 	 * and last any integration roots grouped as "Integrations".
 	 *
 	 * A grouped row carries its group's label as `group`; optionNodes() turns runs of
-	 * them into native <optgroup>s. A value already offered keeps its first row, so a
+	 * them into native <optgroup>s (window.bwsOptionNodes). A value already offered keeps its first row, so a
 	 * slot's `refs` (a root row there, respelled from flat `ref`) and the `refs` step
 	 * show once.
 	 *
@@ -247,34 +247,6 @@
 				seen[ r.value ] = true;
 				return true;
 			} );
-	}
-
-	/**
-	 * A SelectControl's children for rows that carry a `group`: each run of one group
-	 * becomes a native <optgroup> (its heading is not selectable), the rest plain options.
-	 *
-	 * @param {Array} rows `{ value, label, group? }` rows.
-	 * @return {Array} Elements.
-	 */
-	function optionNodes( rows ) {
-		var out = [];
-		var run = null;
-		rows.forEach( function ( r ) {
-			var opt = el( 'option', { key: r.value, value: r.value }, r.label );
-			if ( ! r.group ) {
-				run = null;
-				out.push( opt );
-				return;
-			}
-			if ( ! run || run.label !== r.group ) {
-				run = { label: r.group, kids: [] };
-				out.push( run );
-			}
-			run.kids.push( opt );
-		} );
-		return out.map( function ( n ) {
-			return n.kids ? el( 'optgroup', { key: 'g:' + n.label, label: n.label }, n.kids ) : n;
-		} );
 	}
 
 	/**
@@ -1110,7 +1082,7 @@
 				// Grouped rows render as <optgroup> children, which SelectControl takes in
 				// place of `options`.
 				options: grouped ? undefined : menu,
-				children: grouped ? optionNodes( menu ) : undefined,
+				children: grouped ? window.bwsOptionNodes( menu ) : undefined,
 				onChange: function ( v ) {
 					if ( ! v ) {
 						writeChainAt( i, null );

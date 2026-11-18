@@ -204,6 +204,7 @@ load( 'assets/js/option-group.js' );
 load( 'assets/js/serialization-order-normalizer.js' );
 load( 'assets/js/slot-fold-grammar.js' );
 load( 'assets/js/slot-fold-migrate.js' );
+load( 'assets/js/option-nodes.js' );
 load( 'assets/js/slot-fold-control.js' );
 // The picker last, as the enqueue does. The fold control reads
 // `window.bwsFieldComboControl` at RENDER time, so this order is the real one rather

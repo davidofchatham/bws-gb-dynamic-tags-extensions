@@ -454,15 +454,33 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);
+	// Grouped select children (<optgroup>), shared by the field picker's Type filter and the
+	// fold control's source picker.
+	wp_enqueue_script(
+		'bws-dynamic-tags-option-nodes',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/option-nodes.js',
+		array( 'wp-element' ),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
 	wp_enqueue_script(
 		'bws-dynamic-tags-field-combo-control',
 		BWS_DYNAMIC_TAGS_URL . 'assets/js/field-combo-control.js',
 		// No wp-data: the control reads the inlined window.bwsFieldEnvelope + sibling
 		// src tokens, never the data store (no getCurrentPostType prefill in v1).
-		array( 'wp-hooks', 'wp-element', 'wp-components', 'wp-api-fetch', 'wp-i18n' ),
+		array( 'wp-hooks', 'wp-element', 'wp-components', 'wp-api-fetch', 'wp-i18n', 'bws-dynamic-tags-option-nodes' ),
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);
+	// The Type filter's groups ("Date & time" holds the three date types). Inlined for the
+	// same reason the envelope is, and read by every field picker, not only datetime's.
+	if ( function_exists( 'bws_field_type_groups' ) ) {
+		wp_add_inline_script(
+			'bws-dynamic-tags-field-combo-control',
+			'window.bwsFieldTypeGroups = ' . wp_json_encode( bws_field_type_groups() ) . ';',
+			'before'
+		);
+	}
 	// Inline the field envelope directly into the editor page as a JS global. This
 	// sidesteps any runtime REST call for /fields entirely — the control reads
 	// window.bwsFieldEnvelope synchronously, so it never queues behind GB's
@@ -666,10 +684,21 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 			'bws-dynamic-tags-slot-fold-grammar',
 			'bws-dynamic-tags-slot-fold-migrate',
 			'bws-dynamic-tags-field-combo-control',
+			'bws-dynamic-tags-option-nodes',
 			'bws-dynamic-tags-entity-picker-control',
 			'bws-dynamic-tags-option-group',
 			'bws-dynamic-tags-table-style-control',
 		),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
+	// The `key` option of {{datetime}} / {{try_datetime}}: the list of reads, with one Location
+	// filter and one Type filter shared by every field picker it renders (FW-81). Loads after
+	// the field picker, which it mounts.
+	wp_enqueue_script(
+		'bws-dynamic-tags-datetime-read-control',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/datetime-read-control.js',
+		array( 'wp-hooks', 'wp-element', 'wp-components', 'wp-i18n', 'bws-dynamic-tags-field-combo-control' ),
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);

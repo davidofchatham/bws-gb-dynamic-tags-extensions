@@ -751,6 +751,20 @@ assert_true( 'envelope has term key', array_key_exists( 'term', $empty ) );
 assert_true( 'envelope has site key', array_key_exists( 'site', $empty ) );
 
 // -----------------------------------------------------------------------------
+echo "\n== type groups (the Type filter's grouped entries) ==\n";
+
+$groups = bws_field_type_groups();
+$dt     = $groups[0] ?? array();
+assert_eq( 'one group today, and it is the datetime one', array( BWS_FIELD_TYPE_GROUP_DATETIME ), array_column( $groups, 'value' ) );
+assert_eq(
+	'it holds exactly the three ACF date types, Date/Time first',
+	array( 'date_time_picker', 'date_picker', 'time_picker' ),
+	array_column( $dt['members'], 'type' )
+);
+assert_eq( 'the group and every member carry a label the control prints', true, '' !== $dt['label'] && '' !== $dt['allLabel'] && ! in_array( '', array_column( $dt['members'], 'label' ), true ) );
+assert_eq( 'a group token is not a field type slug, so it cannot collide with one', false, in_array( $dt['value'], array_column( $dt['members'], 'type' ), true ) );
+
+// -----------------------------------------------------------------------------
 echo "\n";
 if ( $failures > 0 ) {
 	echo "FAILED: {$failures} of {$count} assertions failed.\n";

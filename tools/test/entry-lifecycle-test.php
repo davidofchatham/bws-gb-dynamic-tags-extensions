@@ -87,6 +87,7 @@ class GenerateBlocks_Dynamic_Tag_Callbacks {
 require $root . '/autoload.php';
 
 foreach ( array(
+	'includes/rest/field-discovery.php',
 	'includes/helpers/gb-output-boundary.php',
 	'includes/helpers/gb-registration-boundary.php',
 	'includes/helpers/image-helpers.php',
