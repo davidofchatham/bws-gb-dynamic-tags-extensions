@@ -377,7 +377,7 @@ function bws_get_base_datetime_options(): array {
  * @since 1.0.0
  * @since 1.15.0 First arg is a resolved-source payload (FW-3a).
  * @since Unreleased The first arg is always the payload, and the time half renders through
- *               bws_format_time_display().
+ *               bws_format_time_display(). A verb read (`verb`) replaces the field parse.
  * @param array  $source   Resolved source (the factory's payload shape).
  * @param array  $options  Tag options.
  * @param object $instance Block instance.
@@ -453,7 +453,7 @@ function bws_datetime_single_core( array $source, $options, $instance ) {
  * @since 1.0.0
  * @since 1.15.0 First arg is a resolved-source payload (FW-3a).
  * @since Unreleased The first arg is always the payload, and the time half renders through
- *               bws_format_time_display().
+ *               bws_format_time_display(). Either side may be a verb read.
  * @param array  $source   Resolved source (the factory's payload shape).
  * @param array  $options  Tag options.
  * @param object $instance Block instance.

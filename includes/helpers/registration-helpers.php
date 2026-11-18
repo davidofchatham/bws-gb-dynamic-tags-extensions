@@ -399,6 +399,7 @@ if ( ! defined( 'BWS_USE_IMPLIED_BY_TOKEN' ) ) {
  * state step 3 but not step 2 — tools/test/use-stripped-default-test.php keeps them out.
  *
  * @since 1.21.0
+ * @since Unreleased A `;` list of only the default collapses to it.
  * @param string $tag     Base tag name (text|content|image|title|permalink).
  * @param array  $options Tag options.
  * @return string The effective `use`; '' for a tag with no read axis and no explicit `use`.

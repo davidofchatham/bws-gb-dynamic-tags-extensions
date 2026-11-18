@@ -2523,7 +2523,7 @@ function bws_fixture_page_content_matrix_datetime() {
 	}
 	$sections[] = bws_fixture_gb_section( 'Datetime D10 - one time display (single, range and merged agree)', $rows );
 
-	// THE `use` READ LIST (03). `page-matrix-post-meta` pins its published and modified dates
+	// THE `use` READ LIST (FW-81). `page-matrix-post-meta` pins its published and modified dates
 	// (manifest v47), so a post verb has a date a label can state. A post verb reads only from a
 	// post, so a term and the site print the fallback. `now` moves, so a row that shows it states
 	// the current YEAR, which is the one part that cannot differ between two loads (and the one

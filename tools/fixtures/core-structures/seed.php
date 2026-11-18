@@ -776,9 +776,9 @@ $log( 'post fields + plain meta applied' );
 // A pinned `post_modified` (v47) is written LAST and straight to the row. wp_update_post stamps
 // every upsert with now, and wp_insert_post takes no modified date on an update, so nothing earlier
 // in this file could hold it; nothing after this line may save the post again.
+global $wpdb;
 foreach ( $manifest['posts'] as $slug => $def ) {
 	if ( isset( $def['post_modified'], $post_ids[ $slug ] ) ) {
-		global $wpdb;
 		$wpdb->update(
 			$wpdb->posts,
 			array(
