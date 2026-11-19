@@ -211,6 +211,8 @@ load( 'assets/js/slot-fold-control.js' );
 // than a load-order workaround — and if it ever became one, the fold would paint its
 // plain-text fallback and every row below would fail rather than pass quietly.
 load( 'assets/js/field-combo-control.js' );
+// The datetime read control mounts the picker for each read; the slot card mounts it (try_datetime).
+load( 'assets/js/datetime-read-control.js' );
 
 const foldFilter = registeredFilters[ 'bws/slot-fold-control' ];
 const FieldCombo = global.window.bwsFieldComboControl;
@@ -622,6 +624,66 @@ async function main() {
 	} finally {
 		global.window.bwsFieldEnvelope = priorEnv;
 	}
+
+	/* =====================================================================
+	 * §S6 — a try_datetime slot's READ CONTROL, fed by the same seam
+	 *
+	 * A per-slot datetime read mounts the base tag's own read control in the slot card, and
+	 * that control mounts the REAL field picker for each read. The slot repeater harness holds
+	 * the context leaving the card against a stub; this is the one place the slot's chain is
+	 * followed through the real read control into the real picker's Location filter.
+	 * ================================================================== */
+
+	const DatetimeReads = global.window.bwsDatetimeReadControl;
+	check( 'S6.0 the read control loaded and is the component the slot card mounts', typeof DatetimeReads, 'function' );
+
+	const FOLD_DT = Object.assign( {}, FOLD, {
+		perSlotReads: true,
+		readsOption: {
+			label: 'Date/Time Field Key',
+			readLabel: 'Date/Time Read',
+			sameLabel: 'Same as Previous Slot',
+			placeholder: 'event_date',
+			reads: [ { value: 'key', label: 'Date/Time Field' }, { value: 'now', label: 'Current Date/Time' } ],
+			entryLabels: [ 'Start Date/Time', 'End Date/Time' ],
+			addLabel: 'Add End Date/Time',
+			timeAddLabel: 'Add Time Field',
+			timeRemoveLabel: 'Remove Time Field',
+			removeLabel: 'Remove',
+			max: 2,
+		},
+	} );
+	delete FOLD_DT.keyOption;
+
+	/** The read control the slot card mounted, rendered to settlement, as { tree, node }. */
+	async function readControlOf( slotKey, state ) {
+		const element = foldFilter(
+			{ key: slotKey },
+			{ A: { type: 'bws-slot-fold', label: 'Attempt A', fold: FOLD_DT }, B: { type: 'bws-slot-fold', foldFrom: 'A' } },
+			{ state: state, setState: function () {} }
+		);
+		const slotTree = element.type( element.props );
+		const node = walk( slotTree ).filter( function ( n ) { return n.type === DatetimeReads; } )[ 0 ];
+		return { node: node, tree: node ? await render( DatetimeReads, node.props ) : null };
+	}
+
+	const dtRefs = await readControlOf( 'A', { A: 'src(refs,dept_lead);key(main_line)', B: 'use(same)' } );
+	const dtPickers = pickersIn( dtRefs.tree );
+	check( 'S6.1 the slot mounts the real read control, which mounts the real picker', dtPickers.length, 1 );
+	check( 'S6.2 the slot\'s chain tail reaches the picker as its `src` token', dtPickers[ 0 ].props.context.state.src, 'refs,dept_lead' );
+	check( 'S6.3 ...and the picker narrows on it, as the slot\'s own picker does (S1.2)', await listOf( dtPickers[ 0 ] ), await listOf( readOnRefs ) );
+	check( 'S6.4 ...while the slot\'s stored field is shown in it', dtPickers[ 0 ].props.context.state.key, 'main_line' );
+	check( 'S6.5 a `current` chain narrows nothing: the pool keeps all three kinds',
+		await poolRootsOf( pickersIn( ( await readControlOf( 'A', { A: 'src(current);key(main_line)', B: 'use(same)' } ) ).tree )[ 0 ] ),
+		[ 'Post fields', 'Site fields', 'Term fields', '__all_locations' ] );
+
+	// Slot B, carrying: the control is the "Same as previous slot" select alone, no picker.
+	const dtSame = await readControlOf( 'B', { A: 'key(main_line)', B: 'use(same)' } );
+	const dtSelects = walk( dtSame.tree ).filter( function ( n ) { return n.type === 'SelectControl'; } );
+	check( 'S6.6 a carrying slot B shows the "same" row selected and no field picker',
+		[ dtSelects.map( function ( s ) { return s.props.value; } ), pickersIn( dtSame.tree ).length ], [ [ 'same' ], 0 ] );
+	check( 'S6.7 ...and slot A\'s first select has no such row',
+		( await readControlOf( 'A', { A: 'key(main_line)', B: 'use(same)' } ) ).node.props.cfg.sameLabel, '' );
 
 	console.log( '' );
 	if ( fail ) {

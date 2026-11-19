@@ -637,6 +637,46 @@ async function main() {
 	const threeUse = await mount( { use: 'key;now;key', key: 'a;b' } );
 	check( 'D10.11 a `use` list past the most reads stops there too, and the entry its third read would take is named',
 		[ readValues( threeUse.tree ), noticeTexts( threeUse.tree ) ], [ [ 'key', 'now' ], [ [ 'warning', false, 'Field `b` has no read to use it and will be removed on your next change here.' ] ] ] );
+	/* =====================================================================
+	 * §D11 — the control inside a slot card (try_datetime): exported, and "same" at slot 2+
+	 * ================================================================== */
+
+	// The slot repeater mounts this component itself, once per slot card, so each card has its
+	// own Location and Type filters (they live in the component). It hands it a context and a
+	// cfg: the definition above, plus `sameLabel` from slot 2.
+	const Component = global.window.bwsDatetimeReadControl;
+	check( 'D11.1 the component is exported for the slot repeater to mount', typeof Component, 'function' );
+	async function mountSlot( state, extra ) {
+		const writes = [];
+		const props = { cfg: Object.assign( {}, KEY_DEF, extra || {} ), context: { state: state, setState: function ( u ) { writes.push( u ); } } };
+		const tree = await render( Component, props );
+		return { tree: tree, writes: writes };
+	}
+	const SAME = 'Same as Previous Slot';
+
+	const noSame = await mountSlot( { key: 'a' } );
+	check( 'D11.2 with no sameLabel (slot A, the base tag) the first read offers no "same" row', offered( noSame.tree, 0 ), [ 'key', 'now', 'published', 'modified' ] );
+	const withSame = await mountSlot( { key: 'a' }, { sameLabel: SAME } );
+	check( 'D11.3 with a sameLabel the first read\'s select leads with it, in that label', [ offered( withSame.tree, 0 )[ 0 ], readSelects( withSame.tree )[ 0 ].props.options[ 0 ].label ], [ 'same', SAME ] );
+	check( 'D11.4 ...and the rest of the rows follow, unchanged', offered( withSame.tree, 0 ).slice( 1 ), [ 'key', 'now', 'published', 'modified' ] );
+
+	const carrying = await mountSlot( { use: 'same' }, { sameLabel: SAME } );
+	check( 'D11.5 use(same) shows the "same" row selected', readValues( carrying.tree ), [ 'same' ] );
+	check( 'D11.6 ...hides the field pickers, the time field and the Add button', [ pickers( carrying.tree ).length, addTimeButtons( carrying.tree ).length, !! addButton( carrying.tree ) ], [ 0, 0, false ] );
+	check( 'D11.7 ...and names no notice', noticeTexts( carrying.tree ), [] );
+
+	choose( withSame, 0, 'same' );
+	check( 'D11.8 choosing "same" writes use(same) and drops the key', [ withSame.writes[ 0 ].use, 'key' in withSame.writes[ 0 ] ], [ 'same', false ] );
+	choose( carrying, 0, 'key' );
+	check( 'D11.9 choosing the field row again writes no use and no key (an empty read)', [ 'use' in carrying.writes[ 0 ], 'key' in carrying.writes[ 0 ] ], [ false, false ] );
+	choose( carrying, 0, 'now' );
+	check( 'D11.10 choosing a verb from "same" writes that verb read', [ carrying.writes[ 1 ].use ], [ 'now' ] );
+
+	const second = await mountSlot( { use: 'key;now', key: 'a' }, { sameLabel: SAME } );
+	check( 'D11.11 "same" is offered on the first read only: a range\'s end read never reuses', [ offered( second.tree, 0 )[ 0 ], offered( second.tree, 1 ).indexOf( 'same' ) ], [ 'same', -1 ] );
+	check( 'D11.12 a read the slot writes other than "same" leaves the picker and Add as the base tag has them', [ pickers( second.tree ).length, !! addButton( second.tree ) ], [ 1, false ] );
+
+
 	console.log( '' );
 	if ( fail ) {
 		console.log( 'DATETIME READ CONTROL TEST FAILED (' + fail + ' of ' + total + ')' );
