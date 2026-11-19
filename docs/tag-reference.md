@@ -433,7 +433,7 @@ In v1.6.0 the per-source×template matrix was removed from the admin settings pa
 
 **Deprecated wrapper tags** — No setting governs whether a deprecated tag registers. Every deprecated tag but four has had its GB registration and runtime callbacks removed entirely. The four are `datetime_single`, `datetime_range`, `try_datetime_single` and `try_datetime_range` **[UNRELEASED]**: they stay registered, hidden from the picker, so stored content keeps rendering until the Migration Tool or the editor's mount rewrite moves it to `{{datetime}}` and `try_datetime` (unregistering them is FW-192). Migration data (`MigrationRegistry` entries) and the admin Tag Converter / settings-page list stay intact for detection and migration of old content. The settings page lists the tags still in a deprecation window under Deprecated Tags, grouped by whether the Migration Tool can convert them. A tag's state in a deprecation window is its registered state (hidden, or not registered), not a site-owner setting.
 
-**Base tags** (`text`, `image`, `content`, `title`, `permalink`, `datetime` **[UNRELEASED]**, `datetime_single`, `datetime_range`, `email`, `phone`) are always registered with no admin toggle.
+**Base tags** (`text`, `image`, `content`, `title`, `permalink`, `datetime` **[UNRELEASED]**, `email`, `phone`) are always registered with no admin toggle. `datetime_single` and `datetime_range` were base tags until `datetime` replaced them **[UNRELEASED]**; they are now deprecated and hidden, as above.
 
 ---
 
