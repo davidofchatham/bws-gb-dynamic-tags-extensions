@@ -33,7 +33,7 @@ content, never grammar, except where an allocation below says otherwise.
 
 ## Allocations
 
-**Amended 2026-11-19 (FW-81, `{{datetime}}`).** `+` is allocated in ONE place: the flat `key` option of `{{datetime}}` and `try_datetime`, where it joins a read's primary field and an optional time field (`key:event_date+start_time`). That option value is parsed by its own tag, never by the slot splitter, so `+` stays in `BWS_FOLD_RESERVED` and the folded slot grammar still treats it as reserved. Any other tag or grammar that wants `+` allocates it here first, in its own entry. The grammar's owner is `bws_datetime_reads()`'s PHPDoc in `includes/tags/datetime-tags.php`. `/` stays unallocated.
+**Amended 2026-11-19 (FW-81, `{{datetime}}`).** `+` is allocated in ONE place: the value of the `key` option of `{{datetime}}` and `try_datetime`, where it joins a read's primary field and an optional time field (`key:event_date+start_time;end_time`). That value is shaped like a fold (`;` between reads, `+` inside one) but is not one: `bws_datetime_reads()` parses it, never the fold grammar that parses a `src` chain or a slot value, so `+` stays in `BWS_FOLD_RESERVED` and the fold grammar still treats it as reserved. If a datetime read ever moves into the fold grammar (a per-slot `key` on `try_datetime`, say), that is a second allocation and takes its own entry here. Any other tag or grammar that wants `+` allocates it here first, in its own entry. The grammar's owner is `bws_datetime_reads()`'s PHPDoc in `includes/tags/datetime-tags.php`. `/` stays unallocated.
 
 ## Where this is enforced, and what the enforcement does not cover
 

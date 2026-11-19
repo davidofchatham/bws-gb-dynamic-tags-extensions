@@ -698,9 +698,9 @@ function bws_datetime_post_source( $post_id ): array {
  * none, a surplus `key` entry is ignored, and a name that is neither is dropped. Position
  * is what tells "from a field until now" from "from now until a field".
  *
- * This is the only place `;` and `+` are read as datetime grammar. The folded slot grammar
- * in slot-fold.php is untouched: `+` stays reserved there (ADR 0006), because a flat
- * option value is parsed by its own tag and not by the slot splitter.
+ * This is the only place `;` and `+` are read as datetime grammar. The value is shaped like
+ * a fold but the fold grammar (slot-fold.php) never parses it, so `+` stays reserved there;
+ * ADR 0006 §Allocations records the one place it is allocated.
  *
  * `$faults` is how the editor preview learns what that tolerance hid: the same parse reports
  * each inconsistency it forgave, so the preview cannot disagree with the render about which
