@@ -206,11 +206,11 @@ Datetime tags compute a live preview from the current time rather than a static 
 [{prefix} like “{formatted value}”]   — no context
 ```
 
-**[UNRELEASED]** **`{{datetime}}` and `try_datetime`.** The same shape, with the single or range prefix matching what the tag will print. The preview names no field and no verb, so `key:event_date`, `use:published` and `use:now` all read `Date-Time like “…”`, and `key:a;b` and `use:key;now|key:a` both read `Date-Time Range like “…”`. A tag with no read at all is not a fault: it still previews, because a bare datetime tag reads the ambient date. The two old tags keep their fixed single or range prefix. `try_datetime` builds the same part behind `Try`, and a source that varies across its slots lists them as every other `try_` datetime does.
+**[UNRELEASED]** **`{{datetime}}` and `try_datetime`.** The same shape, with the single or range prefix matching what the tag will print. The preview names no field and no verb, so `key:event_date`, `use:published` and `use:now` all read `Date-Time like “…”`, and `key:a;b` and `use:key;now|key:a` both read `Date-Time Range like “…”`. A tag with no read at all is not a fault: it still previews, because a bare datetime tag reads the ambient date. The two old tags keep their fixed single or range prefix. `try_datetime` builds the same part behind `Try`, and a source that varies across its slots lists them as every other `try_` datetime does. Each of its slots states its own read, and the single or range prefix is slot A's: a slot with no read of its own reuses the previous slot's, so it previews as the read it reuses, and a slot A with no read previews as a tag with no read. A later slot that reads a range under a single slot A still previews as single.
 
 ### Datetime read warnings **[UNRELEASED]**
 
-A configuration the tag forgives at render raises a warning instead of the sample, for `{{datetime}}` and `try_datetime` only (`⚠ Try: …` on the latter). Like the other warnings it replaces the whole preview, the fallback still appends, and several clauses join with `; `. Each describes what the author set and what the tag did with it. The deciding rules and the wording live with the code (`bws_datetime_reads()` and `bws_datetime_fault_text()`).
+A configuration the tag forgives at render raises a warning instead of the sample, for `{{datetime}}` and `try_datetime` only (`⚠ Try: …` on the latter). Like the other warnings it replaces the whole preview, the fallback still appends, and several clauses join with `; `. On `try_datetime` each slot is checked on its own and its clauses open with the slot's letter (`⚠ Try: B: 2 field reads but only 1 field key set`); two slots that warn join with `; ` too (`⚠ Try: A: …; B: …`). A slot that reuses the previous slot's read raises none of its own, because the slot that states the read already has. The preview exists only when every attempt read empty, so a chain whose other attempt resolves shows its value and no warning. Each describes what the author set and what the tag did with it. The deciding rules and the wording live with the code (`bws_datetime_reads()` and `bws_datetime_fault_text()`).
 
 | What the author set | Warning |
 |---|---|
@@ -273,7 +273,10 @@ Like every label here it is built only when the tag reads empty, so a `key` whos
 | `{{datetime key:event_date+start_time+end_time}}` | `[⚠ Only a date and a time can be joined with +, so extra parts are ignored]` |
 | `{{datetime use:now;key}}` | `[⚠ No field key set for read 2]` |
 | `{{datetime use:key;key;now\|key:a}}` | `[⚠ 2 field reads but only 1 field key set]` |
-| `{{try_datetime key:a;b}}` | `[Try Date-Time Range like “November 18, 1:44–2:44 PM”]` |
+| `{{try_datetime A:key(a;b)}}` | `[Try Date-Time Range like “November 18, 1:44–2:44 PM”]` |
+| `{{try_datetime A:key(a)\|B:key(a;b)}}` | `[Try Date-Time like “November 18, 2026 1:44 PM”]` (slot A's read decides) |
+| `{{try_datetime A:key(a;b)\|B:src(parent)}}` | `[Try Date-Time Range like “November 18, 1:44–2:44 PM” from Current, Current Parent]` (slot B reuses A's read) |
+| `{{try_datetime A:key(x)\|B:use(key;key;now);key(a)}}` | `[⚠ Try: B: 2 field reads but only 1 field key set]` |
 | `{{datetime_single as:date}}` | `[Date like “April 24, 2026”]` |
 | `{{datetime_single as:time\|src:ref\|ref:event_date}}` | `[Time like “2:20 PM” from Ref 'event_date']` |
 | `{{datetime_range as:date\|src:ref\|ref:event}}` | `[Date Range like “April 24 – April 25” from Ref 'event']` |
@@ -288,7 +291,7 @@ Like every label here it is built only when the tag reads empty, so a `key` whos
 - Mode-value keywords capitalized: `Title`, `Excerpt`, `Content`, `Featured`.
 - User-supplied identifiers wrapped in straight single quotes: `'meta_key'`, `'rel_post'`.
 - `from` precedes source segments. `Current` rendered explicitly only when source list contains a varying mix that needs the anchor. The anchor stays the bare word `Current` even though the Source dropdown's row reads "Current Context" (1.20.0); why the two surfaces take different words is stated at the emit site, `bws_preview_source_segments()` in [`preview-helpers.php`](../includes/helpers/preview-helpers.php).
-- Datetime templates render base shape (`<Date|Time|Date-Time> like "X"`) then optional source list. `try_datetime` also raises the [datetime read warnings](#datetime-read-warnings-unreleased) as `⚠ Try: …`.
+- Datetime templates render base shape (`<Date|Time|Date-Time> like "X"`) then optional source list. `try_datetime` takes the prefix from slot A's read and raises the [datetime read warnings](#datetime-read-warnings-unreleased) per slot, as `⚠ Try: <slot letter>: …`.
 - Single slot at template default for `content`/`image` collapses to bare `[Try Content]` / `[Try Image Alt Text]`.
 - Image excluded for `as:url` / `as:id` (bracket string would break HTML attribute). Permalink excluded entirely (URL context).
 
