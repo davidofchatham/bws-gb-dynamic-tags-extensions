@@ -257,8 +257,6 @@
 .bws-dynamic-tags-settings .bws-dep-group { padding: 20px var(--bws-pad-x); }
 .bws-dynamic-tags-settings .bws-dep-group + .bws-dep-group { border-top: 1px solid var(--bws-line); }
 .bws-dynamic-tags-settings .bws-dep-group-header { margin: 0 0 4px; color: var(--bws-ink); font-size: var(--gp-size-control, 14px); font-weight: var(--gp-weight-medium, 500); }
-.bws-dynamic-tags-settings .bws-mode-radios { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
-.bws-dynamic-tags-settings .bws-mode-radio-label { display: flex; align-items: center; gap: 8px; color: var(--bws-ink); cursor: pointer; }
 .bws-dynamic-tags-settings .bws-dep-tag-list { margin-top: 8px; }
 .bws-dynamic-tags-settings .bws-dep-tag-list summary { color: var(--bws-accent); cursor: pointer; font-size: var(--gp-size-meta, 13px); }
 .bws-dynamic-tags-settings .bws-ref-table { margin-top: 8px; }

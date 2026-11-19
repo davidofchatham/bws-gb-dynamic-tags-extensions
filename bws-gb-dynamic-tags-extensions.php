@@ -730,20 +730,20 @@ add_action( 'plugins_loaded', 'bws_dynamic_tags_init', 20 );
 /**
  * Seed default settings on fresh activation.
  *
- * New installs default deprecated tag groups to 'disable' so legacy N×M tags
- * are removed from GB out of the box. Existing installs (option row already
- * present) are left untouched to avoid silently breaking live content.
+ * An existing install (option row already present) is left untouched to avoid
+ * silently breaking live content.
  *
  * THE SEED ROW IS THE ONLY PLACE A FRESH INSTALL CAN BE TOLD FROM AN OLD ONE. Every
  * accessor reading these keys treats an absent key as ON, which is what keeps an install
  * that never opened the settings page rendering what it always rendered — and it is
  * therefore blind to which kind of install it is looking at. A key seeded here says "this
  * site started life after the default changed", and nothing else can. Do not add a second
- * discriminator elsewhere — the two deprecated group modes set the precedent in 1.6.1.
+ * discriminator elsewhere.
  *
  * @since 1.6.1
  * @since 1.20.0 `modifiers.term` seeds false — the term_ family is deprecated.
  * @since 1.21.0 `modifiers.term` dropped — the term_ family is removed (FW-129).
+ * @since Unreleased The `deprecated` group modes are no longer seeded.
  */
 function bws_dynamic_tags_activate() {
 	if ( null !== get_option( 'bws_dynamic_tags_settings', null ) ) {
@@ -752,10 +752,6 @@ function bws_dynamic_tags_activate() {
 	add_option( 'bws_dynamic_tags_settings', array(
 		'modifiers'  => array(
 			'try' => true,
-		),
-		'deprecated' => array(
-			'mode_with_path'    => 'disable',
-			'mode_without_path' => 'disable',
 		),
 		'email'      => array(
 			'obfuscate' => true,

@@ -27,6 +27,10 @@ All notable changes to this project are documented in this file. The format is b
 - **The Migration Tool converts the old datetime tags to `{{datetime}}` and `try_datetime`.** `datetime_single`, `datetime_range`, `try_datetime_single` and `try_datetime_range` are renamed and their date and time options become the one `key` list, and every converted tag prints the same as before. A range that sets only an end date or time prints its fallback today, so a rename would change it: the scan lists it under "Skipped" as needing a start added by hand, and the run leaves it alone. A tag the new form would read differently is also left alone: a single that holds `;` or `+` in a field key, or that sets a range option or `use`.
 - **`{{text}}` reads the first field when its `key` names more than one.** A datetime-style `key` pasted onto a text tag used to name no field and print the fallback or nothing. `key:a;b` and `key:a+b` now print the first field's value. The editor preview warns about what was ignored when the tag has nothing to show.
 
+### Removed
+
+- **The Keep / Suppress / Disable setting for deprecated tags is gone.** It saved a choice that nothing read, so it never changed what a deprecated tag did. The Deprecated Tags section now lists the tags with and without a migration path and points to the Migration Tool, and a fresh install no longer stores the setting. Nothing changes for your content.
+
 ### Fixed
 
 - **A `{{join}}` slot that begins `datetime_single` or `datetime_range` reads its `key` field.** The `key(...)` on such a hand-written slot was set aside as a date option nothing used, so the slot printed nothing. It now reads the field like any other slot.

@@ -5,20 +5,11 @@
  * Settings schema (v1.6.0):
  *   {
  *     modifiers:   { term: bool, try: bool },
- *     deprecated:  {
- *       mode_with_path:    'keep'|'suppress'|'disable',
- *       mode_without_path: 'keep'|'suppress'|'disable',
- *     },
  *     email:       { obfuscate: bool },
  *     phone:       { country_code: string, strip_leading_cc: bool },
  *     table:       { stripe_color: string, stripe_opacity: string },
  *     core_blocks: string[],  // block names, e.g. core/paragraph; empty = off
  *   }
- *
- * Deprecated tag mode semantics:
- *   keep     — tags register and execute normally (default).
- *   suppress — tags register but callbacks return '' (prevents unprocessed tags on frontend).
- *   disable  — tags are not registered with GB (removed from tag picker).
  *
  * @package BWS_Dynamic_Tags
  * @since 1.0.0
@@ -225,23 +216,16 @@ class SettingsPage {
 	public static function sanitize_settings( $input ): array {
 		$sanitized = array(
 			'modifiers'  => array(),
-			'deprecated' => array(),
 			'email'      => array(),
 			'phone'      => array(),
 			'table'      => array(),
 			'core_blocks' => array(),
 		);
 
-		// Modifier toggles. An orphaned `modifiers.term` key on an existing row is simply
-		// not carried forward — nothing reads it since the family's removal (1.21.0).
+		// Modifier toggles. An orphaned `modifiers.term` key (family removed in 1.21.0) or
+		// `deprecated` key (group modes removed) on an existing row is simply not carried
+		// forward — nothing reads either.
 		$sanitized['modifiers']['try'] = ! empty( $input['modifiers']['try'] );
-
-		// Deprecated tag group modes.
-		$valid_modes = array( 'keep', 'suppress', 'disable' );
-		foreach ( array( 'mode_with_path', 'mode_without_path' ) as $key ) {
-			$val = sanitize_key( $input['deprecated'][ $key ] ?? 'keep' );
-			$sanitized['deprecated'][ $key ] = in_array( $val, $valid_modes, true ) ? $val : 'keep';
-		}
 
 		// Email. `obfuscate` defaults ON; the checkbox renders checked, so an
 		// untouched first save submits 1. Unchecking it writes false.
@@ -285,55 +269,6 @@ class SettingsPage {
 		return isset( $settings['modifiers'][ $modifier ] )
 			? (bool) $settings['modifiers'][ $modifier ]
 			: true;
-	}
-
-	/**
-	 * Get the deprecation mode for a tag name.
-	 *
-	 * Looks up which group the tag belongs to (with/without migration path) and returns
-	 * the saved mode for that group. Defaults to 'keep'.
-	 *
-	 * @since 1.6.0
-	 * @param string $tag_name Tag name to look up.
-	 * @return string 'keep', 'suppress', or 'disable'.
-	 */
-	public static function get_deprecated_mode( string $tag_name ): string {
-		$settings = self::get_settings();
-		$group    = MigrationRegistry::has_migration_path( $tag_name ) ? 'mode_with_path' : 'mode_without_path';
-		$mode     = $settings['deprecated'][ $group ] ?? 'keep';
-		return in_array( $mode, array( 'keep', 'suppress', 'disable' ), true ) ? $mode : 'keep';
-	}
-
-	/**
-	 * Whether a deprecated tag should be registered with GenerateBlocks.
-	 *
-	 * @since 1.6.0
-	 * @param string $tag_name Deprecated tag name.
-	 * @return bool False only when mode is 'disable'.
-	 */
-	public static function is_deprecated_tag_registered( string $tag_name ): bool {
-		return 'disable' !== self::get_deprecated_mode( $tag_name );
-	}
-
-	/**
-	 * Whether a deprecated tag callback should suppress its output (return '').
-	 *
-	 * @since 1.6.0
-	 * @param string $tag_name Deprecated tag name.
-	 * @return bool True only when mode is 'suppress'.
-	 */
-	public static function is_deprecated_tag_suppressed( string $tag_name ): bool {
-		return 'suppress' === self::get_deprecated_mode( $tag_name );
-	}
-
-	/**
-	 * Backward-compat alias — returns true when tag is registered (mode != 'disable').
-	 *
-	 * @since 1.0.0
-	 * @deprecated 1.6.0 Use is_deprecated_tag_registered() instead.
-	 */
-	public static function is_deprecated_tag_enabled( string $tag_name ): bool {
-		return self::is_deprecated_tag_registered( $tag_name );
 	}
 
 	/**
@@ -630,7 +565,7 @@ class SettingsPage {
 	 * Render the settings page.
 	 *
 	 * Deprecated/Retired box structural rules (were SPEC §V5/§V6; migrated here on ship):
-	 * - **Empty-cascade is structural, not per-row.** A bucket (a K/S/D with-path/without-path
+	 * - **Empty-cascade is structural, not per-row.** A bucket (a Deprecated with-path/without-path
 	 *   subgroup, or a Retired tag-list/option-list) with zero entries after the allowlist
 	 *   filter hides its ENTIRE heading + description + control block, not just an empty
 	 *   disclosure. If all four boxes (Deprecated/Retired × Tags/Options) end up empty, the
@@ -915,11 +850,6 @@ class SettingsPage {
 			return;
 		}
 
-		$settings = self::get_settings();
-
-		$mode_with    = $settings['deprecated']['mode_with_path']    ?? 'keep';
-		$mode_without = $settings['deprecated']['mode_without_path'] ?? 'keep';
-
 		// Scan allowlist: hides zero-match entries unless the show-all filter is on (V7/V8).
 		$show_all  = (bool) apply_filters( 'bws_dynamic_tags_show_all_deprecated', false );
 		$allowlist = TagConverter::get_allowlist();
@@ -946,12 +876,6 @@ class SettingsPage {
 			$live_option_entries    = array_values( array_filter( $live_option_entries, $option_in_allowlist ) );
 			$retired_option_entries = array_values( array_filter( $retired_option_entries, $option_in_allowlist ) );
 		}
-
-		$mode_options = array(
-			'keep'     => __( 'Keep — tags work normally', 'generateblocks' ),
-			'suppress' => __( 'Suppress — tags register but output nothing (safe frontend fallback)', 'generateblocks' ),
-			'disable'  => __( 'Disable — tags are removed from GB (use only after migrating all content)', 'generateblocks' ),
-		);
 		?>
 		<div class="gp-admin-page">
 		<div class="wrap bws-dynamic-tags-settings gp-admin-page__main">
@@ -1148,28 +1072,24 @@ function my_result( $post_id, $arg = '' ) {
 
 				<?php self::render_core_blocks_section(); ?>
 
-				<?php /* ── Deprecated Tags (lifecycle 'deprecated'; registered hidden or migration-only, never listed; the K/S/D controls are FW-81's to rewire) ── */ ?>
+				<?php /* ── Deprecated Tags (lifecycle 'deprecated'; registered hidden or migration-only, never listed) ── */ ?>
 				<?php if ( ! empty( $live_with ) || ! empty( $live_without ) ) : ?>
 				<div class="bws-tag-group">
 					<h2 class="bws-section-header"><?php esc_html_e( 'Deprecated Tags', 'generateblocks' ); ?></h2>
 					<div class="bws-card">
 					<p class="description bws-section-desc">
-						<?php esc_html_e( 'Control how deprecated tags behave. Use the Migration Tool below to find and update content before disabling.', 'generateblocks' ); ?>
+						<?php esc_html_e( 'These tags are on their way out. Use the Migration Tool below to find and update content that uses them.', 'generateblocks' ); ?>
 					</p>
 
 					<?php foreach ( array(
 						array(
-							'key'     => 'mode_with_path',
 							'label'   => __( 'Tags with migration path', 'generateblocks' ),
-							'desc'    => __( 'These deprecated tags can be automatically converted to current equivalents.', 'generateblocks' ),
-							'current' => $mode_with,
+							'desc'    => __( 'The Migration Tool can convert these to their current equivalents.', 'generateblocks' ),
 							'entries' => $live_with,
 						),
 						array(
-							'key'     => 'mode_without_path',
 							'label'   => __( 'Tags without migration path', 'generateblocks' ),
-							'desc'    => __( 'These deprecated tags have no automatic conversion. Manual update required before disabling.', 'generateblocks' ),
-							'current' => $mode_without,
+							'desc'    => __( 'These have no automatic conversion. Update content that uses them by hand.', 'generateblocks' ),
 							'entries' => $live_without,
 						),
 					) as $group ) :
@@ -1179,18 +1099,6 @@ function my_result( $post_id, $arg = '' ) {
 					<div class="bws-dep-group">
 						<h3 class="bws-dep-group-header"><?php echo esc_html( $group['label'] ); ?></h3>
 						<p class="description"><?php echo esc_html( $group['desc'] ); ?></p>
-
-						<div class="bws-mode-radios">
-							<?php foreach ( $mode_options as $val => $label ) : ?>
-							<label class="bws-mode-radio-label">
-								<input type="radio"
-									name="<?php echo esc_attr( self::OPTION_NAME ); ?>[deprecated][<?php echo esc_attr( $group['key'] ); ?>]"
-									value="<?php echo esc_attr( $val ); ?>"
-									<?php checked( $group['current'], $val ); ?> />
-								<?php echo esc_html( $label ); ?>
-							</label>
-							<?php endforeach; ?>
-						</div>
 
 						<?php
 						self::render_entry_list(
