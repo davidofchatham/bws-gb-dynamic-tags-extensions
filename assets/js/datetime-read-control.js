@@ -146,6 +146,9 @@
 	var useEffect = wp.element.useEffect;
 	var Button    = wp.components.Button;
 	var SelectControl = wp.components.SelectControl;
+	// A read's heading is WordPress's own control label (11px, medium weight, uppercase), so it
+	// matches the labels around it without restating their type.
+	var VisualLabel   = ( wp.components.BaseControl && wp.components.BaseControl.VisualLabel ) || 'strong';
 	var __       = ( wp.i18n && wp.i18n.__ ) || function ( s ) { return s; };
 
 	/** `key` wire → entries, each an array of operands (`['date', 'time']`). Blank is no entries. */
@@ -341,9 +344,11 @@
 					key: 'hdr',
 					style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }
 				}, [
-					el( 'strong', {
+					// The row spaces the heading; the label's own bottom margin would push it off
+					// the Remove button's center line.
+					el( VisualLabel, {
 						key: 'ttl',
-						style: { fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.4px' }
+						style: { marginBottom: 0 }
 					}, ( cfg.entryLabels && cfg.entryLabels[ i ] ) || '' ),
 					el( Button, {
 						key: 'rm',

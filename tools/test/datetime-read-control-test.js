@@ -101,6 +101,7 @@ global.wp = {
 		Flex: 'Flex',
 		FlexItem: 'FlexItem',
 		Notice: 'Notice',
+		BaseControl: { VisualLabel: 'VisualLabel' },
 	},
 	apiFetch: function () { return Promise.resolve( { row: null } ); },
 	i18n: { __: function ( s ) { return s; } },
@@ -201,7 +202,8 @@ function findAll( tree, type ) {
 }
 const pickers = function ( tree ) { return findAll( tree, FieldCombo ); };
 const buttons = function ( tree ) { return findAll( tree, 'Button' ); };
-const headings = function ( tree ) { return findAll( tree, 'strong' ).map( function ( n ) { return n.children[ 0 ]; } ); };
+/** The per-read headings: WordPress's own control label, not a styled element of ours. */
+const headings = function ( tree ) { return findAll( tree, 'VisualLabel' ).map( function ( n ) { return n.children[ 0 ]; } ); };
 const addButton = function ( tree ) { return buttons( tree ).filter( function ( b ) { return 'secondary' === b.props.variant; } )[ 0 ]; };
 const addTimeButtons = function ( tree ) { return buttons( tree ).filter( function ( b ) { return 'link' === b.props.variant && ! b.props.isDestructive; } ); };
 const removeTimeButtons = function ( tree ) { return buttons( tree ).filter( function ( b ) { return 'link' === b.props.variant && b.props.isDestructive; } ); };
