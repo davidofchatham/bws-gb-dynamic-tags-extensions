@@ -1398,6 +1398,8 @@ assert_same( 'a re-entered constructor does not report the same yield twice', 1,
 $dt_key = bws_get_base_datetime_options()['key'];
 assert_same( 'datetime: key is the read control', 'bws-datetime-reads', $dt_key['type'] );
 assert_same( 'try_datetime: registers no tag-level `key` or `use` (each slot carries its read)', array(), array_values( array_intersect( array( 'key', 'use' ), array_keys( bws_get_datetime_template_options() ) ) ) );
+// The definition rides slot A fold config (what each slot card mounts): the base tag own, but for the one label only a slot has.
+assert_same( 'try_datetime: slot A fold ships the base tag read control definition, plus the slot-only same label', array( $dt_key, true ), array( array_diff_key( $registered['try_datetime']['options']['A']['fold']['readsOption'] ?? array(), array( 'sameLabel' => 0 ) ), ! empty( $registered['try_datetime']['options']['A']['fold']['readsOption']['sameLabel'] ) ) );
 assert_same( 'try_per_slot_reads is set by try_datetime and by no other template', true, array( 'datetime' ) === array_column( array_filter( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates(), static fn( $t ) => ! empty( $t['try_per_slot_reads'] ) ), 'key' ) );
 assert_same( 'datetime: the control stops offering Add at the most reads the normalizer takes', BWS_DATETIME_MAX_READS, $dt_key['max'] );
 assert_same( 'datetime: a non-empty heading for every read the control offers', true, count( array_filter( $dt_key['entryLabels'], 'strlen' ) ) >= BWS_DATETIME_MAX_READS );

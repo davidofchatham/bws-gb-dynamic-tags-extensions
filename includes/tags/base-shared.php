@@ -714,7 +714,8 @@ function bws_build_slot_read_rows( int $n, array $base_read, bool $allow_same = 
  *     @type bool   $reads           The container's slot read is a datetime read LIST
  *                                   (`try_per_slot_reads`, TagTemplateRegistry). Ships as the
  *                                   `perSlotReads` flag the grammar twin is told, because nothing in a
- *                                   value says so. Default false.
+ *                                   value says so, and as `readsOption`, the definition of the read
+ *                                   control each slot card mounts. Default false.
  * }
  * @return array Option definitions keyed by SLOT ORDINAL — `A`..`bws_slot_ordinal($max)`.
  *               The key IS the wire spelling (`B:`), so nothing downstream translates.
@@ -871,6 +872,15 @@ function bws_build_fold_slot_options( array $args ): array {
 	// A datetime read list per slot: SET ONLY WHEN TRUE, like the flag above.
 	if ( ! empty( $args['reads'] ) ) {
 		$fold['perSlotReads'] = true;
+		// The read control each slot card mounts (assets/js/datetime-read-control.js) is the base
+		// tag's own, so it is handed the base tag's own definition. The one label only a slot has
+		// is the row that reuses the previous slot's reads, offered from slot B.
+		if ( function_exists( 'bws_get_datetime_reads_option' ) ) {
+			$fold['readsOption'] = array_merge(
+				bws_get_datetime_reads_option(),
+				array( 'sameLabel' => __( 'Same as Previous Slot', 'generateblocks' ) )
+			);
+		}
 	}
 
 	$options = array();

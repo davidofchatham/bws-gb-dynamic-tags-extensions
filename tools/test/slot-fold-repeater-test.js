@@ -1816,5 +1816,91 @@ check( 'foldFrom: slot B reads slot A\'s config', [ FOLLOWED.noun, FOLLOWED.cont
 check( 'foldFrom: a pointer to nothing stays renderable on the inert defaults', confOf( 'B', { B: FOLLOWER } ).container, 'join' );
 check( 'foldFrom: no config and no pointer stays renderable too', confOf( 'B', { B: { type: 'bws-slot-fold' } } ).container, 'join' );
 
+// ── Per-slot datetime reads (try_datetime, fold `perSlotReads`) ─────────────────────
+// Each slot card mounts the base tag's datetime read control (a stub here: it is mounted
+// through createElement, never called, so its per-slot hooks are real in the editor). The
+// stub's `props.context` IS the hand-off under test: the control sees a synthetic
+// {state, setState} presenting the slot's chain preset and its `key`/`use`, and everything
+// it writes comes back as the slot's read tokens, with the rest of the slot left alone.
+// What the REAL control does with that context is slot-fold-picker-seam-test.js's.
+const READS_STUB = function DatetimeReadControlStub() {};
+const SAME_LABEL = 'Same as Previous Slot';
+const READS_OPT = {
+	label: 'Date/Time Field Key',
+	readLabel: 'Date/Time Read',
+	sameLabel: SAME_LABEL,
+	reads: [ { value: 'key', label: 'Date/Time Field' }, { value: 'now', label: 'Current Date/Time' } ],
+	max: 2
+};
+const READS = rep.foldConfig( { fold: Object.assign( {}, CHAIN_FOLD, { perSlotUse: false, perSlotReads: true, readsOption: READS_OPT } ) } );
+
+function renderSlotReads( slotKey, state, setState ) {
+	const prior = global.window.bwsDatetimeReadControl;
+	global.window.bwsDatetimeReadControl = READS_STUB;
+	try {
+		return rep.SlotFoldControl( { optionKey: slotKey, label: 'Attempt ' + slotKey, conf: READS, context: { state: state, setState: setState || function () {} } } );
+	} finally {
+		if ( prior === undefined ) { delete global.window.bwsDatetimeReadControl; } else { global.window.bwsDatetimeReadControl = prior; }
+	}
+}
+function readsNode( slotKey, state, setState ) {
+	return keyedNodes( renderSlotReads( slotKey, state, setState ), 'reads' )[ 0 ] || null;
+}
+/** Commit through the slot's read control, returning the whole state it wrote. */
+function commitReads( slotKey, state, upd ) {
+	let wrote = null;
+	readsNode( slotKey, state, function ( s ) { wrote = s; } ).props.context.setState( upd );
+	return wrote;
+}
+
+check( 'reads: foldConfig carries perSlotReads and the whole reads definition', [ READS.perSlotReads, READS.readsOption && READS.readsOption.label ].join(), 'true,Date/Time Field Key' );
+check( 'reads: the slot read is mounted as the datetime read control, once', keyedNodes( renderSlotReads( 'A', { A: 'key(a)', B: 'use(same)' } ), 'reads' ).length, 1 );
+check( 'reads: ...and it is the control, not a function call (per-slot hooks)', ( readsNode( 'A', { A: 'key(a)', B: 'use(same)' } ) || {} ).type === READS_STUB, true );
+check( 'reads: no field picker or kind select beside it', keyedNodes( renderSlotReads( 'A', { A: 'key(a)', B: 'use(same)' } ), 'read' ).length, 0 );
+check( 'reads: "Same as previous slot" is offered at slot 2+ ...', readsNode( 'B', { A: 'key(a)', B: 'use(same)' } ).props.cfg.sameLabel, SAME_LABEL );
+check( '...and never at slot A', !! readsNode( 'A', { A: 'key(a)', B: 'use(same)' } ).props.cfg.sameLabel, false );
+
+// What the control is shown.
+const ctxOf = function ( slotKey, state ) { return readsNode( slotKey, state ).props.context.state; };
+check( 'reads: the control sees the slot\'s key and use', JSON.stringify( [ ctxOf( 'A', { A: 'key(a;b);use(key;now)', B: 'use(same)' } ).key, ctxOf( 'A', { A: 'key(a;b);use(key;now)', B: 'use(same)' } ).use ] ), JSON.stringify( [ 'a;b', 'key;now' ] ) );
+check( 'reads: a slot 2+ with no read tokens shows as carrying (use same)', ctxOf( 'B', { A: 'key(a)', B: 'src(refs,office)' } ).use, 'same' );
+check( 'reads: ...and so does one not on the wire at all', ctxOf( 'B', { A: 'key(a)' } ).use, 'same' );
+check( 'reads: slot A with no read tokens shows as no read', JSON.stringify( [ ctxOf( 'A', { A: 'src(refs,office)', B: 'use(same)' } ).key, ctxOf( 'A', { A: 'src(refs,office)', B: 'use(same)' } ).use ] ), JSON.stringify( [ undefined, undefined ] ) );
+check( 'reads: the slot\'s chain reaches the control as its source preset', ctxOf( 'A', { A: 'src(refs,office);key(a)', B: 'use(same)' } ).src, 'refs,office' );
+
+// What it writes back: only the slot's read tokens.
+check( 'reads: editing the field rewrites only the read tokens (src and others survive)',
+	commitReads( 'A', { A: 'src(refs,office);key(a);linkTo(permalink)', B: 'use(same)' }, { src: 'refs,office', key: 'b' } ).A, 'src(refs,office);key(b);linkTo(permalink)' );
+check( 'reads: a verb read writes the whole use list beside key',
+	JSON.stringify( ( function () { const r = fold.parseSlot( commitReads( 'A', { A: 'src(refs,office);key(a)', B: 'use(same)' }, { key: 'b', use: 'key;now' } ).A, 'try', true ).read; return [ r.key, r.use ]; }() ) ),
+	JSON.stringify( [ 'b', 'key;now' ] ) );
+check( 'reads: the other slots are untouched by one slot\'s edit', commitReads( 'A', { A: 'key(a)', B: 'src(refs,x);key(z)' }, { key: 'b' } ).B, 'src(refs,x);key(z)' );
+check( 'reads: choosing "Same as previous slot" writes use(same) and keeps the source', commitReads( 'B', { A: 'key(a)', B: 'src(refs,x);key(z)' }, { use: 'same' } ).B, 'src(refs,x);use(same)' );
+check( 'reads: an emptied read at slot 2+ is use(key), never nothing (nothing = carry)', commitReads( 'B', { A: 'key(a)', B: 'src(refs,x);key(z)' }, {} ).B, 'src(refs,x);use(key)' );
+check( 'reads: an emptied read at slot A writes no read token', commitReads( 'A', { A: 'src(refs,x);key(z)', B: 'use(same)' }, {} ).A, 'src(refs,x)' );
+check( 'reads: an emptied slot A with nothing else deletes its key', 'A' in commitReads( 'A', { A: 'key(z)', B: 'use(same)' }, {} ), false );
+
+// Add and remove.
+check( 'reads: a new slot is seeded src(same);use(same)', fold.emitSlot( rep.seedSlot( READS ) ), 'src(same);use(same)' );
+const REMOVE_READS = [
+	[ 'removing A when B states no read: B takes A\'s explicit read', { A: 'key(a)', B: 'src(refs,x)' }, 1, 'A:src(refs,x);key(a)' ],
+	[ 'removing A when B says use(same): B takes A\'s explicit read', { A: 'key(a;b)', B: 'src(refs,x);use(same)' }, 1, 'A:src(refs,x);key(a;b)' ],
+	[ 'removing A: a verb read is carried whole (key and use)', { A: 'key(a);use(key;now)', B: 'use(same)' }, 1, 'A:use(key;now);key(a)' ],
+	[ 'removing A when B has its own read: B keeps it', { A: 'key(a)', B: 'key(b)' }, 1, 'A:key(b)' ],
+	[ 'removing B when C carried: C takes B\'s explicit read', { A: 'key(a)', B: 'key(b)', C: 'use(same)' }, 2, 'A:key(a) | B:key(b)' ],
+	[ 'removing A when A had no read and B carried: B stays read-less', { A: 'src(refs,y)', B: 'src(refs,x)' }, 1, 'A:src(refs,x)' ]
+];
+REMOVE_READS.forEach( function ( c ) {
+	check( 'reads: ' + c[ 0 ], show( rep.removeSlotFrom( c[ 2 ], c[ 1 ], rep.slotCount( c[ 1 ], READS ), READS ), READS ), c[ 3 ] );
+} );
+
+// The advisory counts a datetime slot as having a read axis.
+const advisoryOf = function ( slotKey, state ) {
+	const adv = keyedNodes( renderSlotReads( slotKey, state ), 'adv' )[ 0 ];
+	return adv ? adv.children[ 0 ] : null;
+};
+check( 'reads: the advisory names the read axis (not the source-only wording)', advisoryOf( 'B', { A: 'key(a)', B: 'src(same);use(same)' } ), 'Both the source and the field carry over until you change one of them.' );
+check( 'reads: a carried read with a new source reads as "Varies: source"', advisoryOf( 'B', { A: 'key(a)', B: 'src(refs,x)' } ), 'Varies: source (field carries over)' );
+
 console.log( '\n' + ( total - fail ) + '/' + total + ' passed' );
 process.exit( fail ? 1 : 0 );
