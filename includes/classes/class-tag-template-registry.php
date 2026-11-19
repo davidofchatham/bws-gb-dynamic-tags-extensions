@@ -57,6 +57,11 @@ class TagTemplateRegistry {
 	 *                    enum + key picker; key only → picker alone (an empty picker is
 	 *                    the carry-over); neither → no per-slot read at all, the tag-level
 	 *                    `use`/`key` govern every slot.
+	 *   try_per_slot_reads    bool     Each try_ slot's read is a datetime read LIST (the
+	 *                    grammar of bws_datetime_reads()), carried as the slot's own `key(...)`
+	 *                    and `use(...)` tokens. Told to bws_fold_parse_slot() by the caller,
+	 *                    which never infers it from the value. Replaces the per-slot pair above
+	 *                    on a template that sets it.
 	 *   try_use_no_key_values array    use values where key is not required (e.g. ['featured'] for image).
 	 *   is_image              bool     Image template — custom as/size/fallback controls.
 	 *   takes_first_usable    bool     The tag emits at most ONE result: the read of the FIRST

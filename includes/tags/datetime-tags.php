@@ -700,7 +700,13 @@ function bws_datetime_post_source( $post_id ): array {
  *
  * This is the only place `;` and `+` are read as datetime grammar. The value is shaped like
  * a fold but the fold grammar (slot-fold.php) never parses it, so `+` stays reserved there;
- * ADR 0006 §Allocations records the one place it is allocated.
+ * ADR 0006 §Allocations records the two places it is allocated: the `key` option of the tag
+ * itself, and the `key(...)` token of a slot whose template sets `try_per_slot_reads`, where
+ * bws_fold_parse_slot() hands the raw `key` and `use` tokens to this function unread.
+ *
+ * THE VERB VOCABULARY is `now`, `published`, `modified` (and `key`, the field read), and it
+ * must stay free of `same`: a slot's `use(same)` is the carry-over read, and the slot parser
+ * can tell it from a datetime `use` only because no datetime verb is spelled `same`.
  *
  * `$faults` is how the editor preview learns what that tolerance hid: the same parse reports
  * each inconsistency it forgave, so the preview cannot disagree with the render about which

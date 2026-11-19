@@ -319,6 +319,37 @@
 	}
 
 	/**
+	 * The reads a datetime slot's `key` / `use` spell: the twin of bws_datetime_reads()
+	 * (includes/tags/datetime-tags.php), whose PHPDoc owns the grammar. Records are
+	 * `{ verb, field, time }`; a `use` of only the default (`key`, `key;key`, or absent) is
+	 * the `key` entries one each, anything else is the ordered list. Agreement is asserted
+	 * by slot-fold-twin-test.php, not assumed.
+	 */
+	function datetimeReads( key, use ) {
+		var entries = [];
+		key = String( key ).trim();
+		if ( '' !== key ) {
+			key.split( ';' ).forEach( function ( entry ) {
+				var ops = entry.split( '+' );
+				entries.push( { verb: '', field: ops[ 0 ].trim(), time: void 0 === ops[ 1 ] ? '' : ops[ 1 ].trim() } );
+			} );
+		}
+		var names = String( use ).split( ';' ).map( function ( n ) { return n.trim(); } );
+		if ( '' === use || names.every( function ( n ) { return 'key' === n; } ) ) {
+			return entries;
+		}
+		var reads = [];
+		names.forEach( function ( name ) {
+			if ( 'key' === name ) {
+				reads.push( entries.shift() || { verb: '', field: '', time: '' } );
+			} else if ( -1 !== [ 'now', 'published', 'modified' ].indexOf( name ) ) {
+				reads.push( { verb: name, field: '', time: '' } );
+			}
+		} );
+		return reads;
+	}
+
+	/**
 	 * Parse a folded slot value into its structure.
 	 *
 	 * Container shapes the parse in exactly one place: a TYPE token leads only in
@@ -331,9 +362,12 @@
 	 *
 	 * @param {string} value     Slot value (escaped or not — normalized here).
 	 * @param {string} container 'try' | 'join' | 'table'.
+	 * @param {boolean} reads    The container's slot read is a datetime read list (the
+	 *                           template's `try_per_slot_reads`), which the CALLER states:
+	 *                           the value never says so. See bws_fold_parse_slot().
 	 * @return {Object} Slot struct, or { error }.
 	 */
-	function parseSlot( value, container ) {
+	function parseSlot( value, container, reads ) {
 		var tokens = tokenize( value );
 		if ( tokens.error ) {
 			return tokens;
@@ -387,7 +421,14 @@
 		// `$use = $options['use'] ?? 'key'` dispatch. Both-present is not author error
 		// (GB cannot unset one option from another's value, so a stale `key` legitimately
 		// rides the wire), so it resolves rather than flagging.
-		if ( null !== useTok && 'key' !== useTok && 'fixed' !== useTok ) {
+		if ( reads && 'same' !== useTok && ( null !== useTok || null !== keyTok ) ) {
+			slot.read = {
+				kind: 'datetime',
+				key: null === keyTok ? '' : keyTok,
+				use: null === useTok ? '' : useTok,
+				reads: datetimeReads( null === keyTok ? '' : keyTok, null === useTok ? '' : useTok )
+			};
+		} else if ( null !== useTok && 'key' !== useTok && 'fixed' !== useTok ) {
 			slot.read = ( 'same' === useTok ) ? { kind: 'same' } : { kind: 'analog', slug: useTok };
 		} else if ( null !== keyTok ) {
 			slot.read = { kind: 'key', field: keyTok };
@@ -440,6 +481,13 @@
 		if ( read ) {
 			if ( 'same' === read.kind ) {
 				values.use = 'same';
+			} else if ( 'datetime' === read.kind ) {
+				// Both raw tokens, as typed: the read list is derived, never written back.
+				[ 'key', 'use' ].forEach( function ( part ) {
+					if ( read[ part ] ) {
+						values[ part ] = read[ part ];
+					}
+				} );
 			} else if ( 'key' === read.kind ) {
 				// Field chosen → the bare `key(x)` IS the keyed read. Field not chosen yet
 				// → `use(key)` is the only spelling of "keyed, pending", and it must be

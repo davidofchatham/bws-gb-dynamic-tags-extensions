@@ -639,11 +639,20 @@ function bws_fold_emit_chain( array $steps, int $enclosing_level = 1 ): string {
  * may state the type last, and assigning during the scan would make the read
  * order-dependent.
  *
+ * `$reads` is the template's `try_per_slot_reads` flag (class-tag-template-registry.php):
+ * the container's slot read is a datetime read LIST. The CALLER passes it, because nothing
+ * in the value says so (`use(key;now)` is an analog named `key;now` everywhere else). Under
+ * it a `key(...)` / `use(...)` pair becomes ONE read of kind `datetime`, holding both raw
+ * tokens verbatim (emit writes them back as typed) and the list bws_datetime_reads() makes
+ * of them; `use(same)` stays the carry-over read. Which chars its `key` may spell is that
+ * function's PHPDoc, and `+` is not in any accept class here.
+ *
  * @param string $value     Slot value (escaped or unescaped — normalized here).
  * @param string $container 'try' (format-fixed) | 'join' | 'table' (agnostic).
+ * @param bool   $reads     The container's slot read is a datetime read list.
  * @return array{header:?string,type:?string,chain:array,read:?array,opts:array,extra:array}|array{error:string}
  */
-function bws_fold_parse_slot( string $value, string $container = 'join' ) {
+function bws_fold_parse_slot( string $value, string $container = 'join', bool $reads = false ) {
 	$tokens = bws_fold_tokenize( $value );
 	if ( isset( $tokens['error'] ) ) {
 		return $tokens;
@@ -716,7 +725,14 @@ function bws_fold_parse_slot( string $value, string $container = 'join' ) {
 	// (read chosen, field or text not yet) and yields to the token beside it. Both-present is
 	// not author error (GB cannot unset one option from another's value, so a stale `key`
 	// legitimately rides the wire), so it resolves rather than flagging.
-	if ( null !== $use_tok && 'key' !== $use_tok && 'fixed' !== $use_tok ) {
+	if ( $reads && 'same' !== $use_tok && ( null !== $use_tok || null !== $key_tok ) ) {
+		$slot['read'] = array(
+			'kind'  => 'datetime',
+			'key'   => (string) $key_tok,
+			'use'   => (string) $use_tok,
+			'reads' => bws_datetime_reads( array( 'key' => (string) $key_tok, 'use' => (string) $use_tok ) ),
+		);
+	} elseif ( null !== $use_tok && 'key' !== $use_tok && 'fixed' !== $use_tok ) {
 		$slot['read'] = ( 'same' === $use_tok )
 			? array( 'kind' => 'same' )
 			: array( 'kind' => 'analog', 'slug' => $use_tok );
@@ -775,6 +791,12 @@ function bws_fold_emit_slot( array $slot, int $level = 1 ): string {
 	if ( $read ) {
 		if ( 'same' === $read['kind'] ) {
 			$values['use'] = 'same';
+		} elseif ( 'datetime' === $read['kind'] ) {
+			foreach ( array( 'key', 'use' ) as $part ) {
+				if ( '' !== ( $read[ $part ] ?? '' ) ) {
+					$values[ $part ] = $read[ $part ];
+				}
+			}
 		} elseif ( 'key' === $read['kind'] ) {
 			// Field chosen → the bare `key(x)` IS the keyed read (`use` is redundant).
 			// Field not chosen yet → `use(key)` is the only spelling of "keyed, pending",

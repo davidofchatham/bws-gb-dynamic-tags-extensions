@@ -98,7 +98,9 @@ function canonSlot( slot ) {
 		return [ 'error', slot.error ];
 	}
 	let read = slot.read || null;
-	if ( read ) {
+	if ( read && 'datetime' === read.kind ) {
+		read = [ 'datetime', read.key, read.use, read.reads.map( function ( r ) { return [ r.verb, r.field, r.time ]; } ) ];
+	} else if ( read ) {
 		read = [ read.kind, void 0 !== read.slug ? read.slug : ( void 0 !== read.field ? read.field : ( void 0 !== read.text ? read.text : '' ) ) ];
 	}
 	const opts = slot.opts || {};
@@ -138,7 +140,7 @@ const doc = {
 		brackets: [ fold.bracketPair( 1 ), fold.bracketPair( 2 ), fold.bracketPair( 3 ) ]
 	},
 	slots: corpus.slots.map( function ( c ) {
-		const parsed = fold.parseSlot( c.wire, c.container );
+		const parsed = fold.parseSlot( c.wire, c.container, !! c.reads );
 		return {
 			parse: canonSlot( parsed ),
 			emit: parsed.error ? null : fold.emitSlot( parsed )
