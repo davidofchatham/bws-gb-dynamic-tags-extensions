@@ -2166,5 +2166,34 @@ check( 'P21.11 re-emit keeps the read verbatim and is a fixpoint', ( $e = bws_fo
 // The grammar's separator classes are untouched: `+` was never put in one.
 check( 'P21.12 bws_fold_grammar_validate still passes, + still reserved', array() === bws_fold_grammar_validate() && in_array( '+', BWS_FOLD_RESERVED, true ), '' );
 
+// ── P22 THE DATETIME READ THROUGH THE SEAM (try-datetime-per-slot, ticket 02) ───
+//
+// bws_fold_slot_chain_options() takes a `datetime` read's two raw tokens as the slot's whole
+// read, and the carry holds both. A slot with no read, or `use(same)`, takes the carry's pair;
+// a slot stating either token states its own complete read and borrows nothing.
+echo "\nP22 datetime read through the seam\n";
+
+$dt_seam = static function ( array $wires ): array {
+	$carry = bws_fold_empty_carry( '' );
+	$out   = array();
+	foreach ( $wires as $wire ) {
+		$slot   = bws_fold_slot_struct( 1, array( 'A' => $wire ), 'try', false, null, true );
+		$res    = bws_fold_slot_chain_options( $slot, $carry, false );
+		$out[]  = null === $res ? null : array( $res['use'], $res['key'] );
+	}
+	return $out;
+};
+check( 'P22.1 a datetime read is the slot use + key, raw', array( array( 'key;now', 'a+b' ) ) === $dt_seam( array( 'use(key;now);key(a+b)' ) ), var_export( $dt_seam( array( 'use(key;now);key(a+b)' ) ), true ) );
+check( 'P22.2 no read at slot 2 takes slot 1 whole pair', array( array( '', 'a' ), array( '', 'a' ) ) === $dt_seam( array( 'key(a)', 'src(site)' ) ), var_export( $dt_seam( array( 'key(a)', 'src(site)' ) ), true ) );
+check( 'P22.3 use(same) takes the whole pair too', array( array( 'published', '' ), array( 'published', '' ) ) === $dt_seam( array( 'use(published)', 'use(same)' ) ), '' );
+check( 'P22.4 a slot stating one token borrows nothing: key(b) after use(published) has no verb', array( array( 'published', '' ), array( '', 'b' ) ) === $dt_seam( array( 'use(published)', 'key(b)' ) ), '' );
+check( 'P22.5 slot 1 with no read carries the empty seed: a read-less attempt', array( array( '', '' ) ) === $dt_seam( array( 'src(current)' ) ), '' );
+
+// The flag also turns the flat recovery off: a container whose slot read is a list has no flat era,
+// so a tag-level key (or an absent slot A) is never recovered into slot 1 as a read.
+$flat = bws_fold_slot_struct( 1, array( 'key' => 'x', 'use' => 'published' ), 'try', false, null, true );
+check( 'P22.6 flagged: no folded A and a tag-level key is an empty slot 1, not a recovered read', null === $flat['read'] && array() === $flat['chain'], var_export( $flat, true ) );
+check( 'P22.7 flagged: an absent slot 2 is absent', null === bws_fold_slot_struct( 2, array( 'key' => 'x' ), 'try', false, null, true ), '' );
+
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );

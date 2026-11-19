@@ -103,6 +103,10 @@
 			container: c.container || 'join',
 			combining: !! c.combining,
 			perSlotUse: false !== c.perSlotUse,
+			// The container's slot read is a datetime read LIST (PHP: `try_per_slot_reads`, set
+			// only when true). The grammar twin is told, never left to infer it from a value, and
+			// it must be carried here: this return is a named key list, not a merge.
+			perSlotReads: !! c.perSlotReads,
 			// The era the legacy flat wire was authored in (defaults to the live shape).
 			flatPerSlotUse: fold.flatEraPerSlotUse( c ),
 			min: c.min || 2,
@@ -615,7 +619,7 @@
 	function readSlot( n, state, conf ) {
 		var raw = state[ fold.slotKey( n ) ] || '';
 		if ( raw ) {
-			var parsed = fold.parseSlot( raw, conf.container );
+			var parsed = fold.parseSlot( raw, conf.container, conf.perSlotReads );
 			return parsed.error ? null : parsed;
 		}
 		var rec = fold.foldFromFlat( n, migrate.mapperState( state, conf ), conf.combining, conf.flatPerSlotUse );
@@ -1366,7 +1370,7 @@
 		var recovered = false;
 		var parseError = '';
 		if ( raw ) {
-			var parsed = fold.parseSlot( raw, conf.container );
+			var parsed = fold.parseSlot( raw, conf.container, conf.perSlotReads );
 			if ( parsed.error ) {
 				parseError = parsed.error;
 			} else {

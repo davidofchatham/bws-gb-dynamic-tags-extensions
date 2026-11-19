@@ -1194,6 +1194,12 @@ assert_same( 'BASE root enum carries the declaration', $expected_pin, $row_arg( 
 assert_same( 'SLOT source enum carries the same declaration', $expected_pin, $row_arg( $argued_fold['srcRows'], 'pinroot' ) );
 assert_same( '...and so does a slot 2 and up, behind its `same` row', $expected_pin, $row_arg( $argued_fold['srcRowsWithSame'], 'pinroot' ) );
 
+// A template whose slot read is a datetime read list ships `perSlotReads` on its fold config, so the
+// control's grammar twin is told (nothing in a value says so); every other config omits it.
+$reads_args = array( 'container' => 'try', 'max' => 2, 'base_read' => array(), 'base_key' => array(), 'per_slot_use' => false, 'noun' => 'attempt' );
+assert_same( 'perSlotReads rides the fold config when the builder is told', true, bws_build_fold_slot_options( $reads_args + array( 'reads' => true ) )['A']['fold']['perSlotReads'] ?? null );
+assert_same( 'perSlotReads is absent, not false, on every other config', false, array_key_exists( 'perSlotReads', bws_build_fold_slot_options( $reads_args )['A']['fold'] ) );
+
 if ( $failures > 0 ) {
 	echo "FAILED: {$failures}/{$count}\n";
 	exit( 1 );

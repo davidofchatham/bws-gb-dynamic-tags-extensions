@@ -336,28 +336,40 @@ Every row is a visible block on `/matrix-datetime/` and pinned to `/matrix-post-
 | D11.T5 | the same | `/no-such-page-xyz/`, the blog home | empty (no post or term for the field to read; `now` alone cannot make it a range) |
 | D11.T6 | `{{datetime use:published}}` with `--loop-item=<meta id>` | `/matrix-datetime/` | `March 3, 2025` (a loop item is a post for a post verb) |
 
-## D12 — `try_datetime` (FW-81, Unreleased)
+## D12 — `try_datetime` (FW-81, FW-193, Unreleased)
 
-`try_datetime` replaces `try_datetime_single` and `try_datetime_range`. Each attempt reads exactly as `{{datetime}}` does, so a single date, a range, a `+` join and a verb all work in an attempt, and the first attempt that prints something wins. The read (`key`, `use`) is the tag's, not the attempt's: every attempt reads the same fields from its own source, so the attempts differ by source only, as they did on the old two. The old two forms keep rendering.
+`try_datetime` replaces `try_datetime_single` and `try_datetime_range`. Each attempt carries its own complete read, written in the attempt's value with the spelling `{{datetime}}`'s `key` and `use` use: `key(event_start_date;event_end_date)`, `use(key;published)`, `use(published)`. The attempt then reads exactly as `{{datetime}}` does with those reads, so a single date, a range, a `+` join and a verb all work in an attempt, and the first attempt that prints something wins. An attempt with no read (or `use(same)`) reuses the previous resolving attempt's whole read; an attempt that states any read part states its own complete read and borrows nothing. The first attempt cannot carry over, so with no read it prints nothing. Formatting, link wrap and fallback stay tag-level. `key` and `use` are not options of `try_datetime`: one written at tag level is ignored. The old two forms keep rendering.
 
-**Measured 2026-11-17** on the testbed, `render-tag` and then the front end, and each old-form twin (D12.3, D12.5, D12.12) on the build before `try_datetime` as well, byte for byte the same.
+**Measured:** D12.3, D12.5 and D12.12 (the old forms) 2026-11-17 on the testbed, `render-tag` and then the front end, and again on the build before `try_datetime`, byte for byte the same. The per-slot rows (D12.1, D12.2, D12.4, D12.6 to D12.9, D12.11, D12.13 to D12.24) are **not yet measured on the per-slot build**: each "Expected" below is what the row's tag-level twin printed on 2026-11-17, or what the design states for a new case. Measured on: _pending_ (render-tag, then the front end of `/matrix-datetime/`, then the page-snapshot re-capture).
 
 `refs,missing_rel` is an attempt that reads nothing on this page; the two pinned posts are the attempts that do, with different dates (the second is the staff post `jane-partner`, whose `event_datetime` is May 1, 2030), so a walk that stops at the wrong attempt prints the wrong date.
 
 | # | Tag | Expected |
 |---|---|---|
-| D12.1 | `{{try_datetime A:src(post,<meta id>)\|B:src(post,<jane id>)\|key:event_datetime}}` | `August 12, 2030 9:00 AM` (the first attempt reads, so it wins) |
-| D12.2 | `{{try_datetime A:src(refs,missing_rel)\|B:src(post,<jane id>)\|key:event_datetime}}` | `May 1, 2030 10:00 AM` (the first reads nothing, the second wins) |
-| D12.3 | D12.2 as `try_datetime_single` | the same |
-| D12.4 | `{{try_datetime A:src(refs,missing_rel)\|B:src(post,<meta id>)\|key:event_start_date;event_end_date}}` | `August 1–9, 2030` |
+| D12.1 | `{{try_datetime A:src(post,<meta id>);key(event_datetime)\|B:src(post,<jane id>)}}` | `August 12, 2030 9:00 AM` (the first attempt reads, so it wins) |
+| D12.2 | `{{try_datetime A:src(refs,missing_rel);key(event_datetime)\|B:src(post,<jane id>)}}` | `May 1, 2030 10:00 AM` (the first reads nothing, the second reuses its read and wins) |
+| D12.3 | D12.2 as `try_datetime_single` with a tag-level `key:event_datetime` | the same |
+| D12.4 | `{{try_datetime A:src(refs,missing_rel);key(event_start_date;event_end_date)\|B:src(post,<meta id>)}}` | `August 1–9, 2030` |
 | D12.5 | D12.4 as `try_datetime_range` with `startKey` and `endKey` | the same |
-| D12.6 | `{{try_datetime A:src(refs,missing_rel)\|B:src(post,<meta id>)\|key:event_start_date+event_time}}` | `August 1, 2030, 9:00 am` (= D9.8) |
-| D12.7 | `{{try_datetime A:src(refs,missing_rel)\|B:src(post,<meta id>)\|use:published}}` | `March 3, 2025` |
-| D12.8 | `{{try_datetime A:src(refs,missing_rel)\|B:src(post,<meta id>)\|use:key;published\|key:event_start_date}}` | `August 1, 2030–March 3, 2025` |
-| D12.9 | `{{try_datetime A:src(refs,missing_rel)\|B:src(site)\|key:event_datetime\|fallback:Date TBA}}` | `Date TBA` (printed once, after every attempt read nothing) |
+| D12.6 | `{{try_datetime A:src(refs,missing_rel);key(event_start_date+event_time)\|B:src(post,<meta id>)}}` | `August 1, 2030, 9:00 am` (= D9.8) |
+| D12.7 | `{{try_datetime A:src(refs,missing_rel);use(published)\|B:src(post,<meta id>)}}` | `March 3, 2025` |
+| D12.8 | `{{try_datetime A:src(refs,missing_rel);use(key;published);key(event_start_date)\|B:src(post,<meta id>)}}` | `August 1, 2030–March 3, 2025` |
+| D12.9 | `{{try_datetime A:src(refs,missing_rel);key(event_datetime)\|B:src(site)\|fallback:Date TBA}}` | `Date TBA` (printed once, after every attempt read nothing) |
 | D12.10 | `{{try_datetime}}` | empty (no read, no fallback) |
-| D12.11 | `{{try_datetime A:src(post,<meta id>)\|key:event_datetime\|linkTo:permalink}}` | `August 12, 2030 9:00 AM` linked to the `matrix-post-meta` page (the link follows the winning attempt) |
-| D12.12 | D12.1 as `try_datetime_single` | `August 12, 2030 9:00 AM`, the same (the old form's first-attempt row, measured on the build before `try_datetime` too) |
+| D12.11 | `{{try_datetime A:src(post,<meta id>);key(event_datetime)\|linkTo:permalink}}` | `August 12, 2030 9:00 AM` linked to the `matrix-post-meta` page (the link follows the winning attempt) |
+| D12.12 | D12.1 as `try_datetime_single` with a tag-level `key:event_datetime` | `August 12, 2030 9:00 AM`, the same (the old form's first-attempt row, measured on the build before `try_datetime` too) |
+| D12.13 | `{{try_datetime A:src(refs,missing_rel);key(event_start_date;event_end_date)\|B:src(post,<meta id>);key(event_datetime)}}` | `August 12, 2030 9:00 AM` (a range that reads nothing falls to the single behind it: each attempt has its own mode) |
+| D12.14 | `{{try_datetime A:src(post,<meta id>);key(event_start_date;event_end_date)\|B:src(post,<meta id>);key(event_datetime)}}` | `August 1–9, 2030` (the range wins over the single behind it) |
+| D12.15 | `{{try_datetime A:src(refs,missing_rel);key(event_datetime)\|B:src(post,<meta id>);use(published)}}` | `March 3, 2025` (a verb as the last attempt) |
+| D12.16 | `{{try_datetime A:src(refs,missing_rel);key(event_datetime)\|B:src(post,<jane id>);use(same)}}` | `May 1, 2030 10:00 AM` (= D12.2 with the carry-over spelled out) |
+| D12.17 | `{{try_datetime A:src(post,<meta id>);key(no_such_field)\|B:src(post,<jane id>);key(event_datetime)}}` | `May 1, 2030 10:00 AM` (each attempt reads its own field) |
+| D12.18 | `{{try_datetime A:src(post,<meta id>)\|B:src(post,<jane id>);key(event_datetime)}}` | `May 1, 2030 10:00 AM` (the first attempt has no read and prints nothing) |
+| D12.19 | `{{try_datetime A:src(post,<meta id>)}}` | empty (a read-less first attempt, nothing behind it, no fallback) |
+| D12.20 | `{{try_datetime A:src(post,<meta id>);use(key;now)\|B:src(post,<jane id>);key(event_datetime)}}` | `May 1, 2030 10:00 AM` (a use list that needs a field and has none reads nothing; the second attempt states a read and borrows nothing from the first) |
+| D12.21 | `{{try_datetime A:src(post,<meta id>);use(key;now)\|fallback:FB}}` | `FB` (the same use list alone is an empty read, so the fallback prints once) |
+| D12.22 | `{{try_datetime key:event_end_date\|A:src(post,<meta id>);key(event_start_date)}}` | `August 1, 2030` (the tag-level `key` is ignored: the attempt's own `key(event_start_date)` reads) |
+| D12.23 | `{{try_datetime key:event_datetime\|A:src(post,<meta id>)}}` | empty (the tag-level `key` is ignored, and the attempt states no read) |
+| D12.24 | `{{try_datetime key:event_datetime}}` | empty (a tag-level `key` alone is not recovered into the first attempt) |
 
 Every row is a visible block on `/matrix-datetime/`.
 

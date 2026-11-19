@@ -22,6 +22,8 @@
  *     (bws_fold_slot_chain_options owns the `same` rules for every container);
  *   - the per-slot read gate (no field key and not in a no-key `use` mode = skip
  *     before the resolver is called at all);
+ *   - under per-slot datetime reads (`per_slot_reads`), the attempt's whole read: its slot's
+ *     `key`/`use` pair, carried over whole, handed to the resolver in place of any tag-level one;
  *   - the limit this attempt resolves with, written back explicitly;
  *   - FIRST NON-EMPTY WINS, where "empty" is exactly `''`.
  *
@@ -47,6 +49,12 @@ if ( ! defined( 'BWS_TRY_MAX_SLOTS' ) ) {
 	 */
 	define( 'BWS_TRY_MAX_SLOTS', 5 );
 }
+
+/**
+ * The tag-level read options a `try_per_slot_reads` tag does not register: the merged tag's
+ * `key`/`use` and the four old datetime field options. Stripped from what every attempt sees.
+ */
+const BWS_TRY_TAG_LEVEL_READ_KEYS = array( 'key', 'use', 'timeKey', 'startKey', 'startTimeKey', 'endKey', 'endTimeKey' );
 
 /**
  * Whether one attempt's read needs a field key — THE per-slot read gate.
@@ -76,8 +84,8 @@ function bws_try_slot_needs_key( array $cfg, string $use ): bool {
  *                           per-item core can never emit the tag's fallback mid-list).
  * @param mixed    $instance GB tag instance, passed through to the resolver untouched.
  * @param array    $cfg      The family's facts, all off its template descriptor:
- *                           per_slot_key, per_slot_use, no_key_uses, default_use,
- *                           collapse (takes_first_usable).
+ *                           per_slot_key, per_slot_use, per_slot_reads, no_key_uses,
+ *                           default_use, collapse (takes_first_usable).
  * @param callable $resolve  fn( array $slot_opts, $instance ): array{
  *                               value:string, link_id:int, link_type:string }
  *                           The family's resolve seam — its base tag's own, unchanged.
@@ -88,11 +96,20 @@ function bws_try_run_attempts( array $options, $instance, array $cfg, callable $
 	$per_slot_key = ! empty( $cfg['per_slot_key'] );
 	$per_slot_use = ! empty( $cfg['per_slot_use'] );
 	$collapse     = ! empty( $cfg['collapse'] );
+	// A template whose slot read is a datetime read LIST (`try_per_slot_reads`): the slot's
+	// `use`/`key` pair, carry-over included, is the attempt's whole read.
+	$per_slot_reads = ! empty( $cfg['per_slot_reads'] );
 
 	// The fallback is the SHELL's, fired once on an all-empty walk. An attempt whose
 	// core can emit a stated fallback of its own would otherwise stop the walk with
 	// the fallback text (GH #51's shape, one layer up) — so it never sees the key.
 	$eval_opts = array_diff_key( $options, array( 'fallback' => null, 'fallback_text' => null ) );
+	// Under per-slot reads the tag-level read options (`key`/`use`, and the old datetime field
+	// options) are not registered, so one still on the wire is not a read of any attempt. Dropped
+	// here, before the walk, so no attempt (and no legacy-range detection) can see it.
+	if ( $per_slot_reads ) {
+		$eval_opts = array_diff_key( $eval_opts, array_fill_keys( BWS_TRY_TAG_LEVEL_READ_KEYS, null ) );
+	}
 
 	// ONE carry-forward accumulator for the whole chain, threaded through the fold seam
 	// (bws_fold_slot_chain_options), which owns the `same` rules for every container.
@@ -109,7 +126,7 @@ function bws_try_run_attempts( array $options, $instance, array $cfg, callable $
 		// Era per SLOT, not per tag: a folded value parses, an absent one is recovered
 		// from this slot's legacy keys, and both feed one accumulator (so a
 		// half-migrated tag resolves as its author last saw it).
-		$slot = bws_fold_slot_struct( $n, $options, 'try', $per_slot_use, $cfg['flat_per_slot_use'] ?? null );
+		$slot = bws_fold_slot_struct( $n, $options, 'try', $per_slot_use, $cfg['flat_per_slot_use'] ?? null, $per_slot_reads );
 		if ( null === $slot ) {
 			continue;   // nothing in either era, or the seam's own skip.
 		}
@@ -135,7 +152,12 @@ function bws_try_run_attempts( array $options, $instance, array $cfg, callable $
 		$slot_opts['ref']       = $slot_read['ref'];
 		$slot_opts['srcTermIn'] = $slot_read['srcTermIn'];
 
-		if ( $per_slot_key || $per_slot_use ) {
+		if ( $per_slot_reads ) {
+			// Always written, even empty: a tag-level `key`/`use` still riding the wire is not a
+			// read of this attempt, and a read-less attempt reads nothing.
+			$slot_opts['key'] = $last_key;
+			$slot_opts['use'] = $last_use;
+		} elseif ( $per_slot_key || $per_slot_use ) {
 			if ( bws_try_slot_needs_key( $cfg, $last_use ) && '' === $last_key ) {
 				continue; // No field key and not in no-key mode — skip the attempt.
 			}

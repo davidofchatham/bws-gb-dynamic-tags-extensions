@@ -1283,21 +1283,25 @@ function bws_fold_chain_apply_legacy_limit( array $chain, $limit, bool $consume_
  * @param bool|null $flat_per_slot_use What a slot recovered from flat keys is read under
  *                             (TagTemplateRegistry::try_flat_era_per_slot_use() states it);
  *                             null = $per_slot_use. Folded wire never consults it.
+ * @param bool   $reads        The container's slot read is a datetime read list
+ *                             (`try_per_slot_reads`). Such a container has no flat era, so a
+ *                             slot with no folded value is empty and its tag-level `key`/`use`
+ *                             are never recovered into slot 1 as a read.
  * @return array|null Slot struct + an `era` key ('chain' when the slot is stored as
  *                    folded wire, 'flat' when recovered from the legacy keys), or null
  *                    when this slot holds nothing (or unparsable folded wire).
  */
-function bws_fold_slot_struct( int $n, array $options, string $container = 'join', bool $per_slot_use = true, ?bool $flat_per_slot_use = null ) {
+function bws_fold_slot_struct( int $n, array $options, string $container = 'join', bool $per_slot_use = true, ?bool $flat_per_slot_use = null, bool $reads = false ) {
 	$raw = trim( (string) ( $options[ bws_slot_ordinal( $n ) ] ?? '' ) );
 	if ( '' !== $raw ) {
-		$parsed = bws_fold_parse_slot( $raw, $container );
+		$parsed = bws_fold_parse_slot( $raw, $container, $reads );
 		if ( isset( $parsed['error'] ) ) {
 			return null;
 		}
 		$parsed['era'] = 'chain';
 		return $parsed;
 	}
-	$rec = bws_fold_from_flat( $n, $options, bws_fold_is_combining( $container ), $flat_per_slot_use ?? $per_slot_use );
+	$rec = $reads ? null : bws_fold_from_flat( $n, $options, bws_fold_is_combining( $container ), $flat_per_slot_use ?? $per_slot_use );
 	if ( $rec && isset( $rec['slot'] ) ) {
 		$slot        = $rec['slot'];
 		$slot['era'] = 'flat';
@@ -1523,6 +1527,13 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 				$use   = 'fixed';
 				$key   = '';
 				$fixed = (string) ( $read['text'] ?? '' );
+				break;
+			case 'datetime':
+				// The slot's WHOLE read: both tokens, raw, as the datetime seam reads them.
+				// A part it does not state is '' and borrows nothing from the carry.
+				$use   = (string) ( $read['use'] ?? '' );
+				$key   = (string) ( $read['key'] ?? '' );
+				$fixed = '';
 				break;
 			default:
 				$use   = (string) ( $read['slug'] ?? '' );

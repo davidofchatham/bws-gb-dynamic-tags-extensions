@@ -219,7 +219,7 @@ function value_offered( array $option, string $value ): bool {
 	// parser could not place), start each chain step with a slug the slot offers, and read through
 	// an analog the slot offers.
 	if ( 'bws-slot-fold' === ( $option['type'] ?? '' ) ) {
-		$slot = bws_fold_parse_slot( $value, $option['fold']['container'] ?? 'table' );
+		$slot = bws_fold_parse_slot( $value, $option['fold']['container'] ?? 'table', ! empty( $option['fold']['perSlotReads'] ) );
 		if ( isset( $slot['error'] ) || ! empty( $slot['extra'] ) ) {
 			return false;
 		}
@@ -230,6 +230,10 @@ function value_offered( array $option, string $value ): bool {
 			}
 		}
 		$read = $slot['read'] ?? null;
+		if ( 'datetime' === ( $read['kind'] ?? '' ) ) {
+			// A datetime slot's `use` is an ordered `;` list of the datetime verbs (and `key`).
+			return array() === array_diff( array_filter( explode( ';', $read['use'] ) ), array_column( bws_get_datetime_read_choices(), 'value' ) );
+		}
 		return null === $read || 'analog' !== $read['kind'] || in_array( $read['slug'], offered_values( $option ), true );
 	}
 	$offered = offered_values( $option );
@@ -464,13 +468,13 @@ foreach ( array( 'email', 'phone' ) as $tag ) {
 	$own = bws_ai_syntax_hints_for( $tag );
 	assert_same( "{$tag}: the shared src hint is withheld, its own fixed hint kept", array( false, true ), array( isset( $own['src'] ), isset( $own['fixed'] ) ) );
 }
-// The try_ tags: five carry a first-attempt and a later-attempt hint; the four whose every read is
+// The try_ tags: six carry a first-attempt and a later-attempt hint; the four whose every read is
 // a field read or a typed address carry none, shared hints included (the list is the constant's).
-foreach ( array( 'try_text', 'try_title', 'try_permalink', 'try_content', 'try_image' ) as $tag ) {
+foreach ( array( 'try_text', 'try_title', 'try_permalink', 'try_content', 'try_datetime', 'try_image' ) as $tag ) {
 	$own = bws_ai_syntax_hints_for( $tag );
 	assert_same( "{$tag}: a hint on the first attempt and on the later ones", true, isset( $own['A'], $own['B'] ) );
-	// A later attempt keeps the read before it on the three tags with a read axis, and only those.
-	assert_same( "{$tag}: the later-attempt hint says the read carries over, or says nothing of a read", in_array( $tag, array( 'try_text', 'try_content', 'try_image' ), true ), str_contains( $own['B'], 'unless it states its own use' ) );
+	// A later attempt keeps the read before it on the four tags with a read axis, and only those.
+	assert_same( "{$tag}: the later-attempt hint says the read carries over, or says nothing of a read", in_array( $tag, array( 'try_text', 'try_content', 'try_datetime', 'try_image' ), true ), str_contains( $own['B'], 'unless it states its own use' ) );
 }
 foreach ( array_filter( BWS_AI_SYNTAX_UNHINTED_TAGS, fn( $t ) => str_starts_with( $t, 'try_' ) ) as $tag ) {
 	assert_same( "{$tag} receives no hint", array(), bws_ai_syntax_hints_for( $tag ) );
@@ -486,6 +490,16 @@ assert_same(
 	in_array( 'example-unoffered-value', check_hint( 'try_text', 'A', '{{try_text A:use(excerpt)}}', $tags ), true )
 );
 echo "   checker fixtures: each broken hint names its rule\n";
+assert_same(
+	'fixture: a try_datetime example with a verb the datetime read does not offer fails',
+	true,
+	in_array( 'example-unoffered-value', check_hint( 'try_datetime', 'A', '{{try_datetime A:use(yesterday)}}', $tags ), true )
+);
+assert_same(
+	'fixture: a try_datetime example with a verb it offers is clean',
+	array(),
+	check_hint( 'try_datetime', 'A', '{{try_datetime A:use(published)|B:src(parent)}}', $tags )
+);
 $good = 'Leave src out for the current post. {{text src:parent|fixed:Back|linkTo:permalink}} links to the parent.';
 assert_same( 'fixture: a good hint is clean', array(), check_hint( 'text', 'src', $good, $tags ) );
 $fixtures = array(

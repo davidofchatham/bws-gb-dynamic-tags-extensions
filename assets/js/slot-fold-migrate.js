@@ -230,7 +230,7 @@
 			// own limit is left alone: the tag-level number was a DEFAULT, and a default
 			// never overwrites a stated value (applyLegacyLimit decides both).
 			if ( '' !== foldedVal && null !== tagLimit ) {
-				var parsed = fold.parseSlot( foldedVal, conf.container || 'try' );
+				var parsed = fold.parseSlot( foldedVal, conf.container || 'try', conf.perSlotReads );
 				if ( parsed ) {
 					var applied = fold.applyLegacyLimit( parsed.chain || [], tagLimit );
 					if ( applied.consumed ) {

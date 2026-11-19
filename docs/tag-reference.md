@@ -825,13 +825,16 @@ Each slot holds a **source chain** and — depending on the template — a **fie
 1. **Source chain** — `src(…)`, or absent. Absent = the ambient entity, in every slot: a slot 2+ with no `src` reads the current context again ([`fold-test-matrix.md`](../tools/test/fold-test-matrix.md) F6.1), and only `src(same)` carries the previous resolving slot's source. The `terms` step is offered as a chain step (`src(refs,rel;terms,category)`); it names **this** slot's entity and never carries forward.
 <!-- Doc/code drift resolved toward the code, decided 2026-11-05: this item, the `src` row, the stripped-default note, the `same`-with-nothing-to-carry paragraph and CONTEXT.md I15 said a slot 2+ with no `src` carries the previous slot's source. The code and F6.1 (2026-08-04) have always reset it to the current context; measured on the testbed. The editor control now displays it that way too. -->
 
-2. **Field read** — three shapes, set by the template's `try_per_slot_use` / `try_per_slot_key` pair, and the control renders whichever the registration describes:
+2. **Field read** — four shapes, set by the template's `try_per_slot_use` / `try_per_slot_key` pair and its `try_per_slot_reads` flag, and the control renders whichever the registration describes:
 
 | Shape | Templates | Slot read UI | Absent read means |
 |---|---|---|---|
 | `use` enum + key picker | `try_text`, `try_content`, `try_image` | mode select, plus the field picker when the mode needs a key | carry-over (materialized as `use(same)`) |
 | key picker alone | `try_email`, `try_phone` | field picker only — no mode axis exists | carry-over (an empty picker IS the carry-over) |
-| none | `try_title`, `try_permalink`, `try_datetime`, `try_datetime_single`, `try_datetime_range` | nothing — the read is a **tag-level** option | n/a |
+| datetime read list **[UNRELEASED]** | `try_datetime` | the whole datetime read, written in the slot value as `key(…)` and `use(…)` (the spelling of `{{datetime}}`'s `key` and `use`); no editor control for it yet | carry-over of the previous resolving slot's whole read; slot A with no read prints nothing |
+| none | `try_title`, `try_permalink`, `try_datetime_single`, `try_datetime_range` | nothing — the read is a **tag-level** option | n/a |
+
+**[UNRELEASED]** **`try_datetime` carries the whole read in each slot.** `{{try_datetime A:src(refs,related_posts);key(start_date;end_date)|B:src(parent);use(published)}}`: slot A reads a range, slot B the parent's published date. A slot with no read, or `use(same)`, reuses the previous resolving slot's whole read, so "same fields, different source" needs no repeating. A slot that states any read part (`key(…)` or `use(…)`) states its own complete read and borrows nothing, so `use(key;now)` with no `key(…)` is an empty read. Each slot's mode (single or range) comes from its own reads, and the winning slot's value is formatted by the tag-level `as`, `rangeSep`, `format`, `timeSep`, `showCurrentYear` and `showMidnight`, link wrap and `fallback`. `key` and `use` are not options of `try_datetime`, so one written at tag level is ignored, and a bare `{{try_datetime}}` or one with only a tag-level `key` prints nothing. `+` is accepted inside a `try_datetime` slot's `key(…)` and nowhere else in the slot grammar ([ADR 0006](adr/0006-a-separator-is-accepted-only-where-it-is-allocated.md)); the matrix is [`datetime-test-matrix.md`](../tools/test/datetime-test-matrix.md) D12.
 
 **Slot 1 is never absent.** Every axis unset there is the default attempt — ambient source, template's default read — which is what a bare `{{try_title}}` renders. Slots 2+ are absent when they hold nothing, and are skipped.
 
@@ -848,7 +851,7 @@ A slot still needs a key to produce output where its read mode requires one; a k
 | `try_permalink` | `permalink` | No | No | Slot `src:site` allowed (1.15.0): home URL |
 | `try_text` | `text` | **Yes** | **Yes** | Each slot: Title/Name or ACF/Custom Field (with per-slot key when `use:key`). Slot `src:site` allowed (1.15.0): `use:title` → site name, `use:key` → option value |
 | `try_image` | `image` | **Yes** | **Yes** | Each slot: Featured Image or ACF/Custom Field (with per-slot key when `use:key`). Slot `src:site` allowed (1.15.0): `use:featured` → site logo, `use:key` → option attachment |
-| `try_datetime` | `datetime` | No | No | **[UNRELEASED]** Shared `key` and `use` across slots, each attempt reads exactly as `{{datetime}}` does (a single, a range, a `+` join or a verb), so the attempts differ by source only |
+| `try_datetime` | `datetime` | **Yes** (a datetime read list) | **Yes** (a verb list) | **[UNRELEASED]** Each slot carries its own whole read as `key(…)` / `use(…)`, and reads exactly as `{{datetime}}` does with it (a single, a range, a `+` join or a verb); no `key`/`use` at tag level; formatting, link wrap and fallback stay tag-level |
 | `try_datetime_single` | `datetime_single` | No | No | Shared `key` across slots; hidden from the picker (**[UNRELEASED]**), still renders |
 | `try_datetime_range` | `datetime_range` | No | No | Shared `startKey`/`endKey` across slots; hidden from the picker (**[UNRELEASED]**), still renders |
 | `try_email` | `email` | **Yes** | No | Per-slot read: `key` (the stripped default) or the fixed read (FW-141 05). Each slot resolves an email field or a typed address → finished mailto/plain string, exactly as `{{email}}`. A legacy flat `N-key` is a key read, at render and on migration (its flat wire never had `use`). Slot `src:site` allowed (canonical contact fallback). `subject`/`noLink` chain-level |

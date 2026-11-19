@@ -711,6 +711,10 @@ function bws_build_slot_read_rows( int $n, array $base_read, bool $allow_same = 
  *     @type bool   $takes_first_usable Collapsing capability (ADR 0007): the editor hides
  *                                   the step limit control and the field note's
  *                                   several-results clause. Default false.
+ *     @type bool   $reads           The container's slot read is a datetime read LIST
+ *                                   (`try_per_slot_reads`, TagTemplateRegistry). Ships as the
+ *                                   `perSlotReads` flag the grammar twin is told, because nothing in a
+ *                                   value says so. Default false.
  * }
  * @return array Option definitions keyed by SLOT ORDINAL — `A`..`bws_slot_ordinal($max)`.
  *               The key IS the wire spelling (`B:`), so nothing downstream translates.
@@ -863,6 +867,10 @@ function bws_build_fold_slot_options( array $args ): array {
 	// takes_first_usable (ADR 0007): SET ONLY WHEN TRUE, keeping other fold configs unchanged.
 	if ( ! empty( $args['takes_first_usable'] ) ) {
 		$fold['takesFirstUsable'] = true;
+	}
+	// A datetime read list per slot: SET ONLY WHEN TRUE, like the flag above.
+	if ( ! empty( $args['reads'] ) ) {
+		$fold['perSlotReads'] = true;
 	}
 
 	$options = array();

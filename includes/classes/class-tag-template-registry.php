@@ -209,12 +209,13 @@ class TagTemplateRegistry {
 	 *
 	 * @since 1.21.0
 	 * @param array $tpl Modifier template descriptor.
-	 * @return array{per_slot_key:bool,per_slot_use:bool,flat_per_slot_use:bool,no_key_uses:string[],default_use:string,collapse:bool}
+	 * @return array{per_slot_key:bool,per_slot_use:bool,per_slot_reads:bool,flat_per_slot_use:bool,no_key_uses:string[],default_use:string,collapse:bool}
 	 */
 	public static function try_loop_cfg( array $tpl ): array {
 		return [
 			'per_slot_key' => ! empty( $tpl['try_per_slot_key'] ),
 			'per_slot_use' => ! empty( $tpl['try_per_slot_use'] ),
+			'per_slot_reads' => ! empty( $tpl['try_per_slot_reads'] ),
 			// The era UNMIGRATED flat slot wire is read under (try_flat_era_per_slot_use()).
 			'flat_per_slot_use' => self::try_flat_era_per_slot_use( $tpl ),
 			'no_key_uses'  => $tpl['try_use_no_key_values'] ?? [],
@@ -347,10 +348,13 @@ class TagTemplateRegistry {
 			// builders the flat registration read (the source twin, the read twin, the
 			// template's own key definition) — nothing is re-typed for the fold.
 			//
-			// The three READ shapes are the template flags, unchanged in meaning:
+			// The READ shapes are the template flags, unchanged in meaning:
 			//   per_slot_use  — a `use` enum plus a key picker (text/content/image).
 			//   per_slot_key  — a key picker alone (email/phone: no `use` axis exists).
-			//   neither       — no per-slot read at all (title/permalink/datetime/datetime_*),
+			//   per_slot_reads — a datetime read LIST in the slot value (datetime): the slot's
+			//                   `key(...)`/`use(...)` pair; the template registers neither
+			//                   at tag level.
+			//   neither       — no per-slot read at all (title/permalink/datetime_*),
 			//                   whose `use`/`key`, where they exist, stay TAG-level
 			//                   options in the trailing group below.
 			// `base_read`/`base_key` are handed over empty for the shapes that lack the
@@ -393,6 +397,9 @@ class TagTemplateRegistry {
 						// results control on try_content/try_permalink/try_image slots
 						// exactly as on their base tags.
 						'takes_first_usable' => ! empty( $tpl['takes_first_usable'] ),
+						// A slot's read is a datetime read list: the fold config says so, and
+						// the control's grammar twin is told (nothing in a value does).
+						'reads'              => ! empty( $tpl['try_per_slot_reads'] ),
 						// "attempt" nouns ONE RUNG of the fallback chain, which is what a
 						// try_ slot is (src-chain-encoding.md §5.1a, user 2026-08-01).
 						// One noun, both surfaces: "+ Add attempt" and the header

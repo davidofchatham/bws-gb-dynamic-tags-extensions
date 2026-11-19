@@ -386,13 +386,13 @@ assert_same(
 	array_keys( $registered['try_datetime_range']['options'] ?? array() )
 );
 
-// try_datetime (FW-81): the attempts, then the TAG-level `use`/`key` reads (no per-slot axis),
-// the format run, link, fallback. No `sep`: the old try_ datetime templates registered none.
+// try_datetime (FW-81, FW-193): the attempts, the format run, link, fallback. NO tag-level
+// `use`/`key` (each slot carries its own read) and no `sep`: the old try_ datetime templates
+// registered none.
 assert_same(
 	'{{try_datetime}} — full option order',
 	array(
 		'A', 'B', 'C', 'D', 'E',
-		'use', 'key',
 		'as', 'rangeSep', 'format', 'timeSep', 'showCurrentYear', 'showMidnight',
 		'linkTo', 'linkKey', 'newTab',
 		'fallback',
@@ -730,12 +730,14 @@ foreach ( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() as $tpl
 	$psu      = ! empty( $tpl['try_per_slot_use'] );
 	$mapped   = '' !== bws_use_stripped_default( $key );
 
-	// `datetime` is the one template whose `use` enum is TAG-level: its read grammar spends
-	// `;` and `+`, which the slot grammar cannot carry, so every attempt reads the tag's
-	// own `use`/`key` as the base tag does (try_slot_axes() keeps both out of the slot).
-	$tag_level_use = 'datetime' === $key;
-	assert_same( "{$key} — a `use` enum iff try_per_slot_use", $has_enum, $psu || $tag_level_use );
-	assert_same( "{$key} — a template `use` enum iff a BWS_USE_STRIPPED_DEFAULTS row", $has_enum, $mapped );
+	// `datetime` is the one template whose slots carry a datetime read LIST (`try_per_slot_reads`),
+	// so it registers no `use` enum of its own: the slot's `use(...)` token is read by the
+	// datetime grammar. Its BWS_USE_STRIPPED_DEFAULTS row belongs to the BASE tag, and the
+	// readTag loop below pins that stamp.
+	$psr = ! empty( $tpl['try_per_slot_reads'] );
+	assert_same( "{$key} — a `use` enum iff try_per_slot_use", $has_enum, $psu );
+	assert_same( "{$key} — a template `use` enum iff a BWS_USE_STRIPPED_DEFAULTS row (or per-slot reads)", $has_enum || $psr, $mapped );
+	assert_same( "{$key} — per-slot reads and a per-slot `use` enum never both", false, $psr && $psu );
 
 	if ( $has_enum ) {
 		assert_same(
@@ -1395,7 +1397,8 @@ assert_same( 'a re-entered constructor does not report the same yield twice', 1,
 // opens on a group the page really inlines, or the control would preset a filter listing nothing.
 $dt_key = bws_get_base_datetime_options()['key'];
 assert_same( 'datetime: key is the read control', 'bws-datetime-reads', $dt_key['type'] );
-assert_same( 'try_datetime: the same key definition, not a copy', $dt_key, bws_get_datetime_template_options()['key'] );
+assert_same( 'try_datetime: registers no tag-level `key` or `use` (each slot carries its read)', array(), array_values( array_intersect( array( 'key', 'use' ), array_keys( bws_get_datetime_template_options() ) ) ) );
+assert_same( 'try_per_slot_reads is set by try_datetime and by no other template', true, array( 'datetime' ) === array_column( array_filter( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates(), static fn( $t ) => ! empty( $t['try_per_slot_reads'] ) ), 'key' ) );
 assert_same( 'datetime: the control stops offering Add at the most reads the normalizer takes', BWS_DATETIME_MAX_READS, $dt_key['max'] );
 assert_same( 'datetime: a non-empty heading for every read the control offers', true, count( array_filter( $dt_key['entryLabels'], 'strlen' ) ) >= BWS_DATETIME_MAX_READS );
 // The notices name what the reads cannot show (datetime-read-control-test.js §D10): each is a
