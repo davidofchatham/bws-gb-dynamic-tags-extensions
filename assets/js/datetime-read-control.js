@@ -69,12 +69,61 @@
 		return '' === time ? field : field + '+' + time;
 	}
 
+	function legacyOrder( out ) {
+		var keys = Object.keys( out );
+		if ( 'function' === typeof window.bwsReorderKeys ) {
+			keys = window.bwsReorderKeys( keys );
+		}
+		var ordered = {};
+		keys.forEach( function ( name ) {
+			ordered[ name ] = out[ name ];
+		} );
+		return ordered;
+	}
+
+	/**
+	 * TWIN of bws_datetime_legacy_key_to_slot_a() (PHP), which states the rule: move a tag-level
+	 * `key` into slot A as `key(…)`, where `try_datetime` reads it. Pure, and NOT called by the
+	 * live mount: the old hidden try_ tags still read tag-level `key`, so the mount keeps it there.
+	 *
+	 * @param {Object} state The tag's options, slots already folded.
+	 * @return {Object|null} Options in canonical order, or null when slot A cannot be parsed.
+	 */
+	function legacyKeyToSlotA( state ) {
+		var key = legacyText( state, 'key' );
+		if ( '' === key ) {
+			return state;
+		}
+		var grammar = window.bwsSlotFold;
+		if ( ! grammar ) {
+			return null;
+		}
+		var slot = { header: null, type: null, chain: [], read: null, opts: {}, extra: [] };
+		var raw  = legacyText( state, 'A' );
+		if ( '' !== raw ) {
+			slot = grammar.parseSlot( raw, 'try', true );
+			if ( slot.error ) {
+				return null;
+			}
+		}
+		slot.read = { kind: 'datetime', key: key, use: '' };
+		var out = {};
+		Object.keys( state ).forEach( function ( name ) {
+			if ( 'key' !== name ) {
+				out[ name ] = state[ name ];
+			}
+		} );
+		out.A = grammar.emitSlot( slot, 1 );
+		return legacyOrder( out );
+	}
+
 	/**
 	 * @param {Object} state  The tag's options.
 	 * @param {string} family `single` or `range`: the old tag's own family.
+	 * @param {Object} [opts] `slotA: true` writes the read into slot A, the `try_datetime` form.
 	 * @return {Object|null} Rewritten options in canonical order, or null when nothing changes.
 	 */
-	function legacyRewrite( state, family ) {
+	function legacyRewrite( state, family, opts ) {
 		var names = LEGACY_KEYS[ family ];
 		var text  = {};
 		var clean = true;
@@ -112,15 +161,8 @@
 		if ( '' !== key ) {
 			out.key = key;
 		}
-		var keys = Object.keys( out );
-		if ( 'function' === typeof window.bwsReorderKeys ) {
-			keys = window.bwsReorderKeys( keys );
-		}
-		var ordered = {};
-		keys.forEach( function ( name ) {
-			ordered[ name ] = out[ name ];
-		} );
-		return ordered;
+		out = legacyOrder( out );
+		return opts && opts.slotA ? legacyKeyToSlotA( out ) : out;
 	}
 
 	/**
@@ -134,7 +176,7 @@
 			&& null === legacyRewrite( state, family );
 	}
 
-	window.bwsDatetimeLegacy = { rewrite: legacyRewrite, hold: legacyHold };
+	window.bwsDatetimeLegacy = { rewrite: legacyRewrite, hold: legacyHold, slotA: legacyKeyToSlotA };
 
 	if ( ! window.wp || ! wp.hooks || ! wp.element || ! wp.components || ! wp.components.SelectControl ) {
 		return;

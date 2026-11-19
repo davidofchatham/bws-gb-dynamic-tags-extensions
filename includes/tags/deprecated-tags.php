@@ -83,7 +83,9 @@ function bws_datetime_legacy_tag_map(): array {
  * 2. An end-only range is SKIPPED, reported (`range_without_start`) and left whole under its old
  *    name. What counts is bws_datetime_legacy_range_is_end_only()'s, not restated here.
  * 3. The six old keys become `key` through bws_datetime_legacy_reads_rewrite(), the rule the
- *    editor's mount step shares, and the tag takes the replacement's name.
+ *    editor's mount step shares, and the tag takes the replacement's name. A `try_` tag's `key`
+ *    goes into slot A as `key(…)` (bws_datetime_legacy_key_to_slot_a()), because `try_datetime`
+ *    reads per slot; slots 2+ state no read and so reuse it.
  * 4. Where that rule leaves the options alone (a tag the editor's mount step already rewrote, or one
  *    whose keys cannot be rewritten), a rename on its own is made only when it moves no output.
  *    The merged tag derives its mode from the options and reads `use`, which the old tags ignore, so
@@ -129,7 +131,8 @@ function bws_datetime_legacy_plan( string $tag_string ): array {
 		return $unchanged;
 	}
 
-	$rewritten = bws_datetime_legacy_reads_rewrite( $options, $range );
+	$try       = 0 === strpos( $new_name, 'try_' );
+	$rewritten = bws_datetime_legacy_reads_rewrite( $options, $range, $try );
 
 	if ( null === $rewritten ) {
 		if ( $range ) {
@@ -141,6 +144,16 @@ function bws_datetime_legacy_plan( string $tag_string ): array {
 			return $unchanged;
 		}
 		$rewritten = $options;
+		if ( $try ) {
+			// A slot's read cannot hold an old key the rule declined (an operand holding `;` or `+`),
+			// and `try_datetime` would ignore it: that tag keeps its old name.
+			$rewritten = array_intersect_key( $options, array_flip( array_merge( $range_keys, array( 'timeKey' ) ) ) )
+				? null
+				: bws_datetime_legacy_key_to_slot_a( $options );
+			if ( null === $rewritten ) {
+				return $unchanged;
+			}
+		}
 	}
 
 	return array(
