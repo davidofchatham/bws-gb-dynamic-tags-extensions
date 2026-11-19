@@ -410,12 +410,25 @@ $as_pairs = static function ( $map ) {
 	return null === $map ? null : array_map( null, array_keys( $map ), array_values( $map ) );
 };
 
-$php_pairs = array();
+$php_pairs     = array();
+$php_slot_pairs = array();
 foreach ( (array) ( $corpus['cases'] ?? array() ) as $case ) {
 	$range = 'range' === $case['family'];
 	$got   = bws_datetime_legacy_reads_rewrite( $case['options'], $range );
 	$php_pairs[] = $as_pairs( $got );
 	assert_eq( 'D8.1 ' . $case['label'], $as_pairs( $case['expect'] ), $as_pairs( $got ) );
+
+	// The try_ form: the same rewrite with the read written into slot A, not tag-level `key`.
+	$got_a = bws_datetime_legacy_reads_rewrite( $case['options'], $range, true );
+	$php_slot_pairs[] = $as_pairs( $got_a );
+	assert_eq( 'D8.7 slot A — ' . $case['label'], $as_pairs( $case['expectTry'] ), $as_pairs( $got_a ) );
+
+	// The property the literals stand for: slot A reads what `key` read. Parsed as a slot read
+	// (the template's `try_per_slot_reads`), so the list is bws_datetime_reads()'s own.
+	if ( null !== $got && null !== $got_a && isset( $got['key'] ) ) {
+		$slot = bws_fold_parse_slot( (string) $got_a['A'], 'try', true );
+		assert_eq( 'D8.8 slot A holds the same reads — ' . $case['label'], bws_datetime_reads( array( 'key' => $got['key'] ) ), $slot['read']['reads'] ?? '(no read)' );
+	}
 
 	// The property the literals stand for: a rewritten tag reads the same fields as the old one,
 	// through the shipped normalizer in the old tag's own family.
@@ -441,9 +454,17 @@ if ( ! is_array( $js_pair ) ) {
 	echo '       ' . substr( trim( $raw ), 0, 400 ) . "\n";
 } else {
 	assert_eq( 'D8.4 the JS driver ran (node on PATH)', true, true );
-	assert_eq( 'D8.5 both sides answered every case', count( $php_pairs ), count( $js_pair ) );
+	$js_plain = $js_pair['plain'] ?? array();
+	$js_slot  = $js_pair['slotA'] ?? array();
+	assert_eq( 'D8.5 both sides answered every case', count( $php_pairs ), count( $js_plain ) );
 	foreach ( $php_pairs as $i => $pairs ) {
-		assert_eq( 'D8.6 mount twin agrees — ' . $corpus['cases'][ $i ]['label'], $pairs, array_key_exists( $i, $js_pair ) ? $js_pair[ $i ] : '(missing)' );
+		assert_eq( 'D8.6 mount twin agrees — ' . $corpus['cases'][ $i ]['label'], $pairs, array_key_exists( $i, $js_plain ) ? $js_plain[ $i ] : '(missing)' );
+	}
+	// The slot-A mode is a pure function the live mount does not call (the old hidden try_ tags
+	// still read tag-level `key`); the twins agree on it all the same.
+	assert_eq( 'D8.9 the slot-A mode answered every case', count( $php_slot_pairs ), count( $js_slot ) );
+	foreach ( $php_slot_pairs as $i => $pairs ) {
+		assert_eq( 'D8.10 slot-A twin agrees — ' . $corpus['cases'][ $i ]['label'], $pairs, array_key_exists( $i, $js_slot ) ? $js_slot[ $i ] : '(missing)' );
 	}
 }
 

@@ -999,12 +999,16 @@ function bws_datetime_legacy_range_is_end_only( array $options ): bool {
  * Equivalence (the same fields reach the cores) is pinned in datetime-migration-test.php D8,
  * from the shared corpus the JS twin also runs.
  *
+ * `$slot_a` is the `try_` form: the same rewrite, with the one `key` written into slot A
+ * instead (bws_datetime_legacy_key_to_slot_a()). Null also when A cannot be parsed.
+ *
  * @since Unreleased
  * @param array $options Raw tag options.
  * @param bool  $range   True for `datetime_range`, false for `datetime_single`.
+ * @param bool  $slot_a  Write the read into slot A, the `try_datetime` form.
  * @return array|null Rewritten options in canonical order, or null when nothing changes.
  */
-function bws_datetime_legacy_reads_rewrite( array $options, bool $range ): ?array {
+function bws_datetime_legacy_reads_rewrite( array $options, bool $range, bool $slot_a = false ): ?array {
 	$names = $range ? array( 'startKey', 'startTimeKey', 'endKey', 'endTimeKey' ) : array( 'key', 'timeKey' );
 	$text  = array();
 	foreach ( $names as $name ) {
@@ -1040,7 +1044,51 @@ function bws_datetime_legacy_reads_rewrite( array $options, bool $range ): ?arra
 	if ( '' !== $key ) {
 		$out['key'] = $key;
 	}
-	return bws_serialization_order_sort_map( $out );
+	$out = bws_serialization_order_sort_map( $out );
+	return $slot_a ? bws_datetime_legacy_key_to_slot_a( $out ) : $out;
+}
+
+/**
+ * Move a tag-level `key` into slot A as `key(…)`: where `try_datetime` reads it (FW-193).
+ *
+ * The `try_` half of the old-tag rewrite. `try_datetime` reads each slot's own `key` / `use`
+ * and ignores a tag-level one, while the four hidden old tags still read tag-level, so a
+ * rename alone would silently empty the tag. Slots 2+ state no read, which reads as the
+ * previous slot's, the old "same fields, different source" meaning. Pure, with a JS twin
+ * (`bwsDatetimeLegacy.slotA()`) run over the same corpus (datetime-migration-test.php D8).
+ *
+ * Only A is touched, and only when a tag-level `key` is stated: a read A already carried is
+ * dead under the old tags (they never read a slot's `key`) and is replaced, a stated key is
+ * never merged into it, and the slot's other tokens (`src(…)`) stay. The flat `2-key` era
+ * is not handled here: the old name's option cascade folds the slots before the rewrite runs
+ * (bws_datetime_legacy_plan() step 1), so slot A is already there by now.
+ *
+ * @since Unreleased
+ * @param array $options Raw tag options, slots already folded.
+ * @return array|null Options in canonical order, or null when slot A cannot be parsed.
+ */
+function bws_datetime_legacy_key_to_slot_a( array $options ): ?array {
+	$key = isset( $options['key'] ) && is_scalar( $options['key'] ) ? trim( (string) $options['key'] ) : '';
+	if ( '' === $key ) {
+		return $options;
+	}
+	if ( ! function_exists( 'bws_fold_parse_slot' ) ) {
+		return null; // Fail closed, as the plan does without the rule loaded.
+	}
+
+	$slot = bws_fold_empty_slot();
+	$raw  = trim( (string) ( $options['A'] ?? '' ) );
+	if ( '' !== $raw ) {
+		$slot = bws_fold_parse_slot( $raw, 'try', true );
+		if ( isset( $slot['error'] ) ) {
+			return null;
+		}
+	}
+	$slot['read'] = array( 'kind' => 'datetime', 'key' => $key, 'use' => '' );
+
+	unset( $options['key'] );
+	$options['A'] = bws_fold_emit_slot( $slot );
+	return bws_serialization_order_sort_map( $options );
 }
 
 /**
