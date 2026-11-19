@@ -149,7 +149,7 @@ Styles are written to one small stylesheet per distinct table design, never as i
 
 ### `try_` tags: Return the first successful source/field attempt
 
-`try_*` tags (e.g. `try_text`, `try_image`, `try_content`, `try_datetime` **[UNRELEASED]**, `try_email`, `try_phone`) allow using the first available (populated) field from an editor-selected list of up to five sources/fields. Each slot resolves exactly as the standalone tag would (`try_email` outputs a finished `mailto:` link per slot, `try_phone` a `tel:` link), so a contact chain like "personal email → team email → site-wide address" works without multiple blocks and complicated visibility conditions.
+`try_*` tags (e.g. `try_text`, `try_image`, `try_content`, `try_datetime` **[UNRELEASED]**, `try_email`, `try_phone`) allow using the first available (populated) field from an editor-selected list of up to five sources/fields. Each slot resolves exactly as the standalone tag would (`try_email` outputs a finished `mailto:` link per slot, `try_phone` a `tel:` link), so a contact chain like "personal email → team email → site-wide address" works without multiple blocks and complicated visibility conditions. **[UNRELEASED: `try_datetime` gives each slot its own date read, so one attempt can read a start and end range and the next a single date or the post's published date. A slot with no read of its own reuses the previous slot's, and the format, link, and fallback are set once for the tag.]**
 
 The `try_` tags accept a site source per slot, so a chain can end in a site-wide fallback value.
 
