@@ -798,7 +798,8 @@ const BWS_DATETIME_FAMILY_TAGS = array(
 );
 
 /**
- * The family a datetime tag name stands for. A `try_` prefix names the same family.
+ * The family a datetime tag name stands for. A `try_` prefix names the same family, and a
+ * name that is no datetime tag reads as null, the merged family: callers pass only datetime names.
  *
  * @since Unreleased
  * @param string $tag A datetime tag name (`datetime`, `try_datetime_range`, ...).

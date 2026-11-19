@@ -887,5 +887,25 @@ assert_same( 'B10 range: no formats → WP defaults, date-only',
 	bws_build_range_format( array(), $empty_result, null, false )
 );
 
+echo "
+" . 'G — the family map: tag name to the $range argument and back' . "
+";
+foreach ( array(
+	'datetime'            => null,
+	'datetime_single'     => false,
+	'datetime_range'      => true,
+	'try_datetime'        => null,
+	'try_datetime_single' => false,
+	'try_datetime_range'  => true,
+) as $tag => $family ) {
+	assert_same( "G1 {$tag} is family " . var_export( $family, true ), $family, bws_datetime_family( $tag ) );
+}
+assert_same( 'G2 each family names its base tag',
+	array( 'datetime', 'datetime_single', 'datetime_range' ),
+	array( bws_datetime_family_tag( null ), bws_datetime_family_tag( false ), bws_datetime_family_tag( true ) )
+);
+assert_same( 'G3 a name that is no datetime tag reads as the merged family (null), as documented',
+	null, bws_datetime_family( 'text' ) );
+
 echo "\n" . ( $failures ? "FAILED {$failures}/{$count}\n" : "PASSED {$count}/{$count}\n" );
 exit( $failures ? 1 : 0 );

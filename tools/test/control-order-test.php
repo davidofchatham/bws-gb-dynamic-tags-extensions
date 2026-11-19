@@ -1400,11 +1400,16 @@ assert_same( 'datetime: the control stops offering Add at the most reads the nor
 assert_same( 'datetime: a non-empty heading for every read the control offers', true, count( array_filter( $dt_key['entryLabels'], 'strlen' ) ) >= BWS_DATETIME_MAX_READS );
 // The notices name what the reads cannot show (datetime-read-control-test.js §D10): each is a
 // [ one, many ] pair the control fills with the field names at its one `%s`.
-foreach ( array( 'surplusNotice', 'extraNotice' ) as $notice ) {
-	$pair = $dt_key[ $notice ] ?? null;
-	assert_same( "datetime: {$notice} is a [ one, many ] pair, each with one %s", array( 1, 1 ),
-		is_array( $pair ) && 2 === count( $pair ) ? array_map( static fn( $t ) => substr_count( (string) $t, '%s' ), array_values( $pair ) ) : $pair );
-}
+// The wording is the approved text, held here so an edit to the PHP fails by name (the JS
+// harness reads its own copy and cannot see this definition).
+assert_same( 'datetime: surplusNotice is the approved wording', array(
+	'Field %s has no read to use it and will be removed on your next change here.',
+	'Fields %s have no read to use them and will be removed on your next change here.',
+), $dt_key['surplusNotice'] ?? null );
+assert_same( 'datetime: extraNotice is the approved wording', array(
+	'A read combines one date and one time field only, so %s is ignored.',
+	'A read combines one date and one time field only, so %s are ignored.',
+), $dt_key['extraNotice'] ?? null );
 // The per-read select offers what the `use` enum lists and nothing else, field row first, and only
 // the post dates are limited to a kind (the verb result reads no other source's dates).
 $dt_use = bws_get_base_datetime_options()['use'];
