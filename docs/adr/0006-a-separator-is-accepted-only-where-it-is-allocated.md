@@ -28,7 +28,11 @@ quietly pre-empted a char the grammar had never allocated.
 Leniency itself stands, and every twin whose char **is** allocated stays accepted — `,` at slot top
 level, either bracket pair at either depth, both `0` and `-1` for unlimited. The rule cuts only
 unallocated chars. `+` and `/` are the current reserved pair, and inside a value they are ordinary
-content, never grammar.
+content, never grammar, except where an allocation below says otherwise.
+
+## Allocations
+
+**Amended 2026-11-19 (FW-81, `{{datetime}}`).** `+` is allocated in ONE place: the flat `key` option of `{{datetime}}` and `try_datetime`, where it joins a read's primary field and an optional time field (`key:event_date+start_time`). That option value is parsed by its own tag, never by the slot splitter, so `+` stays in `BWS_FOLD_RESERVED` and the folded slot grammar still treats it as reserved. Any other tag or grammar that wants `+` allocates it here first, in its own entry. The grammar's owner is `bws_datetime_reads()`'s PHPDoc in `includes/tags/datetime-tags.php`. `/` stays unallocated.
 
 ## Where this is enforced, and what the enforcement does not cover
 

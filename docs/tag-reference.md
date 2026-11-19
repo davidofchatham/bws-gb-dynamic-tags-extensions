@@ -788,7 +788,7 @@ In the source-agnostic architecture, each template has one GB tag registration. 
 | `title` | `'Title/Name'` | `'cross-source'` | ✅ | Zero options aside from link; shares pipeline with `text use:title`. |
 | `permalink` | `'Permalink'` | `'cross-source'` | ❌ | Output is already a URL |
 | `image` | `'Image Fields'` | `'cross-source'` | ❌ | URL output nonsensical to wrap; image linking deferred |
-| `datetime` | `'Date/Time'` | `'cross-source'` | ✅ | **[UNRELEASED]** One tag for a single value and a range; the mode is the number of reads in `key`. See [§`datetime`](#datetime). |
+| `datetime` | `'Date/Time'` | `'cross-source'` | ✅ | **[UNRELEASED]** One tag for a single value and a range: one read prints a single value, two print a range (the rule: the MODE clause of `bws_normalize_datetime_options()`'s PHPDoc). See [§`datetime`](#datetime-unreleased). |
 | `datetime_single` | `'Format Date/Time Fields'` | `'cross-source'` | ✅ | |
 | `datetime_range` | `'Format Date/Time Fields as Range'` | `'cross-source'` | ✅ | |
 | `email` | `'Email'` | `'cross-source'` | `mailto:` (own anchor, not `linkTo`) | Default-ON mailto wrap toggled by `noLink`; `visibility`-gated off `a`/`button`/`img`/`picture`. See [§Email tag](#email-tag). |
@@ -1056,9 +1056,9 @@ Control order `source → format → fallback` (no `link` group on `image`; `for
 
 ---
 
-## `datetime`
+## `datetime` **[UNRELEASED]**
 
-**[UNRELEASED]** One tag for a single date and time and for a range, registered at `datetime_single`'s place in the base-tag order (FW-81). The old four tags keep registering and rendering, and the section below still describes the single and range pair. Link-wrappable, per item in list mode. GB type `'cross-source'`. Its picker title is `'Date/Time'`. The old four tags (`datetime_single`, `datetime_range` and their `try_` forms) are hidden from the picker with GB's `visibility => false` and still render; a `type:'tag'` migration entry stamped `deprecated` names `datetime` or `try_datetime` as each one's replacement.
+One tag for a single date and time and for a range, registered at `datetime_single`'s place in the base-tag order (FW-81). The old four tags keep registering and rendering, and the section below still describes the single and range pair. Link-wrappable, per item in list mode. GB type `'cross-source'`. Its picker title is `'Date/Time'`. The old four tags (`datetime_single`, `datetime_range` and their `try_` forms) are hidden from the picker with GB's `visibility => false` and still render; a `type:'tag'` migration entry stamped `deprecated` names `datetime` or `try_datetime` as each one's replacement.
 
 **The mode is never stated.** The `key` option holds the reads: a `;` separates reads, so one entry is a single value and two are a range, and a `+` joins at most two operands inside one entry, a primary field (date, datetime or time) and an optional time field. A third operand is ignored. An empty entry is still a read, an empty one, so `key:a;` is a range with no end. A time-only entry in the end position inherits the start's date. No `key`, or a blank one, is a read-less tag and shows its fallback.
 
