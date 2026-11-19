@@ -171,25 +171,30 @@
 	 * With no verb in `use` the reads are the `key` entries, one each, and none at all is ONE
 	 * empty read: the read an absent value spells (concept 2). With a verb, `use` is the list:
 	 * each `key` in it takes the next entry (none left is an empty read), a verb takes none.
-	 * An entry left over after the list is no read: the control cannot show it, and its next
-	 * write drops it, so its fields come back as `surplus` for the notice to name first.
+	 * Either way there are at most `max` reads, the most the render takes. An entry no read
+	 * takes (left over after the list, or past `max`) is no read: the control cannot show it,
+	 * and its next write drops it, so its fields come back as `surplus` for the notice to name
+	 * first.
 	 *
 	 * @param {Object}   state `extraTagParams`.
 	 * @param {string[]} verbs The verb names the option definition offers.
+	 * @param {number}   max   The most reads (the option definition's `max`).
 	 * @return {{reads: Object[], surplus: string[]}} Reads, at least one, and the fields of
 	 *         the entries no read takes.
 	 */
-	function parseReads( state, verbs ) {
+	function parseReads( state, verbs, max ) {
 		var entries = entriesOf( state.key );
 		var names   = String( state.use || '' ).split( ';' ).map( function ( n ) { return n.trim(); } ).filter( function ( n ) {
 			return 'key' === n || -1 !== verbs.indexOf( n );
-		} );
+		} ).slice( 0, max );
+		var reads;
 		if ( ! names.some( function ( n ) { return 'key' !== n; } ) ) {
-			return { reads: entries.length ? entries.map( fieldRead ) : [ fieldRead( [ '' ] ) ], surplus: [] };
+			reads = entries.length ? entries.splice( 0, max ).map( fieldRead ) : [ fieldRead( [ '' ] ) ];
+		} else {
+			reads = names.map( function ( n ) {
+				return 'key' === n ? fieldRead( entries.shift() || [ '' ] ) : { verb: n, ops: [] };
+			} );
 		}
-		var reads = names.map( function ( n ) {
-			return 'key' === n ? fieldRead( entries.shift() || [ '' ] ) : { verb: n, ops: [] };
-		} );
 		return { reads: reads, surplus: [].concat.apply( [], entries ).filter( Boolean ) };
 	}
 
@@ -249,7 +254,7 @@
 		var typeState = useState( null );
 		var choices = cfg.reads || [];
 		var verbs   = choices.map( function ( c ) { return c.value; } ).filter( function ( v ) { return 'key' !== v; } );
-		var parsed  = parseReads( state, verbs );
+		var parsed  = parseReads( state, verbs, max );
 		var reads   = parsed.reads;
 		var count   = reads.length;
 		// The kind the source chain resolves to, or null when it names none (a render-time

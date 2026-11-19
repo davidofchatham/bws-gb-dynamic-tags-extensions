@@ -626,6 +626,17 @@ async function main() {
 	for ( const state of fine ) {
 		check( 'D10.7 no notice on a consistent value: ' + JSON.stringify( state ), noticeTexts( ( await mount( state ) ).tree ), [] );
 	}
+	// Past `max` reads the render takes no more, so the control shows no more and names the rest.
+	const three = await mount( { key: 'a;b+t;c' } );
+	check( 'D10.8 a `key` entry past the most reads is not shown: two headed reads, no Add',
+		[ headings( three.tree ), !! addButton( three.tree ) ], [ [ 'Start Date/Time', 'End Date/Time' ], false ] );
+	check( 'D10.9 ...and is named as removed on the next change',
+		noticeTexts( three.tree ), [ [ 'warning', false, 'Field `c` has no read to use it and will be removed on your next change here.' ] ] );
+	pick( three, 0, 'x' );
+	check( 'D10.10 ...and it is: the next change writes the two reads shown', lastKey( three ), 'x;b+t' );
+	const threeUse = await mount( { use: 'key;now;key', key: 'a;b' } );
+	check( 'D10.11 a `use` list past the most reads stops there too, and the entry its third read would take is named',
+		[ readValues( threeUse.tree ), noticeTexts( threeUse.tree ) ], [ [ 'key', 'now' ], [ [ 'warning', false, 'Field `b` has no read to use it and will be removed on your next change here.' ] ] ] );
 	console.log( '' );
 	if ( fail ) {
 		console.log( 'DATETIME READ CONTROL TEST FAILED (' + fail + ' of ' + total + ')' );
