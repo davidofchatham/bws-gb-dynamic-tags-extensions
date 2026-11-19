@@ -461,6 +461,9 @@ function bws_build_try_preview_label( array $options, string $base_template, arr
 			'key'   => $flat['key'],
 			'use'   => $flat['use'],
 			'fixed' => $flat['fixed'] ?? '',
+			// Whether the slot STATES a read of its own, as against reusing the previous one:
+			// a read-list slot's warnings belong to the slot that states it.
+			'own'   => 'datetime' === ( $slot['read']['kind'] ?? '' ),
 			'part'  => bws_try_preview_source_part( $flat['src'], true, $inert ),
 			'inert' => bws_preview_inert_warning( $inert, true ),
 		];
@@ -519,13 +522,32 @@ function bws_build_try_preview_label( array $options, string $base_template, arr
 	$uniform_field  = 1 === count( array_unique( $field_parts ) );
 	$uniform_source = 1 === count( array_unique( $source_parts ) );
 
-	// Datetime templates: same field across slots; render base shape + source list.
+	// Datetime templates: base shape + source list.
 	if ( bws_preview_is_datetime( $base_template ) ) {
-		$warning_label = bws_preview_datetime_warning( $options, $base_template, '⚠ Try: ', (string) $fallback );
-		if ( '' !== $warning_label ) {
-			return $warning_label;
+		$part_options = $options;
+		if ( ! empty( $loop_cfg['per_slot_reads'] ) ) {
+			// Every slot reads for itself: a fault is its slot's, named by its letter, and the shape
+			// is slot A's read (the first slot that resolves, a reused read already resolved into it).
+			// The tag-level key and use are no read of any slot, so neither feeds either.
+			$read_faults = array();
+			foreach ( $slots as $slot ) {
+				if ( ! $slot['own'] ) {
+					continue;
+				}
+				bws_datetime_reads( array( 'key' => $slot['key'], 'use' => $slot['use'] ), true, $faults );
+				$fault_text = bws_datetime_fault_text( $faults );
+				if ( '' !== $fault_text ) {
+					$read_faults[] = bws_slot_ordinal( $slot['n'] ) . ': ' . $fault_text;
+				}
+			}
+			if ( $read_faults ) {
+				return bws_preview_warning_label( implode( '; ', $read_faults ), $options, '⚠ Try: ', (string) $fallback );
+			}
+			$part_options        = array_diff_key( $options, array_fill_keys( BWS_TRY_TAG_LEVEL_READ_KEYS, null ) );
+			$part_options['key'] = $slots[0]['key'];
+			$part_options['use'] = $slots[0]['use'];
 		}
-		$datetime_part = bws_preview_datetime_part( $options, bws_datetime_family( $base_template ) );
+		$datetime_part = bws_preview_datetime_part( $part_options, bws_datetime_family( $base_template ) );
 		if ( $uniform_source ) {
 			// Single slot or all sources match — drop source list, keep base form.
 			$inner = 'Try ' . $datetime_part;
@@ -1324,9 +1346,10 @@ function bws_preview_is_datetime( string $template ): bool {
 /**
  * The whole warning label for a merged datetime tag whose reads are inconsistent, or '' when
  * there is none to give (consistent, or an old tag, which has no read grammar to misuse).
+ * The base tag's: `try_datetime` reads per slot and builds its own in bws_build_try_preview_label().
  *
  * @since Unreleased
- * @param string $lead     The label's opening: `⚠ ` on a base tag, `⚠ Try: ` on try_datetime.
+ * @param string $lead     The label's opening, `⚠ `.
  * @param string $fallback The tag's fallback text, appended when set.
  */
 if ( ! function_exists( 'bws_preview_datetime_warning' ) ) {
@@ -1336,9 +1359,21 @@ function bws_preview_datetime_warning( array $options, string $template, string 
 	}
 	bws_datetime_reads( $options, true, $faults );
 	$warning = bws_datetime_fault_text( $faults );
-	if ( '' === $warning ) {
-		return '';
-	}
+	return '' === $warning ? '' : bws_preview_warning_label( $warning, $options, $lead, $fallback );
+}
+}
+
+/**
+ * A warning as the whole preview label: the lead, the warning, the tag's fallback when set,
+ * bracketed and link-wrapped like every other label.
+ *
+ * @since Unreleased
+ * @param string $warning  Warning text without its lead.
+ * @param string $lead     The label's opening: `⚠ ` on a base tag, `⚠ Try: ` on try_datetime.
+ * @param string $fallback The tag's fallback text.
+ */
+if ( ! function_exists( 'bws_preview_warning_label' ) ) {
+function bws_preview_warning_label( string $warning, array $options, string $lead, string $fallback ): string {
 	$inner = $lead . $warning;
 	if ( $fallback ) {
 		$inner .= ' (fallback: “' . $fallback . '”)';

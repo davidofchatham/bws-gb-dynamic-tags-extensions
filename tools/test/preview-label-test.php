@@ -1527,12 +1527,39 @@ check( 'dt warn: fallback appends',   dt_label( [ 'key' => 'a+b+c', 'fallback' =
 // A matched count is not a fault, in either direction of the verb order.
 check( 'dt no warn: counts match',    dt_label( [ 'use' => 'key;now', 'key' => 'a' ] ),          '[Date-Time Range like “…”]' );
 
-// try_datetime: the same part and the same warnings, behind `Try`.
-check( 'try dt single',               dt_mask( try_preview( [ 'key' => 'a' ], 'datetime' ) ),    '[Try Date-Time like “…”]' );
-check( 'try dt range',                dt_mask( try_preview( [ 'key' => 'a;b' ], 'datetime' ) ),  '[Try Date-Time Range like “…”]' );
-check( 'try dt verb + key',           dt_mask( try_preview( [ 'use' => 'now;key', 'key' => 'a' ], 'datetime' ) ), '[Try Date-Time Range like “…”]' );
-check( 'try dt warn: extra operand',  dt_mask( try_preview( [ 'key' => 'a+b+c' ], 'datetime' ) ), '[⚠ Try: Only a date and a time can be joined with +, so extra parts are ignored]' );
-check( 'try dt warn: surplus',        dt_mask( try_preview( [ 'use' => 'now;key', 'key' => 'a;b' ], 'datetime' ) ), '[⚠ Try: 1 field read but 2 field keys set, so extra keys are ignored]' );
+// try_datetime: every slot states its own read, so the part is slot A's and a warning names its slot.
+function try_dt( array $o ): string {
+	return dt_mask( try_preview( $o, 'datetime' ) );
+}
+// Mode: slot A's read, whatever a later slot reads.
+check( 'try dt single',               try_dt( [ 'A' => 'key(a)' ] ),                               '[Try Date-Time like “…”]' );
+check( 'try dt range',                try_dt( [ 'A' => 'key(a;b)' ] ),                             '[Try Date-Time Range like “…”]' );
+check( 'try dt verb + key',           try_dt( [ 'A' => 'use(now;key);key(a)' ] ),                  '[Try Date-Time Range like “…”]' );
+check( 'try dt A single, B range',    try_dt( [ 'A' => 'key(a)', 'B' => 'key(a;b)' ] ),            '[Try Date-Time like “…”]' );
+check( 'try dt A range, B single',    try_dt( [ 'A' => 'key(a;b)', 'B' => 'key(a)' ] ),            '[Try Date-Time Range like “…”]' );
+// A slot with no read reuses the one before it, so the mode is the read it reuses.
+check( 'try dt B carries A: range',   try_dt( [ 'A' => 'key(a;b)', 'B' => 'src(parent)' ] ),       '[Try Date-Time Range like “…” from Current, Current Parent]' );
+check( 'try dt B use(same): range',   try_dt( [ 'A' => 'key(a;b)', 'B' => 'use(same);src(parent)' ] ), '[Try Date-Time Range like “…” from Current, Current Parent]' );
+// Slot A with no read has nothing to carry: the read-less shape, whatever B reads.
+check( 'try dt A read-less',          try_dt( [ 'A' => 'src(parent)', 'B' => 'key(a;b)' ] ),       '[Try Date-Time like “…” from Current Parent, Current]' );
+// The tag-level read is not a read of any slot.
+check( 'try dt ignores tag-level key', try_dt( [ 'key' => 'a;b', 'A' => 'key(a)' ] ),              '[Try Date-Time like “…”]' );
+
+// Warnings: per slot, prefixed with its letter, joined with `; `, the tag's fallback appended.
+check( 'try dt warn: extra operand',  try_dt( [ 'A' => 'key(a+b+c)' ] ),                           '[⚠ Try: A: Only a date and a time can be joined with +, so extra parts are ignored]' );
+check( 'try dt warn: missing, slot B', try_dt( [ 'A' => 'key(x)', 'B' => 'use(key;key;now);key(a)' ] ), '[⚠ Try: B: 2 field reads but only 1 field key set]' );
+check( 'try dt warn: surplus',        try_dt( [ 'A' => 'use(now;key);key(a;b)' ] ),                '[⚠ Try: A: 1 field read but 2 field keys set, so extra keys are ignored]' );
+check( 'try dt warn: bare key',       try_dt( [ 'A' => 'key(x)', 'B' => 'use(now;key)' ] ),        '[⚠ Try: B: No field key set for read 2]' );
+check( 'try dt warn: clauses join in a slot', try_dt( [ 'A' => 'key(a+b+c;)' ] ),                  '[⚠ Try: A: Only a date and a time can be joined with +, so extra parts are ignored; no field key set for read 2]' );
+check( 'try dt warn: two slots join', try_dt( [ 'A' => 'key(a+b+c)', 'B' => 'use(now;key)' ] ),     '[⚠ Try: A: Only a date and a time can be joined with +, so extra parts are ignored; B: No field key set for read 2]' );
+check( 'try dt warn: two slots, same clause', try_dt( [ 'A' => 'use(key;now)', 'B' => 'use(key;now)' ] ), '[⚠ Try: A: No field key set for read 1; B: No field key set for read 1]' );
+check( 'try dt warn: a carrier does not repeat', try_dt( [ 'A' => 'key(a+b+c)', 'B' => 'src(parent)' ] ), '[⚠ Try: A: Only a date and a time can be joined with +, so extra parts are ignored]' );
+check( 'try dt warn: use(same) does not repeat', try_dt( [ 'A' => 'key(a+b+c)', 'B' => 'use(same);src(parent)' ] ), '[⚠ Try: A: Only a date and a time can be joined with +, so extra parts are ignored]' );
+// The label is built only when every attempt reads empty (try-slot-loop-test.php §L8.7 pins that a
+// warning slot with a resolving attempt behind it renders the value), so a chain that resolves
+// never reaches these.
+check( 'try dt warn: fallback appends', try_dt( [ 'A' => 'key(a+b+c)', 'fallback' => 'TBA' ] ),    '[⚠ Try: A: Only a date and a time can be joined with +, so extra parts are ignored (fallback: “TBA”)]' );
+check( 'try dt warn: ignores tag-level key', try_dt( [ 'key' => 'a+b+c', 'A' => 'key(a)' ] ),      '[Try Date-Time like “…”]' );
 // One datetime preview builder: the old try_-only one is gone.
 check( 'dt: the duplicate builder is gone', function_exists( 'bws_try_preview_datetime_part' ) ? 'present' : 'gone', 'gone' );
 
