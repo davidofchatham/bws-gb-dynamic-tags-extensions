@@ -2595,6 +2595,16 @@ function bws_fixture_page_content_matrix_datetime() {
 		bws_fixture_gb_row( 'D13.4 expect "FB" (= D13.1 through the old try_datetime_range)', "{{try_datetime_range A:src(post,{$meta_id})|endKey:event_end_date|fallback:FB}}" ),
 	) );
 
+	// The read control's notices (FW-81, matrix D6.5): each row is for opening in the editor, where
+	// the tag's settings name what its reads cannot show. The front end prints what the render
+	// takes, which is what the label states; the notice is the editor half.
+	$sections[] = bws_fixture_gb_section( 'Datetime D6.5 - open in the editor: the read control names what it cannot show', array(
+		bws_fixture_gb_row( 'D6.5.1 expect "March 3, 2025-August 1, 2030"; in the editor a notice names event_end_date, removed on the next change (no read takes it)', "{{datetime src:post,{$meta_id}|use:published;key|key:event_start_date;event_end_date}}" ),
+		bws_fixture_gb_row( 'D6.5.2 expect "August 1, 2030, 9:00 am"; in the editor a notice names event_end_time as ignored (a third field joined with +)', "{{datetime src:post,{$meta_id}|key:event_start_date+event_time+event_end_time}}" ),
+		bws_fixture_gb_row( 'D6.5.3 expect "August 1-9, 2030"; in the editor two reads show and a notice names event_datetime, removed on the next change (past the most reads)', "{{datetime src:post,{$meta_id}|key:event_start_date;event_end_date;event_datetime}}" ),
+		bws_fixture_gb_row( 'D6.5.4 expect "August 1-9, 2030"; in the editor no notice (every field has a read)', "{{datetime src:post,{$meta_id}|key:event_start_date;event_end_date}}" ),
+	) );
+
 	return implode( "\n\n", $sections );
 }
 

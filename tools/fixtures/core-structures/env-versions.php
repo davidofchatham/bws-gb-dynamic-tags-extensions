@@ -62,6 +62,9 @@ return array(
 	// The date the baseline under `tools/test/snapshots/` was captured. Prose only —
 	// nothing compares it; it is here so a reader can place the record in time.
 	//
+	// 2026-11-19: a FIXTURE MOVE, re-captured. Blueprint v49 adds the four D6.5 rows to
+	// `/matrix-datetime/`, the only page that moved; no dependency or active plugin changed.
+	//
 	// 2026-11-16: a DEPENDENCY MOVE, re-captured. GenerateBlocks 2.5.0 -> 2.5.1 moved NO line: no
 	// rendered tag differs on any of the 28 pages. The only lines that moved are page chrome:
 	// WooCommerce 11.2.1 -> 11.3.0 (`<script id="wc-no-js">` gained its id) and Perfmatters 2.7.0,
@@ -177,7 +180,7 @@ return array(
 	// The 2026-09-14 capture is WooCommerce joining the fixture site (chrome only, no
 	// rendered tag moved); the 2026-09-03 one is where the head-deletion rule arrived — a
 	// reader hitting an ~800-line deletion further back in `git log` is looking at that.
-	'captured' => '2026-11-16',
+	'captured' => '2026-11-19',
 
 	// WordPress core, as `get_bloginfo( 'version' )` reports it. A change is a WARNING like a
 	// plugin version change, never a failure. First recorded 2026-09-25, read off the site
