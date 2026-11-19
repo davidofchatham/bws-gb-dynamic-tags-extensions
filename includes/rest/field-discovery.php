@@ -45,6 +45,13 @@ const BWS_FIELD_DISCOVERY_REST_NAMESPACE = 'bws-dynamic-tags/v1';
 const BWS_FIELD_DISCOVERY_REST_ROUTE     = '/fields';
 
 /**
+ * The Type filter group that holds the three date field types (bws_field_type_groups()).
+ *
+ * @since Unreleased
+ */
+const BWS_FIELD_TYPE_GROUP_DATETIME = 'group:datetime';
+
+/**
  * Register the field-discovery REST route.
  *
  * Hooked on `rest_api_init` (fires per-request, after plugins_loaded), so the
@@ -1059,4 +1066,35 @@ function bws_field_discovery_filter_disallowed( array $envelope ) {
 	}
 
 	return $envelope;
+}
+
+/**
+ * The field Type filter's GROUPS: one pickable entry that holds several field types.
+ *
+ * A group is a filter entry and not a field type, so it lives beside the envelope rather
+ * than in it. Inlined as `window.bwsFieldTypeGroups` ahead of field-combo-control.js, which
+ * lists each group once, sorted with the plain types, with its discovered member types
+ * nested under it, and filters by ANY member when the group is selected. The group's `value`
+ * is its token: the control selects it by that string, and an option's `typeDefault` may name
+ * it. The control types none of this, so a member added here reaches every tag's picker.
+ *
+ * The datetime group holds the three ACF date types and no untyped field: a date stored as
+ * Text or as plain meta is found under "All field types".
+ *
+ * @since Unreleased
+ * @return array<int, array{value:string, label:string, allLabel:string, members:array<int, array{type:string, label:string}>}>
+ */
+function bws_field_type_groups(): array {
+	return array(
+		array(
+			'value'    => BWS_FIELD_TYPE_GROUP_DATETIME,
+			'label'    => __( 'Date & time', 'generateblocks' ),
+			'allLabel' => __( 'All date & time', 'generateblocks' ),
+			'members'  => array(
+				array( 'type' => 'date_time_picker', 'label' => __( 'Date/Time', 'generateblocks' ) ),
+				array( 'type' => 'date_picker', 'label' => __( 'Date', 'generateblocks' ) ),
+				array( 'type' => 'time_picker', 'label' => __( 'Time', 'generateblocks' ) ),
+			),
+		),
+	);
 }

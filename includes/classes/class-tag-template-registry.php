@@ -43,6 +43,9 @@ class TagTemplateRegistry {
 	 *                    convention plus function_exists(), because a rename would then be a
 	 *                    silent behavior change.
 	 *   supports_try     bool      Whether this template generates a try_ tag.
+	 *   hidden           bool      The generated try_ tag registers hidden (kept out of the
+	 *                    picker, still rendering): the base tag's own `hidden` registration,
+	 *                    repeated here because the two registrations are separate.
 	 *   leading_options       array    Global formatting options (as, size, the datetime format
 	 *                    cluster). The name is historical; the try_ constructor registers
 	 *                    them in canonical control order, i.e. after the attempts and their
@@ -342,7 +345,7 @@ class TagTemplateRegistry {
 			// The three READ shapes are the template flags, unchanged in meaning:
 			//   per_slot_use  — a `use` enum plus a key picker (text/content/image).
 			//   per_slot_key  — a key picker alone (email/phone: no `use` axis exists).
-			//   neither       — no per-slot read at all (title/permalink/datetime_*),
+			//   neither       — no per-slot read at all (title/permalink/datetime/datetime_*),
 			//                   whose `use`/`key`, where they exist, stay TAG-level
 			//                   options in the trailing group below.
 			// `base_read`/`base_key` are handed over empty for the shapes that lack the
@@ -547,7 +550,7 @@ class TagTemplateRegistry {
 			$base_description = (string) ( $existing_tags[ $tpl['key'] ]['description'] ?? '' );
 			$description      = '' === $base_description ? '' : self::TRY_DESCRIPTION_OPENING . ' ' . $base_description;
 
-			self::register_gb_tag( $title, $tag_name, 'first-available', $supports, $options, $callback, $visibility, $description );
+			self::register_gb_tag( $title, $tag_name, 'first-available', $supports, $options, $callback, $visibility, $description, ! empty( $tpl['hidden'] ) );
 		}
 	}
 
@@ -568,6 +571,9 @@ class TagTemplateRegistry {
 	 *                             (preserves byte-identical registration for gateless tags).
 	 *                             [SPEC §32 V11 / VE3 / VP-vis]
 	 * @param string   $description Optional picker description; omitted when empty.
+	 * @param bool     $hidden      Registered but kept out of the picker (the `hidden` form
+	 *                              bws_gb_register_tag() owns); from a template's `hidden` key.
+	 *                              Added in Unreleased.
 	 */
 	public static function register_gb_tag(
 		string $title,
@@ -577,7 +583,8 @@ class TagTemplateRegistry {
 		array $options,
 		callable $callback,
 		array $visibility = [],
-		string $description = ''
+		string $description = '',
+		bool $hidden = false
 	): void {
 		if ( function_exists( 'bws_prepare_registration_options' ) ) {
 			$options = bws_prepare_registration_options( $options );
@@ -595,6 +602,9 @@ class TagTemplateRegistry {
 		}
 		if ( '' !== $description ) {
 			$args['description'] = $description;
+		}
+		if ( $hidden ) {
+			$args['hidden'] = true;
 		}
 		// THE plugin's one registration site is bws_gb_register_tag(), in
 		// includes/helpers/gb-registration-boundary.php. The try_ constructor reaches GB

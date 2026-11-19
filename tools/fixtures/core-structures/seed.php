@@ -773,6 +773,24 @@ foreach ( $manifest['post_meta'] as $slug => $meta ) {
 }
 $log( 'post fields + plain meta applied' );
 
+// A pinned `post_modified` (v47) is written LAST and straight to the row. wp_update_post stamps
+// every upsert with now, and wp_insert_post takes no modified date on an update, so nothing earlier
+// in this file could hold it; nothing after this line may save the post again.
+global $wpdb;
+foreach ( $manifest['posts'] as $slug => $def ) {
+	if ( isset( $def['post_modified'], $post_ids[ $slug ] ) ) {
+		$wpdb->update(
+			$wpdb->posts,
+			array(
+				'post_modified'     => $def['post_modified'],
+				'post_modified_gmt' => get_gmt_from_date( $def['post_modified'] ),
+			),
+			array( 'ID' => $post_ids[ $slug ] )
+		);
+		clean_post_cache( $post_ids[ $slug ] );
+	}
+}
+
 // A term-meta field that RESOLVES A POST-SLUG REFERENCE ('dept_lead', §F20) has to wait
 // until POSTS exist (section 4, above) — `term_fields` runs in section 3, before any post
 // is created, so `$post_ids` there is always empty for this key. A second, narrow pass

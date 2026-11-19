@@ -2,6 +2,7 @@
 
 **Status:** accepted (2026-07-31 WIRE SPEC approval, amended 2026-08-01 by the approved-twins rule;
 both from the FW-56/57 encoding grill, `docs/design-history/src-chain-encoding.md` §WIRE SPEC).
+Amended 2026-11-19 with the first allocation of a reserved char (FW-81, see §Allocations).
 
 The folded slot-value grammar parses **leniently and emits canonically**: an author may hand-type a
 functionally-equivalent separator or the other bracket pair, and the next control commit rewrites it
@@ -28,7 +29,11 @@ quietly pre-empted a char the grammar had never allocated.
 Leniency itself stands, and every twin whose char **is** allocated stays accepted — `,` at slot top
 level, either bracket pair at either depth, both `0` and `-1` for unlimited. The rule cuts only
 unallocated chars. `+` and `/` are the current reserved pair, and inside a value they are ordinary
-content, never grammar.
+content, never grammar, except where an allocation below says otherwise.
+
+## Allocations
+
+**Amended 2026-11-19 (FW-81, `{{datetime}}`).** `+` is allocated in ONE place: the value of the `key` option of `{{datetime}}` and `try_datetime`, where it joins a read's primary field and an optional time field (`key:event_date+start_time;end_time`). That value is shaped like a fold (`;` between reads, `+` inside one) but is not one: `bws_datetime_reads()` parses it, never the fold grammar that parses a `src` chain or a slot value, so `+` stays in `BWS_FOLD_RESERVED` and the fold grammar still treats it as reserved. If a datetime read ever moves into the fold grammar (a per-slot `key` on `try_datetime`, say), that is a second allocation and takes its own entry here. Any other tag or grammar that wants `+` allocates it here first, in its own entry. The grammar's owner is `bws_datetime_reads()`'s PHPDoc in `includes/tags/datetime-tags.php`. `/` stays unallocated.
 
 ## Where this is enforced, and what the enforcement does not cover
 

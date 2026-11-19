@@ -12,8 +12,7 @@
 | `text` | Get text from a meta or option field, fixed text, or any title or name the Title/Name tag can return. | | `try_text` |
 | [`join`](#join-combine-multiple-text-fields) | Combine up to 10 text fields (meta or option, fixed text, and title or name) into one string, by separator or format template. | Plain text only; no link options. | — |
 | [`table`](#table-build-a-dynamic-table) | Build a complete HTML table: one row per repeater row, related post, or term, with up to 10 columns. Always prints block-level markup, so put it in a `<div>` or other block container. | | — |
-| `datetime_single` | Format a date and time from a combined field or from separate date and time fields. By default it hides midnight times and the current year. Sources with several results can show a list of dates. | | `try_datetime_single` |
-| `datetime_range` | Format a date and time range from separate start and end fields, like the Date/Time tag does. In a list of ranges, the result separator goes between whole ranges and the range separator between each start and end. | | `try_datetime_range` |
+| `datetime` | Format a date and time, or a start and end range, from custom fields, a post's published or modified date, or the current time. By default it hides midnight times and the current year. | **[UNRELEASED]** Replaces `datetime_single` and `datetime_range`, which keep working but no longer appear in the picker. | **[UNRELEASED]** `try_datetime` |
 | `image` | Get an image from a meta or option field, the post featured image, or the site logo, with full return options (URL, `alt` text, etc.) and a fallback image picker. | Since terms have no native image fields, a field name must be supplied to retrieve images from a term source. | `try_image` |
 | `email` | Return a valid-looking email address as a `mailto` link or plain text. Invalid addresses return nothing, or the fallback address if supplied. | | `try_email` |
 | `phone` | Return a valid-looking phone number as a `tel` link or plain text. Link text shows the number as it was entered, but the `tel` link is normalized, and if a default country code is supplied in the plugin's settings, it is added to numbers that have no international prefix. Invalid numbers return nothing, or the fallback number if supplied. | | `try_phone` |
@@ -35,12 +34,12 @@ Rather than being prefixed and locked to particular contexts, our tags work acro
 | `text`, `content`, `image` with a field key | Post field | Term field | User field | Row field | — | Option field | `post_meta`, `term_meta`, `loop_item`, `option` |
 | `email`, `phone` with a field key | Post field | Term field | User field | Row field | — | Option field | Without linking and validation/normalization: `post_meta`, `term_meta`, `loop_item`, `option` |
 | `image` with featured image | Featured image | — | — | — | — | Site logo | `featured_image`, `site_logo_url` |
-| `datetime_single`, `datetime_range` | Post field | Term field | — | Row field | — | Option field | Without custom formatting: `post_meta`, `term_meta`, `loop_item`, `option` |
+| `datetime` **[UNRELEASED]** | Post field | Term field | — | Row field | — | Option field | Without custom formatting: `post_meta`, `term_meta`, `loop_item`, `option` |
 | `permalink` | Post URL | Term URL | — | — | — | Site URL | `post_permalink`, `site_url` |
 
 **Post** is a single post or page, a post query loop item, a post you pick, or a *Posts in Reference/Relational Field* step. **Term** is a term archive, a term query loop item, a term you pick, or a *Terms in Taxonomy* step. **User** is the user an author archive or a user query loop item is about, never the logged-in visitor. **Repeater row** is a repeater query loop item or a *Rows in Repeater Field* step. The last page column is a date or post type archive, search results, a 404, or a blog homepage with no page assigned. **Site** is the *Site* source. The GP/GB alternatives each cover only some of a row's cells; `archive_title` and `archive_description` work only on the archive page itself.
 
-`try_` variants, `join` slots and `table` columns follow the same rows, except that `try_datetime_` slots take no *Site* source. Measurement details are in [the tag reference](docs/tag-reference.md#coverage-by-ambient-context).
+`try_` variants, `join` slots and `table` columns follow the same rows. Measurement details are in [the tag reference](docs/tag-reference.md#coverage-by-ambient-context).
 
 ### Build source paths to access related data
 
@@ -150,9 +149,9 @@ Styles are written to one small stylesheet per distinct table design, never as i
 
 ### `try_` tags: Return the first successful source/field attempt
 
-`try_*` tags (e.g. `try_text`, `try_image`, `try_content`, `try_datetime_single`, `try_email`, `try_phone`) allow using the first available (populated) field from an editor-selected list of up to five sources/fields. Each slot resolves exactly as the standalone tag would (`try_email` outputs a finished `mailto:` link per slot, `try_phone` a `tel:` link), so a contact chain like "personal email → team email → site-wide address" works without multiple blocks and complicated visibility conditions.
+`try_*` tags (e.g. `try_text`, `try_image`, `try_content`, `try_datetime` **[UNRELEASED]**, `try_email`, `try_phone`) allow using the first available (populated) field from an editor-selected list of up to five sources/fields. Each slot resolves exactly as the standalone tag would (`try_email` outputs a finished `mailto:` link per slot, `try_phone` a `tel:` link), so a contact chain like "personal email → team email → site-wide address" works without multiple blocks and complicated visibility conditions.
 
-Other than `try_datetime_`, the `try_` tags accept a site source per slot, so a chain can end in a site-wide fallback value.
+The `try_` tags accept a site source per slot, so a chain can end in a site-wide fallback value.
 
 ### `call`: Return custom function output
 

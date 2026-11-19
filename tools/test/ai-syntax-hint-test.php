@@ -99,6 +99,7 @@ class GenerateBlocks_Dynamic_Tag_Callbacks {
 require $root . '/autoload.php';
 
 foreach ( array(
+	'includes/rest/field-discovery.php',
 	'includes/helpers/gb-output-boundary.php',
 	'includes/helpers/gb-registration-boundary.php',
 	'includes/helpers/image-helpers.php',
@@ -235,9 +236,11 @@ function value_offered( array $option, string $value ): bool {
 	if ( null === $offered ) {
 		return true;
 	}
+	// The datetime `use` is an ordered `;` list of reads (the verbs are its only closed values here), so
+	// each entry is held to the offered set; every other `use` is one token.
 	$heads = isset( $option['fold'] )
 		? array_map( fn( $s ) => strstr( $s . ',', ',', true ), explode( ';', $value ) )
-		: array( $value );
+		: ( in_array( 'now', $offered, true ) ? explode( ';', $value ) : array( $value ) );
 	return array() === array_diff( $heads, $offered );
 }
 
@@ -252,7 +255,7 @@ function teaches_field_read( string $key, string $value ): bool {
 		return true;
 	}
 	if ( 'use' === $key ) {
-		return in_array( $value, array( 'key', 'meta', 'option' ), true );
+		return (bool) array_intersect( explode( ';', $value ), array( 'key', 'meta', 'option' ) );
 	}
 	if ( 'linkTo' === $key ) {
 		return 'key' === $value;
@@ -545,7 +548,7 @@ echo "2b. REVIEWED VOCABULARY: a hinted option's values are the ones its hint wa
 
 const REVIEWED_VOCABULARY = array(
 	'src'    => array( 'current', 'parent', 'post', 'refs', 'rows', 'site', 'term', 'terms' ),
-	'use'    => array( '', 'excerpt', 'featured', 'fixed', 'key', 'title' ),
+	'use'    => array( '', 'excerpt', 'featured', 'fixed', 'key', 'modified', 'now', 'published', 'title' ),
 	'fixed'  => array(),
 	// A and B (table and the try_ tags) pin the reads a slot offers and the roots and steps of its chain.
 	'A'      => array( '', 'content', 'current', 'excerpt', 'featured', 'fixed', 'key', 'parent', 'post', 'refs', 'rows', 'site', 'term', 'terms', 'title' ),

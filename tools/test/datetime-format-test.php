@@ -12,9 +12,11 @@
  *   - bws_format_time_range()          — #25 surface (12-hour consolidation)
  *   - bws_format_date_range()          — separator / year-omission / smart-time
  *   - bws_format_single_date_time()    — year-omission / midnight suppression
- *   - bws_resolve_time_only_format()   — custom → ACF → WP-default chain (v1.7.4)
+ *   - bws_resolve_time_only_format()   — custom → separate time field → field's own tokens →
+ *                                        WP-default chain (v1.7.4)
  *   - bws_build_single_format() / bws_build_range_format() — format assembly
- *   - bws_datetime_coerce_read_target() — FW-3a legacy-scalar → resolved-source shim
+ *   - bws_format_time_display()       — the ONE time display, single core and range core
+ *                                       alike
  *   - the option-key normalizer        — public→core key mapping (FW-2 baseline;
  *     bws_normalize_datetime_options(), the one parse site. The pre-FW-2
  *     mapper fallback went with the wrappers themselves in 1.21.0 —
@@ -74,6 +76,7 @@ if ( ! function_exists( 'wp_validate_boolean' ) ) {
 }
 
 require __DIR__ . '/../../includes/helpers/slot-fold.php'; // bws_flag_is_on().
+require __DIR__ . '/../../includes/helpers/registration-helpers.php'; // bws_use_effective(): the merged tag's `use`.
 require __DIR__ . '/../../includes/helpers/datetime-helpers.php';
 require __DIR__ . '/../../includes/tags/datetime-tags.php';
 
@@ -234,6 +237,188 @@ assert_same(
 	) ), array( 'omit_current_year', 'hide_midnight' ) )
 );
 
+// FW-81: the merged tag's one `key` option. `;` separates reads (the entry count is the
+// mode), `+` joins a primary field to a supplementary time field, a third operand is ignored.
+$reads_of = static function ( array $options ): array {
+	return pick( bws_normalize_datetime_options( $options, null ), array(
+		'is_range', 'date_time_field', 'time_field',
+		'start_field', 'start_time_field', 'end_field', 'end_time_field',
+	) );
+};
+$unset6 = array(
+	'is_range' => '(unset)', 'date_time_field' => '(unset)', 'time_field' => '(unset)',
+	'start_field' => '(unset)', 'start_time_field' => '(unset)',
+	'end_field' => '(unset)', 'end_time_field' => '(unset)',
+);
+
+assert_same( 'N8 one entry is a single read',
+	array_merge( $unset6, array( 'is_range' => false, 'date_time_field' => 'event_datetime' ) ),
+	$reads_of( array( 'key' => 'event_datetime' ) )
+);
+assert_same( 'N9 `a+b` is one read from two fields',
+	array_merge( $unset6, array( 'is_range' => false, 'date_time_field' => 'event_date', 'time_field' => 'start_time' ) ),
+	$reads_of( array( 'key' => 'event_date+start_time' ) )
+);
+assert_same( 'N10 a third operand is ignored',
+	$reads_of( array( 'key' => 'a+b' ) ),
+	$reads_of( array( 'key' => 'a+b+c' ) )
+);
+assert_same( 'N11 two entries are a range, start then end',
+	array_merge( $unset6, array( 'is_range' => true, 'start_field' => 'start_dt', 'end_field' => 'end_dt' ) ),
+	$reads_of( array( 'key' => 'start_dt;end_dt' ) )
+);
+assert_same( 'N12 `a+b;c` is a range whose start is two fields and whose end is a time-only field',
+	array_merge( $unset6, array( 'is_range' => true, 'start_field' => 'event_date', 'start_time_field' => 'start_time', 'end_field' => 'end_time' ) ),
+	$reads_of( array( 'key' => 'event_date+start_time;end_time' ) )
+);
+assert_same( 'N13 `a;` is still a range (an empty second read), `a;b;c` ignores the third',
+	array( true, '', 'b' ),
+	array(
+		$reads_of( array( 'key' => 'a;' ) )['is_range'],
+		$reads_of( array( 'key' => 'a;' ) )['end_field'],
+		$reads_of( array( 'key' => 'a;b;c' ) )['end_field'],
+	)
+);
+assert_same( 'N14 a blank or absent `key` is a read-less single (the fallback path)',
+	array_merge( $unset6, array( 'is_range' => false ) ),
+	$reads_of( array( 'key' => '  ' ) )
+);
+assert_same( 'N14b ...and so is no key at all',
+	$reads_of( array( 'key' => '' ) ),
+	$reads_of( array() )
+);
+assert_same( 'N15 the old range keys still derive a range, the old single keys a single',
+	array( true, false ),
+	array(
+		bws_normalize_datetime_options( array( 'endKey' => 'x' ), null )['is_range'],
+		bws_normalize_datetime_options( array( 'key' => 'x', 'timeKey' => 't' ), null )['is_range'],
+	)
+);
+assert_same( 'N16 a stray `key` beside the old range keys stays inert on the old range tag',
+	array( 'start_field' => 'a', 'end_field' => '(unset)' ),
+	pick( norm_range( array( 'startKey' => 'a', 'key' => 'x;y' ) ), array( 'start_field', 'end_field' ) )
+);
+assert_same( 'N17 the old tags\' fixed families ignore the derive: a single stays single on `a;b`',
+	array( 'date_time_field' => 'a', 'is_range' => false ),
+	pick( norm_single( array( 'key' => 'a;b' ) ), array( 'date_time_field', 'is_range' ) )
+);
+assert_same( 'N18 the old `timeKey` wins over a `+` operand (the old family keeps its own spelling)',
+	'old_t',
+	norm_single( array( 'key' => 'a+new_t', 'timeKey' => 'old_t' ) )['time_field']
+);
+
+// ===========================================================================
+echo "\nV — verbs and `use` (FW-81)\n";
+// ===========================================================================
+
+// `use` lists the reads in order once a verb is present; each `key` in it takes the next
+// `key` entry and a verb takes none. Everything below goes through the merged tag's normalizer.
+$vreads = static function ( array $options ): array {
+	return pick( bws_normalize_datetime_options( $options, null ), array(
+		'is_range', 'verb', 'date_time_field', 'time_field',
+		'start_verb', 'start_field', 'start_time_field',
+		'end_verb', 'end_field', 'end_time_field',
+	) );
+};
+$unsetv = array(
+	'is_range' => '(unset)', 'verb' => '(unset)', 'date_time_field' => '(unset)', 'time_field' => '(unset)',
+	'start_verb' => '(unset)', 'start_field' => '(unset)', 'start_time_field' => '(unset)',
+	'end_verb' => '(unset)', 'end_field' => '(unset)', 'end_time_field' => '(unset)',
+);
+
+foreach ( array( 'now', 'published', 'modified' ) as $verb ) {
+	assert_same( "V1 `use:{$verb}` alone is a single verb read",
+		array_merge( $unsetv, array( 'is_range' => false, 'verb' => $verb ) ),
+		$vreads( array( 'use' => $verb ) )
+	);
+}
+assert_same( 'V2 a field then a verb: a range from the field until now',
+	array_merge( $unsetv, array( 'is_range' => true, 'start_field' => 'event_date', 'start_time_field' => 'start_time', 'end_verb' => 'now' ) ),
+	$vreads( array( 'use' => 'key;now', 'key' => 'event_date+start_time' ) )
+);
+assert_same( 'V3 a verb then a field: a range from now until the field (position is the difference)',
+	array_merge( $unsetv, array( 'is_range' => true, 'start_verb' => 'now', 'end_field' => 'end_date' ) ),
+	$vreads( array( 'use' => 'now;key', 'key' => 'end_date' ) )
+);
+assert_same( 'V4 a verb takes no `key` entry: now;key;key hands its two entries to the two fields, in order',
+	array( 'is_range' => true, 'start_verb' => 'now', 'start_field' => '(unset)', 'end_field' => 'a' ),
+	array_intersect_key( $vreads( array( 'use' => 'now;key;key', 'key' => 'a;b' ) ), array_flip( array( 'is_range', 'start_verb', 'start_field', 'end_field' ) ) )
+);
+assert_same( 'V5 two verbs, no key at all, are a range',
+	array_merge( $unsetv, array( 'is_range' => true, 'start_verb' => 'published', 'end_verb' => 'now' ) ),
+	$vreads( array( 'use' => 'published;now' ) )
+);
+assert_same( 'V6 an all-`key` use normalizes away: use:key;key|key:a;b reads as key:a;b',
+	$vreads( array( 'key' => 'a;b' ) ),
+	$vreads( array( 'use' => 'key;key', 'key' => 'a;b' ) )
+);
+assert_same( 'V7 ...and use:key alone, with or without a key entry, as no use at all',
+	array( $vreads( array( 'key' => 'a' ) ), $vreads( array() ) ),
+	array( $vreads( array( 'use' => 'key', 'key' => 'a' ) ), $vreads( array( 'use' => 'key' ) ) )
+);
+assert_same( 'V8 use:key|key:a;b is the range key:a;b says (the normalized-away form must not move output)',
+	true,
+	$vreads( array( 'use' => 'key', 'key' => 'a;b' ) )['is_range']
+);
+assert_same( 'V9 a missing entry is an empty read: use:key;now with no key is a range with an empty start',
+	array_merge( $unsetv, array( 'is_range' => true, 'start_field' => '', 'end_verb' => 'now' ) ),
+	$vreads( array( 'use' => 'key;now' ) )
+);
+assert_same( 'V10 a surplus entry is ignored: use:now;key|key:a;b;c reads only a',
+	$vreads( array( 'use' => 'now;key', 'key' => 'a' ) ),
+	$vreads( array( 'use' => 'now;key', 'key' => 'a;b;c' ) )
+);
+assert_same( 'V11 a verb with a key beside it ignores the key: use:now|key:a is the single verb read',
+	$vreads( array( 'use' => 'now' ) ),
+	$vreads( array( 'use' => 'now', 'key' => 'a' ) )
+);
+assert_same( 'V12 a name that is neither `key` nor a verb is dropped, not read as an empty read',
+	$vreads( array( 'key' => 'a' ) ),
+	$vreads( array( 'use' => 'nope;key', 'key' => 'a' ) )
+);
+assert_same( 'V13 the old tags have no `use`: their families ignore it',
+	array( 'date_time_field' => 'a', 'verb' => '(unset)' ),
+	pick( norm_single( array( 'use' => 'now', 'key' => 'a' ) ), array( 'date_time_field', 'verb' ) )
+);
+assert_same( 'V13b ...and so does the old range family',
+	array( 'start_field' => 'a', 'start_verb' => '(unset)' ),
+	pick( norm_range( array( 'use' => 'now;key', 'startKey' => 'a' ) ), array( 'start_field', 'start_verb' ) )
+);
+assert_same( 'V14 a `+` pair rides its own entry across a verb: use:now;key|key:d+t',
+	array_merge( $unsetv, array( 'is_range' => true, 'start_verb' => 'now', 'end_field' => 'd', 'end_time_field' => 't' ) ),
+	$vreads( array( 'use' => 'now;key', 'key' => 'd+t' ) )
+);
+
+// The verb's parse result: `now` a timed moment, a post date a date, anything else nothing.
+function get_post_datetime( $post, $field = 'date' ) {
+	$map = array( 7 => array( 'date' => '2026-03-03 09:15:00', 'modified' => '2026-04-04 18:30:00' ) );
+	return isset( $map[ $post ] ) ? new DateTimeImmutable( $map[ $post ][ $field ], wp_timezone() ) : false;
+}
+$post7  = array( 'kind' => 'post', 'id' => 7 );
+$vr_now = bws_datetime_verb_result( 'now', array( 'kind' => 'term', 'id' => 3 ) );
+assert_same( 'V16 `now` reads on any source, and carries a time',
+	array( true, true ),
+	array( $vr_now['date'] instanceof DateTime, $vr_now['has_time'] )
+);
+assert_same( 'V17 `published` is the post date, as a date (no time shown)',
+	array( '2026-03-03 09:15', false ),
+	array( bws_datetime_verb_result( 'published', $post7 )['date']->format( 'Y-m-d H:i' ), bws_datetime_verb_result( 'published', $post7 )['has_time'] )
+);
+assert_same( 'V18 `modified` is the post modified date',
+	'2026-04-04 18:30',
+	bws_datetime_verb_result( 'modified', $post7 )['date']->format( 'Y-m-d H:i' )
+);
+assert_same( 'V19 a post verb on a term, the site, a row, no entity, or a post with no date reads nothing',
+	array( null, null, null, null, null ),
+	array(
+		bws_datetime_verb_result( 'published', array( 'kind' => 'term', 'id' => 7 ) )['date'],
+		bws_datetime_verb_result( 'published', array( 'kind' => 'site' ) )['date'],
+		bws_datetime_verb_result( 'modified', array( 'kind' => 'meta_row' ) )['date'],
+		bws_datetime_verb_result( 'published', array( 'kind' => 'post', 'id' => false ) )['date'],
+		bws_datetime_verb_result( 'published', array( 'kind' => 'post', 'id' => 99 ) )['date'],
+	)
+);
+
 // ===========================================================================
 echo "\nF — bws_resolve_time_only_format (custom → ACF → WP default; v1.7.4)\n";
 // ===========================================================================
@@ -265,6 +450,144 @@ assert_same( 'F5 no custom → ACF field time format',
 assert_same( 'F6 no custom, no ACF format → WP time_format default',
 	'g:i A',
 	bws_resolve_time_only_format( array(), $res_no_fmt )
+);
+
+// The field's OWN return format is the next rule down the chain: a datetime
+// field whose format carries time tokens supplies them, ahead of the WordPress option.
+// Every expectation below differs from the WP shim's `g:i A`, so a pass cannot come from it.
+$res_combined_lower = $empty_result;
+$res_combined_lower['formats']['combined_format'] = 'F j, Y g:i a';
+$res_combined_24h = $empty_result;
+$res_combined_24h['formats']['combined_format'] = 'Y-m-d H:i';
+$res_combined_date = $empty_result;
+$res_combined_date['formats']['combined_format'] = 'F j, Y';
+$res_both = $empty_result;
+$res_both['formats']['time_format']     = 'H:i';
+$res_both['formats']['combined_format'] = 'F j, Y g:i a';
+
+assert_same( 'F7 no custom, no separate time format → the datetime field\'s own time tokens',
+	'g:i a',
+	bws_resolve_time_only_format( array(), $res_combined_lower )
+);
+assert_same( 'F8 24-hour field format keeps its style (not the WP 12-hour option)',
+	'H:i',
+	bws_resolve_time_only_format( array(), $res_combined_24h )
+);
+assert_same( 'F9 a separate time field\'s format outranks the combined format',
+	'H:i',
+	bws_resolve_time_only_format( array(), $res_both )
+);
+assert_same( 'F10 a combined format with NO time tokens contributes nothing → WP default',
+	'g:i A',
+	bws_resolve_time_only_format( array(), $res_combined_date )
+);
+assert_same( 'F11 custom format still outranks the field\'s own tokens',
+	'H:i',
+	bws_resolve_time_only_format( array( 'format_type' => 'custom', 'custom_format' => 'H:i' ), $res_combined_lower )
+);
+
+// ===========================================================================
+echo "\nU — bws_format_time_display (the ONE time display; single core, range core)\n";
+// ===========================================================================
+// Pure over parse results. One side is a start only; two sides are a time range. A side
+// "has a time" when its parse says so (has_time / time_only), never because a DateTime
+// exists: a date-only value carries the parser's noon safety buffer, and showing it is a leak.
+
+$u_dt = static function ( string $when, string $combined, bool $has_time = true ) use ( $empty_result ): array {
+	$r = $empty_result;
+	$r['date']     = dt( $when );
+	$r['has_time'] = $has_time;
+	$r['formats']['combined_format'] = $combined;
+	return $r;
+};
+$u_time_only = static function ( string $when, string $format ) use ( $empty_result ): array {
+	$r = $empty_result;
+	$r['time_only'] = dt( $when );
+	$r['formats']['time_format'] = $format;
+	return $r;
+};
+$show = array( 'hide_midnight' => false );
+$hide = array( 'hide_midnight' => true );
+
+assert_same( 'U1 datetime field: its own time tokens, not the WP option (field g:i a, WP g:i A)',
+	'9:00 am',
+	bws_format_time_display( $u_dt( '2030-08-12 09:00', 'F j, Y g:i a' ), null, $hide )
+);
+assert_same( 'U2 date-only field: no time part, so nothing (the 12:00 noon buffer never shows)',
+	'',
+	bws_format_time_display( $u_dt( '2030-08-12 12:00', 'F j, Y', false ), null, $hide )
+);
+assert_same( 'U3 time-only field: bare time in the field\'s own format',
+	'9:00 AM',
+	bws_format_time_display( $u_time_only( '2030-08-12 09:00', 'g:i A' ), null, $hide )
+);
+assert_same( 'U4 midnight is hidden by default (hide_midnight)',
+	'',
+	bws_format_time_display( $u_dt( '2030-08-12 00:00', 'F j, Y g:i A' ), null, $hide )
+);
+assert_same( 'U5 midnight prints once showMidnight is on (hide_midnight false)',
+	'12:00 AM',
+	bws_format_time_display( $u_dt( '2030-08-12 00:00', 'F j, Y g:i A' ), null, $show )
+);
+assert_same( 'U6 a time-only field at midnight follows the same rule (hidden)',
+	'',
+	bws_format_time_display( $u_time_only( '2030-08-12 00:00', 'g:i A' ), null, $hide )
+);
+assert_same( 'U7 two-ended: same meridiem consolidates, in the START field\'s own tokens',
+	'9:00–11:30 am',
+	bws_format_time_display( $u_dt( '2030-08-12 09:00', 'F j, Y g:i a' ), $u_dt( '2030-08-12 11:30', 'F j, Y g:i a' ), $hide )
+);
+assert_same( 'U8 two-ended time-only fields: the same range, no labels',
+	'9:00–11:30 AM',
+	bws_format_time_display( $u_time_only( '2030-08-12 09:00', 'g:i A' ), $u_dt( '2030-08-12 11:30', 'g:i A' ), $hide )
+);
+assert_same( 'U9 two-ended all-day span (00:00 to 23:59) is hidden by default',
+	'',
+	bws_format_time_display( $u_dt( '2030-08-12 00:00', 'F j, Y g:i A' ), $u_dt( '2030-08-12 23:59', 'F j, Y g:i A' ), $hide )
+);
+assert_same( 'U10 two-ended all-day span prints in full with showMidnight',
+	'12:00 AM–11:59 PM',
+	bws_format_time_display( $u_dt( '2030-08-12 00:00', 'F j, Y g:i A' ), $u_dt( '2030-08-12 23:59', 'F j, Y g:i A' ), $show )
+);
+assert_same( 'U11 a time-only start with a date-time end prints both times and drops the end\'s date',
+	'9:00 AM–5:00 PM',
+	bws_format_time_display( $u_time_only( '2030-08-12 09:00', 'g:i A' ), $u_dt( '2030-08-13 17:00', 'F j, Y g:i A' ), $hide )
+);
+assert_same( 'U12 a date-only start with a timed end shows the end\'s time alone (no noon)',
+	'5:00 PM',
+	bws_format_time_display( $u_dt( '2030-08-12 12:00', 'F j, Y', false ), $u_dt( '2030-08-12 17:00', 'F j, Y g:i A' ), $hide )
+);
+assert_same( 'U13 two date-only sides: nothing',
+	'',
+	bws_format_time_display( $u_dt( '2030-08-12 12:00', 'F j, Y', false ), $u_dt( '2030-08-14 12:00', 'F j, Y', false ), $hide )
+);
+assert_same( 'U14 custom format beats the field\'s own tokens, one side',
+	'09:00',
+	bws_format_time_display( $u_dt( '2030-08-12 09:00', 'F j, Y g:i a' ), null, array( 'hide_midnight' => true, 'format_type' => 'custom', 'custom_format' => 'H:i' ) )
+);
+assert_same( 'U15 custom format on a TIME-ONLY field is honored (it used to print a hardcoded g:i A)',
+	'09:00',
+	bws_format_time_display( $u_time_only( '2030-08-12 09:00', 'g:i A' ), null, array( 'hide_midnight' => true, 'format_type' => 'custom', 'custom_format' => 'H:i' ) )
+);
+assert_same( 'U17 an end alone is held to the same all-day sentinel as a pair: 23:59 is no time, hidden',
+	'',
+	bws_format_time_display( $u_dt( '2030-08-12 12:00', 'F j, Y', false ), $u_dt( '2030-08-12 23:59', 'F j, Y g:i A' ), $hide )
+);
+assert_same( 'U18 the same end prints once showMidnight is on',
+	'11:59 PM',
+	bws_format_time_display( $u_dt( '2030-08-12 12:00', 'F j, Y', false ), $u_dt( '2030-08-12 23:59', 'F j, Y g:i A' ), $show )
+);
+assert_same( 'U19 as:date on a time-only field: it has no date to show, so nothing',
+	'',
+	bws_format_time_display( $u_time_only( '2030-08-12 09:00', 'g:i A' ), null, array( 'hide_midnight' => true, 'date_only' => true ) )
+);
+assert_same( 'U20 as:date on a time-only start with a timed end: still nothing',
+	'',
+	bws_format_time_display( $u_time_only( '2030-08-12 09:00', 'g:i A' ), $u_dt( '2030-08-12 17:00', 'F j, Y g:i A' ), array( 'hide_midnight' => true, 'date_only' => true ) )
+);
+assert_same( 'U16 no start time at all: nothing, even when an end exists',
+	'',
+	bws_format_time_display( $empty_result, $u_dt( '2030-08-12 17:00', 'F j, Y g:i A' ), $hide )
 );
 
 // ===========================================================================
@@ -564,42 +887,25 @@ assert_same( 'B10 range: no formats → WP defaults, date-only',
 	bws_build_range_format( array(), $empty_result, null, false )
 );
 
-// ===========================================================================
-echo "\nK — bws_datetime_coerce_read_target (FW-3a legacy-scalar shim)\n";
-// ===========================================================================
-
-assert_same( 'K1 resolved-source array passes through verbatim (idempotent)',
-	array( 'kind' => 'term', 'id' => 7, 'taxonomy' => 'department' ),
-	bws_datetime_coerce_read_target( array( 'kind' => 'term', 'id' => 7, 'taxonomy' => 'department' ) )
+echo "
+" . 'G — the family map: tag name to the $range argument and back' . "
+";
+foreach ( array(
+	'datetime'            => null,
+	'datetime_single'     => false,
+	'datetime_range'      => true,
+	'try_datetime'        => null,
+	'try_datetime_single' => false,
+	'try_datetime_range'  => true,
+) as $tag => $family ) {
+	assert_same( "G1 {$tag} is family " . var_export( $family, true ), $family, bws_datetime_family( $tag ) );
+}
+assert_same( 'G2 each family names its base tag',
+	array( 'datetime', 'datetime_single', 'datetime_range' ),
+	array( bws_datetime_family_tag( null ), bws_datetime_family_tag( false ), bws_datetime_family_tag( true ) )
 );
-assert_same( 'K2 \'option\' sentinel → site kind',
-	array( 'kind' => 'site' ),
-	bws_datetime_coerce_read_target( 'option' )
-);
-assert_same( 'K3 ACF term object-id string → term kind + taxonomy split',
-	array( 'kind' => 'term', 'id' => 5, 'taxonomy' => 'department' ),
-	bws_datetime_coerce_read_target( 'department_5' )
-);
-assert_same( 'K4 underscored taxonomy keeps full slug (greedy prefix)',
-	array( 'kind' => 'term', 'id' => 12, 'taxonomy' => 'product_cat' ),
-	bws_datetime_coerce_read_target( 'product_cat_12' )
-);
-assert_same( 'K5 bare int → post kind',
-	array( 'kind' => 'post', 'id' => 42 ),
-	bws_datetime_coerce_read_target( 42 )
-);
-assert_same( 'K6 numeric string → post kind (no term-regex false positive)',
-	array( 'kind' => 'post', 'id' => 123 ),
-	bws_datetime_coerce_read_target( '123' )
-);
-assert_same( 'K7 false → post kind, id false (loop-item entity-less read)',
-	array( 'kind' => 'post', 'id' => false ),
-	bws_datetime_coerce_read_target( false )
-);
-assert_same( 'K8 empty string → post kind, id false',
-	array( 'kind' => 'post', 'id' => false ),
-	bws_datetime_coerce_read_target( '' )
-);
+assert_same( 'G3 a name that is no datetime tag reads as the merged family (null), as documented',
+	null, bws_datetime_family( 'text' ) );
 
 echo "\n" . ( $failures ? "FAILED {$failures}/{$count}\n" : "PASSED {$count}/{$count}\n" );
 exit( $failures ? 1 : 0 );

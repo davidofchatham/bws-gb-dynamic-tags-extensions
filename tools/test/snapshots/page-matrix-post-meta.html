@@ -313,6 +313,20 @@
 </div>
 
 <div>
+<h2 class="wp-block-heading">Text T14 &#8211; datetime-shaped key on text</h2>
+
+<p class="gb-text">T14.1 (expect the main line number only &#8211; the first read): (987) 654-3210</p>
+
+<p class="gb-text">T14.2 (expect 0 only &#8211; the first read, the order reversed): 0 </p>
+
+<p class="gb-text">T14.3 (expect the main line number only &#8211; the first operand): (987) 654-3210</p>
+
+<p class="gb-text">T14.4 (expect 0 only &#8211; the first operand, the order reversed): 0 </p>
+
+<p class="gb-text">T14.5 (expect NONE &#8211; the first read is empty and the second does not rescue it): NONE</p>
+</div>
+
+<div>
 <h2 class="wp-block-heading">Site R7 &#8211; try_ site slots</h2>
 
 <p class="gb-text">R7.1: BWS Testbed</p>
@@ -572,9 +586,9 @@
 
 <p class="gb-text">D1.2: 9:00 AM</p>
 
-<p class="gb-text">D1.3: 9:00 AM</p>
+<p class="gb-text">D1.3: 9:00 am</p>
 
-<p class="gb-text">D1.4: 9:00 am</p>
+<p class="gb-text">D1.4: 9:00 AM</p>
 
 <p class="gb-text">D1.5: 09:00</p>
 </div>
@@ -590,7 +604,7 @@
 
 <p class="gb-text">D2.4: August 12, 2030, 5:00 PM</p>
 
-<p class="gb-text">D2.5: 9:00 am–5:00 pm</p>
+<p class="gb-text">D2.5: 9:00 AM–5:00 PM</p>
 
 <p class="gb-text">D2.6: 9:00–11:30 am</p>
 </div>
@@ -616,11 +630,11 @@
 
 <p class="gb-text">D8.3 expect EMPTY (as:time on an all-day span has no time to show):</p>
 
-<p class="gb-text">D8.4 expect &#8220;12:00 am-11:59 pm&#8221; (showMidnight opts back in to both ends): 12:00 am–11:59 pm</p>
+<p class="gb-text">D8.4 expect &#8220;12:00 AM-11:59 PM&#8221; (showMidnight opts back in to both ends): 12:00 AM–11:59 PM</p>
 
 <p class="gb-text">D8.5 expect &#8220;9:00-11:30 am&#8221; consolidated EVEN WITH showMidnight on (#125): 9:00–11:30 am</p>
 
-<p class="gb-text">D8.6 expect &#8220;9:00 am-5:00 pm&#8221; (cross-meridiem stays full under showMidnight): 9:00 am–5:00 pm</p>
+<p class="gb-text">D8.6 expect &#8220;9:00 AM-5:00 PM&#8221; (cross-meridiem stays full under showMidnight): 9:00 AM–5:00 PM</p>
 
 <p class="gb-text">D8.7 expect &#8220;09:00-11:30&#8221; (24-hour format gate still blocks consolidation): 09:00–11:30</p>
 </div>
@@ -736,9 +750,13 @@
 
 <p class="gb-text">F5.3 (-> /staff/jane-partner/): /staff/jane-partner/</p>
 
-<p class="gb-text">F5.5 slot 1 genuinely wins &#8211; jane&#8217;s date, not the page&#8217;s (-> May 1, 2030 10:00 AM): May 1, 2030 10:00 AM, June 1, 2030 11:00 AM</p>
+<p class="gb-text">F5.5 slot 1 genuinely wins &#8211; the staff list, not the page&#8217;s own date (-> May 1, 2030 10:00 AM, June 1, 2030 11:00 AM): May 1, 2030 10:00 AM, June 1, 2030 11:00 AM</p>
 
 <p class="gb-text">F5.6 legacy twin of F5.4 &#8211; slot 1 hop misses, slot 2 reads current (-> August 12, 2030 9:00 AM): August 12, 2030 9:00 AM</p>
+
+<p class="gb-text">F5.8 try_datetime twin of F5.4 &#8211; slot 1 hop misses, slot 2 reads current (-> August 12, 2030 9:00 AM): August 12, 2030 9:00 AM</p>
+
+<p class="gb-text">F5.9 try_datetime twin of F5.5 &#8211; slot 1 wins with the staff list, not the current post (-> May 1, 2030 10:00 AM, June 1, 2030 11:00 AM): May 1, 2030 10:00 AM, June 1, 2030 11:00 AM</p>
 </div>
 
 <div>

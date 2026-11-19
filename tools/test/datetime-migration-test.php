@@ -92,6 +92,7 @@ require __DIR__ . '/../../includes/classes/class-deprecated-tag-registry.php';
 require __DIR__ . '/../../includes/classes/class-tag-template-registry.php';
 require __DIR__ . '/../../includes/tags/deprecated-tags.php';
 // The MODERN read half of the equivalence property.
+require __DIR__ . '/../../includes/helpers/registration-helpers.php'; // bws_use_effective(): the merged tag's `use`.
 require __DIR__ . '/../../includes/tags/datetime-tags.php';
 
 use BWS\DynamicTags\MigrationRegistry;
@@ -362,6 +363,89 @@ $unknown = $migrate_opt( '{{datetime_single date_time_field:d|zzCustomKey:keep-m
 assert_eq( 'D6.5 an UNKNOWN key survives the canonical sort',
 	true,
 	false !== strpos( $unknown, 'zzCustomKey:keep-me' ) );
+
+// ===========================================================================
+echo "\nD7 — the merged `datetime` wire reads what each old key read (FW-81)\n";
+
+// The six old field options and the merged tag's one `key` are two spellings of the same
+// reads, so the shipped normalizer must hand the cores the same six canonical fields for
+// both. Property, not examples: every old key alone, then the pairings, each against its
+// equivalent `key` wire.
+$six = array( 'date_time_field', 'time_field', 'start_field', 'start_time_field', 'end_field', 'end_time_field' );
+$read_fields = static function ( array $options, ?bool $range ) use ( $six ): array {
+	$n   = bws_normalize_datetime_options( $options, $range );
+	$out = array();
+	foreach ( $six as $k ) {
+		$out[ $k ] = $n[ $k ] ?? '';
+	}
+	return $out;
+};
+
+foreach ( array(
+	'D7.1 key'                       => array( array( 'key' => 'a' ), false, array( 'key' => 'a' ) ),
+	'D7.2 key + timeKey'             => array( array( 'key' => 'a', 'timeKey' => 'b' ), false, array( 'key' => 'a+b' ) ),
+	'D7.3 startKey'                  => array( array( 'startKey' => 'a' ), true, array( 'key' => 'a;' ) ),
+	'D7.4 startKey + startTimeKey'   => array( array( 'startKey' => 'a', 'startTimeKey' => 'b' ), true, array( 'key' => 'a+b;' ) ),
+	'D7.5 start + endKey'            => array( array( 'startKey' => 'a', 'endKey' => 'c' ), true, array( 'key' => 'a;c' ) ),
+	'D7.6 start + endTimeKey (the end inherits the start date)' => array( array( 'startKey' => 'a', 'endTimeKey' => 'd' ), true, array( 'key' => 'a;+d' ) ),
+	'D7.7 all four'                  => array( array( 'startKey' => 'a', 'startTimeKey' => 'b', 'endKey' => 'c', 'endTimeKey' => 'd' ), true, array( 'key' => 'a+b;c+d' ) ),
+) as $label => list( $old, $old_range, $merged ) ) {
+	assert_eq( $label, $read_fields( $old, $old_range ), $read_fields( $merged, null ) );
+}
+
+// The mode the merged tag derives is the family the old wire named, for every row above.
+assert_eq( 'D7.8 old single keys derive single', false, bws_normalize_datetime_options( array( 'key' => 'a', 'timeKey' => 'b' ), null )['is_range'] );
+assert_eq( 'D7.9 old range keys derive range', true, bws_normalize_datetime_options( array( 'startKey' => 'a' ), null )['is_range'] );
+
+// ===========================================================================
+echo "\nD8 — the old six keys rewritten to the one `key` (FW-81)\n";
+
+// One corpus, two languages. The rewrite is the editor's mount step and the Migration Tool's converter
+// step, so the same inputs drive the PHP rule here and the JS twin through the driver below.
+// `expect` is a literal, written from the spec, never recomputed.
+$corpus = json_decode( (string) file_get_contents( __DIR__ . '/datetime-mount-corpus.json' ), true );
+assert_eq( 'D8.0 the shared corpus parses', true, is_array( $corpus ) && ! empty( $corpus['cases'] ) );
+
+$as_pairs = static function ( $map ) {
+	return null === $map ? null : array_map( null, array_keys( $map ), array_values( $map ) );
+};
+
+$php_pairs = array();
+foreach ( (array) ( $corpus['cases'] ?? array() ) as $case ) {
+	$range = 'range' === $case['family'];
+	$got   = bws_datetime_legacy_reads_rewrite( $case['options'], $range );
+	$php_pairs[] = $as_pairs( $got );
+	assert_eq( 'D8.1 ' . $case['label'], $as_pairs( $case['expect'] ), $as_pairs( $got ) );
+
+	// The property the literals stand for: a rewritten tag reads the same fields as the old one,
+	// through the shipped normalizer in the old tag's own family.
+	if ( null !== $got ) {
+		// Trimmed: the cores sanitize every operand, so a padded old value reads the same.
+		assert_eq( 'D8.2 same reads — ' . $case['label'], array_map( 'trim', $read_fields( $case['options'], $range ) ), $read_fields( $got, $range ) );
+	}
+	// The skip the report lists is exactly the end-only range, and it asks one predicate for it.
+	if ( $range ) {
+		assert_eq(
+			'D8.3 end-only predicate — ' . $case['label'],
+			! empty( $case['endOnly'] ),
+			bws_datetime_legacy_range_is_end_only( $case['options'] )
+		);
+	}
+}
+
+$raw     = (string) shell_exec( 'node ' . escapeshellarg( __DIR__ . '/datetime-mount-driver.js' ) . ' 2>&1' );
+$js_pair = json_decode( $raw, true );
+if ( ! is_array( $js_pair ) ) {
+	// A missing `node` FAILS rather than skips: a silent pass would hide the twin check.
+	assert_eq( 'D8.4 the JS driver ran (node on PATH)', true, false );
+	echo '       ' . substr( trim( $raw ), 0, 400 ) . "\n";
+} else {
+	assert_eq( 'D8.4 the JS driver ran (node on PATH)', true, true );
+	assert_eq( 'D8.5 both sides answered every case', count( $php_pairs ), count( $js_pair ) );
+	foreach ( $php_pairs as $i => $pairs ) {
+		assert_eq( 'D8.6 mount twin agrees — ' . $corpus['cases'][ $i ]['label'], $pairs, array_key_exists( $i, $js_pair ) ? $js_pair[ $i ] : '(missing)' );
+	}
+}
 
 // ===========================================================================
 echo "\n" . ( $failures ? "FAILED — {$failures} of {$count}\n" : "PASSED — {$count} assertions\n" );

@@ -59,6 +59,7 @@ global.wp.components = { SelectControl: {}, TextControl: {}, Button: {}, Combobo
 global.wp.element.useState = function ( i ) { return [ i, function () {} ]; };
 global.wp.i18n = { __: function ( s ) { return s; }, sprintf: function ( s, a ) { return String( s ).replace( '%s', a ); } };
 load( 'assets/js/slot-fold-migrate.js' );
+load( 'assets/js/option-nodes.js' );
 load( 'assets/js/slot-fold-control.js' );
 load( 'assets/js/src-chain-control.js' );
 const srcChain = global.window.bwsSrcChain;

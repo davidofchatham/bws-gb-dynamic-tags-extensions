@@ -420,6 +420,17 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'T13.8 (expect Note: see | this, and; more)', '{{try_text A:fixed(Note\: see \| this, and; more)}}' ),
 	) );
 
+	// T14 — a datetime-shaped `key` pasted onto {{text}} reads its first field only;
+	// text-test-matrix.md §T14. Two different values (the number, and the zero) make "first"
+	// observable in both orders.
+	$sections[] = bws_fixture_gb_section( 'Text T14 - datetime-shaped key on text', array(
+		bws_fixture_gb_row( 'T14.1 (expect the main line number only - the first read)', '{{text key:main_line;bws_zero_probe}}' ),
+		bws_fixture_gb_row( 'T14.2 (expect 0 only - the first read, the order reversed)', '{{text key:bws_zero_probe;main_line}}' ),
+		bws_fixture_gb_row( 'T14.3 (expect the main line number only - the first operand)', '{{text key:main_line+bws_zero_probe}}' ),
+		bws_fixture_gb_row( 'T14.4 (expect 0 only - the first operand, the order reversed)', '{{text key:bws_zero_probe+main_line}}' ),
+		bws_fixture_gb_row( 'T14.5 (expect NONE - the first read is empty and the second does not rescue it)', '{{text key:no_such_field;main_line|fallback:NONE}}' ),
+	) );
+
 	// src:site matrix (src-site-test-matrix.md) — R7 try_ site-slot rows (FW-4,
 	// 1.15.0). R7.8 (WYSIWYG option), R7.9-positive (site logo) and R7.12
 	// (org_email) need [SUB] state the fixture doesn't seed — matrix notes them;
@@ -691,9 +702,9 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'D8.1 expect "August 12, 2030" (no stray 11:59 PM)', '{{datetime_range startKey:event_midnight|endKey:event_allday_end}}' ),
 		bws_fixture_gb_row( 'D8.2 expect "August 12-August 14, 2030" (multi-day, both ends bare)', '{{datetime_range startKey:event_midnight|endKey:event_allday_end_multi}}' ),
 		bws_fixture_gb_empty_row( 'D8.3 expect EMPTY (as:time on an all-day span has no time to show)', '{{datetime_range startKey:event_midnight|endKey:event_allday_end|as:time}}' ),
-		bws_fixture_gb_row( 'D8.4 expect "12:00 am-11:59 pm" (showMidnight opts back in to both ends)', '{{datetime_range startKey:event_midnight|endKey:event_allday_end|as:time|showMidnight}}' ),
+		bws_fixture_gb_row( 'D8.4 expect "12:00 AM-11:59 PM" (showMidnight opts back in to both ends)', '{{datetime_range startKey:event_midnight|endKey:event_allday_end|as:time|showMidnight}}' ),
 		bws_fixture_gb_row( 'D8.5 expect "9:00-11:30 am" consolidated EVEN WITH showMidnight on (#125)', '{{datetime_range startKey:event_time|endKey:event_end_time|as:time|showMidnight}}' ),
-		bws_fixture_gb_row( 'D8.6 expect "9:00 am-5:00 pm" (cross-meridiem stays full under showMidnight)', '{{datetime_range startKey:event_datetime|endKey:event_end_datetime|as:time|showMidnight}}' ),
+		bws_fixture_gb_row( 'D8.6 expect "9:00 AM-5:00 PM" (cross-meridiem stays full under showMidnight)', '{{datetime_range startKey:event_datetime|endKey:event_end_datetime|as:time|showMidnight}}' ),
 		bws_fixture_gb_row( 'D8.7 expect "09:00-11:30" (24-hour format gate still blocks consolidation)', '{{datetime_range startKey:event_time|endKey:event_end_time|as:time|format:H:i|showMidnight}}' ),
 	) );
 
@@ -767,8 +778,10 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F5.1 no-read shape: an EMPTY slot 1 value is the default attempt (-> Matrix: Post Meta)', '{{try_title 1:|B:src(site)}}' ),
 		bws_fixture_gb_row( 'F5.2 same, via an explicit src(current) - the 5f bug was this rendering NOTHING', '{{try_title A:src(current)|B:src(site)}}' ),
 		bws_fixture_gb_row( 'F5.3 (-> https://testbed.test/staff/jane-partner/)', '{{try_permalink A:src(refs,related_staff)|B:src(site)}}' ),
-		bws_fixture_gb_row( 'F5.5 slot 1 genuinely wins - jane\'s date, not the page\'s (-> May 1, 2030 10:00 AM)', '{{try_datetime_single A:src(refs,related_staff)|B:src(current)|key:event_datetime}}' ),
+		bws_fixture_gb_row( 'F5.5 slot 1 genuinely wins - the staff list, not the page\'s own date (-> May 1, 2030 10:00 AM, June 1, 2030 11:00 AM)', '{{try_datetime_single A:src(refs,related_staff)|B:src(current)|key:event_datetime}}' ),
 		bws_fixture_gb_row( 'F5.6 legacy twin of F5.4 - slot 1 hop misses, slot 2 reads current (-> August 12, 2030 9:00 AM)', '{{try_datetime_single src:ref|ref:missing_rel|2-src:current|key:event_datetime}}' ),
+		bws_fixture_gb_row( 'F5.8 try_datetime twin of F5.4 - slot 1 hop misses, slot 2 reads current (-> August 12, 2030 9:00 AM)', '{{try_datetime A:src(refs,missing_rel)|B:src(current)|key:event_datetime}}' ),
+		bws_fixture_gb_row( 'F5.9 try_datetime twin of F5.5 - slot 1 wins with the staff list, not the current post (-> May 1, 2030 10:00 AM, June 1, 2030 11:00 AM)', '{{try_datetime A:src(refs,related_staff)|B:src(current)|key:event_datetime}}' ),
 	) );
 
 	$sections[] = bws_fixture_gb_section( 'Fold F6-F7 - carry-over vs RESET, and slot-level limit', array(
@@ -2344,6 +2357,258 @@ function bws_fixture_page_content_matrix_table() {
 }
 
 /**
+ * Page content: matrix-datetime (page-matrix-datetime).
+ *
+ * Split axis is the DATETIME FAMILY, not source-state: rows for the merged `{{datetime}}`
+ * tag (FW-81), single and range alike. matrix-post-meta is saturated, so the family gets
+ * a page and later datetime work has somewhere to land that is not post 22.
+ *
+ * Every row reads matrix-post-meta's fields, pinned by id the way the table page's rows are
+ * (`src:post,<id>`), so this page seeds no data of its own. Each D9 row is the merged
+ * spelling of a row the old tags already have, and its label names that row: the assertion
+ * is that the two print the same bytes, so the expected text in a label is the old row's.
+ * `{{datetime}}` renders from the merged seam, the old tags from their own callbacks, which
+ * is what makes the equality a measurement and not a tautology.
+ */
+function bws_fixture_page_content_matrix_datetime() {
+	$meta_id = function_exists( 'bws_fixture_seeded_post_id' ) ? bws_fixture_seeded_post_id( 'matrix-post-meta', 'page' ) : false;
+	$sales_id     = function_exists( 'bws_fixture_seeded_term_id' ) ? bws_fixture_seeded_term_id( 'sales', 'department' ) : false;
+	$warehouse_id = function_exists( 'bws_fixture_seeded_term_id' ) ? bws_fixture_seeded_term_id( 'warehouse', 'department' ) : false;
+	$jane_id      = function_exists( 'bws_fixture_seeded_post_id' ) ? bws_fixture_seeded_post_id( 'jane-partner', 'staff' ) : false;
+	if ( ! $meta_id || ! $sales_id || ! $warehouse_id || ! $jane_id ) {
+		return bws_fixture_gb_text_block(
+			'MATRIX-DATETIME FIXTURE ERROR: the "matrix-post-meta" page, a department term or the "jane-partner" staff post was not found. Reseed pages before this page.',
+			'matrix-datetime-missing-source'
+		);
+	}
+
+	$sections = array();
+
+	$sections[] = bws_fixture_gb_section( 'Datetime D9 - merged tag, one read (key:a, key:a+b)', array(
+		bws_fixture_gb_row( 'D9.1 (= D0.1) expect "August 1, 2030"', "{{datetime src:post,{$meta_id}|key:event_start_date}}" ),
+		bws_fixture_gb_row( 'D9.2 (= D0.2) expect "August 12, 2030 9:00 AM"', "{{datetime src:post,{$meta_id}|key:event_datetime}}" ),
+		bws_fixture_gb_row( 'D9.3 (= D0.3) expect "2030-08-12 9:00 am"', "{{datetime src:post,{$meta_id}|key:event_datetime|format:Y-m-d}}" ),
+		bws_fixture_gb_row( 'D9.4 (= D0.4) expect "April 10"', "{{datetime src:post,{$meta_id}|key:event_thisyear}}" ),
+		bws_fixture_gb_row( 'D9.5 (= D0.5) expect "April 10 and the current year"', "{{datetime src:post,{$meta_id}|key:event_thisyear|showCurrentYear}}" ),
+		bws_fixture_gb_row( 'D9.6 (= D0.6) expect "August 12, 2030"', "{{datetime src:post,{$meta_id}|key:event_midnight}}" ),
+		bws_fixture_gb_row( 'D9.7 (= D0.7) expect "August 12, 2030 12:00 AM"', "{{datetime src:post,{$meta_id}|key:event_midnight|showMidnight}}" ),
+		bws_fixture_gb_row( 'D9.8 (= D0.8) expect "August 1, 2030, 9:00 am"', "{{datetime src:post,{$meta_id}|key:event_start_date+event_time}}" ),
+		bws_fixture_gb_row( 'D9.9 (= D0.9) expect "August 1, 2030 @ 9:00 am"', "{{datetime src:post,{$meta_id}|key:event_start_date+event_time|timeSep: @ }}" ),
+		bws_fixture_gb_row( 'D9.10 (= D0.10) expect "June 15, 2030"', "{{datetime src:post,{$meta_id}|key:plain_meta_date}}" ),
+		bws_fixture_gb_row( 'D9.11 (= D0.11) expect "15/08/2030"', "{{datetime src:post,{$meta_id}|key:event_date_dmy}}" ),
+		bws_fixture_gb_row( 'D9.12 (= D1.1) expect "August 12, 2030"', "{{datetime src:post,{$meta_id}|key:event_datetime|as:date}}" ),
+		bws_fixture_gb_row( 'D9.13 (= D1.2) expect "9:00 AM"', "{{datetime src:post,{$meta_id}|key:event_datetime|as:time}}" ),
+		bws_fixture_gb_row( 'D9.14 (= D1.3) expect "9:00 am"', "{{datetime src:post,{$meta_id}|key:event_time|as:time}}" ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Datetime D9 - merged tag, two reads (key:a;b)', array(
+		bws_fixture_gb_row( 'D9.15 (= D1.4) expect "9:00 AM"', "{{datetime src:post,{$meta_id}|key:event_datetime;|as:time}}" ),
+		bws_fixture_gb_row( 'D9.16 (= D1.5) expect "09:00"', "{{datetime src:post,{$meta_id}|key:event_datetime;|as:time|format:H:i}}" ),
+		bws_fixture_gb_row( 'D9.17 (= D2.1) expect "August 1-9, 2030"', "{{datetime src:post,{$meta_id}|key:event_start_date;event_end_date}}" ),
+		bws_fixture_gb_row( 'D9.18 (= D2.2) expect "August 1 to 9, 2030"', "{{datetime src:post,{$meta_id}|key:event_start_date;event_end_date|rangeSep: to }}" ),
+		bws_fixture_gb_row( 'D9.19 (= D2.3) expect "August 12, 2030, 9:00 AM-5:00 PM"', "{{datetime src:post,{$meta_id}|key:event_datetime;event_end_datetime}}" ),
+		bws_fixture_gb_row( 'D9.20 (= D2.4) expect "August 12, 2030, 5:00 PM"', "{{datetime src:post,{$meta_id}|key:event_midnight;event_end_datetime}}" ),
+		bws_fixture_gb_row( 'D9.21 (= D2.5) expect "9:00 AM-5:00 PM"', "{{datetime src:post,{$meta_id}|key:event_datetime;event_end_datetime|as:time}}" ),
+		bws_fixture_gb_row( 'D9.22 (= D2.6) expect "9:00-11:30 am"', "{{datetime src:post,{$meta_id}|key:event_time;event_end_time|as:time}}" ),
+		bws_fixture_gb_row( 'D9.23 (= D3.1) expect "09:00-17:00"', "{{datetime src:post,{$meta_id}|key:event_datetime;event_end_datetime|as:time|format:H:i}}" ),
+		bws_fixture_gb_row( 'D9.24 (= D3.2) expect "9:00-5:00"', "{{datetime src:post,{$meta_id}|key:event_datetime;event_end_datetime|as:time|format:g:i}}" ),
+		bws_fixture_gb_row( 'D9.25 (= D3.3) expect "9:00-11:30 AM"', "{{datetime src:post,{$meta_id}|key:event_time;event_end_time|as:time|format:g:i A}}" ),
+		bws_fixture_gb_row( 'D9.26 (= D3.4) expect "17:00"', "{{datetime src:post,{$meta_id}|key:event_midnight;event_end_datetime|as:time|format:H:i}}" ),
+		bws_fixture_gb_row( 'D9.27 (= D8.1) expect "August 12, 2030"', "{{datetime src:post,{$meta_id}|key:event_midnight;event_allday_end}}" ),
+		bws_fixture_gb_row( 'D9.28 (= D8.2) expect "August 12-August 14, 2030"', "{{datetime src:post,{$meta_id}|key:event_midnight;event_allday_end_multi}}" ),
+		bws_fixture_gb_empty_row( 'D9.29 (= D8.3) expect EMPTY (no time part on either end)', "{{datetime src:post,{$meta_id}|key:event_midnight;event_allday_end|as:time}}" ),
+		bws_fixture_gb_row( 'D9.30 (= D8.4) expect "12:00 AM-11:59 PM"', "{{datetime src:post,{$meta_id}|key:event_midnight;event_allday_end|as:time|showMidnight}}" ),
+		bws_fixture_gb_row( 'D9.31 (= D8.5) expect "9:00-11:30 am"', "{{datetime src:post,{$meta_id}|key:event_time;event_end_time|as:time|showMidnight}}" ),
+		bws_fixture_gb_row( 'D9.32 (= D8.6) expect "9:00 AM-5:00 PM"', "{{datetime src:post,{$meta_id}|key:event_datetime;event_end_datetime|as:time|showMidnight}}" ),
+		bws_fixture_gb_row( 'D9.33 (= D8.7) expect "09:00-11:30"', "{{datetime src:post,{$meta_id}|key:event_time;event_end_time|as:time|format:H:i|showMidnight}}" ),
+		bws_fixture_gb_row( 'D9.34 (= new combination) expect "August 1, 9:00 am-August 9, 2030, 11:30 am"', "{{datetime src:post,{$meta_id}|key:event_start_date+event_time;event_end_date+event_end_time}}" ),
+		bws_fixture_gb_row( 'D9.35 (= new combination) expect "August 1, 2030, 9:00-11:30 am"', "{{datetime src:post,{$meta_id}|key:event_start_date+event_time;+event_end_time}}" ),
+		bws_fixture_gb_row( 'D9.36 (= new combination) expect "August 12, 2030, 9:00-11:30 AM"', "{{datetime src:post,{$meta_id}|key:event_datetime;+event_end_time}}" ),
+		bws_fixture_gb_row( 'D9.37 (= new combination) expect "August 1, 2030, 9:00 am"', "{{datetime src:post,{$meta_id}|key:event_start_date+event_time;}}" ),
+		bws_fixture_gb_row( 'D9.38 (= new combination) expect "August 1, 2030"', "{{datetime src:post,{$meta_id}|key:event_start_date;missing_field|fallback:FB}}" ),
+		bws_fixture_gb_row( 'D9.52 (= new combination) expect "August 1, 2030, 9:00-11:30 am" (a time-only END field takes the start date)', "{{datetime src:post,{$meta_id}|key:event_start_date+event_time;event_end_time}}" ),
+		bws_fixture_gb_row( 'D9.53 (= new combination) expect "August 12, 2030, 9:00-11:30 AM" (a datetime start, a time-only end)', "{{datetime src:post,{$meta_id}|key:event_datetime;event_end_time}}" ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Datetime D9 - merged tag, sources, lists, fallback', array(
+		bws_fixture_gb_row( 'D9.39 (= D4.6) expect "May 1, 2030 10:00 AM, June 1, 2030 11:00 AM"', "{{datetime src:post,{$meta_id};refs,related_staff,limit[5]|key:event_datetime}}" ),
+		bws_fixture_gb_row( 'D9.40 (= D4.7) expect "May 1 10:00 AM-May 3, 2030 3:00 PM; June 1 11:00 AM-June 5, 2030 12:00 PM"', "{{datetime src:post,{$meta_id};refs,related_staff,limit[3]|key:event_datetime;event_end_datetime|sep:; }}" ),
+		bws_fixture_gb_row( 'D9.41 (= D4.8) expect EACH date in its own link to the staff post it was read from, Jane then Tom', "{{datetime src:post,{$meta_id};refs,related_staff,limit[5]|key:event_datetime|linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'D9.42 (= D4.8b) expect EACH whole range in its own link to its own staff post, the ; separator outside both anchors', "{{datetime src:post,{$meta_id};refs,related_staff,limit[3]|key:event_datetime;event_end_datetime|sep:; |linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'D9.43 (= D4.9) expect ONE link, to Jane Partner, wrapping the date', "{{datetime src:post,{$meta_id};refs,related_staff,limit[1]|key:event_datetime|linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'D9.44 (= D5.1) expect "20200115"', "{{datetime src:site|key:organization_founded}}" ),
+		bws_fixture_gb_row( 'D9.45 (= D5.2) expect "January 15, 2020"', "{{datetime src:site|key:organization_founded|format:F j, Y}}" ),
+		bws_fixture_gb_row( 'D9.46 (= D5.3) expect "September 20, 2030 6:00 PM"', "{{datetime src:site|key:org_party_datetime}}" ),
+		bws_fixture_gb_row( 'D9.47 (= D5.4) expect "May 1, 2030 10:00 AM"', "{{datetime src:post,{$meta_id};refs,related_staff,limit[1]|key:event_datetime}}" ),
+		bws_fixture_gb_row( 'D9.48 (= D5.6) expect "Date TBA"', "{{datetime key:missing_dt_field|fallback:Date TBA}}" ),
+		bws_fixture_gb_row( 'D9.49 (= new combination) expect "No field"', "{{datetime fallback:No field}}" ),
+		bws_fixture_gb_row( 'D9.50 (= R5.3) expect "September 20, 2030 6:00 PM"', "{{datetime src:site|key:org_party_datetime;}}" ),
+	) );
+
+	// A pinned post or term with an empty read prints the stated fallback, unwrapped, as `{{text}}`
+	// does. The rule is stated at the tail of bws_base_datetime_resolve_value().
+	$sections[] = bws_fixture_gb_section( 'Datetime D9 - a pinned source prints the fallback', array(
+		bws_fixture_gb_row( 'D9.58 (= D9.48, pinned post) expect "Date TBA"', "{{datetime src:post,{$meta_id}|key:missing_dt_field|fallback:Date TBA}}" ),
+		bws_fixture_gb_row( 'D9.59 (= D9.58, single tag) expect "Date TBA"', "{{datetime_single src:post,{$meta_id}|key:missing_dt_field|fallback:Date TBA}}" ),
+		bws_fixture_gb_row( 'D9.60 (= D9.58, range tag) expect "FB"', "{{datetime_range src:post,{$meta_id}|startKey:missing_a|endKey:missing_b|fallback:FB}}" ),
+		bws_fixture_gb_row( 'D9.61 (= control) expect "August 1, 2030" (the value wins, fallback idle)', "{{datetime src:post,{$meta_id}|key:event_start_date|fallback:Date TBA}}" ),
+		bws_fixture_gb_row( 'D9.62 (= D9.58, pinned term) expect "Date TBA"', "{{datetime src:term,{$sales_id}|key:missing_dt_field|fallback:Date TBA}}" ),
+		bws_fixture_gb_row( 'D9.63 (= D7.6, pinned term) expect "Date TBA" (a real key, an empty term field)', "{{datetime_single src:term,{$warehouse_id}|key:event_date|fallback:Date TBA}}" ),
+		bws_fixture_gb_row( 'D9.64 (= D9.60, pinned term) expect "FB"', "{{datetime_range src:term,{$sales_id}|startKey:missing_a|endKey:missing_b|fallback:FB}}" ),
+		bws_fixture_gb_row( 'D9.65 (= control) expect "November 12, 2030" (the value wins, fallback idle)', "{{datetime src:term,{$sales_id}|key:event_date|fallback:Date TBA}}" ),
+		bws_fixture_gb_row( 'D9.66 (= new combination) expect "Date TBA" with NO link around it', "{{datetime src:post,{$meta_id}|key:missing_dt_field|fallback:Date TBA|linkTo:permalink}}" ),
+		bws_fixture_gb_empty_row( 'D9.67 (= new combination) expect EMPTY (no fallback stated)', "{{datetime src:post,{$meta_id}|key:missing_dt_field}}" ),
+	) );
+
+	// An OLD tag keeps its family whatever its options say: the range tag given a bare `key`
+	// still reads through the range core, the single tag given `a;b` still reads only `a`. The
+	// derived mode would send the first to the single core and read both for the second.
+	$sections[] = bws_fixture_gb_section( 'Datetime D9 - an old tag keeps its family', array(
+		bws_fixture_gb_row( 'D9.54 (= new combination) expect "9:00 AM-5:00 PM" (the RANGE core reads both entries; the single core would read only the first and print 9:00 AM)', "{{datetime_range src:post,{$meta_id}|key:event_datetime;event_end_datetime|as:time}}" ),
+		bws_fixture_gb_row( 'D9.55 (= new combination) expect "August 1, 2030" (a single tag reads only the first entry)', "{{datetime_single src:post,{$meta_id}|key:event_start_date;event_end_date}}" ),
+		bws_fixture_gb_row( 'D9.56 (= D9.54, try_ twin) expect "9:00 AM-5:00 PM"', "{{try_datetime_range src:post,{$meta_id}|key:event_datetime;event_end_datetime|as:time}}" ),
+		bws_fixture_gb_row( 'D9.57 (= D9.55, try_ twin) expect "August 1, 2030"', "{{try_datetime_single src:post,{$meta_id}|key:event_start_date;event_end_date}}" ),
+	) );
+
+	// ONE time display (#164). Each case below is rendered through the old single tag, the old
+	// range tag and the merged tag, and every spelling of a case must print the same bytes: the
+	// single core and the range core now share bws_format_time_display(), so a case that splits
+	// by tag is the defect. `event_time` returns `g:i a` and `event_datetime` returns
+	// `F j, Y g:i A`, so the field's OWN format, not the WP `time_format` (`g:i a`), decides
+	// the case of the meridiem on `event_datetime`.
+	$time_cases = array(
+		array( 'D10.1', '9:00 AM', 'as:time on a datetime field uses the field\'s own tokens (the WP option is g:i a)', array(
+			array( 'datetime_single', 'key:event_datetime|as:time' ), array( 'datetime_range', 'startKey:event_datetime|as:time' ),
+			array( 'datetime', 'key:event_datetime|as:time' ), array( 'datetime', 'key:event_datetime;|as:time' ) ) ),
+		array( 'D10.2', '9:00 am', 'as:time on a time-only field, in its own return format', array(
+			array( 'datetime_single', 'key:event_time|as:time' ), array( 'datetime_range', 'startKey:event_time|as:time' ),
+			array( 'datetime', 'key:event_time|as:time' ), array( 'datetime', 'key:event_time;|as:time' ) ) ),
+		array( 'D10.3', '9:00 am', 'a time-only field with no `as` prints the bare time, never a "Start time:" label', array(
+			array( 'datetime_single', 'key:event_time' ), array( 'datetime_range', 'startKey:event_time' ),
+			array( 'datetime', 'key:event_time' ), array( 'datetime', 'key:event_time;' ) ) ),
+		array( 'D10.4', '', 'as:time on a midnight value is hidden by default', array(
+			array( 'datetime_single', 'key:event_midnight|as:time' ), array( 'datetime_range', 'startKey:event_midnight|as:time' ),
+			array( 'datetime', 'key:event_midnight|as:time' ), array( 'datetime', 'key:event_midnight;|as:time' ) ) ),
+		array( 'D10.5', '12:00 AM', 'as:time on a midnight value prints once showMidnight is on', array(
+			array( 'datetime_single', 'key:event_midnight|as:time|showMidnight' ), array( 'datetime_range', 'startKey:event_midnight|as:time|showMidnight' ),
+			array( 'datetime', 'key:event_midnight|as:time|showMidnight' ), array( 'datetime', 'key:event_midnight;|as:time|showMidnight' ) ) ),
+		array( 'D10.6', '', 'as:time on a date-only field has no time to show (the parser\'s noon buffer never prints)', array(
+			array( 'datetime_single', 'key:event_start_date|as:time' ), array( 'datetime_range', 'startKey:event_start_date|as:time' ),
+			array( 'datetime', 'key:event_start_date|as:time' ), array( 'datetime', 'key:event_start_date;|as:time' ) ) ),
+		array( 'D10.7', 'FB', 'the same date-only read takes the stated fallback', array(
+			array( 'datetime_single', 'key:event_start_date|as:time|fallback:FB' ), array( 'datetime_range', 'startKey:event_start_date|as:time|fallback:FB' ),
+			array( 'datetime', 'key:event_start_date|as:time|fallback:FB' ), array( 'datetime', 'key:event_start_date;|as:time|fallback:FB' ) ) ),
+		array( 'D10.8', '09:00', 'a custom format is honored on a time-only field', array(
+			array( 'datetime_single', 'key:event_time|format:H:i' ), array( 'datetime_range', 'startKey:event_time|format:H:i' ),
+			array( 'datetime', 'key:event_time|format:H:i' ), array( 'datetime', 'key:event_time;|format:H:i' ) ) ),
+		array( 'D10.9', '9:00 AM-5:00 PM', 'a two-ended as:time range, in the start field\'s own tokens', array(
+			array( 'datetime_range', 'startKey:event_datetime|endKey:event_end_datetime|as:time' ),
+			array( 'datetime', 'key:event_datetime;event_end_datetime|as:time' ) ) ),
+		array( 'D10.10', '9:00-11:30 am', 'two time-only fields with no `as` print the time range, never labels', array(
+			array( 'datetime_range', 'startKey:event_time|endKey:event_end_time' ),
+			array( 'datetime', 'key:event_time;event_end_time' ) ) ),
+		array( 'D10.11', '9:00 am-5:00 pm', 'a time-only start with a date-time end prints both times and drops the end\'s date', array(
+			array( 'datetime_range', 'startKey:event_time|endKey:event_end_datetime' ),
+			array( 'datetime', 'key:event_time;event_end_datetime' ) ) ),
+		array( 'D10.12', '', 'a missing start reads nothing, even when the end has a value', array(
+			array( 'datetime_range', 'startKey:missing_a|endKey:event_end_time' ),
+			array( 'datetime', 'key:missing_a;event_end_time' ) ) ),
+		array( 'D10.13', 'FB', 'the same missing start takes the stated fallback (it used to print "End time: ..." instead)', array(
+			array( 'datetime_range', 'startKey:missing_a|endKey:event_end_time|fallback:FB' ),
+			array( 'datetime', 'key:missing_a;event_end_time|fallback:FB' ) ) ),
+		array( 'D10.14', '9:00 am', 'a start given only as a time key is a time-only start', array(
+			array( 'datetime_single', 'timeKey:event_time' ), array( 'datetime_range', 'startTimeKey:event_time' ),
+			array( 'datetime', 'key:+event_time' ), array( 'datetime', 'key:+event_time;' ) ) ),
+		array( 'D10.15', '9:00 am-5:00 pm', 'a time-key-only start with a date-time end', array(
+			array( 'datetime_range', 'startTimeKey:event_time|endKey:event_end_datetime' ),
+			array( 'datetime', 'key:+event_time;event_end_datetime' ) ) ),
+		array( 'D10.16', '', 'as:date on a time-only field has no date to show', array(
+			array( 'datetime_single', 'key:event_time|as:date' ), array( 'datetime_range', 'startKey:event_time|as:date' ),
+			array( 'datetime', 'key:event_time|as:date' ), array( 'datetime', 'key:event_time;|as:date' ) ) ),
+	);
+	$rows = array();
+	foreach ( $time_cases as $case ) {
+		list( $id, $expect, $what, $spellings ) = $case;
+		foreach ( $spellings as $i => $sp ) {
+			$tag    = '{{' . $sp[0] . ' src:post,' . $meta_id . '|' . $sp[1] . '}}';
+			$label  = sprintf( '%s%s expect %s (%s)', $id, chr( 97 + $i ), '' === $expect ? 'EMPTY' : '"' . $expect . '"', $what );
+			$rows[] = '' === $expect ? bws_fixture_gb_empty_row( $label, $tag ) : bws_fixture_gb_row( $label, $tag );
+		}
+	}
+	$sections[] = bws_fixture_gb_section( 'Datetime D10 - one time display (single, range and merged agree)', $rows );
+
+	// THE `use` READ LIST (FW-81). `page-matrix-post-meta` pins its published and modified dates
+	// (manifest v47), so a post verb has a date a label can state. A post verb reads only from a
+	// post, so a term and the site print the fallback. `now` moves, so a row that shows it states
+	// the current YEAR, which is the one part that cannot differ between two loads (and the one
+	// part that needs a re-capture each January, as D0.5 and D9.5 do).
+	$sections[] = bws_fixture_gb_section( 'Datetime D11 - verbs and the use list (published, modified, now)', array(
+		bws_fixture_gb_row( 'D11.1 expect "March 3, 2025" (the post\'s published date, as a date)', "{{datetime src:post,{$meta_id}|use:published}}" ),
+		bws_fixture_gb_row( 'D11.2 expect "April 4, 2025" (the post\'s modified date)', "{{datetime src:post,{$meta_id}|use:modified}}" ),
+		bws_fixture_gb_row( 'D11.3 expect "2025-03-03" (a custom format applies to a verb)', "{{datetime src:post,{$meta_id}|use:published|format:Y-m-d}}" ),
+		bws_fixture_gb_row( 'D11.4 expect "FB" (a published date carries no time, so as:time has nothing to show)', "{{datetime src:post,{$meta_id}|use:published|as:time|fallback:FB}}" ),
+		bws_fixture_gb_row( 'D11.5 expect "Date TBA" (a post verb on a term falls through to the fallback)', "{{datetime src:term,{$sales_id}|use:published|fallback:Date TBA}}" ),
+		bws_fixture_gb_row( 'D11.6 expect "Date TBA" (a post verb on the site source)', "{{datetime src:site|use:modified|fallback:Date TBA}}" ),
+		bws_fixture_gb_empty_row( 'D11.7 expect EMPTY (a post verb on a term, no fallback stated)', "{{datetime src:term,{$sales_id}|use:modified}}" ),
+		bws_fixture_gb_row( 'D11.8 expect "March 3, 2025-August 1, 2030" (published until a field)', "{{datetime src:post,{$meta_id}|use:published;key|key:event_start_date}}" ),
+		bws_fixture_gb_row( 'D11.9 expect "August 1, 2030-April 4, 2025" (a field until modified: the order spelled is the order printed)', "{{datetime src:post,{$meta_id}|use:key;modified|key:event_start_date}}" ),
+		bws_fixture_gb_row( 'D11.10 expect "March 3-April 4, 2025" (two verbs, no key at all)', "{{datetime src:post,{$meta_id}|use:published;modified}}" ),
+		bws_fixture_gb_row( 'D11.11 expect "March 3, 2025 9:15 AM-August 12, 2030 9:00 AM" (a verb takes the time display of the field beside it)', "{{datetime src:post,{$meta_id}|use:published;key|key:event_datetime}}" ),
+		bws_fixture_gb_row( 'D11.12 expect the CURRENT YEAR alone (now, alone, as a date)', "{{datetime use:now|as:date|format:Y|showCurrentYear}}" ),
+		bws_fixture_gb_row( 'D11.13 expect "2020-" then the current year (from a field until now)', "{{datetime src:site|use:key;now|key:organization_founded|format:Y}}" ),
+		bws_fixture_gb_row( 'D11.14 expect the current year, then "-2020" (from now until a field: the same field, the other order)', "{{datetime src:site|use:now;key|key:organization_founded|format:Y}}" ),
+		bws_fixture_gb_row( 'D11.15 expect "August 1-9, 2030" (an all-key list is the default: two entries, a range)', "{{datetime src:post,{$meta_id}|use:key;key|key:event_start_date;event_end_date}}" ),
+		bws_fixture_gb_row( 'D11.16 expect "August 1-9, 2030" (use:key alone is no use at all, so the two entries still make a range)', "{{datetime src:post,{$meta_id}|use:key|key:event_start_date;event_end_date}}" ),
+		bws_fixture_gb_row( 'D11.17 expect "FB" (a key in the list with no key entry is an empty read, and an empty start reads nothing)', "{{datetime src:post,{$meta_id}|use:key;published|fallback:FB}}" ),
+		bws_fixture_gb_row( 'D11.18 expect "March 3, 2025-August 1, 2030" (a surplus key entry is ignored)', "{{datetime src:post,{$meta_id}|use:published;key|key:event_start_date;event_end_date}}" ),
+		bws_fixture_gb_row( 'D11.19 expect "March 3, 2025" (a key beside a verb-only use is ignored)', "{{datetime src:post,{$meta_id}|use:published|key:event_start_date}}" ),
+		bws_fixture_gb_row( 'D11.20 expect "August 1, 2030" (a name that is neither key nor a verb is dropped)', "{{datetime src:post,{$meta_id}|use:nope;key|key:event_start_date}}" ),
+		bws_fixture_gb_row( 'D11.21 expect "August 1, 2030" (the old single tag has no use: it reads its key)', "{{datetime_single src:post,{$meta_id}|use:published|key:event_start_date}}" ),
+	) );
+
+	// try_datetime (FW-81). `refs,missing_rel` is an attempt that reads nothing on this
+	// page; the two pinned posts are the attempts that do, with different dates (jane's is the
+	// May one), so a walk that stopped at the wrong attempt prints the wrong date, not the same one.
+	$sections[] = bws_fixture_gb_section( 'Datetime D12 - try_datetime (first attempt that reads wins)', array(
+		bws_fixture_gb_row( 'D12.1 expect "August 12, 2030 9:00 AM" (the first attempt reads, so it wins; the second would print May 1)', "{{try_datetime A:src(post,{$meta_id})|B:src(post,{$jane_id})|key:event_datetime}}" ),
+		bws_fixture_gb_row( 'D12.2 expect "May 1, 2030 10:00 AM" (the first attempt reads nothing, the second wins)', "{{try_datetime A:src(refs,missing_rel)|B:src(post,{$jane_id})|key:event_datetime}}" ),
+		bws_fixture_gb_row( 'D12.3 expect "May 1, 2030 10:00 AM" (= D12.2 through the old try_datetime_single, which still renders)', "{{try_datetime_single A:src(refs,missing_rel)|B:src(post,{$jane_id})|key:event_datetime}}" ),
+		bws_fixture_gb_row( 'D12.4 expect "August 1-9, 2030" (two key entries make every attempt a range)', "{{try_datetime A:src(refs,missing_rel)|B:src(post,{$meta_id})|key:event_start_date;event_end_date}}" ),
+		bws_fixture_gb_row( 'D12.5 expect "August 1-9, 2030" (= D12.4 through the old try_datetime_range)', "{{try_datetime_range A:src(refs,missing_rel)|B:src(post,{$meta_id})|startKey:event_start_date|endKey:event_end_date}}" ),
+		bws_fixture_gb_row( 'D12.6 expect "August 1, 2030, 9:00 am" (a date field joined to a time field with +, read by the second attempt)', "{{try_datetime A:src(refs,missing_rel)|B:src(post,{$meta_id})|key:event_start_date+event_time}}" ),
+		bws_fixture_gb_row( 'D12.7 expect "March 3, 2025" (a verb read: the published date of the post, from the second attempt)', "{{try_datetime A:src(refs,missing_rel)|B:src(post,{$meta_id})|use:published}}" ),
+		bws_fixture_gb_row( 'D12.8 expect "August 1, 2030-March 3, 2025" (a field until published: the use list reaches every attempt)', "{{try_datetime A:src(refs,missing_rel)|B:src(post,{$meta_id})|use:key;published|key:event_start_date}}" ),
+		bws_fixture_gb_row( 'D12.9 expect "Date TBA" (every attempt reads nothing, so the fallback prints once)', "{{try_datetime A:src(refs,missing_rel)|B:src(site)|key:event_datetime|fallback:Date TBA}}" ),
+		bws_fixture_gb_empty_row( 'D12.10 expect EMPTY (a bare try_datetime has no read and no fallback)', "{{try_datetime}}" ),
+		bws_fixture_gb_row( 'D12.11 expect "August 12, 2030 9:00 AM" LINKED to the matrix-post-meta page (the link follows the attempt that won)', "{{try_datetime A:src(post,{$meta_id})|key:event_datetime|linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'D12.12 expect "August 12, 2030 9:00 AM" (= D12.1 through the old try_datetime_single, which still renders)', "{{try_datetime_single A:src(post,{$meta_id})|B:src(post,{$jane_id})|key:event_datetime}}" ),
+	) );
+
+	// The Migration Tool on the old tags (FW-81). Every old-form row on this page is rewritten
+	// by a run and must print the same afterwards; these are the one shape a run leaves whole: a range
+	// that states an end and no start. Each prints its fallback today, a rename would give it a read, so
+	// the tool lists it as needing a hand fix and leaves it under its old name.
+	$sections[] = bws_fixture_gb_section( 'Datetime D13 - an old range with no start (the Migration Tool leaves it whole)', array(
+		bws_fixture_gb_row( 'D13.1 expect "FB" (an end date and no start: the range prints its fallback)', "{{datetime_range src:post,{$meta_id}|endKey:event_end_date|fallback:FB}}" ),
+		bws_fixture_gb_empty_row( 'D13.2 expect EMPTY (the same range with no fallback stated)', "{{datetime_range src:post,{$meta_id}|endKey:event_end_date}}" ),
+		bws_fixture_gb_row( 'D13.3 expect "FB" (an end time and no start)', "{{datetime_range src:post,{$meta_id}|endTimeKey:event_end_time|fallback:FB}}" ),
+		bws_fixture_gb_row( 'D13.4 expect "FB" (= D13.1 through the old try_datetime_range)', "{{try_datetime_range A:src(post,{$meta_id})|endKey:event_end_date|fallback:FB}}" ),
+	) );
+
+	// The read control's notices (FW-81, matrix D6.5): each row is for opening in the editor, where
+	// the tag's settings name what its reads cannot show. The front end prints what the render
+	// takes, which is what the label states; the notice is the editor half.
+	$sections[] = bws_fixture_gb_section( 'Datetime D6.5 - open in the editor: the read control names what it cannot show', array(
+		bws_fixture_gb_row( 'D6.5.1 expect "March 3, 2025-August 1, 2030"; in the editor a notice names event_end_date, removed on the next change (no read takes it)', "{{datetime src:post,{$meta_id}|use:published;key|key:event_start_date;event_end_date}}" ),
+		bws_fixture_gb_row( 'D6.5.2 expect "August 1, 2030, 9:00 am"; in the editor a notice names event_end_time as ignored (a third field joined with +)', "{{datetime src:post,{$meta_id}|key:event_start_date+event_time+event_end_time}}" ),
+		bws_fixture_gb_row( 'D6.5.3 expect "August 1-9, 2030"; in the editor two reads show and a notice names event_datetime, removed on the next change (past the most reads)', "{{datetime src:post,{$meta_id}|key:event_start_date;event_end_date;event_datetime}}" ),
+		bws_fixture_gb_row( 'D6.5.4 expect "August 1-9, 2030"; in the editor no notice (every field has a read)', "{{datetime src:post,{$meta_id}|key:event_start_date;event_end_date}}" ),
+	) );
+
+	return implode( "\n\n", $sections );
+}
+
+/**
  * Page content: matrix-links (page-matrix-links).
  *
  * Split axis is the LINK DESTINATION, not source-state: every row here is a fanning tag
@@ -2940,6 +3205,7 @@ function bws_fixture_build_page_content( $builder ) {
 		'matrix_repeaters'     => 'bws_fixture_page_content_matrix_repeaters',
 		'matrix_links'         => 'bws_fixture_page_content_matrix_links',
 		'matrix_table'         => 'bws_fixture_page_content_matrix_table',
+		'matrix_datetime'      => 'bws_fixture_page_content_matrix_datetime',
 		'matrix_core_blocks'   => 'bws_fixture_page_content_matrix_core_blocks',
 		'pattern_legacy_wire'  => 'bws_fixture_pattern_content_legacy_wire',
 		'context_header'       => 'bws_fixture_element_content_context_header',

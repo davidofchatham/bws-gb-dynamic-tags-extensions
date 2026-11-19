@@ -45,6 +45,7 @@ if ( ! function_exists( '__' ) ) {
 
 require $root . '/includes/helpers/registration-helpers.php';
 require $root . '/includes/tags/base-shared.php';
+require $root . '/includes/tags/datetime-tags.php';
 
 $failures = 0;
 $count    = 0;
@@ -119,6 +120,7 @@ $leaves = array(
 	'image'   => bws_get_image_field_options(),
 	'email'   => bws_get_contact_field_options( 'email' ),
 	'phone'   => bws_get_contact_field_options( 'phone' ),
+	'datetime' => array( 'use' => bws_get_datetime_use_option() ),
 );
 
 $from_leaves = array();
@@ -306,7 +308,7 @@ echo "\n§5 — bws_use_effective(): the read rule (FW-142)\n";
 // Per tag, because the implied mode only MOVES a render where the stripped default is an
 // analog (content); on text/image it agrees with the default, and that agreement is
 // itself the "no behavior change" claim for those two.
-$explicit = array( 'text' => 'title', 'content' => 'excerpt', 'image' => 'featured', 'email' => 'fixed', 'phone' => 'fixed' );
+$explicit = array( 'text' => 'title', 'content' => 'excerpt', 'image' => 'featured', 'email' => 'fixed', 'phone' => 'fixed', 'datetime' => 'now' );
 foreach ( BWS_USE_STRIPPED_DEFAULTS as $tag => $default ) {
 	assert_same( "{$tag}: nothing set → the stripped default", $default, bws_use_effective( $tag, array() ) );
 	assert_same( "{$tag}: key alone → the keyed read", 'key', bws_use_effective( $tag, array( 'key' => 'foo' ) ) );
@@ -338,6 +340,16 @@ foreach ( array( 'email', 'phone' ) as $tag ) {
 	assert_same( "{$tag}: use:fixed with no fixed → fixed (pending)", 'fixed', bws_use_effective( $tag, array( 'use' => 'fixed' ) ) );
 }
 assert_same( 'the map lists key before fixed', array( 'key', 'fixed' ), array_keys( BWS_USE_IMPLIED_BY_TOKEN ) );
+
+// FW-81: a `;` list of nothing but the default IS the default, so `{{datetime use:key;key}}`
+// reads as `{{datetime use:key}}` and as no `use` at all; a list with anything else in it is
+// returned whole for its caller to split. The rule is general (every row), not a datetime branch.
+foreach ( BWS_USE_STRIPPED_DEFAULTS as $tag => $default ) {
+	assert_same( "{$tag}: use:{$default};{$default} is the default", $default, bws_use_effective( $tag, array( 'use' => "{$default};{$default}" ) ) );
+	assert_same( "{$tag}: ...with spaces and a stale key beside it", $default, bws_use_effective( $tag, array( 'use' => "{$default} ; {$default}", 'key' => 'foo' ) ) );
+	assert_same( "{$tag}: a list with another name in it is returned whole", "{$default};now", bws_use_effective( $tag, array( 'use' => "{$default};now", 'key' => 'foo' ) ) );
+}
+assert_same( 'a tag with no read axis never collapses a list', 'key;key', bws_use_effective( 'title', array( 'use' => 'key;key' ) ) );
 
 // No read axis → no inference. permalink ignores `key` by design; a mode here would be
 // a read axis the tag does not have.

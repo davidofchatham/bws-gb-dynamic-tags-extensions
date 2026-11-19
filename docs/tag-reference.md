@@ -168,7 +168,7 @@ once an author converts it or the Tag Converter rewrites it.
 | `permalink` | post URL | term URL | *(not yet author-aware — deferred)* | *(none — empty)* | site home URL |
 | `image` | featured image | *(none — terms have no native image; key required)* | *(none intrinsic — a `key` reads the author's own field; the avatar is deferred, FW-47)* | *(none — empty)* | site logo *(via explicit `use:featured` — see note)* |
 | `text` | *(keyed — no intrinsic analog; key required in all contexts)* | | | | |
-| `datetime_single` / `datetime_range` | *(field-keyed — no intrinsic analog; key/field required in all contexts)* | | | | |
+| `datetime` **[UNRELEASED]** / `datetime_single` / `datetime_range` | *(field-keyed — no intrinsic analog; key/field required in all contexts, except a verb read: `use:published` / `use:modified` is a post's own date and `use:now` the current time)* | | | | |
 
 The **user** column resolves on an author archive only (ambient `WP_User`, #19 author kind). What each tag returns there is [§Coverage by ambient context](#coverage-by-ambient-context)'s; the `permalink` and featured-image author analogs are deferred. An explicit source (`src:site`/`src:ref`/`srcTermIn`) or a query-loop item overrides the author ambient, exactly as with the term column. `linkTo:permalink` on the author `title` links the author's archive URL.
 
@@ -208,7 +208,7 @@ README §Use the same tags almost anywhere carries a simplified table built from
 | `content` | post content | term description | user bio | — | type description | — | GP 404 text (— without GP) | — |
 | `text`, `content`, `image`, `email`, and `phone` with `key:[field key]` | post meta | term meta | user meta | — | — | — | — | — |
 | `image use:featured` | featured image | — | — | — | — | — | — | — |
-| `datetime_single`, `datetime_range` | post meta | term meta | — | — | — | — | — | — |
+| `datetime` **[UNRELEASED]**, `datetime_single`, `datetime_range` | post meta | term meta | — | — | — | — | — | — |
 | `permalink` | post URL | term URL | — | — | — | — | — | — |
 
 - **Every `try_` variant matches its base tag** in every cell; a `{{join}}` slot follows the `text` rows (`use:title` gives the heading, a `key` gives the meta field), and so does a `{{table}}` column, which renders its row with the cell empty where the read is empty. The `{{table}}` cells are measured on search, 404, author and term archives ([TK6–TK9](../tools/test/table-test-matrix.md)); the date archive, post type archive and latest-posts home cells follow from the same read and were not run.
@@ -252,7 +252,7 @@ The one place tagline *might* earn its keep is as **feedstock for a multi-slot t
 | `permalink` | site home URL (`home_url()`) | *(no `use`/`key` — ALWAYS `home_url()`; permalink names the site's own URL, never an option read. For a URL stored in an option use `{{text src:site\|key:X}}`.)* |
 | `image` | `key` (stripped default) → attachment-ID wp_options key `X`; **implicit mode / no key → '' (NOT the logo)** | `use:featured` (explicit) → site logo (`get_theme_mod('custom_logo')`, full `as:`/`size:`); `use:key` → same option read |
 | `content` | `content` (stripped default) → **'' (no site content analog)** — site has no long-form body; the tagline is short and has no `content`-tag path (use GB `{{site_tagline}}`) | `use:key` → wp_options value `X` through the content pipeline (`bws_render_block_content`, keyed `'option:X'`; block/HTML markup executes); `use:excerpt` → empty (no site excerpt) |
-| `datetime_single` / `datetime_range` | *(n/a — always field-keyed)* | `key`/`end` read ACF options-page date fields via `get_field($key,'option')`, recovering ACF return format |
+| `datetime` **[UNRELEASED]** / `datetime_single` / `datetime_range` | *(n/a — always field-keyed)* | `key`/`end` read ACF options-page date fields via `get_field($key,'option')`, recovering ACF return format |
 
 > **Site tagline (= blogdescription).** WordPress's "Tagline" (Settings → General) is the same value as the API's `get_bloginfo('description')` / the `blogdescription` option. It is a **short** string (WP's own help: "In a few words, explain what this site is about"), so it is *not* a content analog — `{{content src:site}}` (no key) resolves empty. It also has **no dedicated `use:` value** — it fails both sides of the [qualifying test](#qualifying-test-for-new-use-values) — GB's native `{{site_tagline}}` already exposes it (nothing unique to format or traverse), and it is not a strong cross-source analog (site has no slot it parallels). Reach it via `{{site_tagline}}` or, if you need the wp_options path, `{{text src:site\|key:blogdescription}}`.
 >
@@ -376,6 +376,7 @@ Positional, not `terms`-specific: `refs` takes the `N` when `refs` is the last f
 | `content` | ❌ | Long-form prose (single-result) |
 | `permalink` | ❌ | Single-result URL |
 | `image` | ❌ | Single-result media |
+| `datetime` | ✅ | **[UNRELEASED]** Terms (when `srcTermIn`) or related posts (when `src:ref`) — a single read formats each date individually, a range read formats each **whole range** as one result; `sep` joins results, `rangeSep` stays the intra-range start–end separator |
 | `datetime_single` | ✅ | Terms (when `srcTermIn`) or related posts (when `src:ref`) — each date formatted individually, joined by `sep` (see note) |
 | `datetime_range` | ✅ | Same — each **whole formatted range** is one result; `sep` joins ranges, `rangeSep` stays the intra-range start–end separator (see note) |
 | `email` | ✅ | Terms (when `srcTermIn`) or related posts (when `src:ref`) — each valid address wrapped individually, joined by `sep` |
@@ -432,7 +433,7 @@ In v1.6.0 the per-source×template matrix was removed from the admin settings pa
 
 **Deprecated wrapper tags** — GB registration and runtime callbacks for all current deprecated tags were removed entirely (no longer conditional on any setting). Migration data (`MigrationRegistry` entries) and the admin Tag Converter / settings-page list stay intact for detection and migration of old content. The settings page still shows a Keep/Suppress/Disable radio per group (Has migration path, No migration path), but it no longer has any effect — pending a settings-page redesign to reflect that these are removed, not merely deprecated (tracked `docs/future-work.md`).
 
-**Base tags** (`text`, `image`, `content`, `title`, `permalink`, `datetime_single`, `datetime_range`, `email`, `phone`) are always registered with no admin toggle.
+**Base tags** (`text`, `image`, `content`, `title`, `permalink`, `datetime` **[UNRELEASED]**, `datetime_single`, `datetime_range`, `email`, `phone`) are always registered with no admin toggle.
 
 ---
 
@@ -787,6 +788,7 @@ In the source-agnostic architecture, each template has one GB tag registration. 
 | `title` | `'Title/Name'` | `'cross-source'` | ✅ | Zero options aside from link; shares pipeline with `text use:title`. |
 | `permalink` | `'Permalink'` | `'cross-source'` | ❌ | Output is already a URL |
 | `image` | `'Image Fields'` | `'cross-source'` | ❌ | URL output nonsensical to wrap; image linking deferred |
+| `datetime` | `'Date/Time'` | `'cross-source'` | ✅ | **[UNRELEASED]** One tag for a single value and a range: one read prints a single value, two print a range (the rule: the MODE clause of `bws_normalize_datetime_options()`'s PHPDoc). See [§`datetime`](#datetime-unreleased). |
 | `datetime_single` | `'Format Date/Time Fields'` | `'cross-source'` | ✅ | |
 | `datetime_range` | `'Format Date/Time Fields as Range'` | `'cross-source'` | ✅ | |
 | `email` | `'Email'` | `'cross-source'` | `mailto:` (own anchor, not `linkTo`) | Default-ON mailto wrap toggled by `noLink`; `visibility`-gated off `a`/`button`/`img`/`picture`. See [§Email tag](#email-tag). |
@@ -829,7 +831,7 @@ Each slot holds a **source chain** and — depending on the template — a **fie
 |---|---|---|---|
 | `use` enum + key picker | `try_text`, `try_content`, `try_image` | mode select, plus the field picker when the mode needs a key | carry-over (materialized as `use(same)`) |
 | key picker alone | `try_email`, `try_phone` | field picker only — no mode axis exists | carry-over (an empty picker IS the carry-over) |
-| none | `try_title`, `try_permalink`, `try_datetime_single`, `try_datetime_range` | nothing — the read is a **tag-level** option | n/a |
+| none | `try_title`, `try_permalink`, `try_datetime`, `try_datetime_single`, `try_datetime_range` | nothing — the read is a **tag-level** option | n/a |
 
 **Slot 1 is never absent.** Every axis unset there is the default attempt — ambient source, template's default read — which is what a bare `{{try_title}}` renders. Slots 2+ are absent when they hold nothing, and are skipped.
 
@@ -846,8 +848,9 @@ A slot still needs a key to produce output where its read mode requires one; a k
 | `try_permalink` | `permalink` | No | No | Slot `src:site` allowed (1.15.0): home URL |
 | `try_text` | `text` | **Yes** | **Yes** | Each slot: Title/Name or ACF/Custom Field (with per-slot key when `use:key`). Slot `src:site` allowed (1.15.0): `use:title` → site name, `use:key` → option value |
 | `try_image` | `image` | **Yes** | **Yes** | Each slot: Featured Image or ACF/Custom Field (with per-slot key when `use:key`). Slot `src:site` allowed (1.15.0): `use:featured` → site logo, `use:key` → option attachment |
-| `try_datetime_single` | `datetime_single` | No | No | Shared `key` across slots |
-| `try_datetime_range` | `datetime_range` | No | No | Shared `startKey`/`endKey` across slots |
+| `try_datetime` | `datetime` | No | No | **[UNRELEASED]** Shared `key` and `use` across slots, each attempt reads exactly as `{{datetime}}` does (a single, a range, a `+` join or a verb), so the attempts differ by source only |
+| `try_datetime_single` | `datetime_single` | No | No | Shared `key` across slots; hidden from the picker (**[UNRELEASED]**), still renders |
+| `try_datetime_range` | `datetime_range` | No | No | Shared `startKey`/`endKey` across slots; hidden from the picker (**[UNRELEASED]**), still renders |
 | `try_email` | `email` | **Yes** | No | Per-slot read: `key` (the stripped default) or the fixed read (FW-141 05). Each slot resolves an email field or a typed address → finished mailto/plain string, exactly as `{{email}}`. A legacy flat `N-key` is a key read, at render and on migration (its flat wire never had `use`). Slot `src:site` allowed (canonical contact fallback). `subject`/`noLink` chain-level |
 | `try_phone` | `phone` | **Yes** | No | Per-slot read: `key` (the stripped default) or the fixed read (FW-141 05). Each slot resolves a phone field or a typed number → finished tel/plain string, as `{{phone}}`. A legacy flat `N-key` is a key read, at render and on migration. Slot `src:site` allowed. `noLink` chain-level |
 
@@ -960,7 +963,7 @@ Excluded: `content`, `permalink`, `image`. (`email`/`phone` have their own
 | `permalink` | Permalink | Entity permalink (`get_permalink` / `get_term_link`); under `src:site` → `home_url()` (the site permalink-analog — there is no separate `linkTo:site`). |
 | `key` | URL Meta/Option Field | URL read from the meta/option field named in `linkKey` (allowlist-gated under `src:site`). |
 
-Link wrap is applied **after fallback resolves** — fallback text is also wrapped if a link resolves. On a base tag it is the entity the chain lands on, and in list mode each value is wrapped against its own identity (§List mode). On `try_` tags, the single `linkTo`/`linkKey`/`newTab` applies to the winning slot's entity (post or term), and per value where that slot fans.
+Link wrap is applied **after fallback resolves** — fallback text is also wrapped if a link resolves. The exception is a date/time tag with a post, term, repeater-row or related-post source: its fallback prints once and unwrapped, as `{{text}}`'s does for a pinned post. With no `src` it is wrapped like a value. Which behavior is intended is open (FW-191 in [`future-work.md`](future-work.md)). On a base tag it is the entity the chain lands on, and in list mode each value is wrapped against its own identity (§List mode). On `try_` tags, the single `linkTo`/`linkKey`/`newTab` applies to the winning slot's entity (post or term), and per value where that slot fans.
 
 **`email`/`phone` are the exception — their link is NOT a `linkTo` option.** They do not participate
 in the `linkTo`/`linkKey`/`newTab` family above (those wrap an *entity URL*). Their only link is the
@@ -991,6 +994,8 @@ order).
 Reads a text field (ACF/meta) or the source's **title/name** analog (`use:title`). Cross-source, link-wrappable, list-mode capable. GB type `'cross-source'`; picker title `'Text Fields'`.
 
 **Tag-specific options:** none beyond the shared groups — `text` is the canonical user of [Source](#source-group) + [Field](#field-group) + [Link wrap](#link-wrap-group) + [Fallback](#fallback-group). `use` values: `key` (default, key-mode — **`key` required**), `title` (the analog) or `fixed` (the author's text — **`fixed` required**).
+
+**[UNRELEASED]** **`key` names one field.** A datetime-shaped value pasted onto `{{text}}` degrades instead of rendering nothing: `key:a;b` (two reads) prints the first field's value only, `key:a+b` (a field joined to another) prints the first operand only, and the editor preview warns about what was ignored ([editor-tag-previews.md](editor-tag-previews.md#text-read-warnings-unreleased)). Ranges are `{{datetime}}`'s and composing two fields is `{{join}}`'s.
 
 **Control order** (`source → link → fallback` — no `format` group on `text`):
 - **`source`:** `[source options]` → `use` (`key` (unset default in single-slot tags); `title`; `fixed`) → `key` (shown when `use` unset [in single-slot tags] or `use:key`) → `fixed` (shown when `use:fixed`)
@@ -1051,9 +1056,35 @@ Control order `source → format → fallback` (no `link` group on `image`; `for
 
 ---
 
+## `datetime` **[UNRELEASED]**
+
+One tag for a single date and time and for a range, registered at `datetime_single`'s place in the base-tag order (FW-81). The old four tags keep registering and rendering, and the section below still describes the single and range pair. Link-wrappable, per item in list mode. GB type `'cross-source'`. Its picker title is `'Date/Time'`. The old four tags (`datetime_single`, `datetime_range` and their `try_` forms) are hidden from the picker with GB's `visibility => false` and still render; a `type:'tag'` migration entry stamped `deprecated` names `datetime` or `try_datetime` as each one's replacement.
+
+**The mode is never stated.** The `key` option holds the reads: a `;` separates reads, so one entry is a single value and two are a range, and a `+` joins at most two operands inside one entry, a primary field (date, datetime or time) and an optional time field. A third operand is ignored. An empty entry is still a read, an empty one, so `key:a;` is a range with no end. A time-only entry in the end position inherits the start's date. No `key`, or a blank one, is a read-less tag and shows its fallback.
+
+| Wire | Reads |
+|---|---|
+| `key:event_datetime` | single |
+| `key:event_date+start_time` | single, a date field and a time field |
+| `key:event_date+start_time;end_time` | range, a time-only end taking the start's date |
+| `key:start_dt;end_dt` | range, two datetimes |
+| `use:published` | single, the post's published date |
+| `use:modified` | single, the post's modified date |
+| `use:now` | single, the current date and time |
+| `use:key;now\|key:event_date+start_time` | range, from a field until now |
+| `use:now;key\|key:end_date` | range, from now until a field |
+
+The old six field options (`key`, `timeKey`, `startKey`, `startTimeKey`, `endKey`, `endTimeKey`) are not registered on this tag. `bws_normalize_datetime_options()` is still the only place any of them, or `key`, is parsed, so the old tags and the merged tag hand the cores the same fields for the same reads; passing `null` for its `$range` argument is what lets the merged tag's mode come from the reads. The other options are the old tags' union: [Source](#source-group) + `sep`, `use`, `key`, `as`, `rangeSep`, `format`, `timeSep`, `showCurrentYear`, `showMidnight`, [Link wrap](#link-wrap-group) and [Fallback](#fallback-group), in that order. `key` is the read control (`bws-datetime-reads`, [mechanism](editor-controls.md#datetime-read-control)); `use` is written by that same control, one entry per read, and its own select is hidden in the editor.
+
+**`use` adds the verbs `now`, `published` and `modified`** (FW-81). With no verb, `use` is absent and `key` alone holds every read. With a verb, `use` is the full ordered list, `key` included, because position is what tells `use:key;now` (from a field until now) from `use:now;key` (from now until a field): each `key` in it takes the next `;` entry of `key:`, and a verb takes none. A `use` made only of `key` (`key;key`, `key`) is the stripped default and reads exactly as no `use` at all. A verb read is a moment with no field behind it: `now` is the current date and time, and `published` and `modified` are a post's own dates, shown as dates with no time of day. A verb takes the time display of the field beside it, so `now` against a date-only field stays a date. `published` and `modified` read only from a post source; on a term, the site, or a repeater row they are an empty read and take the fallback, and `now` reads on any source. An absent `use` reads no verb, so a keyless tag still shows its fallback.
+
+A `use` and `key:` that disagree degrade without breaking the page. A `key` in `use` with no entry left is an empty read, which reads nothing as a start and prints the start alone as an end (as `key:a;` does). A surplus `key:` entry is ignored, and a name in `use` that is neither `key` nor a verb is dropped. The two old tags have no `use` and ignore one. The editor preview warns about a missing or a surplus entry when the tag reads empty, as [`editor-tag-previews.md`](editor-tag-previews.md#datetime-read-warnings-unreleased) lists, and the read control names a surplus entry or an ignored third field in the tag's settings whatever the tag reads ([mechanism](editor-controls.md#datetime-read-control)).
+
 ## `datetime_single` and `datetime_range`
 
 Format a date/datetime/time field (`datetime_single`) or a start–end **composite string** (`datetime_range`). List mode on `srcTermIn` / `src:ref` (shipped with [#30](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/30) — see [§List mode](#list-mode-limit--sep)). Link-wrappable, per item in list mode. GB types `'cross-source'`; picker titles `'Format Date/Time Fields'` / `'Format Date/Time Fields as Range'`.
+
+**[UNRELEASED]** **The time half of a read is one display, for both tags and the merged one.** A read prints as a time when `as:time` is set or its start has no date (a time-only field), through one function that both cores call, so a single value and a one-ended range print the same bytes. It never prints a time the value does not have (a date-only field has none to show), midnight follows `showMidnight`, a custom `format` is honored on a time-only field, and no label text ("Start time:" and the like) is ever printed; a range with no start reads nothing and takes the fallback. What decides the style of the time is stated once, at `bws_resolve_time_only_format()`, and each case is pinned by [`datetime-test-matrix.md`](../tools/test/datetime-test-matrix.md) D10.
 
 **Required:** `datetime_single` needs `key`; `datetime_range` needs `startKey` (`endKey` optional). Under `src:site` the keys read ACF options-page date fields via `get_field($key,'option')`. On a taxonomy archive a bare tag reads the ambient **term's** date field (1.15.0, FW-3a — same current-entity rule as text/title; previously post-only, honest-empty there). Uses [Source](#source-group) + `limit`/`sep` + [Link wrap](#link-wrap-group) + [Fallback](#fallback-group).
 

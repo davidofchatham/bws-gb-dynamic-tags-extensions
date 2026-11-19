@@ -382,6 +382,7 @@ function shows( key, state ) {
 // differently. The rows below mirror §C8 of fold-chain-compile-test.php one for one.
 console.log( '\nbase-tag source chain — legacy reading + conversion\n' );
 
+load( 'assets/js/option-nodes.js' );
 load( 'assets/js/slot-fold-control.js' );
 load( 'assets/js/src-chain-control.js' );
 
@@ -897,7 +898,7 @@ check( 'a chain fanning at TWO steps shows the advisory once', 1 === countAdviso
 console.log( '\n`use` read rule — the editor twin (FW-142)\n' );
 
 const USE_CASES = [];
-[ 'text', 'content', 'image', 'email', 'phone', 'title', 'permalink' ].forEach( function ( tag ) {
+[ 'text', 'content', 'image', 'email', 'phone', 'datetime', 'title', 'permalink' ].forEach( function ( tag ) {
 	[
 		{},
 		{ key: 'foo' },
@@ -914,7 +915,13 @@ const USE_CASES = [];
 		{ key: 'foo', fixed: 'Bar' },
 		{ use: 'title', fixed: 'Bar' },
 		{ fixed: '' },
-		{ use: 'fixed' }
+		{ use: 'fixed' },
+		// FW-81 — an ordered read list: all-default collapses, anything else stays whole.
+		{ use: 'key;key' },
+		{ use: 'key;key', key: 'foo' },
+		{ use: 'key ; key', key: 'foo' },
+		{ use: 'key;now', key: 'foo' },
+		{ use: 'now;key', key: 'foo' }
 	].forEach( function ( state ) {
 		USE_CASES.push( [ tag, state ] );
 	} );
@@ -934,8 +941,8 @@ const useRead = global.window.bwsUseRead;
 
 check( 'the read twin loaded', !! useRead );
 check(
-	'the inline carries the map and the five stripped defaults (non-vacuity)',
-	'key' === phpUse.rules.implied.key && 5 === Object.keys( phpUse.rules.defaults ).length,
+	'the inline carries the map and the six stripped defaults (non-vacuity)',
+	'key' === phpUse.rules.implied.key && 6 === Object.keys( phpUse.rules.defaults ).length,
 	JSON.stringify( phpUse.rules )
 );
 
@@ -956,6 +963,12 @@ check( 'effective() agrees with bws_use_effective() on all ' + USE_CASES.length 
 ].forEach( function ( row ) {
 	check( 'display — ' + row[ 3 ], row[ 2 ] === useRead.displayValue( row[ 0 ], row[ 1 ] ), JSON.stringify( useRead.displayValue( row[ 0 ], row[ 1 ] ) ) );
 } );
+
+// FW-81: an ordered read list is not a mode. Its `key` token is the list's operands, so the
+// mount normalize must NOT drop it as stale; an all-default list is redundant and goes.
+const listState = { use: 'key;now', key: 'event_date' };
+check( 'mount normalize leaves an ordered read list and its key alone', listState === useRead.normalize( 'datetime', listState ), JSON.stringify( useRead.normalize( 'datetime', listState ) ) );
+check( 'mount normalize drops an all-default list, keeping the key', JSON.stringify( { key: 'event_date' } ) === JSON.stringify( useRead.normalize( 'datetime', { use: 'key;key', key: 'event_date' } ) ), JSON.stringify( useRead.normalize( 'datetime', { use: 'key;key', key: 'event_date' } ) ) );
 
 // WRITE: picking a mode. Every row asserts the WHOLE next state, so a stale token written
 // as '' instead of deleted fails by name.
@@ -1136,6 +1149,92 @@ Object.keys( TABLE_STYLE_OPTIONS ).forEach( function ( name ) {
 	check( '`' + name + '` (a composite) still carries its option key inside the group box', name === wrapped.key, 'key = ' + JSON.stringify( wrapped.key ) );
 } );
 
+// ── An OLD datetime tag's `try_` form: the read control beside the fold ─────────────────
+//
+// `try_datetime_single` / `try_datetime_range` carry the old tags' `key` read control
+// (`legacy` names the family) AND the attempts' fold. Two mount migrators then sit on one
+// modal, so each must leave the other's keys alone. The fold's axes are the registered
+// `flatAxes` (src, ref, srcTermIn: `key` is tag-level on a datetime template, so it is never a
+// slot axis; control-order-test.php pins that registration).
+console.log( 'try_datetime_* — the read control and the fold mount migrator' );
+
+global.window.bwsChainKinds = { steps: {}, settles: '', roots: {} };
+load( 'assets/js/datetime-read-control.js' );
+
+const TRY_DT_FOLD = { type: 'bws-slot-fold', fold: { max: 5, combining: false, perSlotUse: false, flatAxes: [ 'src', 'ref', 'srcTermIn' ] } };
+const DT_KEY_DEF = { type: 'bws-datetime-reads', legacy: 'range', max: 2, reads: [ { value: 'key', label: 'Date/Time Field' } ] };
+const TRY_DT_RANGE = {
+	A: TRY_DT_FOLD, B: TRY_DT_FOLD,
+	key: DT_KEY_DEF,
+	startKey: { type: 'bws-field-combo' }, startTimeKey: { type: 'bws-field-combo' },
+	endKey: { type: 'bws-field-combo' }, endTimeKey: { type: 'bws-field-combo' },
+	as: { type: 'select' }, fallback: PLAIN
+};
+
+/** The state an updater leaves, from the migrator element a `key` option carries (or null). */
+function datetimeMountResult( options, state ) {
+	effects = [];
+	const wrapped = applyFilters( { key: 'key', type: 'control' }, options, { state: state, setState: function () {} } );
+	const migrator = ( wrapped && wrapped.children || [] ).filter( function ( c ) { return c && c.props && c.props.setState; } )[ 0 ];
+	if ( ! migrator ) { return null; }
+	let updater = null;
+	migrator.type( Object.assign( {}, migrator.props, { setState: function ( fn ) { updater = fn; } } ) );
+	effects.forEach( function ( fn ) { fn(); } );
+	return updater ? updater( state ) : null;
+}
+
+const sortedJson = function ( o ) { return JSON.stringify( Object.keys( o ).sort().map( function ( k ) { return [ k, o[ k ] ]; } ) ); };
+const oldTryRange = { A: 'src(post)', B: 'src(site)', startKey: 's', endKey: 'e', endTimeKey: 'et', as: 'date', fallback: 'TBA' };
+const migrate = global.window.bwsSlotFoldMigrate;
+
+check( 'try_datetime_range: the fold migrator touches none of the datetime keys',
+	null === migrate.migrateSlots( oldTryRange, TRY_DT_FOLD.fold ), JSON.stringify( migrate.migrateSlots( oldTryRange, TRY_DT_FOLD.fold ) ) );
+const rewrittenTry = global.window.bwsDatetimeLegacy.rewrite( oldTryRange, 'range' );
+check( 'try_datetime_range: the datetime rewrite changes only the datetime keys, never an attempt or another option',
+	JSON.stringify( [ rewrittenTry.A, rewrittenTry.B, rewrittenTry.as, rewrittenTry.fallback, rewrittenTry.key, 'startKey' in rewrittenTry, 'endTimeKey' in rewrittenTry ] ) === JSON.stringify( [ 'src(post)', 'src(site)', 'date', 'TBA', 's;e+et', false, false ] ),
+	JSON.stringify( rewrittenTry ) );
+// A legacy flat slot (`src`) rides the same modal: the fold takes it, the datetime rewrite
+// takes its own keys, and either order lands on the same wire.
+const flatTry = { src: 'post,5', startKey: 's', endKey: 'e', fallback: 'TBA' };
+const foldFirst = ( function () { const f = migrate.migrateSlots( flatTry, TRY_DT_FOLD.fold ); return f && global.window.bwsDatetimeLegacy.rewrite( f, 'range' ); }() );
+const dtFirst = ( function () { const d = global.window.bwsDatetimeLegacy.rewrite( flatTry, 'range' ); return d && migrate.migrateSlots( d, TRY_DT_FOLD.fold ); }() );
+check( 'try_datetime_range: fold then datetime and datetime then fold land on the same wire (non-vacuous: both changed it)',
+	!! foldFirst && !! dtFirst && undefined !== foldFirst.A && sortedJson( foldFirst ) === sortedJson( dtFirst ),
+	JSON.stringify( [ foldFirst, dtFirst ] ) );
+
+// Through the real filter chain: the `key` option mounts the datetime migrator, the old
+// options are hidden, and the first attempt still carries the fold's own two invisible controls.
+const dtMount = datetimeMountResult( TRY_DT_RANGE, oldTryRange );
+check( 'try_datetime_range: the datetime mount migrator rewrites the stored old range',
+	!! dtMount && 's;e+et' === dtMount.key && 'src(post)' === dtMount.A && ! ( 'startKey' in dtMount ), JSON.stringify( dtMount ) );
+check( 'try_datetime_range: ...and is the fixed point (a second pass returns the same object)',
+	null === global.window.bwsDatetimeLegacy.rewrite( dtMount, 'range' ), 'rewrote its own output' );
+const tryDtSeen = renderTag( TRY_DT_RANGE );
+check( 'try_datetime_range: the attempts keep the order normalizer and the fold mount migrator',
+	1 === tryDtSeen[ 'bws-order-normalizer' ] && 1 === tryDtSeen[ 'bws-slot-fold-mount-migrator' ], JSON.stringify( tryDtSeen ) );
+const dtOld = [ 'startKey', 'startTimeKey', 'endKey', 'endTimeKey' ].map( function ( n ) { return applyFilters( { key: n, type: 'control' }, TRY_DT_RANGE, { state: { key: 's;e' }, setState: function () {} } ); } );
+check( 'try_datetime_range: once rewritten the four old controls are hidden', dtOld.every( function ( e ) { return null === e; } ), JSON.stringify( dtOld ) );
+const dtHeld = [ 'startKey', 'endKey' ].map( function ( n ) { return applyFilters( { key: n, type: 'control' }, TRY_DT_RANGE, { state: { endKey: 'e' }, setState: function () {} } ); } );
+check( 'try_datetime_range: an end-only old range keeps its old controls, with no read control',
+	dtHeld.every( function ( e ) { return e && e.key; } ) && null === applyFilters( { key: 'key', type: 'control' }, TRY_DT_RANGE, { state: { endKey: 'e' }, setState: function () {} } ), JSON.stringify( dtHeld ) );
+
+// The single form: `timeKey` is its only other old option, and `sep` is not registered on a
+// try_ datetime tag. The same two migrators, the same disjoint keys.
+const TRY_DT_SINGLE = {
+	A: TRY_DT_FOLD, B: TRY_DT_FOLD,
+	key: Object.assign( {}, DT_KEY_DEF, { legacy: 'single', max: 1 } ),
+	timeKey: { type: 'bws-field-combo' },
+	as: { type: 'select' }, fallback: PLAIN
+};
+const oldTrySingle = { A: 'src(post)', key: 'a', timeKey: 't', fallback: 'TBA' };
+const singleMount = datetimeMountResult( TRY_DT_SINGLE, oldTrySingle );
+check( 'try_datetime_single: the mount migrator folds key and timeKey into one read and leaves the attempt and fallback',
+	!! singleMount && 'a+t' === singleMount.key && 'src(post)' === singleMount.A && 'TBA' === singleMount.fallback && ! ( 'timeKey' in singleMount ), JSON.stringify( singleMount ) );
+check( 'try_datetime_single: the fold migrator leaves the tag-level key alone', null === migrate.migrateSlots( oldTrySingle, TRY_DT_FOLD.fold ), JSON.stringify( migrate.migrateSlots( oldTrySingle, TRY_DT_FOLD.fold ) ) );
+check( 'try_datetime_single: once rewritten the old time control is hidden', null === applyFilters( { key: 'timeKey', type: 'control' }, TRY_DT_SINGLE, { state: { key: 'a+t' }, setState: function () {} } ) );
+const tryDtSingleSeen = renderTag( TRY_DT_SINGLE );
+check( 'try_datetime_single: the attempts keep the order normalizer and the fold mount migrator',
+	1 === tryDtSingleSeen[ 'bws-order-normalizer' ] && 1 === tryDtSingleSeen[ 'bws-slot-fold-mount-migrator' ], JSON.stringify( tryDtSingleSeen ) );
 console.log( '' );
 if ( fail ) {
 	console.log( 'FAILED: ' + fail + '/' + ( pass + fail ) );

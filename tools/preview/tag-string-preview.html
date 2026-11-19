@@ -314,33 +314,11 @@ button:hover { border-color: var(--accent); color: var(--accent); }
     <div id="sb-names"></div>
     <button id="add-name-row" style="margin-top:4px;width:100%">+ add rename</button>
 
-    <div class="sb-h">Option Combining (FW-20, FW-81)</div>
-    <label class="toggle-row">
-      <input type="checkbox" id="cb-fromkey">
-      <span class="toggle-desc">use + key → <code>use:key[sep]field</code> (FW-20; base tag only, folded slots not yet wired)</span>
-    </label>
+    <div class="sb-h">Option Combining (FW-20)</div>
     <label class="toggle-row">
       <input type="checkbox" id="cb-linkcombined">
       <span class="toggle-desc">fold link → <code>linkTo:key[sep]field</code> (FW-20; already reaches folded slots)</span>
     </label>
-    <label class="toggle-row">
-      <input type="checkbox" id="cb-fw81" checked>
-      <span class="toggle-desc">collapse datetime keys → <code>{{datetime key:a,b;c}}</code>, <code>use:</code> only for published/modified/now (FW-81, unshipped)</span>
-    </label>
-    <div class="toggle-desc" style="margin-top:4px">FW-81 fields inside one <code>key:</code> read (date, time)</div>
-    <select id="sel-fw81-inner" style="width:100%">
-      <option value=",">, (comma): key:a,b;c,d</option>
-      <option value="+" selected>+ (plus): key:a+b;c+d</option>
-      <option value="/">/ (slash): key:a/b;c/d</option>
-    </select>
-    <div class="toggle-desc" style="margin-top:4px">FW-81 reads (start / end): between <code>key:</code> groups AND between <code>use:</code> verbs, one separator for both; also a <code>when</code> read subject</div>
-    <select id="sel-fw81-readsep" style="width:100%">
-      <option value=";">; (semicolon): key:a+b;c+d · use:published;key</option>
-      <option value="/">/ (slash): key:a+b/c+d · use:published/key</option>
-      <option value="~">~ (tilde): key:a+b~c+d · use:published~key</option>
-      <option value="..">.. (two dots): key:a+b..c+d · use:published..key</option>
-      <option value="...">... (three dots): key:a+b...c+d · use:published...key</option>
-    </select>
     <div class="sb-h">when syntax (FW-27, not built)</div>
     <div class="toggle-desc" style="margin-bottom:4px">Test-first; reads always bracketed (<code>key(price)</code>, <code>use(content)</code>); relation words are <code>has</code> + a list word (<code>hasAny(term,34)</code>, <code>hasAll</code>, <code>hasNone</code>, <code>hasNotAll</code>), adopted 2026-11-09: all(hasValue,key[price];hasAny[term,34]). The options below are candidate spellings, none chosen.</div>
     <div class="toggle-desc" style="margin-top:4px">when: several tests on one field</div>
@@ -362,7 +340,7 @@ button:hover { border-color: var(--accent); color: var(--accent); }
       <input type="checkbox" id="cb-when-readfirst">
       <span class="toggle-desc">read first: the read leads and the tests follow, <code>when:key(event_date+start_time),beforeDuring</code> for <code>when:beforeDuring,key(event_date+start_time)</code>. Every test syntax follows it (joiners, operators, hoisted lists); a <code>hasAny(term,34)</code> relation has no separate test and stays put</span>
     </label>
-    <div class="toggle-desc" style="margin-top:4px">when: group separator (list items, grouped tests, relations). Independent of the <code>key:</code> read separator above (a read is bracketed, so they never collide)</div>
+    <div class="toggle-desc" style="margin-top:4px">when: group separator (list items, grouped tests, relations). Independent of the datetime read separator <code>;</code> (a read is bracketed, so they never collide)</div>
     <select id="sel-when-sep" style="width:100%">
       <option value=";">; (semicolon): any(a;b)</option>
       <option value="/">/ (slash): any(a/b)</option>
@@ -386,6 +364,7 @@ button:hover { border-color: var(--accent); color: var(--accent); }
       <div class="dummy-item"><label>timeKey</label><input id="d-timeKey" value="event_time"></div>
       <div class="dummy-item"><label>startKey</label><input id="d-startKey" value="start_date"></div>
       <div class="dummy-item"><label>endKey</label><input id="d-endKey" value="end_date"></div>
+      <div class="dummy-item"><label>endTimeKey</label><input id="d-endTimeKey" value="end_time"></div>
       <div class="dummy-item"><label>ref</label><input id="d-ref" value="rel_post"></div>
       <div class="dummy-item"><label>tax</label><input id="d-tax" value="category"></div>
       <div class="dummy-item"><label>fallback</label><input id="d-fallback" value="N/A"></div>
@@ -718,18 +697,18 @@ const SCENARIO_GROUPS = [
     {label:'In `term`',               parts:[['_inTerm','$tax']],
       chain:[{slug:'terms',arg:'$tax'}], rest:[]},
   ]},
-  // isContrast + a dynamic `variants` fn (toggle cb-fw81): six-key wire always shows; the FW-81
-  // collapsed line joins it only when the sidebar toggle is on. See datetimeCollapseFromParts() —
-  // the collapsed line is DERIVED from `parts`, not hand-duplicated, for the rows that have a
-  // six-key form at all. The collapsed line renders under the MERGED placeholder name `datetime`
-  // (S1 settled — one tag, mode = read count), not this group's own `tmpl` — see buildOneVariant's
-  // dtCollapse branch. `tmpl` stays `datetime_single`/`datetime_range` because that is still the
+  // isContrast + the FW-81 pair: the six-key wire is Legacy, the merged `{{datetime}}` line is Current
+  // (built, so not a Preview). See datetimeCollapseFromParts() —
+  // the merged line is DERIVED from `parts`, not hand-duplicated, for the rows that have a six-key
+  // form at all. It renders under the merged tag's name `datetime`, not this group's own `tmpl` — see
+  // buildOneVariant's dtCollapse branch. `tmpl` stays `datetime_single`/`datetime_range` because that is still the
   // real, only-shipped name for the six-key variant on this row.
   { tmpl:'datetime_single', path:['Datetime','Single date'],
     isContrast:true, variants:['sixKey','collapsed'], scenarios:[
     {label:'Date',                  parts:[['as','date'],['key','$dateKey']]},
-    {label:'Datetime',              parts:[['key','$dateKey'],['timeKey','$timeKey']]},
-    {label:'Time',                  parts:[['as','time'],['key','$timeKey']]},
+    {label:'One field (a datetime, or a date)', parts:[['key','$dateKey']]},
+    {label:'Datetime, date and time in two fields', parts:[['key','$dateKey'],['timeKey','$timeKey']]},
+    {label:'Time',                 parts:[['as','time'],['key','$timeKey']]},
     {label:'Date + show year',      parts:[['as','date'],['showCurrentYear',true],['key','$dateKey']]},
     {label:'Date, custom `format`',   parts:[['as','date'],['format','$format'],['key','$dateKey']]},
     {label:'Via `ref` → date',        parts:[['as','date'],['source','ref'],['ref','$ref'],['key','$dateKey']]},
@@ -745,31 +724,33 @@ const SCENARIO_GROUPS = [
     isContrast:true, variants:['sixKey','collapsed'], scenarios:[
     {label:'Date range',            parts:[['as','date'],['startKey','$startKey'],['endKey','$endKey']]},
     {label:'Date range + `sep`',      parts:[['as','date'],['rangeSep','$rangeSep'],['startKey','$startKey'],['endKey','$endKey']]},
-    {label:'Datetime range',        parts:[['startKey','$startKey'],['startTimeKey','$timeKey'],['endKey','$endKey'],['endTimeKey','$timeKey']]},
+    {label:'Datetime range, two fields each', parts:[['startKey','$startKey'],['startTimeKey','$timeKey'],['endKey','$endKey'],['endTimeKey','$timeKey']]},
+    {label:'Datetime range, two datetime fields', parts:[['startKey','$startKey'],['endKey','$endKey']]},
+    {label:'Range, time-only end (date inherited)', parts:[['startKey','$startKey'],['startTimeKey','$timeKey'],['endTimeKey','$endTimeKey']]},
     {label:'Date range + show year',parts:[['as','date'],['showCurrentYear',true],['startKey','$startKey'],['endKey','$endKey']]},
     {label:'Via `ref` → date range',  parts:[['as','date'],['source','ref'],['ref','$ref'],['startKey','$startKey'],['endKey','$endKey']]},
     // No six-key form exists AT ALL — an open-ended range (end = "now") has nothing to hold it;
     // the flat wire has no verb slot. S10 settles `now` itself; O7 (published) stays unmodelled.
-    {label:'Range, ongoing (end = now)', parts:null,
+    {label:'Range, from a field until now', parts:null,
       collapsed:[{verb:'key',args:['$startKey','$timeKey']},{verb:'now'}],
       previewOnly:true,
       note:'No six-key equivalent: the flat wire has no verb position, so "ongoing" is unspellable today'},
+    {label:'Range, from now until a field', parts:null,
+      collapsed:[{verb:'now'},{verb:'key',args:['$endKey']}],
+      previewOnly:true, note:'Position in `use` is what tells this apart from "from a field until now"'},
     {label:'Range, published → end field', parts:null,
       collapsed:[{verb:'published'},{verb:'key',args:['$endKey']}],
-      previewOnly:true, note:'Verbs and fields mix: `use` lists the reads in order, each `key` takes the next `;`-group of `key:`'},
+      previewOnly:true, note:'Verbs and fields mix: `use` lists the reads in order, each `key` takes the next `;`-entry of `key:`'},
     {label:'Range, published → modified', parts:null,
       collapsed:[{verb:'published'},{verb:'modified'}],
       previewOnly:true, note:'All verbs: no `key:` at all'},
-    {label:'Range, field → field, then now → field (two key groups)', parts:null,
-      collapsed:[{verb:'key',args:['$startKey','$timeKey']},{verb:'now'},{verb:'key',args:['$endKey']}],
-      previewOnly:true, note:'Not a sensible range, shown only for how two `key` verbs consume two `;`-groups in order'},
   ]},
-  // try_datetime: each slot is one whole read-list (single or range) folded into its OWN slot value,
-  // `A:`, `B:`, `C:`... like every other try_ container, so a slot's `use`/`key` and their groups are
+  // try_datetime: each slot is one whole set of reads (single or range) folded into its OWN slot value,
+  // `A:`, `B:`, `C:`... like every other try_ container, so a slot's `use`/`key` and their entries are
   // separate from every other slot's. Shipped try_datetime_* has no per-slot read axis (all six keys are
-  // tag-level), so every row is Preview-only. `dtKeys.reads` = the slot's read list (see respellEntries).
-  // Added to stress the read/verb separators: inside ONE slot value the inner, read and verb separators
-  // all appear next to the slot option separator, and the slot key and `|` sit between slots.
+  // tag-level), so every row is Preview-only. `dtKeys.reads` = the slot's reads (see respellEntries).
+  // Inside ONE slot value the date/time join, the read separator and the slot option separator all
+  // appear together, and the slot key and `|` sit between slots.
   { tmpl:'datetime', path:['Try tags','try_datetime'], isContrast:true,
     variants:['folded'], foldClass:'try', scenarios:[
     {label:'2: event datetime, else published', previewOnly:true,
@@ -1140,7 +1121,7 @@ const SCENARIO_GROUPS = [
   // DATETIME folded slots — the multi-key pivot (user 2026-07-29). rule2 can only carry ONE
   // terminal key → these BREAK/lose keys in rule2, resolve fully in respell. dtKeys = the flat
   // option set (as/format + 1-4 keys). Shown in join (agnostic → type leads) + table columns.
-  { path:['Join','Datetime slots'], isContrast:true, variants:['foldedCurrent','folded'], foldClass:'join', scenarios:[
+  { path:['Join','Datetime slots'], isContrast:true, variants:['foldedLegacyDt','foldedDt'], foldClass:'join', scenarios:[
     {label:'Name + 1 key single date',   slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_date'},dtKeys:{as:'date',key:'event_date',format:'F j, Y'}}]},
     {label:'Name + 2 key single datetime',slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_date'},dtKeys:{key:'event_date',timeKey:'event_time'}}]},
     {label:'Name + 2 key date range',    slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_range',read:{kind:'key',field:'start_date'},dtKeys:{as:'date',startKey:'start_date',endKey:'end_date'}}]},
@@ -1153,7 +1134,7 @@ const SCENARIO_GROUPS = [
     {label:'Template `format` + datetime slot `format`', format:'%1 - %2',
       slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_date'},dtKeys:{as:'date',key:'event_date',format:'F j, Y'}}]},
   ]},
-  { path:['Table','Datetime columns'], isContrast:true, tableV1:true, variants:['foldedCurrent','folded'], foldClass:'table', scenarios:[
+  { path:['Table','Datetime columns'], isContrast:true, tableV1:true, variants:['foldedLegacyDt','foldedDt'], foldClass:'table', scenarios:[
     {label:'Event rows: name + date range',
       rowChain:[{slug:'refs',arg:'events'}],
       slots:[{label:'Event',tag:'title',read:{kind:'analog',slug:'title'}},
@@ -1266,9 +1247,9 @@ const SCENARIO_GROUPS = [
     {label:'Range, two reads (LATER, G6)', rest:[['use','title'],['_if',{test:'during',subject:[{kind:'key',field:'$startKey'},{kind:'key',field:'$endKey'}]}]],
       note:'Not v1: a second read arrives with FW-81\'s read form'},
     {label:'Date + time split (FW-81 read)',     rest:[['use','title'],['_if',{test:'before',subject:{kind:'key',field:'$dateKey',time:'start_time'}}]],
-      note:'FW-81\'s `key,date,time` read (G7 widening): a time makes the value an instant (G4b)'},
+      note:'FW-81\'s `key(date+time)` read (G7 widening): a time makes the value an instant (G4b)'},
     {label:'Range, time-only end (LATER, G6)',  rest:[['use','title'],['_if',{test:'during',subject:[{kind:'key',field:'$dateKey',time:'start_time'},{kind:'key',field:'end_time'}]}]],
-      note:'FW-81: a time-only end INHERITS the start date; the reads ride one `key` token, bracketed (`key(…)`) only when the read separators collide with the `when` group separator (`use()` today, without the FW-81 toggle), so the top level is still tests,read'},
+      note:'FW-81: a time-only end INHERITS the start date; the reads ride one `key` token, always bracketed (`key(…)`), so the top level is still tests,read'},
     {heading:'Relations and `src`'},
     // Property tests (P1–P9 + the 2026-09-27 property list): a step-shaped subject, no read.
     {label:'Filed under term 34 (P1)',        rest:[['use','title'],['_if',{test:'hasValue',subject:{kind:'step',slug:'term',arg:'34'}}]]},
@@ -1329,7 +1310,7 @@ const SCENARIO_GROUPS = [
     {label:'Range in a slot (LATER, G6)',
       slots:[{tag:'title',read:{kind:'analog',slug:'title'}},
              {tag:'title',chain:[{slug:'refs',arg:'related_events'}],read:{kind:'analog',slug:'title'},if:{test:'during',subject:[{kind:'key',field:'$startKey'},{kind:'key',field:'$endKey'}]}}],
-      note:'FW-81\'s read list in its slot form, `use[…]`, one bracket level below the slot\'s `if(…)`'},
+      note:'FW-81\'s two reads in a slot\'s `when`: one `key` token, bracketed one level below the slot\'s `when(…)`'},
     {label:'Built-in field in a slot',
       slots:[{tag:'text',read:{kind:'key',field:'$key1'},if:{test:'hasValue',subject:{kind:'analog',slug:'excerpt'}}},
              {tag:'text',read:{kind:'key',field:'$key2'}}],
@@ -1514,9 +1495,9 @@ const SCENARIO_GROUPS = [
         row('Top-level page with children', {conds:'all', items:[{test:'noValue', subject:T('parent')}, T('children')]}),
         {heading:'Reads that arrive later'},
         row('Range, two reads (LATER)', {test:'during', subject:[K('start_date'), K('end_date')]},
-          {note:'Two reads take one bracket, `key(…;…)` with the FW-81 toggle on (`use(…)` off); the only bracket a subject takes'}),
+          {note:'Two reads take one bracket, `key(…;…)`; the only bracket a subject takes'}),
         row('Date plus time read (FW-81)', {test:'before', subject:{kind:'key', field:'event_date', time:'start_time'}},
-          {note:'With FW-81 off the read is flat, `before,key,event_date,start_time`: a reader takes test words until `key`, so tests and fields never share a position'}),
+          {note:'One read of two fields, `key(event_date+start_time)`: bracketed like every read, so tests and fields never share a position'}),
         {heading:'Lists and groups'},
         row('A taxonomy test and a date test in one list', {conds:'all', items:[T('terms','event-type'), {any:['before','during'], subject:K('event_date')}]}),
         row('Either a term or an empty field', {conds:'any', items:[T('term','34'), no('promo')]}),
@@ -1627,9 +1608,8 @@ const SCENARIO_GROUPS = [
 
   // FW-27 `when` JOINERS (user 2026-11-09): FW-81's `+` / `/` trial applied to `when`. Each row is
   // spelled two ways (WHEN_JOIN_ENCS): `+` AND / `/` OR on tests, or any / all groups on tests, each
-  // with the shared test written once and has-words over relations. The FW-81 rows set
-  // reads with the sidebar's FW-81 toggle and separators, so FW-81's characters and `when`'s sit in
-  // one string as picked there.
+  // with the shared test written once and has-words over relations. The FW-81 rows write
+  // a read with FW-81's fixed `+` and `;`, so FW-81's characters and `when`'s sit in one string.
   ...(() => {
     const K = (f, time) => ({kind:'key', field:f, ...(time ? {time} : {})}), T = (slug, arg) => ({kind:'step', slug, arg});
     const has = f => ({test:'hasValue', subject:K(f)}), no = f => ({test:'noValue', subject:K(f)});
@@ -1652,12 +1632,12 @@ const SCENARIO_GROUPS = [
         row('Value with a slash in it', {test:'is', arg:'In/Out', subject:K('status')}),
         row('Vegan AND (gluten-free OR nut-free), multi-value field', {conds:'all', items:[{test:'contains', arg:'Vegan', subject:K('dietary')}, {any:[{test:'contains', arg:'Gluten-free'}, {test:'contains', arg:'Nut-free'}], subject:K('dietary')}]},
           {note:'Uses `contains`, a later test: every v1 test reads one value, so any AND-of-an-OR on one field flattens to a single list or value set. Groups nest, so it is one condition. `+ /` cannot nest: `contains(Vegan)+contains(Gluten-free)/contains(Nut-free)` would need a precedence rule, so the `Shared test once` line keeps the list'}),
-        {heading:'With FW-81 reads (toggle and separators from the sidebar)'},
+        {heading:'With FW-81 reads'},
         row('Date + time, upcoming or now', {any:['before','during'], subject:dt},
-          {note:'With FW-81 on `+`, a `+` AND before `key` would sit beside the field join inside its bracket, but a date read has no AND worth writing (the phases exclude each other, and each implies a value), so the two never meet'}),
+          {note:'A `+` AND before `key` would sit beside the field join inside its bracket, but a date read has no AND worth writing (the phases exclude each other, and each implies a value), so the two never meet'}),
         row('Date + time, upcoming', {test:'before', subject:dt}),
         row('Range, happening now', {test:'during', subject:range},
-          {note:'Two reads sit in one bracket, FW-81\'s read separator between them'}),
+          {note:'Two reads sit in one bracket, `;` between them'}),
         row('Range, now or past', {any:['during','after'], subject:range}),
         row('Range, time-only end, happening now', {test:'during', subject:rangeT}),
         {heading:'Several relations'},
@@ -1754,6 +1734,9 @@ const SCENARIO_GROUPS = [
 ];
 
 // ── State ────────────────────────────────────────────────────────────────────
+// FW-81 merged datetime: the separator between two reads, and the one joining a date field and a time
+// field inside one read. Fixed, not sidebar-picked.
+const FW_DT_JOIN = '+', FW_DT_READ_SEP = ';';
 const S = {
   // Slot prefix LOCKED (user 2026-07-29): fold value = `N:` (all slots incl 1, no bare-slot-1
   // exception); outside-token siblings = `N-` (matches serialization-order.php's `\d+-` parser).
@@ -1767,7 +1750,6 @@ const S = {
   // its sidebar radio were cut 2026-09-02 (user): the Legacy contrast line's `N-` prefix already
   // shows the digit style, so a separate toggle was redundant.
   slotKeySpelling: 'alpha',
-  fromKeyCombined: false,
   // FW-56 value-side src chain: LOCKED ON (user 2026-07-29). The chain OWNS the source string
   // (src:<chain>), EXCLUDING use+key — those are the read, kept as their own options so datetime's
   // 1-4 keys survive. No toggle: one src string is the decision.
@@ -1806,7 +1788,6 @@ const S = {
   bracketMode: 'depth-alt',
   bracketL1: '()',      // level-1 (outermost) bracket char; level 2 = the opposite. Frontrunner: L1=().
   slotForceSrc: false,  // always serialize a src value (src:current) on slot 1 of join/try_.
-  readViaUse: false,    // fold a slot's META read under use(key,field) for parity with use(same)/use(title).
   respellReadBracket: false, // read target: false → flat key=field; true → Rule-2 key(field).
   // FW-57 POST-READ HANDLER placement. A "handler" = any post-read stage: the Option-R type
   // TRANSFORM (phone/email/…) AND the per-slot LINK. Three models (user 2026-07-28):
@@ -1815,23 +1796,23 @@ const S = {
   //                                                 key(mobile)/phone,linkTo(permalink)
   //   'sibling'    → link only: separate {N}-linkTo: off the value (transform still piped).
   handlerMode: 'zone',
-  valueSep: ',',        // general composite-value glue (as:url,med / use:key,field / linkTo:key,field)
+  valueSep: ',',        // general composite-value glue (as:url,med / linkTo:key,field)
   chainPair: 'off',     // LOCKED FLAT (user 2026-07-29): src chain step BODIES are bare-comma
                         // `slug,arg`, no step brackets. (Radio dropped; 'off' is the decision.)
                         // NB `limit` is the one bracketed intra-step token — bracket-kv `limit[5]`,
                         // decided 2026-07-31; see serializeStep. Not a knob either.
   valuePair: 'off',     // LOCKED FLAT (user 2026-09-02): resolution-read fold is bare-comma
-                        // use:key,field / linkTo:key,field, no bracket. (Radio dropped; 'off' is
+                        // linkTo:key,field, no bracket. (Radio dropped; 'off' is
                         // the decision — mirrors chainPair.)
   linkCombined: false,  // fold linkKey into linkTo value → linkTo:key,<field> (else separate keys)
-  fw81DtCollapse: true, fw81Inner: '+', fw81ReadSep: ';', // FW-81 (parked): show the collapsed use: reading beside today's six-key wire; both seps are sidebar-picked (inner = fields inside one `key:` read, readSep = between reads, in `key:` and `use:` alike, since `use:published;key` is itself a start/end pair).
+  dtLegacy: false,      // FW-81: a folded datetime slot spells its six keys (Legacy variants pin this); off = the merged reads (separators: FW_DT_JOIN, FW_DT_READ_SEP).
   styleBackground: false, // text-styling group: include the background property (deferred past v1, not shipped; on makes each line it appears in a Preview).
   whenTestJoin: 'plus', // FW-27 tests on one field: 'plus' (default, user 2026-11-09) hasValue+isNot(TBD) / any(before;during) | 'group' all(…) / any(…) | 'op' + and / (whenJoinItems).
   whenPhasePairs: true, // FW-27 phase-pair compounds (whenExpand): sidebar checkbox for every group (default on, matching its checked box); Operators' baseline line forces off, Joiners' third line forces on. Value sets always apply.
   whenSingleSet: false, // FW-27 one value: false = is(a) / isNot(a), true = isAny(a) / isNone(a).
   whenReadFirst: false, // FW-27 position trial: false = test-first `tests,read`, true = read-first `read,tests` (`key(x),beforeDuring`). Flips every test-bearing condition, hoisted lists included; a has-word relation (`hasAny(term,34)`) has no separate test, so it is unaffected.
-  whenSep: ';',         // FW-27 group separator in a `when` (list items, grouped tests, relation groups); independent of fw81ReadSep, which only separates reads inside `key:` / a `when` read subject.
-  dummies: {key1:'custom_field',key2:'other_field',imgKey:'image_field',dateKey:'event_date',timeKey:'event_time',startKey:'start_date',endKey:'end_date',ref:'rel_post',tax:'category',urlKey:'url_field',fallback:'N/A',rangeSep:' – ',format:'F j, Y'},
+  whenSep: ';',         // FW-27 group separator in a `when` (list items, grouped tests, relation groups); independent of FW_DT_READ_SEP, which only separates reads inside `key:` / a `when` read subject.
+  dummies: {key1:'custom_field',key2:'other_field',imgKey:'image_field',dateKey:'event_date',timeKey:'event_time',startKey:'start_date',endKey:'end_date',endTimeKey:'end_time',ref:'rel_post',tax:'category',urlKey:'url_field',fallback:'N/A',rangeSep:' – ',format:'F j, Y'},
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -1968,7 +1949,7 @@ const PAIR_CLOSE = { '()':')', '[]':']' };
 function pairWrap(mode, arg) { return `${PAIR_OPEN[mode]}${arg}${PAIR_CLOSE[mode]}`; }
 
 // Join a folded token TAIL onto a head. RULE 2 (locked 2026-07-28) split the two folds; the
-// RESOLUTION-read half (use:key,field / linkTo:key,field) briefly considered bracketing the read
+// RESOLUTION-read half (linkTo:key,field) briefly considered bracketing the read
 // target, but the bracket-CHAR picker was dropped 2026-09-02 — LOCKED FLAT instead, matching the
 // src chain's flat step bodies (S.chainPair) and the FW-81 collapse form: head<valueSep>tail.
 //   - RENDER-MODIFIER folds (as:url,medium) — size only TUNES the render → ALWAYS flat sep:
@@ -2134,10 +2115,10 @@ function respellEntries(chain, read, link, dtKeys, typeTag, fallback, ifCond, al
     if (dtKeys.reads) {
       // an explicit read list (try_datetime slots): always the collapsed spelling, whatever the toggle says.
       fw81CollapsedPairs(dtKeys.reads).forEach(([k,v])=>push(k,v,k==='key'?rb:false));
-    } else if (S.fw81DtCollapse) {
-      // FW-81 toggle reaches a folded slot's own dtKeys too, not just the standalone datetime_single/
-      // datetime_range groups — same merge rule (datetimeCollapseFromParts), so a datetime slot inside
-      // join/table collapses to one `use:` read-list instead of always showing the pre-collapse keys.
+    } else if (!S.dtLegacy) {
+      // A folded slot's own dtKeys merge by the same rule as the standalone groups
+      // (datetimeCollapseFromParts), so a datetime slot inside join/table shows the merged `key:` /
+      // `use:` reads. S.dtLegacy (pinned by a Legacy variant only) spells the six keys instead.
       const reads = datetimeCollapseFromParts(Object.entries(dtKeys).filter(([k])=>DT_KEY_IDS.has(k)));
       if (reads) fw81CollapsedPairs(reads).forEach(([k,v])=>push(k,v,k==='key'?rb:false));
     } else {
@@ -2147,21 +2128,12 @@ function respellEntries(chain, read, link, dtKeys, typeTag, fallback, ifCond, al
   }
   if (read && read.kind==='fixed') fixedReadPairs(read).forEach(([k,v])=>E.push({name:k, val:v, rank:RESPELL_KEY_MAP.use}));
   else if (read && !dtKeys) {
-    // READ-VIA-USE (user 2026-07-29): unify the read under a single `use(...)` token for parity —
-    //   analog  → use(title)      same → use(same)      meta → use(key,field)
-    // vs the default MIXED form: analog/same via use(...), meta as a bare key(field). The composite
-    // `key,field` value glues with valueSep; base tag's `use:key,field` combine mirrors this.
-    if (S.readViaUse) {
-      if (read.kind==='same') push('use',vn('same'),false);
-      else if (read.kind==='key') E.push({name:'use', val:`key${S.valueSep}${read.field||''}`, rank:RESPELL_KEY_MAP.use});
-      // analog: still DROP when it equals the type token (type-lead already says it — no title;use(title)).
-      // Comparisons stay against the RAW slug id — vn() renames only the emitted value.
-      else if (read.slug && read.slug!=='default' && read.slug!==typeTag) push('use',vn(read.slug),false);
-    } else {
-      if (read.kind==='same') push('use',vn('same'),false);
-      else if (read.kind==='key') push('key',read.field||'',rb);
-      else if (read.slug && read.slug!=='default' && read.slug!==typeTag) push('use',vn(read.slug),false);
-    }
+    // analog/same ride `use(...)`, a meta read rides a bare `key(field)`. An analog read is DROPPED when
+    // it equals the type token (the type lead already says it). Comparisons stay against the RAW slug
+    // id — vn() renames only the emitted value.
+    if (read.kind==='same') push('use',vn('same'),false);
+    else if (read.kind==='key') push('key',read.field||'',rb);
+    else if (read.slug && read.slug!=='default' && read.slug!==typeTag) push('use',vn(read.slug),false);
   }
   if (link && link.to && S.handlerMode!=='sibling') {
     if (link.to==='key') {
@@ -2214,15 +2186,14 @@ function escFreeform(v) { return String(v).replace(/([:|])/g, '\\$1'); }
 // {conds:'all'|'any'|'none'|'notAll', items:[cond…]}. `src` (optional) is a chain [{slug,arg}]
 // anchored at the current context, led with `;`.
 function whenWrap(name, v, d) { const b = bracketAt(d) || (d % 2 ? '()' : '[]'); return name + b[0] + v + b[1]; }
-// FW-81 read subject in a `when`, once the FW-81 toggle is on: fields ride `key` (never `use`, which
-// carries only verbs), a read's fields join on S.fw81Inner and several reads on S.fw81ReadSep, so
-// `key(date+time)` / `key(start+time;end)`. Returns [name, value], or null when the legacy spelling
-// applies: toggle off, a non-`key` read in the subject, or a plain single field. The caller always
-// brackets it, so its separators never meet S.whenSep or the test operators.
+// FW-81 read subject in a `when`: fields ride `key` (never `use`, which carries only verbs), a read's
+// fields join on FW_DT_JOIN and several reads on FW_DT_READ_SEP, so `key(date+time)` /
+// `key(start+time;end)`. Returns [name, value], or null for a plain single field or a non-`key` read.
+// The caller always brackets it, so its separators never meet S.whenSep or the test operators.
 function whenFwRead(subj) {
-  if (!S.fw81DtCollapse || !subj.every(s => s.kind === 'key') || (subj.length === 1 && !subj[0].time)) return null;
+  if (!subj.every(s => s.kind === 'key') || (subj.length === 1 && !subj[0].time)) return null;
   const fields = s => [resolveVal(s.field), ...(s.time ? [resolveVal(s.time)] : [])];
-  return [kn('key'), subj.map(s => fields(s).join(S.fw81Inner)).join(S.fw81ReadSep)];
+  return [kn('key'), subj.map(s => fields(s).join(FW_DT_JOIN)).join(FW_DT_READ_SEP)];
 }
 // `src` is PART OF A CONDITION (user 2026-11-10; supersedes the when-global `src(…);` prefix): it leads the
 // condition, or the LIST, it belongs to, then a comma: `src(current),hasAny(term,34)`. It is a complete
@@ -2338,13 +2309,11 @@ function whenCondStr(n, depth, own) {
 }
 function whenCondParts(n, depth) {
   const subj = [].concat(n.subject), r = subj[0];
-  const keyRead = s => [kn('key'), resolveVal(s.field), ...(s.time ? [resolveVal(s.time)] : [])].join(',');
   const fw = whenFwRead(subj);
-  // Reads always bracketed (adopted 2026-11-09); only the FW-81-off legacy `key,date,time` stays flat.
+  // Reads always bracketed (adopted 2026-11-09).
   const head = fw ? whenWrap(fw[0], fw[1], depth + 1)
-    : subj.length > 1 ? whenWrap(kn('use'), subj.map(s => s.kind === 'key' ? keyRead(s) : vn(s.slug)).join(';'), depth + 1)
     : r.kind === 'step' ? whenStepStr(r)
-    : r.kind === 'key' ? (r.time ? keyRead(r) : whenWrap(kn('key'), resolveVal(r.field), depth + 1))
+    : r.kind === 'key' ? whenWrap(kn('key'), resolveVal(r.field), depth + 1)
     : whenWrap(kn('use'), vn(r.slug), depth + 1);
   const expr = !n.tests.length ? null : whenExpand(n.tests.length === 1 ? n.tests[0] : {join: n.tj || '/', items: n.tests});
   const lead = n.word ? n.word
@@ -2535,7 +2504,7 @@ function renderSlotParts(parts, p, t2p) {
     if (id==='use') {
       const sv2 = typeof rv==='string' ? rv : String(rv);
       // vn() exact-matches a single analog slug (title/excerpt/featured/…); a composite value
-      // (the FW-81 dtCollapse read-list, or a hand-built 'key,field' string) never matches a
+      // (the FW-81 merged `key:` / `use:` value, or a hand-built 'key,field' string) never matches a
       // VALUE_PRESETS id, so it passes through vn() unchanged — no need to special-case it here.
       if (sv2!=='') out.push(`${p}${uk}:${vn(sv2)}`);
       continue;
@@ -2552,16 +2521,12 @@ function renderSlotParts(parts, p, t2p) {
     }
     if (id==='_content_key') {
       const field = typeof rv==='string' ? rv : '';
-      if (S.fromKeyCombined) { if(field) out.push(`${p}${uk}:${foldJoin('key',field)}`); else out.push(`${p}${uk}:key`); }
-      else { out.push(`${p}${uk}:key`); if(field) out.push(`${p}${kn('key')}:${field}`); }
+      out.push(`${p}${uk}:key`); if(field) out.push(`${p}${kn('key')}:${field}`);
       continue;
     }
     if (id==='key' && !hasExplicitUse) {
       const field = typeof rv==='string' ? rv : '';
-      // bare meta key → custom-field mode is use:key (NOT use:meta — base-tags.php `use` value
-      // for a meta/option field is 'key'). Folded: use:key<sep><field>.
-      if (S.fromKeyCombined) { if(field) out.push(`${p}${uk}:${foldJoin('key',field)}`); }
-      else { if(field) out.push(`${p}${kn('key')}:${field}`); }
+      if (field) out.push(`${p}${kn('key')}:${field}`);
       continue;
     }
     if (id==='_if')    { serializeIfEntries(val, 0).forEach(([k, v]) => out.push(`${p}${kn(k)}:${v}`)); continue; }
@@ -2658,10 +2623,9 @@ function groupOrder(group) {
 //   'chain'/'folded' — Preview: the toggle-driven line, the tool's exploration surface (candidate
 //                       spellings, look-backs); it shows only while some toggle differs from what ships.
 // A row that is Preview alone (`previewOnly`) is a shape that ships on no wire yet. A shipped feature
-// belongs on a Current line; Preview is for unshipped features and syntax changes.
+// belongs on a Current line; Preview is for what is not built yet and for trial toggles.
 // {{table}} has no flat side (folded-only), so its groups list only the folded lines. The FW-81 pair
-// (datetime) puts today's six-key wire beside the merged `{{datetime}}` reading; the merged line renders
-// under a placeholder tag name (the name is open), and shows through the shared `previewActive()`.
+// (datetime) is Legacy (the six-key wire) then Current (the merged `{{datetime}}` reading, built).
 const DT_KEY_IDS = new Set(['key','timeKey','startKey','startTimeKey','endKey','endTimeKey']);
 // Derive the FW-81 read-list from today's six flat keys — mechanical, mirrors the plan's own
 // migration mapping (§Migration): key[,timeKey] → one read; start*/end* → two reads. Returns null
@@ -2678,18 +2642,17 @@ function datetimeCollapseFromParts(parts) {
   if (end.length) reads.push({ verb:'key', args:end });
   return reads.length ? reads : null;
 }
-// FW-81 wire shape for a collapsed read-list (grilling 2026-10-24): fields ALWAYS ride `key:`, reads
-// joined on S.fw81ReadSep (default `;`; `/`, `~`, `..` under trial), each read's fields joined on S.fw81Inner. `use:` is written
-// only when a read is a non-`key` verb (published/modified/now): it lists the reads in order as bare
-// verbs joined by the SAME S.fw81ReadSep (user 2026-11-09), and each `key` there takes the next group from `key:`
-// (non-positional; a read's fields join on S.fw81Inner, default `,`, `+` under trial). No folded
-// `use:key,field` form exists. ONE site so the standalone tag's dtCollapse variant and a folded
-// slot's dtKeys collapse (respellEntries) can't drift apart on how a merge renders.
+// FW-81 wire shape for a merged read list: fields ALWAYS ride `key:`, reads are joined on
+// FW_DT_READ_SEP and one read's date and time fields on FW_DT_JOIN. `use:` is written only when a read
+// is a non-`key` verb (published/modified/now): it lists the reads in order, `key` included, and each
+// `key` there takes the next entry of `key:`. No folded `use:key,field` form exists. ONE site so the
+// standalone tag's dtCollapse variant and a folded slot's dtKeys collapse (respellEntries) can't drift
+// apart on how a merge renders.
 function fw81CollapsedPairs(reads) {
-  const groups = reads.filter(r => r.verb === 'key').map(r => (r.args||[]).map(a=>String(resolveVal(a))).join(S.fw81Inner));
+  const groups = reads.filter(r => r.verb === 'key').map(r => (r.args||[]).map(a=>String(resolveVal(a))).join(FW_DT_JOIN));
   const pairs = [];
-  if (reads.some(r => r.verb !== 'key')) pairs.push(['use', reads.map(r => r.verb).join(S.fw81ReadSep)]);
-  if (groups.length) pairs.push(['key', groups.join(S.fw81ReadSep)]);
+  if (reads.some(r => r.verb !== 'key')) pairs.push(['use', reads.map(r => r.verb).join(FW_DT_READ_SEP)]);
+  if (groups.length) pairs.push(['key', groups.join(FW_DT_READ_SEP)]);
   return pairs;
 }
 const CONTRAST_VARIANTS = {
@@ -2704,15 +2667,22 @@ const CONTRAST_VARIANTS = {
   chain:         { label:'Preview', how:'chain', cls:'perm-chain', needs:sc => !!(sc.chain || sc.rest || sc.parts) },
   foldedCurrent: { label:'Current', how:'fold',  cls:'',           needs:sc => !!sc.slots, frozen:true },
   folded:        { label:'Preview', how:'fold',  cls:'perm-chain', needs:sc => !!sc.slots },
-  sixKey:        { label:'Current', how:'parts',      cls:'',           needs:sc => !!sc.parts },
-  collapsed:     { label:'Preview', how:'dtCollapse', cls:'perm-chain', needs:sc => !!(sc.collapsed || datetimeCollapseFromParts(sc.parts)) },
+  // The FW-81 datetime pair: the merged `{{datetime}}` is Current, the old six-key wire is Legacy. A
+  // `solo` variant is the one a `previewOnly` row renders alone (a row with no six-key form).
+  // `check` runs the bracket-structure check on the line although it is not a Preview line.
+  sixKey:        { label:'Legacy',  how:'parts',      cls:'',           needs:sc => !!sc.parts },
+  collapsed:     { label:'Current', how:'dtCollapse', cls:'',           needs:sc => !!(sc.collapsed || datetimeCollapseFromParts(sc.parts)), frozen:true, solo:true, check:true },
+  // The same pair for a folded datetime slot (join, table): Legacy spells the slot's six keys
+  // through S.dtLegacy, pinned for the build only. `needs` skips a row with no six-key slot.
+  foldedLegacyDt: { label:'Legacy', how:'fold', cls:'', frozen:true, pin:{ dtLegacy:true }, needs:sc => !!(sc.slots && sc.slots.some(s => s.dtKeys && Object.keys(s.dtKeys).some(k => DT_KEY_IDS.has(k)))) },
+  foldedDt:      { label:'Current', how:'fold',  cls:'',           needs:sc => !!sc.slots, frozen:true, check:true },
 };
 // ONE shared Preview state (user 2026-09-02), not a per-group flag: every variant marked
 // cls:'perm-chain' is a Preview column, and Preview columns exist only while some toggle differs
 // from what ships. Flipping ANY toggle below reveals every group's Preview line at once; there is no
 // per-feature "this group's preview is on" concept, so `group.variants` is always a plain array.
 function previewActive() {
-  return S.fromKeyCombined || S.linkCombined || S.fw81DtCollapse;
+  return S.linkCombined;
 }
 function allVariantsFor(group) {
   const keys = group.variants || ['shipped','chainCurrent','chain'];
@@ -2729,14 +2699,14 @@ const SHIPPED_GRAMMAR = {
   slotKeySpelling: 'alpha', perStepSep: false,
   slotSchema: 'bracket-kv', slotOptSep: SLOT_SCHEMAS['bracket-kv'].optSep, slotKvChar: SLOT_SCHEMAS['bracket-kv'].kvChar,
   slotBracket: '[]', bracketMode: 'depth-alt', bracketL1: '()',
-  slotForceSrc: false, readViaUse: false, respellReadBracket: false, handlerMode: 'zone',
-  valueSep: ',', chainPair: 'off', linkCombined: false, fromKeyCombined: false,
+  slotForceSrc: false, respellReadBracket: false, handlerMode: 'zone',
+  valueSep: ',', chainPair: 'off', linkCombined: false,
   chainSep: { hop: ';', step: ',' },
 };
-function withShippedGrammar(fn) {
-  const backup = {};
-  for (const k of Object.keys(SHIPPED_GRAMMAR)) backup[k] = S[k];
-  Object.assign(S, SHIPPED_GRAMMAR);
+function withShippedGrammar(fn, extra = {}) {
+  const pinned = { ...SHIPPED_GRAMMAR, ...extra }, backup = {};
+  for (const k of Object.keys(pinned)) backup[k] = S[k];
+  Object.assign(S, pinned);
   try { return fn(); } finally { Object.assign(S, backup); }
 }
 
@@ -2745,13 +2715,11 @@ function withShippedGrammar(fn) {
 // an explicit "no equivalent" line, which is itself information (e.g. join has no shipped
 // unfolded form for a heterogeneous slot).
 //
-// `sc.previewOnly` is the opposite case: a shape neither wire actually ships (a `when` token, a
-// merged-datetime verb), included so the tool can show its intended spelling.
-// Rendering it as Legacy or Current would claim it works today; rendering it as a "missing" line
-// on the side that DOES exist would bury the one thing worth showing under filler about the side
-// that doesn't. So a previewOnly scenario skips straight to a single Preview line, always shown
-// (a proposal isn't gated behind the live-toggle-differs check every other Preview column uses)
-// — `sc.note` still carries the "why doesn't this exist yet" explanation underneath.
+// `sc.previewOnly` is the opposite case: a shape only one wire has. A shape that is NOT built yet (a
+// `when` token) renders as a single Preview line, always shown (a proposal isn't gated behind the
+// live-toggle-differs check every other Preview column uses). A shape that IS built but has no old
+// form (a merged-datetime verb) renders as its group's `solo` variant, Current. Either way the other
+// side's "missing" line would bury the one thing worth showing — `sc.note` carries the explanation.
 function buildContrastVariants(group, sc) {
   if (sc.tmpl) group = { ...group, tmpl: sc.tmpl };   // a row may name its own base tag (the FW-27 group mixes them)
   const order = groupOrder(group);
@@ -2763,18 +2731,19 @@ function buildContrastVariants(group, sc) {
   const wrap = (parts) => `{{${name}${parts.length?' '+parts.join('|'):''}}}`;
 
   if (sc.previewOnly) {
-    const base = allVariantsFor(group).find(v => v.cls === 'perm-chain') || { label:'Preview' };
+    const all = allVariantsFor(group);
+    const base = all.find(v => v.solo) || all.find(v => v.cls === 'perm-chain') || { label:'Preview', cls:'perm-chain' };
     const v = sc.previewHow ? { ...base, how:sc.previewHow } : base;
     const build = () => buildOneVariant(v, group, sc, sortParts, wrap);
-    const str = v.frozen ? withShippedGrammar(build) : build();
-    return [{ label: v.label || 'Preview', str, cls:'perm-chain', missing:false }];
+    const str = v.frozen ? withShippedGrammar(build, v.pin) : build();
+    return [{ label: v.label || 'Preview', str, cls:v.cls, check:v.check, missing:false }];
   }
 
   return variantsFor(group).map(v => {
     if (v.needs && !v.needs(sc)) return { label:v.label, str:null, cls:v.cls, missing:true };
     const build = () => buildOneVariant(v, group, sc, sortParts, wrap);
-    const str = v.frozen ? withShippedGrammar(build) : build();
-    return { label:v.label, str, cls:v.cls, missing:false };
+    const str = v.frozen ? withShippedGrammar(build, v.pin) : build();
+    return { label:v.label, str, cls:v.cls, check:v.check, missing:false };
   });
 }
 function buildOneVariant(v, group, sc, sortParts, wrap) {
@@ -2808,14 +2777,11 @@ function buildOneVariant(v, group, sc, sortParts, wrap) {
     return buildFoldedTag({ ...group, foldClass: group.foldClass || v.foldClass }, sc);
   }
   if (v.how === 'dtCollapse') {
-    // FW-81: fold the six flat keys into one `key:` value (`;` between reads / `,` inside one), plus a
-    // `use:` verb list only when a non-key verb is present (fw81CollapsedPairs) — fixed literal separators (S6 is LOCKED, unlike the still-toggle-driven chain/fold
-    // grammar elsewhere on this page, so nothing here rides a sidebar picker). Everything that ISN'T
+    // FW-81: fold the six flat keys into one `key:` value, plus a `use:` verb list only when a non-key
+    // verb is present (both written by fw81CollapsedPairs). Everything that ISN'T
     // one of the six keys (as/format/source/link/fallback/…) passes through unchanged.
     // NAME: NOT wrap() — wrap is bound to this GROUP's own tmpl (datetime_single/datetime_range),
-    // but S1 settles the merge itself (one tag, mode = read count), so the collapsed line renders
-    // under a MERGED placeholder name instead. Only the string 'datetime' is a placeholder (O5 is
-    // still open on the real name/catalog position) — the fact of ONE tag is not.
+    // but the merge is one tag (mode = read count), so the merged line renders under `datetime`.
     const reads = sc.collapsed || datetimeCollapseFromParts(sc.parts) || [];
     const rest = (sc.parts||[]).filter(([id]) => !DT_KEY_IDS.has(id));
     const combined = [...rest, ...fw81CollapsedPairs(reads)];
@@ -3339,7 +3305,7 @@ const OUTLINE = {
   'Join':     { subs:['Slots', 'Template mode', 'Datetime slots', 'Escape hazards'] },
   'Table':    { subs:['Rows and columns', 'Sizing, stripes and borders', 'Text styling', 'Datetime columns', 'Escape hazards'] },
   'Datetime': { subs:['Single date', 'Date ranges'],
-    note:'Today\'s six-key `{{datetime_single}}` and `{{datetime_range}}` beside the merged `{{datetime}}` (FW-81). The merge is not shipped, so its lines are Preview.' },
+    note:'The merged `{{datetime}}` (FW-81, built, unreleased) is Current; the six-key `{{datetime_single}}` and `{{datetime_range}}` it replaces are Legacy.' },
   'When':     { subs:['Base tags', 'Join slots', 'Try attempts', 'Table', 'Encodings side by side', 'Negatives beside positives'],
     note:'The `when` option (FW-27) is not built. Every line is Preview, except a baseline written beside its gated twin, which ships.' },
 };
@@ -3441,7 +3407,7 @@ function renderPerms() {
           line.appendChild(t); line.appendChild(s); stack.appendChild(line);
           // Check only PROPOSED spellings. The shipped/current wire predates the locked grammar
           // and legitimately does not satisfy it (no brackets at all), so checking it is noise.
-          if (!v.missing && v.cls==='perm-chain') totalIssues += flagIssues(stack, v.str, ff);
+          if (!v.missing && (v.cls==='perm-chain' || v.check)) totalIssues += flagIssues(stack, v.str, ff);
         });
         if (sc.note) { const n=document.createElement('div'); n.className='perm-note'; n.textContent='↳ '; appendMarkup(n, sc.note); stack.appendChild(n); }
         row.appendChild(stack);
@@ -3535,9 +3501,10 @@ function renderFilterBar() {
 // Header banner: silent when clean, loud when not. Placed above the groups so a violation is
 // visible without scrolling the full permutation list. Scope is narrow, and the wording says
 // so: checkTag() only walks bracket well-formedness (+ a dead hop/step separator check, since
-// chainSep is hardcoded), and only on Preview-class lines — Legacy/Current predate the locked
-// grammar and are never checked. With no toggle flipped, that's every always-on `previewOnly`
-// rows; flipping a toggle widens it to every Preview line that differs from Current.
+// chainSep is hardcoded), and only on Preview-class lines and the datetime Current lines (`check`) —
+// the other Legacy/Current lines predate the locked grammar and are never checked. With no toggle
+// flipped, that's every always-on `previewOnly` row; flipping a toggle widens it to every Preview
+// line that differs from Current.
 function renderIssueSummary(n) {
   const bar = document.getElementById('perm-issue-summary');
   if (!bar) return;
@@ -3562,14 +3529,8 @@ sbBtn.addEventListener('click',e=>{ e.stopPropagation(); setSidebar(!sbEl.classL
 sbScrim.addEventListener('click',()=>setSidebar(false));
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') setSidebar(false); });
 
-document.getElementById('cb-fromkey').addEventListener('change',e=>{
-  S.fromKeyCombined=e.target.checked; renderPerms();
-});
 document.getElementById('cb-linkcombined').addEventListener('change',e=>{
   S.linkCombined=e.target.checked; renderPerms();
-});
-document.getElementById('cb-fw81').addEventListener('change',e=>{
-  S.fw81DtCollapse=e.target.checked; renderPerms();
 });
 document.getElementById('cb-stylebg').addEventListener('change',e=>{
   S.styleBackground=e.target.checked; renderPerms();
@@ -3579,16 +3540,10 @@ document.getElementById('sel-when-sep').addEventListener('change',e=>{ S.whenSep
 document.getElementById('cb-when-ops').addEventListener('change',e=>{ S.whenPhasePairs=e.target.checked; renderPerms(); });
 document.getElementById('cb-when-readfirst').addEventListener('change',e=>{ S.whenReadFirst=e.target.checked; renderPerms(); });
 document.getElementById('sel-when-singleset').addEventListener('change',e=>{ S.whenSingleSet=e.target.value==='set'; renderPerms(); });
-document.getElementById('sel-fw81-inner').addEventListener('change',e=>{
-  S.fw81Inner=e.target.value; renderPerms();
-});
-document.getElementById('sel-fw81-readsep').addEventListener('change',e=>{
-  S.fw81ReadSep=e.target.value; renderPerms();
-});
 document.getElementById('add-name-row').addEventListener('click', addNameRow);
 
 // Dummy value inputs
-['key1','key2','imgKey','dateKey','timeKey','startKey','endKey','ref','tax','fallback','rangeSep','format'].forEach(id=>{
+['key1','key2','imgKey','dateKey','timeKey','startKey','endKey','endTimeKey','ref','tax','fallback','rangeSep','format'].forEach(id=>{
   const inp=document.getElementById('d-'+id);
   if (inp) inp.addEventListener('input',()=>{ S.dummies[id]=inp.value; renderPerms(); });
 });

@@ -41,6 +41,7 @@ function bws_get_datetime_single_template_options(): array {
 	return array_merge(
 		bws_get_datetime_single_leading_options(),
 		bws_get_datetime_single_field_key_options(),
+		array( 'key' => bws_get_datetime_legacy_reads_option( 'single' ) ), // The read control, in the plain picker's place.
 		array(
 			'fallback' => array(
 				'type'        => 'text',
@@ -117,6 +118,7 @@ function bws_get_base_datetime_single_options(): array {
 		bws_base_traversal_options(),
 		bws_get_datetime_list_options( false ),
 		bws_get_datetime_single_field_key_options(),
+		array( 'key' => bws_get_datetime_legacy_reads_option( 'single' ) ), // Replaces the plain key picker, in its place.
 		bws_get_datetime_single_leading_options(),
 		function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array(),
 		array(
@@ -183,6 +185,7 @@ function bws_get_datetime_list_options( bool $range = false ): array {
 function bws_get_datetime_range_template_options(): array {
 	return array_merge(
 		bws_get_datetime_range_leading_options(),
+		array( 'key' => bws_get_datetime_legacy_reads_option( 'range' ) ), // The read control, ahead of the old four.
 		bws_get_datetime_range_field_key_options(),
 		array(
 			'fallback' => array(
@@ -276,6 +279,7 @@ function bws_get_base_datetime_range_options(): array {
 		bws_build_src_chain_option(),
 		bws_base_traversal_options(),
 		bws_get_datetime_list_options( true ),
+		array( 'key' => bws_get_datetime_legacy_reads_option( 'range' ) ),
 		bws_get_datetime_range_field_key_options(),
 		bws_get_datetime_range_leading_options(),
 		function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array(),
@@ -290,108 +294,188 @@ function bws_get_base_datetime_range_options(): array {
 	);
 }
 
-// ===============================================
-// CORE FUNCTIONS — DATE TEMPLATES
-// ===============================================
-
 /**
- * Core date-only single logic (shared by source-specific callbacks).
+ * The merged `datetime` tag's `use` leaf: the stripped-default select every read axis has
+ * (BWS_USE_STRIPPED_DEFAULTS), its first value `key`.
  *
- * @since 1.0.0
- * @since 1.15.0 First arg accepts a resolved-source payload (FW-3a); legacy
- *               scalars (post id / 'option' / "{tax}_{id}") still coerced.
- * @param array|int|string|false $target   Resolved source (or legacy scalar).
- * @param array                  $options  Tag options.
- * @param object                 $instance Block instance.
- * @return string
+ * The wire value is the full ordered read list once a verb is mixed in (`key;now`). The
+ * editor never shows this select: the read control (`bws-datetime-reads`, on `key`) writes
+ * `use` itself, one entry per read, and the registration stays for the wire and the GB
+ * option allowlist. use-read-control.js leaves a list alone.
+ *
+ * @since Unreleased
+ * @return array The `use` option definition.
  */
-function bws_date_single_core( $target, $options, $instance ) {
-	$source = bws_datetime_coerce_read_target( $target );
-	if ( 'site' !== $source['kind'] && empty( $source['id'] ) ) {
-		return bws_handle_date_time_fallback( $options, $instance, 'single' );
-	}
-
-	$date_field = sanitize_text_field( $options['date_time_field'] ?? '' );
-
-	if ( empty( $date_field ) ) {
-		return bws_handle_date_time_fallback( $options, $instance, 'single' );
-	}
-
-	// Force date_only mode — no time handling.
-	$date_options = array_merge( $options, array(
-		'date_only'     => true,
-		'time_only'     => false,
-		'hide_midnight' => false,
-		'time_field'    => '',
-	) );
-
-	$result = bws_parse_combined_date_time( $source, $date_field, '', 'datetime', null, $date_options, $instance );
-
-	if ( ! $result['date'] || ! is_a( $result['date'], 'DateTime' ) ) {
-		return bws_handle_date_time_fallback( $options, $instance, 'single' );
-	}
-
-	$format = bws_build_single_format( $date_options, $result, true, false );
-
-	$formatted = bws_format_single_date_time( $result['date'], $format, $date_options );
-
-	return bws_gb_tag_output( $formatted, $options, $instance );
+function bws_get_datetime_use_option(): array {
+	return array(
+		'type'           => 'select',
+		'label'          => __( 'Date/Time Read', 'generateblocks' ),
+		'options'        => array_map(
+			function ( $row ) {
+				return array(
+					'value' => $row['value'],
+					'label' => $row['label'],
+				);
+			},
+			bws_get_datetime_read_choices()
+		),
+		'_strip_default' => true,
+		'readTag'        => 'datetime',
+	);
 }
 
 /**
- * Core date-only range logic (shared by source-specific callbacks).
+ * What one read can be: a field (`key`) or a verb, as the read control's per-read select
+ * offers them, in order (FW-81).
  *
- * @since 1.0.0
- * @since 1.15.0 First arg accepts a resolved-source payload (FW-3a); legacy
- *               scalars still coerced.
- * @param array|int|string|false $target   Resolved source (or legacy scalar).
- * @param array                  $options  Tag options.
- * @param object                 $instance Block instance.
- * @return string
+ * `kinds` lists the source kinds a row is offered for; no `kinds` is offered for every source.
+ * `published` and `modified` read a post's own date, so only a post source offers them
+ * (bws_datetime_verb_result() is where any other source takes the fallback). The `use` option
+ * above lists the same values, so the two cannot name different verbs.
+ *
+ * @since Unreleased
+ * @return array<int, array{value:string, label:string, kinds?:string[]}>
  */
-function bws_date_range_core( $target, $options, $instance ) {
-	$source = bws_datetime_coerce_read_target( $target );
-	if ( 'site' !== $source['kind'] && empty( $source['id'] ) ) {
-		return bws_handle_date_time_fallback( $options, $instance, 'range' );
-	}
-
-	$start_field = sanitize_text_field( $options['start_field'] ?? '' );
-	$end_field   = sanitize_text_field( $options['end_field'] ?? '' );
-
-	if ( empty( $start_field ) ) {
-		return bws_handle_date_time_fallback( $options, $instance, 'range' );
-	}
-
-	// Force date_only mode — no time handling.
-	$date_options = array_merge( $options, array(
-		'date_only'        => true,
-		'time_only'        => false,
-		'hide_midnight'    => false,
-		'start_time_field' => '',
-		'end_time_field'   => '',
-	) );
-
-	$start_result = bws_parse_combined_date_time( $source, $start_field, '', 'start', null, $date_options, $instance );
-
-	$end_result = null;
-	if ( ! empty( $end_field ) ) {
-		$end_result = bws_parse_combined_date_time( $source, $end_field, '', 'end', $start_result['date'], $date_options, $instance );
-	}
-
-	if ( ! $start_result['date'] ) {
-		return bws_handle_date_time_fallback( $options, $instance, 'range' );
-	}
-
-	$format = bws_build_range_format( $date_options, $start_result, $end_result, false );
-
-	$formatted = bws_format_date_range(
-		$start_result['date'],
-		$end_result ? $end_result['date'] : null,
-		$format,
-		$date_options
+function bws_get_datetime_read_choices(): array {
+	return array(
+		array( 'value' => 'key',       'label' => __( 'Date/Time Field', 'generateblocks' ) ),
+		array( 'value' => 'now',       'label' => __( 'Current Date/Time', 'generateblocks' ) ),
+		array( 'value' => 'published', 'label' => __( 'Post Published Date', 'generateblocks' ), 'kinds' => array( 'post' ) ),
+		array( 'value' => 'modified',  'label' => __( 'Post Modified Date', 'generateblocks' ), 'kinds' => array( 'post' ) ),
 	);
+}
 
-	return bws_gb_tag_output( $formatted, $options, $instance );
+/**
+ * The most reads a datetime tag shows a control for: a start and an end. A third `key` entry
+ * is ignored by the normalizer, so the control stops offering Add at this count.
+ *
+ * @since Unreleased
+ */
+const BWS_DATETIME_MAX_READS = 2;
+
+/**
+ * The merged `datetime` tag's `key` option: the read control's definition (FW-81).
+ *
+ * `bws-datetime-reads` (assets/js/datetime-read-control.js) owns the whole `key` value, one
+ * `;` entry per read and one `+` pair inside an entry, and the `use` value with it (a verb
+ * in any read; bws_datetime_reads() owns that grammar). Every heading, label and count the
+ * control shows arrives here and is never typed in the control. `entryLabels` is indexed by
+ * read, so it must cover BWS_DATETIME_MAX_READS (control-order-test.php pins it). The
+ * pickers it renders are the field combo, whose Type filter opens on the date and time
+ * types (`typeDefault`) and stays reachable to All for a date stored as Text or plain meta.
+ *
+ * @since Unreleased
+ * @return array The `key` option definition.
+ */
+function bws_get_datetime_reads_option(): array {
+	return array(
+		'type'           => 'bws-datetime-reads',
+		'label'          => __( 'Date/Time Field Key', 'generateblocks' ),
+		'help'           => __( 'ACF field key for a date, date-time, or time picker field.', 'generateblocks' ),
+		'placeholder'    => 'event_date',
+		// Each read's own select (a field or a verb) and the rows it offers.
+		'readLabel'      => __( 'Date/Time Read', 'generateblocks' ),
+		'reads'          => bws_get_datetime_read_choices(),
+		'timeLabel'      => __( 'Time Field Key (optional)', 'generateblocks' ),
+		'timeHelp'       => __( 'ACF time picker field to override or add time component.', 'generateblocks' ),
+		'timePlaceholder' => 'event_time',
+		// One heading per read, by position: a second read is a range's end.
+		'entryLabels'    => array(
+			__( 'Start Date/Time', 'generateblocks' ),
+			__( 'End Date/Time', 'generateblocks' ),
+		),
+		'addLabel'       => __( 'Add End Date/Time', 'generateblocks' ),
+		'timeAddLabel'   => __( 'Add Time Field', 'generateblocks' ),
+		'timeRemoveLabel' => __( 'Remove Time Field', 'generateblocks' ),
+		'removeLabel'    => __( 'Remove', 'generateblocks' ),
+		// What the reads cannot show, [ one, many ], each `%s` filled with the field names.
+		'surplusNotice'  => array(
+			/* translators: %s: one field name. */
+			__( 'Field %s has no read to use it and will be removed on your next change here.', 'generateblocks' ),
+			/* translators: %s: a list of field names. */
+			__( 'Fields %s have no read to use them and will be removed on your next change here.', 'generateblocks' ),
+		),
+		'extraNotice'    => array(
+			/* translators: %s: one field name. */
+			__( 'A read combines one date and one time field only, so %s is ignored.', 'generateblocks' ),
+			/* translators: %s: a list of field names. */
+			__( 'A read combines one date and one time field only, so %s are ignored.', 'generateblocks' ),
+		),
+		'max'            => BWS_DATETIME_MAX_READS,
+		'typeDefault'    => BWS_FIELD_TYPE_GROUP_DATETIME,
+	);
+}
+
+/**
+ * The `key` option of an OLD datetime tag (`datetime_single`, `datetime_range`, and their `try_` forms
+ * through the two template option builders): the read control, so
+ * the modal shows the author's reads once the mount rewrite has turned the old field options into
+ * `key` (assets/js/datetime-read-control.js; the rule is bws_datetime_legacy_reads_rewrite()).
+ *
+ * `legacy` names the family and is what makes the control run that rewrite. The old tags keep their
+ * family whatever `key` says and read no `use`, so the read count is the family's (a single reads
+ * one) and the only row is the field. The old options stay registered beside it: GenerateBlocks
+ * hands them to the modal from the stored tag, and an end-only range (never rewritten) still shows them.
+ *
+ * @since Unreleased
+ * @param string $family `single` or `range`.
+ * @return array The `key` option definition.
+ */
+function bws_get_datetime_legacy_reads_option( string $family ): array {
+	$option           = bws_get_datetime_reads_option();
+	$option['legacy'] = $family;
+	$option['max']    = 'range' === $family ? BWS_DATETIME_MAX_READS : 1;
+	$option['reads']  = array_slice( $option['reads'], 0, 1 );
+	return $option;
+}
+
+/**
+ * Options for the merged `datetime` base tag (FW-81).
+ *
+ * One `key` option carries every field read and `use` the verbs (bws_datetime_reads() owns
+ * the grammar), and no option states a mode: bws_normalize_datetime_options() derives it.
+ * The old six field options are NOT registered here: only the old tags offer them, and the
+ * normalizer still reads them for those tags.
+ *
+ * @since Unreleased
+ * @return array
+ */
+function bws_get_base_datetime_options(): array {
+	return array_merge(
+		bws_build_src_chain_option(),
+		bws_base_traversal_options(),
+		bws_get_datetime_list_options( true ),
+		array(
+			'use' => bws_get_datetime_use_option(),
+			'key' => bws_get_datetime_reads_option(),
+		),
+		bws_get_datetime_range_leading_options(),
+		function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array(),
+		array(
+			'fallback' => array(
+				'type'        => 'text',
+				'label'       => __( 'Fallback Text', 'generateblocks' ),
+				'help'        => __( 'Text to display when no valid date/time is found.', 'generateblocks' ),
+				'placeholder' => 'Date/time TBA',
+			),
+		)
+	);
+}
+
+/**
+ * Template-specific options for the merged `datetime` modifier template (`try_datetime`):
+ * the format cluster, then the tag-level `use`/`key` reads and `fallback`, each the base
+ * tag's own definition. The template has no per-slot read axis, so `use`/`key` stay
+ * tag-level and every attempt reads them as the base tag does.
+ *
+ * @since Unreleased
+ * @return array
+ */
+function bws_get_datetime_template_options(): array {
+	return array_merge(
+		bws_get_datetime_range_leading_options(),
+		array_intersect_key( bws_get_base_datetime_options(), array_flip( array( 'use', 'key', 'fallback' ) ) )
+	);
 }
 
 // ===============================================
@@ -409,17 +493,21 @@ function bws_date_range_core( $target, $options, $instance ) {
  * can still resolve subfield values from `$loop_item[$key]`. Bailing before that
  * path runs produces silent fallback output. (Bugfix v1.7.2, issue #22.)
  *
+ * A read with no date, or `as:time`, is a TIME display and goes to
+ * bws_format_time_display(), the same function the range core calls. A verb read
+ * (`verb`: `now`, `published`, `modified`) takes the place of the field parse, through
+ * bws_datetime_verb_result().
+ *
  * @since 1.0.0
- * @since 1.15.0 First arg accepts a resolved-source payload (FW-3a); legacy
- *               scalars (post id / 'option' / "{tax}_{id}") still coerced —
- *               the registry template closures pin the scalar forms.
- * @param array|int|string|false $target   Resolved source (or legacy scalar).
- * @param array                  $options  Tag options.
- * @param object                 $instance Block instance.
+ * @since 1.15.0 First arg is a resolved-source payload (FW-3a).
+ * @since Unreleased The first arg is always the payload, and the time half renders through
+ *               bws_format_time_display(). A verb read (`verb`) replaces the field parse.
+ * @param array  $source   Resolved source (the factory's payload shape).
+ * @param array  $options  Tag options.
+ * @param object $instance Block instance.
  * @return string
  */
-function bws_datetime_single_core( $target, $options, $instance ) {
-	$source         = bws_datetime_coerce_read_target( $target );
+function bws_datetime_single_core( array $source, $options, $instance ) {
 	// The INVARIANT above is about repeater rows, and this is the predicate that says
 	// so: a post or a repeater row, never bare `in_loop`. A TERM or USER loop item
 	// reaching the read below leaves it with no entity and no row, and it answers with
@@ -432,38 +520,41 @@ function bws_datetime_single_core( $target, $options, $instance ) {
 	// row reaches here as a post source with a falsy id, and is what $read_may_serve is for.
 	$has_entity     = 'site' === $source['kind'] || 'meta_row' === $source['kind'] || ! empty( $source['id'] );
 
-	if ( ! $has_entity && ! $read_may_serve ) {
-		return bws_handle_date_time_fallback( $options, $instance, 'single' );
+	// A verb read (`now`, `published`, `modified`) reads no field, so the entity gate above
+	// is about the field read only.
+	$verb = $options['verb'] ?? '';
+	if ( '' === $verb && ! $has_entity && ! $read_may_serve ) {
+		return bws_handle_date_time_fallback( $options, $instance );
 	}
 
 	$date_time_field = sanitize_text_field( $options['date_time_field'] ?? '' );
 	$time_field      = sanitize_text_field( $options['time_field'] ?? '' );
 
-	if ( empty( $date_time_field ) && empty( $time_field ) ) {
-		return bws_handle_date_time_fallback( $options, $instance, 'single' );
+	if ( '' === $verb && empty( $date_time_field ) && empty( $time_field ) ) {
+		return bws_handle_date_time_fallback( $options, $instance );
 	}
 
-	$result = bws_parse_combined_date_time( $source, $date_time_field, $time_field, 'datetime', null, $options, $instance );
+	$result = '' !== $verb
+		? bws_datetime_verb_result( $verb, $source )
+		: bws_parse_combined_date_time( $source, $date_time_field, $time_field, 'datetime', null, $options, $instance );
 
 	if ( ! $result['date'] && ! $result['time_only'] ) {
-		return bws_handle_date_time_fallback( $options, $instance, 'single' );
+		return bws_handle_date_time_fallback( $options, $instance );
 	}
 
-	// Handle true time-only case.
-	if ( $result['time_only'] && ! $result['date'] ) {
-		$formatted = wp_date( 'g:i A', $result['time_only']->getTimestamp() );
-		return bws_gb_tag_output( $formatted, $options, $instance );
+	// A time display: `as:time`, or a field with no date (a time-only field). Empty when
+	// there is no time to show, which takes the fallback like any other empty read.
+	if ( ! empty( $options['time_only'] ) || ! $result['date'] ) {
+		return bws_gb_tag_output( bws_format_time_display( $result, null, $options ), $options, $instance );
 	}
 
-	$time_only    = ! empty( $options['time_only'] );
 	$date_only    = ! empty( $options['date_only'] );
 	$include_time = ! $date_only && $result['has_time'];
-	$include_date = ! $time_only;
 
-	$format = bws_build_single_format( $options, $result, $include_date, $include_time );
+	$format = bws_build_single_format( $options, $result, true, $include_time );
 
 	if ( ! $result['date'] || ! is_a( $result['date'], 'DateTime' ) ) {
-		return bws_handle_date_time_fallback( $options, $instance, 'single' );
+		return bws_handle_date_time_fallback( $options, $instance );
 	}
 
 	$formatted = bws_format_single_date_time( $result['date'], $format, $options );
@@ -478,91 +569,70 @@ function bws_datetime_single_core( $target, $options, $instance ) {
  * field read can still be served from (see bws_datetime_single_core() for full
  * rationale). Bugfix v1.7.2, issue #22.
  *
+ * `as:time`, or a start with no date, is a TIME display and goes to
+ * bws_format_time_display(), the same function the single core calls. A range with no
+ * start reads nothing, whatever its end holds. A side may be a verb read (`start_verb` /
+ * `end_verb`) in place of a field parse.
+ *
  * @since 1.0.0
- * @since 1.15.0 First arg accepts a resolved-source payload (FW-3a); legacy
- *               scalars (post id / 'option' / "{tax}_{id}") still coerced —
- *               the registry template closures pin the scalar forms.
- * @param array|int|string|false $target   Resolved source (or legacy scalar).
- * @param array                  $options  Tag options.
- * @param object                 $instance Block instance.
+ * @since 1.15.0 First arg is a resolved-source payload (FW-3a).
+ * @since Unreleased The first arg is always the payload, and the time half renders through
+ *               bws_format_time_display(). Either side may be a verb read.
+ * @param array  $source   Resolved source (the factory's payload shape).
+ * @param array  $options  Tag options.
+ * @param object $instance Block instance.
  * @return string
  */
-function bws_datetime_range_core( $target, $options, $instance ) {
-	$source         = bws_datetime_coerce_read_target( $target );
+function bws_datetime_range_core( array $source, $options, $instance ) {
 	// Same predicate as the single core above, same reason — and the same `meta_row` term.
 	$read_may_serve = bws_loop_item_is_post_or_row( $instance );
 	$has_entity     = 'site' === $source['kind'] || 'meta_row' === $source['kind'] || ! empty( $source['id'] );
 
-	if ( ! $has_entity && ! $read_may_serve ) {
-		return bws_handle_date_time_fallback( $options, $instance, 'range' );
-	}
-
+	$start_verb       = $options['start_verb'] ?? '';
+	$end_verb         = $options['end_verb'] ?? '';
 	$start_field      = sanitize_text_field( $options['start_field'] ?? '' );
 	$start_time_field = sanitize_text_field( $options['start_time_field'] ?? '' );
 	$end_field        = sanitize_text_field( $options['end_field'] ?? '' );
 	$end_time_field   = sanitize_text_field( $options['end_time_field'] ?? '' );
 
-	if ( empty( $start_field ) && empty( $start_time_field ) ) {
-		return bws_handle_date_time_fallback( $options, $instance, 'range' );
-	}
-
-	$start_result = bws_parse_combined_date_time( $source, $start_field, $start_time_field, 'start', null, $options, $instance );
-
-	$end_result = null;
-	if ( ! empty( $end_field ) || ! empty( $end_time_field ) ) {
-		$end_result = bws_parse_combined_date_time( $source, $end_field, $end_time_field, 'end', $start_result['date'], $options, $instance );
-	}
-
-	if ( ! $start_result['date'] && ! $start_result['time_only'] && ! $end_result ) {
-		return bws_handle_date_time_fallback( $options, $instance, 'range' );
-	}
-
-	$time_only = ! empty( $options['time_only'] );
-
-	// Handle time-only range (`as:time`). Accept either `date` or `time_only` from
-	// parse results — start-side time-only values have no date to inherit and live
-	// under `time_only`, while end-side values that inherited a start date live
-	// under `date`. Must run before the partial-parts diagnostic branch below,
-	// otherwise `as:time` ranges built from two time-only fields fall through to
-	// "Start time: …; End time: …" output.
-	if ( $time_only ) {
-		$start_dt = $start_result['date'] ?: $start_result['time_only'];
-		$end_dt   = $end_result ? ( $end_result['date'] ?: $end_result['time_only'] ) : null;
-		if ( $start_dt ) {
-			if ( $end_dt ) {
-				// Two-ended time range (#25): resolve the format via the same chain
-				// the single-ended case uses (custom token → ACF time format → WP
-				// default); consolidation applies only for 12-hour formats.
-				$hide_midnight = ! empty( $options['hide_midnight'] );
-				$time_format   = bws_resolve_time_only_format( $options, $start_result );
-				$time_range    = bws_format_time_range( $start_dt, $end_dt, $hide_midnight, $time_format );
-				return bws_gb_tag_output( $time_range, $options, $instance );
-			}
-			// Single-ended time: honor custom format (time tokens only), then the
-			// ACF field's time format, then the WordPress time_format option.
-			$time_format = bws_resolve_time_only_format( $options, $start_result );
-			$formatted   = wp_date( $time_format, $start_dt->getTimestamp() );
-			return bws_gb_tag_output( $formatted, $options, $instance );
+	// One side's read: a verb's moment, a field read (only where the entity gate lets it
+	// read), or null for a side that names nothing.
+	$may_read_fields = $has_entity || $read_may_serve;
+	$read_side       = static function ( $verb, $field, $time, $context, $inherit ) use ( $source, $options, $instance, $may_read_fields ) {
+		if ( '' !== $verb ) {
+			return bws_datetime_verb_result( $verb, $source );
 		}
+		if ( ! $may_read_fields || ( '' === $field && '' === $time ) ) {
+			return null;
+		}
+		return bws_parse_combined_date_time( $source, $field, $time, $context, $inherit, $options, $instance );
+	};
+
+	$start_result = $read_side( $start_verb, $start_field, $start_time_field, 'start', null );
+	if ( ! $start_result ) {
+		return bws_handle_date_time_fallback( $options, $instance );
 	}
 
-	// Handle partial information.
-	$partial_parts = array();
-	if ( $start_result['time_only'] ) {
-		$partial_parts[] = __( 'Start time: ', 'generateblocks' ) . wp_date( 'g:i A', $start_result['time_only']->getTimestamp() );
-	}
-	if ( $end_result && $end_result['time_only'] ) {
-		$partial_parts[] = __( 'End time: ', 'generateblocks' ) . wp_date( 'g:i A', $end_result['time_only']->getTimestamp() );
-	} elseif ( $end_result && $end_result['date'] && ! $start_result['date'] ) {
-		$partial_parts[] = __( 'End date/time: ', 'generateblocks' ) . wp_date( 'F j, Y g:i A', $end_result['date']->getTimestamp() );
-	}
-	if ( ! empty( $partial_parts ) && ! $start_result['date'] ) {
-		$formatted = implode( '; ', $partial_parts );
-		return bws_gb_tag_output( $formatted, $options, $instance );
+	$end_result = $read_side( $end_verb, $end_field, $end_time_field, 'end', $start_result['date'] );
+
+	// A verb has no field to say whether its time shows or in what style, so it takes the
+	// other side's: `now` against a date-only field stays a date, and not the parser's noon.
+	if ( $end_result && '' !== $start_verb && '' === $end_verb ) {
+		$start_result['has_time'] = $end_result['has_time'];
+		$start_result['formats']  = $end_result['formats'];
+	} elseif ( $end_result && '' === $start_verb && '' !== $end_verb ) {
+		$end_result['has_time'] = $start_result['has_time'];
 	}
 
-	if ( ! $start_result['date'] && ! $time_only ) {
-		return bws_handle_date_time_fallback( $options, $instance, 'range' );
+	// No start reads nothing, whatever the end holds.
+	if ( ! $start_result['date'] && ! $start_result['time_only'] ) {
+		return bws_handle_date_time_fallback( $options, $instance );
+	}
+
+	// A time display: `as:time`, or a start with no date (a time-only field). Empty when
+	// there is no time to show, which takes the fallback like any other empty read.
+	if ( ! empty( $options['time_only'] ) || ! $start_result['date'] ) {
+		return bws_gb_tag_output( bws_format_time_display( $start_result, $end_result, $options ), $options, $instance );
 	}
 
 	// Normal range formatting.
@@ -580,53 +650,175 @@ function bws_datetime_range_core( $target, $options, $instance ) {
 }
 
 /**
- * Term datetime single core — validates the term, delegates a term-kind
- * resolved source (FW-3a; the term read is kind-dispatched inside
- * bws_parse_combined_date_time, no object-id string smuggle).
+ * The resolved source for a term the datetime cores read, or the entity-less post source
+ * when the term does not validate (the cores then take the fallback, or read a query-loop
+ * item they can be served from). The term read is kind-dispatched inside
+ * bws_parse_combined_date_time(), with no object-id string smuggle (FW-3a).
  *
- * @since 1.2.0
- * @param int|false $term_id  Resolved term ID.
- * @param array     $options  Tag options.
- * @param object    $instance Block instance.
- * @return string
+ * @since Unreleased
+ * @param int|false $term_id Resolved term ID.
+ * @return array The factory's resolved-source payload.
  */
-function bws_term_datetime_single_core( $term_id, $options, $instance ) {
+function bws_datetime_term_source( $term_id ): array {
 	$term = $term_id ? bws_get_validated_term( $term_id ) : null;
 	if ( ! $term ) {
-		return bws_datetime_single_core( false, $options, $instance );
+		return array( 'kind' => 'post', 'id' => false );
 	}
-	return bws_datetime_single_core(
-		array( 'kind' => 'term', 'id' => $term->term_id, 'taxonomy' => $term->taxonomy ),
-		$options,
-		$instance
-	);
+	return array( 'kind' => 'term', 'id' => $term->term_id, 'taxonomy' => $term->taxonomy );
 }
 
 /**
- * Term datetime range core — validates the term, delegates a term-kind
- * resolved source (FW-3a).
+ * The resolved source for a post id the datetime cores read (a non-numeric id is the
+ * entity-less read, which a query-loop item may still serve).
  *
- * @since 1.2.0
- * @param int|false $term_id  Resolved term ID.
- * @param array     $options  Tag options.
- * @param object    $instance Block instance.
- * @return string
+ * @since Unreleased
+ * @param mixed $post_id A post id, or anything else for no entity.
+ * @return array The factory's resolved-source payload.
  */
-function bws_term_datetime_range_core( $term_id, $options, $instance ) {
-	$term = $term_id ? bws_get_validated_term( $term_id ) : null;
-	if ( ! $term ) {
-		return bws_datetime_range_core( false, $options, $instance );
-	}
-	return bws_datetime_range_core(
-		array( 'kind' => 'term', 'id' => $term->term_id, 'taxonomy' => $term->taxonomy ),
-		$options,
-		$instance
-	);
+function bws_datetime_post_source( $post_id ): array {
+	return array( 'kind' => 'post', 'id' => is_numeric( $post_id ) ? (int) $post_id : false );
 }
 
 // ===============================================
 // BASE TAG HELPERS + CALLBACKS
 // ===============================================
+
+/**
+ * The reads a datetime tag spells, in order — the grammar of the merged `datetime` tag's
+ * two read options, `key` and `use` (FW-81).
+ *
+ * A `;` separates `key` entries, and an entry that is empty is still a read (an empty one,
+ * which takes the fallback). A `+` joins at most two operands inside one entry: the primary
+ * field, which may be a date, a datetime or a time, then an optional supplementary time
+ * field. A third operand is ignored.
+ *
+ * `use` is read through bws_use_effective(). With no verb in it, the reads are the `key`
+ * entries, one each. With a verb (`now`, `published`, `modified`) it is the full ORDERED list:
+ * each `key` in it takes the next `key` entry (none left is an empty read), a verb takes
+ * none, a surplus `key` entry is ignored, and a name that is neither is dropped. Position
+ * is what tells "from a field until now" from "from now until a field".
+ *
+ * This is the only place `;` and `+` are read as datetime grammar. The value is shaped like
+ * a fold but the fold grammar (slot-fold.php) never parses it, so `+` stays reserved there;
+ * ADR 0006 §Allocations records the one place it is allocated.
+ *
+ * `$faults` is how the editor preview learns what that tolerance hid: the same parse reports
+ * each inconsistency it forgave, so the preview cannot disagree with the render about which
+ * reads exist. One record per fault, in this order: `extra` (an operand past the second was
+ * ignored), `bare` (`reads` lists the 1-based reads that are a `key` with no field),
+ * `missing` or `surplus` (`reads` key reads in `use` against `keys` entries in `key`).
+ * Nothing about the faults changes what is returned.
+ *
+ * @since Unreleased
+ * @param array      $options Raw tag options.
+ * @param bool       $verbs   Whether `use` is read: the merged tag only. The old tags have no `use`.
+ * @param array|null $faults  Out: the inconsistencies forgiven, as above.
+ * @return array<int, array{verb:string, field:string, time:string}> One record per read;
+ *                         `verb` is '' for a field read. Empty when there is nothing to read.
+ */
+function bws_datetime_reads( array $options, bool $verbs = true, ?array &$faults = null ): array {
+	$faults  = array();
+	$key     = isset( $options['key'] ) && is_scalar( $options['key'] ) ? trim( (string) $options['key'] ) : '';
+	$entries = array();
+	$extra   = false;
+	if ( '' !== $key ) {
+		foreach ( explode( ';', $key ) as $entry ) {
+			$operands  = explode( '+', $entry );
+			$extra     = $extra || count( $operands ) > 2;
+			$entries[] = array(
+				'verb'  => '',
+				'field' => trim( $operands[0] ),
+				'time'  => trim( $operands[1] ?? '' ),
+			);
+		}
+	}
+	if ( $extra ) {
+		$faults[] = array( 'kind' => 'extra' );
+	}
+
+	$use  = $verbs ? bws_use_effective( 'datetime', $options ) : bws_use_stripped_default( 'datetime' );
+	$bare = array();
+	$keys = count( $entries );
+
+	if ( bws_use_stripped_default( 'datetime' ) === $use ) {
+		$reads = $entries;
+		foreach ( $reads as $i => $read ) {
+			if ( '' === $read['field'] ) {
+				$bare[] = $i + 1;
+			}
+		}
+	} else {
+		$reads     = array();
+		$key_reads = 0;
+		foreach ( explode( ';', $use ) as $name ) {
+			$name = trim( $name );
+			if ( 'key' === $name ) {
+				++$key_reads;
+				$read = array_shift( $entries );
+				if ( null === $read ) {
+					$read = array( 'verb' => '', 'field' => '', 'time' => '' );
+					// No entry at all is a bare read; some entries but too few is a count mismatch.
+					if ( 0 === $keys ) {
+						$bare[] = count( $reads ) + 1;
+					}
+				} elseif ( '' === $read['field'] ) {
+					$bare[] = count( $reads ) + 1;
+				}
+				$reads[] = $read;
+			} elseif ( in_array( $name, array( 'now', 'published', 'modified' ), true ) ) {
+				$reads[] = array( 'verb' => $name, 'field' => '', 'time' => '' );
+			}
+		}
+		if ( $keys && $keys !== $key_reads ) {
+			$mismatch = array( 'kind' => $keys < $key_reads ? 'missing' : 'surplus', 'reads' => $key_reads, 'keys' => $keys );
+		}
+	}
+
+	if ( $bare ) {
+		$faults[] = array( 'kind' => 'bare', 'reads' => $bare );
+	}
+	if ( isset( $mismatch ) ) {
+		$faults[] = $mismatch;
+	}
+	return $reads;
+}
+
+/**
+ * The datetime tag names and the family each stands for, the `$range` argument
+ * bws_normalize_datetime_options() takes: null for the merged tag (its reads decide the mode),
+ * false for `datetime_single`, true for `datetime_range`. THE one map between a family and its
+ * tag name; read it through bws_datetime_family() and bws_datetime_family_tag().
+ *
+ * @since Unreleased
+ */
+const BWS_DATETIME_FAMILY_TAGS = array(
+	'datetime'        => null,
+	'datetime_single' => false,
+	'datetime_range'  => true,
+);
+
+/**
+ * The family a datetime tag name stands for. A `try_` prefix names the same family, and a
+ * name that is no datetime tag reads as null, the merged family: callers pass only datetime names.
+ *
+ * @since Unreleased
+ * @param string $tag A datetime tag name (`datetime`, `try_datetime_range`, ...).
+ * @return bool|null The `$range` argument for bws_normalize_datetime_options().
+ */
+function bws_datetime_family( string $tag ): ?bool {
+	return BWS_DATETIME_FAMILY_TAGS[ str_starts_with( $tag, 'try_' ) ? substr( $tag, 4 ) : $tag ] ?? null;
+}
+
+/**
+ * The base tag name for a datetime family: `datetime`, `datetime_single` or `datetime_range`.
+ *
+ * @since Unreleased
+ * @param bool|null $range The family, as bws_datetime_family() returns it.
+ * @return string
+ */
+function bws_datetime_family_tag( ?bool $range ): string {
+	return (string) array_search( $range, BWS_DATETIME_FAMILY_TAGS, true );
+}
 
 /**
  * Normalize public datetime option keys to the canonical core keys — THE single
@@ -642,11 +834,16 @@ function bws_term_datetime_range_core( $term_id, $options, $instance ) {
  * INVARIANT: this function is the ONLY place public datetime keys are parsed.
  * Both render paths (base callbacks, try_ template closures) and the
  * editor preview call it — they can never disagree about what an option means.
- * A future folded key value is an edit to this function alone, not a re-sweep of
- * the read sites. FW-41 (`key:date,time`) was the original form of that change;
- * it retired into FW-81 2026-08-19, which collapses the two datetime tags and all
- * six key options into one ordered read list — landing at this same single site,
- * with the $range parameter derived from the read COUNT rather than passed in.
+ * The reads themselves are spelled by bws_datetime_reads(), which only this function
+ * calls.
+ *
+ * MODE (FW-81): `$range` true/false is a fixed family — the two old tags pass it, and
+ * the old `startKey` family and `key`/`timeKey` keep mapping exactly as they did, with
+ * a `key` read filling only what those leave unset. `null` is the merged tag: the mode
+ * is range when the old range keys are present or the options spell two or more reads
+ * (`key` entries and verbs, bws_datetime_reads()), and the result says which in
+ * `is_range`. Nothing else states a mode. A verb read maps to `verb` on a single, and to
+ * `start_verb` / `end_verb` on a range; only the merged tag reads `use`.
  *
  * Canonical keys already present in $options are preserved (legacy
  * template-tag callers pass them directly; the isset guards keep them
@@ -657,12 +854,24 @@ function bws_term_datetime_range_core( $term_id, $options, $instance ) {
  *               wrappers kept their names as external API.
  * @since 1.21.0 Those wrappers deleted — their only known caller, an
  *               integrating plugin's template map, dropped the pin.
- * @param array $options Raw tag options from GenerateBlocks.
- * @param bool  $range   Range-tag mapping (startKey/endKey family) when true.
- * @return array Options with canonical core keys populated.
+ * @since Unreleased `$range` accepts null (the merged tag derives its mode from the
+ *               reads); the `key` option spells one read per `;` entry, and `use` adds the
+ *               verbs; `is_range` out.
+ * @param array     $options Raw tag options from GenerateBlocks.
+ * @param bool|null $range   Range-tag mapping (startKey/endKey family) when true; null
+ *                           derives the mode from the options.
+ * @return array Options with canonical core keys populated, plus `is_range`.
  */
-function bws_normalize_datetime_options( array $options, bool $range = false ): array {
+function bws_normalize_datetime_options( array $options, ?bool $range = false ): array {
 	$mapped = $options;
+
+	$reads        = bws_datetime_reads( $options, null === $range );
+	$legacy_range = isset( $options['startKey'] ) || isset( $options['startTimeKey'] )
+		|| isset( $options['endKey'] ) || isset( $options['endTimeKey'] );
+	if ( null === $range ) {
+		$range = $legacy_range || count( $reads ) >= 2;
+	}
+	$mapped['is_range'] = $range;
 
 	// as → date_only / time_only.
 	$as                  = $options['as'] ?? '';
@@ -691,19 +900,25 @@ function bws_normalize_datetime_options( array $options, bool $range = false ): 
 	$mapped['hide_midnight'] = ! bws_flag_is_on( $options, 'showMidnight' );
 
 	if ( ! $range ) {
-		// key → date_time_field, timeKey → time_field.
-		if ( isset( $options['key'] ) && ! isset( $options['date_time_field'] ) ) {
-			$mapped['date_time_field'] = $options['key'];
-		}
+		// timeKey → time_field (the old tag's own spelling), then the first `key` read
+		// → date_time_field (+ time_field when it names a second operand).
 		if ( isset( $options['timeKey'] ) && ! isset( $options['time_field'] ) ) {
 			$mapped['time_field'] = $options['timeKey'];
+		}
+		if ( isset( $reads[0] ) && '' !== $reads[0]['verb'] ) {
+			$mapped['verb'] = $reads[0]['verb'];
+		} elseif ( isset( $reads[0] ) && ! isset( $options['date_time_field'] ) ) {
+			$mapped['date_time_field'] = $reads[0]['field'];
+		}
+		if ( isset( $reads[0] ) && '' !== $reads[0]['time'] && ! isset( $mapped['time_field'] ) ) {
+			$mapped['time_field'] = $reads[0]['time'];
 		}
 		return $mapped;
 	}
 
-	// Range: start/end field family (the single-tag field keys stay unmapped —
-	// a range tag's `key` option, if present, belongs to the range core's own
-	// start_field mapping below, never date_time_field).
+	// Range: start/end field family. The range's own four keys win, and a `key` beside
+	// any of them stays inert; `key` reads fill the start and end only when none of the
+	// four is present (the merged tag).
 	if ( isset( $options['startKey'] ) && ! isset( $options['start_field'] ) ) {
 		$mapped['start_field'] = $options['startKey'];
 	}
@@ -716,6 +931,23 @@ function bws_normalize_datetime_options( array $options, bool $range = false ): 
 	if ( isset( $options['endTimeKey'] ) && ! isset( $options['end_time_field'] ) ) {
 		$mapped['end_time_field'] = $options['endTimeKey'];
 	}
+	if ( ! $legacy_range ) {
+		foreach ( array( array( 'start_field', 'start_time_field', 'start_verb' ), array( 'end_field', 'end_time_field', 'end_verb' ) ) as $i => $names ) {
+			if ( ! isset( $reads[ $i ] ) ) {
+				continue;
+			}
+			if ( '' !== $reads[ $i ]['verb'] ) {
+				$mapped[ $names[2] ] = $reads[ $i ]['verb'];
+				continue;
+			}
+			if ( ! isset( $options[ $names[0] ] ) ) {
+				$mapped[ $names[0] ] = $reads[ $i ]['field'];
+			}
+			if ( '' !== $reads[ $i ]['time'] && ! isset( $options[ $names[1] ] ) ) {
+				$mapped[ $names[1] ] = $reads[ $i ]['time'];
+			}
+		}
+	}
 
 	// rangeSep → separator (used by bws_format_date_range()).
 	if ( isset( $options['rangeSep'] ) && ! isset( $options['separator'] ) ) {
@@ -726,45 +958,130 @@ function bws_normalize_datetime_options( array $options, bool $range = false ): 
 }
 
 /**
- * Resolve the `datetime_single` base tag's VALUE — the full read path minus link-wrap
- * and the preview label.
+ * Whether an old range tag's wire is an END-ONLY range: both start fields empty, an end field
+ * set. Such a tag prints its fallback today (bws_datetime_range_core() reads nothing without a
+ * start), and `key` would give it a read, so no migration touches it.
  *
- * Resolves entity via `source`, applies srcTerm hop when set, then
- * delegates to bws_datetime_single_core() or bws_term_datetime_single_core().
- * Normalizes base tag option keys to the canonical core keys before dispatch.
+ * @since Unreleased
+ * @param array $options Raw options of a `datetime_range` tag.
+ * @return bool
+ */
+function bws_datetime_legacy_range_is_end_only( array $options ): bool {
+	$text = static function ( string $name ) use ( $options ): string {
+		return isset( $options[ $name ] ) && is_scalar( $options[ $name ] ) ? trim( (string) $options[ $name ] ) : '';
+	};
+	return '' === $text( 'startKey' ) && '' === $text( 'startTimeKey' )
+		&& ( '' !== $text( 'endKey' ) || '' !== $text( 'endTimeKey' ) );
+}
+
+/**
+ * Rewrite an old datetime tag's field options to the one `key` the merged tag reads (FW-81).
  *
- * THE FAMILY'S RESOLVE SEAM (FW-136): `{{try_datetime_single}}`'s attempts run through
- * this same function, so an attempt reads exactly as the base tag does and inherits
- * whatever the base read gains. Registered as `resolve_fn` on the datetime_single
- * modifier template; the shells on both sides own what the seam leaves out.
+ * THE RULE for both migration paths: the editor's mount step (assets/js/datetime-read-control.js,
+ * `bwsDatetimeLegacy.rewrite()`, its twin) and the Migration Tool. Pure: options in, rewritten
+ * options out, `null` when the tag is left alone. `$range` names the old tag's family, because
+ * the old tags have a fixed one.
  *
- * The THIRD of the four families that register link options, so this is the third place
- * FW-135 dissolves: a list arm's values arrive wrapped per item out of
- * bws_collect_value_list() and report `link_id` 0, while a singular read reports its own
- * entity and the shell wraps once.
+ * - single: `key` and `timeKey` become one entry, `key+timeKey`, or just the key when the time
+ *   field is empty. Only a tag that states `timeKey` has anything to rewrite.
+ * - range: the four start/end options become two `;` entries, each built the same way, and a
+ *   trailing empty end entry is stripped.
+ * - an end-only range is NOT rewritten (bws_datetime_legacy_range_is_end_only()): `key` would
+ *   give a tag that prints its fallback a read, and a migration must not change output.
+ * - an operand holding `;` or `+` is not a clean entry, so that tag is left alone too.
+ *
+ * Equivalence (the same fields reach the cores) is pinned in datetime-migration-test.php D8,
+ * from the shared corpus the JS twin also runs.
+ *
+ * @since Unreleased
+ * @param array $options Raw tag options.
+ * @param bool  $range   True for `datetime_range`, false for `datetime_single`.
+ * @return array|null Rewritten options in canonical order, or null when nothing changes.
+ */
+function bws_datetime_legacy_reads_rewrite( array $options, bool $range ): ?array {
+	$names = $range ? array( 'startKey', 'startTimeKey', 'endKey', 'endTimeKey' ) : array( 'key', 'timeKey' );
+	$text  = array();
+	foreach ( $names as $name ) {
+		$value = $options[ $name ] ?? '';
+		if ( ! is_scalar( $value ) ) {
+			return null;
+		}
+		$text[ $name ] = trim( (string) $value );
+		if ( false !== strpbrk( $text[ $name ], ';+' ) ) {
+			return null;
+		}
+	}
+	$entry = static function ( string $field, string $time ): string {
+		return '' === $time ? $field : $field . '+' . $time;
+	};
+
+	if ( $range ) {
+		// No start: the end-only range, or nothing stated at all.
+		if ( '' === $text['startKey'] . $text['startTimeKey'] ) {
+			return null;
+		}
+		$start = $entry( $text['startKey'], $text['startTimeKey'] );
+		$end   = $entry( $text['endKey'], $text['endTimeKey'] );
+		$key   = '' === $end ? $start : $start . ';' . $end;
+	} else {
+		if ( ! array_key_exists( 'timeKey', $options ) ) {
+			return null;
+		}
+		$key = $entry( $text['key'], $text['timeKey'] );
+	}
+
+	$out = array_diff_key( $options, array_flip( $names ) );
+	if ( '' !== $key ) {
+		$out['key'] = $key;
+	}
+	return bws_serialization_order_sort_map( $out );
+}
+
+/**
+ * Resolve a datetime tag's VALUE — the full read path minus link-wrap and the preview
+ * label, for all three tags (`datetime`, `datetime_single`, `datetime_range`).
+ *
+ * Resolves the entity via `source`, applies the srcTerm hop when set, then delegates to
+ * the date-time core or the term core of the chosen family, picked once below. Normalizes
+ * the option keys to the canonical core keys before dispatch.
+ *
+ * `$range` names the family: true and false are a fixed one (an old tag keeps its family
+ * whatever its options say, so an old range tag given only `key:x` still reads through the
+ * range core), and null is the merged tag, whose mode comes from the options — see
+ * bws_normalize_datetime_options()'s MODE clause, the only place that is decided.
+ *
+ * THE FAMILY'S RESOLVE SEAM (FW-136): the two `try_` datetime templates run their attempts
+ * through this same function, registered as each template's `resolve_fn` with the fixed
+ * family bound, so an attempt reads exactly as the base tag does and inherits whatever the
+ * base read gains. The shells on both sides own what the seam leaves out.
+ *
+ * A list arm's values arrive wrapped per item out of bws_collect_value_list() and report
+ * `link_id` 0, while a singular read reports its own entity and the shell wraps once. `sep`
+ * joins whole formatted ranges, and `rangeSep` stays the intra-range start-to-end separator:
+ * neither the fold nor the seam sees it, since the range cores own the pair's own assembly.
  *
  * THE STATED FALLBACK STAYS HERE, not in the shell, and it is not a departure from the
  * seam contract so much as the only place it can be stated: the cores emit it themselves
  * on a read that found nothing (bws_handle_date_time_fallback(), four sites in
- * bws_datetime_single_core()), and the compensating tail below exists for exactly the
- * arms where no core ran. Which arms those are — fanning, refused, ambient-claimed — is
- * a fact only this function holds. Under a `try_` attempt the whole thing is inert:
+ * bws_datetime_single_core()), and the tail below applies it to any empty result, unwrapped
+ * (why, and which arms need it, is stated there), except in the editor preview, where an
+ * empty read is left for the shell's label. Under a `try_` attempt the whole thing is inert:
  * bws_try_run_attempts() strips `fallback` before the resolver is called, so both the
  * cores' emit and the tail resolve to '' and the walk moves on, which is the contract
  * the shell's own once-per-tag fallback needs.
  *
- * FW-116's per-tag fix for this family rides the tail's `null !== $ambient` term (see
- * there). Carried verbatim; the structural flip is FW-116's, not this seam's.
+ * FW-116's per-tag fix for this family is that same tail, which covers an ambient claim
+ * with every other arm. The structural flip is FW-116's, not this seam's.
  *
- * List mode (#30, V14 parity with base text/title): srcTermIn and src:ref
- * collect up to `limit` results joined with `sep`; empty items are skipped;
- * the fallback is suppressed per-item and fires once on all-empty output;
- * link-wrap applies only when exactly one result renders.
+ * List mode (#30, parity with base text/title): srcTermIn and src:ref collect up to
+ * `limit` results joined with `sep`; empty items are skipped; the fallback is suppressed
+ * per-item and fires once on all-empty output; link-wrap applies only when exactly one
+ * result renders.
  *
- * Term-ambient parity (FW-3a, SPEC §V7 / CONTEXT.md I1): a bare tag on a term
- * archive reads the ambient term's date field through the same term core the
- * explicit srcTermIn branch uses — one factory call (§V1), kind branch via
- * bws_base_ambient_analog(), matching base text/title.
+ * Term-ambient parity (FW-3a, CONTEXT.md I1): a bare tag on a term archive
+ * reads the ambient term's date field through the same term core the explicit srcTermIn
+ * branch uses — one factory call, kind branch via bws_base_ambient_analog(),
+ * matching base text/title.
  *
  * @since 1.6.0
  * @since 1.15.0 List mode (limit/sep); src:ref fans out through the shared
@@ -773,36 +1090,56 @@ function bws_normalize_datetime_options( array $options, bool $range = false ): 
  * @since 1.16.0 List collection via the shared bws_collect_value_list fold
  *               (FW-49) — link identity replaces the first-item kind sniff.
  * @since 1.21.0 The `meta_row` list branch — a `rows` chain reads its rows (FW-74).
- * @since 1.21.0 Extracted from bws_base_datetime_single_callback().
+ * @since 1.21.0 Extracted from the base callbacks, one copy per family.
+ * @since Unreleased One function for all three tags: the single and range copies merged,
+ *               and `$range` names the family.
  *
- * @param array $options  Tag options.
- * @param mixed $instance GB tag instance.
+ * @param array     $options  Tag options.
+ * @param mixed     $instance GB tag instance.
+ * @param bool|null $range    The family: true range, false single, null derived from the options.
  * @return array{value:string, link_id:int, link_type:string} link_id 0 = the caller must
  *                        not link-wrap: either there is no entity, or the value came from
  *                        a list arm that already wrapped per item.
  */
-function bws_base_datetime_single_resolve_value( array $options, $instance ): array {
-	$res    = bws_base_src_resolution( $options );
-	$mapped = bws_normalize_datetime_options( $options );
+function bws_base_datetime_resolve_value( array $options, $instance, ?bool $range = null ): array {
+	$res      = bws_base_src_resolution( $options );
+	$mapped   = bws_normalize_datetime_options( $options, $range );
+	$is_range = $mapped['is_range'];
+
+	// The family's core, chosen once. Every kind of source goes to it as a resolved-source payload.
+	$core = $is_range ? 'bws_datetime_range_core' : 'bws_datetime_single_core';
 
 	$link_id   = 0;
 	$link_type = 'post';
 
-	// src:site — ACF options-page date field. Pass 'option' object-id to _core; the
+	// A tag whose every read is `now` reads no source, so no source (or the lack of one: a 404,
+	// a search, the blog home) may decide whether it prints, and there is nothing to link to.
+	$only_now = $is_range
+		? ( 'now' === ( $mapped['start_verb'] ?? '' ) && 'now' === ( $mapped['end_verb'] ?? '' ) )
+		: ( 'now' === ( $mapped['verb'] ?? '' ) );
+	if ( $only_now ) {
+		return array(
+			'value'     => $core( bws_datetime_post_source( false ), $mapped, $instance ),
+			'link_id'   => 0,
+			'link_type' => 'post',
+		);
+	}
+
+	// src:site — ACF options-page date field. The core gets the site source; the
 	// DT-1 bws_read_field branch (allowlist-gated get_field($key,'option')) performs
-	// the value read, and the format chain (bws_build_single_format) recovers the
-	// field's return format. Link identity is the sentinel pair (id 1, 'site'), reported
-	// unconditionally — the shell wraps only what is non-empty, which is the same test
-	// the wrap used to carry here.
+	// the value read, and the format chain (bws_build_single_format / bws_build_range_format)
+	// recovers the field's return format. Link identity is the sentinel pair (id 1, 'site'),
+	// reported unconditionally — the shell wraps only what is non-empty, which is the same
+	// test the wrap used to carry here.
 	if ( 'site' === $res['kind'] ) {
 		return array(
-			'value'     => bws_datetime_single_core( 'option', $mapped, $instance ),
+			'value'     => $core( array( 'kind' => 'site' ), $mapped, $instance ),
 			'link_id'   => 1,
 			'link_type' => 'site',
 		);
 	}
 
-	// L1 — resolve the base source once (SPEC §V1); ambient dispatch through the
+	// L1 — resolve the base source once; ambient dispatch through the
 	// one kind-dispatching seam (FW-3a term parity kept byte-identical through it).
 	// Explicit src/loop/id already won inside the factory.
 	$base = function_exists( 'bws_base_resolve_source_for_callback' )
@@ -810,7 +1147,7 @@ function bws_base_datetime_single_resolve_value( array $options, $instance ): ar
 		: array( 'kind' => 'post', 'id' => 0 );
 	$res     = bws_base_settle_kind( $res, $base );
 	$ambient = function_exists( 'bws_base_ambient_analog' )
-		? bws_base_ambient_analog( 'datetime_single', $base, $options, $instance )
+		? bws_base_ambient_analog( bws_datetime_family_tag( $is_range ), $base, $options, $instance )
 		: null;
 
 	// Unguarded, unlike its neighbours above — see bws_base_read_refused(). Those guards
@@ -829,7 +1166,7 @@ function bws_base_datetime_single_resolve_value( array $options, $instance ): ar
 			// through the term core, never the analog reader — FW-3's remaining half
 			// is gated on a field-object-formats read the seam does not expose, so
 			// the seam's own value for a datetime tag is '' by construction.
-			$value     = bws_term_datetime_single_core( (int) $ambient['link_id'], $mapped, $instance );
+			$value     = $core( bws_datetime_term_source( (int) $ambient['link_id'] ), $mapped, $instance );
 			$link_id   = (int) $ambient['link_id'];
 			$link_type = 'term';
 		} else {
@@ -845,9 +1182,9 @@ function bws_base_datetime_single_resolve_value( array $options, $instance ): ar
 			function_exists( 'bws_base_term_ids_from_source' )
 				? bws_base_term_ids_from_source( $base, $options )
 				: array(),
-			static function ( $tid, array $item_opts ) use ( $instance ) {
+			static function ( $tid, array $item_opts ) use ( $core, $instance ) {
 				return array(
-					'value' => bws_term_datetime_single_core( (int) $tid, $item_opts, $instance ),
+					'value' => $core( bws_datetime_term_source( (int) $tid ), $item_opts, $instance ),
 					'link'  => array( 'kind' => 'term', 'id' => (int) $tid ),
 				);
 			},
@@ -862,9 +1199,9 @@ function bws_base_datetime_single_resolve_value( array $options, $instance ): ar
 			: array();
 		$collected = bws_collect_value_list(
 			$post_ids,
-			static function ( $oid, array $item_opts ) use ( $instance ) {
+			static function ( $oid, array $item_opts ) use ( $core, $instance ) {
 				return array(
-					'value' => bws_datetime_single_core( $oid, $item_opts, $instance ),
+					'value' => $core( bws_datetime_post_source( $oid ), $item_opts, $instance ),
 					'link'  => array( 'kind' => 'post', 'id' => (int) $oid ),
 				);
 			},
@@ -884,8 +1221,7 @@ function bws_base_datetime_single_resolve_value( array $options, $instance ): ar
 		// own INVARIANT is written about, the issue #22 repeater row a query loop
 		// positions us inside and bws_read_field() re-infers.
 		//
-		// The core takes the resolved SOURCE (bws_datetime_coerce_read_target() passes a
-		// kind-carrying array through verbatim), and the row's VALUE read is the only half
+		// The core takes the resolved SOURCE, and the row's VALUE read is the only half
 		// that changes down there: the field-config object id stays the core's own
 		// derivation, so a row parses format-agnostically — the boundary
 		// bws_parse_combined_date_time() states and FW-3 closes.
@@ -896,7 +1232,7 @@ function bws_base_datetime_single_resolve_value( array $options, $instance ): ar
 			function_exists( 'bws_base_sources_of_kind' )
 				? bws_base_sources_of_kind( $base, $options, 'meta_row' )
 				: array(),
-			static fn( $row_source, array $item_opts ) => bws_datetime_single_core( (array) $row_source, $item_opts, $instance ),
+			static fn( $row_source, array $item_opts ) => $core( (array) $row_source, $item_opts, $instance ),
 			$mapped
 		);
 		$value = $collected['value'];
@@ -904,23 +1240,21 @@ function bws_base_datetime_single_resolve_value( array $options, $instance ): ar
 		$post_id   = function_exists( 'bws_base_post_id_from_source' )
 			? bws_base_post_id_from_source( $base, $options )
 			: get_the_ID();
-		$value     = bws_datetime_single_core( $post_id, $mapped, $instance );
+		$value     = $core( bws_datetime_post_source( $post_id ), $mapped, $instance );
 		$link_id   = (int) $post_id;
 		$link_type = 'post';
 	}
 
-	// List-mode all-empty → the fallback fires once, unwrapped. A chain that FANS
-	// is exactly the old ( srcTermIn || src:ref ) test, stated on the wire instead
-	// of on two tokens (FW-63). A REFUSED tag joins it whether or not it fans: the
-	// fallback it would otherwise have got is the one the core emits, and the core is
-	// exactly what a refusal must not run. An ambient claim joins it too, for the
-	// same reason: a non-term claim (line ~877) carries the seam's own '' straight
-	// through without ever calling bws_datetime_single_core(), and a term claim
-	// routes through the term core instead of the post one — either way the core
-	// whose falsy-entity branch normally self-applies this SAME fallback (line 476)
-	// never ran, so nothing else would apply it.
-	if ( '' === $value && ( $res['fans'] || $refused || null !== $ambient ) ) {
-		$value   = bws_handle_date_time_fallback( $mapped, $instance, 'single' );
+	// All-empty → the stated fallback fires once, unwrapped, for EVERY arm. The date-time
+	// core self-applies it on a read that found nothing, so an empty value that reaches
+	// here is one where no core ran with `fallback` intact: a list arm (the fold strips
+	// `fallback` per item), a refusal, an ambient claim. A pinned singular post or term is
+	// a list arm of one, which is why the tail cannot ask whether the chain fans.
+	// A core that DID apply it returned non-empty, so this never fires twice. Not in the
+	// editor preview: an empty read there is the shell's preview label, which carries the
+	// fallback beside the read target (bws_base_text_callback() does the same).
+	if ( '' === $value && empty( $instance->context['bwsEditorPreview'] ) ) {
+		$value   = bws_handle_date_time_fallback( $mapped, $instance );
 		$link_id = 0;
 	}
 
@@ -932,244 +1266,77 @@ function bws_base_datetime_single_resolve_value( array $options, $instance ): ar
 }
 
 /**
- * Callback for the `datetime_single` base tag.
- *
- * Shell over bws_base_datetime_single_resolve_value(): resolve the value, link-wrap what
- * the singular arms returned (a list arm wrapped its own values per item and reports
- * link_id 0), then on empty output apply the editor preview label.
+ * The shell the three datetime callbacks share: resolve the value through
+ * bws_base_datetime_resolve_value(), link-wrap what the singular arms returned (a list arm
+ * wrapped its own values per item and reports link_id 0), then on empty output apply the
+ * editor preview label.
  *
  * NO STATED FALLBACK HERE — this family's fallback is emitted inside the seam, by the
- * cores on a read that found nothing and by the seam's own compensating tail where no
- * core ran. See there for why it cannot move up.
+ * cores on a read that found nothing and by the seam's own tail on any other empty result.
+ * See there for why it cannot move up.
+ *
+ * The preview label is the tag's own: `datetime` for the merged tag, whose mode the preview
+ * derives from the reads, and the fixed family's for each old one.
+ *
+ * @since Unreleased One shell for the three tags, replacing a copy per callback.
+ *
+ * @param mixed     $options  Tag options.
+ * @param mixed     $block    GB block.
+ * @param mixed     $instance GB tag instance.
+ * @param bool|null $range    The family, as bws_base_datetime_resolve_value().
+ */
+function bws_base_datetime_shell( $options, $block, $instance, ?bool $range ): string {
+	$options    = bws_host_unlinked_options( $options, $block );
+	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
+
+	$resolved = bws_base_datetime_resolve_value( (array) $options, $instance, $range );
+	$value    = $resolved['value'];
+
+	if ( '' !== $value ) {
+		if ( $resolved['link_id'] && function_exists( 'bws_wrap_with_link' ) ) {
+			$value = bws_wrap_with_link(
+				$value,
+				$options['linkTo'] ?? 'none',
+				$options['linkKey'] ?? '',
+				bws_flag_is_on( $options, 'newTab' ),
+				$resolved['link_id'],
+				$resolved['link_type']
+			);
+		}
+		return $value;
+	}
+
+	if ( ! $is_preview || ! function_exists( 'bws_build_preview_label' ) ) {
+		return '';
+	}
+	return bws_build_preview_label( $options, bws_datetime_family_tag( $range ) );
+}
+
+/**
+ * Callback for the `datetime_single` base tag: the single family, whatever its options say.
  *
  * @since 1.6.0
- * @since 1.21.0 Value resolution extracted to bws_base_datetime_single_resolve_value().
+ * @since Unreleased A one-line wrapper over bws_base_datetime_shell().
  */
 function bws_base_datetime_single_callback( $options, $block, $instance ): string {
-	$options    = bws_host_unlinked_options( $options, $block );
-	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
-
-	$resolved = bws_base_datetime_single_resolve_value( (array) $options, $instance );
-	$value    = $resolved['value'];
-
-	if ( '' !== $value ) {
-		if ( $resolved['link_id'] && function_exists( 'bws_wrap_with_link' ) ) {
-			$value = bws_wrap_with_link(
-				$value,
-				$options['linkTo'] ?? 'none',
-				$options['linkKey'] ?? '',
-				bws_flag_is_on( $options, 'newTab' ),
-				$resolved['link_id'],
-				$resolved['link_type']
-			);
-		}
-		return $value;
-	}
-
-	return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'datetime_single' ) : '';
+	return bws_base_datetime_shell( $options, $block, $instance, false );
 }
 
 /**
- * Resolve the `datetime_range` base tag's VALUE — the full read path minus link-wrap
- * and the preview label.
- *
- * Resolves entity via `source`, applies srcTerm hop when set, then
- * delegates to bws_datetime_range_core() or bws_term_datetime_range_core().
- * Normalizes base tag option keys to the canonical core keys before dispatch.
- *
- * THE FAMILY'S RESOLVE SEAM (FW-136): `{{try_datetime_range}}`'s attempts run through
- * this same function, so an attempt reads exactly as the base tag does and inherits
- * whatever the base read gains. Registered as `resolve_fn` on the datetime_range
- * modifier template; the shells on both sides own what the seam leaves out.
- *
- * The LAST of the four families that register link options, so this is the last place
- * FW-135 dissolves: a list arm's values arrive wrapped per item out of
- * bws_collect_value_list() and report `link_id` 0, while a singular read reports its own
- * entity and the shell wraps once. `sep` joins whole formatted ranges, exactly as before
- * — `rangeSep` stays the intra-range start↔end separator, and neither the fold nor the
- * seam sees it, since the cores own the pair's own assembly.
- *
- * THE STATED FALLBACK STAYS HERE, not in the shell, for the reason
- * bws_base_datetime_single_resolve_value() states at length: the cores emit it on a read
- * that found nothing, and the compensating tail below exists for exactly the arms where
- * no core ran — fanning, refused, ambient-claimed — which is a fact only this function
- * holds. Inert under a `try_` attempt either way, bws_try_run_attempts() having stripped
- * `fallback` before the resolver is called.
- *
- * FW-116's per-tag fix for this family rides the tail's `null !== $ambient` term (see
- * there). Carried verbatim; the structural flip is FW-116's, not this seam's.
- *
- * List mode (#30): as bws_base_datetime_single_resolve_value().
- *
- * Term-ambient parity (FW-3a): as bws_base_datetime_single_resolve_value().
+ * Callback for the `datetime_range` base tag: the range family, whatever its options say.
  *
  * @since 1.6.0
- * @since 1.15.0 List mode (limit/sep); src:ref fans out through the shared
- *               traversal engine instead of collapsing to the first target.
- *               Term-ambient parity (FW-3a).
- * @since 1.16.0 List collection via the shared bws_collect_value_list fold
- *               (FW-49) — link identity replaces the first-item kind sniff.
- * @since 1.21.0 The `meta_row` list branch — a `rows` chain reads its rows (FW-74).
- * @since 1.21.0 Extracted from bws_base_datetime_range_callback().
- *
- * @param array $options  Tag options.
- * @param mixed $instance GB tag instance.
- * @return array{value:string, link_id:int, link_type:string} link_id 0 = the caller must
- *                        not link-wrap: either there is no entity, or the value came from
- *                        a list arm that already wrapped per item.
- */
-function bws_base_datetime_range_resolve_value( array $options, $instance ): array {
-	$res    = bws_base_src_resolution( $options );
-	$mapped = bws_normalize_datetime_options( $options, true );
-
-	$link_id   = 0;
-	$link_type = 'post';
-
-	// src:site — ACF options-page date range. 'option' object-id → DT-1 value read +
-	// format chain (bws_build_range_format). Link identity is the sentinel pair (id 1,
-	// 'site'), reported unconditionally — the shell wraps only what is non-empty, which
-	// is the same test the wrap used to carry here.
-	if ( 'site' === $res['kind'] ) {
-		return array(
-			'value'     => bws_datetime_range_core( 'option', $mapped, $instance ),
-			'link_id'   => 1,
-			'link_type' => 'site',
-		);
-	}
-
-	// L1 — resolve the base source once (SPEC §V1); ambient dispatch through the
-	// one kind-dispatching seam — as bws_base_datetime_single_resolve_value(), which
-	// carries the why (value read stays on the cores; a non-term claim is the
-	// seam's own value). Explicit src/loop/id already won inside the factory.
-	$base = function_exists( 'bws_base_resolve_source_for_callback' )
-		? bws_base_resolve_source_for_callback( $options, $instance )
-		: array( 'kind' => 'post', 'id' => 0 );
-	$res     = bws_base_settle_kind( $res, $base );
-	$ambient = function_exists( 'bws_base_ambient_analog' )
-		? bws_base_ambient_analog( 'datetime_range', $base, $options, $instance )
-		: null;
-
-	// Unguarded, unlike its neighbours above — see bws_base_read_refused(). Those guards
-	// degrade a read; this one would delete a REFUSAL, silently restoring the defect.
-	$refused = bws_base_read_refused( $res, $base, array( 'meta_row' ) );
-
-	if ( $refused ) {
-		// REFUSED (GH #75/#76/#109) — read nothing; the all-empty fallback below fires.
-		// See bws_base_datetime_single_resolve_value() for why the core is skipped.
-		$value = '';
-	} elseif ( null !== $ambient ) {
-		if ( 'term' === $ambient['link_type'] && $ambient['link_id'] ) {
-			$value     = bws_term_datetime_range_core( (int) $ambient['link_id'], $mapped, $instance );
-			$link_id   = (int) $ambient['link_id'];
-			$link_type = 'term';
-		} else {
-			$value = (string) $ambient['value'];
-		}
-	} elseif ( 'term' === $res['kind'] ) {
-		// Shared L3 fold (FW-49): suppression + slice + join live in the helper;
-		// $mapped ⊇ $options (additive normalizer), so it serves limit/sep too.
-		$collected = bws_collect_value_list(
-			function_exists( 'bws_base_term_ids_from_source' )
-				? bws_base_term_ids_from_source( $base, $options )
-				: array(),
-			static function ( $tid, array $item_opts ) use ( $instance ) {
-				return array(
-					'value' => bws_term_datetime_range_core( (int) $tid, $item_opts, $instance ),
-					'link'  => array( 'kind' => 'term', 'id' => (int) $tid ),
-				);
-			},
-			$mapped
-		);
-		$value = $collected['value'];
-	} elseif ( 'post' === $res['kind'] ) {
-		// Post list mode: read EVERY fanned-out target via the shared traversal
-		// engine (plural resolver, not the collapse-to-first wrapper).
-		$post_ids = function_exists( 'bws_base_post_ids_from_source' )
-			? bws_base_post_ids_from_source( $base, $options )
-			: array();
-		$collected = bws_collect_value_list(
-			$post_ids,
-			static function ( $oid, array $item_opts ) use ( $instance ) {
-				return array(
-					'value' => bws_datetime_range_core( $oid, $item_opts, $instance ),
-					'link'  => array( 'kind' => 'post', 'id' => (int) $oid ),
-				);
-			},
-			$mapped
-		);
-		$value = $collected['value'];
-	} elseif ( 'meta_row' === $res['kind'] ) {
-		// REPEATER-ROW LIST (FW-74) — see bws_base_datetime_single_resolve_value()'s twin
-		// for the whole reasoning, wire-kind trap included. `sep` joins whole formatted
-		// ranges here, `rangeSep` stays the intra-range separator, as on the post branch.
-		$collected = bws_collect_value_list(
-			function_exists( 'bws_base_sources_of_kind' )
-				? bws_base_sources_of_kind( $base, $options, 'meta_row' )
-				: array(),
-			static fn( $row_source, array $item_opts ) => bws_datetime_range_core( (array) $row_source, $item_opts, $instance ),
-			$mapped
-		);
-		$value = $collected['value'];
-	} else {
-		$post_id   = function_exists( 'bws_base_post_id_from_source' )
-			? bws_base_post_id_from_source( $base, $options )
-			: get_the_ID();
-		$value     = bws_datetime_range_core( $post_id, $mapped, $instance );
-		$link_id   = (int) $post_id;
-		$link_type = 'post';
-	}
-
-	// List-mode all-empty → the fallback fires once, unwrapped. A chain that FANS
-	// is exactly the old ( srcTermIn || src:ref ) test, stated on the wire instead
-	// of on two tokens (FW-63). A REFUSED tag joins it whether or not it fans, and
-	// so does an ambient claim — see bws_base_datetime_single_resolve_value(), whose
-	// tail states the whole of it, this family's FW-116 term included.
-	if ( '' === $value && ( $res['fans'] || $refused || null !== $ambient ) ) {
-		$value   = bws_handle_date_time_fallback( $mapped, $instance, 'range' );
-		$link_id = 0;
-	}
-
-	return array(
-		'value'     => $value,
-		'link_id'   => $link_id,
-		'link_type' => $link_type,
-	);
-}
-
-/**
- * Callback for the `datetime_range` base tag.
- *
- * Shell over bws_base_datetime_range_resolve_value(): resolve the value, link-wrap what
- * the singular arms returned (a list arm wrapped its own values per item and reports
- * link_id 0), then on empty output apply the editor preview label.
- *
- * NO STATED FALLBACK HERE — this family's fallback is emitted inside the seam, by the
- * cores on a read that found nothing and by the seam's own compensating tail where no
- * core ran. See there for why it cannot move up.
- *
- * @since 1.6.0
- * @since 1.21.0 Value resolution extracted to bws_base_datetime_range_resolve_value().
+ * @since Unreleased A one-line wrapper over bws_base_datetime_shell().
  */
 function bws_base_datetime_range_callback( $options, $block, $instance ): string {
-	$options    = bws_host_unlinked_options( $options, $block );
-	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
+	return bws_base_datetime_shell( $options, $block, $instance, true );
+}
 
-	$resolved = bws_base_datetime_range_resolve_value( (array) $options, $instance );
-	$value    = $resolved['value'];
-
-	if ( '' !== $value ) {
-		if ( $resolved['link_id'] && function_exists( 'bws_wrap_with_link' ) ) {
-			$value = bws_wrap_with_link(
-				$value,
-				$options['linkTo'] ?? 'none',
-				$options['linkKey'] ?? '',
-				bws_flag_is_on( $options, 'newTab' ),
-				$resolved['link_id'],
-				$resolved['link_type']
-			);
-		}
-		return $value;
-	}
-
-	return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'datetime_range' ) : '';
+/**
+ * Callback for the merged `datetime` base tag: the family is derived from the options.
+ *
+ * @since Unreleased
+ */
+function bws_base_datetime_callback( $options, $block, $instance ): string {
+	return bws_base_datetime_shell( $options, $block, $instance, null );
 }

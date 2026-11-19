@@ -123,6 +123,7 @@ class GenerateBlocks_Dynamic_Tag_Callbacks {
 require $root . '/autoload.php';
 
 foreach ( array(
+	'includes/rest/field-discovery.php',
 	'includes/helpers/gb-output-boundary.php',
 	'includes/helpers/gb-registration-boundary.php',
 	'includes/helpers/image-helpers.php',
@@ -368,7 +369,7 @@ assert_same(
 	'{{try_datetime_range}} — full option order',
 	array(
 		'A', 'B', 'C', 'D', 'E',
-		'startKey', 'startTimeKey', 'endKey', 'endTimeKey',
+		'key', 'startKey', 'startTimeKey', 'endKey', 'endTimeKey',
 		// The two checkboxes register showCurrentYear FIRST. tag-reference.md §datetime
 		// listed them the other way round from 1.16.0 until this harness read the
 		// registration.
@@ -383,6 +384,33 @@ assert_same(
 		'fallback',
 	),
 	array_keys( $registered['try_datetime_range']['options'] ?? array() )
+);
+
+// try_datetime (FW-81): the attempts, then the TAG-level `use`/`key` reads (no per-slot axis),
+// the format run, link, fallback. No `sep`: the old try_ datetime templates registered none.
+assert_same(
+	'{{try_datetime}} — full option order',
+	array(
+		'A', 'B', 'C', 'D', 'E',
+		'use', 'key',
+		'as', 'rangeSep', 'format', 'timeSep', 'showCurrentYear', 'showMidnight',
+		'linkTo', 'linkKey', 'newTab',
+		'fallback',
+	),
+	array_keys( $registered['try_datetime']['options'] ?? array() )
+);
+
+// The merged datetime tag (FW-81): ONE `key` read option in the field group, then the
+// format run, link, fallback. The six old field options are NOT registered on it.
+assert_same(
+	'{{datetime}} — full option order',
+	array(
+		'src', 'sep', 'use', 'key',
+		'as', 'rangeSep', 'format', 'timeSep', 'showCurrentYear', 'showMidnight',
+		'linkTo', 'linkKey', 'newTab',
+		'fallback',
+	),
+	array_keys( $registered['datetime']['options'] ?? array() )
 );
 
 // ===========================================================================
@@ -517,7 +545,7 @@ foreach ( $registered as $tag => $args ) {
 // The sweep is only worth its name if it actually reaches the families the ticket names,
 // so the floor is asserted rather than assumed: an empty or half-loaded registry would
 // otherwise sail through every "does not register" check below.
-foreach ( array( 'text', 'title', 'email', 'phone', 'datetime_single', 'datetime_range', 'try_text' ) as $named ) {
+foreach ( array( 'text', 'title', 'email', 'phone', 'datetime', 'datetime_single', 'datetime_range', 'try_text' ) as $named ) {
 	assert_same( "{{{$named}}} — is in the swept set", true, in_array( $named, $chain_authoring, true ) );
 }
 
@@ -530,7 +558,7 @@ foreach ( $chain_authoring as $tag ) {
 // halves fail differently and a copy-paste removal of both should name itself. The base
 // six are the ticket's own list; the `try_` half is DERIVED from the template flag that
 // decides it (`try_list_options`), so this file holds no third copy of that set.
-$sep_expected = array( 'text', 'title', 'email', 'phone', 'datetime_single', 'datetime_range' );
+$sep_expected = array( 'text', 'title', 'email', 'phone', 'datetime', 'datetime_single', 'datetime_range' );
 foreach ( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() as $tpl ) {
 	if ( ! empty( $tpl['supports_try'] ) && ! empty( $tpl['try_list_options'] ) ) {
 		$sep_expected[] = 'try_' . $tpl['key'];
@@ -702,7 +730,11 @@ foreach ( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() as $tpl
 	$psu      = ! empty( $tpl['try_per_slot_use'] );
 	$mapped   = '' !== bws_use_stripped_default( $key );
 
-	assert_same( "{$key} — a `use` enum iff try_per_slot_use", $has_enum, $psu );
+	// `datetime` is the one template whose `use` enum is TAG-level: its read grammar spends
+	// `;` and `+`, which the slot grammar cannot carry, so every attempt reads the tag's
+	// own `use`/`key` as the base tag does (try_slot_axes() keeps both out of the slot).
+	$tag_level_use = 'datetime' === $key;
+	assert_same( "{$key} — a `use` enum iff try_per_slot_use", $has_enum, $psu || $tag_level_use );
 	assert_same( "{$key} — a template `use` enum iff a BWS_USE_STRIPPED_DEFAULTS row", $has_enum, $mapped );
 
 	if ( $has_enum ) {
@@ -1355,6 +1387,73 @@ assert_same(
 // stranger on `try_text` again, and says nothing further.
 \BWS\DynamicTags\TagTemplateRegistry::generate_base_try_tags();
 assert_same( 'a re-entered constructor does not report the same yield twice', 1, count( $GLOBALS['bws_doing_it_wrong'] ) );
+
+// ---------------------------------------------------------------------------
+
+// The merged datetime tag's key is the read control's option, and try_datetime carries the very
+// same definition (FW-81): a second spelling would be two controls for one wire. Its Type filter
+// opens on a group the page really inlines, or the control would preset a filter listing nothing.
+$dt_key = bws_get_base_datetime_options()['key'];
+assert_same( 'datetime: key is the read control', 'bws-datetime-reads', $dt_key['type'] );
+assert_same( 'try_datetime: the same key definition, not a copy', $dt_key, bws_get_datetime_template_options()['key'] );
+assert_same( 'datetime: the control stops offering Add at the most reads the normalizer takes', BWS_DATETIME_MAX_READS, $dt_key['max'] );
+assert_same( 'datetime: a non-empty heading for every read the control offers', true, count( array_filter( $dt_key['entryLabels'], 'strlen' ) ) >= BWS_DATETIME_MAX_READS );
+// The notices name what the reads cannot show (datetime-read-control-test.js §D10): each is a
+// [ one, many ] pair the control fills with the field names at its one `%s`.
+// The wording is the approved text, held here so an edit to the PHP fails by name (the JS
+// harness reads its own copy and cannot see this definition).
+assert_same( 'datetime: surplusNotice is the approved wording', array(
+	'Field %s has no read to use it and will be removed on your next change here.',
+	'Fields %s have no read to use them and will be removed on your next change here.',
+), $dt_key['surplusNotice'] ?? null );
+assert_same( 'datetime: extraNotice is the approved wording', array(
+	'A read combines one date and one time field only, so %s is ignored.',
+	'A read combines one date and one time field only, so %s are ignored.',
+), $dt_key['extraNotice'] ?? null );
+// The per-read select offers what the `use` enum lists and nothing else, field row first, and only
+// the post dates are limited to a kind (the verb result reads no other source's dates).
+$dt_use = bws_get_base_datetime_options()['use'];
+assert_same( 'datetime: the read control offers exactly the values `use` lists, in order', array_column( $dt_use['options'], 'value' ), array_column( $dt_key['reads'], 'value' ) );
+assert_same( 'datetime: the first read row is the stripped default `use` (a field read)', bws_use_stripped_default( 'datetime' ), $dt_key['reads'][0]['value'] );
+assert_same( 'datetime: only published and modified are limited to a source kind, and only to post', array( 'published' => array( 'post' ), 'modified' => array( 'post' ) ), array_column( array_filter( $dt_key['reads'], function ( $r ) { return isset( $r['kinds'] ); } ), 'kinds', 'value' ) );
+assert_same( 'datetime: its Type filter opens on a group that exists', true, in_array( $dt_key['typeDefault'], array_column( bws_field_type_groups(), 'value' ), true ) );
+assert_same( 'datetime: the old field options are not registered on the merged tag', array(), array_values( array_intersect( array( 'timeKey', 'startKey', 'startTimeKey', 'endKey', 'endTimeKey' ), array_keys( bws_get_base_datetime_options() ) ) ) );
+
+// The OLD tags carry the same control on `key` so their modal shows the reads the mount
+// rewrite produced, and keep their old options registered beside it. They read no `use`, so the
+// control offers the field row only, and a read count the family can use.
+foreach ( array(
+	'datetime_single' => array( 'single', 1, bws_get_base_datetime_single_options(), array( 'timeKey' ) ),
+	'datetime_range'  => array( 'range', BWS_DATETIME_MAX_READS, bws_get_base_datetime_range_options(), array( 'startKey', 'startTimeKey', 'endKey', 'endTimeKey' ) ),
+) as $old_tag => list( $family, $max, $old_opts, $old_names ) ) {
+	assert_same( "{$old_tag}: key is the read control, naming its family", array( 'bws-datetime-reads', $family, $max ), array( $old_opts['key']['type'], $old_opts['key']['legacy'], $old_opts['key']['max'] ) );
+	assert_same( "{$old_tag}: the control offers the field row only (the old tags read no use)", array( 'key' ), array_column( $old_opts['key']['reads'], 'value' ) );
+	assert_same( "{$old_tag}: the old field options stay registered", array(), array_values( array_diff( $old_names, array_keys( $old_opts ) ) ) );
+	assert_same( "{$old_tag}: no use option", false, isset( $old_opts['use'] ) );
+}
+assert_same( 'the merged tag\'s key names no legacy family', false, isset( $dt_key['legacy'] ) );
+
+// The `try_` forms of the old tags carry the very same definition as their base tag (the rewrite
+// is one rule, so two spellings of the control would be two answers), keep the old options
+// registered beside it, and leave `key` a TAG-level option: never a slot axis the fold migrator
+// would move into attempt A.
+foreach ( array(
+	'try_datetime_single' => array( 'single', array( 'timeKey' ) ),
+	'try_datetime_range'  => array( 'range', array( 'startKey', 'startTimeKey', 'endKey', 'endTimeKey' ) ),
+) as $try_tag => list( $family, $old_names ) ) {
+	$try_opts = $registered[ $try_tag ]['options'] ?? array();
+	// The registration pass stamps its own `_group` markers on the stored option; the definition is the rest.
+	assert_same( "{$try_tag}: key is the old tag's read control, same definition", bws_get_datetime_legacy_reads_option( $family ), array_filter( $try_opts['key'] ?? array(), function ( $k ) { return 0 !== strpos( $k, '_' ); }, ARRAY_FILTER_USE_KEY ) );
+	assert_same( "{$try_tag}: the old field options stay registered", array(), array_values( array_diff( $old_names, array_keys( $try_opts ) ) ) );
+	assert_same( "{$try_tag}: no use option", false, isset( $try_opts['use'] ) );
+	// What the editor's fold mount migrator may fold: none of the datetime keys, `key` included.
+	$flat_axes = $try_opts['A']['fold']['flatAxes'] ?? null;
+	assert_same( "{$try_tag}: the fold's flat axes name no datetime key", array(), is_array( $flat_axes ) ? array_values( array_intersect( $flat_axes, array_merge( array( 'key', 'timeKey' ), $old_names ) ) ) : array( '(no flatAxes)' ) );
+}
+foreach ( array( 'datetime_single', 'datetime_range' ) as $tpl_key ) {
+	$tpl = \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates()[ $tpl_key ] ?? array();
+	assert_same( "{$tpl_key}: `key` is tag-level on its try_ form (no per-slot read axis)", array(), \BWS\DynamicTags\TagTemplateRegistry::try_slot_axes( $tpl )['slot_read'] );
+}
 
 // ---------------------------------------------------------------------------
 

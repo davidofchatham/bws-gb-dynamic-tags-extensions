@@ -58,6 +58,13 @@
 		return ( v === null || v === undefined ) ? '' : String( v );
 	}
 
+	/** A `;` list of nothing but the default (`key;key`) IS the default. */
+	function isDefaultList( use, def ) {
+		return '' !== def && -1 !== use.indexOf( ';' ) && use.split( ';' ).every( function ( name ) {
+			return name.trim() === def;
+		} );
+	}
+
 	/**
 	 * The effective `use` — bws_use_effective()'s twin. '' for a tag with no read axis.
 	 *
@@ -68,10 +75,10 @@
 	function effective( tag, state ) {
 		var r   = rules();
 		var use = str( state && state.use );
-		if ( '' !== use ) {
-			return use;
-		}
 		var def = str( r.defaults[ tag ] );
+		if ( '' !== use ) {
+			return isDefaultList( use, def ) ? def : use;
+		}
 		if ( '' === def ) {
 			return '';
 		}
@@ -98,6 +105,14 @@
 		var r   = rules();
 		var use = str( state && state.use );
 		if ( '' === str( r.defaults[ tag ] ) ) {
+			return state;
+		}
+		// An all-default list (`key;key`) is the default itself, so it normalizes as `key`.
+		// Any other ordered list (`key;now`) is not a mode: the `key` token beside it is the
+		// list's operands, and the author's, not a stale one to drop.
+		if ( isDefaultList( use, str( r.defaults[ tag ] ) ) ) {
+			use = str( r.defaults[ tag ] );
+		} else if ( -1 !== use.indexOf( ';' ) ) {
 			return state;
 		}
 		var next = null;

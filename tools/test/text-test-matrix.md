@@ -147,6 +147,7 @@ to sit outside the loop, and the blueprint has to say so.
 | T8.10 | `{{try_content}}` | the fixture bio — third template |
 | T8.11 | `{{try_text use:title\|linkTo:permalink}}` | `<a href="…/author/fixture-author/">Fixture Author</a>` — user link identity survives an attempt. It was the arm table's `link:'user'` column's only evidence until FW-136 took `try_text` off the table; the table is deleted since, and this row moved onto the seam's own user analog without moving its output |
 | T8.12 | `{{try_permalink}}` / `{{try_image}}` / `{{try_datetime_single key:event_date}}` / `{{try_datetime_range startKey:event_date}}` | **empty — unchanged** (BARE `try_image`: a keyed one reads since #144, T8.13–T8.28 below), captured BEFORE (`main@e1bff07`) as well as after. These six families never carried a `try_user_fn`, and since FW-136 read through their base seams like the rest; `permalink` and `image` measured byte-identical across that move (ticket 10's sweep). The two DATETIME families stopped reaching it at FW-136 tickets 07 and 08, for the reason `fold-test-matrix.md` F19.4 states: their base seams answer `''` a layer earlier, and the `user` kind never claimed them anyway. Same empty, two routes. Without the before-capture the row is unfalsifiable — an empty result proves nothing on its own |
+| T8.12b | `{{try_datetime key:event_date}}` | **empty**, the same as T8.12's two old datetime forms. A new tag, so there is no BEFORE capture; the measurement is its old twin `{{try_datetime_single key:event_date}}`, empty on the same build (2026-11-17), and the tag reads through the same merged seam |
 
 ### T8.13–T8.28 — the keyed `{{image}}` read
 
@@ -244,8 +245,21 @@ A `try_text` attempt can be the fixed read. It takes its turn like any attempt: 
 | T13.7 | `{{try_text A:src(refs,related_staff);fixed(Read more)\|linkTo:permalink}}` | `Read more` twice, each linked to its own staff page |
 | T13.8 | `{{try_text A:fixed(Note\: see \| this, and; more)}}` | `Note: see \| this, and; more` — escapes and slot separators inert inside the bracket |
 
+## T14 — a datetime-shaped `key` pasted onto `{{text}}`
+
+`{{text}}` reads one field. A second `;` read or a `+` operand in `key` is ignored, and the editor preview warns (`preview-label-test.php`, "text read guards"). Visible on `/matrix-post-meta/` (section "Text T14"). Two different values, the main line number and the zero probe, make "first" observable in both orders. Measured 2026-11-18 via `render-tag`.
+
+| # | Tag (on `/matrix-post-meta/`) | Expected |
+|---|---|---|
+| T14.1 | `{{text key:main_line;bws_zero_probe}}` | `(987) 654-3210` only |
+| T14.2 | `{{text key:bws_zero_probe;main_line}}` | `0` only (plus the T5.1 pad byte) |
+| T14.3 | `{{text key:main_line+bws_zero_probe}}` | `(987) 654-3210` only |
+| T14.4 | `{{text key:bws_zero_probe+main_line}}` | `0` only (plus the T5.1 pad byte) |
+| T14.5 | `{{text key:no_such_field;main_line\|fallback:NONE}}` | `NONE` — the first read is empty and the second does not rescue it |
+
 ## Fail triage
 
+- **T14.x empty:** `bws_text_first_read_options()` not applied at the top of `bws_base_text_resolve_value()`, so the whole `a;b` / `a+b` string went to the read as one field name.
 - **T1.2/T3.3/T4.2/T7.4 value right but unlinked:** shell wrap gate — `link_id`/`link_type` not
   threading out of `bws_base_text_resolve_value` for that arm.
 - **T3.2/T7.3 one anchor around the whole joined list, or no anchor at all:** the per-item wrap

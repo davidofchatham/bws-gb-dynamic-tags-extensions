@@ -37,7 +37,10 @@
  *         shell's, fired once on an all-empty walk); the winning triple comes back
  *         verbatim for the shell to link-wrap.
  *
- * The walk's own PHPDoc is the axis owner for all five. These rows check its
+ *   §L8 — A TAG-LEVEL READ (`try_datetime`). No per-slot read axis, so every
+ *         attempt resolves with the tag's own `use`/`key`, whole.
+ *
+ * The walk's own PHPDoc is the axis owner for every section. These rows check its
  * observable consequences.
  *
  * Run:  php tools/test/try-slot-loop-test.php   (exit 0 = pass, 1 = fail)
@@ -459,6 +462,49 @@ eq( 'L7.1 a pre-`use` flat era reads a legacy slot 2 key', array( 'unused_line',
 $calls = array();
 bws_try_run_attempts( $flat, null, CFG_KEYED_FIXED, recorder( array( '', 'x' ), $calls ) );
 eq( 'L7.2 no era override = the live rule: slot 2 key with no `use` is discarded (FW-51)', array( 'unused_line' ), array_column( $calls, 'key' ) );
+
+// ── §L8 — a tag-level read (`try_datetime`, FW-81) ──────────────────────────────────────
+// The merged datetime template has `use` and `key` options but no per-slot read axis: its read
+// grammar spends `;` and `+`, so the slot grammar cannot carry it. Every attempt must then hand
+// the resolver the TAG's own `use`/`key` untouched, and only the source varies.
+
+const CFG_DATETIME = array(
+	'per_slot_key' => false,
+	'per_slot_use' => false,
+	'no_key_uses'  => array(),
+	'default_use'  => 'key',
+	'collapse'     => false,
+);
+
+$dt_read = array( 'use' => 'key;now', 'key' => 'event_date+start_time' );
+
+$calls = array();
+eq(
+	'L8.1 first attempt empty, second reads: the SECOND value wins',
+	array( 'value' => 'Aug 1', 'link_id' => 0, 'link_type' => 'post' ),
+	bws_try_run_attempts( array_merge( $dt_read, slots( 'src(refs,missing_rel)', 'src(current)' ) ), null, CFG_DATETIME, recorder( array( '', 'Aug 1' ), $calls ) )
+);
+eq(
+	'L8.1 each attempt resolved with the tag-level read, whole and unsplit',
+	array( array( 'key;now', 'event_date+start_time' ), array( 'key;now', 'event_date+start_time' ) ),
+	array_map( static fn( $o ) => array( $o['use'], $o['key'] ), $calls )
+);
+
+$calls = array();
+eq(
+	'L8.2 first attempt reads: it wins and the second never runs',
+	array( 'value' => 'Aug 1', 'link_id' => 0, 'link_type' => 'post' ),
+	bws_try_run_attempts( array_merge( $dt_read, slots( 'src(current)', 'src(site)' ) ), null, CFG_DATETIME, recorder( array( 'Aug 1', 'Sep 2' ), $calls ) )
+);
+eq( 'L8.2 one resolve', 1, count( $calls ) );
+
+$calls = array();
+eq(
+	'L8.3 no per-slot gate: an attempt with no field key still resolves (a verb needs none)',
+	array( 'value' => 'Nov 17', 'link_id' => 0, 'link_type' => 'post' ),
+	bws_try_run_attempts( array( 'use' => 'now', 'A' => 'src(current)' ), null, CFG_DATETIME, recorder( array( 'Nov 17' ), $calls ) )
+);
+eq( 'L8.3 the resolver saw no `key`', array( false ), array_map( static fn( $o ) => isset( $o['key'] ), $calls ) );
 
 echo $fails ? "\n{$fails} FAILURE(S)\n" : "\nALL PASS\n";
 exit( $fails ? 1 : 0 );

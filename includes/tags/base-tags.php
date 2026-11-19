@@ -6,7 +6,7 @@
  * selected at render time via the `src`/`ref`/`srcTermIn` options, not at
  * registration time.
  *
- * Registered tags: text, content, title, permalink, image, datetime_single, datetime_range
+ * Registered tags: text, content, title, permalink, image, datetime, datetime_single, datetime_range
  *
  * Resolution (traversal pipeline, NOT source classes):
  *   L1 base source — `bws_resolve_base_source()` (traversal-pipeline.php): a known-shape
@@ -279,13 +279,32 @@ function bws_register_base_tags(): void {
 	) );
 
 	// =========================================================
-	// datetime_single — single date/time field(s) with mode switch
+	// datetime — one tag for a single date/time and a range (FW-81); the mode is derived
+	// from `key` (see bws_normalize_datetime_options()). Registered at datetime_single's
+	// slot in the order, ahead of the two old tags it replaces.
+	// =========================================================
+
+	bws_gb_register_tag( array(
+		'title'       => __( 'Date/Time', 'generateblocks' ),
+		'tag'         => 'datetime',
+		'type'        => 'cross-source',
+		'supports'    => array(),
+		'description' => __( 'Format a date and time, or a start and end range, from custom fields, a post\'s published or modified date, or the current time. By default it hides midnight times and the current year.', 'generateblocks' ),
+		'options'     => bws_prepare_registration_options( bws_get_base_datetime_options() ),
+		'return'      => 'bws_base_datetime_callback',
+	) );
+
+	// =========================================================
+	// datetime_single — single date/time field(s) with mode switch. Hidden from the picker
+	// (FW-81), still registered so stored content renders; the type:'tag' entry that declares
+	// it deprecated is in bws_register_deprecated_tags().
 	// =========================================================
 
 	bws_gb_register_tag( array(
 		'title'       => __( 'Date/Time', 'generateblocks' ),
 		'tag'         => 'datetime_single',
 		'type'        => 'cross-source',
+		'hidden'      => true,
 		'supports'    => array(),
 		'description' => __( 'Format a date and time from a combined field or from separate date and time fields. By default it hides midnight times and the current year. Sources with several results can show a list of dates.', 'generateblocks' ),
 		'options'     => bws_prepare_registration_options( bws_get_base_datetime_single_options() ),
@@ -300,6 +319,7 @@ function bws_register_base_tags(): void {
 		'title'       => __( 'Date/Time Range', 'generateblocks' ),
 		'tag'         => 'datetime_range',
 		'type'        => 'cross-source',
+		'hidden'      => true,
 		'supports'    => array(),
 		'description' => __( 'Format a date and time range from separate start and end fields, like the Date/Time tag does. In a list of ranges, the result separator goes between whole ranges and the range separator between each start and end.', 'generateblocks' ),
 		'options'     => bws_prepare_registration_options( bws_get_base_datetime_range_options() ),
@@ -459,8 +479,23 @@ function bws_register_base_tags(): void {
 		'takes_first_usable'    => true,
 	) );
 
+	// try_datetime (FW-81): the merged tag's template. Its resolve seam is the base tag's, with
+	// the mode derived from the options (`null`), so an attempt reads as `{{datetime}}` does.
+	TagTemplateRegistry::register_modifier_template( array(
+		'key'                => 'datetime',
+		'title'              => __( 'Date/Time', 'generateblocks' ),
+		'supports_link_wrap' => true,
+		'leading_options'    => bws_get_datetime_range_leading_options(),
+		'options'            => bws_get_datetime_template_options(),
+		'resolve_fn'         => static fn( array $opts, $inst ): array => bws_base_datetime_resolve_value( $opts, $inst, null ),
+		'try_allow_site_slot' => true,
+		'supports_try'       => true,
+		'is_image'           => false,
+	) );
+
 	TagTemplateRegistry::register_modifier_template( array(
 		'key'                => 'datetime_single',
+		'hidden'             => true,
 		'title'              => __( 'Date/Time', 'generateblocks' ),
 		'supports_link_wrap' => true,
 		'leading_options'    => function_exists( 'bws_get_datetime_single_leading_options' )
@@ -469,7 +504,7 @@ function bws_register_base_tags(): void {
 		'options'         => function_exists( 'bws_get_datetime_single_template_options' )
 			? bws_get_datetime_single_template_options()
 			: array(),
-		'resolve_fn'   => 'bws_base_datetime_single_resolve_value',
+		'resolve_fn'   => static fn( array $opts, $inst ): array => bws_base_datetime_resolve_value( $opts, $inst, false ),
 		'try_allow_site_slot' => true,
 		'supports_try' => true,
 		'is_image'     => false,
@@ -477,6 +512,7 @@ function bws_register_base_tags(): void {
 
 	TagTemplateRegistry::register_modifier_template( array(
 		'key'                => 'datetime_range',
+		'hidden'             => true,
 		'title'              => __( 'Date/Time Range', 'generateblocks' ),
 		'supports_link_wrap' => true,
 		'leading_options'    => function_exists( 'bws_get_datetime_range_leading_options' )
@@ -485,7 +521,7 @@ function bws_register_base_tags(): void {
 		'options'         => function_exists( 'bws_get_datetime_range_template_options' )
 			? bws_get_datetime_range_template_options()
 			: array(),
-		'resolve_fn'   => 'bws_base_datetime_range_resolve_value',
+		'resolve_fn'   => static fn( array $opts, $inst ): array => bws_base_datetime_resolve_value( $opts, $inst, true ),
 		'try_allow_site_slot' => true,
 		'supports_try' => true,
 		'is_image'     => false,
@@ -532,6 +568,7 @@ function bws_register_base_tags(): void {
  * @since 1.14.1 Extracted from bws_base_text_callback().
  * @since 1.16.0 List branches ride bws_collect_value_list.
  * @since 1.21.0 The `meta_row` list branch.
+ * @since Unreleased `key` narrowed to its first read, bws_text_first_read_options().
  *
  * @param array $options  Tag options.
  * @param mixed $instance GB tag instance.
@@ -540,7 +577,9 @@ function bws_register_base_tags(): void {
  *                        value came from a list arm that already wrapped per item.
  */
 function bws_base_text_resolve_value( array $options, $instance ): array {
-	$res = bws_base_src_resolution( $options );
+	// A datetime-shaped `key` reads its first field only (bws_text_first_read_options()).
+	$options = bws_text_first_read_options( $options );
+	$res     = bws_base_src_resolution( $options );
 
 	// Site read — no entity; site value with sentinel link identity (id 1, 'site' type).
 	if ( 'site' === $res['kind'] ) {
@@ -1446,7 +1485,7 @@ function bws_site_allowlist_ok( string $key ): bool {
  * Used by the text/title/permalink/image/content callbacks' early gate. Site
  * has no entity ID, so this bypasses bws_resolve_post_by_source() entirely.
  * Datetime tags do NOT route here — they read ACF options-page fields via
- * bws_datetime_single_core('option', ...) (see datetime callbacks).
+ * a site-kind source handed to the datetime cores (see bws_base_datetime_resolve_value()).
  *
  * Dispatch by `use`, UNIFORM with every other source (Model B): the `use` VALUE is the
  * analog-vs-option lever, `use:key` a wp_options read. There is NO `use:option` value.

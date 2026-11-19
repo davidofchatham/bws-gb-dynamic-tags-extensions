@@ -865,21 +865,53 @@
 				if ( t && ! seen[ t ] ) { seen[ t ] = true; types.push( t ); }
 			} );
 		} );
-		types.sort( function ( a, b ) {
-			var la = typeLabel( a ), lb = typeLabel( b );
-			return la < lb ? -1 : ( la > lb ? 1 : 0 );
+
+		// One entry per top-level choice, sorted by label: a plain type, or a TYPE GROUP
+		// (`window.bwsFieldTypeGroups`, from bws_field_type_groups()). A group's member types
+		// nest under it, so none of them is also a top-level entry, and a group with no
+		// discovered member is not offered at all (a site with no date fields has no
+		// "Date & time"; typeExists then falls back to All). The group is selectable through
+		// its FIRST row, because an <optgroup> heading is not.
+		var entries = [];
+		var inGroup = Object.create( null );
+		typeGroups().forEach( function ( g ) {
+			var found = ( g.members || [] ).filter( function ( m ) { return seen[ m.type ]; } );
+			if ( ! found.length ) { return; }
+			found.forEach( function ( m ) { inGroup[ m.type ] = true; } );
+			entries.push( {
+				label: g.label,
+				rows: [ { value: g.value, label: g.allLabel, group: g.label } ].concat( found.map( function ( m ) {
+					return { value: m.type, label: m.label, group: g.label };
+				} ) ),
+			} );
 		} );
+		types.forEach( function ( t ) {
+			if ( ! inGroup[ t ] ) { entries.push( { label: typeLabel( t ), rows: [ { value: t, label: typeLabel( t ) } ] } ); }
+		} );
+		entries.sort( function ( a, b ) { return a.label < b.label ? -1 : ( a.label > b.label ? 1 : 0 ); } );
 
 		var options = [
 			{ value: ALL_TYPE, label: __( 'All field types', 'generateblocks' ) },
 			{ value: LOOP_TYPE, label: __( 'Loop fields', 'generateblocks' ) },
 		];
-		types.forEach( function ( t ) { options.push( { value: t, label: typeLabel( t ) } ); } );
+		entries.forEach( function ( e ) { options = options.concat( e.rows ); } );
 		return options;
 	}
 
+	/** The type groups the page inlined, [] when none (or none well-formed). */
+	function typeGroups() {
+		var groups = window.bwsFieldTypeGroups;
+		return Array.isArray( groups ) ? groups.filter( function ( g ) { return g && g.value && g.label && Array.isArray( g.members ); } ) : [];
+	}
+
+	/** The member types of the group `token` names, or null when it names no group. */
+	function groupMembers( token ) {
+		var hit = typeGroups().filter( function ( g ) { return g.value === token; } )[ 0 ];
+		return hit ? hit.members.map( function ( m ) { return m.type; } ) : null;
+	}
+
 	/**
-	 * Filter records by the active Location (prefix-match) + Type (exact / loop) filters.
+	 * Filter records by the active Location (prefix-match) + Type (exact / group / loop) filters.
 	 */
 	function applyFilters( records, loc, type ) {
 		return records.filter( function ( rec ) {
@@ -896,7 +928,10 @@
 				// hide a dual-context field that has a legitimate loop home.)
 				if ( ! rec.rowSeen ) { return false; }
 			} else if ( type !== ALL_TYPE ) {
-				if ( rec.types.indexOf( type ) === -1 ) { return false; }
+				var members = groupMembers( type );
+				if ( members ) {
+					if ( ! rec.types.some( function ( t ) { return members.indexOf( t ) !== -1; } ) ) { return false; }
+				} else if ( rec.types.indexOf( type ) === -1 ) { return false; }
 			}
 			return true;
 		} );
@@ -929,6 +964,19 @@
 		var typeState   = useState( null );
 		var typeOverride = typeState[ 0 ];
 		var setType      = typeState[ 1 ];
+
+		// SHARED FILTERS: a control that owns several pickers (the datetime read control)
+		// hoists the two filters' state into itself and hands every picker the same
+		// `{ loc, type, setLoc, setType, show }`, where `show` is true on ONE picker only, the
+		// one that draws the pair. The state above is still declared so the hook order never
+		// depends on a prop; it is simply not the state that is read.
+		var shared = props.sharedFilters || null;
+		if ( shared ) {
+			locOverride  = shared.loc;
+			setLoc       = shared.setLoc;
+			typeOverride = shared.type;
+			setType      = shared.setType;
+		}
 
 		useEffect( function () {
 			var live = true;
@@ -1306,7 +1354,8 @@
 		// scope IS the filter (the picker already shows only that repeater's sub-fields),
 		// so the two selectors would be redundant + misleading. A null child renders
 		// nothing (React); the combobox stands alone.
-		var filtersBlock = scopeToRepeater ? null : el( Flex, { key: 'filters', gap: 2, align: 'flex-end', wrap: true }, [
+		var typeGrouped  = !! window.bwsOptionNodes && typeOptions.some( function ( o ) { return o.group; } );
+		var filtersBlock = ( scopeToRepeater || ( shared && ! shared.show ) ) ? null : el( Flex, { key: 'filters', gap: 2, align: 'flex-end', wrap: true }, [
 			el( FlexItem, { key: 'loc', isBlock: true },
 				el( SelectControl, {
 					label:    __( 'Filter fields by location', 'generateblocks' ),
@@ -1320,7 +1369,9 @@
 				el( SelectControl, {
 					label:    __( 'Filter fields by type', 'generateblocks' ),
 					value:    typeVal,
-					options:  typeOptions,
+					// A grouped list renders as <optgroup> children, which SelectControl takes in place of `options`.
+					options:  typeGrouped ? undefined : typeOptions,
+					children: typeGrouped ? window.bwsOptionNodes( typeOptions ) : undefined,
 					onChange: function ( v ) { setType( v ); },
 					__nextHasNoMarginBottom: true,
 				} )
@@ -1441,5 +1492,9 @@
 	// The reach rule's label lookup, for the {{table}} field-label action
 	// (slot-fold-control.js labelAction()), which asks it rather than copying the rule.
 	FieldComboControl.reachableLabel = reachableLabel;
+
+	// The kind the sibling `src` chain resolves to, for a control that offers reads by source
+	// kind (the datetime read control's verbs). One answer, asked here rather than re-derived.
+	FieldComboControl.presetKind = presetKind;
 
 } )();

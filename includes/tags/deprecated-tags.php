@@ -2,9 +2,10 @@
 /**
  * Deprecated tag migration data.
  *
- * No deprecated tag is registered with GB or renders. This file provides
- * MigrationRegistry data only, so the admin Tag Converter and settings page can
- * find and migrate old content.
+ * No deprecated tag is registered with GB or renders, except the four datetime tags
+ * `datetime` / `try_datetime` replace (FW-81): those stay registered, hidden from the picker,
+ * in base-tags.php. This file provides MigrationRegistry data, so the admin Tag Converter and
+ * settings page can find and migrate old content.
  *
  * bws_deprecated_tag_notice() and bws_build_deprecation_preview_label() are
  * KEPT BY DESIGN with no callers — candidate starting points for FW-153 (an
@@ -23,18 +24,143 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Register deprecated dynamic tags (old names that delegate to new ones).
  *
  * @since 1.0.0
- * @invariant Body stays empty. Any future deprecated-tag family is registered
- *            here ONLY if it needs live GB rendering again — otherwise its
+ * @invariant Body holds only the type:'tag' entries of tags that are STILL REGISTERED
+ *            (hidden), today the four datetime tags (FW-81). Any other deprecated-tag family
+ *            goes here ONLY if it needs live GB rendering again — otherwise its
  *            data belongs solely in bws_register_nxm_tag_migrations()
  *            and bws_register_early_deprecated_tag_migrations(). A tag kept out
  *            of the picker passes `hidden => true` to bws_gb_register_tag().
  */
 function bws_register_deprecated_tags() {
-	// Deprecated tags are no longer registered with GenerateBlocks.
-	// Migration data is preserved in MigrationRegistry via bws_register_nxm_tag_migrations()
-	// and bws_register_early_deprecated_tag_migrations() for the Tag Converter tool.
+	// ==========================================
+	// THE FOUR TAGS `datetime` / `try_datetime` REPLACE (FW-81). Unlike the N×M entries these
+	// tags are still REGISTERED (hidden from the picker, see bws_register_base_tags()) and
+	// render as before, so `lifecycle` is set to `deprecated` (MigrationRegistry::register()
+	// owns what it means). Hiding and declaring land together, and the lifecycle harness holds
+	// them in agreement.
+	// ==========================================
+
+	foreach ( bws_datetime_legacy_tag_map() as $old_tag => $new_tag ) {
+		\BWS\DynamicTags\MigrationRegistry::register( array(
+			'old_tag'            => $old_tag,
+			'new_tag'            => $new_tag,
+			'lifecycle'          => 'deprecated',
+			'transform_callback' => 'bws_migrate_datetime_legacy_tag',
+		) );
+	}
 }
 // Registration is called directly from bws_dynamic_tags_register_all() in the main plugin file.
+
+/**
+ * The four old datetime tags and the tag each becomes (FW-81): the one list the registrations
+ * above and the converter's rewrite below both read.
+ *
+ * @since Unreleased
+ * @return array<string,string> Old tag name => replacement tag name.
+ */
+function bws_datetime_legacy_tag_map(): array {
+	return array(
+		'datetime_single'     => 'datetime',
+		'datetime_range'      => 'datetime',
+		'try_datetime_single' => 'try_datetime',
+		'try_datetime_range'  => 'try_datetime',
+	);
+}
+
+/**
+ * What the Migration Tool does with one stored old datetime tag string (FW-81).
+ *
+ * THE ONE PLAN the run (bws_migrate_datetime_legacy_tag(), the four entries' transform) and the
+ * scan report (bws_modifier_skip_reason_for_tag()) both ask, so the report cannot list a skip
+ * the run does not make or the reverse. A string that is not one of the four old tags comes
+ * back unchanged with no skip.
+ *
+ * Steps, in this order:
+ * 1. The option cascade the OLD name owns runs first. It would otherwise never run: the rename
+ *    below ends the string's life under the old name, and the migration run reads option entries
+ *    after tag entries (TagConverter::migrate_string()), so a `source` or pre-1.6 key on an old
+ *    datetime tag would be carried over unrepaired (report-run-agreement-census-test.php §C3.7, §C3.8).
+ * 2. An end-only range is SKIPPED, reported (`range_without_start`) and left whole under its old
+ *    name. What counts is bws_datetime_legacy_range_is_end_only()'s, not restated here.
+ * 3. The six old keys become `key` through bws_datetime_legacy_reads_rewrite(), the rule the
+ *    editor's mount step shares, and the tag takes the replacement's name.
+ * 4. Where that rule leaves the options alone (a tag the editor's mount step already rewrote, or one
+ *    whose keys cannot be rewritten), a rename on its own is made only when it moves no output.
+ *    The merged tag derives its mode from the options and reads `use`, which the old tags ignore, so
+ *    a range that states no read at all, a single stating a range key or a `use`, and a single
+ *    holding `;` or `+` in a read (the old single read the whole string as one field) are left under
+ *    their old name, unreported. (A single that states no read is renamed: it prints its fallback
+ *    either way, measured on seven contexts.) Such a tag keeps rendering as it does today.
+ *
+ * @since Unreleased
+ * @param string $tag_string The tag string as stored in post content.
+ * @return array{string:string, skip:string} The string the run writes (the input when nothing
+ *         changes), and `range_without_start` when step 2 skipped it, else ''.
+ */
+function bws_datetime_legacy_plan( string $tag_string ): array {
+	$unchanged = array( 'string' => $tag_string, 'skip' => '' );
+	$reg       = 'BWS\DynamicTags\MigrationRegistry';
+
+	if ( ! class_exists( $reg ) ) {
+		return $unchanged;
+	}
+
+	[ $name ] = $reg::parse_tag_string( $tag_string );
+	$new_name = bws_datetime_legacy_tag_map()[ $name ] ?? '';
+
+	// Without the datetime rule loaded nothing is rewritten: the fail-closed direction.
+	if ( '' === $new_name || ! function_exists( 'bws_datetime_legacy_reads_rewrite' ) ) {
+		return $unchanged;
+	}
+
+	$range         = (bool) bws_datetime_family( $name );
+	[ , $options ] = $reg::parse_tag_string( $reg::apply_option_migration( $name, $tag_string ) );
+
+	if ( $range && bws_datetime_legacy_range_is_end_only( $options ) ) {
+		return array( 'string' => $tag_string, 'skip' => 'range_without_start' );
+	}
+
+	$range_keys = array( 'startKey', 'startTimeKey', 'endKey', 'endTimeKey' );
+	$plain      = static function ( $value ): bool {
+		return is_scalar( $value ) && false === strpbrk( (string) $value, ';+' );
+	};
+
+	if ( isset( $options['use'] ) || ( ! $range && array_intersect_key( $options, array_flip( $range_keys ) ) ) ) {
+		return $unchanged;
+	}
+
+	$rewritten = bws_datetime_legacy_reads_rewrite( $options, $range );
+
+	if ( null === $rewritten ) {
+		if ( $range ) {
+			$states_read = '' !== trim( (string) ( $options['startKey'] ?? '' ) ) . trim( (string) ( $options['startTimeKey'] ?? '' ) ) . trim( (string) ( $options['key'] ?? '' ) );
+			if ( ! $states_read ) {
+				return $unchanged;
+			}
+		} elseif ( array_key_exists( 'timeKey', $options ) || ! $plain( $options['key'] ?? '' ) ) {
+			return $unchanged;
+		}
+		$rewritten = $options;
+	}
+
+	return array(
+		'string' => $reg::format_tag_string( $new_name, bws_serialization_order_sort_map( $rewritten ) ),
+		'skip'   => '',
+	);
+}
+
+/**
+ * The four old datetime entries' `transform_callback`: rename to the replacement tag and rewrite
+ * the options (FW-81). The plan is bws_datetime_legacy_plan()'s; a chained rename from an older
+ * name reaches this on its last hop, so the rewrite runs once.
+ *
+ * @since Unreleased
+ * @param string $tag_string The tag string as stored in post content.
+ * @return string The rewritten string, or the input unchanged.
+ */
+function bws_migrate_datetime_legacy_tag( string $tag_string ): string {
+	return bws_datetime_legacy_plan( $tag_string )['string'];
+}
 
 // ===============================================
 // DEPRECATED TAG HELPERS
@@ -1473,6 +1599,7 @@ const BWS_MODIFIER_SKIP_REASONS = array(
 	'tax_without_id',
 	'bare_arg_root',
 	'unusable_id',
+	'range_without_start',
 );
 
 /**
@@ -1559,6 +1686,8 @@ function bws_modifier_skip_report_lines(): array {
 		'bare_arg_root'     => __( '%1$s names a source that needs a specific term or post, with none given. These tags are unchanged and still render what they render today.', 'generateblocks' ),
 		/* translators: %1$s: tag name. */
 		'unusable_id'       => __( '%1$s names a term or post that is not a plain ID number, which the replacement tag cannot carry. These tags are unchanged and still render what they render today.', 'generateblocks' ),
+		/* translators: %1$s: tag name. */
+		'range_without_start' => __( '%1$s names an end but no start, so it prints only its fallback today, and the replacement tag would read it differently. Add a start by hand to convert it. These tags are unchanged and still render what they render today.', 'generateblocks' ),
 	);
 }
 
@@ -1571,11 +1700,18 @@ function bws_modifier_skip_report_lines(): array {
  * THE ROOT COMES OFF THE MIGRATION ENTRY (`modifier_root`, recorded as data because the
  * generator's closure is opaque). An entry without one is not a modifier→base rewrite.
  *
+ * ALSO THE OLD DATETIME TAGS' SKIP (FW-81): an end-only range is skipped by their entries, and
+ * bws_datetime_legacy_plan() decides it for the run and for this report alike.
+ *
  * @since 1.20.0
  * @param string $tag_string The tag string as stored in post content.
  * @return string One of BWS_MODIFIER_SKIP_REASONS, or '' when nothing is skipped.
  */
 function bws_modifier_skip_reason_for_tag( string $tag_string ): string {
+	if ( 'range_without_start' === bws_datetime_legacy_plan( $tag_string )['skip'] ) {
+		return 'range_without_start';
+	}
+
 	$root = bws_modifier_entry_root( $tag_string );
 	if ( '' === $root ) {
 		return '';

@@ -325,11 +325,12 @@ function bws_prepare_registration_options( array $options ): array {
  */
 if ( ! defined( 'BWS_USE_STRIPPED_DEFAULTS' ) ) {
 	define( 'BWS_USE_STRIPPED_DEFAULTS', array(
-		'text'    => 'key',
-		'content' => 'content',
-		'image'   => 'key',
-		'email'   => 'key',
-		'phone'   => 'key',
+		'text'     => 'key',
+		'content'  => 'content',
+		'image'    => 'key',
+		'email'    => 'key',
+		'phone'    => 'key',
+		'datetime' => 'key',
 	) );
 }
 
@@ -385,6 +386,11 @@ if ( ! defined( 'BWS_USE_IMPLIED_BY_TOKEN' ) ) {
  * value from the saved string, but a seam or preview walk that materializes every key
  * can hand a dispatcher the literal '' (the BWS_USE_STRIPPED_DEFAULTS @invariant).
  *
+ * A `;` LIST OF NOTHING BUT THE DEFAULT IS THE DEFAULT (`{{datetime}}`'s ordered read list,
+ * FW-81): `use:key;key` answers 'key', the same as `use:key` and as no `use` at all, so a
+ * redundant list reads exactly as its normalized-away form does. Any other list is returned
+ * whole and is the caller's to split.
+ *
  * A TAG WITH NO READ AXIS INFERS NOTHING. title and permalink register no `use` enum;
  * a `key` on them (permalink ignores it by design) must not turn into a mode, so step 2
  * runs only for a tag with a stripped-default row, and they get ''.
@@ -393,17 +399,22 @@ if ( ! defined( 'BWS_USE_IMPLIED_BY_TOKEN' ) ) {
  * state step 3 but not step 2 — tools/test/use-stripped-default-test.php keeps them out.
  *
  * @since 1.21.0
+ * @since Unreleased A `;` list of only the default collapses to it.
  * @param string $tag     Base tag name (text|content|image|title|permalink).
  * @param array  $options Tag options.
  * @return string The effective `use`; '' for a tag with no read axis and no explicit `use`.
  */
 if ( ! function_exists( 'bws_use_effective' ) ) {
 function bws_use_effective( string $tag, array $options ): string {
-	$use = (string) ( $options['use'] ?? '' );
+	$use     = (string) ( $options['use'] ?? '' );
+	$default = bws_use_stripped_default( $tag );
 	if ( '' !== $use ) {
+		// A list of only the default (`key;key`) is the default itself.
+		if ( '' !== $default && false !== strpos( $use, ';' ) && array( $default ) === array_unique( array_map( 'trim', explode( ';', $use ) ) ) ) {
+			return $default;
+		}
 		return $use;
 	}
-	$default = bws_use_stripped_default( $tag );
 	if ( '' === $default ) {
 		return '';
 	}

@@ -629,16 +629,15 @@ function bws_fold_emit_chain( array $steps, int $enclosing_level = 1 ): string {
 /**
  * Parse a folded slot value into its structure.
  *
- * Container shapes the parse in exactly two places:
- *   - a TYPE token leads only in format-AGNOSTIC containers ({{join}}, {{table}});
- *     `try_*` slots inherit the template's fixed type, so a bare type word there is
- *     an unknown token and is preserved as such;
- *   - on a `datetime_*` type, `key` is that tag's own date field option, not the
- *     read (the read of a datetime slot is the type).
+ * Container shapes the parse in exactly one place: a TYPE token leads only in
+ * format-AGNOSTIC containers ({{join}}, {{table}}); `try_*` slots inherit the template's
+ * fixed type, so a bare type word there is an unknown token and is preserved as such.
+ * The type never changes what `key` means: on a `datetime_*` slot it is the read like
+ * any other.
  *
- * Both the read axis and the datetime `key` meaning are resolved AFTER the token
- * loop, never inside it: a hand-edited wire may state the type last, and assigning
- * during the scan would make the read order-dependent.
+ * The read axis is resolved AFTER the token loop, never inside it: a hand-edited wire
+ * may state the type last, and assigning during the scan would make the read
+ * order-dependent.
  *
  * @param string $value     Slot value (escaped or unescaped — normalized here).
  * @param string $container 'try' (format-fixed) | 'join' | 'table' (agnostic).
@@ -709,13 +708,6 @@ function bws_fold_parse_slot( string $value, string $container = 'join' ) {
 					$slot['extra'][] = $token;
 				}
 		}
-	}
-
-	// `key` on a datetime slot is that tag's own field option, not the read.
-	$is_datetime = null !== $slot['type'] && 0 === strpos( (string) $slot['type'], 'datetime' );
-	if ( $is_datetime && null !== $key_tok ) {
-		$slot['opts']['key'] = $key_tok;
-		$key_tok             = null;
 	}
 
 	// Read axis — NAME precedence, order-independent: an analog `use` is consulted first,
