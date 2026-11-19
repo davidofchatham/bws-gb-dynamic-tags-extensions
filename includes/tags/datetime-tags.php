@@ -360,9 +360,9 @@ const BWS_DATETIME_MAX_READS = 2;
  * `;` entry per read and one `+` pair inside an entry, and the `use` value with it (a verb
  * in any read; bws_datetime_reads() owns that grammar). Every heading, label and count the
  * control shows arrives here and is never typed in the control. `entryLabels` is indexed by
- * read, so it must cover BWS_DATETIME_MAX_READS (control-order-test.php pins it). The pickers it renders are the field combo, whose Type
- * filter opens on the date and time types (`typeDefault`) and stays reachable to All for a
- * date stored as Text or plain meta.
+ * read, so it must cover BWS_DATETIME_MAX_READS (control-order-test.php pins it). The
+ * pickers it renders are the field combo, whose Type filter opens on the date and time
+ * types (`typeDefault`) and stays reachable to All for a date stored as Text or plain meta.
  *
  * @since Unreleased
  * @return array The `key` option definition.

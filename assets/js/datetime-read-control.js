@@ -146,8 +146,8 @@
 	var useEffect = wp.element.useEffect;
 	var Button    = wp.components.Button;
 	var SelectControl = wp.components.SelectControl;
-	// A read's heading is WordPress's own control label (11px, medium weight, uppercase), so it
-	// matches the labels around it without restating their type.
+	// A read's heading is WordPress's own control label, so it matches the labels around it
+	// without restating their type.
 	var VisualLabel   = ( wp.components.BaseControl && wp.components.BaseControl.VisualLabel ) || 'strong';
 	var __       = ( wp.i18n && wp.i18n.__ ) || function ( s ) { return s; };
 

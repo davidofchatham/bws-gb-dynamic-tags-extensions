@@ -2,6 +2,7 @@
 
 **Status:** accepted (2026-07-31 WIRE SPEC approval, amended 2026-08-01 by the approved-twins rule;
 both from the FW-56/57 encoding grill, `docs/design-history/src-chain-encoding.md` §WIRE SPEC).
+Amended 2026-11-19 with the first allocation of a reserved char (FW-81, see §Allocations).
 
 The folded slot-value grammar parses **leniently and emits canonically**: an author may hand-type a
 functionally-equivalent separator or the other bracket pair, and the next control commit rewrites it
