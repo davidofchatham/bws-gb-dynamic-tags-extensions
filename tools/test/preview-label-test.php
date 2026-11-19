@@ -147,7 +147,7 @@ require __DIR__ . '/../../includes/helpers/try-slot-loop.php';
 // Each try_ template's walk config (TRY_CFG), pinned against the live descriptors by
 // control-order-test.php §8c.
 require __DIR__ . '/lib-try-cfg.php';
-// Datetime previews (FW-81 ticket 05): the sample value is a live-clock format, so the cases
+// Datetime previews (FW-81): the sample value is a live-clock format, so the cases
 // below mask it and pin the label's SHAPE (prefix, mode, source, warning). The two files are
 // the grammar owner (bws_datetime_reads / the normalizer) and the range formatter the sample
 // calls; their WP surface is a UTC clock and two format options.

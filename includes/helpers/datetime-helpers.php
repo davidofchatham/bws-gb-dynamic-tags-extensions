@@ -270,11 +270,10 @@ function bws_parse_combined_date_time( $target, $date_field, $time_field, $conte
     ];
 
     // Kind-dispatched read target (FW-3a).
-    $source  = $target;
-    $is_term = 'term' === ( $source['kind'] ?? '' );
-    $is_site = 'site' === ( $source['kind'] ?? '' );
-    $is_row  = 'meta_row' === ( $source['kind'] ?? '' );
-    $term_id = $is_term ? (int) ( $source['id'] ?? 0 ) : 0;
+    $is_term = 'term' === ( $target['kind'] ?? '' );
+    $is_site = 'site' === ( $target['kind'] ?? '' );
+    $is_row  = 'meta_row' === ( $target['kind'] ?? '' );
+    $term_id = $is_term ? (int) ( $target['id'] ?? 0 ) : 0;
 
     // Resolve ACF object_id for field-config lookups. Term kind builds ACF's
     // "{taxonomy}_{term_id}" object id. On a repeater row (TYPE_OPTION /
@@ -282,9 +281,9 @@ function bws_parse_combined_date_time( $target, $date_field, $time_field, $conte
     // ACF still needs an object_id ('option' or outer page id) to return field
     // metadata.
     if ( $is_term ) {
-        $acf_object_id = ( $source['taxonomy'] ?? 'term' ) . '_' . $term_id;
+        $acf_object_id = ( $target['taxonomy'] ?? 'term' ) . '_' . $term_id;
     } else {
-        $raw_id        = $is_site ? 'option' : ( $source['id'] ?? false );
+        $raw_id        = $is_site ? 'option' : ( $target['id'] ?? false );
         $acf_object_id = function_exists( 'bws_resolve_acf_object_id' ) ? bws_resolve_acf_object_id( $instance, $raw_id ) : $raw_id;
     }
 
@@ -292,7 +291,7 @@ function bws_parse_combined_date_time( $target, $date_field, $time_field, $conte
     // sources (ACF options-page fields). Post kind keeps its numeric id (false
     // when entity-less); term kind reads via bws_read_term_field and never
     // consumes $value_id.
-    $value_id = $is_site ? 'option' : ( $is_term ? false : ( $source['id'] ?? false ) );
+    $value_id = $is_site ? 'option' : ( $is_term ? false : ( $target['id'] ?? false ) );
 
     // ONE value read, three-way on kind, for both of this parse's fields. The row leg
     // (FW-74) takes the L2 seam's string half — a date sub-field is a scalar, so the
@@ -308,7 +307,7 @@ function bws_parse_combined_date_time( $target, $date_field, $time_field, $conte
     // field-object read that would close it is FW-3's, and until it lands an ambiguous
     // value (a `d/m/Y` row whose day is <= 12) reads as `m/d/Y`. Visible on the testbed,
     // both arms of it, at fold-test-matrix.md §F9.5m4.
-    $read_value = static function ( $field ) use ( $is_term, $is_row, $source, $term_id, $value_id, $instance ) {
+    $read_value = static function ( $field ) use ( $is_term, $is_row, $target, $term_id, $value_id, $instance ) {
         if ( ! $field ) {
             return null;
         }
@@ -316,7 +315,7 @@ function bws_parse_combined_date_time( $target, $date_field, $time_field, $conte
             return bws_read_term_field( $field, $term_id, true );
         }
         if ( $is_row ) {
-            return bws_read_resolved_source( $source, $field, $instance );
+            return bws_read_resolved_source( $target, $field, $instance );
         }
         return bws_read_field( $field, $instance, $value_id, true );
     };

@@ -308,7 +308,7 @@ assert_same( 'N18 the old `timeKey` wins over a `+` operand (the old family keep
 );
 
 // ===========================================================================
-echo "\nV — verbs and `use` (FW-81, datetime-tag-collapse/03)\n";
+echo "\nV — verbs and `use` (FW-81)\n";
 // ===========================================================================
 
 // `use` lists the reads in order once a verb is present; each `key` in it takes the next

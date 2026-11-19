@@ -113,7 +113,7 @@ The pure preview harness pins datetime labels with the live-clock sample masked 
 | D6.1 | Open `/matrix-post-meta/` in the editor: an unresolved datetime block shows `[Date-Time like "…"]` (live current time in the active format), range blocks `[Date-Time Range like "…"]`, `as:` variants swap the prefix (Date / Time / Date Range / Time Range). |
 | D6.2 | `limit` / `sep` controls appear ONLY when `srcTermIn` is set or `src` = Related Post Field (post-#30; conditional-options JS). |
 | D6.3 | A datetime tag whose source is a pinned post or term (`src:post,<id>`, `src:term,<id>`), a repeater row (`src:rows,<field>`) or a related post (`src:ref`), with a `key` that reads empty and `fallback:Date TBA`: the preview shows the description with the fallback noted, e.g. `[Date-Time like "…" from Post: … (fallback: “Date TBA”)]`, matching `{{text}}`, not the bare `Date TBA`. A tag with no `src` shows the bare fallback. A resolved value shows the value. Measured with `render-tag --preview` on 2026-11-17 (all four sources); the editor itself has not been opened for this row. |
-| D6.4 | `{{datetime}}` and `try_datetime` warnings (FW-81, Unreleased, ticket 05), each on a tag that reads empty (a missing field key, on `/matrix-post-meta/`): `{{datetime use:key;now}}` shows `[⚠ No field key set for read 1]`; `{{datetime use:key;key;now\|key:nonexistent_field}}` shows `[⚠ 2 field reads but only 1 field key set]`; `{{datetime key:nonexistent_a+b+c}}` and `{{try_datetime key:nonexistent_a+b+c}}` show `[⚠ Only a date and a time can be joined with +, so extra parts are ignored]` and `[⚠ Try: …]`; `{{datetime_single key:nonexistent_a+b+c}}` shows no warning. A tag that still resolves (`{{datetime use:now;key\|key:nonexistent_a;nonexistent_b}}`, whose surplus key is ignored and whose start prints) shows its value and no warning. Measured with `render-tag --preview` on 2026-11-18 (all rows above); the editor itself has not been opened for this row. |
+| D6.4 | `{{datetime}}` and `try_datetime` warnings (FW-81, Unreleased), each on a tag that reads empty (a missing field key, on `/matrix-post-meta/`): `{{datetime use:key;now}}` shows `[⚠ No field key set for read 1]`; `{{datetime use:key;key;now\|key:nonexistent_field}}` shows `[⚠ 2 field reads but only 1 field key set]`; `{{datetime key:nonexistent_a+b+c}}` and `{{try_datetime key:nonexistent_a+b+c}}` show `[⚠ Only a date and a time can be joined with +, so extra parts are ignored]` and `[⚠ Try: …]`; `{{datetime_single key:nonexistent_a+b+c}}` shows no warning. A tag that still resolves (`{{datetime use:now;key\|key:nonexistent_a;nonexistent_b}}`, whose surplus key is ignored and whose start prints) shows its value and no warning. Measured with `render-tag --preview` on 2026-11-18 (all rows above); the editor itself has not been opened for this row. |
 
 ## D7 — FW-3(a) term-ambient parity — ✅ shipped (testbed-verified 2026-07-18)
 
@@ -150,7 +150,7 @@ Two independent defects, both in the time-range formatters, both fixed 1.19.1.
 
 **#126** — `23:59`/`23:59:59` on the END of a range is now read as "no end time known", mirroring `00:00` on the start side, so the all-day encoding `00:00`–`23:59` renders as bare dates. The asymmetry is deliberate: `23:59` as a START is a real time. Both spans were affected — same-day through `bws_format_time_range()` and multi-day through `bws_format_multi_day_range()`, which strips each end independently but recognised `00:00` only. #126's own body claimed the multi-day half was already correct; it was not.
 
-Fixture: `event_allday_end` = `2030-08-12 23:59` and `event_allday_end_multi` = `2030-08-14 23:59`, both paired with the existing `event_midnight` = `2030-08-12 00:00` as the start (blueprint v19 — NEW fixture state, reseed required). The meridiem case in the `as:time` expectations is the start field's own: `g:i A` on the datetime fields, `g:i a` on the time-only ones (02c; the WP `time_format` is `g:i a` and is only the last fallback).
+Fixture: `event_allday_end` = `2030-08-12 23:59` and `event_allday_end_multi` = `2030-08-14 23:59`, both paired with the existing `event_midnight` = `2030-08-12 00:00` as the start (blueprint v19 — NEW fixture state, reseed required). The meridiem case in the `as:time` expectations is the start field's own: `g:i A` on the datetime fields, `g:i a` on the time-only ones (#164; the WP `time_format` is `g:i a` and is only the last fallback).
 
 | # | Tag | Expected (post-fix) | Pre-fix |
 |---|---|---|---|
@@ -170,9 +170,9 @@ Also worth knowing when reading D8.1: the same-instant case (`start === end`) no
 
 One tag, no stated mode: how many `;`-separated entries `key:` holds decides it. One entry is a single value, two are a range, and a `+` joins at most two operands inside one entry (a date or datetime field, then an optional time field). `{{datetime}}` renders through `bws_base_datetime_resolve_value()`, the one seam the two old tags and their two `try_` templates also read through, each with its family fixed, so an old tag keeps its family whatever its options say (D9.54 to D9.57) and still renders byte-identically.
 
-**Measured 2026-11-17 (datetime-tag-collapse/02):** 66 old-tag renders across `/matrix-post-meta/`, the three term pages and the two department archives, taken on the PREVIOUS build, then every one rendered again as the merged tag fed its equivalent wire (`startKey`+`startTimeKey` become `a+b`, the range keys become two `;` entries, a single-ended range keeps its trailing `;`). All 66 old renders were unchanged and all 66 merged renders were byte-identical to the previous build's output, 64 of them non-empty. The two empty ones are the matrix's own expected-empty rows (D8.3, D7.7).
+**Measured 2026-11-17:** 66 old-tag renders across `/matrix-post-meta/`, the three term pages and the two department archives, taken on the PREVIOUS build, then every one rendered again as the merged tag fed its equivalent wire (`startKey`+`startTimeKey` become `a+b`, the range keys become two `;` entries, a single-ended range keeps its trailing `;`). All 66 old renders were unchanged and all 66 merged renders were byte-identical to the previous build's output, 64 of them non-empty. The two empty ones are the matrix's own expected-empty rows (D8.3, D7.7).
 
-**A one-ended range and a single value now print a time display identically (02c).** Measured 2026-11-17 on the previous build against the same fields: `as:time` on `event_datetime` printed `9:00 AM` as a single and `9:00 am` as a one-ended range; `event_time` with no `as` printed `9:00 AM` against `Start time: 9:00 AM`; `as:time` on `event_midnight` printed nothing against `12:00 am`; `as:time` on a date-only field printed nothing against the parser's noon buffer, `12:00 pm`. The single core and the range core now share one function, `bws_format_time_display()`, and D10 pins every case through both old tags and the merged tag. The consequences: a side shows a time only when its value has one; midnight follows `showMidnight`; a start with no date is a time display with or without `as`; a missing start reads nothing; no label text is ever printed; and the style of the time (the case of the meridiem, 12-hour or 24-hour) comes from the field before it comes from the WP `time_format`, in the order `bws_resolve_time_only_format()` states. D9.15 and D9.16 keep the trailing-`;` spelling of the one-ended range so the equivalence stays measurable.
+**A one-ended range and a single value now print a time display identically (#164).** Measured 2026-11-17 on the previous build against the same fields: `as:time` on `event_datetime` printed `9:00 AM` as a single and `9:00 am` as a one-ended range; `event_time` with no `as` printed `9:00 AM` against `Start time: 9:00 AM`; `as:time` on `event_midnight` printed nothing against `12:00 am`; `as:time` on a date-only field printed nothing against the parser's noon buffer, `12:00 pm`. The single core and the range core now share one function, `bws_format_time_display()`, and D10 pins every case through both old tags and the merged tag. The consequences: a side shows a time only when its value has one; midnight follows `showMidnight`; a start with no date is a time display with or without `as`; a missing start reads nothing; no label text is ever printed; and the style of the time (the case of the meridiem, 12-hour or 24-hour) comes from the field before it comes from the WP `time_format`, in the order `bws_resolve_time_only_format()` states. D9.15 and D9.16 keep the trailing-`;` spelling of the one-ended range so the equivalence stays measurable.
 
 Every row below is a visible block on `/matrix-datetime/` (blueprint v43, D9.54 to D9.57 in v44, D9.58 to D9.67 in v45), pinned to `/matrix-post-meta/`'s fields by id where it reads one, and its label states the expected output. "Same as" names the old row whose output it must match byte for byte.
 
@@ -218,7 +218,7 @@ Every row below is a visible block on `/matrix-datetime/` (blueprint v43, D9.54 
 | D9.38 | `{{datetime src:post,<meta id>|key:event_start_date;missing_field|fallback:FB}}` | new combination | `August 1, 2030` |
 | D9.52 | `{{datetime src:post,<meta id>|key:event_start_date+event_time;event_end_time}}` | new combination | `August 1, 2030, 9:00–11:30 am` |
 | D9.53 | `{{datetime src:post,<meta id>|key:event_datetime;event_end_time}}` | new combination | `August 12, 2030, 9:00–11:30 AM` |
-| D9.54 | `{{datetime_range src:post,<meta id>|key:event_datetime;event_end_datetime|as:time}}` | new combination | `9:00 AM–5:00 PM` (the range core reads both entries; the single core would read only the first and print `9:00 AM`. Since 02c the two cores print a one-ended read the same, so the second entry is what tells them apart) |
+| D9.54 | `{{datetime_range src:post,<meta id>|key:event_datetime;event_end_datetime|as:time}}` | new combination | `9:00 AM–5:00 PM` (the range core reads both entries; the single core would read only the first and print `9:00 AM`. Since #164 the two cores print a one-ended read the same, so the second entry is what tells them apart) |
 | D9.55 | `{{datetime_single src:post,<meta id>|key:event_start_date;event_end_date}}` | new combination | `August 1, 2030` (a single tag reads only the first entry) |
 | D9.56 | `{{try_datetime_range src:post,<meta id>|key:event_datetime;event_end_datetime|as:time}}` | D9.54 | `9:00 AM–5:00 PM` |
 | D9.57 | `{{try_datetime_single src:post,<meta id>|key:event_start_date;event_end_date}}` | D9.55 | `August 1, 2030` |
@@ -262,14 +262,14 @@ Every row below is a visible block on `/matrix-datetime/` (blueprint v43, D9.54 
 | D9.T6 | `{{datetime key:event_datetime}}` with `--loop-item=<jane id>` | D5.5 | `May 1, 2030 10:00 AM` |
 | D9.T7 | `{{datetime key:event_datetime;event_end_datetime}}` with `--loop-item=<jane id>` | D5.5 | `May 1 10:00 AM–May 3, 2030 3:00 PM` (the loop item wins over page context) |
 | D9.T8 | `{{datetime key:;event_end_date|fallback:FB}}` on `/matrix-post-meta/` | D26 | `FB` (an end with no start prints the fallback, as the old range does) |
-| D9.T9 | `{{datetime key:event_start_date+event_time+event_end_time}}` | — | `August 1, 2030, 9:00 am` (a third operand is ignored; its warning is ticket 05) |
+| D9.T9 | `{{datetime key:event_start_date+event_time+event_end_time}}` | — | `August 1, 2030, 9:00 am` (a third operand is ignored; its warning is D6.4) |
 | D9.T10 | `{{datetime}}` (no `key`) | — | empty, and `fallback:No field` prints `No field` (the read-less tag shows its fallback) |
 
-## D10 — one time display (FW-81, Unreleased, ticket 02c)
+## D10 — one time display (FW-81, Unreleased, #164)
 
 One function, `bws_format_time_display()`, renders the time half of every read: a single, a one-ended range and both ends of a two-ended one. Each case below is a visible block on `/matrix-datetime/` (blueprint v46) in every spelling that applies, labelled `D10.<n>a` to `d` in the order the "Spellings" column lists them, and every spelling of a case must print the same bytes, so a case that splits by tag is the defect. The old tags render through their own callbacks and the merged tag through the merged seam, which makes the equality a measurement. The fixture's WP `time_format` is `g:i a`, and `event_datetime` returns `F j, Y g:i A`, so a `9:00 AM` is the field's own tokens and not the WP option.
 
-| # | Case | Spellings | Expected | Before 02c |
+| # | Case | Spellings | Expected | Before #164 |
 |---|---|---|---|---|
 | D10.1 | `as:time` on a datetime field: the field's own time tokens | `datetime_single key:event_datetime`, `datetime_range startKey:event_datetime`, `datetime key:event_datetime`, `datetime key:event_datetime;` (each with `\|as:time`) | `9:00 AM` | single `9:00 AM`, range `9:00 am` |
 | D10.2 | `as:time` on a time-only field, in its own return format | the same four, on `event_time` | `9:00 am` | single `9:00 AM` (hardcoded), range `9:00 am` |
@@ -290,7 +290,7 @@ One function, `bws_format_time_display()`, renders the time half of every read: 
 
 D10.4, D10.12 and D10.16 are expected-empty rows, so each renders as a label with nothing after it (`bws_fixture_gb_empty_row`). The two-ended cases that were already right stay where they are: D2.6 (same-meridiem consolidation), D3.1 to D3.4 (custom format, both ends), D8.1 to D8.7 (the all-day span). The pure half is `datetime-format-test.php` §F7 to §F11 (the format chain) and §U (the display); the first change to either rule that is not mirrored there fails by name.
 
-## D11 — verbs and the `use` list (FW-81, Unreleased, ticket 03)
+## D11 — verbs and the `use` list (FW-81, Unreleased)
 
 `use` is absent unless a verb (`now`, `published`, `modified`) is mixed in, and then it is the full ordered list, `key` included: each `key` in it takes the next `;` entry of `key:`, and a verb takes none, so `use:key;now` and `use:now;key` are different ranges over the same fields. A `use` made only of `key` reads as no `use` at all. A verb read is a moment with no field behind it. `now` carries a time. `published` and `modified` are a post's own dates and print as dates, and `published` and `modified` read only from a post source (a term, the site and a repeater row print the fallback). A verb takes the time display of the field beside it, which is why D11.8 prints no time of day and D11.11 prints both. The pure half is `datetime-format-test.php` §V and `use-stripped-default-test.php` §5 (the list collapse, held to the editor twin by `editor-filter-chain-test.js`).
 
@@ -335,11 +335,11 @@ Every row is a visible block on `/matrix-datetime/` and pinned to `/matrix-post-
 | D11.T5 | the same | `/no-such-page-xyz/`, the blog home | empty (no post or term for the field to read; `now` alone cannot make it a range) |
 | D11.T6 | `{{datetime use:published}}` with `--loop-item=<meta id>` | `/matrix-datetime/` | `March 3, 2025` (a loop item is a post for a post verb) |
 
-## D12 — `try_datetime` (FW-81, Unreleased, ticket 04)
+## D12 — `try_datetime` (FW-81, Unreleased)
 
 `try_datetime` replaces `try_datetime_single` and `try_datetime_range`. Each attempt reads exactly as `{{datetime}}` does, so a single date, a range, a `+` join and a verb all work in an attempt, and the first attempt that prints something wins. The read (`key`, `use`) is the tag's, not the attempt's: every attempt reads the same fields from its own source, so the attempts differ by source only, as they did on the old two. The old two forms keep rendering.
 
-**Measured 2026-11-17** on the testbed, `render-tag` and then the front end, and each old-form twin (D12.3, D12.5, D12.12) on the build before this ticket as well, byte for byte the same.
+**Measured 2026-11-17** on the testbed, `render-tag` and then the front end, and each old-form twin (D12.3, D12.5, D12.12) on the build before `try_datetime` as well, byte for byte the same.
 
 `refs,missing_rel` is an attempt that reads nothing on this page; the two pinned posts are the attempts that do, with different dates (the second is the staff post `jane-partner`, whose `event_datetime` is May 1, 2030), so a walk that stops at the wrong attempt prints the wrong date.
 
@@ -356,11 +356,11 @@ Every row is a visible block on `/matrix-datetime/` and pinned to `/matrix-post-
 | D12.9 | `{{try_datetime A:src(refs,missing_rel)\|B:src(site)\|key:event_datetime\|fallback:Date TBA}}` | `Date TBA` (printed once, after every attempt read nothing) |
 | D12.10 | `{{try_datetime}}` | empty (no read, no fallback) |
 | D12.11 | `{{try_datetime A:src(post,<meta id>)\|key:event_datetime\|linkTo:permalink}}` | `August 12, 2030 9:00 AM` linked to the `matrix-post-meta` page (the link follows the winning attempt) |
-| D12.12 | D12.1 as `try_datetime_single` | `August 12, 2030 9:00 AM`, the same (the old form's first-attempt row, measured on the build before this ticket too) |
+| D12.12 | D12.1 as `try_datetime_single` | `August 12, 2030 9:00 AM`, the same (the old form's first-attempt row, measured on the build before `try_datetime` too) |
 
 Every row is a visible block on `/matrix-datetime/`.
 
-## D13 — the Migration Tool on the old tags (FW-81, Unreleased, ticket 11)
+## D13 — the Migration Tool on the old tags (FW-81, Unreleased)
 
 The tool renames `datetime_single`, `datetime_range`, `try_datetime_single` and `try_datetime_range` to `datetime` / `try_datetime` and rewrites their six datetime options to the one `key` (the rule is `bws_datetime_legacy_reads_rewrite()`, shared with the editor's mount step and run through `tools/test/datetime-mount-corpus.json`). Every rewritten tag must print what its old form printed. One shape is left whole: a range that states an end and no start, which prints its fallback today and would gain a read under `key`. The scan lists it as skipped (reason `range_without_start`), and the run does not touch it.
 

@@ -359,8 +359,8 @@ const BWS_DATETIME_MAX_READS = 2;
  * `bws-datetime-reads` (assets/js/datetime-read-control.js) owns the whole `key` value, one
  * `;` entry per read and one `+` pair inside an entry, and the `use` value with it (a verb
  * in any read; bws_datetime_reads() owns that grammar). Every heading, label and count the
- * control shows arrives here and is never typed in the control. `entryLabels` is indexed by read, so it must cover BWS_DATETIME_MAX_READS
- * (control-order-test.php pins it). The pickers it renders are the field combo, whose Type
+ * control shows arrives here and is never typed in the control. `entryLabels` is indexed by
+ * read, so it must cover BWS_DATETIME_MAX_READS (control-order-test.php pins it). The pickers it renders are the field combo, whose Type
  * filter opens on the date and time types (`typeDefault`) and stays reachable to All for a
  * date stored as Text or plain meta.
  *
@@ -910,8 +910,7 @@ function bws_normalize_datetime_options( array $options, ?bool $range = false ):
 /**
  * Whether an old range tag's wire is an END-ONLY range: both start fields empty, an end field
  * set. Such a tag prints its fallback today (bws_datetime_range_core() reads nothing without a
- * start), and `key` would give it a read, so no migration touches it and so no migration
- * touches it.
+ * start), and `key` would give it a read, so no migration touches it.
  *
  * @since Unreleased
  * @param array $options Raw options of a `datetime_range` tag.
@@ -1024,14 +1023,14 @@ function bws_datetime_legacy_reads_rewrite( array $options, bool $range ): ?arra
  * FW-116's per-tag fix for this family is that same tail, which covers an ambient claim
  * with every other arm. The structural flip is FW-116's, not this seam's.
  *
- * List mode (#30, V14 parity with base text/title): srcTermIn and src:ref collect up to
+ * List mode (#30, parity with base text/title): srcTermIn and src:ref collect up to
  * `limit` results joined with `sep`; empty items are skipped; the fallback is suppressed
  * per-item and fires once on all-empty output; link-wrap applies only when exactly one
  * result renders.
  *
- * Term-ambient parity (FW-3a, SPEC §V7 / CONTEXT.md I1): a bare tag on a term archive
+ * Term-ambient parity (FW-3a, CONTEXT.md I1): a bare tag on a term archive
  * reads the ambient term's date field through the same term core the explicit srcTermIn
- * branch uses — one factory call (§V1), kind branch via bws_base_ambient_analog(),
+ * branch uses — one factory call, kind branch via bws_base_ambient_analog(),
  * matching base text/title.
  *
  * @since 1.6.0
@@ -1090,7 +1089,7 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 		);
 	}
 
-	// L1 — resolve the base source once (SPEC §V1); ambient dispatch through the
+	// L1 — resolve the base source once; ambient dispatch through the
 	// one kind-dispatching seam (FW-3a term parity kept byte-identical through it).
 	// Explicit src/loop/id already won inside the factory.
 	$base = function_exists( 'bws_base_resolve_source_for_callback' )

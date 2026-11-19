@@ -2460,7 +2460,7 @@ function bws_fixture_page_content_matrix_datetime() {
 		bws_fixture_gb_empty_row( 'D9.67 (= new combination) expect EMPTY (no fallback stated)', "{{datetime src:post,{$meta_id}|key:missing_dt_field}}" ),
 	) );
 
-	// An OLD tag keeps its family whatever its options say (02b): the range tag given a bare `key`
+	// An OLD tag keeps its family whatever its options say: the range tag given a bare `key`
 	// still reads through the range core, the single tag given `a;b` still reads only `a`. The
 	// derived mode would send the first to the single core and read both for the second.
 	$sections[] = bws_fixture_gb_section( 'Datetime D9 - an old tag keeps its family', array(
@@ -2470,7 +2470,7 @@ function bws_fixture_page_content_matrix_datetime() {
 		bws_fixture_gb_row( 'D9.57 (= D9.55, try_ twin) expect "August 1, 2030"', "{{try_datetime_single src:post,{$meta_id}|key:event_start_date;event_end_date}}" ),
 	) );
 
-	// ONE time display (02c). Each case below is rendered through the old single tag, the old
+	// ONE time display (#164). Each case below is rendered through the old single tag, the old
 	// range tag and the merged tag, and every spelling of a case must print the same bytes: the
 	// single core and the range core now share bws_format_time_display(), so a case that splits
 	// by tag is the defect. `event_time` returns `g:i a` and `event_datetime` returns
@@ -2566,7 +2566,7 @@ function bws_fixture_page_content_matrix_datetime() {
 		bws_fixture_gb_row( 'D11.21 expect "August 1, 2030" (the old single tag has no use: it reads its key)', "{{datetime_single src:post,{$meta_id}|use:published|key:event_start_date}}" ),
 	) );
 
-	// try_datetime (FW-81, ticket 04). `refs,missing_rel` is an attempt that reads nothing on this
+	// try_datetime (FW-81). `refs,missing_rel` is an attempt that reads nothing on this
 	// page; the two pinned posts are the attempts that do, with different dates (jane's is the
 	// May one), so a walk that stopped at the wrong attempt prints the wrong date, not the same one.
 	$sections[] = bws_fixture_gb_section( 'Datetime D12 - try_datetime (first attempt that reads wins)', array(
