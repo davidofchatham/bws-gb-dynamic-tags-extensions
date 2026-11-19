@@ -869,6 +869,16 @@ Open: Whether the editor script injects the same constant (and from where, so th
 
 Blocked by: —  •  Interacts with: #162 (the editor stylesheet script this would extend)
 
+#### FW-193 — Per-slot reads on `try_datetime`
+
+Each `try_datetime` slot carries its own datetime read (field reads, a `+` time join, a range, a verb) instead of one tag-level `key` and `use` shared by every attempt, so a fallback attempt can read different fields, not only a different source. The editor embeds the datetime read control in each slot card.
+
+Detail home: `.scratch/try-datetime-per-slot/spec.md` (decided 2026-11-19)
+
+Progress: Not started. Decided before the release that first ships `try_datetime`, so the tag-level form it replaces has never shipped.
+
+Blocked by: —  •  Interacts with: FW-81 (closed; built the tag-level form this replaces and the mount and Migration Tool rewrites this retargets), FW-24 (a datetime read in `{{join}}` / `{{table}}` slots stays there), FW-192 (the old `try_` datetime tags whose rewrite target this changes)
+
 ### Testing & infrastructure
 
 #### FW-96 — Dependency replay over the harvest corpus
