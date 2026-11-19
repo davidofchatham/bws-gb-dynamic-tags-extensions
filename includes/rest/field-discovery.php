@@ -545,7 +545,7 @@ function bws_field_discovery_flatten_fields( $fields, $parent_path = '', $group_
 			// repeater/flex branches below stamp it on their children (the resolution
 			// key of the container field) so a consumer can scope a picker to one
 			// repeater's sub-fields WITHOUT parsing the display breadcrumb (parent_path).
-			// Additive / structured — the shape FU-1 should absorb (FW-14's FU-1),
+			// Additive / structured — the shape the Location-filter rewrite (FW-13) should absorb,
 			// stamped here for FW-53's row scoping.
 			'repeater_key'  => '',
 			// The post TYPES a `refs` step through THIS field can land on, so its

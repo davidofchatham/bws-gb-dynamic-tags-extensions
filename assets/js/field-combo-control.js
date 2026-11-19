@@ -1032,8 +1032,8 @@
 		// readable (rec.repeaterKeys, from the server repeater_key stamp) — NOT parsed
 		// from the display breadcrumb. Empty / unknown repeater key → no scoping (the
 		// picker degrades to the full list; free-text of any key still works). This is a
-		// per-instance render conditional, deliberately NOT the FU-3 shared-state channel
-		// (FW-14's FU-3): table ships without blocking on it.
+		// per-instance render conditional. The one shared-filter case is the datetime read
+		// control's `sharedFilters`, handed down by the control that owns the pickers.
 		//
 		// THE SCOPE HANDLE IS A PROP FIRST, a state read only as fallback (FW-56/57).
 		// Reading `state.key` is this control DISCOVERING its own scope by reaching
