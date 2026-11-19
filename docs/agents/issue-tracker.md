@@ -5,21 +5,38 @@ Two homes, split by ONE question: **must the record outlive the change?**
 | Work | Home | Why |
 |---|---|---|
 | Bugs; anything someone outside waits on; a defect CLASS on its second instance | GitHub Issues (`gh` CLI) | Durable, externally visible. Already `CLAUDE.md` §Spec lifecycle's rule. |
-| A spec (PRD) for one in-flight piece of work | `.scratch/<feature-slug>/spec.md` | Rewritable in place; readable during a GitHub outage; dies at merge |
+| A spec (PRD) for one in-flight piece of work | `.scratch/<feature-slug>/spec.md` | Rewritable in place; readable during a GitHub outage; lifted into `docs/design-history/` at merge |
 | The build tickets it breaks into | `.scratch/<feature-slug>/issues/<NN>-<slug>.md` | Numbered per feature from `01`, so they never collide with `#N` |
 | PUBLICATION of in-flight work | the pull request body | One durable public record, at the moment it is reviewable |
 | Enhancements, open questions | a `.scratch/plans/` home **plus** a `docs/future-work.md` item | Nobody outside waits on them; the committed tracker item keeps them visible |
 
-`.scratch/` is gitignored. Nothing under it is ever committed. Two things live there and they are
-not the same shape: `.scratch/<feature-slug>/` is one piece of in-flight work and dies at merge,
-while `.scratch/plans/` holds long-lived design plans that can outlast many features (with
+`.scratch/` is gitignored. A file there reaches the repo only by the lift below, never in place. Two
+things live there and they are not the same shape: `.scratch/<feature-slug>/` is one piece of in-flight
+work and is dispositioned at merge (§When the work merges), while `.scratch/plans/` holds long-lived design plans that can outlast many features (with
 `.scratch/plans/archive/` for finished ones). A plan is not a feature slug.
 
 ## Why this is not the retired `SPEC.md`
 
 `CLAUDE.md` §Spec lifecycle retired a root `SPEC.md` and forbids creating one. This is not that.
 `SPEC.md` was ONE file for ALL work, unbounded, with no death date. A `.scratch/<feature-slug>/`
-directory has a named scope and dies at merge. Scope and a death date are what `SPEC.md` lacked.
+directory has a named scope and a defined end at merge. Scope and an end are what `SPEC.md` lacked.
+
+## When the work merges
+
+This section owns the rule; every other doc points here. A finished `.scratch/<feature-slug>/` directory gets a disposition per file, by what the file is:
+
+| File | Disposition |
+|---|---|
+| Spec, or a plan | **Lift** into `docs/design-history/` (the default). The file moves and no copy stays behind. Sanitize as part of the lift, before the commit that publishes it: client names, hostnames, row IDs and local paths. A partial lift leaves the remainder and says it is an extract |
+| A spec not worth committing (a thin slice fully carried by the homes `docs/spec-lifecycle.md`'s post-ship migration lists, plus the CHANGELOG and the commit body) | **Archive** to `.scratch/archive/` |
+| Tickets and other working files that might be worth referencing later | **Archive** to `.scratch/archive/`. Tickets are not committed, unless a ticket is the only record of a design decision, in which case lift that decision |
+| Throwaway output (a sweep log, a scratch dump) | **Delete** |
+
+- **The PR body is the second record, not a substitute.** It holds the review conversation and what changed under challenge, which a lifted spec does not. Where there is a PR, write both.
+- **Never lift an unbuilt plan.** `docs/design-history/` is never corrected, so an unshipped intention filed there is indistinguishable from a shipped decision.
+- **A lifted file is frozen, except that an incorrect identifier is repaired in place** (a renamed version, a wrong SHA, a dead issue number, a moved path). A stale claim is not: a design the code has since moved past was true when written.
+- **Before deleting anything, settle where its parts land**, defaulting to a lift. Deleting is not the default for a spec.
+- Cite a lifted file with a provenance verb, per `CLAUDE.md` §Documentation ownership.
 
 ## The local half
 

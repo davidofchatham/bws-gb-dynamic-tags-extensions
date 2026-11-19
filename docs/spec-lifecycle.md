@@ -6,8 +6,10 @@ retirement-split mechanics, the §SETTLED index practice, and the bug-filing cri
 
 **A SPEC IS A LOCAL FILE — `.scratch/<feature-slug>/spec.md`.** It owns the problem statement, the
 interfaces, the invariants, the tasks and the scope for one in-flight piece of work. One per piece
-of work, not per release: several can be open, each dying when its own work merges. The PR body is
-where the decided spec becomes public — `.scratch/` is gitignored and nothing under it is committed.
+of work, not per release: several can be open, each finished when its own work merges. The PR body is
+where the decided spec becomes public, and what happens to the spec itself at merge (lift, archive or
+delete) is owned by `docs/agents/issue-tracker.md` §When the work merges. `.scratch/` is gitignored and
+a file there reaches the repo only by that lift.
 Bugs stay GitHub Issues; `docs/agents/issue-tracker.md` owns the split, the ticket conventions, and
 why a `.scratch/` directory is not the retired root `SPEC.md` returning.
 
@@ -33,7 +35,7 @@ gets corrected, present tense being a claim about now.
   - **`CONTEXT.md`** (for cross-cutting invariants / design models spanning many callbacks — the source-analog model, dispatch rules, qualifying gate; principles, not schemas), OR
   - **`docs/tag-reference.md`** (for current-state schema detail an invariant references).
   - A migrating invariant typically lands a one-line principle in CONTEXT.md that links its schema in tag-reference and its rationale in the plan — `.scratch/plans/<feature>.md` while that plan is live, `docs/design-history/` once it is finished, and the citation repoints in the same edit as the move. Per `CLAUDE.md` §Documentation ownership, an invariant's AXIS lands at ONE of these and the others state its consequence.
-- Closed/deferred task rows: delete them from the spec's task list, or delete the spec directory (on GitHub, close the issue).
+- Closed/deferred task rows: settled by the spec's disposition at merge (`docs/agents/issue-tracker.md` §When the work merges); on GitHub, close the issue.
 - Bugs found on the way: file per the rule below, cross-referencing the invariant they produced if one was added.
 
 ## A plan commits when it is finished, not when it ships
@@ -64,8 +66,8 @@ disentangling operation.
 **A spec is source of truth only while the work is in flight.** Once merged it is a record of how
 something came to be, not a statement of how it currently works — the same reading posture
 `CONTEXT.md` opens with, and the same one `docs/design-history/` carries in its banner. This holds
-whichever carrier the spec had: a deleted `.scratch/` directory leaves the PR body as the record, a
-closed spec issue is that record already.
+whichever carrier the spec had: a lifted spec plus the PR body are the record once the `.scratch/`
+directory is gone, a closed spec issue is that record already.
 
 **Bugs:** there is no in-repo bug file, and a bug never becomes a row in `docs/future-work.md`.
 A bug that needs TRACKING is a GitHub Issue (`bug` label). **A bug found and FIXED in the same

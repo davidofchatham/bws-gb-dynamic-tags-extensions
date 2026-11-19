@@ -79,7 +79,7 @@ already disagree, resolve it as drift; this clause is about not writing the sent
 | Operating the fixture testbed (entrypoints, the two staleness layers, seeding, visible-row mandate, the one-boot-per-CONTEXT sweep rule, running page snapshots) | `docs/testbed.md` | `CLAUDE.md` §Development owns the two-LAYER rule and points here; this owns the operation. `bin/*.sh` live in the ENV repo, and so does env-generic operation (page-cache bust, purge): the env `README.md` owns it, this links. Blueprint specifics stay in `tools/fixtures/core-structures/README.md`. |
 | Shipped versions | `CHANGELOG.md` | Append-only. [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/): merged-but-untagged entries go under `## [Unreleased]`, which names no version; the number is chosen at release, when the section becomes `## [x.y.z] — <date>` and a fresh empty `## [Unreleased]` goes above it. Until then, code written in the cycle says `@since Unreleased`, and a readme.txt upgrade notice sits under `= Unreleased =` |
 | Non-bug future-work TRACKER (visible index: item + blockers + interactions + pointer to detail home) | `docs/future-work.md` | Tracked/reviewable surface over hidden detail homes. Indexes, never duplicates detail. Columns: **Blocked by** (hard prereq), **Interacts with** (soft coupling), **Detail home** (design + implicit certainty). No status column — certainty is read from the detail home. **Bugs → GitHub Issues only, never here.** Avoid one GH issue per speculative enhancement. When unsure where work belongs, ASK. |
-| SPEC for one in-flight piece of work (problem, interfaces, invariants, tasks, scope) | `.scratch/<feature-slug>/spec.md` | Gitignored, dies at merge; the PR body publishes it. Bugs are GitHub Issues and never a spec file. Split + conventions: `docs/agents/issue-tracker.md`. Lifecycle + post-ship migration: §Spec lifecycle. |
+| SPEC for one in-flight piece of work (problem, interfaces, invariants, tasks, scope) | `.scratch/<feature-slug>/spec.md` | Gitignored while in flight; at merge it lifts into `docs/design-history/` and the PR body is written too (rule: `docs/agents/issue-tracker.md` §When the work merges). Bugs are GitHub Issues and never a spec file. Split + conventions: `docs/agents/issue-tracker.md`. Lifecycle + post-ship migration: §Spec lifecycle. |
 | Spec-lifecycle RULES (post-ship migration, plan-commits-when-finished / retirement mechanics, §SETTLED index practice, bug-filing criteria) | `docs/spec-lifecycle.md` | `CLAUDE.md` §Spec lifecycle keeps the one-paragraph summary, points here for the rules |
 | Cross-link RULES (README-paraphrase limits, MEMORY.md one-liners, ADR-unverifiable-evidence rationale, detail-home exemption, bare-`#N` rule, design-history dangling-path exemption) | `docs/cross-link-rules.md` | `CLAUDE.md` §Cross-link rules keeps the summary + the hook pointer, points here for the rules |
 | Pending-plan / enhancement DETAIL (homes the tracker points at) | `.scratch/plans/*.md`, or `memory/` (cross-cutting concepts); not GitHub issues (`docs/agents/issue-tracker.md`) | Not under `docs/` (except when migrated). Every item also gets a `docs/future-work.md` tracker row — don't leave work tracked only in a hidden file. |
@@ -137,8 +137,9 @@ design-history dangling-path exemption): [`docs/cross-link-rules.md`](docs/cross
 
 **A SPEC IS A LOCAL FILE — `.scratch/<feature-slug>/spec.md`.** It owns the problem statement, the
 interfaces, the invariants, the tasks and the scope for one in-flight piece of work. One per piece
-of work, not per release. The PR body is where the decided spec becomes public — `.scratch/` is
-gitignored and nothing under it is committed. Bugs stay GitHub Issues; `docs/agents/issue-tracker.md`
+of work, not per release. The PR body is where the decided spec becomes public, and a finished spec
+lifts into `docs/design-history/` — `.scratch/` is gitignored and a file there reaches the repo
+only by that lift. Bugs stay GitHub Issues; `docs/agents/issue-tracker.md`
 owns the split and the ticket conventions.
 
 **The root `SPEC.md` artifact is RETIRED.** Do not create one. In-code citations of the form
