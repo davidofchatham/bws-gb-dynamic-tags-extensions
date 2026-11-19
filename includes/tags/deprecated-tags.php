@@ -113,7 +113,7 @@ function bws_datetime_legacy_plan( string $tag_string ): array {
 		return $unchanged;
 	}
 
-	$range         = str_ends_with( $name, '_range' );
+	$range         = (bool) bws_datetime_family( $name );
 	[ , $options ] = $reg::parse_tag_string( $reg::apply_option_migration( $name, $tag_string ) );
 
 	if ( $range && bws_datetime_legacy_range_is_end_only( $options ) ) {

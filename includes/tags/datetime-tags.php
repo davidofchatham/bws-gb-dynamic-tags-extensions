@@ -771,6 +771,42 @@ function bws_datetime_reads( array $options, bool $verbs = true, ?array &$faults
 }
 
 /**
+ * The datetime tag names and the family each stands for, the `$range` argument
+ * bws_normalize_datetime_options() takes: null for the merged tag (its reads decide the mode),
+ * false for `datetime_single`, true for `datetime_range`. THE one map between a family and its
+ * tag name; read it through bws_datetime_family() and bws_datetime_family_tag().
+ *
+ * @since Unreleased
+ */
+const BWS_DATETIME_FAMILY_TAGS = array(
+	'datetime'        => null,
+	'datetime_single' => false,
+	'datetime_range'  => true,
+);
+
+/**
+ * The family a datetime tag name stands for. A `try_` prefix names the same family.
+ *
+ * @since Unreleased
+ * @param string $tag A datetime tag name (`datetime`, `try_datetime_range`, ...).
+ * @return bool|null The `$range` argument for bws_normalize_datetime_options().
+ */
+function bws_datetime_family( string $tag ): ?bool {
+	return BWS_DATETIME_FAMILY_TAGS[ str_starts_with( $tag, 'try_' ) ? substr( $tag, 4 ) : $tag ] ?? null;
+}
+
+/**
+ * The base tag name for a datetime family: `datetime`, `datetime_single` or `datetime_range`.
+ *
+ * @since Unreleased
+ * @param bool|null $range The family, as bws_datetime_family() returns it.
+ * @return string
+ */
+function bws_datetime_family_tag( ?bool $range ): string {
+	return (string) array_search( $range, BWS_DATETIME_FAMILY_TAGS, true );
+}
+
+/**
  * Normalize public datetime option keys to the canonical core keys — THE single
  * parse point for datetime options (FW-2).
  *
@@ -1097,7 +1133,7 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 		: array( 'kind' => 'post', 'id' => 0 );
 	$res     = bws_base_settle_kind( $res, $base );
 	$ambient = function_exists( 'bws_base_ambient_analog' )
-		? bws_base_ambient_analog( $is_range ? 'datetime_range' : 'datetime_single', $base, $options, $instance )
+		? bws_base_ambient_analog( bws_datetime_family_tag( $is_range ), $base, $options, $instance )
 		: null;
 
 	// Unguarded, unlike its neighbours above — see bws_base_read_refused(). Those guards
@@ -1259,7 +1295,7 @@ function bws_base_datetime_shell( $options, $block, $instance, ?bool $range ): s
 	if ( ! $is_preview || ! function_exists( 'bws_build_preview_label' ) ) {
 		return '';
 	}
-	return bws_build_preview_label( $options, null === $range ? 'datetime' : ( $range ? 'datetime_range' : 'datetime_single' ) );
+	return bws_build_preview_label( $options, bws_datetime_family_tag( $range ) );
 }
 
 /**

@@ -525,7 +525,7 @@ function bws_build_try_preview_label( array $options, string $base_template, arr
 		if ( '' !== $warning_label ) {
 			return $warning_label;
 		}
-		$datetime_part = bws_preview_datetime_part( $options, bws_preview_datetime_range( $base_template ) );
+		$datetime_part = bws_preview_datetime_part( $options, bws_datetime_family( $base_template ) );
 		if ( $uniform_source ) {
 			// Single slot or all sources match — drop source list, keep base form.
 			$inner = 'Try ' . $datetime_part;
@@ -1322,18 +1322,6 @@ function bws_preview_is_datetime( string $template ): bool {
 }
 
 /**
- * The family bws_normalize_datetime_options() takes for a datetime template key: null for the
- * merged tag (its reads decide), true for `datetime_range`, false for `datetime_single`.
- *
- * @since Unreleased
- */
-if ( ! function_exists( 'bws_preview_datetime_range' ) ) {
-function bws_preview_datetime_range( string $template ): ?bool {
-	return 'datetime' === $template ? null : 'datetime_range' === $template;
-}
-}
-
-/**
  * The whole warning label for a merged datetime tag whose reads are inconsistent, or '' when
  * there is none to give (consistent, or an old tag, which has no read grammar to misuse).
  *
@@ -1360,11 +1348,24 @@ function bws_preview_datetime_warning( array $options, string $template, string 
 }
 
 /**
+ * Warning clauses as one sentence: joined with `; `, every clause after the first lower-cased.
+ * The one joiner the datetime and text warnings share.
+ *
+ * @since Unreleased
+ * @param string[] $parts Clauses, each written as if it opened the sentence.
+ * @return string
+ */
+if ( ! function_exists( 'bws_preview_join_clauses' ) ) {
+function bws_preview_join_clauses( array $parts ): string {
+	return implode( '; ', array_map( static fn( $part, $i ) => $i ? lcfirst( $part ) : $part, $parts, array_keys( $parts ) ) );
+}
+}
+
+/**
  * The sentence for the inconsistencies bws_datetime_reads() forgave, or '' for none.
  *
  * Wording owner for the datetime warnings; the faults themselves, and what counts as one,
- * are that function's. Clauses join with `; ` like the missing-input warning, the later
- * ones lower-cased.
+ * are that function's. Clauses join through bws_preview_join_clauses().
  *
  * @since Unreleased
  * @param array $faults The `$faults` out-param of bws_datetime_reads().
@@ -1390,7 +1391,7 @@ function bws_datetime_fault_text( array $faults ): string {
 				break;
 		}
 	}
-	return implode( '; ', array_map( static fn( $part, $i ) => $i ? lcfirst( $part ) : $part, $parts, array_keys( $parts ) ) );
+	return bws_preview_join_clauses( $parts );
 }
 }
 
@@ -1398,7 +1399,7 @@ function bws_datetime_fault_text( array $faults ): string {
  * The sentence for what a text tag ignored of its `key`, or '' for none.
  *
  * Wording owner for the text read warnings; what counts as a fault is
- * bws_text_first_read_options()'s. Clauses join with `; `, the later ones lower-cased.
+ * bws_text_first_read_options()'s. Clauses join through bws_preview_join_clauses().
  *
  * @since Unreleased
  * @param array $faults The `$faults` out-param of bws_text_first_read_options().
@@ -1414,7 +1415,7 @@ function bws_text_fault_text( array $faults ): string {
 			$parts[] = 'Fields cannot be joined with + here, so the extra part is ignored';
 		}
 	}
-	return implode( '; ', array_map( static fn( $part, $i ) => $i ? lcfirst( $part ) : $part, $parts, array_keys( $parts ) ) );
+	return bws_preview_join_clauses( $parts );
 }
 }
 
@@ -1637,7 +1638,7 @@ function bws_build_preview_label( array $options, string $template ): string {
 			return $warning_label;
 		}
 
-		$inner = bws_preview_datetime_part( $options, bws_preview_datetime_range( $template ) );
+		$inner = bws_preview_datetime_part( $options, bws_datetime_family( $template ) );
 		if ( $context_part ) {
 			$inner .= ' from ' . $context_part;
 		}
