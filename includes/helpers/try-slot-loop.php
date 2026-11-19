@@ -50,11 +50,15 @@ if ( ! defined( 'BWS_TRY_MAX_SLOTS' ) ) {
 	define( 'BWS_TRY_MAX_SLOTS', 5 );
 }
 
-/**
- * The tag-level read options a `try_per_slot_reads` tag does not register: the merged tag's
- * `key`/`use` and the four old datetime field options. Stripped from what every attempt sees.
- */
-const BWS_TRY_TAG_LEVEL_READ_KEYS = array( 'key', 'use', 'timeKey', 'startKey', 'startTimeKey', 'endKey', 'endTimeKey' );
+if ( ! defined( 'BWS_TRY_TAG_LEVEL_READ_KEYS' ) ) {
+	/**
+	 * The tag-level read options a `try_per_slot_reads` tag does not register: the merged tag's
+	 * `key`/`use` and the four old datetime field options. Stripped from what every attempt sees.
+	 *
+	 * @since Unreleased
+	 */
+	define( 'BWS_TRY_TAG_LEVEL_READ_KEYS', array( 'key', 'use', 'timeKey', 'startKey', 'startTimeKey', 'endKey', 'endTimeKey' ) );
+}
 
 /**
  * Whether one attempt's read needs a field key — THE per-slot read gate.

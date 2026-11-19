@@ -1542,6 +1542,8 @@ check( 'try dt B carries A: range',   try_dt( [ 'A' => 'key(a;b)', 'B' => 'src(p
 check( 'try dt B use(same): range',   try_dt( [ 'A' => 'key(a;b)', 'B' => 'use(same);src(parent)' ] ), '[Try Date-Time Range like “…” from Current, Current Parent]' );
 // Slot A with no read has nothing to carry: the read-less shape, whatever B reads.
 check( 'try dt A read-less',          try_dt( [ 'A' => 'src(parent)', 'B' => 'key(a;b)' ] ),       '[Try Date-Time like “…” from Current Parent, Current]' );
+// Slot A absent altogether: the same, whatever the first slot that DOES resolve reads.
+check( 'try dt A absent, B range',     try_dt( [ 'B' => 'key(a;b)' ] ),                              '[Try Date-Time like “…”]' );
 // The tag-level read is not a read of any slot.
 check( 'try dt ignores tag-level key', try_dt( [ 'key' => 'a;b', 'A' => 'key(a)' ] ),              '[Try Date-Time like “…”]' );
 

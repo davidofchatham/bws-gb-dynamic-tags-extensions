@@ -875,7 +875,7 @@ Each `try_datetime` slot carries its own datetime read (field reads, a `+` time 
 
 Detail home: `.scratch/try-datetime-per-slot/spec.md` (decided 2026-11-19)
 
-Progress: Built on branch `feature/try-datetime-per-slot`, tickets 01 to 05 merged (2026-11-19); the release-gate check (06) is the remaining step before it ships. Measured on the testbed 2026-11-19: the per-slot render rows D12.1 to D12.24 and the preview rows D6.4a to D6.4k print as the matrix states; `verify-migration.php` §4b rewrote 36 of the 42 old tags it checked and every one rendered byte-identical after; 21 old `try_` tags rendered byte for byte the same as the string the Migration Tool writes for them, in two contexts (`/matrix-post-meta/` and `/matrix-datetime/`); page snapshots passed unchanged (29 pages). Decided before the release that first ships `try_datetime`, so the tag-level form it replaces has never shipped.
+Progress: Built on branch `feature/try-datetime-per-slot`, tickets 01 to 06 merged (2026-11-19), the release-gate check included; what remains is the release itself. Measured on the testbed 2026-11-19, rows in `tools/test/datetime-test-matrix.md` (D12 the per-slot render rows, D6.4a to D6.4k the preview rows, D13 the Migration Tool on the old tags); the Migration Tool rewrite census and the page snapshots also ran clean. Decided before the release that first ships `try_datetime`, so the tag-level form it replaces has never shipped.
 
 Blocked by: —  •  Interacts with: FW-81 (closed; built the tag-level form this replaces and the mount and Migration Tool rewrites this retargets), FW-24 (a datetime read in `{{join}}` / `{{table}}` slots stays there), FW-192 (the old `try_` datetime tags whose rewrite target this changes)
 

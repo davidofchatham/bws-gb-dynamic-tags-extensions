@@ -340,6 +340,26 @@
 		},
 		{
 			"container": "try",
+			"wire": "use(now;bogus;key);key(a)",
+			"reads": true
+		},
+		{
+			"container": "try",
+			"wire": "use(key;bogus;key);key(a;b)",
+			"reads": true
+		},
+		{
+			"container": "try",
+			"wire": "key(a;b;c)",
+			"reads": true
+		},
+		{
+			"container": "try",
+			"wire": "use(key;now;key;now);key(a;b;c)",
+			"reads": true
+		},
+		{
+			"container": "try",
 			"wire": "use(key;now)"
 		},
 		{

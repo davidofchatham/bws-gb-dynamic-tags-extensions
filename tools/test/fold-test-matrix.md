@@ -141,8 +141,7 @@ Era is per SLOT, not per tag. Both directions, `/matrix-post-meta/`.
 
 ## §F5 — try_: no-read shape
 
-`try_title` / `try_permalink` / `try_datetime_single` / `try_datetime_range` — the read is a
-TAG-level option; a slot is a bare source chain. (`try_datetime` is the exception: its read rides each slot, F5.8 and F5.9.)
+`try_title` / `try_permalink` / `try_datetime_single` / `try_datetime_range` — the read is a TAG-level option; a slot is a bare source chain. (`try_datetime` is the exception: its read rides each slot, F5.8 and F5.9.)
 
 | # | Tag | Context | Expected |
 |---|---|---|---|

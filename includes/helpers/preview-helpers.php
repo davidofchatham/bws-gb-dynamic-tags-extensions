@@ -527,7 +527,8 @@ function bws_build_try_preview_label( array $options, string $base_template, arr
 		$part_options = $options;
 		if ( ! empty( $loop_cfg['per_slot_reads'] ) ) {
 			// Every slot reads for itself: a fault is its slot's, named by its letter, and the shape
-			// is slot A's read (the first slot that resolves, a reused read already resolved into it).
+			// is slot A's read; a slot A that states none, or that is not in the walk, leaves the
+			// read-less shape whatever a later slot reads.
 			// The tag-level key and use are no read of any slot, so neither feeds either.
 			$read_faults = array();
 			foreach ( $slots as $slot ) {
@@ -543,9 +544,13 @@ function bws_build_try_preview_label( array $options, string $base_template, arr
 			if ( $read_faults ) {
 				return bws_preview_warning_label( implode( '; ', $read_faults ), $options, '⚠ Try: ', (string) $fallback );
 			}
-			$part_options        = array_diff_key( $options, array_fill_keys( BWS_TRY_TAG_LEVEL_READ_KEYS, null ) );
-			$part_options['key'] = $slots[0]['key'];
-			$part_options['use'] = $slots[0]['use'];
+			$part_options = array_diff_key( $options, array_fill_keys( BWS_TRY_TAG_LEVEL_READ_KEYS, null ) );
+			foreach ( $slots as $slot ) {
+				if ( 1 === $slot['n'] && $slot['own'] ) {
+					$part_options['key'] = $slot['key'];
+					$part_options['use'] = $slot['use'];
+				}
+			}
 		}
 		$datetime_part = bws_preview_datetime_part( $part_options, bws_datetime_family( $base_template ) );
 		if ( $uniform_source ) {
@@ -1369,6 +1374,7 @@ function bws_preview_datetime_warning( array $options, string $template, string 
  *
  * @since Unreleased
  * @param string $warning  Warning text without its lead.
+ * @param array  $options  Parsed tag options, for the link wrap.
  * @param string $lead     The label's opening: `⚠ ` on a base tag, `⚠ Try: ` on try_datetime.
  * @param string $fallback The tag's fallback text.
  */
