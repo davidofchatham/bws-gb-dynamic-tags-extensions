@@ -388,6 +388,19 @@ function bws_get_datetime_reads_option(): array {
 		'timeAddLabel'   => __( 'Add Time Field', 'generateblocks' ),
 		'timeRemoveLabel' => __( 'Remove Time Field', 'generateblocks' ),
 		'removeLabel'    => __( 'Remove', 'generateblocks' ),
+		// What the reads cannot show, [ one, many ], each `%s` filled with the field names.
+		'surplusNotice'  => array(
+			/* translators: %s: one field name. */
+			__( 'Field %s has no read to use it and will be removed on your next change here.', 'generateblocks' ),
+			/* translators: %s: a list of field names. */
+			__( 'Fields %s have no read to use them and will be removed on your next change here.', 'generateblocks' ),
+		),
+		'extraNotice'    => array(
+			/* translators: %s: one field name. */
+			__( 'A read combines one date and one time field only, so %s is ignored.', 'generateblocks' ),
+			/* translators: %s: a list of field names. */
+			__( 'A read combines one date and one time field only, so %s are ignored.', 'generateblocks' ),
+		),
 		'max'            => BWS_DATETIME_MAX_READS,
 		'typeDefault'    => BWS_FIELD_TYPE_GROUP_DATETIME,
 	);

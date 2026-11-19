@@ -989,7 +989,7 @@ No editor control this plugin registers has been tested with a screen reader. Th
 
 Detail home: this row
 
-Progress: Not started. Raised 2026-10-20 at the `{{table}}` ship (FW-53), whose controls carry the most announcement work so far: the combobox hint row and its `aria-describedby` twin, the Stripes and Custom Column Text Styles checkbox pickers, the Live Formatting Preview, and the field-label advisory's click-to-apply link. The rendered `{{table}}` output (caption, labelled scroll region) is a front-end concern and is not in this row.
+Progress: Not started. Raised 2026-10-20 at the `{{table}}` ship (FW-53), whose controls carry the most announcement work so far: the combobox hint row and its `aria-describedby` twin, the Stripes and Custom Column Text Styles checkbox pickers, the Live Formatting Preview, and the field-label advisory's click-to-apply link. The rendered `{{table}}` output (caption, labelled scroll region) is a front-end concern and is not in this row. **[UNRELEASED: the datetime read control]** The `{{datetime}}` read control (FW-81) adds three surfaces: the field picker's grouped Type select (native `<optgroup>`, whose group headings are not selectable), the Start and End read headings, and the notice naming a field the control will remove.
 
 Open: Which screen readers and browsers (NVDA with Chrome and Firefox on Windows is reachable here; VoiceOver needs a Mac). Whether to start with the `{{table}}` controls or sweep every `bws-*` control type in `editor-controls.md`'s registered-controls table. Where the results are recorded so a later change can be checked against them.
 

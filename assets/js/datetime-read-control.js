@@ -168,10 +168,13 @@
 	 * With no verb in `use` the reads are the `key` entries, one each, and none at all is ONE
 	 * empty read: the read an absent value spells (concept 2). With a verb, `use` is the list:
 	 * each `key` in it takes the next entry (none left is an empty read), a verb takes none.
+	 * An entry left over after the list is no read: the control cannot show it, and its next
+	 * write drops it, so its fields come back as `surplus` for the notice to name first.
 	 *
 	 * @param {Object}   state `extraTagParams`.
 	 * @param {string[]} verbs The verb names the option definition offers.
-	 * @return {Object[]} Reads, at least one.
+	 * @return {{reads: Object[], surplus: string[]}} Reads, at least one, and the fields of
+	 *         the entries no read takes.
 	 */
 	function parseReads( state, verbs ) {
 		var entries = entriesOf( state.key );
@@ -179,11 +182,26 @@
 			return 'key' === n || -1 !== verbs.indexOf( n );
 		} );
 		if ( ! names.some( function ( n ) { return 'key' !== n; } ) ) {
-			return entries.length ? entries.map( fieldRead ) : [ fieldRead( [ '' ] ) ];
+			return { reads: entries.length ? entries.map( fieldRead ) : [ fieldRead( [ '' ] ) ], surplus: [] };
 		}
-		return names.map( function ( n ) {
+		var reads = names.map( function ( n ) {
 			return 'key' === n ? fieldRead( entries.shift() || [ '' ] ) : { verb: n, ops: [] };
 		} );
+		return { reads: reads, surplus: [].concat.apply( [], entries ).filter( Boolean ) };
+	}
+
+	/**
+	 * A notice's text: the singular or plural template (`[ one, many ]`, from the option
+	 * definition) with its `%s` replaced by the names, each as code.
+	 */
+	function noticeText( templates, names ) {
+		var parts = String( templates[ 1 === names.length ? 0 : 1 ] || '' ).split( '%s' );
+		var named = [];
+		names.forEach( function ( name, n ) {
+			if ( n ) { named.push( ', ' ); }
+			named.push( el( 'code', { key: 'n' + n }, name ) );
+		} );
+		return [ parts[ 0 ] ].concat( named, parts.slice( 1 ).join( '%s' ) );
 	}
 
 	/**
@@ -228,7 +246,8 @@
 		var typeState = useState( null );
 		var choices = cfg.reads || [];
 		var verbs   = choices.map( function ( c ) { return c.value; } ).filter( function ( v ) { return 'key' !== v; } );
-		var reads   = parseReads( state, verbs );
+		var parsed  = parseReads( state, verbs );
+		var reads   = parsed.reads;
 		var count   = reads.length;
 		// The kind the source chain resolves to, or null when it names none (a render-time
 		// source): a row limited to some kinds is offered for null too, since it may be one.
@@ -396,6 +415,17 @@
 			children.push( el( Fragment, { key: 'entry-' + i }, kids ) );
 		} );
 
+		// What the reads above cannot show, named before it is lost or while it is ignored: an
+		// entry no read takes (the next write drops it) and an operand past a read's second
+		// (kept, and ignored at render: bws_datetime_reads()).
+		var extra = [].concat.apply( [], reads.map( function ( r ) { return r.ops.slice( 2 ); } ) ).filter( Boolean );
+		[ [ 'surplus', parsed.surplus, cfg.surplusNotice ], [ 'extra', extra, cfg.extraNotice ] ].forEach( function ( n ) {
+			if ( n[ 1 ].length && wp.components.Notice ) {
+				children.push( el( wp.components.Notice, { key: n[ 0 ], status: 'warning', isDismissible: false },
+					noticeText( n[ 2 ] || [], n[ 1 ] ) ) );
+			}
+		} );
+
 		if ( count < max ) {
 			children.push( el( Button, {
 				key: 'add',
@@ -467,6 +497,8 @@
 					timeAddLabel: cfg.timeAddLabel,
 					timeRemoveLabel: cfg.timeRemoveLabel,
 					removeLabel: cfg.removeLabel,
+					surplusNotice: cfg.surplusNotice,
+					extraNotice: cfg.extraNotice,
 					max: cfg.max,
 					typeDefault: cfg.typeDefault
 				},

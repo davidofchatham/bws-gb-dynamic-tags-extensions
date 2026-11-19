@@ -1398,6 +1398,13 @@ assert_same( 'datetime: key is the read control', 'bws-datetime-reads', $dt_key[
 assert_same( 'try_datetime: the same key definition, not a copy', $dt_key, bws_get_datetime_template_options()['key'] );
 assert_same( 'datetime: the control stops offering Add at the most reads the normalizer takes', BWS_DATETIME_MAX_READS, $dt_key['max'] );
 assert_same( 'datetime: a non-empty heading for every read the control offers', true, count( array_filter( $dt_key['entryLabels'], 'strlen' ) ) >= BWS_DATETIME_MAX_READS );
+// The notices name what the reads cannot show (datetime-read-control-test.js §D10): each is a
+// [ one, many ] pair the control fills with the field names at its one `%s`.
+foreach ( array( 'surplusNotice', 'extraNotice' ) as $notice ) {
+	$pair = $dt_key[ $notice ] ?? null;
+	assert_same( "datetime: {$notice} is a [ one, many ] pair, each with one %s", array( 1, 1 ),
+		is_array( $pair ) && 2 === count( $pair ) ? array_map( static fn( $t ) => substr_count( (string) $t, '%s' ), array_values( $pair ) ) : $pair );
+}
 // The per-read select offers what the `use` enum lists and nothing else, field row first, and only
 // the post dates are limited to a kind (the verb result reads no other source's dates).
 $dt_use = bws_get_base_datetime_options()['use'];

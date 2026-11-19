@@ -219,7 +219,7 @@ A configuration the tag forgives at render raises a warning instead of the sampl
 | More field reads than field keys, some set (`use:key;key;now` with `key:a`) | `⚠ 2 field reads but only 1 field key set` |
 | More field keys than field reads (`use:now;key` with `key:a;b`) | `⚠ 1 field read but 2 field keys set, so extra keys are ignored` |
 
-Like every label here it is built only when the tag reads empty, so a configuration that still resolves to a value (an ignored third field, or surplus keys) shows its value and no warning. A name in `use` that is neither `key` nor a verb is dropped without a warning.
+Like every label here it is built only when the tag reads empty, so a configuration that still resolves to a value (an ignored third field, or surplus keys) shows its value and no warning here; the read control's own notice names those two in the tag's settings instead ([editor-controls.md](editor-controls.md#datetime-read-control)). A name in `use` that is neither `key` nor a verb is dropped without a warning.
 
 ### Text read warnings **[UNRELEASED]**
 

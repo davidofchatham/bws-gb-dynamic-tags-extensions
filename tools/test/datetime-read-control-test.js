@@ -14,6 +14,10 @@
  * THE VERBS (§D8): each read is a field or a verb, `use` is written only when a verb is among the
  * reads and then as the full ordered list, and the rows a source offers.
  *
+ * THE NOTICES (§D10): a `key` entry no read takes, and an operand past a read's second, each named
+ * in a warning, and each notice's claim (removed on the next change, or kept and ignored) held by a
+ * write.
+ *
  * WHAT THIS DOES NOT COVER, stated so a passing run is not read as full coverage: the grammar
  * (`bws_datetime_reads()`, owned and tested in PHP), and anything needing
  * a real DOM. How the grouped Type select renders, keyboard-navigates and announces is measured
@@ -96,6 +100,7 @@ global.wp = {
 		Button: 'Button',
 		Flex: 'Flex',
 		FlexItem: 'FlexItem',
+		Notice: 'Notice',
 	},
 	apiFetch: function () { return Promise.resolve( { row: null } ); },
 	i18n: { __: function ( s ) { return s; } },
@@ -170,6 +175,8 @@ const KEY_DEF = {
 	timeAddLabel: 'Add Time Field',
 	timeRemoveLabel: 'Remove Time Field',
 	removeLabel: 'Remove',
+	surplusNotice: [ 'Field %s has no read to use it and will be removed on your next change here.', 'Fields %s have no read to use them and will be removed on your next change here.' ],
+	extraNotice: [ 'A read combines one date and one time field only, so %s is ignored.', 'A read combines one date and one time field only, so %s are ignored.' ],
 	max: 2,
 	typeDefault: GROUP,
 };
@@ -200,6 +207,18 @@ const addTimeButtons = function ( tree ) { return buttons( tree ).filter( functi
 const removeTimeButtons = function ( tree ) { return buttons( tree ).filter( function ( b ) { return 'link' === b.props.variant && b.props.isDestructive; } ); };
 const removeButtons = function ( tree ) { return buttons( tree ).filter( function ( b ) { return b.props.isDestructive && 'tertiary' === b.props.variant; } ); };
 
+/** Each Notice as text, a `<code>` child written in backticks. */
+const noticeTexts = function ( tree ) {
+	return findAll( tree, 'Notice' ).map( function ( n ) {
+		return [ n.props.status, n.props.isDismissible ].concat( [ ( function flat( kids ) {
+			return kids.map( function ( k ) {
+				if ( Array.isArray( k ) ) { return flat( k ); }
+				if ( k && 'code' === k.type ) { return '`' + flat( k.children ) + '`'; }
+				return k && k.children ? flat( k.children ) : String( null == k ? '' : k );
+			} ).join( '' );
+		}( n.children ) ) ] );
+	} );
+};
 const readSelects = function ( tree ) { return findAll( tree, 'SelectControl' ); };
 const readValues = function ( tree ) { return readSelects( tree ).map( function ( s ) { return s.props.value; } ); };
 const offered = function ( tree, n ) { return readSelects( tree )[ n ].props.options.map( function ( o ) { return o.value; } ); };
@@ -581,6 +600,30 @@ async function main() {
 	check( 'D9.11 a tag without `legacy` is untouched: no migrator, old-named keys pass through',
 		[ 'Fragment' === through( 'key', { key: KEY_DEF }, { key: 'a', timeKey: 't' } ).type, through( 'timeKey', { key: KEY_DEF, timeKey: { type: 'x' } }, { timeKey: 't' } ).key ], [ false, 'timeKey' ] );
 
+	/* =====================================================================
+	 * §D10 — a value the control cannot show is named in a notice
+	 * ================================================================== */
+
+	const surplus = await mount( { use: 'now;key', key: 'a;b' } );
+	check( 'D10.1 a `key` entry with no read left is named, and its removal stated',
+		noticeTexts( surplus.tree ), [ [ 'warning', false, 'Field `b` has no read to use it and will be removed on your next change here.' ] ] );
+	pick( surplus, 0, 'c' );
+	check( 'D10.2 ...and it is: the next change writes the reads the control shows, `b` gone', [ lastUse( surplus ), lastKey( surplus ) ], [ 'now;key', 'c' ] );
+	const surplus2 = await mount( { use: 'key;now', key: 'a;b+t;c' } );
+	check( 'D10.3 several left over: every field of each is named, in order',
+		noticeTexts( surplus2.tree ), [ [ 'warning', false, 'Fields `b`, `t`, `c` have no read to use them and will be removed on your next change here.' ] ] );
+	const extra = await mount( { key: 'a+t+x' } );
+	check( 'D10.4 an operand past the second is named as ignored, and no removal is claimed',
+		noticeTexts( extra.tree ), [ [ 'warning', false, 'A read combines one date and one time field only, so `x` is ignored.' ] ] );
+	pick( extra, 0, 'b' );
+	check( 'D10.5 ...and it is kept: a change to the read writes it back', lastKey( extra ), 'b+t+x' );
+	const extra2 = await mount( { key: 'a+t+x+y;e+u+z' } );
+	check( 'D10.6 several past the second, across reads: one notice names them all',
+		noticeTexts( extra2.tree ), [ [ 'warning', false, 'A read combines one date and one time field only, so `x`, `y`, `z` are ignored.' ] ] );
+	const fine = [ {}, { key: 'a+t;e' }, { use: 'now;key', key: 'a' }, { use: 'key;now', key: ';' }, { use: 'now;key' } ];
+	for ( const state of fine ) {
+		check( 'D10.7 no notice on a consistent value: ' + JSON.stringify( state ), noticeTexts( ( await mount( state ) ).tree ), [] );
+	}
 	console.log( '' );
 	if ( fail ) {
 		console.log( 'DATETIME READ CONTROL TEST FAILED (' + fail + ' of ' + total + ')' );
