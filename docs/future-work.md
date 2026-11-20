@@ -375,7 +375,7 @@ Blocked by: decision:which fallback link-wrap behavior is wanted  •  Interacts
 
 #### FW-192 — Unregister the four old datetime tags
 
-`datetime_single`, `datetime_range`, `try_datetime_single` and `try_datetime_range` stay registered, hidden from the picker, so stored content keeps rendering while the Migration Tool and the mount rewrite move it to `{{datetime}}` and `try_datetime`. Unregistering them ends that: a stored `{{datetime_single}}` then prints as literal braces, so it waits until no site still holds one.
+`datetime_single`, `datetime_range`, `try_datetime_single` and `try_datetime_range` stay registered, hidden from the picker, so stored content keeps rendering while the Migration Tool moves it to `{{datetime}}` and `try_datetime` (the editor's mount rewrite only folds the old options into one `key`, and never renames the tag). Unregistering them ends that: a stored `{{datetime_single}}` then prints as literal braces, so it waits until no site still holds one.
 
 Detail home: [`docs/design-history/datetime-tag-collapse.md`](design-history/datetime-tag-collapse.md) (the decision to keep them registered, and their options registered, is its D28); `bws_register_deprecated_tags()` PHPDoc for how they are declared
 
@@ -877,7 +877,7 @@ Detail home: `.scratch/try-datetime-per-slot/spec.md` (decided 2026-11-19)
 
 Progress: Built on branch `feature/try-datetime-per-slot`, tickets 01 to 06 merged (2026-11-19), the release-gate check included; what remains is the release itself. Measured on the testbed 2026-11-19, rows in `tools/test/datetime-test-matrix.md` (D12 the per-slot render rows, D6.4a to D6.4k the preview rows, D13 the Migration Tool on the old tags); the Migration Tool rewrite census and the page snapshots also ran clean. Decided before the release that first ships `try_datetime`, so the tag-level form it replaces has never shipped.
 
-Blocked by: —  •  Interacts with: FW-81 (closed; built the tag-level form this replaces and the mount and Migration Tool rewrites this retargets), FW-24 (a datetime read in `{{join}}` / `{{table}}` slots stays there), FW-192 (the old `try_` datetime tags whose rewrite target this changes)
+Blocked by: —  •  Interacts with: FW-81 (closed; built the tag-level form this replaces and the Migration Tool rewrite this retargets; the mount rewrite stays tag-level on the old `try_` tags), FW-24 (a datetime read in `{{join}}` / `{{table}}` slots stays there), FW-192 (the old `try_` datetime tags whose rewrite target this changes)
 
 ### Testing & infrastructure
 
