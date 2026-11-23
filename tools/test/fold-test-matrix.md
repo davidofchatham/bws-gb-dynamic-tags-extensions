@@ -141,8 +141,7 @@ Era is per SLOT, not per tag. Both directions, `/matrix-post-meta/`.
 
 ## §F5 — try_: no-read shape
 
-`try_title` / `try_permalink` / `try_datetime` / `try_datetime_single` / `try_datetime_range` — the read is a
-TAG-level option; a slot is a bare source chain.
+`try_title` / `try_permalink` / `try_datetime_single` / `try_datetime_range` — the read is a TAG-level option; a slot is a bare source chain. (`try_datetime` is the exception: its read rides each slot, F5.8 and F5.9.)
 
 | # | Tag | Context | Expected |
 |---|---|---|---|
@@ -153,8 +152,8 @@ TAG-level option; a slot is a bare source chain.
 | F5.5 | `{{try_datetime_single A:src(refs,related_staff)\|B:src(current)\|key:event_datetime}}` | post-meta | `May 1, 2030 10:00 AM, June 1, 2030 11:00 AM` — both related staff, each date formatted individually and joined (list mode); neither is the page's own `August 12, 2030 9:00 AM`, so slot 1 genuinely won |
 | F5.6 | `{{try_datetime_single src:ref\|ref:missing_rel\|2-src:current\|key:event_datetime}}` | post-meta | legacy twin of F5.4 |
 | F5.7 | `{{try_permalink A:src(current)\|B:src(site)}}` | jane | `https://testbed.test/staff/jane-partner/` |
-| F5.8 | `{{try_datetime A:src(refs,missing_rel)\|B:src(current)\|key:event_datetime}}` | post-meta | `August 12, 2030 9:00 AM` — F5.4's `try_datetime` twin (FW-81): the merged template has no per-slot read either, so `key` is tag-level and slot 1's hop finding nothing falls to slot 2 |
-| F5.9 | `{{try_datetime A:src(refs,related_staff)\|B:src(current)\|key:event_datetime}}` | post-meta | `May 1, 2030 10:00 AM, June 1, 2030 11:00 AM` — F5.5's twin, byte for byte what `try_datetime_single` prints there (the staff list, slot 2 never reached) |
+| F5.8 | `{{try_datetime A:src(refs,missing_rel);key(event_datetime)\|B:src(current)}}` | post-meta | `August 12, 2030 9:00 AM` — F5.4's `try_datetime` twin (FW-81, per-slot read since FW-193): slot 1 states the read, its hop finding nothing falls to slot 2, which reuses the read. Expected is the tag-level form's 2026-11-17 value; measured 2026-11-19 on the per-slot build (84c80a1): `render-tag` on `/matrix-post-meta/` and the visible block on a cache-busted front-end fetch both print the Expected value |
+| F5.9 | `{{try_datetime A:src(refs,related_staff);key(event_datetime)\|B:src(current)}}` | post-meta | `May 1, 2030 10:00 AM, June 1, 2030 11:00 AM` — F5.5's twin, byte for byte what `try_datetime_single` prints there (the staff list, slot 2 never reached). Expected is the tag-level form's value; measured 2026-11-19 on the per-slot build (84c80a1): `render-tag` on `/matrix-post-meta/` and the visible block on a cache-busted front-end fetch both print the Expected value |
 
 ## §F6 — carry-forward, carry over, and reset
 

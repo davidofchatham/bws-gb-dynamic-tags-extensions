@@ -692,9 +692,10 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);
-	// The `key` option of {{datetime}} / {{try_datetime}}: the list of reads, with one Location
-	// filter and one Type filter shared by every field picker it renders (FW-81). Loads after
-	// the field picker, which it mounts.
+	// The `key` option of {{datetime}} and the read inside each {{try_datetime}} slot card: the list
+	// of reads, with one Location filter and one Type filter shared by every field picker it renders
+	// (FW-81). Loads after the field picker, which it mounts; the slot-fold control, enqueued before
+	// it, looks the component up at render time.
 	wp_enqueue_script(
 		'bws-dynamic-tags-datetime-read-control',
 		BWS_DYNAMIC_TAGS_URL . 'assets/js/datetime-read-control.js',

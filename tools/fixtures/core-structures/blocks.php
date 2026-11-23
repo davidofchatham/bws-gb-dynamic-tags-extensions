@@ -780,8 +780,8 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F5.3 (-> https://testbed.test/staff/jane-partner/)', '{{try_permalink A:src(refs,related_staff)|B:src(site)}}' ),
 		bws_fixture_gb_row( 'F5.5 slot 1 genuinely wins - the staff list, not the page\'s own date (-> May 1, 2030 10:00 AM, June 1, 2030 11:00 AM)', '{{try_datetime_single A:src(refs,related_staff)|B:src(current)|key:event_datetime}}' ),
 		bws_fixture_gb_row( 'F5.6 legacy twin of F5.4 - slot 1 hop misses, slot 2 reads current (-> August 12, 2030 9:00 AM)', '{{try_datetime_single src:ref|ref:missing_rel|2-src:current|key:event_datetime}}' ),
-		bws_fixture_gb_row( 'F5.8 try_datetime twin of F5.4 - slot 1 hop misses, slot 2 reads current (-> August 12, 2030 9:00 AM)', '{{try_datetime A:src(refs,missing_rel)|B:src(current)|key:event_datetime}}' ),
-		bws_fixture_gb_row( 'F5.9 try_datetime twin of F5.5 - slot 1 wins with the staff list, not the current post (-> May 1, 2030 10:00 AM, June 1, 2030 11:00 AM)', '{{try_datetime A:src(refs,related_staff)|B:src(current)|key:event_datetime}}' ),
+		bws_fixture_gb_row( 'F5.8 try_datetime twin of F5.4 - slot 1 hop misses, slot 2 reads current (-> August 12, 2030 9:00 AM)', '{{try_datetime A:src(refs,missing_rel);key(event_datetime)|B:src(current)}}' ),
+		bws_fixture_gb_row( 'F5.9 try_datetime twin of F5.5 - slot 1 wins with the staff list, not the current post (-> May 1, 2030 10:00 AM, June 1, 2030 11:00 AM)', '{{try_datetime A:src(refs,related_staff);key(event_datetime)|B:src(current)}}' ),
 	) );
 
 	$sections[] = bws_fixture_gb_section( 'Fold F6-F7 - carry-over vs RESET, and slot-level limit', array(
@@ -2566,22 +2566,35 @@ function bws_fixture_page_content_matrix_datetime() {
 		bws_fixture_gb_row( 'D11.21 expect "August 1, 2030" (the old single tag has no use: it reads its key)', "{{datetime_single src:post,{$meta_id}|use:published|key:event_start_date}}" ),
 	) );
 
-	// try_datetime (FW-81). `refs,missing_rel` is an attempt that reads nothing on this
-	// page; the two pinned posts are the attempts that do, with different dates (jane's is the
+	// try_datetime (FW-81, FW-193). Each attempt carries its own read; one with no read reuses the
+	// previous resolving attempt's whole read. `refs,missing_rel` is an attempt that reads nothing on
+	// this page; the two pinned posts are the attempts that do, with different dates (jane's is the
 	// May one), so a walk that stopped at the wrong attempt prints the wrong date, not the same one.
 	$sections[] = bws_fixture_gb_section( 'Datetime D12 - try_datetime (first attempt that reads wins)', array(
-		bws_fixture_gb_row( 'D12.1 expect "August 12, 2030 9:00 AM" (the first attempt reads, so it wins; the second would print May 1)', "{{try_datetime A:src(post,{$meta_id})|B:src(post,{$jane_id})|key:event_datetime}}" ),
-		bws_fixture_gb_row( 'D12.2 expect "May 1, 2030 10:00 AM" (the first attempt reads nothing, the second wins)', "{{try_datetime A:src(refs,missing_rel)|B:src(post,{$jane_id})|key:event_datetime}}" ),
+		bws_fixture_gb_row( 'D12.1 expect "August 12, 2030 9:00 AM" (the first attempt reads, so it wins; the second reuses its read and would print May 1)', "{{try_datetime A:src(post,{$meta_id});key(event_datetime)|B:src(post,{$jane_id})}}" ),
+		bws_fixture_gb_row( 'D12.2 expect "May 1, 2030 10:00 AM" (the first attempt reads nothing, the second reuses its read and wins)', "{{try_datetime A:src(refs,missing_rel);key(event_datetime)|B:src(post,{$jane_id})}}" ),
 		bws_fixture_gb_row( 'D12.3 expect "May 1, 2030 10:00 AM" (= D12.2 through the old try_datetime_single, which still renders)', "{{try_datetime_single A:src(refs,missing_rel)|B:src(post,{$jane_id})|key:event_datetime}}" ),
-		bws_fixture_gb_row( 'D12.4 expect "August 1-9, 2030" (two key entries make every attempt a range)', "{{try_datetime A:src(refs,missing_rel)|B:src(post,{$meta_id})|key:event_start_date;event_end_date}}" ),
+		bws_fixture_gb_row( 'D12.4 expect "August 1-9, 2030" (two key entries make the attempt a range, and the second attempt reuses them)', "{{try_datetime A:src(refs,missing_rel);key(event_start_date;event_end_date)|B:src(post,{$meta_id})}}" ),
 		bws_fixture_gb_row( 'D12.5 expect "August 1-9, 2030" (= D12.4 through the old try_datetime_range)', "{{try_datetime_range A:src(refs,missing_rel)|B:src(post,{$meta_id})|startKey:event_start_date|endKey:event_end_date}}" ),
-		bws_fixture_gb_row( 'D12.6 expect "August 1, 2030, 9:00 am" (a date field joined to a time field with +, read by the second attempt)', "{{try_datetime A:src(refs,missing_rel)|B:src(post,{$meta_id})|key:event_start_date+event_time}}" ),
-		bws_fixture_gb_row( 'D12.7 expect "March 3, 2025" (a verb read: the published date of the post, from the second attempt)', "{{try_datetime A:src(refs,missing_rel)|B:src(post,{$meta_id})|use:published}}" ),
-		bws_fixture_gb_row( 'D12.8 expect "August 1, 2030-March 3, 2025" (a field until published: the use list reaches every attempt)', "{{try_datetime A:src(refs,missing_rel)|B:src(post,{$meta_id})|use:key;published|key:event_start_date}}" ),
-		bws_fixture_gb_row( 'D12.9 expect "Date TBA" (every attempt reads nothing, so the fallback prints once)', "{{try_datetime A:src(refs,missing_rel)|B:src(site)|key:event_datetime|fallback:Date TBA}}" ),
+		bws_fixture_gb_row( 'D12.6 expect "August 1, 2030, 9:00 am" (a date field joined to a time field with +, read by the second attempt)', "{{try_datetime A:src(refs,missing_rel);key(event_start_date+event_time)|B:src(post,{$meta_id})}}" ),
+		bws_fixture_gb_row( 'D12.7 expect "March 3, 2025" (a verb read: the published date of the post, from the second attempt)', "{{try_datetime A:src(refs,missing_rel);use(published)|B:src(post,{$meta_id})}}" ),
+		bws_fixture_gb_row( 'D12.8 expect "August 1, 2030-March 3, 2025" (a field until published: the whole use list reaches the second attempt)', "{{try_datetime A:src(refs,missing_rel);use(key;published);key(event_start_date)|B:src(post,{$meta_id})}}" ),
+		bws_fixture_gb_row( 'D12.9 expect "Date TBA" (every attempt reads nothing, so the fallback prints once)', "{{try_datetime A:src(refs,missing_rel);key(event_datetime)|B:src(site)|fallback:Date TBA}}" ),
 		bws_fixture_gb_empty_row( 'D12.10 expect EMPTY (a bare try_datetime has no read and no fallback)', "{{try_datetime}}" ),
-		bws_fixture_gb_row( 'D12.11 expect "August 12, 2030 9:00 AM" LINKED to the matrix-post-meta page (the link follows the attempt that won)', "{{try_datetime A:src(post,{$meta_id})|key:event_datetime|linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'D12.11 expect "August 12, 2030 9:00 AM" LINKED to the matrix-post-meta page (the link follows the attempt that won)', "{{try_datetime A:src(post,{$meta_id});key(event_datetime)|linkTo:permalink}}" ),
 		bws_fixture_gb_row( 'D12.12 expect "August 12, 2030 9:00 AM" (= D12.1 through the old try_datetime_single, which still renders)', "{{try_datetime_single A:src(post,{$meta_id})|B:src(post,{$jane_id})|key:event_datetime}}" ),
+		bws_fixture_gb_row( 'D12.13 expect "August 12, 2030 9:00 AM" (a range that reads nothing falls to the single behind it: each attempt has its own mode)', "{{try_datetime A:src(refs,missing_rel);key(event_start_date;event_end_date)|B:src(post,{$meta_id});key(event_datetime)}}" ),
+		bws_fixture_gb_row( 'D12.14 expect "August 1-9, 2030" (the range in the first attempt reads, so it wins over the single behind it)', "{{try_datetime A:src(post,{$meta_id});key(event_start_date;event_end_date)|B:src(post,{$meta_id});key(event_datetime)}}" ),
+		bws_fixture_gb_row( 'D12.15 expect "March 3, 2025" (a verb as the last attempt: the published date when the field above read nothing)', "{{try_datetime A:src(refs,missing_rel);key(event_datetime)|B:src(post,{$meta_id});use(published)}}" ),
+		bws_fixture_gb_row( 'D12.16 expect "May 1, 2030 10:00 AM" (= D12.2 with the carry-over spelled use(same))', "{{try_datetime A:src(refs,missing_rel);key(event_datetime)|B:src(post,{$jane_id});use(same)}}" ),
+		bws_fixture_gb_row( 'D12.17 expect "May 1, 2030 10:00 AM" (each attempt reads its own field: the first names a field the post does not have)', "{{try_datetime A:src(post,{$meta_id});key(no_such_field)|B:src(post,{$jane_id});key(event_datetime)}}" ),
+		bws_fixture_gb_row( 'D12.18 expect "May 1, 2030 10:00 AM" (the first attempt has no read, so it prints nothing and the second takes over)', "{{try_datetime A:src(post,{$meta_id})|B:src(post,{$jane_id});key(event_datetime)}}" ),
+		bws_fixture_gb_empty_row( 'D12.19 expect EMPTY (the first attempt has no read and nothing follows it)', "{{try_datetime A:src(post,{$meta_id})}}" ),
+		bws_fixture_gb_row( 'D12.20 expect "May 1, 2030 10:00 AM" (a use list that needs a field and has none reads nothing; the second attempt states its own read and borrows nothing)', "{{try_datetime A:src(post,{$meta_id});use(key;now)|B:src(post,{$jane_id});key(event_datetime)}}" ),
+		bws_fixture_gb_row( 'D12.21 expect "FB" (the same use list alone: an empty read, so the fallback prints once)', "{{try_datetime A:src(post,{$meta_id});use(key;now)|fallback:FB}}" ),
+		bws_fixture_gb_row( 'D12.22 expect "August 1, 2030" (a tag-level key is not an option of try_datetime, so the key(event_start_date) in the attempt is what reads)', "{{try_datetime key:event_end_date|A:src(post,{$meta_id});key(event_start_date)}}" ),
+		bws_fixture_gb_empty_row( 'D12.23 expect EMPTY (a tag-level key is ignored, and the attempt states no read)', "{{try_datetime key:event_datetime|A:src(post,{$meta_id})}}" ),
+		bws_fixture_gb_empty_row( 'D12.24 expect EMPTY (a tag-level key alone is ignored, not recovered into the first attempt)', "{{try_datetime key:event_datetime}}" ),
 	) );
 
 	// The Migration Tool on the old tags (FW-81). Every old-form row on this page is rewritten

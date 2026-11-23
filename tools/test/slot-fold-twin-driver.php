@@ -31,6 +31,9 @@ if ( ! function_exists( 'sanitize_key' ) ) {
 require __DIR__ . '/../../includes/helpers/serialization-order.php';
 require __DIR__ . '/../../includes/helpers/slot-fold.php';
 require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
+// bws_datetime_reads, which the slot parser asks under a case's `reads` flag.
+require __DIR__ . '/../../includes/helpers/registration-helpers.php';
+require __DIR__ . '/../../includes/tags/datetime-tags.php';
 // The resolution reads the engine's input-kind list for a kind-preserving step (FW-169).
 require __DIR__ . '/../../includes/helpers/traversal-pipeline.php';
 
@@ -60,7 +63,9 @@ function twin_canon_slot( $slot ) {
 		return array( 'error', $slot['error'] );
 	}
 	$read = $slot['read'] ?? null;
-	if ( null !== $read ) {
+	if ( null !== $read && 'datetime' === $read['kind'] ) {
+		$read = array( 'datetime', $read['key'], $read['use'], array_map( 'array_values', $read['reads'] ) );
+	} elseif ( null !== $read ) {
 		$read = array( $read['kind'], $read['slug'] ?? ( $read['field'] ?? ( $read['text'] ?? '' ) ) );
 	}
 	$opts = $slot['opts'] ?? array();
@@ -105,7 +110,7 @@ $doc = array(
 );
 
 foreach ( $corpus['slots'] as $case ) {
-	$parsed = bws_fold_parse_slot( $case['wire'], $case['container'] );
+	$parsed = bws_fold_parse_slot( $case['wire'], $case['container'], ! empty( $case['reads'] ) );
 	$doc['slots'][] = array(
 		'parse' => twin_canon_slot( $parsed ),
 		'emit'  => isset( $parsed['error'] ) ? null : bws_fold_emit_slot( $parsed ),

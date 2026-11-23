@@ -92,6 +92,10 @@ use BWS\DynamicTags\TagTemplateRegistry;
 foreach ( array( 'text', 'content', 'image' ) as $key ) {
 	TagTemplateRegistry::register_modifier_template( array( 'key' => $key, 'supports_try' => true ) );
 }
+// The old try_ tags' templates, as the plugin registers them: their option cascade folds flat slot keys.
+foreach ( array( 'datetime_single', 'datetime_range' ) as $key ) {
+	TagTemplateRegistry::register_modifier_template( array( 'key' => $key, 'supports_try' => true ) );
+}
 bws_register_nxm_tag_migrations();
 bws_register_early_deprecated_tag_migrations();
 bws_register_option_migrations();
@@ -190,6 +194,17 @@ $no_rewrite = array(
 	'range: key alone is already the new form'           => 'key:s;e',
 	'range: a ; in an operand is not a clean entry'      => 'startKey:a;b|endKey:e',
 );
+// The same, for the two `try_` names, whose read goes into slot A (FW-193): a rename alone would
+// empty the tag, so a plain read moves into A, and what cannot move keeps the old name whole.
+$no_rewrite_try = array(
+	'single: key alone is already the new form'          => 'A:key(a)',
+	'single: a + in the key is not a clean entry'        => null,
+	'single: a ; in the time key is not a clean entry'   => null,
+	'range: all four empty is left alone'                => null,
+	'range: key alone is already the new form'           => 'A:key(s;e)',
+	'range: a ; in an operand is not a clean entry'      => null,
+	'try slot A: an unparsable A is left alone'          => null,
+);
 $new_names = array(
 	'datetime_single'     => 'datetime',
 	'datetime_range'      => 'datetime',
@@ -204,11 +219,14 @@ foreach ( (array) ( $corpus['cases'] ?? array() ) as $case ) {
 		$verdict = TagConverter::classify_tag( $old, $stored );
 		$ran     = TagConverter::migrate_string( $stored )['content'];
 
-		if ( null !== $case['expect'] ) {
-			check( "C3.9 the run writes the rewrite ({$stored})", MigrationRegistry::format_tag_string( $new_names[ $old ], $case['expect'] ) === $ran, $ran );
+		$is_try = 0 === strpos( $old, 'try_' );
+		$expect = $is_try ? $case['expectTry'] : $case['expect'];
+		$stated = $is_try ? $no_rewrite_try : $no_rewrite;
+		if ( null !== $expect ) {
+			check( "C3.9 the run writes the rewrite ({$stored})", MigrationRegistry::format_tag_string( $new_names[ $old ], $expect ) === $ran, $ran );
 		} elseif ( empty( $case['endOnly'] ) ) {
-			check( "C3.10 every no-rewrite case has a stated outcome ({$case['label']})", array_key_exists( $case['label'], $no_rewrite ) );
-			$want = ( $no_rewrite[ $case['label'] ] ?? null );
+			check( "C3.10 every no-rewrite case has a stated outcome ({$case['label']})", array_key_exists( $case['label'], $stated ) );
+			$want = ( $stated[ $case['label'] ] ?? null );
 			check(
 				"C3.11 {$case['label']}: {$old}",
 				null === $want ? $stored === $ran : '{{' . $new_names[ $old ] . ' ' . $want . '}}' === $ran,
@@ -233,6 +251,29 @@ foreach ( (array) ( $corpus['cases'] ?? array() ) as $case ) {
 	}
 }
 check( 'C3.5 every end-only case met both of its names', 8 === $end_only_seen, (string) $end_only_seen );
+
+// The old try_ tags keep slots the old option cascade folds: flat slot keys fold first, then the read goes
+// into slot A beside them, and slots 2+ (no read of their own) are left to reuse it.
+foreach ( array(
+	'C3.14 flat slot 1 and 2 fold, then A takes the read' => array(
+		'{{try_datetime_single src:post,3|key:a|timeKey:t|2-src:parent}}',
+		'{{try_datetime A:src(post,3);key(a+t)|B:src(parent)}}',
+	),
+	'C3.15 no slot at all makes one slot A' => array(
+		'{{try_datetime_range startKey:s|endKey:e}}',
+		'{{try_datetime A:key(s;e)}}',
+	),
+	'C3.16 a read-less old try tag is renamed and gains no slot' => array(
+		'{{try_datetime_single src:post,3}}',
+		'{{try_datetime A:src(post,3)}}',
+	),
+	'C3.17 a tag-level use is left whole' => array(
+		'{{try_datetime_single key:a|use:published}}',
+		'{{try_datetime_single key:a|use:published}}',
+	),
+) as $label => list( $in, $want ) ) {
+	check( "{$label}: {$in}", $want === TagConverter::migrate_string( $in )['content'], TagConverter::migrate_string( $in )['content'] );
+}
 
 // A single that names a range key would turn into a range under the new name (the merged tag derives its
 // mode from the options), so it is left whole, unreported.

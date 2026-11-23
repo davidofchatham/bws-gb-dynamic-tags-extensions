@@ -1,6 +1,7 @@
 /**
- * The `key` option of `{{datetime}}` and `{{try_datetime}}`: the list of reads, one `;` entry
- * each, and inside an entry a primary field and an optional separate time field joined by `+`.
+ * The `key` option of `{{datetime}}`, and the `key` / `use` tokens of each `{{try_datetime}}` slot (the
+ * slot card mounts this component; see window.bwsDatetimeReadControl): the list of reads, one `;`
+ * entry each, and inside an entry a primary field and an optional separate time field joined by `+`.
  *
  *   key:event_datetime                      one read
  *   key:event_date+start_time               one read, date and time in two fields
@@ -69,12 +70,61 @@
 		return '' === time ? field : field + '+' + time;
 	}
 
+	function legacyOrder( out ) {
+		var keys = Object.keys( out );
+		if ( 'function' === typeof window.bwsReorderKeys ) {
+			keys = window.bwsReorderKeys( keys );
+		}
+		var ordered = {};
+		keys.forEach( function ( name ) {
+			ordered[ name ] = out[ name ];
+		} );
+		return ordered;
+	}
+
+	/**
+	 * TWIN of bws_datetime_legacy_key_to_slot_a() (PHP), which states the rule: move a tag-level
+	 * `key` into slot A as `key(…)`, where `try_datetime` reads it. Pure, and NOT called by the
+	 * live mount: the old hidden try_ tags still read tag-level `key`, so the mount keeps it there.
+	 *
+	 * @param {Object} state The tag's options, slots already folded.
+	 * @return {Object|null} Options in canonical order, or null when slot A cannot be parsed.
+	 */
+	function legacyKeyToSlotA( state ) {
+		var key = legacyText( state, 'key' );
+		if ( '' === key ) {
+			return state;
+		}
+		var grammar = window.bwsSlotFold;
+		if ( ! grammar ) {
+			return null;
+		}
+		var slot = { header: null, type: null, chain: [], read: null, opts: {}, extra: [] };
+		var raw  = legacyText( state, 'A' );
+		if ( '' !== raw ) {
+			slot = grammar.parseSlot( raw, 'try', true );
+			if ( slot.error ) {
+				return null;
+			}
+		}
+		slot.read = { kind: 'datetime', key: key, use: '' };
+		var out = {};
+		Object.keys( state ).forEach( function ( name ) {
+			if ( 'key' !== name ) {
+				out[ name ] = state[ name ];
+			}
+		} );
+		out.A = grammar.emitSlot( slot, 1 );
+		return legacyOrder( out );
+	}
+
 	/**
 	 * @param {Object} state  The tag's options.
 	 * @param {string} family `single` or `range`: the old tag's own family.
+	 * @param {Object} [opts] `slotA: true` writes the read into slot A, the `try_datetime` form.
 	 * @return {Object|null} Rewritten options in canonical order, or null when nothing changes.
 	 */
-	function legacyRewrite( state, family ) {
+	function legacyRewrite( state, family, opts ) {
 		var names = LEGACY_KEYS[ family ];
 		var text  = {};
 		var clean = true;
@@ -112,15 +162,8 @@
 		if ( '' !== key ) {
 			out.key = key;
 		}
-		var keys = Object.keys( out );
-		if ( 'function' === typeof window.bwsReorderKeys ) {
-			keys = window.bwsReorderKeys( keys );
-		}
-		var ordered = {};
-		keys.forEach( function ( name ) {
-			ordered[ name ] = out[ name ];
-		} );
-		return ordered;
+		out = legacyOrder( out );
+		return opts && opts.slotA ? legacyKeyToSlotA( out ) : out;
 	}
 
 	/**
@@ -134,7 +177,7 @@
 			&& null === legacyRewrite( state, family );
 	}
 
-	window.bwsDatetimeLegacy = { rewrite: legacyRewrite, hold: legacyHold };
+	window.bwsDatetimeLegacy = { rewrite: legacyRewrite, hold: legacyHold, slotA: legacyKeyToSlotA };
 
 	if ( ! window.wp || ! wp.hooks || ! wp.element || ! wp.components || ! wp.components.SelectControl ) {
 		return;
@@ -252,6 +295,11 @@
 
 		var locState  = useState( null );
 		var typeState = useState( null );
+		// In a try_datetime slot card from slot B on, the first read may instead be "the previous
+		// slot's reads" (`use` = `same`): then that select is the whole control. Slot A and the base
+		// tag pass no label, so for them `same` is no row and no state.
+		var sameLabel = cfg.sameLabel || '';
+		var isSame    = !! sameLabel && 'same' === String( state.use || '' ).trim();
 		var choices = cfg.reads || [];
 		var verbs   = choices.map( function ( c ) { return c.value; } ).filter( function ( v ) { return 'key' !== v; } );
 		var parsed  = parseReads( state, verbs, max );
@@ -302,11 +350,12 @@
 		}
 
 		/** The rows read `i` can show: the kind-limited ones only where the source allows, its own always. */
-		function rowsFor( read ) {
+		function rowsFor( read, i ) {
 			var cur = read.verb || 'key';
-			return choices.filter( function ( c ) {
+			var rows = choices.filter( function ( c ) {
 				return c.value === cur || ! c.kinds || ! kind || -1 !== c.kinds.indexOf( kind );
 			} ).map( function ( c ) { return { value: c.value, label: c.label }; } );
+			return ( sameLabel && 0 === i ) ? [ { value: 'same', label: sameLabel } ].concat( rows ) : rows;
 		}
 
 		/** A picker's context: the tag's own state with `key` replaced by the one operand it edits. */
@@ -374,12 +423,18 @@
 				kids.push( el( 'div', { key: 'read', style: { marginBottom: '12px' } },
 					el( SelectControl, {
 						label: cfg.readLabel,
-						value: read.verb || 'key',
-						options: rowsFor( read ),
+						value: ( isSame && 0 === i ) ? 'same' : ( read.verb || 'key' ),
+						options: rowsFor( read, i ),
 						__nextHasNoMarginBottom: true,
 						onChange: function ( v ) {
-							if ( v === ( read.verb || 'key' ) ) { return; }
+							if ( v === ( ( isSame && 0 === i ) ? 'same' : ( read.verb || 'key' ) ) ) { return; }
 							setTimeOpen( i, false );
+							if ( 'same' === v ) {
+								var carry = Object.assign( {}, state, { use: 'same' } );
+								delete carry.key;
+								setState( carry );
+								return;
+							}
 							write( reads.map( function ( r, n ) {
 								return n !== i ? r : ( 'key' === v ? fieldRead( [ '' ] ) : { verb: v, ops: [] } );
 							} ) );
@@ -387,7 +442,7 @@
 					} )
 				) );
 			}
-			if ( read.verb ) {
+			if ( read.verb || isSame ) {
 				children.push( el( Fragment, { key: 'entry-' + i }, kids ) );
 				return;
 			}
@@ -436,7 +491,7 @@
 			}
 		} );
 
-		if ( count < max ) {
+		if ( count < max && ! isSame ) {
 			children.push( el( Button, {
 				key: 'add',
 				variant: 'secondary',
@@ -447,6 +502,10 @@
 
 		return el( Fragment, null, children );
 	}
+
+	// Exported for the slot repeater, which mounts it (through createElement, so each slot card
+	// keeps its own filters) in a try_datetime slot card.
+	window.bwsDatetimeReadControl = DatetimeReadControl;
 
 	/** Renders nothing; rewrites an old tag's six options into `key` when its modal opens. */
 	function LegacyMountMigrator( props ) {

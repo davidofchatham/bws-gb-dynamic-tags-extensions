@@ -1,7 +1,7 @@
 /**
  * JS side of the datetime mount-rewrite twin: run tools/test/datetime-mount-corpus.json
- * through assets/js/datetime-read-control.js and print one result per case, in the shape
- * the PHP block in datetime-migration-test.php (D8) builds: `null` when the tag is left
+ * through assets/js/datetime-read-control.js and print one result per case (for the plain rewrite and
+ * for its slot-A mode), in the shape the PHP block in datetime-migration-test.php (D8) builds: `null` when the tag is left
  * alone, otherwise an ORDERED array of [key, value] pairs (key order is part of the
  * property, and a JS object cannot be trusted to carry it for every key).
  *
@@ -51,9 +51,14 @@ if ( 'function' !== typeof global.window.bwsReorderKeys ) {
 }
 
 const corpus = JSON.parse( fs.readFileSync( path.join( __dirname, 'datetime-mount-corpus.json' ), 'utf8' ) );
-const out = corpus.cases.map( function ( c ) {
-	const got = legacy.rewrite( c.options, c.family );
+function pairs( got ) {
 	return null === got ? null : Object.keys( got ).map( function ( k ) { return [ k, got[ k ] ]; } );
-} );
+}
 
-process.stdout.write( JSON.stringify( out ) );
+// `plain`: the live mount's rewrite (tag-level `key`). `slotA`: the same rewrite with the read
+// written into slot A, the form the Migration Tool writes for a try_ tag. Not called by the live
+// mount, whose old hidden try_ tags still read tag-level `key`.
+process.stdout.write( JSON.stringify( {
+	plain: corpus.cases.map( function ( c ) { return pairs( legacy.rewrite( c.options, c.family ) ); } ),
+	slotA: corpus.cases.map( function ( c ) { return pairs( legacy.rewrite( c.options, c.family, { slotA: true } ) ); } )
+} ) );

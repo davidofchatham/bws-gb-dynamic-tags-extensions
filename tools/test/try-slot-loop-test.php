@@ -37,8 +37,9 @@
  *         shell's, fired once on an all-empty walk); the winning triple comes back
  *         verbatim for the shell to link-wrap.
  *
- *   §L8 — A TAG-LEVEL READ (`try_datetime`). No per-slot read axis, so every
- *         attempt resolves with the tag's own `use`/`key`, whole.
+ *   §L8 — PER-SLOT DATETIME READS (`try_datetime`, FW-193). A template that sets
+ *         `try_per_slot_reads` gives each attempt its own `use`/`key`, read whole
+ *         off the slot (carry-over included) and replacing any tag-level pair.
  *
  * The walk's own PHPDoc is the axis owner for every section. These rows check its
  * observable consequences.
@@ -80,6 +81,16 @@ require __DIR__ . '/../../includes/helpers/traversal-pipeline.php';
 if ( ! function_exists( 'sanitize_key' ) ) {
 	function sanitize_key( $k ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $k ) ); }
 }
+
+if ( ! function_exists( 'wp_validate_boolean' ) ) {
+	function wp_validate_boolean( $value ) {
+		return is_string( $value ) && 'false' === strtolower( $value ) ? false : (bool) $value;
+	}
+}
+// bws_normalize_datetime_options(): the real mode/read parse behind §L8's stand-in seam.
+require __DIR__ . '/../../includes/helpers/registration-helpers.php';
+require __DIR__ . '/../../includes/helpers/datetime-helpers.php';
+require __DIR__ . '/../../includes/tags/datetime-tags.php';
 
 require __DIR__ . '/../../includes/helpers/try-slot-loop.php';
 
@@ -463,48 +474,168 @@ $calls = array();
 bws_try_run_attempts( $flat, null, CFG_KEYED_FIXED, recorder( array( '', 'x' ), $calls ) );
 eq( 'L7.2 no era override = the live rule: slot 2 key with no `use` is discarded (FW-51)', array( 'unused_line' ), array_column( $calls, 'key' ) );
 
-// ── §L8 — a tag-level read (`try_datetime`, FW-81) ──────────────────────────────────────
-// The merged datetime template has `use` and `key` options but no per-slot read axis: its read
-// grammar spends `;` and `+`, so the slot grammar cannot carry it. Every attempt must then hand
-// the resolver the TAG's own `use`/`key` untouched, and only the source varies.
+// ── §L8 — per-slot datetime reads (`try_datetime`, FW-193) ─────────────────────────────
+// The merged datetime template sets `try_per_slot_reads`: each slot's `key(...)` / `use(...)` IS
+// that attempt's whole read, and the tag-level pair is not registered. The resolver here is a
+// stand-in for the real datetime seam (bws_base_datetime_resolve_value, which needs WordPress):
+// it takes its MODE and its reads from bws_normalize_datetime_options() with the family `null`,
+// exactly as the real seam does, and looks each field up in a fake post-meta table.
 
 const CFG_DATETIME = array(
-	'per_slot_key' => false,
-	'per_slot_use' => false,
-	'no_key_uses'  => array(),
-	'default_use'  => 'key',
-	'collapse'     => false,
+	'per_slot_key'   => false,
+	'per_slot_use'   => false,
+	'per_slot_reads' => true,
+	'no_key_uses'    => array(),
+	'default_use'    => '',
+	'collapse'       => false,
 );
 
-$dt_read = array( 'use' => 'key;now', 'key' => 'event_date+start_time' );
+/**
+ * A datetime resolve seam over a fake meta table. Single: the one read's value. Range: both
+ * reads' values joined with ` - `, and nothing when either is empty (a range with no start
+ * prints nothing, as the real core does). A verb read is its name upper-cased.
+ *
+ * @param array $meta  Field name => value.
+ * @param array $calls OUT: every option set the walk handed over.
+ */
+function dt_seam( array $meta, array &$calls ): callable {
+	return function ( array $slot_opts, $inst ) use ( $meta, &$calls ) {
+		$calls[] = $slot_opts;
+		$m       = bws_normalize_datetime_options( $slot_opts, null );
+		$read    = static function ( $verb, $field ) use ( $meta ) {
+			return '' !== (string) $verb ? strtoupper( $verb ) : (string) ( $meta[ (string) $field ] ?? '' );
+		};
+		if ( $m['is_range'] ) {
+			$a = $read( $m['start_verb'] ?? '', $m['start_field'] ?? '' );
+			$b = $read( $m['end_verb'] ?? '', $m['end_field'] ?? '' );
+			$v = ( '' !== $a && '' !== $b ) ? $a . ' - ' . $b : '';
+		} else {
+			$v = $read( $m['verb'] ?? '', $m['date_time_field'] ?? '' );
+		}
+		return array( 'value' => $v, 'link_id' => 0, 'link_type' => 'post' );
+	};
+}
+
+/** The value a walk returned, or null. */
+function won( ?array $w ): ?string {
+	return null === $w ? null : $w['value'];
+}
+
+$meta = array( 'a' => '', 'b' => 'Sep 2', 's' => 'Aug 1', 'e' => 'Aug 3', 'x' => 'Oct 9' );
 
 $calls = array();
 eq(
-	'L8.1 first attempt empty, second reads: the SECOND value wins',
-	array( 'value' => 'Aug 1', 'link_id' => 0, 'link_type' => 'post' ),
-	bws_try_run_attempts( array_merge( $dt_read, slots( 'src(refs,missing_rel)', 'src(current)' ) ), null, CFG_DATETIME, recorder( array( '', 'Aug 1' ), $calls ) )
+	'L8.1 each slot reads its own field: A is empty, B reads b',
+	'Sep 2',
+	won( bws_try_run_attempts( slots( 'key(a)', 'key(b)' ), null, CFG_DATETIME, dt_seam( $meta, $calls ) ) )
 );
-eq(
-	'L8.1 each attempt resolved with the tag-level read, whole and unsplit',
-	array( array( 'key;now', 'event_date+start_time' ), array( 'key;now', 'event_date+start_time' ) ),
-	array_map( static fn( $o ) => array( $o['use'], $o['key'] ), $calls )
-);
+eq( 'L8.1 each attempt resolved with its own key', array( 'a', 'b' ), array_column( $calls, 'key' ) );
 
 $calls = array();
 eq(
-	'L8.2 first attempt reads: it wins and the second never runs',
-	array( 'value' => 'Aug 1', 'link_id' => 0, 'link_type' => 'post' ),
-	bws_try_run_attempts( array_merge( $dt_read, slots( 'src(current)', 'src(site)' ) ), null, CFG_DATETIME, recorder( array( 'Aug 1', 'Sep 2' ), $calls ) )
+	'L8.2 slots of different modes: a range that reads wins over the single behind it',
+	'Aug 1 - Aug 3',
+	won( bws_try_run_attempts( slots( 'key(s;e)', 'key(b)' ), null, CFG_DATETIME, dt_seam( $meta, $calls ) ) )
 );
 eq( 'L8.2 one resolve', 1, count( $calls ) );
 
 $calls = array();
 eq(
-	'L8.3 no per-slot gate: an attempt with no field key still resolves (a verb needs none)',
-	array( 'value' => 'Nov 17', 'link_id' => 0, 'link_type' => 'post' ),
-	bws_try_run_attempts( array( 'use' => 'now', 'A' => 'src(current)' ), null, CFG_DATETIME, recorder( array( 'Nov 17' ), $calls ) )
+	'L8.2 range with an empty end falls to the single behind it',
+	'Sep 2',
+	won( bws_try_run_attempts( slots( 'key(s;a)', 'key(b)' ), null, CFG_DATETIME, dt_seam( $meta, $calls ) ) )
 );
-eq( 'L8.3 the resolver saw no `key`', array( false ), array_map( static fn( $o ) => isset( $o['key'] ), $calls ) );
+
+$calls = array();
+eq(
+	'L8.3 a verb slot as the last attempt',
+	'PUBLISHED',
+	won( bws_try_run_attempts( slots( 'key(a)', 'use(published)' ), null, CFG_DATETIME, dt_seam( $meta, $calls ) ) )
+);
+eq( 'L8.3 the verb attempt carried no field', array( array( 'published', '' ) ), array_slice( array_map( static fn( $o ) => array( $o['use'], $o['key'] ), $calls ), 1 ) );
+
+$calls = array();
+bws_try_run_attempts( slots( 'src(current);key(a)', 'src(site)' ), null, CFG_DATETIME, dt_seam( $meta, $calls ) );
+eq(
+	'L8.4 slot B (no read) resolved with slot A\'s read, and its own source',
+	array( array( '', 'a', 'current' ), array( '', 'a', 'site' ) ),
+	array_map( static fn( $o ) => array( $o['use'], $o['key'], $o['src'] ), $calls )
+);
+
+$calls = array();
+bws_try_run_attempts( slots( 'use(published)', 'src(site);use(same)' ), null, CFG_DATETIME, static function ( $o, $i ) use ( &$calls ) { $calls[] = $o; return array( 'value' => '' ); } );
+eq(
+	'L8.5 an explicit `use(same)` carries a verb read too',
+	array( array( 'published', '' ), array( 'published', '' ) ),
+	array_map( static fn( $o ) => array( $o['use'], $o['key'] ), $calls )
+);
+
+$calls = array();
+bws_try_run_attempts( slots( 'use(published)', 'key(b)' ), null, CFG_DATETIME, dt_seam( $meta, $calls ) );
+eq(
+	'L8.5 a slot stating any read part borrows nothing: B states a key, so A\'s verb is not carried',
+	array( array( 'published', '' ) ),
+	array_map( static fn( $o ) => array( $o['use'], $o['key'] ), array_slice( $calls, 0, 1 ) )
+);
+
+$calls = array();
+eq(
+	'L8.6 slot A with no read is a read-less attempt: prints nothing, B takes over',
+	'Sep 2',
+	won( bws_try_run_attempts( slots( 'src(current)', 'key(b)' ), null, CFG_DATETIME, dt_seam( $meta, $calls ) ) )
+);
+eq( 'L8.6 A resolved with no read at all', array( array( '', '' ) ), array_map( static fn( $o ) => array( $o['use'], $o['key'] ), array_slice( $calls, 0, 1 ) ) );
+
+$calls = array();
+eq(
+	'L8.6 nothing configured at all: one read-less attempt, empty walk',
+	null,
+	won( bws_try_run_attempts( array(), null, CFG_DATETIME, dt_seam( $meta, $calls ) ) )
+);
+
+$calls = array();
+eq(
+	'L8.7 a verb list that needs a field but states none reads empty, and B takes over',
+	'Sep 2',
+	won( bws_try_run_attempts( slots( 'use(key;now)', 'key(b)' ), null, CFG_DATETIME, dt_seam( $meta, $calls ) ) )
+);
+
+eq(
+	'L8.7 ... and B does not borrow A\'s verb list (it states a read of its own)',
+	array( 'key;now', '' ),
+	array( $calls[0]['use'] ?? null, $calls[1]['use'] ?? null )
+);
+
+$calls = array();
+bws_try_run_attempts( array( 'key' => 'tagkey', 'use' => 'published', 'A' => 'key(a)', 'B' => 'src(site)' ), null, CFG_DATETIME, dt_seam( $meta, $calls ) );
+eq(
+	'L8.8 a tag-level `key`/`use` never reaches an attempt: the slot\'s read replaces it',
+	array( array( '', 'a' ), array( '', 'a' ) ),
+	array_map( static fn( $o ) => array( $o['use'], $o['key'] ), $calls )
+);
+
+$calls = array();
+bws_try_run_attempts( array( 'key' => 'tagkey', 'use' => 'published' ), null, CFG_DATETIME, dt_seam( $meta, $calls ) );
+eq(
+	'L8.8 with no slot A, a tag-level read is not recovered into slot 1 either',
+	array( array( '', '' ) ),
+	array_map( static fn( $o ) => array( $o['use'], $o['key'] ), $calls )
+);
+
+$calls = array();
+bws_try_run_attempts( array( 'startKey' => 'x', 'timeKey' => 'x', 'A' => 'key(b)' ), null, CFG_DATETIME, dt_seam( $meta, $calls ) );
+eq(
+	'L8.8 the old datetime field options are unregistered on try_datetime and never reach an attempt',
+	array( array( false, false, false ) ),
+	array_map( static fn( $o ) => array( isset( $o['startKey'] ), isset( $o['timeKey'] ), isset( $o['is_range'] ) ), $calls )
+);
+
+$calls = array();
+eq(
+	'L8.9 no per-slot gate: a verb attempt with no field key still resolves',
+	'NOW',
+	won( bws_try_run_attempts( slots( 'use(now)' ), null, CFG_DATETIME, dt_seam( $meta, $calls ) ) )
+);
 
 echo $fails ? "\n{$fails} FAILURE(S)\n" : "\nALL PASS\n";
 exit( $fails ? 1 : 0 );

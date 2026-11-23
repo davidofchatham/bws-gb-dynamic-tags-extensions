@@ -43,12 +43,12 @@ const BWS_AI_SYNTAX_UNHINTED_TAGS = array(
 
 /**
  * The sentence on a later attempt's hint that says its read is the previous attempt's unless it states
- * its own. Only the three tags with a read axis carry it; the harness pins that.
+ * its own. Only the four tags with a read axis carry it; the harness pins that.
  */
 const BWS_AI_SYNTAX_TRY_CARRY = ' It reads the way the attempt before did, unless it states its own use.';
 
 /**
- * The `use` hint of `{{datetime}}` and `try_datetime`: the verbs, which are not a field read. The ordered
+ * The `use` hint of `{{datetime}}`: the verbs, which are not a field read. The ordered
  * form that mixes a verb with a field (`use:key;now`) needs a `key` read, which no hint teaches, so the
  * example orders two verbs instead.
  *
@@ -101,9 +101,10 @@ function bws_ai_syntax_try_hints(): array {
 		),
 		'try_datetime'  => array(
 			'site'    => null,
-			'read'    => '',
-			'example' => '{{try_datetime use:published|A:src(refs,related_posts)|B:src(parent)}}',
-			'later'   => '{{try_datetime use:published|A:src(refs,related_posts)|B:src(parent)|C:src(current)}}',
+			'read'    => ';use(published), use(modified) or use(now), needed in attempt A',
+			'carry'   => BWS_AI_SYNTAX_TRY_CARRY,
+			'example' => '{{try_datetime A:src(refs,related_posts);use(published)|B:src(parent)}}',
+			'later'   => '{{try_datetime A:src(refs,related_posts);use(published)|B:src(parent)|C:src(current);use(now)}}',
 		),
 		'try_image'     => array(
 			'site'    => 'the site logo',
@@ -126,8 +127,6 @@ function bws_ai_syntax_try_hints(): array {
 			'B' => 'The next attempt, tried only when the one before gives nothing; C, D and E add more. Write its source out, because an attempt with nothing in it is skipped.' . ( $t['carry'] ?? '' ) . ' Example: ' . $t['later'],
 		);
 	}
-	// The read is the tag's own `use`, not a slot's, so it rides beside the two slot hints.
-	$out['try_datetime']['use'] = BWS_AI_SYNTAX_DATETIME_USE;
 	return $out;
 }
 

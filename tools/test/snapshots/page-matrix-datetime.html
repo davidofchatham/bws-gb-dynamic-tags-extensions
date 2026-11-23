@@ -368,13 +368,13 @@
 <div>
 <h2 class="wp-block-heading">Datetime D12 &#8211; try_datetime (first attempt that reads wins)</h2>
 
-<p class="gb-text">D12.1 expect &#8220;August 12, 2030 9:00 AM&#8221; (the first attempt reads, so it wins; the second would print May 1): August 12, 2030 9:00 AM</p>
+<p class="gb-text">D12.1 expect &#8220;August 12, 2030 9:00 AM&#8221; (the first attempt reads, so it wins; the second reuses its read and would print May 1): August 12, 2030 9:00 AM</p>
 
-<p class="gb-text">D12.2 expect &#8220;May 1, 2030 10:00 AM&#8221; (the first attempt reads nothing, the second wins): May 1, 2030 10:00 AM</p>
+<p class="gb-text">D12.2 expect &#8220;May 1, 2030 10:00 AM&#8221; (the first attempt reads nothing, the second reuses its read and wins): May 1, 2030 10:00 AM</p>
 
 <p class="gb-text">D12.3 expect &#8220;May 1, 2030 10:00 AM&#8221; (= D12.2 through the old try_datetime_single, which still renders): May 1, 2030 10:00 AM</p>
 
-<p class="gb-text">D12.4 expect &#8220;August 1-9, 2030&#8221; (two key entries make every attempt a range): August 1–9, 2030</p>
+<p class="gb-text">D12.4 expect &#8220;August 1-9, 2030&#8221; (two key entries make the attempt a range, and the second attempt reuses them): August 1–9, 2030</p>
 
 <p class="gb-text">D12.5 expect &#8220;August 1-9, 2030&#8221; (= D12.4 through the old try_datetime_range): August 1–9, 2030</p>
 
@@ -382,7 +382,7 @@
 
 <p class="gb-text">D12.7 expect &#8220;March 3, 2025&#8221; (a verb read: the published date of the post, from the second attempt): March 3, 2025</p>
 
-<p class="gb-text">D12.8 expect &#8220;August 1, 2030-March 3, 2025&#8221; (a field until published: the use list reaches every attempt): August 1, 2030–March 3, 2025</p>
+<p class="gb-text">D12.8 expect &#8220;August 1, 2030-March 3, 2025&#8221; (a field until published: the whole use list reaches the second attempt): August 1, 2030–March 3, 2025</p>
 
 <p class="gb-text">D12.9 expect &#8220;Date TBA&#8221; (every attempt reads nothing, so the fallback prints once): Date TBA</p>
 
@@ -391,6 +391,31 @@
 <p class="gb-text">D12.11 expect &#8220;August 12, 2030 9:00 AM&#8221; LINKED to the matrix-post-meta page (the link follows the attempt that won): <a href="/matrix-post-meta/">August 12, 2030 9:00 AM</a></p>
 
 <p class="gb-text">D12.12 expect &#8220;August 12, 2030 9:00 AM&#8221; (= D12.1 through the old try_datetime_single, which still renders): August 12, 2030 9:00 AM</p>
+
+<p class="gb-text">D12.13 expect &#8220;August 12, 2030 9:00 AM&#8221; (a range that reads nothing falls to the single behind it: each attempt has its own mode): August 12, 2030 9:00 AM</p>
+
+<p class="gb-text">D12.14 expect &#8220;August 1-9, 2030&#8221; (the range in the first attempt reads, so it wins over the single behind it): August 1–9, 2030</p>
+
+<p class="gb-text">D12.15 expect &#8220;March 3, 2025&#8221; (a verb as the last attempt: the published date when the field above read nothing): March 3, 2025</p>
+
+<p class="gb-text">D12.16 expect &#8220;May 1, 2030 10:00 AM&#8221; (= D12.2 with the carry-over spelled use(same)): May 1, 2030 10:00 AM</p>
+
+<p class="gb-text">D12.17 expect &#8220;May 1, 2030 10:00 AM&#8221; (each attempt reads its own field: the first names a field the post does not have): May 1, 2030 10:00 AM</p>
+
+<p class="gb-text">D12.18 expect &#8220;May 1, 2030 10:00 AM&#8221; (the first attempt has no read, so it prints nothing and the second takes over): May 1, 2030 10:00 AM</p>
+
+<p class="gb-text">D12.19 expect EMPTY (the first attempt has no read and nothing follows it):</p>
+
+<p class="gb-text">D12.20 expect &#8220;May 1, 2030 10:00 AM&#8221; (a use list that needs a field and has none reads nothing; the second attempt states its own read and borrows nothing): May 1, 2030 10:00 AM</p>
+
+<p class="gb-text">D12.21 expect &#8220;FB&#8221; (the same use list alone: an empty read, so the fallback prints once): FB</p>
+
+<p class="gb-text">D12.22 expect &#8220;August 1, 2030&#8221; (a tag-level key is not an option of try_datetime, so the key(event_start_date) in the attempt is what reads): August 1, 2030</p>
+
+<p class="gb-text">D12.23 expect EMPTY (a tag-level key is ignored, and the attempt states no read):</p>
+
+<p class="gb-text">D12.24 expect EMPTY (a tag-level key alone is ignored, not recovered into the first attempt):</p>
+
 </div>
 
 <div>

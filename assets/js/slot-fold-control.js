@@ -103,6 +103,14 @@
 			container: c.container || 'join',
 			combining: !! c.combining,
 			perSlotUse: false !== c.perSlotUse,
+			// The container's slot read is a datetime read LIST (PHP: `try_per_slot_reads`, set
+			// only when true). The grammar twin is told, never left to infer it from a value, and
+			// it must be carried here: this return is a named key list, not a merge.
+			perSlotReads: !! c.perSlotReads,
+			// That list's whole definition (bws_get_datetime_reads_option() plus `sameLabel`),
+			// shipped for the datetime read control each slot card mounts. Named here for the
+			// same reason as the flag above.
+			readsOption: c.readsOption || null,
 			// The era the legacy flat wire was authored in (defaults to the live shape).
 			flatPerSlotUse: fold.flatEraPerSlotUse( c ),
 			min: c.min || 2,
@@ -498,7 +506,23 @@
 			return slot;
 		}
 		slot.chain = [ step( 'same' ) ];
-		slot.read = ( conf.combining || ! conf.perSlotUse ) ? null : { kind: 'same' };
+		// A slot whose read is a datetime read list carries a `use` axis of its own, whatever
+		// `perSlotUse` says: `use(same)` is how a later slot reuses the previous one's reads.
+		slot.read = ( conf.combining || ! ( conf.perSlotUse || conf.perSlotReads ) ) ? null : { kind: 'same' };
+		return slot;
+	}
+
+	/**
+	 * A slot as the control and the removal path read it. Under per-slot datetime reads a
+	 * slot 2+ that states no read IS carrying the previous slot's whole read (the renderer's
+	 * rule), so it is read as `same`: one spelling of one meaning, which removal then
+	 * materializes, the advisory then counts, and the read control then shows as the
+	 * "Same as previous slot" row. Slot A with no read is read-less and stays null.
+	 */
+	function carryRead( slot, ordinal, conf ) {
+		if ( slot && conf.perSlotReads && ! slot.read && carriesOver( ordinal, conf ) ) {
+			slot.read = { kind: 'same' };
+		}
 		return slot;
 	}
 
@@ -615,8 +639,8 @@
 	function readSlot( n, state, conf ) {
 		var raw = state[ fold.slotKey( n ) ] || '';
 		if ( raw ) {
-			var parsed = fold.parseSlot( raw, conf.container );
-			return parsed.error ? null : parsed;
+			var parsed = fold.parseSlot( raw, conf.container, conf.perSlotReads );
+			return parsed.error ? null : carryRead( parsed, n, conf );
 		}
 		var rec = fold.foldFromFlat( n, migrate.mapperState( state, conf ), conf.combining, conf.flatPerSlotUse );
 		return ( rec && rec.slot ) ? rec.slot : null;
@@ -799,6 +823,44 @@
 				commitField( ( upd && 'undefined' !== typeof upd.key ) ? upd.key : '' );
 			}
 		};
+	}
+
+	/**
+	 * Context for the slot's datetime READ LIST (`perSlotReads`): the base tag's own read
+	 * control mounts in the slot card against this, as the field picker mounts against
+	 * fieldContext().
+	 *
+	 * The control reads `key` / `use` off the state it is handed and writes them back whole, so
+	 * the slot's read struct is presented as exactly those two raw tokens and nothing else; its
+	 * source preset (the Location filter's narrowing) comes from fieldContext(), the one place a
+	 * slot's chain becomes a picker's `src`. A slot 2+ that carries presents `use: same`.
+	 *
+	 * What it writes becomes the slot's read and nothing more (commitRead). An EMPTY read at slot
+	 * 2+ is written as the explicit `use(key)`: nothing at all is the carry, and an author who
+	 * picked "Date/Time Field" and has not chosen the field yet has not asked to carry.
+	 */
+	function readsContext( slot, ordinal, commitRead, parentChain, conf ) {
+		var ctx = fieldContext( slot, function () {}, parentChain, conf );
+		var read = slot.read;
+		delete ctx.state.key;
+		if ( read && 'same' === read.kind ) {
+			ctx.state.use = 'same';
+		} else if ( read && 'datetime' === read.kind ) {
+			if ( read.key ) { ctx.state.key = read.key; }
+			if ( read.use ) { ctx.state.use = read.use; }
+		}
+		ctx.setState = function ( upd ) {
+			var key = ( upd && upd.key ) ? String( upd.key ) : '';
+			var use = ( upd && upd.use ) ? String( upd.use ) : '';
+			if ( 'same' === use ) {
+				commitRead( { kind: 'same' } );
+			} else if ( ! key && ! use ) {
+				commitRead( carriesOver( ordinal, conf ) ? { kind: 'datetime', key: '', use: 'key', reads: [] } : null );
+			} else {
+				commitRead( { kind: 'datetime', key: key, use: use, reads: [] } );
+			}
+		};
+		return ctx;
 	}
 
 	// ── The control ─────────────────────────────────────────────────────────
@@ -1366,11 +1428,11 @@
 		var recovered = false;
 		var parseError = '';
 		if ( raw ) {
-			var parsed = fold.parseSlot( raw, conf.container );
+			var parsed = fold.parseSlot( raw, conf.container, conf.perSlotReads );
 			if ( parsed.error ) {
 				parseError = parsed.error;
 			} else {
-				slot = parsed;
+				slot = carryRead( parsed, ordinal, conf );
 			}
 		} else {
 			var rec = fold.foldFromFlat( ordinal, migrate.mapperState( state, conf ), conf.combining, conf.flatPerSlotUse );
@@ -1502,7 +1564,7 @@
 			// `keyOption` absent is the same test the read group makes — every shape is
 			// read off the derived config, never off the container name.
 			var intent   = inferIntent( slot );
-			var hasRead  = !! ( conf.readRows.length || conf.keyOption );
+			var hasRead  = !! ( conf.readRows.length || conf.keyOption || conf.perSlotReads );
 			var advisory;
 			if ( ! hasRead ) {
 				advisory = 'both' === intent
@@ -1681,6 +1743,24 @@
 			children.push( el( 'div', { key: 'readgroup', className: CLS.group }, [
 				el( 'span', { key: 'caption', className: CLS.caption }, readCaption )
 			].concat( readNodes ) ) );
+		}
+
+		// ── Datetime read list (`perSlotReads`) ─────────────────────────────
+		// The slot's read is the base tag's own datetime read control: reads, Add End Date/Time,
+		// Location and Type filters. Mounted through createElement, never called, so each slot
+		// keeps its own filter state (the filters are editor-only and never on the wire). It is
+		// looked up here, not at load, because it is enqueued after this file. From slot B the
+		// control also offers "Same as previous slot".
+		var DatetimeReads = window.bwsDatetimeReadControl;
+		if ( conf.perSlotReads && conf.readsOption && DatetimeReads ) {
+			children.push( el( 'div', { key: 'readgroup', className: CLS.group }, [
+				el( 'span', { key: 'caption', className: CLS.caption }, conf.readsOption.readLabel || __( 'Field', 'generateblocks' ) ),
+				el( DatetimeReads, {
+					key: 'reads',
+					cfg: Object.assign( {}, conf.readsOption, { sameLabel: carriesOver( ordinal, conf ) ? conf.readsOption.sameLabel : '' } ),
+					context: readsContext( slot, ordinal, writeRead, parentChain, conf )
+				} )
+			] ) );
 		}
 
 		// ── Header group (table only) ───────────────────────────────────────

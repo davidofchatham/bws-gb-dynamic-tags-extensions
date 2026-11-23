@@ -282,6 +282,89 @@
 		{
 			"container": "try",
 			"wire": "src(same);fixed(N/A)"
+		},
+		{
+			"container": "try",
+			"wire": "key(event_date+start_time;end_time)",
+			"reads": true
+		},
+		{
+			"container": "try",
+			"wire": "use(key;now);key(start_date)",
+			"reads": true
+		},
+		{
+			"container": "try",
+			"wire": "use(published)",
+			"reads": true
+		},
+		{
+			"container": "try",
+			"wire": "use(same)",
+			"reads": true
+		},
+		{
+			"container": "try",
+			"wire": "use(key;now)",
+			"reads": true
+		},
+		{
+			"container": "try",
+			"wire": "key(a+b+c)",
+			"reads": true
+		},
+		{
+			"container": "try",
+			"wire": "use(key;key);key(a;b)",
+			"reads": true
+		},
+		{
+			"container": "try",
+			"wire": "src(refs,office);key(start);use(modified;key);header(When)",
+			"reads": true
+		},
+		{
+			"container": "try",
+			"wire": "key(x)",
+			"reads": true
+		},
+		{
+			"container": "try",
+			"wire": "use(bogus)",
+			"reads": true
+		},
+		{
+			"container": "try",
+			"wire": "use(fixed);fixed(t)",
+			"reads": true
+		},
+		{
+			"container": "try",
+			"wire": "use(now;bogus;key);key(a)",
+			"reads": true
+		},
+		{
+			"container": "try",
+			"wire": "use(key;bogus;key);key(a;b)",
+			"reads": true
+		},
+		{
+			"container": "try",
+			"wire": "key(a;b;c)",
+			"reads": true
+		},
+		{
+			"container": "try",
+			"wire": "use(key;now;key;now);key(a;b;c)",
+			"reads": true
+		},
+		{
+			"container": "try",
+			"wire": "use(key;now)"
+		},
+		{
+			"container": "try",
+			"wire": "key(event_date+start_time)"
 		}
 	],
 	"chains": [

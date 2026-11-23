@@ -639,11 +639,20 @@ function bws_fold_emit_chain( array $steps, int $enclosing_level = 1 ): string {
  * may state the type last, and assigning during the scan would make the read
  * order-dependent.
  *
+ * `$reads` is the template's `try_per_slot_reads` flag (class-tag-template-registry.php):
+ * the container's slot read is a datetime read LIST. The CALLER passes it, because nothing
+ * in the value says so (`use(key;now)` is an analog named `key;now` everywhere else). Under
+ * it a `key(...)` / `use(...)` pair becomes ONE read of kind `datetime`, holding both raw
+ * tokens verbatim (emit writes them back as typed) and the list bws_datetime_reads() makes
+ * of them; `use(same)` stays the carry-over read. Which chars its `key` may spell is that
+ * function's PHPDoc, and `+` is not in any accept class here.
+ *
  * @param string $value     Slot value (escaped or unescaped — normalized here).
  * @param string $container 'try' (format-fixed) | 'join' | 'table' (agnostic).
+ * @param bool   $reads     The container's slot read is a datetime read list.
  * @return array{header:?string,type:?string,chain:array,read:?array,opts:array,extra:array}|array{error:string}
  */
-function bws_fold_parse_slot( string $value, string $container = 'join' ) {
+function bws_fold_parse_slot( string $value, string $container = 'join', bool $reads = false ) {
 	$tokens = bws_fold_tokenize( $value );
 	if ( isset( $tokens['error'] ) ) {
 		return $tokens;
@@ -716,7 +725,14 @@ function bws_fold_parse_slot( string $value, string $container = 'join' ) {
 	// (read chosen, field or text not yet) and yields to the token beside it. Both-present is
 	// not author error (GB cannot unset one option from another's value, so a stale `key`
 	// legitimately rides the wire), so it resolves rather than flagging.
-	if ( null !== $use_tok && 'key' !== $use_tok && 'fixed' !== $use_tok ) {
+	if ( $reads && 'same' !== $use_tok && ( null !== $use_tok || null !== $key_tok ) ) {
+		$slot['read'] = array(
+			'kind'  => 'datetime',
+			'key'   => (string) $key_tok,
+			'use'   => (string) $use_tok,
+			'reads' => bws_datetime_reads( array( 'key' => (string) $key_tok, 'use' => (string) $use_tok ) ),
+		);
+	} elseif ( null !== $use_tok && 'key' !== $use_tok && 'fixed' !== $use_tok ) {
 		$slot['read'] = ( 'same' === $use_tok )
 			? array( 'kind' => 'same' )
 			: array( 'kind' => 'analog', 'slug' => $use_tok );
@@ -775,6 +791,12 @@ function bws_fold_emit_slot( array $slot, int $level = 1 ): string {
 	if ( $read ) {
 		if ( 'same' === $read['kind'] ) {
 			$values['use'] = 'same';
+		} elseif ( 'datetime' === $read['kind'] ) {
+			foreach ( array( 'key', 'use' ) as $part ) {
+				if ( '' !== ( $read[ $part ] ?? '' ) ) {
+					$values[ $part ] = $read[ $part ];
+				}
+			}
 		} elseif ( 'key' === $read['kind'] ) {
 			// Field chosen → the bare `key(x)` IS the keyed read (`use` is redundant).
 			// Field not chosen yet → `use(key)` is the only spelling of "keyed, pending",
@@ -1261,21 +1283,25 @@ function bws_fold_chain_apply_legacy_limit( array $chain, $limit, bool $consume_
  * @param bool|null $flat_per_slot_use What a slot recovered from flat keys is read under
  *                             (TagTemplateRegistry::try_flat_era_per_slot_use() states it);
  *                             null = $per_slot_use. Folded wire never consults it.
+ * @param bool   $reads        The container's slot read is a datetime read list
+ *                             (`try_per_slot_reads`). Such a container has no flat era, so a
+ *                             slot with no folded value is empty and its tag-level `key`/`use`
+ *                             are never recovered into slot 1 as a read.
  * @return array|null Slot struct + an `era` key ('chain' when the slot is stored as
  *                    folded wire, 'flat' when recovered from the legacy keys), or null
  *                    when this slot holds nothing (or unparsable folded wire).
  */
-function bws_fold_slot_struct( int $n, array $options, string $container = 'join', bool $per_slot_use = true, ?bool $flat_per_slot_use = null ) {
+function bws_fold_slot_struct( int $n, array $options, string $container = 'join', bool $per_slot_use = true, ?bool $flat_per_slot_use = null, bool $reads = false ) {
 	$raw = trim( (string) ( $options[ bws_slot_ordinal( $n ) ] ?? '' ) );
 	if ( '' !== $raw ) {
-		$parsed = bws_fold_parse_slot( $raw, $container );
+		$parsed = bws_fold_parse_slot( $raw, $container, $reads );
 		if ( isset( $parsed['error'] ) ) {
 			return null;
 		}
 		$parsed['era'] = 'chain';
 		return $parsed;
 	}
-	$rec = bws_fold_from_flat( $n, $options, bws_fold_is_combining( $container ), $flat_per_slot_use ?? $per_slot_use );
+	$rec = $reads ? null : bws_fold_from_flat( $n, $options, bws_fold_is_combining( $container ), $flat_per_slot_use ?? $per_slot_use );
 	if ( $rec && isset( $rec['slot'] ) ) {
 		$slot        = $rec['slot'];
 		$slot['era'] = 'flat';
@@ -1501,6 +1527,13 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 				$use   = 'fixed';
 				$key   = '';
 				$fixed = (string) ( $read['text'] ?? '' );
+				break;
+			case 'datetime':
+				// The slot's WHOLE read: both tokens, raw, as the datetime seam reads them.
+				// A part it does not state is '' and borrows nothing from the carry.
+				$use   = (string) ( $read['use'] ?? '' );
+				$key   = (string) ( $read['key'] ?? '' );
+				$fixed = '';
 				break;
 			default:
 				$use   = (string) ( $read['slug'] ?? '' );

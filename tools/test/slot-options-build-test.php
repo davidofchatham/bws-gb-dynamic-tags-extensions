@@ -1194,6 +1194,26 @@ assert_same( 'BASE root enum carries the declaration', $expected_pin, $row_arg( 
 assert_same( 'SLOT source enum carries the same declaration', $expected_pin, $row_arg( $argued_fold['srcRows'], 'pinroot' ) );
 assert_same( '...and so does a slot 2 and up, behind its `same` row', $expected_pin, $row_arg( $argued_fold['srcRowsWithSame'], 'pinroot' ) );
 
+// A template whose slot read is a datetime read list ships `perSlotReads` on its fold config, so the
+// control's grammar twin is told (nothing in a value says so); every other config omits it.
+$reads_args = array( 'container' => 'try', 'max' => 2, 'base_read' => array(), 'base_key' => array(), 'per_slot_use' => false, 'noun' => 'attempt' );
+assert_same( 'perSlotReads rides the fold config when the builder is told', true, bws_build_fold_slot_options( $reads_args + array( 'reads' => true ) )['A']['fold']['perSlotReads'] ?? null );
+assert_same( 'perSlotReads is absent, not false, on every other config', false, array_key_exists( 'perSlotReads', bws_build_fold_slot_options( $reads_args )['A']['fold'] ) );
+
+// ...and ships the read control's whole definition as `readsOption` (what each slot card mounts),
+// the base tag's own with the one label only a slot knows: the row that reuses the previous slot's
+// reads. A config that is not told has no such key.
+if ( ! defined( 'BWS_FIELD_TYPE_GROUP_DATETIME' ) ) {
+	define( 'BWS_FIELD_TYPE_GROUP_DATETIME', 'group:datetime' );
+}
+if ( ! function_exists( 'bws_get_datetime_reads_option' ) ) {
+	require_once __DIR__ . '/../../includes/tags/datetime-tags.php';
+}
+$reads_opt = bws_build_fold_slot_options( $reads_args + array( 'reads' => true ) )['A']['fold']['readsOption'] ?? array();
+assert_same( 'readsOption is the base tag\'s own read control definition', bws_get_datetime_reads_option(), array_diff_key( $reads_opt, array( 'sameLabel' => 0 ) ) );
+assert_same( 'readsOption carries the slot-only "same" row label', true, is_string( $reads_opt['sameLabel'] ?? null ) && '' !== $reads_opt['sameLabel'] );
+assert_same( 'readsOption is absent on every other config', false, array_key_exists( 'readsOption', bws_build_fold_slot_options( $reads_args )['A']['fold'] ) );
+
 if ( $failures > 0 ) {
 	echo "FAILED: {$failures}/{$count}\n";
 	exit( 1 );

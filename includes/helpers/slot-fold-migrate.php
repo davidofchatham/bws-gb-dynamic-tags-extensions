@@ -62,7 +62,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * @since 1.17.0
  * @param string $tag_name Live tag name.
- * @return array{container:string,combining:bool,per_slot_use:bool,flat_per_slot_use?:bool,max:int,tag_level:string[]}|null
+ * @return array{container:string,combining:bool,per_slot_use:bool,per_slot_reads?:bool,flat_per_slot_use?:bool,max:int,tag_level:string[]}|null
  */
 function bws_fold_migration_container( string $tag_name ): ?array {
 	if ( 'join' === $tag_name ) {
@@ -84,6 +84,8 @@ function bws_fold_migration_container( string $tag_name ): ?array {
 			'container'    => 'try',
 			'combining'    => false,
 			'per_slot_use' => ! empty( $tpl['try_per_slot_use'] ),
+			// The slot read is a datetime read list: a re-parse must be told (slot-fold.php).
+			'per_slot_reads' => ! empty( $tpl['try_per_slot_reads'] ),
 			// The era the legacy flat wire was authored in; see try_flat_era_per_slot_use().
 			'flat_per_slot_use' => \BWS\DynamicTags\TagTemplateRegistry::try_flat_era_per_slot_use( $tpl ),
 			// Five slots, as generate_base_try_tags() registers.
@@ -283,7 +285,7 @@ function bws_fold_migrate_slots( array $options, array $cfg ) {
 		// is left alone — the tag-level number was a DEFAULT, and a default never
 		// overwrites a stated value (bws_fold_chain_apply_legacy_limit decides both).
 		if ( '' !== $folded_val && null !== $tag_limit ) {
-			$parsed = bws_fold_parse_slot( $folded_val, $cfg['container'] ?? 'try' );
+			$parsed = bws_fold_parse_slot( $folded_val, $cfg['container'] ?? 'try', ! empty( $cfg['per_slot_reads'] ) );
 			if ( is_array( $parsed ) ) {
 				$applied = bws_fold_chain_apply_legacy_limit( (array) ( $parsed['chain'] ?? array() ), $tag_limit );
 				if ( $applied['consumed'] ) {

@@ -78,6 +78,8 @@ require __DIR__ . '/../../includes/classes/class-tag-template-registry.php';
 // data is not an independent check, only a second thing to update.
 require __DIR__ . '/../../includes/helpers/registration-helpers.php';
 require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
+// bws_datetime_reads — the datetime read grammar's OWNER, which the slot parser asks (P21).
+require __DIR__ . '/../../includes/tags/datetime-tags.php';
 
 // The two templates the P13/P14 walks model, each driven with its OWN stripped `use`
 // default read from the owner rather than re-typed here — a walk seeded with the wrong
@@ -2102,6 +2104,96 @@ foreach ( array(
 ) as $label => list( $opts, $want ) ) {
 	check( "P20 $label → " . ( $want ? 'on' : 'off' ), $want === bws_flag_is_on( $opts, 'f' ) );
 }
+
+// ── P21 THE DATETIME READ KIND (try-datetime-per-slot) ──────────────────────
+//
+// A try_ template that sets `try_per_slot_reads` has a slot read that is a datetime read
+// LIST, so the parser is told so by the caller, never by the value. The reads are
+// bws_datetime_reads()'s, and `+` is allocated inside `key(...)` there and nowhere else
+// in the fold (ADR 0006 §Allocations).
+echo "\nP21 datetime read kind\n";
+
+$reads_of = static function ( string $wire, bool $flag = true ) {
+	$slot = bws_fold_parse_slot( $wire, 'try', $flag );
+	return isset( $slot['error'] ) ? $slot : $slot['read'];
+};
+foreach ( array(
+	'key(event_date+start_time;end_time)' => array(
+		array( 'verb' => '', 'field' => 'event_date', 'time' => 'start_time' ),
+		array( 'verb' => '', 'field' => 'end_time', 'time' => '' ),
+	),
+	'use(key;now);key(start_date)' => array(
+		array( 'verb' => '', 'field' => 'start_date', 'time' => '' ),
+		array( 'verb' => 'now', 'field' => '', 'time' => '' ),
+	),
+	'use(published)' => array( array( 'verb' => 'published', 'field' => '', 'time' => '' ) ),
+	// no `key(...)` beside a key read: an empty read, the missing-key warning's case
+	'use(key;now)' => array(
+		array( 'verb' => '', 'field' => '', 'time' => '' ),
+		array( 'verb' => 'now', 'field' => '', 'time' => '' ),
+	),
+) as $wire => $want ) {
+	$read = $reads_of( $wire );
+	check( "P21.1 reads: $wire", is_array( $read ) && 'datetime' === $read['kind'] && $want === $read['reads'], var_export( $read, true ) );
+	$slot = bws_fold_parse_slot( $wire, 'try', true );
+	check( "P21.2 byte-identical re-emit: $wire", $wire === bws_fold_emit_slot( $slot ), 'got: ' . bws_fold_emit_slot( $slot ) );
+}
+check( 'P21.3 use(key;now) is NOT an analog read named key;now under the flag', 'analog' !== ( $reads_of( 'use(key;now)' )['kind'] ?? '' ), '' );
+$unflagged = bws_fold_parse_slot( 'use(key;now)', 'try' );
+check( 'P21.4 without the flag, use(key;now) is the analog it always was', array( 'kind' => 'analog', 'slug' => 'key;now' ) === $unflagged['read'], var_export( $unflagged['read'], true ) );
+
+// `same` is the carry-over read, never a datetime verb, and the read list never holds it.
+check( 'P21.5 use(same) stays the carry-over read under the flag', array( 'kind' => 'same' ) === $reads_of( 'use(same)' ), var_export( $reads_of( 'use(same)' ), true ) );
+check( 'P21.6 use(same) re-emits', 'use(same)' === bws_fold_emit_slot( bws_fold_parse_slot( 'use(same)', 'try', true ) ), '' );
+check( 'P21.7 same is no datetime verb', array() === bws_datetime_reads( array( 'use' => 'same' ) ), var_export( bws_datetime_reads( array( 'use' => 'same' ) ), true ) );
+
+// The flag is the caller's choice: with it off, a slot parses and emits as it did.
+foreach ( array( 'key(event_date+start_time)', 'key(a;b)', 'use(published)', 'use(same)', 'key(x)' ) as $wire ) {
+	foreach ( array( 'try', 'join', 'table' ) as $container ) {
+		$slot = bws_fold_parse_slot( $wire, $container );
+		check( "P21.8 $container unflagged is not a datetime read: $wire", ! isset( $slot['error'] ) && 'datetime' !== ( $slot['read']['kind'] ?? '' ), var_export( $slot, true ) );
+	}
+}
+// `+` in a plain slot key is content, parsed as the field name it spells, as ever.
+$plus = bws_fold_parse_slot( 'key(a+b)', 'join' );
+check( 'P21.9 `+` in a combining slot key stays content', array( 'kind' => 'key', 'field' => 'a+b' ) === $plus['read'], var_export( $plus, true ) );
+
+// Other tokens beside the read are unchanged by the flag, and the read sorts like any other.
+$both = bws_fold_parse_slot( 'src(refs,office);key(start_date);use(key;now);header(When)', 'try', true );
+check( 'P21.10 src and header ride beside a datetime read', ! isset( $both['error'] ) && 'refs' === $both['chain'][0]['slug'] && 'When' === $both['header'] && 'datetime' === $both['read']['kind'], var_export( $both, true ) );
+check( 'P21.11 re-emit keeps the read verbatim and is a fixpoint', ( $e = bws_fold_emit_slot( $both ) ) === bws_fold_emit_slot( bws_fold_parse_slot( $e, 'try', true ) ) && false !== strpos( $e, 'key(start_date)' ) && false !== strpos( $e, 'use(key;now)' ), $e ?? '' );
+
+// The grammar's separator classes are untouched: `+` was never put in one.
+check( 'P21.12 bws_fold_grammar_validate still passes, + still reserved', array() === bws_fold_grammar_validate() && in_array( '+', BWS_FOLD_RESERVED, true ), '' );
+
+// ── P22 THE DATETIME READ THROUGH THE SEAM (try-datetime-per-slot, ticket 02) ───
+//
+// bws_fold_slot_chain_options() takes a `datetime` read's two raw tokens as the slot's whole
+// read, and the carry holds both. A slot with no read, or `use(same)`, takes the carry's pair;
+// a slot stating either token states its own complete read and borrows nothing.
+echo "\nP22 datetime read through the seam\n";
+
+$dt_seam = static function ( array $wires ): array {
+	$carry = bws_fold_empty_carry( '' );
+	$out   = array();
+	foreach ( $wires as $wire ) {
+		$slot   = bws_fold_slot_struct( 1, array( 'A' => $wire ), 'try', false, null, true );
+		$res    = bws_fold_slot_chain_options( $slot, $carry, false );
+		$out[]  = null === $res ? null : array( $res['use'], $res['key'] );
+	}
+	return $out;
+};
+check( 'P22.1 a datetime read is the slot use + key, raw', array( array( 'key;now', 'a+b' ) ) === $dt_seam( array( 'use(key;now);key(a+b)' ) ), var_export( $dt_seam( array( 'use(key;now);key(a+b)' ) ), true ) );
+check( 'P22.2 no read at slot 2 takes slot 1 whole pair', array( array( '', 'a' ), array( '', 'a' ) ) === $dt_seam( array( 'key(a)', 'src(site)' ) ), var_export( $dt_seam( array( 'key(a)', 'src(site)' ) ), true ) );
+check( 'P22.3 use(same) takes the whole pair too', array( array( 'published', '' ), array( 'published', '' ) ) === $dt_seam( array( 'use(published)', 'use(same)' ) ), '' );
+check( 'P22.4 a slot stating one token borrows nothing: key(b) after use(published) has no verb', array( array( 'published', '' ), array( '', 'b' ) ) === $dt_seam( array( 'use(published)', 'key(b)' ) ), '' );
+check( 'P22.5 slot 1 with no read carries the empty seed: a read-less attempt', array( array( '', '' ) ) === $dt_seam( array( 'src(current)' ) ), '' );
+
+// The flag also turns the flat recovery off: a container whose slot read is a list has no flat era,
+// so a tag-level key (or an absent slot A) is never recovered into slot 1 as a read.
+$flat = bws_fold_slot_struct( 1, array( 'key' => 'x', 'use' => 'published' ), 'try', false, null, true );
+check( 'P22.6 flagged: no folded A and a tag-level key is an empty slot 1, not a recovered read', null === $flat['read'] && array() === $flat['chain'], var_export( $flat, true ) );
+check( 'P22.7 flagged: an absent slot 2 is absent', null === bws_fold_slot_struct( 2, array( 'key' => 'x' ), 'try', false, null, true ), '' );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );
