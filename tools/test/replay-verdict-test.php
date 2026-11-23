@@ -485,7 +485,7 @@ $check(
 );
 
 // ---------------------------------------------------------------------------
-// R7. bws_replay_classify_mapping_row() — which of the four outcomes a derived row lands in.
+// R7. bws_replay_classify_mapping_row() — which of the five outcomes a derived row lands in.
 // ---------------------------------------------------------------------------
 // THE DERIVED SET IS A SUPERSET OF THE WRITTEN ONE. run-converter.php derives old → new from
 // the two shipped transforms; migrate_post() puts the ownership guard between the transform
@@ -493,37 +493,50 @@ $check(
 // rewrite that never happened degrades to identity pairing there, silently.
 
 $check( 'R7.1 old wire gone and new wire present is a move',
-	'moved' === bws_replay_classify_mapping_row( false, true, false ) );
+	'moved' === bws_replay_classify_mapping_row( false, true, false, true ) );
 
 $check( 'R7.2 neither form in wp_posts is wire the converter cannot reach',
-	'unreached' === bws_replay_classify_mapping_row( false, false, false ) );
+	'unreached' === bws_replay_classify_mapping_row( false, false, false, true ) );
 
 // THE POPULATION WHOSE RESTING STATE IS ZERO. Old wire surviving with no refusal behind it is
 // the derivation and the converter disagreeing, which is the only thing this field ever meant
 // and the only thing that should make it non-empty.
 $check( 'R7.3 old wire surviving unrefused is the derivation trip-hazard',
-	'unverified' === bws_replay_classify_mapping_row( true, false, false ) );
+	'unverified' === bws_replay_classify_mapping_row( true, false, false, true ) );
 
 $check( 'R7.4 old wire surviving a refusal is the guard working, not a derivation fault',
-	'declined' === bws_replay_classify_mapping_row( true, false, true ) );
+	'declined' === bws_replay_classify_mapping_row( true, false, true, true ) );
 
 // A URL CAN HOLD BOTH FORMS — pre-migrated wire beside refused wire — and that does not turn a
 // refusal into a move. The surviving OLD string is what decides, which is also what makes the
 // classification per-string when the refusal record is only per-name.
 $check( 'R7.5 a refused row is still refused where the new wire exists elsewhere',
-	'declined' === bws_replay_classify_mapping_row( true, true, true ) );
+	'declined' === bws_replay_classify_mapping_row( true, true, true, true ) );
 
 $check( 'R7.6 an unrefused survivor is still the trip-hazard where the new wire exists elsewhere',
-	'unverified' === bws_replay_classify_mapping_row( true, true, false ) );
+	'unverified' === bws_replay_classify_mapping_row( true, true, false, true ) );
 
 // A REFUSAL RECORDED FOR A NAME WHOSE STRING DID MOVE IS NOT A DECLINE. One name can hold a
 // string the guard passed beside one it refused — the decision reads that string's option
 // keys — so the name alone must not be able to pull a moved row out of the mapping.
 $check( 'R7.7 a refused NAME does not declassify a string that moved',
-	'moved' === bws_replay_classify_mapping_row( false, true, true ) );
+	'moved' === bws_replay_classify_mapping_row( false, true, true, true ) );
 
 $check( 'R7.8 a refused NAME does not declassify unreached wire',
-	'unreached' === bws_replay_classify_mapping_row( false, false, true ) );
+	'unreached' === bws_replay_classify_mapping_row( false, false, true, true ) );
+
+// NEW WIRE STORED ELSEWHERE IS NOT A MOVE. Measured on a real clone: `{{post_term_title ...}}`
+// lived only in postmeta, the modern form it maps to was authored in other posts, and the row
+// read `moved` — so the diff paired the unchanged old render against the new form's.
+$check( 'R7.8a old wire the converter never reached, new form stored elsewhere, is shadowed',
+	'shadowed' === bws_replay_classify_mapping_row( false, true, false, false ) );
+
+$check( 'R7.8b shadowed needs the new form: without it the row stays plain unreached',
+	'unreached' === bws_replay_classify_mapping_row( false, false, false, false ) );
+
+$check( 'R7.8c a survivor in wp_posts is classified the same whatever the census said',
+	'unverified' === bws_replay_classify_mapping_row( true, true, false, false )
+	&& 'declined' === bws_replay_classify_mapping_row( true, true, true, false ) );
 
 // THE CALL SITES, asserted against SOURCE — both are scripts, so nothing here can call them.
 // Prior art: R5 and R6.14 read a sibling the same way.
@@ -533,6 +546,13 @@ $check(
 	'R7.9 the converter driver classifies rather than testing $still_old inline',
 	1 === preg_match( '/switch \(\s*bws_replay_classify_mapping_row\(/', $conv_src ),
 	'run-converter.php must route the decision through the rule'
+);
+
+$check(
+	'R7.9a reachability comes off the A-side census, not off what survived',
+	1 === preg_match( '/isset\( \$reachable\[ \$old \] \)/', $conv_src )
+	&& 1 === preg_match( '/.post. === \( \$row\[.container.\]/', $conv_src ),
+	'a string is reachable when the census held it in a post or widget_block'
 );
 
 // THE REFUSAL RECORD IS READ, NOT RE-DERIVED. Mirroring apply_if_owned() here would mean

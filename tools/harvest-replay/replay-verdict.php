@@ -386,16 +386,28 @@ function bws_replay_dependency_findings( $a_env, $b_env, array $a_build, array $
  * detector for the rest of that class, an ownership guard refusing MORE than it should
  * included.
  *
+ * NEW WIRE BEING STORED DOES NOT SAY THE OLD WIRE MOVED. Old wire that lived only in postmeta or
+ * an option, with the new form already authored elsewhere in wp_posts, has neither survivor nor
+ * rewrite in wp_posts, so presence alone reads as `moved`. The mapping then pairs the old wire's
+ * unchanged render against the new form's, one CHANGED row per URL that nobody caused. A move
+ * takes evidence the old string WAS somewhere the converter reaches; without it the row is
+ * `shadowed` and stays out of the mapping, so the differ pairs that wire with itself.
+ *
  * @since 1.20.0
  * @param bool $still_old     Old wire still present in wp_posts after the run.
  * @param bool $has_new       New wire present in wp_posts after the run.
  * @param bool $name_declined The guard refused this row's tag name during the run.
- * @return string One of 'moved', 'declined', 'unreached', 'unverified'.
+ * @param bool $was_reachable The A-side census held the old string in wp_posts or a block widget.
+ * @return string One of 'moved', 'declined', 'unreached', 'unverified', 'shadowed'.
  */
-function bws_replay_classify_mapping_row( bool $still_old, bool $has_new, bool $name_declined ): string {
+function bws_replay_classify_mapping_row( bool $still_old, bool $has_new, bool $name_declined, bool $was_reachable ): string {
 	if ( $still_old ) {
 		return $name_declined ? 'declined' : 'unverified';
 	}
 
-	return $has_new ? 'moved' : 'unreached';
+	if ( ! $has_new ) {
+		return 'unreached';
+	}
+
+	return $was_reachable ? 'moved' : 'shadowed';
 }

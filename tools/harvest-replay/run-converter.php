@@ -33,7 +33,7 @@
  * two-pass structure and doubling the hazard the paragraph above describes. Instead the run
  * REPORTS what it refused (`migrate_post()` returns `declined`), and the check below reads that
  * rather than re-deriving it — measured, not mirrored. `bws_replay_classify_mapping_row()` in
- * replay-verdict.php owns which of the four outcomes a derived row lands in and why the
+ * replay-verdict.php owns which of the five outcomes a derived row lands in and why the
  * guard's refusals are separated from the rest.
  *
  * WHAT THE CONVERTER CANNOT REACH IS PART OF THE RESULT. `scan()` is a wp_posts query plus the
@@ -121,12 +121,16 @@ if ( class_exists( '\BWS\DynamicTags\Admin\PatternCache' ) ) {
 // ---------------------------------------------------------------------------
 // 1. Derive old → new for every distinct tag string the census found.
 // ---------------------------------------------------------------------------
-$tags = array();
-$fh   = fopen( $census_path, 'r' );
+$tags      = array();
+$reachable = array(); // strings the census held in wp_posts or a block widget: where a rewrite can happen.
+$fh        = fopen( $census_path, 'r' );
 while ( false !== ( $line = fgets( $fh ) ) ) {
 	$row = json_decode( trim( $line ), true );
 	if ( is_array( $row ) && ! empty( $row['tag_string'] ) ) {
 		$tags[ $row['tag_string'] ] = true;
+		if ( 'post' === ( $row['container'] ?? '' ) || 'widget_block' === ( $row['container_key'] ?? '' ) ) {
+			$reachable[ $row['tag_string'] ] = true;
+		}
 	}
 }
 fclose( $fh );
@@ -325,6 +329,7 @@ $widget_has = static function ( string $needle ): int {
 };
 
 $unreached  = array();
+$shadowed   = array();
 $unverified = array();
 $declined   = array();
 $moved      = array();
@@ -344,7 +349,7 @@ foreach ( $mapping as $old => $new ) {
 
 	list( $name ) = \BWS\DynamicTags\MigrationRegistry::parse_tag_string( $old );
 
-	switch ( bws_replay_classify_mapping_row( (bool) $still_old, (bool) $has_new, isset( $declined_names[ $name ] ) ) ) {
+	switch ( bws_replay_classify_mapping_row( (bool) $still_old, (bool) $has_new, isset( $declined_names[ $name ] ), isset( $reachable[ $old ] ) ) ) {
 		case 'declined':
 			// The guard refused this one, and the run said so. Not a derivation fault, and not
 			// a mapping row: nothing became anything.
@@ -367,6 +372,13 @@ foreach ( $mapping as $old => $new ) {
 			// Neither form is in wp_posts or a block widget — the tag lived only in other options/postmeta/termmeta,
 			// which the converter cannot reach. Expected, and recorded.
 			$unreached[] = array( 'old' => $old, 'new' => $new );
+			break;
+
+		case 'shadowed':
+			// The old wire lived only where the converter cannot reach, and the new form is stored
+			// for other reasons. Left out of the mapping: pairing the two reports a change the
+			// converter never made (rule: `bws_replay_classify_mapping_row()`).
+			$shadowed[] = array( 'old' => $old, 'new' => $new );
 			break;
 
 		default:
@@ -442,7 +454,7 @@ $report = array(
 	'converted_at'      => gmdate( 'c' ),
 	'plugin_version'    => $version,
 	'distinct_tags'     => count( $tags ),
-	'derived_rewrites'  => count( $moved ) + count( $unreached ) + count( $declined ) + count( $unverified ),
+	'derived_rewrites'  => count( $moved ) + count( $unreached ) + count( $shadowed ) + count( $declined ) + count( $unverified ),
 	'mapped_tags'       => count( $mapping ),
 	'posts_reported'    => $reported - count( $widget_numbers ),
 	'posts_migrated'    => $migrated,
@@ -452,6 +464,7 @@ $report = array(
 	'posts_still_reported_after' => $remaining,
 	'migrate_failures'  => $failed,
 	'unreached_by_converter' => $unreached,
+	'shadowed_old_wire'      => $shadowed,
 	'ownership_declined'     => $declined,
 	'derivation_unverified'  => $unverified,
 	'pattern_cache'     => $pattern_cache,
@@ -463,8 +476,9 @@ file_put_contents(
 );
 
 WP_CLI::log( sprintf(
-	'unreached by converter (options/meta only): %d   ownership declined: %d   derivation unverified: %d',
+	'unreached by converter (options/meta only): %d   shadowed (old wire unreached, new form stored elsewhere, unmapped): %d   ownership declined: %d   derivation unverified: %d',
 	count( $unreached ),
+	count( $shadowed ),
 	count( $declined ),
 	count( $unverified )
 ) );
