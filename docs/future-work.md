@@ -53,7 +53,7 @@ Progress: Half (a) shipped 1.15.0 — term-ambient parity, the resolved-source r
 
 Open: Full seam routing (datetime VALUE reads going through `bws_resolve_field_values` rather than the cores) still needs the field-object-formats read the seam does not currently expose. For a REPEATER-ROW source the inputs that read needs are now recorded — FW-74 ticket 02 (1.21.0) stamps `parent_kind`, `parent_id`, `repeater` and `index` on every row a `rows` step produces — but the read itself is still this item's, and datetime on a wire row ships format-agnostic until it lands. Absorbed from FW-113 (2026-11-23): `bws_base_datetime_resolve_value()` asks `bws_base_ambient_analog()` and then branches on its `link_type` to read the term through the datetime core, because the seam has no datetime value. If the value read moves onto the seam, deleting that branch is part of this item's done state; if the decision keeps datetime's own field-object read, the branch is the accepted end state and its comment should say so.
 
-Blocked by: decision:field-object formats through the seam  •  Interacts with: FW-43, FW-35, FW-146 (a shared home for the facts and rules they each state), FW-113 (closed; merged here), FW-106 (its shared helper changes the order datetime asks the ambient seam in, not this branch)
+Blocked by: decision:field-object formats through the seam, then FW-191 if that decision routes values through the seam (the cores stop printing the singular fallback, so where it is printed and whether it is link-wrapped is FW-191's decision)  •  Interacts with: FW-43, FW-35, FW-146 (a shared home for the facts and rules they each state), FW-113 (closed; merged here), FW-106 (its shared helper changes the order datetime asks the ambient seam in, not this branch)
 
 #### FW-38 — The migration entry record: `lifecycle` is built, narrowing the shape remains
 
@@ -359,7 +359,7 @@ Progress: Read from the code 2026-11-17. The shell wraps whatever the resolver r
 
 Open: Which behavior is intended. Wrap in every case the documented rule covers, which needs the tail to recover the link identity of a pinned singular source that the list fold reports as 0. Or print plain in every case, which stops wrapping core-emitted fallbacks and changes the front end of existing tags with no `src`. Or keep the split and state it as the rule. Measure `{{text}}`, `{{title}}`, the `try_` tags and `{{join}}` with `linkTo` before choosing, since the answer is per family or once.
 
-Blocked by: decision:which fallback link-wrap behavior is wanted  •  Interacts with: FW-98 (the fallback emit sites), FW-149 (the same fallback-versus-preview ordering question in the editor)
+Blocked by: decision:which fallback link-wrap behavior is wanted  •  Interacts with: FW-98 (the fallback emit sites), FW-149 (the same fallback-versus-preview ordering question in the editor), FW-3 (blocked on this if it routes datetime values through the seam, which moves the core-printed fallback to the resolver's tail)
 
 #### FW-192 — Unregister the four old datetime tags
 
