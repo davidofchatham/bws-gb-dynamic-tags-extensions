@@ -341,7 +341,7 @@ Blocked by: row:FW-128  •  Interacts with: FW-38 (`lifecycle`; the `hidden` re
 
 Inside a GB Pro query loop over repeater rows, a base tag's read falls through the resolver's post tail with no post id, and only `bws_read_field()`'s loop inference finds the row. The per-source reader answers `''` for that source, so datetime keeps one value-read exception for it (FW-3), and the row's sub-field return format is unreachable, so a loop-row date parses format-agnostically (issue #22's failure mode, held off today by the time-only shape sniff). Giving that row a real source the reader serves, value and return format together, removes both.
 
-Detail home: this row; the FW-3 decisions it continues are `.scratch/fw3-datetime-seam/spec.md` D5, D7 and D11
+Detail home: this row; the FW-3 decisions it continues are recorded in `docs/design-history/fw3-datetime-seam.md` D5, D7 and D11
 
 Progress: Not started. Split out of FW-3 on 2026-11-23. A chain row (`rows` step) already carries the provenance this needs (`parent_kind`, `parent_id`, `repeater`, `index`); the ambient loop row carries none, because GB Pro positions it and our producer never sees it.
 
