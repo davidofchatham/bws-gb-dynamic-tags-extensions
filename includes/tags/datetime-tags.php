@@ -1260,10 +1260,8 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 		// own INVARIANT is written about, the issue #22 repeater row a query loop
 		// positions us inside and bws_read_field() re-infers.
 		//
-		// The core takes the resolved SOURCE, and the row's VALUE read is the only half
-		// that changes down there: the field-config object id stays the core's own
-		// derivation, so a row parses format-agnostically — the boundary
-		// bws_parse_combined_date_time() states and FW-3 closes.
+		// The core takes the resolved SOURCE: it reads the row's value and its sub-field's
+		// return format off it (bws_read_resolved_source_return_format()).
 		//
 		// Link identity stays 0/'post' — a row has none (CONTEXT.md I12), and the plain
 		// string return is how the fold is told so.

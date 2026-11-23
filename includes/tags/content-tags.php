@@ -223,8 +223,8 @@ function bws_post_custom_text_core( $post_id, $options, $instance ) {
  *
  * Takes the whole RESOLVED SOURCE rather than an entity id, because a repeater row has
  * none: it carries its own `row` array, plus the provenance the producer records on it
- * (`parent_kind`/`parent_id`/`repeater`/`index`, unread here — the field-object read
- * that wants them is FW-3's). The read itself is the L2 seam's own `meta_row` arm, so a
+ * (`parent_kind`/`parent_id`/`repeater`/`index`, unread here — the datetime
+ * return-format reader is their consumer). The read itself is the L2 seam's own `meta_row` arm, so a
  * row reached through a chain and a row reached through the query loop read one key by
  * one rule.
  *

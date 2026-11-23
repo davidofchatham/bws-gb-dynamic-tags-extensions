@@ -995,7 +995,7 @@ if ( $trust_ready ) {
  * THE NESTED REPEATER's provenance, read off the real store (blueprint v26, §F23).
  *
  * The four provenance keys are recorded by `bws_pipeline_rows_to_sources()` and consumed
- * by nothing yet (FW-3), so no rendered row can show them — §F23's page proves the nested
+ * only by the datetime return-format reader, which a top-level row date shows but a nested one does not — §F23's page proves the nested
  * VALUES arrive, and this proves the row knows where it came from. The pure harness pins
  * the same shape against a synthetic reader; what it cannot reach is the custom-fields
  * plugin's own nested read, which is the half that decides whether a row's inner repeater

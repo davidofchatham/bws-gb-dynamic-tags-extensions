@@ -283,6 +283,81 @@ $GLOBALS['meta_handler_calls'] = array();
 assert_same( 'R5.11 user arm still reads the value', 'Ada Lovelace', raw_read( USER_SRC, 'name' ) );
 assert_same( 'R5.12 through Meta_Handler, single-only, against user meta', array( array( 'get_user_meta', 'name', true ) ), $GLOBALS['meta_handler_calls'] );
 
+echo "\n=== R6 - the return-format reader beside the value read (FW-3) ===\n";
+
+// The reader answers (source, key) -> the ACF return format or null, and a row's answer
+// comes off the PARENT repeater's field object, sub-field matched by name. The stub is a
+// model of get_field_object(): keyed "selector@object", it records every lookup so a row
+// can say how many the reader made and against which object. Whether real ACF returns
+// `sub_fields` and `return_format` in that shape is measured on the testbed (the fixture's
+// fold-test-matrix.md §F9.5m4 row), not here.
+$GLOBALS['acf_field_objects'] = array(
+	'start_date@5'        => array( 'return_format' => 'm/d/Y' ),
+	'start_date@term_7'   => array( 'return_format' => 'd/m/Y' ),
+	'start_date@option'   => array( 'return_format' => 'Y-m-d' ),
+	'start_date@9'        => array( 'return_format' => 'F j, Y' ),
+	'plain@5'             => array( 'type' => 'text' ),
+	'team@5'              => array( 'sub_fields' => array(
+		array( 'name' => 'label', 'return_format' => '' ),
+		array( 'name' => 'review', 'return_format' => 'd/m/Y' ),
+	) ),
+	'team@term_7'         => array( 'sub_fields' => array( array( 'name' => 'review', 'return_format' => 'Y-m-d' ) ) ),
+	'team@option'         => array( 'sub_fields' => array( array( 'name' => 'review', 'return_format' => 'm-d-Y' ) ) ),
+	'team@user_2'         => array( 'sub_fields' => array( array( 'name' => 'review', 'return_format' => 'j M Y' ) ) ),
+);
+$GLOBALS['acf_lookups'] = array();
+if ( ! function_exists( 'get_field_object' ) ) {
+	function get_field_object( $selector, $object_id = false, $format_value = true, $load_value = true ) {
+		$GLOBALS['acf_lookups'][] = $selector . '@' . $object_id;
+		return $GLOBALS['acf_field_objects'][ $selector . '@' . $object_id ] ?? false;
+	}
+}
+
+function fmt_read( array $source, string $key, $instance = null ) {
+	return bws_read_resolved_source_return_format( $source, $key, $instance );
+}
+function row_src( string $parent_kind, int $parent_id, string $repeater = 'team' ): array {
+	return array(
+		'kind' => 'meta_row', 'row' => array( 'review' => '04/03/2030' ),
+		'parent_kind' => $parent_kind, 'parent_id' => $parent_id, 'repeater' => $repeater, 'index' => 0,
+	);
+}
+
+assert_same( 'R6.1 post with an id', 'm/d/Y', fmt_read( POST_SRC, 'start_date' ) );
+assert_same( 'R6.2 term, off its taxonomy-prefixed id', 'd/m/Y', fmt_read( array( 'kind' => 'term', 'id' => 7, 'taxonomy' => 'term' ), 'start_date' ) );
+assert_same( 'R6.3 site', 'Y-m-d', fmt_read( array( 'kind' => 'site' ), 'start_date' ) );
+assert_same( 'R6.4 a field with no return format answers null', null, fmt_read( POST_SRC, 'plain' ) );
+assert_same( 'R6.5 a field ACF does not know answers null', null, fmt_read( POST_SRC, 'absent' ) );
+assert_same( 'R6.6 an empty key answers null', null, fmt_read( POST_SRC, '' ) );
+
+// An entity-less post keeps today's object-id path: the loop context names the object.
+$loop_inst = (object) array( 'context' => array( 'generateblocks/queryType' => 'post_meta', 'postId' => 9 ) );
+assert_same( 'R6.7 entity-less post: the context\'s outer page', 'F j, Y', fmt_read( array( 'kind' => 'post', 'id' => 0 ), 'start_date', $loop_inst ) );
+
+assert_same( 'R6.8 row of a post: the repeater\'s sub-field, matched by name', 'd/m/Y', fmt_read( row_src( 'post', 5 ), 'review' ) );
+assert_same( 'R6.9 row of a term', 'Y-m-d', fmt_read( row_src( 'term', 7 ), 'review' ) );
+assert_same( 'R6.10 row of the site', 'm-d-Y', fmt_read( row_src( 'site', 0 ), 'review' ) );
+assert_same( 'R6.11 row of a user', 'j M Y', fmt_read( row_src( 'user', 2 ), 'review' ) );
+assert_same( 'R6.12 a sub-field with an empty return format answers null', null, fmt_read( row_src( 'post', 5 ), 'label' ) );
+assert_same( 'R6.13 a sub-field the repeater lacks answers null', null, fmt_read( row_src( 'post', 5 ), 'absent' ) );
+
+// THE BOUNDARIES: each answers null, and the date then parses format-agnostically.
+assert_same( 'R6.14 a NESTED row (parent is a row) answers null', null, fmt_read( row_src( 'meta_row', 0 ), 'review' ) );
+assert_same( 'R6.15 an ambient row (no provenance) answers null', null, fmt_read( array( 'kind' => 'meta_row', 'row' => array( 'review' => 'x' ) ), 'review' ) );
+assert_same( 'R6.16 a user source answers null (datetime does not serve user)', null, fmt_read( USER_SRC, 'start_date' ) );
+assert_same( 'R6.17 an unknown kind answers null', null, fmt_read( array( 'kind' => 'nonsense' ), 'start_date' ) );
+
+// ONE field-object lookup per field, and none at all where the answer is a boundary.
+$GLOBALS['acf_lookups'] = array();
+fmt_read( POST_SRC, 'start_date' );
+assert_same( 'R6.18 one lookup for a page-level field', array( 'start_date@5' ), $GLOBALS['acf_lookups'] );
+$GLOBALS['acf_lookups'] = array();
+fmt_read( row_src( 'post', 5 ), 'review' );
+assert_same( 'R6.19 one lookup for a row sub-field, off the parent repeater', array( 'team@5' ), $GLOBALS['acf_lookups'] );
+$GLOBALS['acf_lookups'] = array();
+fmt_read( row_src( 'meta_row', 0 ), 'review' );
+assert_same( 'R6.20 no lookup for a nested row', array(), $GLOBALS['acf_lookups'] );
+
 echo "\n";
 echo $failures
 	? "FAILED - {$failures} of {$count} assertions\n"

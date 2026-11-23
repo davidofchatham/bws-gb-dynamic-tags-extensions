@@ -948,6 +948,98 @@ function bws_read_resolved_source( array $source, string $key, $instance ): stri
 }
 
 /**
+ * The per-source RETURN-FORMAT reader, beside the value read: (source, key) → the
+ * custom-fields plugin's configured return format for that field, or null.
+ *
+ * One field-object lookup per call, dispatched by kind. A post answers off its own
+ * object id (an entity-less post off the loop context's, via bws_resolve_acf_object_id()),
+ * a term off `{taxonomy}_{id}`, the site off `'option'`. A repeater row answers through its
+ * PROVENANCE: the parent's object id, then the parent repeater's field object, the
+ * sub-field matched by name; the parent may be a post, term, site or user.
+ *
+ * NULL IS THE BOUNDARY, and the caller then parses format-agnostically: no custom-fields
+ * plugin, an unknown kind, a field with no return format, an ambient row (a query loop's,
+ * no provenance), and a NESTED row. A nested row records `parent_kind: meta_row` and
+ * `parent_id: 0` and nothing about its grandparent, so there is no object to ask; walking
+ * up needs the source shape widened (see bws_pipeline_rows_to_sources()).
+ *
+ * @since Unreleased
+ * @param array  $source   One resolved source.
+ * @param string $key      Field key (a sub-field's name, for a row).
+ * @param object $instance GB instance (the loop context an entity-less post is addressed by).
+ * @return string|null Return format, or null.
+ */
+if ( ! function_exists( 'bws_read_resolved_source_return_format' ) ) {
+function bws_read_resolved_source_return_format( array $source, string $key, $instance ): ?string {
+	if ( '' === $key || ! function_exists( 'get_field_object' ) ) {
+		return null;
+	}
+
+	$kind = $source['kind'] ?? '';
+
+	if ( 'meta_row' === $kind ) {
+		$repeater = (string) ( $source['repeater'] ?? '' );
+		$parent   = bws_acf_parent_object_id( (string) ( $source['parent_kind'] ?? '' ), (int) ( $source['parent_id'] ?? 0 ) );
+		if ( '' === $repeater || null === $parent ) {
+			return null;
+		}
+		$repeater_field = get_field_object( $repeater, $parent, false, false );
+		foreach ( (array) ( $repeater_field['sub_fields'] ?? array() ) as $sub_field ) {
+			if ( ( $sub_field['name'] ?? '' ) === $key ) {
+				return ! empty( $sub_field['return_format'] ) ? (string) $sub_field['return_format'] : null;
+			}
+		}
+		return null;
+	}
+
+	switch ( $kind ) {
+		case 'post':
+			$object_id = bws_resolve_acf_object_id( $instance, $source['id'] ?? false );
+			break;
+		case 'term':
+			$object_id = ( $source['taxonomy'] ?? 'term' ) . '_' . (int) ( $source['id'] ?? 0 );
+			break;
+		case 'site':
+			$object_id = 'option';
+			break;
+		default:
+			return null;
+	}
+
+	$field = get_field_object( $key, $object_id, false, false );
+	return ! empty( $field['return_format'] ) ? (string) $field['return_format'] : null;
+}
+}
+
+/**
+ * The ACF object id a repeater row's PARENT is addressed by, from a row's provenance.
+ * The prefixes are the `rows` step's own selectors (bws_pipeline_default_reader()).
+ * Null for a parent with no object to ask: a nested row, or an id-less post/term/user.
+ *
+ * @since Unreleased
+ */
+if ( ! function_exists( 'bws_acf_parent_object_id' ) ) {
+/** @return int|string|null ACF object id (post id, 'term_N', 'user_N' or 'option'), or null. */
+function bws_acf_parent_object_id( string $parent_kind, int $parent_id ) {
+	if ( 'site' === $parent_kind ) {
+		return 'option';
+	}
+	if ( $parent_id <= 0 ) {
+		return null;
+	}
+	switch ( $parent_kind ) {
+		case 'post':
+			return $parent_id;
+		case 'term':
+			return 'term_' . $parent_id;
+		case 'user':
+			return 'user_' . $parent_id;
+	}
+	return null;
+}
+}
+
+/**
  * Map a resolved source to its link identity, or null when it has none (PURE).
  *
  * Link identity is the {kind,id} pair bws_resolve_link_url consumes
@@ -1539,8 +1631,7 @@ function bws_meta_handler_read_preserving_arrays( int $object_id, string $key, s
  *  3. GB Pro TYPE_POST_META repeater rows → outer page's postId from context,
  *     since ACF repeater subfields are registered against the parent post's
  *     field group.
- *  4. Otherwise 0 (callers should treat as "no ACF context available" and
- *     fall through to format-agnostic parsing).
+ *  4. Otherwise 0 (callers should treat as "no ACF context available").
  *
  * INVARIANT: tags that read ACF field-config metadata in loop contexts MUST
  * use this resolver rather than passing a bare false/0 to get_field_object();

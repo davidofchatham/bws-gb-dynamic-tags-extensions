@@ -69,7 +69,7 @@ add_action(
 			is_scalar( $value ) ? var_export( $value, true ) : '(' . gettype( $value ) . ') ' . wp_json_encode( $value )
 		) );
 
-		// 2. Field-config read (the bws_get_acf_return_format path → format chain tier 2).
+		// 2. Field-config read (the bws_read_resolved_source_return_format path → format chain tier 2).
 		$obj = get_field_object( $key, 'option' );
 		if ( is_array( $obj ) ) {
 			error_log( sprintf(
