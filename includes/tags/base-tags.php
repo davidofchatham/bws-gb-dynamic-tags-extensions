@@ -909,7 +909,7 @@ function bws_join_callback( $options, $block, $instance ): string {
  *   - REFUSAL arm: the fallback lives inside bws_post_content_core(), which a refusal
  *     must not call, so the arm emits it directly and answers '' in preview (the shell
  *     labels it). Same shape as image's.
- *   - AMBIENT arm: terminates in preview, falls THROUGH on the front end (FW-116).
+ *   - AMBIENT arm: an empty claim emits the fallback the same way and answers '' in preview.
  * Neither is guarded on function_exists( 'bws_build_preview_label' ): the guard belongs
  * with the emit, in the shell.
  *
@@ -951,18 +951,14 @@ function bws_base_content_read_value( array $options, $instance ): array {
 		return $out;
 	}
 
-	// Ambient dispatch. An EMPTY claim does NOT terminate on the front end (unlike other
-	// tags): falling through lets bws_post_content_core's own falsy-id fallback emit run.
-	// FW-116's per-tag fix — a wrong read here is evidence for FW-116, not a local repair.
+	// Ambient dispatch. The claim is terminal: an EMPTY one states the fallback here, as the
+	// refused arm does ('' in preview — the shell states the label).
 	$ambient = $read['ambient'];
 	if ( null !== $ambient ) {
-		if ( '' !== $ambient['value'] ) {
-			$out['value'] = $ambient['value']; // content is not link-wrapped (parity with post path below).
-			return $out;
-		}
-		if ( $is_preview ) {
-			return $out; // '' — the shell states the label; the front end falls through.
-		}
+		$out['value'] = '' !== $ambient['value']
+			? $ambient['value'] // content is not link-wrapped (parity with post path below).
+			: ( $is_preview ? '' : bws_base_stated_fallback( $options, $instance ) );
+		return $out;
 	}
 	if ( 'meta_row' === $res['kind'] ) {
 		// REPEATER-ROW READ, collapsing: FIRST row of the unbounded fan.
@@ -1330,10 +1326,9 @@ function bws_base_image_resolve_value( array $options, $instance ): array {
 		return $out;
 	}
 
-	// Ambient dispatch. query_context isn't claimed for image (see the seam's PHPDoc): it
-	// falls through to the post route's fallback emit.
+	// Ambient dispatch. The claim is terminal; an empty value reaches the shell, which states
+	// the fallback on any empty value.
 	if ( null !== $read['ambient'] ) {
-		// The term/user core already tried the fallback.
 		$out['value'] = $read['ambient']['value'];
 		return $out;
 	}

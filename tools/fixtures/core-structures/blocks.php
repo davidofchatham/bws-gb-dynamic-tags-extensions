@@ -3281,6 +3281,7 @@ function bws_fixture_build_page_content( $builder ) {
  * term before the rewrite and nothing after it.
  *
  * @since 1.19.1 C-C2/C-DT1/C-DT2 added
+ * @since Unreleased C-C2.7 added (`use:excerpt` with a fallback, FW-116)
  * @since 1.20.0 C-TERM1/C-TERM2 added, then C-CONV1..9 and the pinned C-CONV10..14 (FW-39)
  * @since 1.21.0 C-TERM1/C-TERM2 removed with the `term_` family (FW-129)
  * @return string
@@ -3321,6 +3322,10 @@ function bws_fixture_element_content_context_header() {
 			bws_fixture_gb_row(
 				'C-C2 content WITH a fallback - fires on the three analog-less contexts (date/search/latest-home -> No description available), stays out of the way of a real analog on the other three (PTA/author/404, unchanged from C12/C13/C16). context-test-matrix.md has the per-context table',
 				'{{content fallback:No description available}}'
+			),
+			bws_fixture_gb_row(
+				'C-C2.7 content use:excerpt WITH a fallback - fires where no excerpt analog answers (date/search/latest-home, and a term archive with no description -> No excerpt available), stays out of the way of a real analog on the others (PTA/author/404/a described term). context-test-matrix.md has the per-context table',
+				'{{content use:excerpt|fallback:No excerpt available}}'
 			),
 			// T8.13..T8.21 — the author archive's keyed {{image}} read (#144). Text-matrix T8
 			// owns the expectations; they live HERE because this element sits outside the

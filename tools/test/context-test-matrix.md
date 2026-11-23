@@ -46,7 +46,7 @@ Baselines captured 2026-07-18, **re-measured on the front end 2026-08-29** when 
 
 ## C-rows — content/datetime WITH a configured `fallback` (regression fix, 1.19.1)
 
-`bws_base_ambient_analog()`'s `query_context` case claimed `content`/`datetime_single`/`datetime_range` unconditionally on all five query-context kinds, and its reader has no analog for most (tag, kind) pairs — so a configured `fallback` never got a chance to run, and the tag rendered bare empty instead. Fixed by falling through to the post route (content) / widening the outer fallback gate (datetime) so each tag's own self-contained fallback mechanism fires. `{{image}}`'s twin of this fix is C-I1 below — render-tag-only, since its fallback needs a seeded Media Library id these two don't. Author archive is not a regression for content OR datetime: content's `user`-kind claim already answers with the real bio (C13, unaffected); datetime is not claimed by the `user` kind at all (only what the author reader answers is, per `bws_base_ambient_analog()`'s PHPDoc carve-out), so it was already reaching the post route's self-contained fallback before this fix.
+`bws_base_ambient_analog()`'s `query_context` case claimed `content`/`datetime_single`/`datetime_range` unconditionally on all five query-context kinds, and its reader has no analog for most (tag, kind) pairs — so a configured `fallback` never got a chance to run, and the tag rendered bare empty instead. Fixed by having each tag's tail state the fallback on an empty claim (`{{image}}` and `{{content}}` since FW-116; `{{content}}` and datetime originally fell through to a core's own self-contained emit). `{{image}}`'s twin of this fix is C-I1 below — render-tag-only, since its fallback needs a seeded Media Library id these two don't. Author archive is not a regression for content OR datetime: content's `user`-kind claim already answers with the real bio (C13, unaffected); datetime is not claimed by the `user` kind at all (only what the author reader answers is, per `bws_base_ambient_analog()`'s PHPDoc carve-out), so it was already reaching the post route's self-contained fallback before this fix.
 
 | # | Context | URL | Before (empty, the bug) | After (this session) | Why |
 |---|---|---|---|---|---|
@@ -56,6 +56,14 @@ Baselines captured 2026-07-18, **re-measured on the front end 2026-08-29** when 
 | C-C2.4 | Search | `/?s=searchpin` | empty | `No description available` | no analog |
 | C-C2.5 | Latest-posts home | `/` | empty | `No description available` | no analog |
 | C-C2.6 | 404 | `/no-such-page-xyz/` | *(not a regression)* | GP's default borrow text (C16, unchanged) | a real analog on this GP testbed |
+| C-C2.7.1 | Date archive | `/2026/07/` | empty | `No excerpt available` | An excerpt read with a fallback: no excerpt analog on this sub-kind. Pinned by the visible row C-C2.7 (FW-116); before it, the excerpt route reached a core that emits no fallback |
+| C-C2.7.2 | Post type archive | `/staff/` | *(not a regression)* | the staff type's description | a real analog, the fallback never gets a turn |
+| C-C2.7.3 | Author archive | `/author/fixture-author/` | *(not a regression)* | the author bio | real analog |
+| C-C2.7.4 | Search | `/?s=searchpin` | empty | `No excerpt available` | no analog |
+| C-C2.7.5 | Latest-posts home | `/` | empty | `No excerpt available` | no analog |
+| C-C2.7.6 | 404 | `/no-such-page-xyz/` | *(not a regression)* | GP's default borrow text | a real analog on this GP testbed |
+| C-C2.7.7 | Term archive with a description | `/department/sales/` | *(not a regression)* | the Sales term description | a real analog |
+| C-C2.7.8 | Term archive with no description | `/department/support/` | empty | `No excerpt available` | the term analog answers `''`, so the claim is empty and the tail states the fallback. **`render-tag` only, exception stated per the visible-rows rule**: no snapshot page sits on this archive, and the visible row (C-C2.7) shows whichever term the page is |
 | C-DT1/C-DT2.1 | Date archive | `/2026/07/` | empty | `TBA` | datetime has no analog on ANY query-context sub-kind |
 | C-DT1/C-DT2.2 | Post type archive | `/staff/` | empty | `TBA` | same |
 | C-DT1/C-DT2.3 | Author archive | `/author/fixture-author/` | `TBA` (already correct) | `TBA` | not claimed by the `user` kind at all — always reached the post route |

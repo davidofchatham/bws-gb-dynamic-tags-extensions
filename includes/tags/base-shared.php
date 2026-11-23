@@ -1594,19 +1594,14 @@ function bws_base_query_context_analog_read( string $tag, array $base, array $op
  * path are per-TAG in each callback's tail: a non-null triple runs that tail, null falls
  * through to the post/term/list path.
  *
- * Unhandled (tag, kind) pairs render '' through the seam. TWO carve-outs: query_context is
- * claimed for every tag EXCEPT image — because {{image}} there reaches bws_custom_image_core()
- * via the post route, where a configured Media Library fallback still renders (the seam's
- * '' would drop it) — and the user kind is claimed only for what bws_base_user_analog_read()
- * answers, so {{permalink}} and the datetime tags stay out until they get an analog (FW-47,
- * FW-9). The user kind can claim image because its own core, bws_user_custom_image_core(),
- * emits that fallback itself.
+ * Unhandled (tag, kind) pairs render '' through the seam, and a non-null triple is TERMINAL:
+ * a falsy value never falls through to the post route, because the caller's tail states
+ * the fallback. The one limit on a claim is the user kind, claimed only for what
+ * bws_base_user_analog_read() answers, so {{permalink}} and the datetime tags stay out until
+ * they get an analog (FW-47, FW-9).
  *
  * Link identity is DERIVED from bws_source_link_identity() (CONTEXT.md I12); null on an
  * entity kind (id 0) returns null → caller's post path.
- *
- * The empty-triple-vs-null contract is per-tag carve-outs, not a rule (FW-116). Adding
- * a (tag, kind) pair means checking whether it needs the same carve-out.
  *
  * @since 1.19.0
  * @since Unreleased The `$wire_kind` parameter.
@@ -1657,13 +1652,9 @@ function bws_base_ambient_analog( string $tag, array $base, array $options, $ins
 			);
 
 		case 'query_context':
-			// Entity-LESS kind: claimed for every tag but `image` (carve-out: see PHPDoc).
-			// Every other tag MUST be claimed — falling through hands a query-context base
-			// to a falsy-id post read, the leak this kind exists to stop. Identity still
+			// Entity-LESS kind: claimed for EVERY tag — falling through hands a query-context
+			// base to a falsy-id post read, the leak this kind exists to stop. Identity still
 			// derived: the owner returns null for this kind → the no-wrap pair.
-			if ( 'image' === $tag ) {
-				return null;
-			}
 			$identity = bws_source_link_identity( $base );
 			return array(
 				'value'     => bws_base_query_context_analog_read( $tag, $base, $options, $instance ),

@@ -1124,8 +1124,7 @@ function bws_datetime_legacy_key_to_slot_a( array $options ): ?array {
  * cores' emit and the tail resolve to '' and the walk moves on, which is the contract
  * the shell's own once-per-tag fallback needs.
  *
- * FW-116's per-tag fix for this family is that same tail, which covers an ambient claim
- * with every other arm. The structural flip is FW-116's, not this seam's.
+ * An ambient claim is terminal, so that same tail states its fallback like every other arm's.
  *
  * List mode (#30, parity with base text/title): srcTermIn and src:ref collect up to
  * `limit` results joined with `sep`; empty items are skipped; the fallback is suppressed
