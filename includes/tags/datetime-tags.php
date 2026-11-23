@@ -1156,7 +1156,6 @@ function bws_datetime_legacy_key_to_slot_a( array $options ): ?array {
  *                        a list arm that already wrapped per item.
  */
 function bws_base_datetime_resolve_value( array $options, $instance, ?bool $range = null ): array {
-	$res      = bws_base_src_resolution( $options );
 	$mapped   = bws_normalize_datetime_options( $options, $range );
 	$is_range = $mapped['is_range'];
 
@@ -1179,6 +1178,12 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 		);
 	}
 
+	// L1 — the source read steps, once (bws_base_read_source() owns their order).
+	$read    = bws_base_read_source( $options, $instance, array( 'meta_row' ), bws_datetime_family_tag( $is_range ) );
+	$res     = $read['res'];
+	$base    = $read['base'];
+	$ambient = $read['ambient'];
+
 	// src:site — ACF options-page date field. The core gets the site source; the
 	// DT-1 bws_read_field branch (allowlist-gated get_field($key,'option')) performs
 	// the value read, and the format chain (bws_build_single_format / bws_build_range_format)
@@ -1193,22 +1198,7 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 		);
 	}
 
-	// L1 — resolve the base source once; ambient dispatch through the
-	// one kind-dispatching seam (FW-3a term parity kept byte-identical through it).
-	// Explicit src/loop/id already won inside the factory.
-	$base = function_exists( 'bws_base_resolve_source_for_callback' )
-		? bws_base_resolve_source_for_callback( $options, $instance )
-		: array( 'kind' => 'post', 'id' => 0 );
-	$res     = bws_base_settle_kind( $res, $base );
-	$ambient = function_exists( 'bws_base_ambient_analog' )
-		? bws_base_ambient_analog( bws_datetime_family_tag( $is_range ), $base, $options, $instance )
-		: null;
-
-	// Unguarded, unlike its neighbours above — see bws_base_read_refused(). Those guards
-	// degrade a read; this one would delete a REFUSAL, silently restoring the defect.
-	$refused = bws_base_read_refused( $res, $base, array( 'meta_row' ) );
-
-	if ( $refused ) {
+	if ( $read['refused'] ) {
 		// REFUSED (GH #75/#76/#109) — read nothing, and skip the core: a datetime core
 		// handed a falsy id does not stop, it reads a query-loop item it can be served
 		// from (bws_loop_item_is_post_or_row() is that question) and then the queried

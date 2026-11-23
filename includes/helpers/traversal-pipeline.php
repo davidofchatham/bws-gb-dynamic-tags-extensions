@@ -471,14 +471,17 @@ function bws_pipeline_rows_to_sources( $raw, array $parent = array(), $repeater 
  * bws_capture_ambient_signals() (the sole is_tax/get_queried_object/loop read).
  *
  * @since 1.14.0
+ * @since Unreleased The `$root` parameter.
  * @param array  $options  Tag options (src, id, srcTermIn, …).
  * @param object $instance GB tag instance (for loop context + registry resolve).
  * @param array|null $signals Ambient signals (see bws_capture_ambient_signals);
  *                            null → live capture.
+ * @param string|null $root The chain's root token, when the caller already parsed it
+ *                          (a bws_fold_chain_resolution() `root`); null → parse $options.
  * @return array One base resolved source (see file header typedef).
  */
 if ( ! function_exists( 'bws_resolve_base_source' ) ) {
-function bws_resolve_base_source( array $options, $instance, $signals = null ) {
+function bws_resolve_base_source( array $options, $instance, $signals = null, ?string $root = null ) {
 	if ( null === $signals ) {
 		$signals = bws_capture_ambient_signals( $instance );
 	}
@@ -487,10 +490,15 @@ function bws_resolve_base_source( array $options, $instance, $signals = null ) {
 	// instead (`src:refs,office;terms,category`), whose ROOT is the token and whose steps
 	// belong to the step engine — so route through the compiler's root reader, which
 	// returns a legacy token unchanged (asserted in fold-chain-compile-test.php) and ''
-	// for a chain that leads with a step off the ambient entity.
-	$src = function_exists( 'bws_fold_src_root_token' )
-		? bws_fold_src_root_token( $options )
-		: ( $options['src'] ?? $options['source'] ?? '' );
+	// for a chain that leads with a step off the ambient entity. A caller that already
+	// parsed the chain passes that parse's `root` instead.
+	if ( null !== $root ) {
+		$src = $root;
+	} else {
+		$src = function_exists( 'bws_fold_src_root_token' )
+			? bws_fold_src_root_token( $options )
+			: ( $options['src'] ?? $options['source'] ?? '' );
+	}
 	if ( 'current' === $src ) {
 		$src = '';
 	}

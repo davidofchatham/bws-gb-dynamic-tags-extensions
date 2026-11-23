@@ -274,8 +274,8 @@ function bws_table_column_start( ?array $opts, string $explicit_id, $instance ) 
 	if ( '' !== $explicit_id && 'site' !== $res['kind'] ) {
 		$opts['id'] = $explicit_id;
 	}
-	$base = bws_base_resolve_source_for_callback( $opts, $instance );
-	return bws_base_read_refused( bws_base_settle_kind( $res, $base ), $base, bws_table_serves() ) ? false : $base;
+	$read = bws_base_read_source( $opts, $instance, bws_table_serves(), null, $res );
+	return $read['refused'] ? false : $read['base'];
 }
 
 /**
@@ -604,8 +604,9 @@ function bws_table_callback( $options, $block, $instance ): string {
 	$columns    = bws_table_columns( $options, $dropped );
 
 	// A root this render cannot use produces no table, not an empty one.
-	$base    = empty( $columns ) ? array() : bws_base_resolve_source_for_callback( $options, $instance );
-	$refused = empty( $columns ) || bws_base_read_refused( bws_base_settle_kind( bws_base_src_resolution( $options ), $base ), $base, bws_table_serves() );
+	$read    = empty( $columns ) ? null : bws_base_read_source( $options, $instance, bws_table_serves(), null );
+	$base    = $read['base'] ?? array();
+	$refused = null === $read || $read['refused'];
 	if ( $refused ) {
 		return $is_preview ? bws_table_output( bws_table_skeleton( $options, $columns, $dropped ), $options, $instance ) : '';
 	}

@@ -1975,6 +1975,52 @@ eq( 'FW-169: an UNSETTLED marker is refused (default-refuse safety net)', true, 
 eq( 'FW-169: …and a settled one is read', false, bws_base_read_refused( bws_base_settle_kind( $marked, post_src( 5 ) ), post_src( 5 ) ) );
 eq( 'FW-169: the ambient shortcut is NOT taken for a marker chain', null, bws_base_ambient_analog( 'title', term_src( 3 ), array( 'src' => 'current;parent' ), null ) );
 
+// ── FW-106 — bws_base_read_source(): the source read steps, run once ─────────
+//
+// Every base family and both {{table}} sites read their source through this one
+// helper; the step order is its PHPDoc's. Signals are injected (the factory's own
+// seam), so these rows pin the helper's sequencing, not ambient recognition.
+
+$term_archive = sig( array( 'queried_kind' => 'term', 'queried_id' => 34, 'is_tax' => true ) );
+
+$read = bws_base_read_source( array(), null, array(), 'title', null, $term_archive );
+eq( 'FW-106: the record carries exactly res, base, refused, ambient', array( 'ambient', 'base', 'refused', 'res' ), ( static function ( $k ) { sort( $k ); return $k; } )( array_keys( $read ) ) );
+eq( 'FW-106: bare tag on a term archive -> term base', term_src( 34 ), $read['base'] );
+eq( 'FW-106: …not refused', false, $read['refused'] );
+eq( 'FW-106: …and the ambient seam claims it', array( 'value' => 'TERM_TITLE_34', 'link_id' => 34, 'link_type' => 'term' ), $read['ambient'] );
+
+eq(
+	'FW-106: a null ambient tag never asks the ambient seam',
+	null,
+	bws_base_read_source( array(), null, array(), null, null, $term_archive )['ambient']
+);
+
+// A site read takes no factory call: with null signals, the factory would capture
+// them from the WordPress request, which this harness does not have.
+$site = bws_base_read_source( array( 'src' => 'site' ), null, array(), 'title' );
+eq( 'FW-106: a site read -> the site base, without the factory', array( 'kind' => 'site' ), $site['base'] );
+eq( 'FW-106: …its resolution kind is site (families branch on it first)', 'site', $site['res']['kind'] );
+eq( 'FW-106: …and the ambient seam is not asked', null, $site['ambient'] );
+
+$unresolved = bws_base_read_source( array(), null, array(), 'title', null, loop_sig( array( 'in_loop' => true, 'item_post_id' => false, 'item_kind' => 'unknown', 'loop_item' => null ) ) );
+eq( 'FW-106: an unresolved base is refused', true, $unresolved['refused'] );
+eq( 'FW-106: …and a refused read carries no ambient answer', null, $unresolved['ambient'] );
+
+eq(
+	'FW-106: the resolution is settled before the refusal test',
+	'term',
+	bws_base_read_source( array( 'src' => 'current;parent' ), null, array(), 'title', null, $term_archive )['res']['kind']
+);
+
+// A caller that already parsed passes its resolution in, and the helper uses it.
+$given = array( 'root' => '', 'kind' => 'meta_row', 'fans' => true );
+eq( 'FW-106: a passed resolution is used (meta_row unserved -> refused)', true, bws_base_read_source( array(), null, array(), 'title', $given, $term_archive )['refused'] );
+eq( 'FW-106: …and served when the family serves it', false, bws_base_read_source( array(), null, array( 'meta_row' ), 'title', $given, $term_archive )['refused'] );
+
+// The two parses the helper hands down: the factory's root, the ambient seam's wire kind.
+eq( 'FW-106: the factory reads a passed root over the options', array( 'kind' => 'site' ), bws_resolve_base_source( array(), null, $term_archive, 'site' ) );
+eq( 'FW-106: the ambient seam reads a passed wire kind over the options', null, bws_base_ambient_analog( 'title', term_src( 34 ), array(), null, 'term' ) );
+
 // ── report ───────────────────────────────────────────────────────────────────
 echo "\n";
 echo 'traversal-pipeline: ' . $GLOBALS['pass'] . ' passed, ' . $GLOBALS['fail'] . " failed\n";

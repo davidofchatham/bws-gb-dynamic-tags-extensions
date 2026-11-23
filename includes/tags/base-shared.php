@@ -983,20 +983,51 @@ function bws_resolve_post_by_source( array $options, $instance ) {
 // ===============================================
 
 /**
- * Resolve the base source for a base callback, guarded for load order.
+ * Read a base tag's source: THE STEPS EVERY BASE FAMILY RUNS, once, in one order.
  *
- * Single factory call per callback; the callback then branches on base kind (term →
- * analog read, else first post id). Falls back to post/0 when the engine is unavailable.
+ * Every base resolve seam (text, content, title, permalink, image, datetime) and both
+ * {{table}} sites call this, then branch on the record; none runs the steps by hand.
+ * THE STEP ORDER IS OWNED HERE:
  *
- * @since 1.14.0
- * @param array  $options  Tag options.
- * @param object $instance GB instance.
- * @return array Base resolved source ({kind,id}|{kind:site}|{kind:meta_row,row}).
+ * 1. Parse the chain (bws_base_src_resolution()), unless the caller passes $res.
+ * 2. The factory (bws_resolve_base_source()), handed the parse's root. A `site` resolution
+ *    skips it: the base is `{kind:site}`, which is the factory's own answer, without the
+ *    ambient-signal capture. Families return their site read before reading `refused`.
+ * 3. bws_base_settle_kind(), then bws_base_read_refused() against $serves.
+ * 4. bws_base_ambient_analog(), handed the UNSETTLED kind — only when not refused and
+ *    $ambient_tag is given. A refused read never asks it, so `ambient` is null there.
+ *
+ * NO function_exists() GUARD: traversal-pipeline.php and slot-fold-compile.php load before
+ * this file, and a guard would hide a refusal (see bws_base_read_refused()).
+ *
+ * @since Unreleased
+ * @param array       $options     Tag options.
+ * @param object|null $instance    GB tag instance.
+ * @param array       $serves      Wire kinds this family serves beyond the always-served
+ *                                 set (bws_base_read_refused()'s $serves).
+ * @param string|null $ambient_tag The tag the ambient seam answers for; null → not asked.
+ * @param array|null  $res         A resolution the caller already parsed; null → parse.
+ * @param array|null  $signals     Injected ambient signals (the factory's); null → live.
+ * @return array{res:array, base:array, refused:bool, ambient:?array} `res` is settled.
  */
-function bws_base_resolve_source_for_callback( array $options, $instance ): array {
-	return function_exists( 'bws_resolve_base_source' )
-		? bws_resolve_base_source( $options, $instance )
-		: array( 'kind' => 'post', 'id' => 0 );
+function bws_base_read_source( array $options, $instance, array $serves, ?string $ambient_tag, ?array $res = null, $signals = null ): array {
+	$res       = $res ?? bws_base_src_resolution( $options );
+	$wire_kind = (string) $res['kind'];
+	$base      = 'site' === $wire_kind
+		? array( 'kind' => 'site' )
+		: bws_resolve_base_source( $options, $instance, $signals, (string) $res['root'] );
+	$res       = bws_base_settle_kind( $res, $base );
+	$refused   = bws_base_read_refused( $res, $base, $serves );
+	$ambient   = ( $refused || null === $ambient_tag )
+		? null
+		: bws_base_ambient_analog( $ambient_tag, $base, $options, $instance, $wire_kind );
+
+	return array(
+		'res'     => $res,
+		'base'    => $base,
+		'refused' => $refused,
+		'ambient' => $ambient,
+	);
 }
 
 /**
@@ -1049,8 +1080,8 @@ const BWS_BASE_WIRE_KINDS_ALWAYS_SERVED = array( 'post', 'render_time', 'term' )
  * BWS_BASE_WIRE_KINDS_ALWAYS_SERVED or the call site's $serves. Default-refuse,
  * opt-in-to-serve, so a new wire kind (or a family dropping a branch) renders empty
  * instead of leaking. Serve-by-default leaked: `{{title src:rows,team_members}}`
- * printed the page's own title. `site` is deliberately absent: callbacks return their
- * site read BEFORE the factory runs.
+ * printed the page's own title. `site` is deliberately absent: the base families return
+ * their site read before reading this answer, and {{table}} lists `site` in its own $serves.
  *
  * NOT at bws_base_post_id_from_source() / bws_base_post_first_usable(): refusing there
  * can only return a falsy id, and a falsy id does not stop (below).
@@ -1073,7 +1104,7 @@ const BWS_BASE_WIRE_KINDS_ALWAYS_SERVED = array( 'post', 'render_time', 'term' )
  * @since 1.17.0
  * @since 1.21.0 The unserved-kind refusal and its $serves list.
  * @param array $res    A bws_base_src_resolution() result (the CHAIN's answer).
- * @param array $base   A bws_base_resolve_source_for_callback() result (the FACTORY's).
+ * @param array $base   A bws_resolve_base_source() result (the FACTORY's).
  * @param array $serves Wire kinds this family branches beyond the always-served set —
  *                      `meta_row` at the two families with a row arm, today's only use.
  * @return bool True when no arm may read this tag.
@@ -1089,7 +1120,7 @@ function bws_base_read_refused( array $res, array $base, array $serves = array()
 }
 
 /**
- * Settle a chain's kind that only render can name — each arm's line right after the factory.
+ * Settle a chain's kind that only render can name — applied right after the factory (bws_base_read_source()).
  *
  * A chain stepped off an ambient root by a kind-preserving step (`current;parent`) reports
  * BWS_FOLD_KIND_SETTLES_AT_RENDER: stepped, so not `render_time` (whose ambient shortcut would
@@ -1101,7 +1132,7 @@ function bws_base_read_refused( array $res, array $base, array $serves = array()
  *
  * @since 1.23.0
  * @param array $res  A bws_base_src_resolution() result.
- * @param array $base A bws_base_resolve_source_for_callback() result.
+ * @param array $base A bws_resolve_base_source() result.
  * @return array The same resolution, its `kind` settled.
  */
 function bws_base_settle_kind( array $res, array $base ): array {
@@ -1578,20 +1609,23 @@ function bws_base_query_context_analog_read( string $tag, array $base, array $op
  * a (tag, kind) pair means checking whether it needs the same carve-out.
  *
  * @since 1.19.0
- * @param string $tag      One of text|content|title|permalink|image.
- * @param array  $base     Base resolved source from bws_resolve_base_source().
- * @param array  $options  Tag options.
- * @param object $instance GB tag instance.
+ * @since Unreleased The `$wire_kind` parameter.
+ * @param string      $tag       One of text|content|title|permalink|image.
+ * @param array       $base      Base resolved source from bws_resolve_base_source().
+ * @param array       $options   Tag options.
+ * @param object      $instance  GB tag instance.
+ * @param string|null $wire_kind The chain's UNSETTLED resolution kind, when the caller
+ *                               already parsed it; null → parse $options.
  * @return array{value:string, link_id:int, link_type:string}|null Triple when an
  *                        ambient arm applies (value may be ''), null to fall through.
  */
-function bws_base_ambient_analog( string $tag, array $base, array $options, $instance ): ?array {
+function bws_base_ambient_analog( string $tag, array $base, array $options, $instance, ?string $wire_kind = null ): ?array {
 	// Applies only to a ROOT-ONLY chain rooted at the ambient entity. Other kinds own
 	// their render: 'term' (explicit term step), 'site' (own gate), 'post' (src:ref on a
 	// term archive steps term→post and reads the POST — don't short-circuit to the term).
 	// A registry-source root still reads 'render_time'. Explicit sources (loop item,
 	// src:current, id) win inside the factory, so they never land an ambient kind here.
-	if ( 'render_time' !== bws_base_src_resolution( $options )['kind'] ) {
+	if ( 'render_time' !== ( $wire_kind ?? bws_base_src_resolution( $options )['kind'] ) ) {
 		return null;
 	}
 

@@ -582,7 +582,11 @@ function bws_register_base_tags(): void {
 function bws_base_text_resolve_value( array $options, $instance ): array {
 	// A datetime-shaped `key` reads its first field only (bws_text_first_read_options()).
 	$options = bws_text_first_read_options( $options );
-	$res     = bws_base_src_resolution( $options );
+
+	// L1 — the source read steps, once (bws_base_read_source() owns their order).
+	$read = bws_base_read_source( $options, $instance, array( 'meta_row' ), 'text' );
+	$res  = $read['res'];
+	$base = $read['base'];
 
 	// Site read — no entity; site value with sentinel link identity (id 1, 'site' type).
 	if ( 'site' === $res['kind'] ) {
@@ -593,22 +597,16 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 		);
 	}
 
-	// L1 — resolve the base source once. Explicit src/loop/id already won inside the factory.
-	$base = bws_base_resolve_source_for_callback( $options, $instance );
-	$res  = bws_base_settle_kind( $res, $base );
-
 	// REFUSED — read nothing. The empty triple IS the empty path (the callback then runs
 	// preview label or fallback). Covers {{join}} slots too: the field drops out of the
 	// composite rather than taking the current entry's value.
-	if ( bws_base_read_refused( $res, $base, array( 'meta_row' ) ) ) {
+	if ( $read['refused'] ) {
 		return array( 'value' => '', 'link_id' => 0, 'link_type' => 'post' );
 	}
 
-	// Ambient dispatch (term/author/query-context archive) through the one seam; its
-	// triple IS this arm's return shape.
-	$ambient = bws_base_ambient_analog( 'text', $base, $options, $instance );
-	if ( null !== $ambient ) {
-		return $ambient;
+	// Ambient dispatch (term/author/query-context archive); its triple IS this arm's return shape.
+	if ( null !== $read['ambient'] ) {
+		return $read['ambient'];
 	}
 	// The singular collapse is deferred into the singular arm: list branches run their
 	// own traversal, and computing it here would run the chain twice.
@@ -930,7 +928,9 @@ function bws_base_content_read_value( array $options, $instance ): array {
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
 	$use  = bws_use_effective( 'content', $options );
-	$res  = bws_base_src_resolution( $options );
+	$read = bws_base_read_source( $options, $instance, array( 'meta_row' ), 'content' );
+	$res  = $read['res'];
+	$base = $read['base'];
 	// Local copy — the use:key arm sets $opts['type'] below.
 	$opts = $options;
 	$out  = array(
@@ -945,11 +945,8 @@ function bws_base_content_read_value( array $options, $instance ): array {
 		return $out;
 	}
 
-	$base = bws_base_resolve_source_for_callback( $options, $instance );
-	$res  = bws_base_settle_kind( $res, $base );
-
 	// REFUSED — read nothing; fallback stated here, '' in preview (see PHPDoc).
-	if ( bws_base_read_refused( $res, $base, array( 'meta_row' ) ) ) {
+	if ( $read['refused'] ) {
 		$out['value'] = $is_preview ? '' : bws_base_stated_fallback( $options, $instance );
 		return $out;
 	}
@@ -957,7 +954,7 @@ function bws_base_content_read_value( array $options, $instance ): array {
 	// Ambient dispatch. An EMPTY claim does NOT terminate on the front end (unlike other
 	// tags): falling through lets bws_post_content_core's own falsy-id fallback emit run.
 	// FW-116's per-tag fix — a wrong read here is evidence for FW-116, not a local repair.
-	$ambient = bws_base_ambient_analog( 'content', $base, $options, $instance );
+	$ambient = $read['ambient'];
 	if ( null !== $ambient ) {
 		if ( '' !== $ambient['value'] ) {
 			$out['value'] = $ambient['value']; // content is not link-wrapped (parity with post path below).
@@ -1090,7 +1087,9 @@ function bws_base_content_callback( $options, $block, $instance ): string {
  *                        a list arm that already wrapped per item.
  */
 function bws_base_title_resolve_value( array $options, $instance ): array {
-	$res = bws_base_src_resolution( $options );
+	$read = bws_base_read_source( $options, $instance, array(), 'title' );
+	$res  = $read['res'];
+	$base = $read['base'];
 
 	// Site read — title base tag has no `use`; resolver returns site name. Sentinel
 	// link identity (id 1, 'site' type), the same pair the text seam reports.
@@ -1102,21 +1101,17 @@ function bws_base_title_resolve_value( array $options, $instance ): array {
 		);
 	}
 
-	$base = bws_base_resolve_source_for_callback( $options, $instance );
-	$res  = bws_base_settle_kind( $res, $base );
-
 	// REFUSED (GH #75/#76/#109) — read nothing. The empty triple IS this arm's own empty
 	// path: {{title}} registers no `fallback` option, so the shell's whole empty path is
 	// the preview label and a refusal takes it exactly as a read that found nothing does.
-	if ( bws_base_read_refused( $res, $base ) ) {
+	if ( $read['refused'] ) {
 		return array( 'value' => '', 'link_id' => 0, 'link_type' => 'post' );
 	}
 
 	// Ambient dispatch; the seam's triple IS this arm's return shape (term and user both
 	// link-wrap on the derived identity).
-	$ambient = bws_base_ambient_analog( 'title', $base, $options, $instance );
-	if ( null !== $ambient ) {
-		return $ambient;
+	if ( null !== $read['ambient'] ) {
+		return $read['ambient'];
 	}
 	// Singular collapse deferred into the singular arm (list branches traverse themselves).
 	$link_id   = 0;
@@ -1218,8 +1213,10 @@ function bws_base_title_callback( $options, $block, $instance ): string {
  * @return array{value:string, link_id:int, link_type:string}
  */
 function bws_base_permalink_resolve_value( array $options, $instance ): array {
-	$res = bws_base_src_resolution( $options );
-	$out = array(
+	$read = bws_base_read_source( $options, $instance, array(), 'permalink' );
+	$res  = $read['res'];
+	$base = $read['base'];
+	$out  = array(
 		'value'     => '',
 		'link_id'   => 0,
 		'link_type' => 'post',
@@ -1231,19 +1228,15 @@ function bws_base_permalink_resolve_value( array $options, $instance ): array {
 		return $out;
 	}
 
-	$base = bws_base_resolve_source_for_callback( $options, $instance );
-	$res  = bws_base_settle_kind( $res, $base );
-
 	// REFUSED — read nothing. No fallback and no preview label (a bracketed placeholder
 	// would break the href), so '' is the whole empty path.
-	if ( bws_base_read_refused( $res, $base ) ) {
+	if ( $read['refused'] ) {
 		return $out;
 	}
 
 	// Ambient dispatch; no tail, so the seam's value is the whole return.
-	$ambient = bws_base_ambient_analog( 'permalink', $base, $options, $instance );
-	if ( null !== $ambient ) {
-		$out['value'] = $ambient['value'];
+	if ( null !== $read['ambient'] ) {
+		$out['value'] = $read['ambient']['value'];
 		return $out;
 	}
 
@@ -1316,9 +1309,11 @@ function bws_base_permalink_callback( $options, $block, $instance ): string {
  * @return array{value:string, link_id:int, link_type:string}
  */
 function bws_base_image_resolve_value( array $options, $instance ): array {
-	$use = bws_use_effective( 'image', $options );
-	$res = bws_base_src_resolution( $options );
-	$out = array(
+	$use  = bws_use_effective( 'image', $options );
+	$read = bws_base_read_source( $options, $instance, array( 'meta_row' ), 'image' );
+	$res  = $read['res'];
+	$base = $read['base'];
+	$out  = array(
 		'value'     => '',
 		'link_id'   => 0,
 		'link_type' => 'post',
@@ -1330,20 +1325,16 @@ function bws_base_image_resolve_value( array $options, $instance ): array {
 		return $out;
 	}
 
-	$base = bws_base_resolve_source_for_callback( $options, $instance );
-	$res  = bws_base_settle_kind( $res, $base );
-
 	// REFUSED — read nothing; no core may be reached. The shell emits the fallback.
-	if ( bws_base_read_refused( $res, $base, array( 'meta_row' ) ) ) {
+	if ( $read['refused'] ) {
 		return $out;
 	}
 
 	// Ambient dispatch. query_context isn't claimed for image (see the seam's PHPDoc): it
 	// falls through to the post route's fallback emit.
-	$ambient = bws_base_ambient_analog( 'image', $base, $options, $instance );
-	if ( null !== $ambient ) {
+	if ( null !== $read['ambient'] ) {
 		// The term/user core already tried the fallback.
-		$out['value'] = $ambient['value'];
+		$out['value'] = $read['ambient']['value'];
 		return $out;
 	}
 	if ( 'meta_row' === $res['kind'] ) {

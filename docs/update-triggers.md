@@ -254,7 +254,7 @@ run `php tools/test/try-slot-loop-test.php` (the walk, driven with a recorder in
 
 ## Base-tag REFUSAL TEST change
 
-**Fires on:** anything in the arms' refusal test — `bws_base_read_refused()` in `includes/tags/base-shared.php`, the `BWS_BASE_WIRE_KINDS_ALWAYS_SERVED` constant beside it, or the `$serves` list at any of its seven call sites (five in `base-tags.php`, two in `datetime-tags.php`).
+**Fires on:** anything in the arms' refusal test or the source read it sits in — `bws_base_read_source()` (the steps and their order) and `bws_base_read_refused()` in `includes/tags/base-shared.php`, the `BWS_BASE_WIRE_KINDS_ALWAYS_SERVED` constant beside it, or the `$serves` list a family hands `bws_base_read_source()`, the one caller of the test (eight sites: five in `base-tags.php`, one in `datetime-tags.php`, two in `table-tags.php`).
 
 run `php tools/test/traversal-pipeline-test.php` (the four FW-74 refusal cases at its tail — added with the refusal, and three of them fail by name under the wire-vs-base mutation below), then against the testbed `fold-test-matrix.md` §F9.5j–§F9.5n — the five refusal-plus-control pairs on `/matrix-post-meta/` — and `php tools/test/page-snapshots.php`.
 
