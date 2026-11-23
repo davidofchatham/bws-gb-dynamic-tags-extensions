@@ -230,12 +230,11 @@ function bws_value_looks_time_only( $value ) {
  * query loops and custom return_formats fall through to format-agnostic parsing
  * (issue #22, bugfix v1.7.2).
  *
- * @invariant The VALUE read (`bws_read_field`) is a SEPARATE arg from the
- * field-config object_id. For site-kind sources the `'option'` sentinel must
- * reach the value read — coercing it to a numeric id (false) dead-ends the DT-1
- * `bws_read_field` branch and site-datetime values silently die at null
- * (v1.9.0, DT-1b). `$value_id` carries the sentinel; don't fold it into a
- * numeric coercion.
+ * @invariant The VALUE read is a SEPARATE step from the field-config object_id: the
+ * value is read off the resolved source by kind (the read closure below), the
+ * object_id only addresses the field's config. A site source's value therefore
+ * goes through the one gated site-option reader, and the `'option'` sentinel
+ * exists only on the config side.
  *
  * @invariant Kind dispatch (FW-3a): the read target is the factory's resolved-source payload,
  * built by the callers (bws_datetime_term_source() / bws_datetime_post_source() and the site
@@ -272,7 +271,6 @@ function bws_parse_combined_date_time( $target, $date_field, $time_field, $conte
     // Kind-dispatched read target (FW-3a).
     $is_term = 'term' === ( $target['kind'] ?? '' );
     $is_site = 'site' === ( $target['kind'] ?? '' );
-    $is_row  = 'meta_row' === ( $target['kind'] ?? '' );
     $term_id = $is_term ? (int) ( $target['id'] ?? 0 ) : 0;
 
     // Resolve ACF object_id for field-config lookups. Term kind builds ACF's
@@ -287,19 +285,19 @@ function bws_parse_combined_date_time( $target, $date_field, $time_field, $conte
         $acf_object_id = function_exists( 'bws_resolve_acf_object_id' ) ? bws_resolve_acf_object_id( $instance, $raw_id ) : $raw_id;
     }
 
-    // DT-1b (V7): thread the 'option' sentinel to the VALUE read for site-kind
-    // sources (ACF options-page fields). Post kind keeps its numeric id (false
-    // when entity-less); term kind reads via bws_read_term_field and never
-    // consumes $value_id.
-    $value_id = $is_site ? 'option' : ( $is_term ? false : ( $target['id'] ?? false ) );
-
-    // ONE value read, three-way on kind, for both of this parse's fields. The row leg
-    // (FW-74) takes the L2 seam's string half — a date sub-field is a scalar, so the
-    // seam's own coercion is the read datetime wants, and bws_read_field's loop/entity
-    // inference has nothing to offer a row the chain already resolved.
+    // ONE value read for both of this parse's fields: the L2 seam's string half
+    // (bws_read_resolved_source()) for term, id-carrying post, site and repeater-row
+    // sources — a date field is a scalar, so the seam's own coercion is the read
+    // datetime wants, and the kind dispatch (and the site option gates) live there once.
     //
-    // THE VALUE HALF ONLY. $acf_object_id above is untouched by this leg, per the
-    // invariant in this function's docblock: the field-config id is a SEPARATE argument
+    // THE ONE EXCEPTION is an entity-less post source (id <= 0), which keeps
+    // bws_read_field()'s loop inference: a GB Pro query loop over repeater rows reaches
+    // the resolver's post tail with no id, and only bws_read_field() re-infers the loop
+    // row (issue #22), where the seam's post arm answers '' for id 0. FW-194 gives that row
+    // a real source and removes this branch.
+    //
+    // THE VALUE HALF ONLY. $acf_object_id above is untouched by the read, per the
+    // invariant in this function's docblock: the field-config id is a SEPARATE step
     // from the value read. A row reaches no sub-field config (the flat-meta convention
     // needs the repeater name and index, which this layer is not handed), so a row's
     // $date_format is null and the parse falls to the format-agnostic common-format walk
@@ -307,17 +305,15 @@ function bws_parse_combined_date_time( $target, $date_field, $time_field, $conte
     // field-object read that would close it is FW-3's, and until it lands an ambiguous
     // value (a `d/m/Y` row whose day is <= 12) reads as `m/d/Y`. Visible on the testbed,
     // both arms of it, at fold-test-matrix.md §F9.5m4.
-    $read_value = static function ( $field ) use ( $is_term, $is_row, $target, $term_id, $value_id, $instance ) {
+    $read_value = static function ( $field ) use ( $target, $instance ) {
         if ( ! $field ) {
             return null;
         }
-        if ( $is_term ) {
-            return bws_read_term_field( $field, $term_id, true );
-        }
-        if ( $is_row ) {
+        $entityless_post = 'post' === ( $target['kind'] ?? '' ) && (int) ( $target['id'] ?? 0 ) <= 0;
+        if ( ! $entityless_post ) {
             return bws_read_resolved_source( $target, $field, $instance );
         }
-        return bws_read_field( $field, $instance, $value_id, true );
+        return bws_read_field( $field, $instance, $target['id'] ?? false, true );
     };
 
     // Get primary field value and format

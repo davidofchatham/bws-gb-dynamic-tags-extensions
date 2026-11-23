@@ -1185,8 +1185,8 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 	$ambient = $read['ambient'];
 
 	// src:site — ACF options-page date field. The core gets the site source; the
-	// DT-1 bws_read_field branch (allowlist-gated get_field($key,'option')) performs
-	// the value read, and the format chain (bws_build_single_format / bws_build_range_format)
+	// L2 seam's site arm (bws_site_read_option(), allowlist- and per-user-gated)
+	// performs the value read, and the format chain (bws_build_single_format / bws_build_range_format)
 	// recovers the field's return format. Link identity is the sentinel pair (id 1, 'site'),
 	// reported unconditionally — the shell wraps only what is non-empty, which is the same
 	// test the wrap used to carry here.
@@ -1206,10 +1206,9 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 		$value = '';
 	} elseif ( null !== $ambient ) {
 		if ( 'term' === $ambient['link_type'] && $ambient['link_id'] ) {
-			// Ambient dispatch ONLY rides the seam: the datetime VALUE still reads
-			// through the term core, never the analog reader — FW-3's remaining half
-			// is gated on a field-object-formats read the seam does not expose, so
-			// the seam's own value for a datetime tag is '' by construction.
+			// Ambient dispatch ONLY rides the seam: the datetime VALUE reads through
+			// the term core, never the analog reader — the seam's own value for a
+			// datetime tag is '' by construction, and the core takes a term source.
 			$value     = $core( bws_datetime_term_source( (int) $ambient['link_id'] ), $mapped, $instance );
 			$link_id   = (int) $ambient['link_id'];
 			$link_type = 'term';

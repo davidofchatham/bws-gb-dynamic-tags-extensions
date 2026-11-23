@@ -85,9 +85,8 @@ function bws_field_key_disallowed( string $key ): bool {
  * 'site') — MUST both route through THIS function. Hand-rolling a second
  * get_option() for either path silently diverges on ACF-group subfields
  * (organization_social.facebook): dot-path traversal + the ACF get_field filter
- * live in Meta_Handler::get_option, not in raw get_option. The datetime path
- * reads ACF FIELDS via get_field($key,'option') — a different datum, separate
- * reader, same gate.
+ * live in Meta_Handler::get_option, not in raw get_option. The datetime site read
+ * goes through here too (via the L2 seam's site arm).
  *
  * @invariant TWO INDEPENDENT GATES, both required, neither substituting for the
  * other. WHICH KEYS may ever be read is the allowlist — bws_site_allowlist_ok(),
@@ -712,12 +711,14 @@ function bws_loop_item_gated_post_id( $instance ) {
  * functions if Meta_Handler unavailable.
  *
  * Branching order:
- *  1. $post_id === 'option' (src:site datetime)       → read the options-page field
- *  2. $post_id > 0 (explicit caller-resolved target)  → read post meta on that id
- *  3. The query loop's post (no explicit id)          → read post meta on it, or STOP
+ *  1. The query loop's post (no explicit id)          → read post meta on it, or STOP
  *                                                       when the source gate refuses it
- *  4. The query loop's repeater row (no explicit id)  → read $loop_item[$key] directly
- *  5. null
+ *  2. The query loop's repeater row (no explicit id)  → read $loop_item[$key] directly
+ *  3. $post_id > 0 (explicit caller-resolved target)  → read post meta on that id
+ *  4. null
+ *
+ * (An explicit id still wins over the loop branches: they are skipped when one is given.)
+ * There is no site/options-page branch: a site read is the L2 seam's site arm.
  *
  * NO TERM-ARCHIVE BRANCH. A term archive reaches a term read through the source factory
  * (bws_resolve_base_source()), never by inference here — so a falsy id on an archive
@@ -729,8 +730,8 @@ function bws_loop_item_gated_post_id( $instance ) {
  * function, by the source factory, and reaches the term/user reader arms rather than a
  * post-meta read. This note exists so the fallthrough is not read as a hole.
  *
- * A LOOP POST THE SOURCE GATE REFUSES STOPS THE READ AT BRANCH 3 — it does not continue
- * to 4, and returning null there is the point rather than a shortcut.
+ * A LOOP POST THE SOURCE GATE REFUSES STOPS THE READ AT BRANCH 1 — it does not continue
+ * to 2, and returning null there is the point rather than a shortcut.
  * bws_loop_item_gated_post_id() owns the decision to apply the gate here and owns why
  * the factory route does not share it; bws_is_source_usable() owns the criterion itself.
  *
@@ -754,31 +755,6 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
 	// since plugins like Pie Calendar legitimately store data in _-prefixed keys.
 	if ( bws_field_key_disallowed( $key ) ) {
 		return null;
-	}
-
-	// src:site datetime — ACF options-page field value read. The 'option' sentinel
-	// reaches here only from bws_parse_combined_date_time()'s site-kind value read (site datetime
-	// path). It is an explicit target like a post id, so it is answered FIRST: neither a
-	// loop item nor any other ambient entity may answer for an option the wire named.
-	// Gated through the SAME TWO gates as use:option and site linkTo:key — the
-	// key allowlist and the per-user REST gate. ACF field keys are flat — no dot-path
-	// split. This branch does NOT route through bws_site_read_option() (it reads an ACF
-	// FIELD via get_field, a different datum), so both gates are restated here rather
-	// than inherited: ADR 0001's "option reads are option reads regardless of which
-	// control triggers them".
-	// See docs/adr/0001-site-option-read-allowlist.md and
-	// docs/adr/0008-site-option-per-user-rest-gate.md.
-	if ( 'option' === $post_id ) {
-		if ( ! function_exists( 'get_field' ) ) {
-			return null;
-		}
-		if ( function_exists( 'bws_site_allowlist_ok' ) && ! bws_site_allowlist_ok( $key ) ) {
-			return '';
-		}
-		if ( bws_site_option_withheld_from_user( $key ) ) {
-			return '';
-		}
-		return get_field( $key, 'option' );
 	}
 
 	// Which shape did the query loop hand us?
