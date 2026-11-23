@@ -3,9 +3,10 @@
  * Standalone harness holding the two FW-38 axes in AGREEMENT.
  *
  * Two axes, never derived from each other: a tag entry's hand-set `lifecycle` (intent) and
- * how the tag registers with GB (listed, hidden, or not at all). Lazy loading of entries
- * (FW-175) means the registration path can never look an entry up at run time, so nothing at
- * run time can notice the two drifting apart. This harness is the only place they meet. It
+ * how the tag registers with GB (listed, hidden, or not at all). The registration path never
+ * looks an entry up at run time, so how a tag registers cannot depend on which entries are
+ * registered, or when, and nothing at run time can notice the two drifting apart. This
+ * harness is the only place they meet. It
  * loads the real registry and runs the real registration passes against a capturing stub of
  * GB's registrar, then hands both populations to ONE checker, check_agreement().
  *
