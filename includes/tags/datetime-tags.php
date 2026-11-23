@@ -1185,8 +1185,8 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 	$ambient = $read['ambient'];
 
 	// src:site — ACF options-page date field. The core gets the site source; the
-	// DT-1 bws_read_field branch (allowlist-gated get_field($key,'option')) performs
-	// the value read, and the format chain (bws_build_single_format / bws_build_range_format)
+	// L2 seam's site arm (bws_site_read_option(), allowlist- and per-user-gated)
+	// performs the value read, and the format chain (bws_build_single_format / bws_build_range_format)
 	// recovers the field's return format. Link identity is the sentinel pair (id 1, 'site'),
 	// reported unconditionally — the shell wraps only what is non-empty, which is the same
 	// test the wrap used to carry here.
@@ -1206,10 +1206,9 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 		$value = '';
 	} elseif ( null !== $ambient ) {
 		if ( 'term' === $ambient['link_type'] && $ambient['link_id'] ) {
-			// Ambient dispatch ONLY rides the seam: the datetime VALUE still reads
-			// through the term core, never the analog reader — FW-3's remaining half
-			// is gated on a field-object-formats read the seam does not expose, so
-			// the seam's own value for a datetime tag is '' by construction.
+			// Ambient dispatch ONLY rides the seam: the datetime VALUE reads through
+			// the term core, never the analog reader — the seam's own value for a
+			// datetime tag is '' by construction, and the core takes a term source.
 			$value     = $core( bws_datetime_term_source( (int) $ambient['link_id'] ), $mapped, $instance );
 			$link_id   = (int) $ambient['link_id'];
 			$link_type = 'term';
@@ -1261,10 +1260,8 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 		// own INVARIANT is written about, the issue #22 repeater row a query loop
 		// positions us inside and bws_read_field() re-infers.
 		//
-		// The core takes the resolved SOURCE, and the row's VALUE read is the only half
-		// that changes down there: the field-config object id stays the core's own
-		// derivation, so a row parses format-agnostically — the boundary
-		// bws_parse_combined_date_time() states and FW-3 closes.
+		// The core takes the resolved SOURCE: it reads the row's value and its sub-field's
+		// return format off it (bws_read_resolved_source_return_format()).
 		//
 		// Link identity stays 0/'post' — a row has none (CONTEXT.md I12), and the plain
 		// string return is how the fold is told so.

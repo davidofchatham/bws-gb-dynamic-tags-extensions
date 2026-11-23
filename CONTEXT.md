@@ -450,6 +450,6 @@ A tag reads **K fields × T sources** and assembles: text=1×1 (or 1×N via a fa
 
 ## Pointers
 
-- **PHPDoc invariants in code** (single-class): `bws_site_allowlist_ok` (allowlist), `bws_site_read_option` (single-reader), `bws_resolve_link_url` (site link = permalink-analog), `bws_parse_combined_date_time` (datetime value-id sentinel), the email callback + settings accessor (VE1-VE4).
+- **PHPDoc invariants in code** (single-class): `bws_site_allowlist_ok` (allowlist), `bws_site_read_option` (single-reader), `bws_resolve_link_url` (site link = permalink-analog), `bws_parse_combined_date_time` (datetime value read by source kind), the email callback + settings accessor (VE1-VE4).
 - **Field discovery (1.13.0, I8):** `includes/rest/field-discovery.php` (offered⟺resolvable gate, `scopes_equal` keep-both dedupe, per-subtype registered meta, `<script>`-safe JSON encode) + `assets/js/field-combo-control.js` (editor-time kind projection, `(kind,key,label)` merge, flat filters, ambiguous-key raw display). Schema: `tag-reference.md` §Custom control types. Design/follow-ups: `.scratch/plans/field-selector.md`.
 - **Architecture decision records:** [`docs/adr/`](docs/adr/).

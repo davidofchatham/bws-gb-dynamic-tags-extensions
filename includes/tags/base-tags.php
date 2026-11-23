@@ -1425,7 +1425,7 @@ function bws_base_image_callback( $options, $block, $instance ): string {
  * Allowlist gate for site option reads.
  *
  * @invariant Every site option read (site option key-mode, site linkTo:key,
- * datetime get_field($key,'option')) MUST pass through this gate before the read.
+ * the datetime site read) MUST pass through this gate before the read.
  * GenerateBlocks_Meta_Handler does NOT enforce the allowlist (blocklist only);
  * calling it directly skips the gate, so gating is OUR responsibility, never the
  * handler's. The seed MIRRORS GB Pro's `get_option` callback exactly
@@ -1478,8 +1478,8 @@ function bws_site_allowlist_ok( string $key ): bool {
  *
  * Used by the text/title/permalink/image/content callbacks' early gate. Site
  * has no entity ID, so this bypasses bws_resolve_post_by_source() entirely.
- * Datetime tags do NOT route here — they read ACF options-page fields via
- * a site-kind source handed to the datetime cores (see bws_base_datetime_resolve_value()).
+ * Datetime tags do NOT route here — a site-kind source is handed to the datetime
+ * cores, which read it through the L2 seam (see bws_base_datetime_resolve_value()).
  *
  * Dispatch by `use`, UNIFORM with every other source (Model B): the `use` VALUE is the
  * analog-vs-option lever, `use:key` a wp_options read. There is NO `use:option` value.

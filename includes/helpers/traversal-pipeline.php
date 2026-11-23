@@ -379,11 +379,10 @@ function bws_pipeline_terms_to_sources( $raw ) {
  * ── PROVENANCE: four keys, recorded here because here is where they are free ──
  *
  * A row records WHERE IT CAME FROM: `parent_kind`, `parent_id`, `repeater`, `index`.
- * Nothing in the tree consumes them yet — the field-object read that will (FW-3,
- * whose own Open line is this missing exposure) needs them to ask the custom-fields
- * plugin for a sub-field's configuration, and without them a custom return format
- * falls through to format-agnostic parsing, which is issue #22's failure mode reached
- * by a new route.
+ * bws_read_resolved_source_return_format() reads them to ask the custom-fields plugin
+ * for a sub-field's configuration; without them a custom return format would fall
+ * through to format-agnostic parsing, which is issue #22's failure mode reached by a
+ * new route.
  *
  * FOUR rather than three because ACF's sub-field config is reachable two ways: by the
  * flat meta-key convention (`{repeater}_{index}_{sub}` against the parent selector,

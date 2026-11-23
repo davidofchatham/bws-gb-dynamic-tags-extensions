@@ -38,7 +38,8 @@
  *        CENSUS of every ungated `item_post_id` consumer in the tree
  *   §C9  the object-shaped item that NAMES A POST — the agreeing slug, the permalink
  *        veto, the arm's position last, and the permanent refusal of an empty object
- *   §C10 the `'option'` sentinel outranks every ambient entity, with both its gates intact
+ *   §C10 a site read goes through the seam's site arm, with both its gates intact, and
+ *        `bws_read_field()` has no site branch
  *
  * Run:  php tools/test/loop-item-classify-test.php   (exit 0 = pass, 1 = fail)
  *
@@ -134,7 +135,7 @@ if ( ! function_exists( 'get_queried_object' ) ) {
 	}
 }
 // bws_read_field() asks neither of these. They exist so a row can stand on a term archive
-// and show the read IGNORING it (C8.4, C10.2): the field read has no term-archive branch,
+// and show the read IGNORING it (C8.4): the field read has no term-archive branch,
 // and the factory is the one place that turns an archive into a term source.
 $GLOBALS['stub_is_term_archive'] = false;
 if ( ! function_exists( 'bws_wp_is_term_archive' ) ) {
@@ -143,12 +144,18 @@ if ( ! function_exists( 'bws_wp_is_term_archive' ) ) {
 	}
 }
 
-// The options-page read behind the `'option'` sentinel, echoing its key like the meta
-// stubs above. The allowlist lives in base-tags.php (not loaded); `secret` stands in for a
-// key it refuses.
-if ( ! function_exists( 'get_field' ) ) {
-	function get_field( $key, $object_id = false ) {
-		return "{$object_id}:{$key}";
+// The site-option read behind the L2 seam's site arm, echoing its key like the meta
+// stubs above. Defining the class makes bws_meta_handler_read() take it, so get_meta
+// answers through the same WP-function stub it would have called. The allowlist lives in
+// base-tags.php (not loaded); `secret` stands in for a key it refuses.
+if ( ! class_exists( 'GenerateBlocks_Meta_Handler' ) ) {
+	class GenerateBlocks_Meta_Handler {
+		public static function get_option( $key, $single = true, $default = '' ) {
+			return "option:{$key}";
+		}
+		public static function get_meta( $object_id, $key, $single_only, $wp_fn ) {
+			return $wp_fn( $object_id, $key, true );
+		}
 	}
 }
 if ( ! function_exists( 'bws_site_allowlist_ok' ) ) {
@@ -516,23 +523,19 @@ assert_same( 'C9.14 a recognized object-shaped post item passes the render-core 
 assert_same( 'C9.15 and it reaches the post READ, rather than stopping at the classification', 'post5:name', bws_read_field( 'name', inst( (object) array( 'id' => 5, 'slug' => 'sample-post' ) ), false ) );
 assert_same( 'C9.16 the SOURCE GATE still applies to it - a refused post reads nothing', null, bws_read_field( 'name', inst( (object) array( 'id' => 6, 'slug' => 'gated-post' ) ), false ) );
 
-echo "\n=== C10 - the 'option' sentinel is SPELLED, so no ambient entity outranks it ===\n";
+echo "\n=== C10 - a site read is the seam's site arm; bws_read_field() has no site branch ===\n";
 
-// `src:site` datetime reads its value as bws_read_field( $key, $instance, 'option' ). The
-// sentinel is not a post id, so nothing about it stops the loop branches from answering
-// unless it is tested ahead of them. C10.3/C10.4 fail by name if a loop item answers for
-// the option; C10.2 stands on a term archive so a term read anywhere ahead of it fails too.
-assert_same( 'C10.1 no loop - the options-page field is read', 'option:founded', bws_read_field( 'founded', inst( null ), 'option' ) );
-$GLOBALS['stub_queried_object']  = new WP_Term( 7, 'department' );
-$GLOBALS['stub_is_term_archive'] = true;
-assert_same( 'C10.2 on a term archive - still the option, not the queried term', 'option:founded', bws_read_field( 'founded', inst( null ), 'option' ) );
-$GLOBALS['stub_is_term_archive'] = false;
-$GLOBALS['stub_queried_object']  = null;
-assert_same( 'C10.3 inside a post loop - still the option, not the loop post', 'option:founded', bws_read_field( 'founded', inst( new WP_Post( 5 ) ), 'option' ) );
-assert_same( 'C10.4 inside a repeater row - still the option, not the row', 'option:founded', bws_read_field( 'founded', inst( array( 'founded' => 'row value' ) ), 'option' ) );
-assert_same( 'C10.5 the allowlist still refuses, ahead of the loop as well', '', bws_read_field( 'secret', inst( new WP_Post( 5 ) ), 'option' ) );
+// A site datetime reads its value through bws_read_resolved_source() (the seam's site arm
+// = bws_site_read_option()), so no ambient entity is ever consulted for it. The 'option'
+// sentinel is not a post id, so bws_read_field() reads nothing for it (C10.5).
+$site = array( 'kind' => 'site' );
+assert_same( 'C10.1 no loop - the site option is read through the seam', 'option:founded', bws_read_resolved_source( $site, 'founded', inst( null ) ) );
+assert_same( 'C10.2 inside a post loop - still the option, not the loop post', 'option:founded', bws_read_resolved_source( $site, 'founded', inst( new WP_Post( 5 ) ) ) );
+assert_same( 'C10.3 inside a repeater row - still the option, not the row', 'option:founded', bws_read_resolved_source( $site, 'founded', inst( array( 'founded' => 'row value' ) ) ) );
+assert_same( 'C10.4 the allowlist refuses', '', bws_read_resolved_source( $site, 'secret', inst( new WP_Post( 5 ) ) ) );
+assert_same( 'C10.5 bws_read_field() has no site branch - the sentinel is not served', null, bws_read_field( 'founded', inst( null ), 'option' ) );
 
-// The per-user REST gate, the second of the branch's two gates. bws_site_option_withheld_from_user()
+// The per-user REST gate, the second of the site read's two gates. bws_site_option_withheld_from_user()
 // is the real function; it reads REST_REQUEST, which cannot be undefined again, so this row
 // runs LAST. `withheld` is the key the stubbed GB answer refuses for this user.
 define( 'REST_REQUEST', true );
@@ -546,8 +549,8 @@ if ( ! function_exists( 'bws_gb_option_allowed_for_current_user' ) ) {
 		return 'withheld' !== $key;
 	}
 }
-assert_same( 'C10.6 the per-user REST gate still withholds, ahead of the loop as well', '', bws_read_field( 'withheld', inst( new WP_Post( 5 ) ), 'option' ) );
-assert_same( 'C10.6b CONTROL - the same REST render reads a key the user may see', 'option:founded', bws_read_field( 'founded', inst( new WP_Post( 5 ) ), 'option' ) );
+assert_same( 'C10.6 the per-user REST gate withholds', '', bws_read_resolved_source( $site, 'withheld', inst( new WP_Post( 5 ) ) ) );
+assert_same( 'C10.6b CONTROL - the same REST render reads a key the user may see', 'option:founded', bws_read_resolved_source( $site, 'founded', inst( new WP_Post( 5 ) ) ) );
 
 echo "\n";
 echo $failures

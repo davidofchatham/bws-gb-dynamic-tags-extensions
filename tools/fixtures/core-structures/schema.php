@@ -553,16 +553,13 @@ function bws_fixture_core_structures_register_acf() {
 							'return_format'  => 'Y-m-d',
 							'display_format' => 'F j, Y',
 						),
-						// THE FORMAT BOUNDARY, seeded on purpose. A row reaches no
-						// sub-field config (the object id a base tag derives cannot
-						// address one), so every row date parses format-agnostically —
-						// the common-format walk in bws_parse_acf_date_value(), which
-						// tries `m/d/Y` before `d/m/Y`. This field's return format is
-						// `d/m/Y`, and the two rows' values are chosen so ONE is
-						// ambiguous under that walk and the other is not: row 1 reads
-						// as the wrong month, row 2 reads correctly. Matrix §F9.5m4
-						// states which is which. When FW-3 exposes the field object
-						// this row moves, which is the signal, not a regression.
+						// THE RETURN-FORMAT PROBE, seeded on purpose. A row date
+						// parses and displays in its sub-field's return format, here
+						// `d/m/Y`. The two rows' values are chosen so ONE is ambiguous
+						// to a format-agnostic parse (which tries `m/d/Y` before
+						// `d/m/Y`) and the other is not: row 1 would read as the wrong
+						// month without the format, row 2 reads correctly either way.
+						// Matrix §F9.5m4 states the expected output.
 						array(
 							'key'            => 'field_bwsfx_team_review_dmy',
 							'name'           => 'review_dmy',

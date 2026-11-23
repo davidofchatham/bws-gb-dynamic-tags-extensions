@@ -1394,9 +1394,10 @@ eq(
 
 // --- PROVENANCE (FW-74 ticket 02) -------------------------------------------
 //
-// Four keys per row: parent kind, parent id, repeater name, store index. NOTHING
-// consumes them yet — FW-3's field-object read is what will — so these rows are the
-// only thing holding the shape, which is why they pin each key rather than the set.
+// Four keys per row: parent kind, parent id, repeater name, store index. Only
+// bws_read_resolved_source_return_format() consumes them, and its harness
+// (read-resolved-source-test.php §R6) builds rows by hand, so these rows are what holds
+// the producer's shape, which is why they pin each key rather than the set.
 //
 // The parent is passed in, never derived: this coercer performs NO read and NO entity
 // lookup (acceptance criterion 4). It cannot — it has no reader and no WP symbol in

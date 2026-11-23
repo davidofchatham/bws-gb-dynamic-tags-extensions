@@ -85,9 +85,8 @@ function bws_field_key_disallowed( string $key ): bool {
  * 'site') — MUST both route through THIS function. Hand-rolling a second
  * get_option() for either path silently diverges on ACF-group subfields
  * (organization_social.facebook): dot-path traversal + the ACF get_field filter
- * live in Meta_Handler::get_option, not in raw get_option. The datetime path
- * reads ACF FIELDS via get_field($key,'option') — a different datum, separate
- * reader, same gate.
+ * live in Meta_Handler::get_option, not in raw get_option. The datetime site read
+ * goes through here too (via the L2 seam's site arm).
  *
  * @invariant TWO INDEPENDENT GATES, both required, neither substituting for the
  * other. WHICH KEYS may ever be read is the allowlist — bws_site_allowlist_ok(),
@@ -112,7 +111,7 @@ function bws_site_read_option( string $key ): string {
 	) {
 		return '';
 	}
-	$value = GenerateBlocks_Meta_Handler::get_option( $key, true, '' );
+	$value = GenerateBlocks_Meta_Handler::get_option( $key );
 	return is_string( $value ) ? $value : '';
 }
 }
@@ -712,12 +711,14 @@ function bws_loop_item_gated_post_id( $instance ) {
  * functions if Meta_Handler unavailable.
  *
  * Branching order:
- *  1. $post_id === 'option' (src:site datetime)       → read the options-page field
- *  2. $post_id > 0 (explicit caller-resolved target)  → read post meta on that id
- *  3. The query loop's post (no explicit id)          → read post meta on it, or STOP
+ *  1. The query loop's post (no explicit id)          → read post meta on it, or STOP
  *                                                       when the source gate refuses it
- *  4. The query loop's repeater row (no explicit id)  → read $loop_item[$key] directly
- *  5. null
+ *  2. The query loop's repeater row (no explicit id)  → read $loop_item[$key] directly
+ *  3. $post_id > 0 (explicit caller-resolved target)  → read post meta on that id
+ *  4. null
+ *
+ * (An explicit id still wins over the loop branches: they are skipped when one is given.)
+ * There is no site/options-page branch: a site read is the L2 seam's site arm.
  *
  * NO TERM-ARCHIVE BRANCH. A term archive reaches a term read through the source factory
  * (bws_resolve_base_source()), never by inference here — so a falsy id on an archive
@@ -729,8 +730,8 @@ function bws_loop_item_gated_post_id( $instance ) {
  * function, by the source factory, and reaches the term/user reader arms rather than a
  * post-meta read. This note exists so the fallthrough is not read as a hole.
  *
- * A LOOP POST THE SOURCE GATE REFUSES STOPS THE READ AT BRANCH 3 — it does not continue
- * to 4, and returning null there is the point rather than a shortcut.
+ * A LOOP POST THE SOURCE GATE REFUSES STOPS THE READ AT BRANCH 1 — it does not continue
+ * to 2, and returning null there is the point rather than a shortcut.
  * bws_loop_item_gated_post_id() owns the decision to apply the gate here and owns why
  * the factory route does not share it; bws_is_source_usable() owns the criterion itself.
  *
@@ -754,31 +755,6 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
 	// since plugins like Pie Calendar legitimately store data in _-prefixed keys.
 	if ( bws_field_key_disallowed( $key ) ) {
 		return null;
-	}
-
-	// src:site datetime — ACF options-page field value read. The 'option' sentinel
-	// reaches here only from bws_parse_combined_date_time()'s site-kind value read (site datetime
-	// path). It is an explicit target like a post id, so it is answered FIRST: neither a
-	// loop item nor any other ambient entity may answer for an option the wire named.
-	// Gated through the SAME TWO gates as use:option and site linkTo:key — the
-	// key allowlist and the per-user REST gate. ACF field keys are flat — no dot-path
-	// split. This branch does NOT route through bws_site_read_option() (it reads an ACF
-	// FIELD via get_field, a different datum), so both gates are restated here rather
-	// than inherited: ADR 0001's "option reads are option reads regardless of which
-	// control triggers them".
-	// See docs/adr/0001-site-option-read-allowlist.md and
-	// docs/adr/0008-site-option-per-user-rest-gate.md.
-	if ( 'option' === $post_id ) {
-		if ( ! function_exists( 'get_field' ) ) {
-			return null;
-		}
-		if ( function_exists( 'bws_site_allowlist_ok' ) && ! bws_site_allowlist_ok( $key ) ) {
-			return '';
-		}
-		if ( bws_site_option_withheld_from_user( $key ) ) {
-			return '';
-		}
-		return get_field( $key, 'option' );
 	}
 
 	// Which shape did the query loop hand us?
@@ -896,6 +872,21 @@ function bws_read_term_field( string $key, int $term_id, bool $single_only = tru
  * and are not widened here: an array-preserving term read answers '' for a
  * filter-populated scalar, which would move what the string seam returns.
  *
+ * @invariant THE SEAM READS WHAT IT IS HANDED; IT DOES NOT ASK WHETHER THE VIEWER MAY SEE
+ * THE SOURCE. A private post's meta reads for an anonymous viewer here. Visibility is
+ * applied where sources are PRODUCED (bws_run_traversal(), which gates the initial list
+ * and every hop; bws_is_source_usable() owns the criterion), so a caller hands this
+ * function a source that came out of the traversal engine. Two sources do not, and
+ * neither needs it: an ambient term (existence is a term's whole gate), and an entity-less
+ * post, which is answered '' here and read by bws_read_field() instead, behind
+ * bws_loop_item_gated_post_id().
+ *
+ * A key GenerateBlocks disallows reads '' on the site arm and on every entity arm. A
+ * `meta_row` carries the row it was already read from, so its key is not checked here.
+ * GB's own REST-only restrictions (user meta, `read_post`, protected meta) fire only under
+ * REST. Measured on the testbed, per arm and for an anonymous viewer, by tools/debug/seam-gate-probe.php;
+ * the REST-only restrictions and the `meta_row` arm are outside what it measures.
+ *
  * @since 1.21.0
  * @param array  $source   One resolved source ({kind,id}|{kind:site}|{kind:meta_row,row}).
  * @param string $key      Field key.
@@ -968,6 +959,98 @@ function bws_read_resolved_source( array $source, string $key, $instance ): stri
 	$raw = bws_read_resolved_source_value( $source, $key, $instance );
 
 	return ( is_scalar( $raw ) && '' !== (string) $raw ) ? (string) $raw : '';
+}
+}
+
+/**
+ * The per-source RETURN-FORMAT reader, beside the value read: (source, key) → the
+ * custom-fields plugin's configured return format for that field, or null.
+ *
+ * One field-object lookup per call, dispatched by kind. A post answers off its own
+ * object id (an entity-less post off the loop context's, via bws_resolve_acf_object_id()),
+ * a term off `{taxonomy}_{id}`, the site off `'option'`. A repeater row answers through its
+ * PROVENANCE: the parent's object id, then the parent repeater's field object, the
+ * sub-field matched by name; the parent may be a post, term, site or user.
+ *
+ * NULL IS THE BOUNDARY, and the caller then parses format-agnostically: no custom-fields
+ * plugin, an unknown kind, a field with no return format, an ambient row (a query loop's,
+ * no provenance), and a NESTED row. A nested row records `parent_kind: meta_row` and
+ * `parent_id: 0` and nothing about its grandparent, so there is no object to ask; walking
+ * up needs the source shape widened (see bws_pipeline_rows_to_sources()).
+ *
+ * @since Unreleased
+ * @param array  $source   One resolved source.
+ * @param string $key      Field key (a sub-field's name, for a row).
+ * @param object $instance GB instance (the loop context an entity-less post is addressed by).
+ * @return string|null Return format, or null.
+ */
+if ( ! function_exists( 'bws_read_resolved_source_return_format' ) ) {
+function bws_read_resolved_source_return_format( array $source, string $key, $instance ): ?string {
+	if ( '' === $key || ! function_exists( 'get_field_object' ) ) {
+		return null;
+	}
+
+	$kind = $source['kind'] ?? '';
+
+	if ( 'meta_row' === $kind ) {
+		$repeater = (string) ( $source['repeater'] ?? '' );
+		$parent   = bws_acf_parent_object_id( (string) ( $source['parent_kind'] ?? '' ), (int) ( $source['parent_id'] ?? 0 ) );
+		if ( '' === $repeater || null === $parent ) {
+			return null;
+		}
+		$repeater_field = get_field_object( $repeater, $parent, false, false );
+		foreach ( (array) ( $repeater_field['sub_fields'] ?? array() ) as $sub_field ) {
+			if ( ( $sub_field['name'] ?? '' ) === $key ) {
+				return ! empty( $sub_field['return_format'] ) ? (string) $sub_field['return_format'] : null;
+			}
+		}
+		return null;
+	}
+
+	switch ( $kind ) {
+		case 'post':
+			$object_id = bws_resolve_acf_object_id( $instance, $source['id'] ?? false );
+			break;
+		case 'term':
+			$object_id = ( $source['taxonomy'] ?? 'term' ) . '_' . (int) ( $source['id'] ?? 0 );
+			break;
+		case 'site':
+			$object_id = 'option';
+			break;
+		default:
+			return null;
+	}
+
+	$field = get_field_object( $key, $object_id, false, false );
+	return ! empty( $field['return_format'] ) ? (string) $field['return_format'] : null;
+}
+}
+
+/**
+ * The ACF object id a repeater row's PARENT is addressed by, from a row's provenance.
+ * The prefixes are the `rows` step's own selectors (bws_pipeline_default_reader()).
+ * Null for a parent with no object to ask: a nested row, or an id-less post/term/user.
+ *
+ * @since Unreleased
+ */
+if ( ! function_exists( 'bws_acf_parent_object_id' ) ) {
+/** @return int|string|null ACF object id (post id, 'term_N', 'user_N' or 'option'), or null. */
+function bws_acf_parent_object_id( string $parent_kind, int $parent_id ) {
+	if ( 'site' === $parent_kind ) {
+		return 'option';
+	}
+	if ( $parent_id <= 0 ) {
+		return null;
+	}
+	switch ( $parent_kind ) {
+		case 'post':
+			return $parent_id;
+		case 'term':
+			return 'term_' . $parent_id;
+		case 'user':
+			return 'user_' . $parent_id;
+	}
+	return null;
 }
 }
 
@@ -1563,8 +1646,7 @@ function bws_meta_handler_read_preserving_arrays( int $object_id, string $key, s
  *  3. GB Pro TYPE_POST_META repeater rows → outer page's postId from context,
  *     since ACF repeater subfields are registered against the parent post's
  *     field group.
- *  4. Otherwise 0 (callers should treat as "no ACF context available" and
- *     fall through to format-agnostic parsing).
+ *  4. Otherwise 0 (callers should treat as "no ACF context available").
  *
  * INVARIANT: tags that read ACF field-config metadata in loop contexts MUST
  * use this resolver rather than passing a bare false/0 to get_field_object();

@@ -1014,20 +1014,19 @@ function bws_fixture_page_content_matrix_post_meta() {
 		// goes unpinned by the other. The CONTROL stays beside each read for the reason
 		// it stood beside the refusal: the page carries its own date fields, so a row
 		// read that printed one of those is the pre-1.21.0 leak wearing the arm's clothes.
-		bws_fixture_gb_row( 'F9.5m a date sub-field inside a row, fanning across both rows (-> March 4, 2029, June 10, 2030; REFUSED before FW-74, and printed the 15/08/2030 below before that)', '{{datetime_single src:rows,team_members|key:contract_start}}' ),
+		bws_fixture_gb_row( 'F9.5m a date sub-field inside a row, fanning across both rows, shown in the Y-m-d return format of its field (-> 2029-03-04, 2030-06-10; REFUSED before FW-74, and printed the 15/08/2030 below before that)', '{{datetime_single src:rows,team_members|key:contract_start}}' ),
 		bws_fixture_gb_row( 'F9.5m CONTROL (-> 15/08/2030, the date field on THIS page - a row read that printed this one is the old leak)', '{{datetime_single key:event_date_dmy}}' ),
-		bws_fixture_gb_row( 'F9.5m2 a step limit bounds the row fan (-> March 4, 2029 alone)', '{{datetime_single src:rows,team_members,limit(1)|key:contract_start}}' ),
-		bws_fixture_gb_row( 'F9.5m3 the tag sep joins the row fan (-> March 4, 2029 / June 10, 2030)', '{{datetime_single src:rows,team_members|key:contract_start|sep: / }}' ),
-		// THE FORMAT BOUNDARY, shown rather than described. A row reaches no sub-field
-		// config, so the parse falls to the common-format walk, which tries m/d/Y before
-		// d/m/Y. Row 1 (04/03/2030) is ambiguous under that and reads as the wrong month;
-		// row 2 (22/11/2030) is not and reads correctly. FW-3 is what closes it, and when
-		// it does THIS ROW MOVES - that is the signal, not a regression.
-		bws_fixture_gb_row( 'F9.5m4 a d/m/Y sub-field is parsed format-agnostically on a row, a KNOWN BOUNDARY (-> April 3, 2030, November 22, 2030; row 1 means 4 March and reads as the wrong month, row 2 is unambiguous and is right)', '{{datetime_single src:rows,team_members|key:review_dmy}}' ),
-		bws_fixture_gb_row( 'F9.5m5 try_datetime_single on a row slot, tag-level key as always (-> the same two dates as F9.5m; rendered EMPTY before FW-74)', '{{try_datetime_single A:src(rows,team_members)|key:contract_start}}' ),
-		bws_fixture_gb_row( 'F9.5n datetime_range is a SEPARATE family with its own refusal site, and reads a row pair (-> March 4, 2029–March 3, 2031, June 10, 2030–June 9, 2032; REFUSED before FW-74)', '{{datetime_range src:rows,team_members|startKey:contract_start|endKey:contract_end}}' ),
+		bws_fixture_gb_row( 'F9.5m2 a step limit bounds the row fan (-> 2029-03-04 alone)', '{{datetime_single src:rows,team_members,limit(1)|key:contract_start}}' ),
+		bws_fixture_gb_row( 'F9.5m3 the tag sep joins the row fan (-> 2029-03-04 / 2030-06-10)', '{{datetime_single src:rows,team_members|key:contract_start|sep: / }}' ),
+		// THE ROW'S RETURN FORMAT, shown on the value that needs it. Row 1 (04/03/2030)
+		// is ambiguous to a format-agnostic parse, which tries m/d/Y before d/m/Y and would
+		// read the wrong month; the row's own d/m/Y return format parses it as 4 March, and
+		// is also what displays. Row 2 (22/11/2030) is unambiguous either way.
+		bws_fixture_gb_row( 'F9.5m4 a d/m/Y sub-field parses with its own return format on a row, and displays in it (-> 04/03/2030, 22/11/2030; row 1 means 4 March, and the old format-agnostic parse printed April 3, 2030)', '{{datetime_single src:rows,team_members|key:review_dmy}}' ),
+		bws_fixture_gb_row( 'F9.5m5 try_datetime_single on a row slot, tag-level key as always (-> the same two dates as F9.5m, 2029-03-04, 2030-06-10; rendered EMPTY before FW-74)', '{{try_datetime_single A:src(rows,team_members)|key:contract_start}}' ),
+		bws_fixture_gb_row( 'F9.5n datetime_range is a SEPARATE family with its own refusal site, and reads a row pair (-> 2029-03-04–2031-03-03, 2030-06-10–2032-06-09; REFUSED before FW-74)', '{{datetime_range src:rows,team_members|startKey:contract_start|endKey:contract_end}}' ),
 		bws_fixture_gb_row( 'F9.5n CONTROL (-> August 1–9, 2030, the range on THIS page - what the row above printed before FW-74)', '{{datetime_range startKey:event_start_date|endKey:event_end_date}}' ),
-		bws_fixture_gb_row( 'F9.5n2 try_datetime_range on a row slot (-> the same two ranges as F9.5n; rendered EMPTY before FW-74)', '{{try_datetime_range A:src(rows,team_members)|startKey:contract_start|endKey:contract_end}}' ),
+		bws_fixture_gb_row( 'F9.5n2 try_datetime_range on a row slot (-> the same two ranges as F9.5n, 2029-03-04–2031-03-03, 2030-06-10–2032-06-09; rendered EMPTY before FW-74)', '{{try_datetime_range A:src(rows,team_members)|startKey:contract_start|endKey:contract_end}}' ),
 		// The one flat-wire behaviour change, shown rather than hidden. It uses
 		// access_tier, NOT department: jane and tom carry no department terms,
 		// so that taxonomy makes the row empty either way and it asserts nothing.

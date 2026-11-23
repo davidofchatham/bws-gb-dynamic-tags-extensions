@@ -4,7 +4,7 @@
  *
  * NOT shipped with the plugin. Drop into wp-content/mu-plugins/ on a TEST
  * instance only (per the runtime-debug workflow: instrument + pull to test,
- * never probe a live/cached site). Confirms the two facts T6/DT-1 depend on:
+ * never probe a live/cached site). Confirms the two facts the site datetime read depends on:
  *
  *   1. get_field( $key, 'option' )         returns the stored value
  *   2. get_field_object( $key, 'option' )  returns a 'return_format'
@@ -61,7 +61,7 @@ add_action(
 
 		$key = BWS_PROBE_KEY;
 
-		// 1. Value read (the DT-1 / bws_read_field('option') path).
+		// 1. Value read (get_field on the options page).
 		$value = get_field( $key, 'option' );
 		error_log( sprintf(
 			'[BWS_SITE_PROBE] get_field(%s, option) => %s',
@@ -69,7 +69,7 @@ add_action(
 			is_scalar( $value ) ? var_export( $value, true ) : '(' . gettype( $value ) . ') ' . wp_json_encode( $value )
 		) );
 
-		// 2. Field-config read (the bws_get_acf_return_format path → format chain tier 2).
+		// 2. Field-config read (the bws_read_resolved_source_return_format path → format chain tier 2).
 		$obj = get_field_object( $key, 'option' );
 		if ( is_array( $obj ) ) {
 			error_log( sprintf(

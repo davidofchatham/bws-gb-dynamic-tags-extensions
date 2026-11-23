@@ -162,34 +162,10 @@ function bws_format_utils() {
 // ===============================================
 
 /**
- * Get ACF field return format
- *
- * @since 3.0.0
- * @param string $field_key ACF field key
- * @param int $post_id Post ID
- * @return string|false Return format or false
- */
-if ( ! function_exists( 'bws_get_acf_return_format' ) ) {
-function bws_get_acf_return_format( $field_key, $post_id ) {
-    if ( empty( $field_key ) || ! function_exists( 'get_field_object' ) ) {
-        return false;
-    }
-
-    $field_object = get_field_object( $field_key, $post_id );
-
-    if ( ! $field_object ) {
-        return false;
-    }
-
-    return $field_object['return_format'] ?? false;
-}
-}
-
-/**
  * Detect time-only values from raw string when ACF return_format is unavailable.
  *
  * Used as a fallback for `$date_is_time_only` detection in `bws_parse_combined_date_time()`
- * when `bws_get_acf_return_format()` can't return the configured format — e.g. flat
+ * when `bws_read_resolved_source_return_format()` answers null — e.g. flat
  * ACF repeater rows under GB Pro TYPE_OPTION / TYPE_POST_META loops, where ACF
  * subfield metadata isn't reachable via the resolved object_id. Without this,
  * `DateTime::createFromFormat('H:i:s', '14:30:00')` produces a DateTime at TODAY's
@@ -221,21 +197,18 @@ function bws_value_looks_time_only( $value ) {
 /**
  * Parse combined date/time from separate or combined fields.
  *
- * INVARIANT: ACF field-config lookups (`bws_get_acf_return_format()`,
- * `bws_parse_acf_date_value()`) must receive the resolved ACF object_id, NOT a
- * raw caller-supplied post id, which is false on a repeater row. Use
- * `bws_resolve_acf_object_id( $instance, $id )` which maps GB Pro
- * TYPE_OPTION rows → 'option' and TYPE_POST_META rows → outer page's postId.
- * Without this, `get_field_object()` fails on flat ACF repeater rows under GB
- * query loops and custom return_formats fall through to format-agnostic parsing
- * (issue #22, bugfix v1.7.2).
+ * INVARIANT: a field's return format is read once per field by
+ * `bws_read_resolved_source_return_format()`, which owns the object id the field's
+ * config is addressed by (a repeater row's through its provenance; an entity-less
+ * post's through `bws_resolve_acf_object_id()`, which maps GB Pro TYPE_OPTION rows →
+ * 'option' and TYPE_POST_META rows → the outer page's postId, issue #22). This
+ * function derives no object id of its own, and `bws_parse_acf_date_value()` takes the
+ * format it is given.
  *
- * @invariant The VALUE read (`bws_read_field`) is a SEPARATE arg from the
- * field-config object_id. For site-kind sources the `'option'` sentinel must
- * reach the value read — coercing it to a numeric id (false) dead-ends the DT-1
- * `bws_read_field` branch and site-datetime values silently die at null
- * (v1.9.0, DT-1b). `$value_id` carries the sentinel; don't fold it into a
- * numeric coercion.
+ * @invariant The VALUE read is a SEPARATE step from the field's format read: the value
+ * is read off the resolved source by kind (the read closure below), the format by the
+ * reader beside it. A site source's value goes through the one gated site-option
+ * reader, and the `'option'` sentinel exists only on the format side.
  *
  * @invariant Kind dispatch (FW-3a): the read target is the factory's resolved-source payload,
  * built by the callers (bws_datetime_term_source() / bws_datetime_post_source() and the site
@@ -246,8 +219,9 @@ function bws_value_looks_time_only( $value ) {
  * @since 1.15.0 First arg accepts a resolved-source payload (FW-3a).
  * @since Unreleased The first arg is only ever the payload.
  * @since 1.21.0 `meta_row` VALUE leg (FW-74) — a repeater row reads its sub-field
- *               through the L2 seam. Format-agnostic by construction; see the
- *               read closure below for why, and what closes it.
+ *               through the L2 seam.
+ * @since Unreleased A repeater row's sub-field format is read too (FW-3), so a row
+ *               date parses and displays in its field's return format.
  * @param array $target Resolved source (the factory's payload shape)
  * @param string $date_field Primary date/datetime/time field key
  * @param string $time_field Optional time field key
@@ -269,71 +243,48 @@ function bws_parse_combined_date_time( $target, $date_field, $time_field, $conte
         ],
     ];
 
-    // Kind-dispatched read target (FW-3a).
-    $is_term = 'term' === ( $target['kind'] ?? '' );
-    $is_site = 'site' === ( $target['kind'] ?? '' );
-    $is_row  = 'meta_row' === ( $target['kind'] ?? '' );
-    $term_id = $is_term ? (int) ( $target['id'] ?? 0 ) : 0;
-
-    // Resolve ACF object_id for field-config lookups. Term kind builds ACF's
-    // "{taxonomy}_{term_id}" object id. On a repeater row (TYPE_OPTION /
-    // TYPE_POST_META query loops) the post id is false but
-    // ACF still needs an object_id ('option' or outer page id) to return field
-    // metadata.
-    if ( $is_term ) {
-        $acf_object_id = ( $target['taxonomy'] ?? 'term' ) . '_' . $term_id;
-    } else {
-        $raw_id        = $is_site ? 'option' : ( $target['id'] ?? false );
-        $acf_object_id = function_exists( 'bws_resolve_acf_object_id' ) ? bws_resolve_acf_object_id( $instance, $raw_id ) : $raw_id;
-    }
-
-    // DT-1b (V7): thread the 'option' sentinel to the VALUE read for site-kind
-    // sources (ACF options-page fields). Post kind keeps its numeric id (false
-    // when entity-less); term kind reads via bws_read_term_field and never
-    // consumes $value_id.
-    $value_id = $is_site ? 'option' : ( $is_term ? false : ( $target['id'] ?? false ) );
-
-    // ONE value read, three-way on kind, for both of this parse's fields. The row leg
-    // (FW-74) takes the L2 seam's string half — a date sub-field is a scalar, so the
-    // seam's own coercion is the read datetime wants, and bws_read_field's loop/entity
-    // inference has nothing to offer a row the chain already resolved.
+    // ONE value read for both of this parse's fields: the L2 seam's string half
+    // (bws_read_resolved_source()) for term, id-carrying post, site and repeater-row
+    // sources — a date field is a scalar, so the seam's own coercion is the read
+    // datetime wants, and the kind dispatch (and the site option gates) live there once.
+    // The site arm is the one gated option reader, not a flat get_field() on the options
+    // page: a deliberate FW-3 decision, which is why docs/tag-reference.md states the
+    // site read by its consequence only.
     //
-    // THE VALUE HALF ONLY. $acf_object_id above is untouched by this leg, per the
-    // invariant in this function's docblock: the field-config id is a SEPARATE argument
-    // from the value read. A row reaches no sub-field config (the flat-meta convention
-    // needs the repeater name and index, which this layer is not handed), so a row's
-    // $date_format is null and the parse falls to the format-agnostic common-format walk
-    // in bws_parse_acf_date_value(). That is a KNOWN BOUNDARY, not a defect here: the
-    // field-object read that would close it is FW-3's, and until it lands an ambiguous
-    // value (a `d/m/Y` row whose day is <= 12) reads as `m/d/Y`. Visible on the testbed,
-    // both arms of it, at fold-test-matrix.md §F9.5m4.
-    $read_value = static function ( $field ) use ( $is_term, $is_row, $target, $term_id, $value_id, $instance ) {
+    // THE ONE EXCEPTION is an entity-less post source (id <= 0), which keeps
+    // bws_read_field()'s loop inference: a GB Pro query loop over repeater rows reaches
+    // the resolver's post tail with no id, and only bws_read_field() re-infers the loop
+    // row (issue #22), where the seam's post arm answers '' for id 0. FW-194 gives that row
+    // a real source and removes this branch.
+    //
+    // THE VALUE HALF ONLY; the format is the reader beside it (the invariant in this
+    // function's docblock). An answer of null (a nested row is the one source that
+    // carries a value and no format) leaves the parse format-agnostic.
+    $read_value = static function ( $field ) use ( $target, $instance ) {
         if ( ! $field ) {
             return null;
         }
-        if ( $is_term ) {
-            return bws_read_term_field( $field, $term_id, true );
-        }
-        if ( $is_row ) {
+        $entityless_post = 'post' === ( $target['kind'] ?? '' ) && (int) ( $target['id'] ?? 0 ) <= 0;
+        if ( ! $entityless_post ) {
             return bws_read_resolved_source( $target, $field, $instance );
         }
-        return bws_read_field( $field, $instance, $value_id, true );
+        return bws_read_field( $field, $instance, $target['id'] ?? false, true );
     };
 
     // Get primary field value and format
     $date_value  = $read_value( $date_field );
-    $date_format = bws_get_acf_return_format( $date_field, $acf_object_id );
+    $date_format = bws_read_resolved_source_return_format( $target, (string) $date_field, $instance );
 
     // Get time field value and format
     $time_value  = $read_value( $time_field );
-    $time_format = bws_get_acf_return_format( $time_field, $acf_object_id );
+    $time_format = bws_read_resolved_source_return_format( $target, (string) $time_field, $instance );
 
     $utils = bws_format_utils();
 
     // Parse primary field
     $date_obj = null;
     if ( $date_value ) {
-        $date_obj = bws_parse_acf_date_value( $date_value, $date_field, $acf_object_id );
+        $date_obj = bws_parse_acf_date_value( $date_value, $date_format );
     }
 
     // Determine field types. Primary signal: ACF return_format. Fallback when ACF
@@ -358,7 +309,7 @@ function bws_parse_combined_date_time( $target, $date_field, $time_field, $conte
     // Parse time field
     $time_obj = null;
     if ( $time_value ) {
-        $time_obj = bws_parse_acf_date_value( $time_value, $time_field, $acf_object_id );
+        $time_obj = bws_parse_acf_date_value( $time_value, $time_format );
     }
 
     // Handle time-only primary field
@@ -495,13 +446,13 @@ function bws_datetime_verb_result( $verb, $source ) {
  *
  * @since 3.1.3 - Added noon safety buffer for date-only fields and comprehensive documentation
  * @since 3.1.1 - Added timezone handling to prevent date shifting
+ * @since Unreleased Takes the field's return format, not a field key and object id.
  * @param mixed $date_value Date value from ACF
- * @param string $field_key ACF field key
- * @param int $post_id Post ID
+ * @param string|null $return_format The field's configured return format, when known
  * @return DateTime|false DateTime object or false
  */
 if ( ! function_exists( 'bws_parse_acf_date_value' ) ) {
-function bws_parse_acf_date_value( $date_value, $field_key = '', $post_id = 0 ) {
+function bws_parse_acf_date_value( $date_value, $return_format = null ) {
     if ( empty( $date_value ) ) {
         return false;
     }
@@ -510,24 +461,19 @@ function bws_parse_acf_date_value( $date_value, $field_key = '', $post_id = 0 ) 
     // Without this, dates get parsed in server timezone (often UTC) causing date shifts
     $wp_timezone = wp_timezone();
 
-    // First attempt: Check ACF field configuration (most reliable)
-    if ( $field_key && $post_id && function_exists( 'get_field_object' ) ) {
-        $field_object = get_field_object( $field_key, $post_id );
-        $return_format = $field_object['return_format'] ?? null;
-
-        if ( $return_format ) {
-            // Parse date in WP timezone - prevents "2025-01-16" from being interpreted as UTC
-            $date = DateTime::createFromFormat( $return_format, $date_value, $wp_timezone );
-            if ( $date && $date->format( $return_format ) === $date_value ) {
-                // For date-only fields, set to noon instead of midnight
-                // This prevents day-boundary crossing if any timezone issues occur
-                // (max timezone offset is +/- 12 hours, so noon can't cross into another day)
-                $utils = bws_format_utils();
-                if ( ! $utils['has_time']( $return_format ) ) {
-                    $date->setTime( 12, 0, 0 );
-                }
-                return $date;
+    // First attempt: the field's configured return format (most reliable)
+    if ( $return_format ) {
+        // Parse date in WP timezone - prevents "2025-01-16" from being interpreted as UTC
+        $date = DateTime::createFromFormat( $return_format, $date_value, $wp_timezone );
+        if ( $date && $date->format( $return_format ) === $date_value ) {
+            // For date-only fields, set to noon instead of midnight
+            // This prevents day-boundary crossing if any timezone issues occur
+            // (max timezone offset is +/- 12 hours, so noon can't cross into another day)
+            $utils = bws_format_utils();
+            if ( ! $utils['has_time']( $return_format ) ) {
+                $date->setTime( 12, 0, 0 );
             }
+            return $date;
         }
     }
 
