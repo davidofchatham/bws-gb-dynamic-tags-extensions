@@ -62,6 +62,11 @@ return array(
 	// The date the baseline under `tools/test/snapshots/` was captured. Prose only —
 	// nothing compares it; it is here so a reader can place the record in time.
 	//
+	// 2026-11-23: a DEPENDENCY MOVE, re-recorded with NO baseline change. GB Query Enhancements
+	// 1.4.0 -> 1.5.0-beta.1, WooCommerce 11.3.0 -> 11.3.1 and WordPress 7.1.4 -> 7.1.5 moved NO
+	// line on any of the 29 pages, so `tools/test/snapshots/` is byte-identical and only this
+	// record changed. Active set unchanged.
+	//
 	// 2026-11-19: a FIXTURE MOVE, re-captured. Blueprint v49 adds the four D6.5 rows to
 	// `/matrix-datetime/`, the only page that moved; no dependency or active plugin changed.
 	//
@@ -187,8 +192,8 @@ return array(
 	// with a 7.1.2 update pending and the 2026-09-24 baseline not re-captured, so it is the
 	// version that baseline was running under unless core moved that one day. The evidence for
 	// readme.txt's `Tested up to`: page-snapshot-normalize-test.php fails if that line names a
-	// newer major.minor than the one recorded here. 7.1.2 from the 2026-09-25 capture, 7.1.3 from 2026-10-09, 7.1.4 since 2026-11-02.
-	'wordpress' => '7.1.4',
+	// newer major.minor than the one recorded here. 7.1.2 from the 2026-09-25 capture, 7.1.3 from 2026-10-09, 7.1.4 from 2026-11-02, 7.1.5 since 2026-11-23.
+	'wordpress' => '7.1.5',
 
 	// EVERY PLUGIN THAT WAS RUNNING, not only the four this record requires. The version
 	// list below answers "were the dependencies the same"; this answers "what else was in
@@ -255,7 +260,7 @@ return array(
 		// what its presence changes.
 		'gb-query-enhancements/gb-query-enhancements.php' => array(
 			'label'    => 'GB Query Enhancements',
-			'version'  => '1.4.0',
+			'version'  => '1.5.0-beta.1',
 			'required' => true,
 		),
 		'advanced-custom-fields-pro/acf.php' => array(
@@ -269,7 +274,7 @@ return array(
 		// naming WooCommerce is a better failure than 19 page diffs with no stated cause.
 		'woocommerce/woocommerce.php' => array(
 			'label'    => 'WooCommerce',
-			'version'  => '11.3.0',
+			'version'  => '11.3.1',
 			'required' => true,
 		),
 		// OPTIONAL. Inert on the front end (28 of 28 pages match with it active), so no baseline

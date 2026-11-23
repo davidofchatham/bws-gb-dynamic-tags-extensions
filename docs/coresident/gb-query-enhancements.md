@@ -4,7 +4,7 @@
 
 Pure GenerateBlocks facts stay in [`gb-constraints.md`](../gb-constraints.md). Everything here is dated and version-stamped, because none of it is ours to keep true.
 
-**Measured against GBQE 1.3.0** (GB 2.4.1, GB Pro 2.7.1) on the fixture site, which records the same set in [`env-versions.php`](../../tools/fixtures/core-structures/env-versions.php). GBQE is a required active plugin there and [`testbed.md`](../testbed.md) says why.
+**Measured against GBQE 1.3.0** (GB 2.4.1, GB Pro 2.7.1) on the fixture site, with the hooks table below re-read on 1.5.0-beta.1 (GB 2.5.1, GB Pro 2.8.0, 2026-11-23, source read, nothing run). The fixture site records the same set in [`env-versions.php`](../../tools/fixtures/core-structures/env-versions.php). GBQE is a required active plugin there and [`testbed.md`](../testbed.md) says why.
 
 ## Its Term and User query hooks loop on a fresh preview-context object
 
@@ -38,7 +38,7 @@ GBQE registers three kinds of hook on tag rendering; the hooks, priorities and g
 |---|---|
 | `generateblocks_dynamic_tag_id` ×3 | GB does not pass `$fallback_type`, so GBQE's callbacks cannot tell a term id from a post id: the upstream half of [#123](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/123). See [`gb-constraints.md`](../gb-constraints.md#generateblocks_dynamic_tag_id-is-not-told-which-entity-the-id-was-a-fallback-for). Our response is item-shape recognition at [`bws_classify_loop_item()`](../../includes/helpers/field-helpers.php) |
 | `generateblocks_dynamic_tag_output` ×1 | Re-applies `$options['fallback']` when output is empty, on OUR tags too, since we route output through GB's `output()`. Our response is the single boundary [`bws_gb_tag_output()`](../../includes/helpers/gb-output-boundary.php), which decides what reaches it |
-| `generateblocks_dynamic_tag_replacement` ×1 | **Does not reach our tags**: it early-returns unless `$args['tag']` is exactly `user_meta`. Recorded because we hook the same filter at priority 10 ([`includes/hooks.php`](../../includes/hooks.php)), so ours runs first and theirs would see our padded value if the gate ever widened |
+| `generateblocks_dynamic_tag_replacement` ×2 (×1 on 1.4.0) | **Neither reaches our tags**: one early-returns unless `$args['tag']` is exactly `user_meta` (priority 99), the other unless it is exactly `next_posts_page_url` (priority 10, the same as ours in [`includes/hooks.php`](../../includes/hooks.php), so which runs first is registration order). Recorded because if either gate ever widened, it would see our padded value |
 
 ## It registers 29 dynamic tags, and four names are ones we used to hold
 
