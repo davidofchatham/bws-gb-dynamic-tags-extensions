@@ -247,6 +247,9 @@ function bws_parse_combined_date_time( $target, $date_field, $time_field, $conte
     // (bws_read_resolved_source()) for term, id-carrying post, site and repeater-row
     // sources — a date field is a scalar, so the seam's own coercion is the read
     // datetime wants, and the kind dispatch (and the site option gates) live there once.
+    // The site arm is the one gated option reader, not a flat get_field() on the options
+    // page: a deliberate FW-3 decision, which is why docs/tag-reference.md states the
+    // site read by its consequence only.
     //
     // THE ONE EXCEPTION is an entity-less post source (id <= 0), which keeps
     // bws_read_field()'s loop inference: a GB Pro query loop over repeater rows reaches
