@@ -463,7 +463,7 @@ Blocked by: —  •  Interacts with: —
 
 #### FW-20 — Combined option controls
 
-Includes serialization order; avoiding serializing stale or redundant options, e.g. stripping `use:key` when `key:some_field` is set and stripping `key` when `use` is not `key` (now FW-142); and folded options, e.g. `linkTo` cluster unification (the wire change, separate from FW-13's discovery work). `use:key,field` itself is decided against as a general serialization standard; it survives only as the folded multi-key/multi-field form FW-81's datetime collapse needs.
+Includes serialization order; avoiding serializing stale or redundant options, e.g. stripping `use:key` when `key:some_field` is set and stripping `key` when `use` is not `key` (now FW-142); and folded options, e.g. `linkTo` cluster unification (the wire change, separate from FW-13's discovery work). `use:key,field` itself is decided against, both as a general serialization standard and as FW-81's folded form; FW-81's datetime collapse takes a list form instead, e.g. `use:key;now`.
 
 Detail home: `.scratch/plans/combined-option-controls.md`
 
@@ -875,7 +875,7 @@ Each `try_datetime` slot carries its own datetime read (field reads, a `+` time 
 
 Detail home: this row. The tag was decided 2026-11-19 and built from the spec recorded in [`docs/design-history/try-datetime-per-slot.md`](design-history/try-datetime-per-slot.md)
 
-Progress: Built on branch `feature/try-datetime-per-slot`, tickets 01 to 06 done, the release-gate check included; what remains is the merge and then the release itself. Measured on the testbed 2026-11-19, rows in `tools/test/datetime-test-matrix.md` (D12 the per-slot render rows, D6.4a to D6.4k the preview rows, D13 the Migration Tool on the old tags); the Migration Tool rewrite census and the page snapshots also ran clean. Decided before the release that first ships `try_datetime`, so the tag-level form it replaces has never shipped.
+Progress: Merged 2026-11-23 as PR #168 (tickets 01 to 06 done, the release-gate check included); what remains is the release itself. Measured on the testbed 2026-11-19, rows in `tools/test/datetime-test-matrix.md` (D12 the per-slot render rows, D6.4a to D6.4k the preview rows, D13 the Migration Tool on the old tags); the Migration Tool rewrite census and the page snapshots also ran clean. Decided before the release that first ships `try_datetime`, so the tag-level form it replaces has never shipped.
 
 Blocked by: —  •  Interacts with: FW-81 (closed; built the tag-level form this replaces and the Migration Tool rewrite this retargets; the mount rewrite stays tag-level on the old `try_` tags), FW-24 (a datetime read in `{{join}}` / `{{table}}` slots stays there), FW-192 (the old `try_` datetime tags whose rewrite target this changes)
 
