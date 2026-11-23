@@ -47,7 +47,7 @@ The old rule banned tracking phase, commit, or percent-done in a cell, because t
 
 Route datetime reads through the same L1/L2 source-resolution seam as text/title, retiring the id-arg param-overload contradiction across the four datetime cores.
 
-Detail home: `.scratch/plans/fw3-datetime-seam.md` (the decisions, D1–D12, and the build checklist); half (a)'s record `docs/design-history/fw3-term-ambient-parity.md`; payload half's record `docs/design-history/traversal-convergence-fw49.md`
+Detail home: `.scratch/fw3-datetime-seam/spec.md` (the decisions, D1–D12, and the build checklist); half (a)'s record `docs/design-history/fw3-term-ambient-parity.md`; payload half's record `docs/design-history/traversal-convergence-fw49.md`
 
 Progress: Half (a) shipped 1.15.0 — term-ambient parity, the resolved-source rethread, and the `bws_datetime_coerce_read_target()` compat shim for legacy scalars (since deleted: every caller builds the resolved-source payload itself); bare datetime tags on a term archive read the term's date field. The payload half of (b) shipped 1.16.0 as part of FW-49 — the four datetime call sites ride the shared `bws_collect_value_list()` fold and `bws_datetime_collect_list()` is deleted.
 
@@ -355,7 +355,7 @@ Blocked by: row:FW-128  •  Interacts with: FW-38 (`lifecycle`; the `hidden` re
 
 Inside a GB Pro query loop over repeater rows, a base tag's read falls through the resolver's post tail with no post id, and only `bws_read_field()`'s loop inference finds the row. The per-source reader answers `''` for that source, so datetime keeps one value-read exception for it (FW-3), and the row's sub-field return format is unreachable, so a loop-row date parses format-agnostically (issue #22's failure mode, held off today by the time-only shape sniff). Giving that row a real source the reader serves, value and return format together, removes both.
 
-Detail home: this row; the FW-3 decisions it continues are `.scratch/plans/fw3-datetime-seam.md` D5, D7 and D11
+Detail home: this row; the FW-3 decisions it continues are `.scratch/fw3-datetime-seam/spec.md` D5, D7 and D11
 
 Progress: Not started. Split out of FW-3 on 2026-11-23. A chain row (`rows` step) already carries the provenance this needs (`parent_kind`, `parent_id`, `repeater`, `index`); the ambient loop row carries none, because GB Pro positions it and our producer never sees it.
 
