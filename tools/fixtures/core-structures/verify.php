@@ -226,9 +226,10 @@ $tags = class_exists( 'GenerateBlocks_Register_Dynamic_Tag' ) ? array_keys( Gene
 $fx_family = preg_grep( '/^fixture_/', $tags );
 $check( 'no fixture_* tag family is registered', array() === $fx_family, 'found=' . implode( ',', $fx_family ) );
 
-// And the entries ARE, counted against the TEMPLATE LIST they are generated from rather
-// than against a literal nine — a template added later must mint a fixture entry too, and a
-// hardcoded count would go stale silently.
+// And the entries ARE: one for every `fixture_*` shape the corpus page stores. The generator
+// takes its keys from its caller (schema.php lists them), so the expectation is read off the
+// seeded wire itself — a shape seeded without an entry fails here instead of rendering
+// unconverted without notice.
 $fx_entries = array();
 if ( class_exists( 'BWS\DynamicTags\MigrationRegistry' ) ) {
 	foreach ( \BWS\DynamicTags\MigrationRegistry::get_by_type( 'tag' ) as $entry ) {
@@ -237,10 +238,12 @@ if ( class_exists( 'BWS\DynamicTags\MigrationRegistry' ) ) {
 		}
 	}
 }
-$tpl_count = class_exists( 'BWS\DynamicTags\TagTemplateRegistry' )
-	? count( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() )
-	: 0;
-$check( 'fixture family has one MIGRATION ENTRY per modifier template', $tpl_count > 0 && count( $fx_entries ) === $tpl_count, 'entries=' . count( $fx_entries ) . " templates={$tpl_count}" );
+$fx_seeded = array();
+if ( $corpus_page instanceof WP_Post ) {
+	preg_match_all( '/\{\{(fixture_[a-z_]+)/', (string) $corpus_page->post_content, $fx_m );
+	$fx_seeded = array_values( array_unique( $fx_m[1] ) );
+}
+$check( 'every seeded fixture_* shape has a MIGRATION ENTRY', array() !== $fx_seeded && array() === array_diff( $fx_seeded, $fx_entries ), 'seeded=' . implode( ',', $fx_seeded ) . ' entries=' . implode( ',', $fx_entries ) );
 
 // THE FOUR FR3 SHAPES, read through the wire each one MIGRATES TO. This is the half of the
 // old pair that survives the family: verify-migration.php pins that the converter produces
