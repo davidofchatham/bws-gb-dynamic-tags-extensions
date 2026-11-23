@@ -86,6 +86,9 @@ load( 'assets/js/slot-fold-grammar.js' );
 // dependency on it (it will not mount without it), so it loads here too.
 load( 'assets/js/slot-fold-migrate.js' );
 load( 'assets/js/option-nodes.js' );
+// Real, so the focus requests below go through the helper's own `candidates()`; it does nothing
+// without a DOM, which is why this harness can click.
+load( 'assets/js/focus-after.js' );
 load( 'assets/js/slot-fold-control.js' );
 
 const fold = global.window.bwsSlotFold;
@@ -1901,6 +1904,58 @@ const advisoryOf = function ( slotKey, state ) {
 };
 check( 'reads: the advisory names the read axis (not the source-only wording)', advisoryOf( 'B', { A: 'key(a)', B: 'src(same);use(same)' } ), 'Both the source and the field carry over until you change one of them.' );
 check( 'reads: a carried read with a new source reads as "Varies: source"', advisoryOf( 'B', { A: 'key(a)', B: 'src(refs,x)' } ), 'Varies: source (field carries over)' );
+
+// ── Focus after a button that removes itself ──────────────────────────────────
+// Add, Remove, Add step and Remove step each unmount the button pressed; the control asks
+// window.bwsFocusAfter to put focus back. WHERE it lands in a browser is measured in the
+// testbed editor (docs/editor-controls.md); this pins what each button asks for, and that
+// the markers the asks name are on the page.
+const focusAsked = [];
+const realFocusRequest = global.window.bwsFocusAfter.request;
+global.window.bwsFocusAfter.request = function ( scope, names ) { focusAsked.push( [ scope, names ].join( ' ' ) ); };
+const lastFocusAsk = function () { return focusAsked[ focusAsked.length - 1 ]; };
+const renderSlotKey = function ( conf, key, state, setState ) {
+	const prior = global.window.bwsFieldComboControl;
+	global.window.bwsFieldComboControl = FIELD_COMBO_STUB;
+	try {
+		return rep.SlotFoldControl( { optionKey: key, label: 'Slot ' + key, conf: conf, context: { state: state, setState: setState || function () {} } } );
+	} finally {
+		if ( prior === undefined ) { delete global.window.bwsFieldComboControl; } else { global.window.bwsFieldComboControl = prior; }
+	}
+};
+const THREE = { A: 'key(a)', B: 'key(b)', C: 'key(c)' };
+
+keyedNodes( renderSlotKey( COMBINING, 'C', THREE ), 'addslot' )[ 0 ].props.onClick();
+check( 'focus: Add slot at three asks for the fourth', lastFocusAsk(), 'slot entry-3,first' );
+keyedNodes( renderSlotKey( COMBINING, 'A', THREE ), 'rm' )[ 0 ].props.onClick();
+check( 'focus: Remove on slot A of three asks for the slot that took its place', lastFocusAsk(), 'slot entry-0,add,first' );
+keyedNodes( renderSlotKey( COMBINING, 'C', THREE ), 'rm' )[ 0 ].props.onClick();
+check( 'focus: Remove on the LAST slot asks for the one before it', lastFocusAsk(), 'slot entry-1,add,first' );
+keyedNodes( renderSlotKey( COMBINING, 'B', { A: 'key(a)', B: 'key(b)' } ), 'rm' )[ 0 ].props.onClick();
+check( 'focus: Remove at the floor of two asks for slot B, which stays', lastFocusAsk(), 'slot entry-1,add,first' );
+
+const slotRoot = renderSlotKey( COMBINING, 'B', THREE );
+check( 'focus: a slot is marked as an entry by its own position', slotRoot.props[ 'data-bws-focus' ], 'slot:entry-1' );
+check( 'focus: the slot wrapper is display: contents, so marking it leaves the flat layout of the option column as it was', slotRoot.props.style.display, 'contents' );
+check( 'focus: Add carries its own marker', keyedNodes( renderSlotKey( COMBINING, 'C', THREE ), 'addslot' )[ 0 ].props[ 'data-bws-focus' ], 'slot:add' );
+check( 'focus: slot Remove is skipped when focus looks for a first control', keyedNodes( slotRoot, 'rm' )[ 0 ].props[ 'data-bws-skip-focus' ], true );
+
+const twoStep = function () {
+	return rep.chainSteps( { conf: CHAIN_CONF, chain: [ rep.step( 'refs', 'lead' ), rep.step( 'terms', 'category' ) ], onChange: function () {},
+		sameOnEmpty: false, slotNoun: 'attempt', focusScope: 'chain-A', stepContext: function () { return { state: {}, setState: function () {} }; } } );
+};
+keyedNodes( twoStep(), 'rm' )[ 0 ].props.onClick();
+check( 'focus: Remove step on the first of two asks for the survivor', lastFocusAsk(), 'chain-A entry-0,add,first' );
+keyedNodes( twoStep(), 'rm' )[ 1 ].props.onClick();
+check( 'focus: Remove step on the second of two asks for the first', lastFocusAsk(), 'chain-A entry-0,add,first' );
+const focusOneStep = rep.chainSteps( { conf: CHAIN_CONF, chain: [ rep.step( 'refs', 'lead' ) ], onChange: function () {}, sameOnEmpty: false, slotNoun: 'attempt',
+	focusScope: 'chain-A', stepContext: function () { return { state: {}, setState: function () {} }; } } );
+keyedNodes( focusOneStep, 'addstep' )[ 0 ].children[ 0 ].props.onClick();
+check( 'focus: Add step asks for the step it created', lastFocusAsk(), 'chain-A entry-1,first' );
+check( 'focus: each step is marked as an entry', keyedNodes( twoStep(), 'step-1' )[ 0 ].props[ 'data-bws-focus' ], 'chain-A:entry-1' );
+check( 'focus: step Remove is skipped when focus looks for a first control', keyedNodes( twoStep(), 'rm' )[ 0 ].props[ 'data-bws-skip-focus' ], true );
+
+global.window.bwsFocusAfter.request = realFocusRequest;
 
 console.log( '\n' + ( total - fail ) + '/' + total + ' passed' );
 process.exit( fail ? 1 : 0 );

@@ -673,6 +673,15 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);
+	// Puts keyboard focus back after an Add or Remove button removes itself. Both repeater
+	// controls below ask it, so it loads first.
+	wp_enqueue_script(
+		'bws-dynamic-tags-focus-after',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/focus-after.js',
+		array(),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
 	wp_enqueue_script(
 		'bws-dynamic-tags-slot-fold-control',
 		BWS_DYNAMIC_TAGS_URL . 'assets/js/slot-fold-control.js',
@@ -688,6 +697,7 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 			'bws-dynamic-tags-entity-picker-control',
 			'bws-dynamic-tags-option-group',
 			'bws-dynamic-tags-table-style-control',
+			'bws-dynamic-tags-focus-after',
 		),
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
@@ -699,7 +709,7 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 	wp_enqueue_script(
 		'bws-dynamic-tags-datetime-read-control',
 		BWS_DYNAMIC_TAGS_URL . 'assets/js/datetime-read-control.js',
-		array( 'wp-hooks', 'wp-element', 'wp-components', 'wp-i18n', 'bws-dynamic-tags-field-combo-control' ),
+		array( 'wp-hooks', 'wp-element', 'wp-components', 'wp-i18n', 'bws-dynamic-tags-field-combo-control', 'bws-dynamic-tags-focus-after' ),
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);

@@ -397,6 +397,14 @@ The four composites (Sizing and Width, Typography, Stripes, Borders) and the Liv
 
 **Add and remove go through the repeater.** A new slot is seeded `src(same);use(same)` (`seedSlot()`), and removing a slot materializes its read into a successor that was carrying it, through the existing removal path (`removeSlotFrom()`).
 
+## Keyboard focus after Add and Remove
+
+**A button that removes itself hands focus on.** Add stops at a maximum, a Remove shows only while there is more than one entry, and a link swaps for the field it opens, so pressing one unmounts the button and the browser drops focus on the page body, outside the dialog. Each such press now asks `window.bwsFocusAfter` (`assets/js/focus-after.js`, a dependency of the slot repeater and the datetime read control) to put focus back once the write has rendered. The sites are the datetime read control's Add, Remove, Add Time Field, and Remove Time Field; the slot repeater's Add and Remove; and the chain editor's Add step and Remove step, which the base tag's source control shares.
+
+**Where it lands.** After an Add, in the entry it created. After a Remove, in the entry that took the removed one's place (the one before it when the last was removed), else the Add button, else the control's first field. "In an entry" is the entry's first control that is not a Remove, so focus never lands on the button that would repeat the removal. Remove Time Field returns to the Add Time Field link. The rule, the marker convention that carries it, and why the lookup is by marker rather than by a ref are in the header of `focus-after.js`. A marked entry wrapper is `display: contents`, so the option column keeps the flat-sibling layout the option-group wrapper relies on.
+
+**What is pinned and what is measured.** `focus-after-test.js` holds the rule and the lookup against a stub DOM, and `datetime-read-control-test.js` §D12 and the focus rows at the end of `slot-fold-repeater-test.js` hold what each button asks for and that the markers it names are on the page. None has a real DOM, so where focus really lands is measured in the testbed editor: on 2026-11-23 (WordPress 7.1.5, GenerateBlocks 2.5.1), with a real Enter on each button, every site above put focus on the control named here. The field-label action's return to the column header input, which now goes through the same helper, was not measured there, and neither was a screen reader's announcement of the new entry.
+
 ## Option grouping (visual)
 
 GB renders every option as a flat sibling in a 15px-gap flex column (see [`gb-constraints.md`

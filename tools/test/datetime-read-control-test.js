@@ -145,6 +145,7 @@ function load( relative ) {
 }
 load( 'assets/js/slot-fold-grammar.js' );
 load( 'assets/js/option-nodes.js' );
+load( 'assets/js/focus-after.js' );
 load( 'assets/js/field-combo-control.js' );
 load( 'assets/js/datetime-read-control.js' );
 
@@ -675,6 +676,51 @@ async function main() {
 	const second = await mountSlot( { use: 'key;now', key: 'a' }, { sameLabel: SAME } );
 	check( 'D11.11 "same" is offered on the first read only: a range\'s end read never reuses', [ offered( second.tree, 0 )[ 0 ], offered( second.tree, 1 ).indexOf( 'same' ) ], [ 'same', -1 ] );
 	check( 'D11.12 a read the slot writes other than "same" leaves the picker and Add as the base tag has them', [ pickers( second.tree ).length, !! addButton( second.tree ) ], [ 1, false ] );
+
+	/* =====================================================================
+	 * §D12 — a button that removes itself hands keyboard focus on
+	 *
+	 * Add, Remove, Add Time Field and Remove Time Field each unmount the button pressed, and
+	 * the browser drops focus on the page body. Each now asks window.bwsFocusAfter to put it
+	 * back, naming the markers it will accept in order. WHERE focus really lands is measured
+	 * in the testbed editor (docs/editor-controls.md); this pins what the control asks for.
+	 * ================================================================== */
+
+	const asked = [];
+	const realRequest = global.window.bwsFocusAfter.request;
+	global.window.bwsFocusAfter.request = function ( scope, markers ) { asked.push( [ scope, markers ] ); };
+	const lastAsk = function () { return asked[ asked.length - 1 ]; };
+
+	const addOne = await mount( { key: 'event_date' } );
+	addButton( addOne.tree ).props.onClick();
+	check( 'D12.1 Add on one read asks for the second read', lastAsk(), [ 'dt-key', [ 'entry-1', 'first' ] ] );
+
+	const rmTwo = await mount( { key: 'event_date;end_dt' } );
+	removeButtons( rmTwo.tree )[ 0 ].props.onClick();
+	check( 'D12.2 Remove on the first of two asks for the survivor, now first', lastAsk(), [ 'dt-key', [ 'entry-0', 'add', 'first' ] ] );
+	removeButtons( rmTwo.tree )[ 1 ].props.onClick();
+	check( 'D12.3 Remove on the second of two asks for the first, never the Remove that is about to go', lastAsk(), [ 'dt-key', [ 'entry-0', 'add', 'first' ] ] );
+
+	const timeAdd = await mount( { key: 'event_date' } );
+	addTimeButtons( timeAdd.tree )[ 0 ].props.onClick();
+	check( 'D12.4 Add Time Field asks for the time picker it opens', lastAsk(), [ 'dt-key', [ 'time-0', 'entry-0' ] ] );
+
+	const timeDrop = await mount( { key: 'event_date;end_dt+end_time' } );
+	removeTimeButtons( timeDrop.tree )[ 0 ].props.onClick();
+	check( 'D12.5 Remove Time Field asks for the Add Time Field link that replaces it', lastAsk(), [ 'dt-key', [ 'addtime-1', 'entry-1' ] ] );
+
+	const slotTree = await render( Component, { scope: 'dt-slot-B', cfg: KEY_DEF, context: { state: { key: 'a' }, setState: function () {} } } );
+	addButton( slotTree ).props.onClick();
+	check( 'D12.6 a slot card names its own scope, so two cards never answer each other', lastAsk()[ 0 ], 'dt-slot-B' );
+
+	const marked = await mount( { key: 'event_date;end_dt' } );
+	const dataFocus = walk( marked.tree ).map( function ( n ) { return n.props && n.props[ 'data-bws-focus' ]; } ).filter( Boolean );
+	check( 'D12.7 each read is marked as an entry, so the names it asks for have something to find', dataFocus.filter( function ( m ) { return /^dt-key:entry-\d$/.test( m ); } ), [ 'dt-key:entry-0', 'dt-key:entry-1' ] );
+	check( 'D12.8 every Remove is skipped when focus looks for a first control', removeButtons( marked.tree ).every( function ( b ) { return b.props[ 'data-bws-skip-focus' ] === true || b.props[ 'data-bws-skip-focus' ] === 'true'; } ), true );
+
+	check( 'D12.9 an entry wrapper is display: contents, so marking it leaves the flat layout of the option column as it was', walk( marked.tree ).filter( function ( n ) { return n.props && /^dt-key:entry-/.test( n.props[ 'data-bws-focus' ] || '' ); } ).every( function ( n ) { return 'contents' === n.props.style.display; } ), true );
+
+	global.window.bwsFocusAfter.request = realRequest;
 
 
 	console.log( '' );

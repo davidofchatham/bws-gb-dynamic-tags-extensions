@@ -293,6 +293,16 @@
 		var FieldCombo = window.bwsFieldComboControl;
 		var max      = Math.max( 1, parseInt( cfg.max, 10 ) || 1 );
 
+		// A press that removes the button pressed hands focus on through focus-after.js, which
+		// owns where it goes. `askFocus` names the targets itself where `after()`'s rule does not fit. `scope` tells this control's markers from another's in the dialog
+		// (each try_datetime slot card mounts one).
+		var scope      = props.scope || 'dt';
+		var focusAfter = window.bwsFocusAfter;
+		function askFocus( names ) { focusAfter.request( scope, names ); }
+		function entryNode( i, kids ) {
+			return el( 'div', { key: 'entry-' + i, 'data-bws-focus': scope + ':entry-' + i, style: { display: 'contents' } }, kids );
+		}
+
 		var locState  = useState( null );
 		var typeState = useState( null );
 		// In a try_datetime slot card from slot B on, the first read may instead be "the previous
@@ -408,10 +418,12 @@
 						key: 'rm',
 						variant: 'tertiary',
 						isDestructive: true,
+						'data-bws-skip-focus': true,
 						style: { marginRight: '-8px' },
 						onClick: function () {
 							timeState[ 1 ]( function ( prev ) { return prev.filter( function ( s, n ) { return n !== i; } ); } );
 							write( reads.filter( function ( e, n ) { return n !== i; } ) );
+							focusAfter.after( scope, 'remove', i, count - 1 );
 						}
 					}, cfg.removeLabel )
 				] ) );
@@ -443,19 +455,20 @@
 				) );
 			}
 			if ( read.verb || isSame ) {
-				children.push( el( Fragment, { key: 'entry-' + i }, kids ) );
+				children.push( entryNode( i, kids ) );
 				return;
 			}
 			kids.push( picker( i, 0 ) );
 			if ( read.ops[ 1 ] || timeOpen[ i ] ) {
 				// Not the read's Remove: a link in the picker's label row, named for the field it
 				// drops. The label is the combo's own, so the link is laid over its right end.
-				kids.push( el( 'div', { key: 'time-' + i, style: { position: 'relative', marginBottom: '12px' } }, [
+				kids.push( el( 'div', { key: 'time-' + i, 'data-bws-focus': scope + ':time-' + i, style: { position: 'relative', marginBottom: '12px' } }, [
 					picker( i, 1 ),
 					el( Button, {
 						key: 'rm-time',
 						variant: 'link',
 						isDestructive: true,
+						'data-bws-skip-focus': true,
 						// `top` puts the link on the combo's label line: the label row sits about
 						// 11px below the wrapper's top edge. Tuned by eye in the testbed editor.
 						style: { position: 'absolute', top: '11px', right: 0, height: 'auto', fontSize: '12px' },
@@ -464,6 +477,7 @@
 							if ( read.ops[ 1 ] ) {
 								write( setOperand( reads, i, 1, '' ) );
 							}
+							askFocus( [ 'addtime-' + i, 'entry-' + i ] );
 						}
 					}, cfg.timeRemoveLabel )
 				] ) );
@@ -471,13 +485,15 @@
 				kids.push( el( Button, {
 					key: 'add-time',
 					variant: 'link',
+					'data-bws-focus': scope + ':addtime-' + i,
 					style: { display: 'block', margin: '8px 0 12px' },
 					onClick: function () {
 						setTimeOpen( i, true );
+						askFocus( [ 'time-' + i, 'entry-' + i ] );
 					}
 				}, '+ ' + cfg.timeAddLabel ) );
 			}
-			children.push( el( Fragment, { key: 'entry-' + i }, kids ) );
+			children.push( entryNode( i, kids ) );
 		} );
 
 		// What the reads above cannot show, named before it is lost or while it is ignored: an
@@ -495,8 +511,12 @@
 			children.push( el( Button, {
 				key: 'add',
 				variant: 'secondary',
+				'data-bws-focus': scope + ':add',
 				style: { marginTop: '12px' },
-				onClick: function () { write( reads.concat( [ fieldRead( [ '' ] ) ] ) ); }
+				onClick: function () {
+					write( reads.concat( [ fieldRead( [ '' ] ) ] ) );
+					focusAfter.after( scope, 'add', count );
+				}
 			}, '+ ' + cfg.addLabel ) );
 		}
 
@@ -552,6 +572,7 @@
 			}
 			var control = el( DatetimeReadControl, {
 				key: element.key,
+				scope: 'dt-' + element.key,
 				cfg: {
 					label: cfg.label,
 					help: cfg.help,

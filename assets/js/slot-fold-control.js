@@ -460,12 +460,7 @@
 			style: { marginTop: '6px' },
 			onClick: function () {
 				write( Object.assign( {}, slot, { header: label } ) );
-				setTimeout( function () {
-					var input = 'undefined' !== typeof document ? document.getElementById( headerId ) : null;
-					if ( input ) {
-						input.focus();
-					}
-				}, 0 );
+				window.bwsFocusAfter.byId( headerId );
 			}
 		}, fmt( opt.labelApply, label ) );
 	}
@@ -902,6 +897,8 @@
 		var FieldCombo = window.bwsFieldComboControl;
 		var stepContext = props.stepContext;
 		var chain = ( props.chain || [] ).slice();
+		// Names this chain's focus markers; two chains in one dialog never answer each other (focus-after.js).
+		var focusScope = props.focusScope || 'chain';
 
 		// DISPLAY the root that absence spells, rather than rendering an empty picker.
 		// A SelectControl whose value is `''` matches no row, so the browser paints the
@@ -1123,9 +1120,11 @@
 						variant: 'tertiary',
 						size: 'small',
 						isDestructive: true,
+						'data-bws-skip-focus': true,
 						style: { marginRight: '-6px' },
 						onClick: function () {
 							writeChainAt( i, null );
+							window.bwsFocusAfter.after( focusScope, 'remove', i, chain.length - 1 );
 						}
 					}, __( 'Remove step', 'generateblocks' ) )
 				] ) );
@@ -1352,6 +1351,7 @@
 
 			stepNodes.push( el( 'div', {
 				key: 'step-' + i,
+				'data-bws-focus': focusScope + ':entry-' + i,
 				style: i > 0 ? STEP_RULE : null
 			}, stepKids ) );
 		} );
@@ -1395,6 +1395,7 @@
 					size: 'small',
 					onClick: function () {
 						props.onChange( chain.concat( [ step( nextSteps[ 0 ].value ) ] ) );
+						window.bwsFocusAfter.after( focusScope, 'add', chain.length );
 					}
 				}, '+ ' + __( 'Add step', 'generateblocks' ) )
 			) );
@@ -1511,6 +1512,7 @@
 			var upd = Object.assign( {}, state );
 			upd[ fold.slotKey( count + 1 ) ] = fold.emitSlot( seedSlot( conf ) );
 			setState( upd );
+			window.bwsFocusAfter.after( 'slot', 'add', count );
 		}
 
 		var children = [];
@@ -1549,9 +1551,12 @@
 						isDestructive: true,
 						// Trim the stock horizontal padding so the label aligns flush
 						// with the group boxes below.
+						'data-bws-skip-focus': true,
 						style: { marginRight: '-8px' },
 						onClick: function () {
-							setState( removeSlotFrom( ordinal, state, count, conf ) );
+							var next = removeSlotFrom( ordinal, state, count, conf );
+							setState( next );
+							window.bwsFocusAfter.after( 'slot', 'remove', ordinal - 1, slotCount( next, conf ) );
 						}
 					}, __( 'Remove', 'generateblocks' ) )
 					: null
@@ -1606,7 +1611,8 @@
 			slotNoun: slotNoun,
 			stepContext: stepContext,
 			parentChain: parentChain,
-			copyChain: copyChain
+			copyChain: copyChain,
+			focusScope: 'chain-' + key
 		} );
 
 		children.push( el( 'div', { key: 'srcgroup', className: CLS.group }, [
@@ -1846,11 +1852,14 @@
 			children.push( el( Button, {
 				key: 'addslot',
 				variant: 'secondary',
+				'data-bws-focus': 'slot:add',
 				onClick: addSlot
 			}, '+ ' + addLabel ) );
 		}
 
-		return el( Fragment, null, children );
+		// The slot is marked as an entry by its position, so a Remove or Add in another slot's instance
+		// can hand focus to this one (focus-after.js).
+		return el( 'div', { 'data-bws-focus': 'slot:entry-' + ( ordinal - 1 ), style: { display: 'contents' } }, children );
 	}
 
 	wp.hooks.addFilter(
