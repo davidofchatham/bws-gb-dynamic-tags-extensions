@@ -47,13 +47,15 @@ The old rule banned tracking phase, commit, or percent-done in a cell, because t
 
 Route datetime reads through the same L1/L2 source-resolution seam as text/title, retiring the id-arg param-overload contradiction across the four datetime cores.
 
-Detail home: `.scratch/plans/fw3-datetime-seam.md` (the open decision); half (a)'s record `docs/design-history/fw3-term-ambient-parity.md`; payload half's record `docs/design-history/traversal-convergence-fw49.md`
+Detail home: `.scratch/plans/fw3-datetime-seam.md` (the decisions, D1–D12, and the build checklist); half (a)'s record `docs/design-history/fw3-term-ambient-parity.md`; payload half's record `docs/design-history/traversal-convergence-fw49.md`
 
 Progress: Half (a) shipped 1.15.0 — term-ambient parity, the resolved-source rethread, and the `bws_datetime_coerce_read_target()` compat shim for legacy scalars (since deleted: every caller builds the resolved-source payload itself); bare datetime tags on a term archive read the term's date field. The payload half of (b) shipped 1.16.0 as part of FW-49 — the four datetime call sites ride the shared `bws_collect_value_list()` fold and `bws_datetime_collect_list()` is deleted.
 
-Open: Full seam routing (datetime VALUE reads going through `bws_resolve_field_values` rather than the cores) still needs the field-object-formats read the seam does not currently expose. For a REPEATER-ROW source the inputs that read needs are now recorded — FW-74 ticket 02 (1.21.0) stamps `parent_kind`, `parent_id`, `repeater` and `index` on every row a `rows` step produces — but the read itself is still this item's, and datetime on a wire row ships format-agnostic until it lands. Absorbed from FW-113 (2026-11-23): `bws_base_datetime_resolve_value()` asks `bws_base_ambient_analog()` and then branches on its `link_type` to read the term through the datetime core, because the seam has no datetime value. If the value read moves onto the seam, deleting that branch is part of this item's done state; if the decision keeps datetime's own field-object read, the branch is the accepted end state and its comment should say so.
+Decided 2026-11-23 (grilling, user): the seam datetime rides is the per-source L2 reader `bws_read_resolved_source_value()`, not `bws_resolve_field_values()`, whose one-key `string[]` contract stays frozen (datetime reads up to four fields per source). A new sibling reader answers a source's field RETURN FORMAT by kind, a repeater row through the four provenance keys FW-74 stamps; the format serves both the parse and the default display, so chain-row dates that print today in the site format will print in the field's return format. The value read moves onto the per-source reader for term, id-carrying post and site (the site read was measured equal, which orphans the datetime `'option'` branch in `bws_read_field()`, deleted). One exception stays, the entity-less post read a GB Pro repeater query loop reaches (issue #22), which is FW-194's. Nested rows stay format-agnostic. The ambient-term branch absorbed from FW-113 stays as the accepted end state. Fallback emission does not move, so FW-191 no longer blocks this.
 
-Blocked by: decision:field-object formats through the seam, then FW-191 if that decision routes values through the seam (the cores stop printing the singular fallback, so where it is printed and whether it is link-wrapped is FW-191's decision)  •  Interacts with: FW-43, FW-35, FW-146 (a shared home for the facts and rules they each state), FW-113 (closed; merged here), FW-106 (closed; the branch reads the ambient answer `bws_base_read_source()` returns)
+Open: The build (checklist in the detail home), on a branch.
+
+Blocked by: —  •  Interacts with: FW-194 (removes the one remaining value-read exception, and gives a query-loop row its return format), FW-191 (where the fallback prints and whether it is wrapped; this item leaves both as found), FW-74 (closed; the waiting consumer, and the provenance keys), FW-43, FW-35, FW-146 (a shared home for the facts and rules they each state), FW-113 (closed; merged here), FW-106 (closed; the branch reads the ambient answer `bws_base_read_source()` returns)
 
 #### FW-38 — The migration entry record: `lifecycle` is built, narrowing the shape remains
 
@@ -335,7 +337,7 @@ Progress: Read from the code 2026-11-17. The shell wraps whatever the resolver r
 
 Open: Which behavior is intended. Wrap in every case the documented rule covers, which needs the tail to recover the link identity of a pinned singular source that the list fold reports as 0. Or print plain in every case, which stops wrapping core-emitted fallbacks and changes the front end of existing tags with no `src`. Or keep the split and state it as the rule. Measure `{{text}}`, `{{title}}`, the `try_` tags and `{{join}}` with `linkTo` before choosing, since the answer is per family or once.
 
-Blocked by: decision:which fallback link-wrap behavior is wanted  •  Interacts with: FW-98 (the fallback emit sites), FW-149 (the same fallback-versus-preview ordering question in the editor), FW-3 (blocked on this if it routes datetime values through the seam, which moves the core-printed fallback to the resolver's tail)
+Blocked by: decision:which fallback link-wrap behavior is wanted  •  Interacts with: FW-98 (the fallback emit sites), FW-149 (the same fallback-versus-preview ordering question in the editor), FW-3 (routes datetime's field reads through the per-source reader and leaves fallback emission where it is, so it does not wait on this)
 
 #### FW-192 — Unregister the four old datetime tags
 
@@ -348,6 +350,18 @@ Progress: Not started. The four tags are declared `lifecycle: deprecated` and re
 Open: What tells a site owner the old names are gone from their content (the retiring-name report, FW-128). When the deprecation window opens and what the site owner sees during it. Whether the entries then move from `deprecated` to `retired` (FW-38's `lifecycle`) in the same change.
 
 Blocked by: row:FW-128  •  Interacts with: FW-38 (`lifecycle`; the `hidden` registration argument), FW-73 (closed; the widget reach), FW-129 (closed; its 1.21.0 removal discharged the same gate by hand, per site)
+
+#### FW-194 — A query-loop repeater row is a source the per-source reader cannot serve
+
+Inside a GB Pro query loop over repeater rows, a base tag's read falls through the resolver's post tail with no post id, and only `bws_read_field()`'s loop inference finds the row. The per-source reader answers `''` for that source, so datetime keeps one value-read exception for it (FW-3), and the row's sub-field return format is unreachable, so a loop-row date parses format-agnostically (issue #22's failure mode, held off today by the time-only shape sniff). Giving that row a real source the reader serves, value and return format together, removes both.
+
+Detail home: this row; the FW-3 decisions it continues are `.scratch/plans/fw3-datetime-seam.md` D5, D7 and D11
+
+Progress: Not started. Split out of FW-3 on 2026-11-23. A chain row (`rows` step) already carries the provenance this needs (`parent_kind`, `parent_id`, `repeater`, `index`); the ambient loop row carries none, because GB Pro positions it and our producer never sees it.
+
+Open: What GB Pro's loop context exposes for a repeater row (the repeater name, the index, the parent object), measured, with the fact recorded in the private shared reference library rather than here. Then whether `bws_resolve_base_source` step 2d builds a `meta_row` source with provenance from it. Every family's base read reaches the same inference, so the change is not datetime's alone.
+
+Blocked by: —  •  Interacts with: FW-3 (its one value-read exception, and the closure that collapses when this lands), FW-74 (closed; the provenance shape a chain row carries), FW-116 (the ambient claim the resolver makes)
 
 ### Feature follow-ups & UX
 
