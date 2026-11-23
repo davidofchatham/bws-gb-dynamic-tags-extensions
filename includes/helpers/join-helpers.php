@@ -155,16 +155,42 @@ function bws_join_assemble( array $values, array $options ): string {
  * @return string Canonical format ({N} tokens).
  */
 function bws_join_wire_format( string $format ): string {
-	$format = str_replace( '%%', "\x00", $format ); // protect escaped %
-	// High → low so a multi-character token matches before its own prefix: `%10`
-	// before `%1` (low-first rewrites `%10` to `{1}0`), and `%AA` before `%A` if a
-	// container ever reaches 27 slots.
-	for ( $n = BWS_JOIN_MAX_SLOTS; $n >= 1; $n-- ) {
-		$token  = '{' . $n . '}';
-		$format = str_replace( '%' . bws_slot_ordinal( $n ), $token, $format );
-		$format = str_replace( '%' . $n, $token, $format );
+	$tokens = array();
+	for ( $n = 1; $n <= BWS_JOIN_MAX_SLOTS; $n++ ) {
+		$tokens[ $n ] = '{' . $n . '}';
 	}
-	return str_replace( "\x00", '%', $format );
+	return bws_join_format_substitute( $format, $tokens, '%' );
+}
+
+/**
+ * The one place format tokens are substituted, for both the render translation
+ * (bws_join_wire_format) and the editor preview (bws_join_preview_format), so the two cannot
+ * read different tokens. What the tokens and the escape ARE is bws_join_wire_format()'s
+ * PHPDoc; this replaces each slot's tokens with `$by_slot[ N ]` and restores an escape as
+ * `$escaped`.
+ *
+ * Slots are substituted HIGH → LOW so a multi-character token matches before its own
+ * prefix: `%10` before `%1` (low-first rewrites `%10` to `{1}0`), and `%AA` before `%A`
+ * if a container ever reaches 27 slots. A token whose slot is absent from `$by_slot`
+ * stays literal.
+ *
+ * Pure — no WP/GB symbols. Harnessed through both callers: join-template-test.php (render)
+ * and preview-label-test.php's join template rows (preview, including `%10` and `%%`).
+ *
+ * @since Unreleased
+ * @param string   $format  Author-written wire format.
+ * @param string[] $by_slot Replacement text, keyed by slot number.
+ * @param string   $escaped What an escaped `%%` reads as afterwards.
+ * @return string
+ */
+function bws_join_format_substitute( string $format, array $by_slot, string $escaped ): string {
+	$format = str_replace( '%%', "\x00", $format );
+	krsort( $by_slot, SORT_NUMERIC );
+	foreach ( $by_slot as $n => $text ) {
+		$format = str_replace( '%' . bws_slot_ordinal( (int) $n ), $text, $format );
+		$format = str_replace( '%' . $n, $text, $format );
+	}
+	return str_replace( "\x00", $escaped, $format );
 }
 
 /**

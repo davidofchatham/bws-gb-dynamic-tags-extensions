@@ -327,7 +327,7 @@ function bws_build_join_preview_label( array $options ): string {
 		// part (source annotation inline) — the author reads structure and
 		// bindings in one string. Unbound %N stays literal (visible mistake,
 		// matches render). ~…~ group delimiters shown as typed.
-		$inner = 'Join “' . bws_join_preview_format( $format, $parts, $max ) . '”';
+		$inner = 'Join “' . bws_join_preview_format( $format, $parts ) . '”';
 	} else {
 		$inner = 'Join ' . implode( ', ', $parts );
 		// Custom separator noted; the default ', ' is unremarkable, so omit it.
@@ -347,34 +347,21 @@ function bws_build_join_preview_label( array $options ): string {
  * Substitute wire tokens in a join format string with per-slot display parts, for the
  * template-mode preview label.
  *
- * BOTH token alphabets are read, exactly as bws_join_wire_format() reads them: `%A`
- * canonical since 1.17.0 (tokens follow the slot KEY spelling), `%1` accepted forever
- * (both collapse to one internal token, so nothing downstream can tell them apart).
- * A preview that understood only one would show an author their own format string with
- * half its tokens unsubstituted.
- *
- * `%%` is protected (shown as typed) with the sentinel trick from
- * bws_join_wire_format(); high→low so a multi-character token matches before its own
- * prefix. A token with no configured slot stays literal — the misconfiguration is
- * visible and matches what render does.
+ * The tokens are read by bws_join_format_substitute(), the grammar render reads them by,
+ * so the preview cannot understand a different alphabet from the one render does. `%%`
+ * is shown as typed. A token with no configured slot stays literal, so the
+ * misconfiguration is visible.
  *
  * @since 1.15.0
  * @since 1.17.0 Reads `%A` alongside `%1`.
+ * @since Unreleased Drops the `$max` parameter: the caller only builds parts for slots in range.
  * @param string $format Author-written wire format.
  * @param array  $parts  Slot-number-keyed display parts (field + optional src).
- * @param int    $max    Slot maximum (BWS_JOIN_MAX_SLOTS).
  * @return string Display format.
  */
 if ( ! function_exists( 'bws_join_preview_format' ) ) {
-function bws_join_preview_format( string $format, array $parts, int $max ): string {
-	$format = str_replace( '%%', "\x00", $format );
-	for ( $n = $max; $n >= 1; $n-- ) {
-		if ( isset( $parts[ $n ] ) ) {
-			$format = str_replace( '%' . bws_slot_ordinal( $n ), $parts[ $n ], $format );
-			$format = str_replace( '%' . $n, $parts[ $n ], $format );
-		}
-	}
-	return str_replace( "\x00", '%%', $format );
+function bws_join_preview_format( string $format, array $parts ): string {
+	return bws_join_format_substitute( $format, $parts, '%%' );
 }
 }
 

@@ -136,6 +136,9 @@ require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
 // function_exists guard did instead, and it cost a real assertion (the content
 // default-collapse case) before the guard came out.
 require __DIR__ . '/../../includes/helpers/registration-helpers.php';
+// bws_join_format_substitute(): the join template preview reads its tokens through the
+// grammar render reads them by.
+require __DIR__ . '/../../includes/helpers/join-helpers.php';
 require __DIR__ . '/../../includes/helpers/preview-helpers.php';
 // THE WALK, so the gate-agreement rows drive the real attempt loop against the preview.
 // bws_clamp_limit (field-helpers) and the engine's input-kinds (traversal-pipeline) are

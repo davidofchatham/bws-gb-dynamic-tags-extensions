@@ -32,7 +32,7 @@ run `php tools/test/field-discovery-test.php` (pure discovery logic) + `node too
 
 ## Format-TOKEN change
 
-**Fires on:** Format-TOKEN change (`bws_join_wire_format`, its preview twin `bws_join_preview_format`, the Format control's help/placeholder, or `bws_migrate_join_format_escape`)
+**Fires on:** Format-TOKEN change (`bws_join_format_substitute` = THE token grammar, its two callers `bws_join_wire_format` (render) and `bws_join_preview_format` (preview), the Format control's help/placeholder, or `bws_migrate_join_format_escape`)
 
 run `php tools/test/join-template-test.php` (tokenizer, both alphabets) + `php tools/test/fold-migration-test.php` (§M8 escape) + `php tools/test/preview-label-test.php` (the preview reads both alphabets too) + `tools/test/fold-test-matrix.md` §F1.8b/c + §F14.7b/c. Token spelling (ADR 0004) and the wire-era escape-migration gate are documented on `bws_join_wire_format()` and `bws_migrate_join_format_escape()` in `includes/helpers/join-helpers.php` — read there before touching either.
 

@@ -1446,7 +1446,8 @@ function bws_fold_empty_carry( string $default_read = '', bool $has_parent = fal
  * is wire that will never render and has to be FLAGGED, or the author reads a preview that
  * silently omits a slot they configured. Deriving the reason in the preview would be a
  * second copy of the skip rule, i.e. the exact drift this seam removed, so the reason is
- * reported BY THE OWNER. Optional and by reference: the render callers pass nothing.
+ * reported BY THE OWNER. Optional and by reference: the render callers pass it only to
+ * reach $limit_default after it, and ignore it.
  *
  * WHY THE LIMIT DEFAULT IS AN OUT-PARAM TOO, AND WHY IT IS LOAD-BEARING. A SLOT'S OWN
  * SOURCE SPELLING DECIDES ITS OWN DEFAULT, exactly as a base tag's does — chain wire returns
