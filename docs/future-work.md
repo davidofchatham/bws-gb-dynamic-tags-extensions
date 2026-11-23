@@ -873,9 +873,9 @@ Blocked by: —  •  Interacts with: #162 (the editor stylesheet script this wo
 
 Each `try_datetime` slot carries its own datetime read (field reads, a `+` time join, a range, a verb) instead of one tag-level `key` and `use` shared by every attempt, so a fallback attempt can read different fields, not only a different source. The editor embeds the datetime read control in each slot card.
 
-Detail home: `.scratch/try-datetime-per-slot/spec.md` (decided 2026-11-19)
+Detail home: this row. The tag was decided 2026-11-19 and built from the spec recorded in [`docs/design-history/try-datetime-per-slot.md`](design-history/try-datetime-per-slot.md)
 
-Progress: Built on branch `feature/try-datetime-per-slot`, tickets 01 to 06 merged (2026-11-19), the release-gate check included; what remains is the release itself. Measured on the testbed 2026-11-19, rows in `tools/test/datetime-test-matrix.md` (D12 the per-slot render rows, D6.4a to D6.4k the preview rows, D13 the Migration Tool on the old tags); the Migration Tool rewrite census and the page snapshots also ran clean. Decided before the release that first ships `try_datetime`, so the tag-level form it replaces has never shipped.
+Progress: Built on branch `feature/try-datetime-per-slot`, tickets 01 to 06 done, the release-gate check included; what remains is the merge and then the release itself. Measured on the testbed 2026-11-19, rows in `tools/test/datetime-test-matrix.md` (D12 the per-slot render rows, D6.4a to D6.4k the preview rows, D13 the Migration Tool on the old tags); the Migration Tool rewrite census and the page snapshots also ran clean. Decided before the release that first ships `try_datetime`, so the tag-level form it replaces has never shipped.
 
 Blocked by: —  •  Interacts with: FW-81 (closed; built the tag-level form this replaces and the Migration Tool rewrite this retargets; the mount rewrite stays tag-level on the old `try_` tags), FW-24 (a datetime read in `{{join}}` / `{{table}}` slots stays there), FW-192 (the old `try_` datetime tags whose rewrite target this changes)
 
