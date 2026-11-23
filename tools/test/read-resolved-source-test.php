@@ -283,6 +283,18 @@ $GLOBALS['meta_handler_calls'] = array();
 assert_same( 'R5.11 user arm still reads the value', 'Ada Lovelace', raw_read( USER_SRC, 'name' ) );
 assert_same( 'R5.12 through Meta_Handler, single-only, against user meta', array( array( 'get_user_meta', 'name', true ) ), $GLOBALS['meta_handler_calls'] );
 
+// OUR key gate on the three id-bearing arms. The stub Meta_Handler SERVES `secret` (it
+// models no blocklist), so a refusal here is this plugin's own check and nothing else's.
+// The site arm is deliberately absent: it has the allowlist and the per-user gate but no
+// blocklist of its own, so the blocklist there is GB's Meta_Handler::get_option(), which a
+// stub cannot speak for; tools/debug/seam-gate-probe.php measures it against the real GB
+// on the testbed.
+$GLOBALS['meta_handler_calls'] = array();
+assert_same( 'R5.13 term arm refuses a disallowed key', '', str_read( TERM_SRC, 'secret' ) );
+assert_same( 'R5.14 user arm refuses it', '', str_read( USER_SRC, 'secret' ) );
+assert_same( 'R5.15 post arm refuses it', '', str_read( POST_SRC, 'secret' ) );
+assert_same( 'R5.16 and none of the three reached the store', array(), $GLOBALS['meta_handler_calls'] );
+
 echo "\n=== R6 - the return-format reader beside the value read (FW-3) ===\n";
 
 // The reader answers (source, key) -> the ACF return format or null, and a row's answer

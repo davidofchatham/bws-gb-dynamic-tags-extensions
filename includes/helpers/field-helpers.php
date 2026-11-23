@@ -111,7 +111,7 @@ function bws_site_read_option( string $key ): string {
 	) {
 		return '';
 	}
-	$value = GenerateBlocks_Meta_Handler::get_option( $key, true, '' );
+	$value = GenerateBlocks_Meta_Handler::get_option( $key );
 	return is_string( $value ) ? $value : '';
 }
 }
@@ -871,6 +871,21 @@ function bws_read_term_field( string $key, int $term_id, bool $single_only = tru
  * The term/site/user arms are single-value reads by their own readers' rules
  * and are not widened here: an array-preserving term read answers '' for a
  * filter-populated scalar, which would move what the string seam returns.
+ *
+ * @invariant THE SEAM READS WHAT IT IS HANDED; IT DOES NOT ASK WHETHER THE VIEWER MAY SEE
+ * THE SOURCE. A private post's meta reads for an anonymous viewer here. Visibility is
+ * applied where sources are PRODUCED (bws_run_traversal(), which gates the initial list
+ * and every hop; bws_is_source_usable() owns the criterion), so a caller hands this
+ * function a source that came out of the traversal engine. Two sources do not, and
+ * neither needs it: an ambient term (existence is a term's whole gate), and an entity-less
+ * post, which is answered '' here and read by bws_read_field() instead, behind
+ * bws_loop_item_gated_post_id().
+ *
+ * A key GenerateBlocks disallows reads '' on the site arm and on every entity arm. A
+ * `meta_row` carries the row it was already read from, so its key is not checked here.
+ * GB's own REST-only restrictions (user meta, `read_post`, protected meta) fire only under
+ * REST. Measured on the testbed, per arm and for an anonymous viewer, by tools/debug/seam-gate-probe.php;
+ * the REST-only restrictions and the `meta_row` arm are outside what it measures.
  *
  * @since 1.21.0
  * @param array  $source   One resolved source ({kind,id}|{kind:site}|{kind:meta_row,row}).
