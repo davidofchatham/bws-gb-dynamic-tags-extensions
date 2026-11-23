@@ -1223,9 +1223,7 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 		// Shared L3 fold (FW-49): suppression + slice + join live in the helper;
 		// $mapped ⊇ $options (additive normalizer), so it serves limit/sep too.
 		$collected = bws_collect_value_list(
-			function_exists( 'bws_base_term_ids_from_source' )
-				? bws_base_term_ids_from_source( $base, $options )
-				: array(),
+			bws_base_term_ids_from_source( $base, $options ),
 			static function ( $tid, array $item_opts ) use ( $core, $instance ) {
 				return array(
 					'value' => $core( bws_datetime_term_source( (int) $tid ), $item_opts, $instance ),
@@ -1238,9 +1236,7 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 	} elseif ( 'post' === $res['kind'] ) {
 		// Post list mode: read EVERY fanned-out target via the shared traversal
 		// engine (plural resolver, not the collapse-to-first wrapper).
-		$post_ids = function_exists( 'bws_base_post_ids_from_source' )
-			? bws_base_post_ids_from_source( $base, $options )
-			: array();
+		$post_ids  = bws_base_post_ids_from_source( $base, $options );
 		$collected = bws_collect_value_list(
 			$post_ids,
 			static function ( $oid, array $item_opts ) use ( $core, $instance ) {
@@ -1273,17 +1269,14 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 		// Link identity stays 0/'post' — a row has none (CONTEXT.md I12), and the plain
 		// string return is how the fold is told so.
 		$collected = bws_collect_value_list(
-			function_exists( 'bws_base_sources_of_kind' )
-				? bws_base_sources_of_kind( $base, $options, 'meta_row' )
-				: array(),
+			bws_base_sources_of_kind( $base, $options, 'meta_row' ),
 			static fn( $row_source, array $item_opts ) => $core( (array) $row_source, $item_opts, $instance ),
 			$mapped
 		);
 		$value = $collected['value'];
 	} else {
-		$post_id   = function_exists( 'bws_base_post_id_from_source' )
-			? bws_base_post_id_from_source( $base, $options )
-			: get_the_ID();
+		// A missing helper must fatal, never fall back to get_the_ID() (CONTEXT.md I15).
+		$post_id   = bws_base_post_id_from_source( $base, $options );
 		$value     = $core( bws_datetime_post_source( $post_id ), $mapped, $instance );
 		$link_id   = (int) $post_id;
 		$link_type = 'post';
