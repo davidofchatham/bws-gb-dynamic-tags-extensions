@@ -165,7 +165,7 @@ bws_register_phone_tag();
 // The `term_` family's converter ENTRIES, which the plugin still registers (FW-129 removed
 // the tags, not the migration path). No constructor follows them any more — that is the
 // subject of §C3 below, and running the generator here is what gives it something to read.
-bws_register_modifier_root_migrations( 'term', 'term', array( 'since' => '1.20.0', 'lifecycle' => 'retired' ) );
+bws_register_modifier_root_migrations( 'term', 'term', BWS_TERM_FAMILY_TEMPLATE_KEYS, array( 'since' => '1.20.0', 'lifecycle' => 'retired' ) );
 
 $registered = GenerateBlocks_Register_Dynamic_Tag::get_tags();
 
@@ -1007,8 +1007,7 @@ assert_same( 'no term_ tag is registered with GB any more', array(), $live_term 
 
 // The surviving half. PINS THE ROUTE, NOT JUST THE VALUE — the expectation is read back
 // out of the registry entry rather than written as the literal 'deprecated'. The entries
-// are generated off the modifier TEMPLATES, which `bws_register_base_tags()` registers for
-// the base tags and `try_` regardless of the constructor, so the count below is what says
+// are generated off the key list the bootstrap passes, so the set below is what says
 // the generator never depended on the family being minted. [FW-39 D25/D26]
 $term_entry_types = array();
 foreach ( \BWS\DynamicTags\MigrationRegistry::get_by_type( 'tag' ) as $entry ) {
@@ -1017,11 +1016,29 @@ foreach ( \BWS\DynamicTags\MigrationRegistry::get_by_type( 'tag' ) as $entry ) {
 		$term_entry_types[ $name ] = $entry['gb_type'] ?? null;
 	}
 }
-assert_same(
-	'every term_ template still has a converter entry after the family is unregistered',
-	count( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() ),
-	count( $term_entry_types )
+// THE NINE SHIPPED NAMES, WRITTEN OUT. Read from nowhere: a constant compared with itself, or
+// with the registered template list, could drift together. `term_datetime` is the one the
+// registered list would mint (FW-81 registered a `datetime` template) and no tag ever had.
+$shipped_term_tags = array(
+	'term_text', 'term_content', 'term_title', 'term_permalink', 'term_image',
+	'term_datetime_single', 'term_datetime_range', 'term_email', 'term_phone',
 );
+assert_same(
+	'BWS_TERM_FAMILY_TEMPLATE_KEYS is the nine shipped term_ tags',
+	$shipped_term_tags,
+	array_map( static function ( $key ) { return 'term_' . $key; }, BWS_TERM_FAMILY_TEMPLATE_KEYS )
+);
+$registered_template_keys = array_map(
+	static function ( $tpl ) { return (string) ( $tpl['key'] ?? '' ); },
+	\BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates()
+);
+assert_same( 'precondition: the registered template list holds `datetime`, so the absence below is not vacuous', true, in_array( 'datetime', $registered_template_keys, true ) );
+$entry_names    = array_keys( $term_entry_types );
+$expected_names = $shipped_term_tags;
+sort( $entry_names );
+sort( $expected_names );
+assert_same( 'exactly the nine shipped term_ tags have a converter entry after the family is unregistered', $expected_names, $entry_names );
+assert_same( 'no term_datetime entry (no such tag ever shipped)', false, isset( $term_entry_types['term_datetime'] ) );
 // The one literal, read at the OWNER: MigrationRegistry::register() force-stamps this on
 // every type:'tag' entry. Without it the assertion could pass against a set of nulls.
 assert_same(
@@ -1042,7 +1059,7 @@ assert_same(
 	'the shipped term_ migrations call passes lifecycle retired',
 	1,
 	preg_match(
-		"~bws_register_modifier_root_migrations\(\s*'term',\s*'term',\s*array\([^)]*'lifecycle'\s*=>\s*'retired'~",
+		"~bws_register_modifier_root_migrations\(\s*'term',\s*'term',\s*BWS_TERM_FAMILY_TEMPLATE_KEYS,\s*array\([^)]*'lifecycle'\s*=>\s*'retired'~",
 		(string) file_get_contents( $root . '/bws-gb-dynamic-tags-extensions.php' )
 	)
 );

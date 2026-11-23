@@ -2042,23 +2042,43 @@ function bws_modifier_root_transform( string $prefix, string $root ): callable {
 }
 
 /**
- * Generate one migration entry per REGISTERED MODIFIER TEMPLATE, for a retired prefix.
+ * The template keys the `term_` family shipped tags for: the nine `term_*` GB tags of 1.20.0.
+ *
+ * A FROZEN list, because the family can no longer grow. It is not the registered template
+ * list, which has moved since in both directions (a template added later, like `datetime`,
+ * would mint an entry for a tag that never existed; one removed would drop a real one).
+ * `datetime_single` and `datetime_range` are the two datetime tags the family had.
+ *
+ * @since Unreleased
+ */
+const BWS_TERM_FAMILY_TEMPLATE_KEYS = array(
+	'text',
+	'content',
+	'title',
+	'permalink',
+	'image',
+	'datetime_single',
+	'datetime_range',
+	'email',
+	'phone',
+);
+
+/**
+ * Generate one migration entry per LISTED TEMPLATE KEY, for a retired prefix.
  *
  * Rewrites a retired prefix's stored tags into base tags rooted at a registered source. One
- * call, no list of tag names.
+ * call, one list of keys.
  *
- * **INTERNAL, and slated for retirement (FW-174).** Not supported integration surface: the
+ * **INTERNAL, and slated for retirement (FW-150).** Not supported integration surface: the
  * one production caller is the plugin bootstrap's `term` registration, which outlives its
- * tags until FW-150.
+ * tags until FW-150, and which deletes this function.
  *
- * **ENUMERATING TEMPLATES IS THE POINT.** A hand-kept list of tag names drifts; the
- * registry is the same list a family constructor iterates to mint the tags.
+ * **THE KEYS ARE THE CALLER'S LIST, NEVER THE REGISTRY'S.** The family is gone, so the set
+ * of its tags is fixed history; reading the registered template list would follow every
+ * template added or removed since (see BWS_TERM_FAMILY_TEMPLATE_KEYS).
  *
  * **THE PREFIX IS SUPPLIED, NEVER DERIVED** (as bws_migrate_rel_to_ref's `term` hardcode):
  * a derived prefix list could only ever name the in-repo family.
- *
- * **CALL IT AFTER TEMPLATES ARE REGISTERED** — a call before they exist raises
- * _doing_it_wrong() rather than registering nothing quietly.
  *
  * **IT NEVER OVERWRITES AN EXISTING ENTRY.** A tag name that already HAS an
  * entry is skipped whole, so a hand-written entry for one template survives. The test is
@@ -2081,6 +2101,8 @@ function bws_modifier_root_transform( string $prefix, string $root ): callable {
  * @since 1.17.0
  * @param string $prefix Modifier prefix, with or without its trailing underscore (e.g. 'view').
  * @param string $root   Registered source key to root migrated tags at (e.g. 'view').
+ * @param string[] $keys Template keys to generate entries for (e.g. array( 'text' )); each
+ *                       entry's `new_tag` is its key. Empty generates nothing.
  * @param array  $args {
  *     Optional. Per-family entry fields.
  *
@@ -2090,24 +2112,15 @@ function bws_modifier_root_transform( string $prefix, string $root ): callable {
  *                               'deprecated' for an owner still registering its prefixed
  *                               tags by hand.
  * }
- * @return string[] The modifier tag names entries were generated for, in template order.
+ * @return string[] The modifier tag names entries were generated for, in key order.
  */
-function bws_register_modifier_root_migrations( string $prefix, string $root, array $args = array() ): array {
+function bws_register_modifier_root_migrations( string $prefix, string $root, array $keys, array $args = array() ): array {
 	$prefix = rtrim( trim( $prefix ), '_' );
 	$root   = trim( $root );
 	$reg    = 'BWS\DynamicTags\MigrationRegistry';
 
-	if ( '' === $prefix || '' === $root || ! class_exists( $reg ) || ! class_exists( 'BWS\DynamicTags\TagTemplateRegistry' ) ) {
+	if ( '' === $prefix || '' === $root || ! class_exists( $reg ) ) {
 		return array();
-	}
-
-	$templates = \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates();
-	if ( empty( $templates ) && function_exists( '_doing_it_wrong' ) ) {
-		_doing_it_wrong(
-			__FUNCTION__,
-			esc_html__( 'No modifier templates are registered yet. Call this after tag registration (init priority later than 20).', 'generateblocks' ),
-			'1.17.0'
-		);
 	}
 
 	// PRESENCE, not has_migration_path(). Both registry finders stop at the FIRST entry
@@ -2123,8 +2136,8 @@ function bws_register_modifier_root_migrations( string $prefix, string $root, ar
 
 	$generated = array();
 
-	foreach ( $templates as $tpl ) {
-		$key = (string) ( $tpl['key'] ?? '' );
+	foreach ( $keys as $key ) {
+		$key = trim( (string) $key );
 		if ( '' === $key ) {
 			continue;
 		}
@@ -2147,7 +2160,8 @@ function bws_register_modifier_root_migrations( string $prefix, string $root, ar
 			'lifecycle'          => (string) ( $args['lifecycle'] ?? 'retired' ),
 		) );
 
-		$generated[] = $old_tag;
+		$taken[ $old_tag ] = true; // a repeated key must not stack a dead second entry.
+		$generated[]       = $old_tag;
 	}
 
 	return $generated;

@@ -129,7 +129,7 @@ bws_register_call_tag();
 bws_register_nxm_tag_migrations();
 bws_register_early_deprecated_tag_migrations();
 bws_register_option_migrations();
-bws_register_modifier_root_migrations( 'term', 'term', array( 'since' => '1.20.0', 'lifecycle' => 'retired' ) );
+bws_register_modifier_root_migrations( 'term', 'term', BWS_TERM_FAMILY_TEMPLATE_KEYS, array( 'since' => '1.20.0', 'lifecycle' => 'retired' ) );
 bws_register_deprecated_tags();
 
 // ---------------------------------------------------------------------------
@@ -312,7 +312,7 @@ assert_same( 'placement pin ignores a comment that only mentions the registry', 
 
 $vis  = array( 'dep_listed' => array( 'hidden' => false ) );
 $hid  = array( 'dep_hidden' => array( 'hidden' => true ) );
-$prefix_call = "<?php bws_register_modifier_root_migrations( 'term', 'term', array( 'prefix_removed' => true ) );";
+$prefix_call = "<?php bws_register_modifier_root_migrations( 'term', 'term', array( 'text' ), array( 'prefix_removed' => true ) );";
 
 // [ label, entries, registered, sources, the assertion that must be reported ]
 $violations = array(

@@ -447,31 +447,39 @@ assert_eq( 'V4.8 a declined tag comes back byte-identical',
 	TagConverter::resolve_full_chain( 'view_something_else', '{{view_something_else key:x}}' ) );
 
 // ===========================================================================
-echo "\nV5 — the ENTRY GENERATOR (#86): one entry per registered template\n";
+echo "\nV5 — the ENTRY GENERATOR (#86): one entry per key the caller lists\n";
 
 // V4 above spells its family's entries out by hand, which is what #84 shipped. #86 is the
-// integration seam that generates them: a plugin owning a retired prefix calls ONE helper
-// and gets one entry per registered modifier TEMPLATE, so nobody hand-maintains a list of
-// tag names. That list has already drifted in the wild — the external plugin's alias table
-// covers seven of nine templates because two register from elsewhere — which is why the
-// generator reads the registry rather than accepting a list.
-$made = bws_register_modifier_root_migrations( 'fixture', 'fixture', array( 'since' => '1.17.0' ) );
+// helper that generates them: one call, one entry per template KEY the caller lists. The
+// list is the caller's, not the registry's: a family whose tags are gone can no
+// longer grow, and the registered template list has moved since (FW-81 added `datetime`,
+// which no `term_` tag ever had).
+$v5_keys = array( 'text', 'content', 'title', 'permalink', 'image', 'datetime_single', 'datetime_range', 'email', 'phone' );
+$made    = bws_register_modifier_root_migrations( 'fixture', 'fixture', $v5_keys, array( 'since' => '1.17.0' ) );
 
-$expected_names = array_map(
-	static fn( $tpl ) => 'fixture_' . $tpl['key'],
-	TagTemplateRegistry::get_modifier_templates()
+$expected_names = array(
+	'fixture_text', 'fixture_content', 'fixture_title', 'fixture_permalink', 'fixture_image',
+	'fixture_datetime_single', 'fixture_datetime_range', 'fixture_email', 'fixture_phone',
 );
 
-assert_eq( 'V5.1 one entry per REGISTERED TEMPLATE, in template order',
+assert_eq( 'V5.1 one entry per LISTED KEY, in the caller\'s order',
 	$expected_names, $made );
 
 assert_eq( 'V5.2 every generated name has a migration PATH',
 	true, MigrationRegistry::has_migration_path( 'fixture_text' ) && MigrationRegistry::has_migration_path( 'fixture_datetime_single' ) );
 
-// A suffix no template registers is not this family's tag and gets no entry — the same
+// A suffix the caller did not list is not this family's tag and gets no entry — the same
 // rule the transform applies (§V2.2), now visible at registration time.
-assert_eq( 'V5.3 an unregistered suffix gets no entry',
+assert_eq( 'V5.3 an unlisted suffix gets no entry',
 	false, MigrationRegistry::has_migration_path( 'fixture_table' ) );
+
+// The case the caller-owned list exists for: FW-81 registers a `datetime` template the `term_` family never
+// had a tag for, and a registry-reading generator would mint `term_datetime` from it.
+TagTemplateRegistry::register_modifier_template( array( 'key' => 'datetime' ) );
+$late_family_made = bws_register_modifier_root_migrations( 'latefam', 'fixture', $v5_keys );
+assert_eq( 'V5.3b a template registered AFTER the list was written gets no entry',
+	array( false, false ),
+	array( in_array( 'latefam_datetime', $late_family_made, true ), MigrationRegistry::has_migration_path( 'latefam_datetime' ) ) );
 
 // THE BINDING. The entry carries the SHARED transform bound to this family's prefix and
 // root, so the whole #84 mapping applies with no per-family rule — asserted through the
@@ -490,7 +498,7 @@ assert_eq( 'V5.5 the scanner searches for every generated name',
 // NO CLOBBER. `view`'s entries were registered by hand above; a second pass must leave
 // them alone rather than stacking a duplicate whose root could differ. An owner that
 // hand-wrote one template's entry keeps it and gets the generator for the rest.
-$again = bws_register_modifier_root_migrations( 'view', 'somewhere_else' );
+$again = bws_register_modifier_root_migrations( 'view', 'somewhere_else', array( 'text' ) );
 assert_eq( 'V5.6 a name that already has a path is skipped whole',
 	array(), $again );
 
@@ -512,21 +520,28 @@ MigrationRegistry::register( array(
 ) );
 
 assert_eq( 'V5.6b a registry-only entry (no new_tag) still claims its name',
-	false, in_array( 'legacy_text', bws_register_modifier_root_migrations( 'legacy', 'fixture' ), true ) );
+	false, in_array( 'legacy_text', bws_register_modifier_root_migrations( 'legacy', 'fixture', array( 'text' ) ), true ) );
 
 assert_eq( 'V5.6c …and no second entry was stacked behind it',
 	1, count( array_filter( MigrationRegistry::get_by_type( 'tag' ), static fn( $e ) => 'legacy_text' === ( $e['match_tag'] ?? '' ) ) ) );
 
 // The trailing-underscore spelling is the one an owner is likely to have in a constant.
-$made_underscore = bws_register_modifier_root_migrations( 'older_', 'fixture', array( 'since' => '1.0.0' ) );
+$made_underscore = bws_register_modifier_root_migrations( 'older_', 'fixture', array( 'text' ), array( 'since' => '1.0.0' ) );
+assert_eq( 'V5.7b a repeated key stacks no second entry',
+	array( 'dupfam_text' ), bws_register_modifier_root_migrations( 'dupfam', 'fixture', array( 'text', 'text' ) ) );
+
 assert_eq( 'V5.8 the trailing-underscore prefix spelling is accepted',
 	'older_text', $made_underscore[0] ?? '' );
 
 // Neither fact can be invented, so an incomplete call registers NOTHING rather than
 // something wrong — a rootless entry would re-point every tag at the ambient post.
-assert_eq( 'V5.9 an empty prefix or root generates nothing',
-	array( array(), array() ),
-	array( bws_register_modifier_root_migrations( '', 'fixture' ), bws_register_modifier_root_migrations( 'nowhere', '' ) ) );
+assert_eq( 'V5.9 an empty prefix, root or key list generates nothing',
+	array( array(), array(), array() ),
+	array(
+		bws_register_modifier_root_migrations( '', 'fixture', array( 'text' ) ),
+		bws_register_modifier_root_migrations( 'nowhere', '', array( 'text' ) ),
+		bws_register_modifier_root_migrations( 'nowhere', 'fixture', array() ),
+	) );
 
 $entry_for = static function ( string $tag ): array {
 	foreach ( MigrationRegistry::get_by_type( 'tag' ) as $e ) {
@@ -549,7 +564,7 @@ assert_eq( 'V5.11 the owner\'s `since` reaches the entry (the admin list shows i
 assert_eq( 'V5.12 by default a generated family is filed under Retired',
 	false, MigrationRegistry::is_entry_live( $fixture_entry ) );
 
-bws_register_modifier_root_migrations( 'retired', 'fixture', array( 'lifecycle' => 'deprecated' ) );
+bws_register_modifier_root_migrations( 'retired', 'fixture', array( 'text' ), array( 'lifecycle' => 'deprecated' ) );
 assert_eq( 'V5.13 lifecycle => deprecated files the family under Deprecated instead',
 	true, MigrationRegistry::is_entry_live( $entry_for( 'retired_text' ) ) );
 
@@ -792,9 +807,9 @@ assert_eq( 'V6.21 an UNREGISTERED root pins nothing and reads as it did before F
 // ---------------------------------------------------------------------------
 // Through the registry's own door, generated by the shared generator — the shape the plugin
 // ships. Report and run must agree here as they do for a rooted family.
-$pin_made = bws_register_modifier_root_migrations( 'pinfam', 'pinnedterm', array( 'since' => '1.20.0' ) );
+$pin_made = bws_register_modifier_root_migrations( 'pinfam', 'pinnedterm', array( 'text', 'content' ), array( 'since' => '1.20.0' ) );
 
-assert_eq( 'V6.22 the generator produces one entry per template for a pinning family',
+assert_eq( 'V6.22 the generator produces the listed entries for a pinning family',
 	true, in_array( 'pinfam_content', $pin_made, true ) );
 
 assert_eq( 'V6.23 the generated entry rewrites to a SOURCELESS base tag',

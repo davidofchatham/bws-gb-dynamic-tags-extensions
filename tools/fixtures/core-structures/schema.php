@@ -1177,13 +1177,12 @@ function bws_fixture_core_structures_chain_roots( $roots ) {
  * corpus still measures is the converter's own three properties (report, run, reach) plus
  * the migrated wire rendering — see verify-migration.php.
  *
- * Registers at init:21, after bws_register_base_tags() populates the modifier templates at
- * init:20 — the template list is what the entries are generated from, one call, no list of
- * tag names to maintain. See the generator's docblock.
+ * Registers at init:21, one call. Only `text` is listed, the one shape the seeded pages
+ * store. See the generator's docblock.
  */
 function bws_fixture_core_structures_register_migrations() {
 	if ( function_exists( 'bws_register_modifier_root_migrations' ) ) {
-		bws_register_modifier_root_migrations( 'fixture', 'fixture', array( 'since' => '1.17.0', 'lifecycle' => 'retired' ) );
+		bws_register_modifier_root_migrations( 'fixture', 'fixture', array( 'text' ), array( 'since' => '1.17.0', 'lifecycle' => 'retired' ) );
 	}
 }
 

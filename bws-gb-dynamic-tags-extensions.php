@@ -336,7 +336,7 @@ function bws_dynamic_tags_register_all() {
 	// braces until it does. They are kept until a major release retires them (FW-150).
 	// `lifecycle => retired` files them under Retired on the settings page, since no `term_*`
 	// tag is registered.
-	bws_register_modifier_root_migrations( 'term', 'term', array( 'since' => '1.20.0', 'lifecycle' => 'retired' ) );
+	bws_register_modifier_root_migrations( 'term', 'term', BWS_TERM_FAMILY_TEMPLATE_KEYS, array( 'since' => '1.20.0', 'lifecycle' => 'retired' ) );
 
 	// Deprecated wrappers registered last (old tag names pointing to new core functions).
 	bws_register_deprecated_tags();
