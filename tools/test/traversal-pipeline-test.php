@@ -1264,6 +1264,62 @@ eq( 'FW85 newTab on every anchor', 2, substr_count( $r['value'], 'target="_blank
 // is stripped at registration, so absence is what ships).
 eq( 'FW85 linkTo none -> no markup', 'Alpha, Beta', $link3( array( 'limit' => 2, 'linkTo' => 'none' ) )['value'] );
 
+// ── FW-191 — the identities a list READ, and the sole one a fallback addresses ─
+//
+// The fold reports the identity of every target it rendered after the limit slice,
+// value or not; bws_sole_link_identity() reduces that set to its one member or to
+// none.
+
+$r = $cv( array( 'v' => '', 'l' => array( 'kind' => 'post', 'id' => 9 ) ) )( array( 'linkTo' => 'permalink' ) );
+eq( 'FW191 all-empty list of one reports its identity', array( array( 'kind' => 'post', 'id' => 9 ) ), $r['read_identities'] );
+eq( 'FW191 …and it is the sole identity', array( 'kind' => 'post', 'id' => 9 ), bws_sole_link_identity( $r['read_identities'] ) );
+eq( 'FW191 …while the value stays empty', '', $r['value'] );
+
+$r = $cv(
+	array( 'v' => '', 'l' => array( 'kind' => 'post', 'id' => 1 ) ),
+	array( 'v' => '', 'l' => array( 'kind' => 'post', 'id' => 2 ) )
+)( array( 'limit' => 0 ) );
+eq( 'FW191 all-empty list of two reports both', 2, count( $r['read_identities'] ) );
+eq( 'FW191 …and reduces to none', null, bws_sole_link_identity( $r['read_identities'] ) );
+
+// The limit slice bounds what was READ: an unread third target contributes nothing.
+$r = $link3( array( 'limit' => 1 ) );
+eq( 'FW191 read set is post-slice', array( array( 'kind' => 'term', 'id' => 11 ) ), $r['read_identities'] );
+
+// Rows and query contexts carry no identity under I12, so they contribute nothing.
+$r = $cv( array( 'v' => 'r1' ), array( 'v' => '' ) )( array( 'limit' => 5 ) );
+eq( 'FW191 row list reports no identity', array(), $r['read_identities'] );
+eq( 'FW191 …and reduces to none', null, bws_sole_link_identity( $r['read_identities'] ) );
+
+// The same entity read twice is one entity.
+$dup = array( array( 'kind' => 'term', 'id' => 4 ), array( 'kind' => 'term', 'id' => 4 ) );
+eq( 'FW191 same entity twice -> that entity', array( 'kind' => 'term', 'id' => 4 ), bws_sole_link_identity( $dup ) );
+eq( 'FW191 same id, different kind -> none', null, bws_sole_link_identity( array( array( 'kind' => 'post', 'id' => 4 ), array( 'kind' => 'term', 'id' => 4 ) ) ) );
+eq( 'FW191 empty set -> none', null, bws_sole_link_identity( array() ) );
+eq( 'FW191 site sentinel is linkable', array( 'kind' => 'site', 'id' => 1 ), bws_sole_link_identity( array( array( 'kind' => 'site', 'id' => 1 ) ) ) );
+
+// NOT FW-85's DELETED GATE. The identity count decides only where a FALLBACK links;
+// values still wrap per item whatever it is. Two read, one sole identity or none:
+// both values keep their own anchors.
+$r = $cv(
+	array( 'v' => 'A', 'l' => array( 'kind' => 'post', 'id' => 1 ) ),
+	array( 'v' => 'B', 'l' => array( 'kind' => 'post', 'id' => 2 ) )
+)( array( 'limit' => 0, 'linkTo' => 'permalink' ) );
+eq( 'FW191 identity count is not the value gate: values still wrap per item', '<a href="/post/1">A</a>, <a href="/post/2">B</a>', $r['value'] );
+eq( 'FW191 …though the read set has no sole identity', null, bws_sole_link_identity( $r['read_identities'] ) );
+
+// A resolver's EMPTY return reports what it read: a list arm's fold set, else the
+// singular/site/ambient triple's own identity, else nothing. A value leaves it untouched.
+$triple = static fn( string $v, int $id, string $kind = 'post' ): array => array( 'value' => $v, 'link_id' => $id, 'link_type' => $kind );
+eq( 'FW191 resolver value -> return unchanged', $triple( 'X', 9 ), bws_with_read_identities( $triple( 'X', 9 ) ) );
+eq( 'FW191 resolver value -> list set ignored', $triple( 'X', 0 ), bws_with_read_identities( $triple( 'X', 0 ), array( array( 'kind' => 'post', 'id' => 1 ) ) ) );
+eq( 'FW191 empty singular -> its entity', array( array( 'kind' => 'post', 'id' => 9 ) ), bws_with_read_identities( $triple( '', 9 ) )['read_identities'] );
+eq( 'FW191 empty site -> the sentinel', array( array( 'kind' => 'site', 'id' => 1 ) ), bws_with_read_identities( $triple( '', 1, 'site' ) )['read_identities'] );
+eq( 'FW191 empty, no entity -> none', array(), bws_with_read_identities( $triple( '', 0 ) )['read_identities'] );
+$two = array( array( 'kind' => 'term', 'id' => 3 ), array( 'kind' => 'term', 'id' => 5 ) );
+eq( 'FW191 empty list arm -> the fold set', $two, bws_with_read_identities( $triple( '', 0 ), $two )['read_identities'] );
+eq( 'FW191 empty list arm, nothing read -> none', array(), bws_with_read_identities( $triple( '', 0 ), array() )['read_identities'] );
+
 // ── FW-49 — bws_source_link_identity (resolved source → link identity) ───────
 //
 // Pure mapper (field-helpers.php): {kind,id} for post|term|user (id>0), site

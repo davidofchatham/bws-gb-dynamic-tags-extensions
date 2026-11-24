@@ -1096,6 +1096,63 @@ function bws_source_link_identity( array $source ): ?array {
 }
 
 /**
+ * Reduce the link identities a tag read to the one a stated fallback addresses (PURE).
+ *
+ * @invariant THIS PHPDoc IS THE AXIS OWNER for where a stated fallback links (FW-191).
+ * A fallback stands in for ONE entity's missing value, so it addresses an entity only
+ * when the reads point at exactly one: the set's members, deduplicated on (kind, id),
+ * must number exactly one. Zero (nothing resolved, or only rows and query contexts,
+ * which carry no identity under CONTEXT.md I12) and two or more distinct identities
+ * both return null, and the fallback prints plain. The same entity read twice is one
+ * entity. Whether a URL then resolves stays bws_wrap_with_link()'s decision.
+ *
+ * @since Unreleased
+ * @param array<int, array{kind:string, id:int}> $identities Identities read, in any order.
+ * @return array{kind:string, id:int}|null The sole identity, or null.
+ */
+if ( ! function_exists( 'bws_sole_link_identity' ) ) {
+function bws_sole_link_identity( array $identities ): ?array {
+	$sole = null;
+	foreach ( $identities as $identity ) {
+		$identity = array(
+			'kind' => (string) $identity['kind'],
+			'id'   => (int) $identity['id'],
+		);
+		if ( null !== $sole && $sole !== $identity ) {
+			return null;
+		}
+		$sole = $identity;
+	}
+	return $sole;
+}
+}
+
+/**
+ * Attach to a resolver's EMPTY return the link identities its read reached (PURE).
+ *
+ * The set bws_sole_link_identity() reduces when the caller emits a stated fallback.
+ * A list arm passes its fold's `read_identities`; every other arm (singular, site,
+ * ambient, refused) is its own triple's identity, or none when `link_id` is 0. A
+ * non-empty value is returned untouched: only a fallback asks where the read landed.
+ *
+ * @since Unreleased
+ * @param array{value:string, link_id:int, link_type:string} $resolved A resolver triple.
+ * @param array<int, array{kind:string, id:int}>|null          $list     A list arm's fold set; null → not a list arm.
+ * @return array The triple, plus `read_identities` when its value is ''.
+ */
+if ( ! function_exists( 'bws_with_read_identities' ) ) {
+function bws_with_read_identities( array $resolved, ?array $list = null ): array {
+	if ( '' !== (string) $resolved['value'] ) {
+		return $resolved;
+	}
+	$resolved['read_identities'] = $list ?? ( (int) $resolved['link_id'] > 0
+		? array( array( 'kind' => (string) $resolved['link_type'], 'id' => (int) $resolved['link_id'] ) )
+		: array() );
+	return $resolved;
+}
+}
+
+/**
  * THE single interpreter of a `limit` option value (list mode).
  *
  * One rule shared by every call site, so that "unset", "0" and "garbage" cannot
@@ -1378,6 +1435,12 @@ function bws_resolve_field_values( array $options, $instance, ?array &$links = n
  *  5. per-item link wrap, each value against its OWN identity;
  *  6. `sep` join (default ', ') over the wrapped parts.
  *
+ * It also reports `read_identities`: the identity of every target it RENDERED after the
+ * slice, whether or not a value survived (a target with no identity adds nothing).
+ * That set is what bws_sole_link_identity() reduces to decide where the caller's
+ * fallback links. Counting it is NOT FW-85's deleted value-count gate: values wrap
+ * per item whatever the count, and the count reaches only the fallback.
+ *
  * @invariant (CONTEXT.md I12) Link-wrappability is a property of the VALUE,
  * not of the source kind. Each collected value carries `link` — the {kind,id}
  * pair bws_resolve_link_url consumes (post|term|user|site) — or null. "No link
@@ -1409,6 +1472,7 @@ function bws_resolve_field_values( array $options, $instance, ?array &$links = n
  *   value:  string,
  *   values: array<int, array{value:string, link:?array}>,
  *   count:  int,
+ *   read_identities: array<int, array{kind:string, id:int}>,
  * }
  */
 if ( ! function_exists( 'bws_collect_value_list' ) ) {
@@ -1419,7 +1483,8 @@ function bws_collect_value_list( array $items, callable $render, array $options 
 	$item_opts = $options;
 	unset( $item_opts['fallback'] );
 
-	$values = array();
+	$values     = array();
+	$read_identities = array();
 	foreach ( array_slice( $items, 0, $limit ?: null ) as $item ) {
 		$result = $render( $item, $item_opts );
 		if ( is_array( $result ) ) {
@@ -1428,6 +1493,9 @@ function bws_collect_value_list( array $items, callable $render, array $options 
 		} else {
 			$value = (string) $result;
 			$link  = null;
+		}
+		if ( is_array( $link ) ) {
+			$read_identities[] = $link;
 		}
 		if ( '' === $value ) {
 			continue;
@@ -1463,9 +1531,10 @@ function bws_collect_value_list( array $items, callable $render, array $options 
 	}
 
 	return array(
-		'value'  => implode( $sep, $parts ),
-		'values' => $values,
-		'count'  => count( $values ),
+		'value'      => implode( $sep, $parts ),
+		'values'     => $values,
+		'count'      => count( $values ),
+		'read_identities' => $read_identities,
 	);
 }
 }

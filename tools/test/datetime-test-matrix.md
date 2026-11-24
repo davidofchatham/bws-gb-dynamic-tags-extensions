@@ -259,7 +259,7 @@ Every row below is a visible block on `/matrix-datetime/` (blueprint v43, D9.54 
 | D9.63 | `{{datetime_single src:term,<warehouse id>|key:event_date|fallback:Date TBA}}` | D7.6 | `Date TBA` (a real key, an empty term field) |
 | D9.64 | `{{datetime_range src:term,<sales id>|startKey:missing_a|endKey:missing_b|fallback:FB}}` | D9.60 | `FB` |
 | D9.65 | `{{datetime src:term,<sales id>|key:event_date|fallback:Date TBA}}` | control | `November 12, 2030` (the value wins, fallback idle) |
-| D9.66 | `{{datetime src:post,<meta id>|key:missing_dt_field|fallback:Date TBA|linkTo:permalink}}` | new combination | `Date TBA` with no link around it |
+| D9.66 | `{{datetime src:post,<meta id>|key:missing_dt_field|fallback:Date TBA|linkTo:permalink}}` | new combination | `Date TBA`, an anchor to the pinned post (FW-191: one entity read, so the fallback links; the plain cases are LK.26 and LK.27, [`text-test-matrix.md`](text-test-matrix.md) §T11) |
 | D9.67 | `{{datetime src:post,<meta id>|key:missing_dt_field}}` | new combination | empty (no fallback stated) |
 
 **Render-tag only** (a visible block cannot host them): the ambient and loop-item rows, and one empty-read row.

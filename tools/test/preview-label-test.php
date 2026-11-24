@@ -909,7 +909,7 @@ foreach ( $gate_rows as [ $tpl, $opts, $expect ] ) {
 	$warned = str_contains( try_preview( $opts, $tpl ), 'no key' );
 	check(
 		"gate agreement: {$tpl} " . ( $opts['A'] ?? '(bare)' ),
-		'preview ' . ( $warned ? 'skip' : 'read' ) . ', walk ' . ( null === $walked ? 'skip' : 'read' ),
+		'preview ' . ( $warned ? 'skip' : 'read' ) . ', walk ' . ( '' === $walked['value'] ? 'skip' : 'read' ),
 		"preview {$expect}, walk {$expect}"
 	);
 }

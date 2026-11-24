@@ -1117,12 +1117,17 @@ function bws_datetime_legacy_key_to_slot_a( array $options ): ?array {
  * THE STATED FALLBACK STAYS HERE, not in the shell, and it is not a departure from the
  * seam contract so much as the only place it can be stated: the cores emit it themselves
  * on a read that found nothing (bws_handle_date_time_fallback(), four sites in
- * bws_datetime_single_core()), and the tail below applies it to any empty result, unwrapped
+ * bws_datetime_single_core()), and the tail below applies it to any empty result
  * (why, and which arms need it, is stated there), except in the editor preview, where an
  * empty read is left for the shell's label. Under a `try_` attempt the whole thing is inert:
  * bws_try_run_attempts() strips `fallback` before the resolver is called, so both the
  * cores' emit and the tail resolve to '' and the walk moves on, which is the contract
- * the shell's own once-per-tag fallback needs.
+ * the shell's own once-per-tag fallback needs. That empty return reports the identities
+ * the read reached (`read_identities`, bws_with_read_identities()), the walk's input for
+ * where ITS fallback links.
+ *
+ * The tail's fallback is linked to the sole entity the read reached, or printed plain
+ * (bws_sole_link_identity()'s PHPDoc owns the rule, and bws_wrap_with_link() the URL).
  *
  * An ambient claim is terminal, so that same tail states its fallback like every other arm's.
  *
@@ -1146,13 +1151,15 @@ function bws_datetime_legacy_key_to_slot_a( array $options ): ?array {
  * @since 1.21.0 Extracted from the base callbacks, one copy per family.
  * @since Unreleased One function for all three tags: the single and range copies merged,
  *               and `$range` names the family.
+ * @since Unreleased The stated fallback links to the sole entity read (FW-191).
  *
  * @param array     $options  Tag options.
  * @param mixed     $instance GB tag instance.
  * @param bool|null $range    The family: true range, false single, null derived from the options.
- * @return array{value:string, link_id:int, link_type:string} link_id 0 = the caller must
- *                        not link-wrap: either there is no entity, or the value came from
- *                        a list arm that already wrapped per item.
+ * @return array{value:string, link_id:int, link_type:string, read_identities?:array} link_id 0
+ *                        = the caller must not link-wrap: either there is no entity, or the
+ *                        value came from a list arm that already wrapped per item. An empty
+ *                        value also carries `read_identities`.
  */
 function bws_base_datetime_resolve_value( array $options, $instance, ?bool $range = null ): array {
 	$mapped   = bws_normalize_datetime_options( $options, $range );
@@ -1163,6 +1170,7 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 
 	$link_id   = 0;
 	$link_type = 'post';
+	$read_set  = null;
 
 	// A tag whose every read is `now` reads no source, so no source (or the lack of one: a 404,
 	// a search, the blog home) may decide whether it prints, and there is nothing to link to.
@@ -1170,11 +1178,11 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 		? ( 'now' === ( $mapped['start_verb'] ?? '' ) && 'now' === ( $mapped['end_verb'] ?? '' ) )
 		: ( 'now' === ( $mapped['verb'] ?? '' ) );
 	if ( $only_now ) {
-		return array(
+		return bws_with_read_identities( array(
 			'value'     => $core( bws_datetime_post_source( false ), $mapped, $instance ),
 			'link_id'   => 0,
 			'link_type' => 'post',
-		);
+		) );
 	}
 
 	// L1 — the source read steps, once (bws_base_read_source() owns their order).
@@ -1190,11 +1198,11 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 	// reported unconditionally — the shell wraps only what is non-empty, which is the same
 	// test the wrap used to carry here.
 	if ( 'site' === $res['kind'] ) {
-		return array(
+		return bws_with_read_identities( array(
 			'value'     => $core( array( 'kind' => 'site' ), $mapped, $instance ),
 			'link_id'   => 1,
 			'link_type' => 'site',
-		);
+		) );
 	}
 
 	if ( $read['refused'] ) {
@@ -1230,7 +1238,8 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 			},
 			$mapped
 		);
-		$value = $collected['value'];
+		$value    = $collected['value'];
+		$read_set = $collected['read_identities'];
 	} elseif ( 'post' === $res['kind'] ) {
 		// Post list mode: read EVERY fanned-out target via the shared traversal
 		// engine (plural resolver, not the collapse-to-first wrapper).
@@ -1245,7 +1254,8 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 			},
 			$mapped
 		);
-		$value = $collected['value'];
+		$value    = $collected['value'];
+		$read_set = $collected['read_identities'];
 	} elseif ( 'meta_row' === $res['kind'] ) {
 		// REPEATER-ROW LIST (FW-74). The third list branch, and the one that reads
 		// SOURCES rather than ids: a row has no entity behind it, so the ids selector —
@@ -1269,7 +1279,8 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 			static fn( $row_source, array $item_opts ) => $core( (array) $row_source, $item_opts, $instance ),
 			$mapped
 		);
-		$value = $collected['value'];
+		$value    = $collected['value'];
+		$read_set = $collected['read_identities'];
 	} else {
 		// A missing helper must fatal, never fall back to get_the_ID() (CONTEXT.md I15).
 		$post_id   = bws_base_post_id_from_source( $base, $options );
@@ -1278,24 +1289,40 @@ function bws_base_datetime_resolve_value( array $options, $instance, ?bool $rang
 		$link_type = 'post';
 	}
 
-	// All-empty → the stated fallback fires once, unwrapped, for EVERY arm. The date-time
-	// core self-applies it on a read that found nothing, so an empty value that reaches
-	// here is one where no core ran with `fallback` intact: a list arm (the fold strips
-	// `fallback` per item), a refusal, an ambient claim. A pinned singular post or term is
-	// a list arm of one, which is why the tail cannot ask whether the chain fans.
-	// A core that DID apply it returned non-empty, so this never fires twice. Not in the
-	// editor preview: an empty read there is the shell's preview label, which carries the
-	// fallback beside the read target (bws_base_text_callback() does the same).
+	// All-empty → the stated fallback fires once, for EVERY arm. The date-time core
+	// self-applies it on a read that found nothing, so an empty value that reaches here is
+	// one where no core ran with `fallback` intact: a list arm (the fold strips `fallback`
+	// per item), a refusal, an ambient claim. A pinned singular post or term is a list arm
+	// of one, which is why the tail cannot ask whether the chain fans. A core that DID apply
+	// it returned non-empty, so this never fires twice. Not in the editor preview: an empty
+	// read there is the shell's preview label, which carries the fallback beside the read
+	// target (bws_base_text_callback() does the same).
+	//
+	// The fallback is the one thing here no per-item wrap reached, so it takes the link
+	// identity the whole read reduces to: where it links is bws_sole_link_identity()'s rule.
+	// An empty return still reports what it read (the `try_` walk strips `fallback` and
+	// reads that set, which is why the report comes before the fallback is stated).
+	$out = bws_with_read_identities(
+		array(
+			'value'     => $value,
+			'link_id'   => $link_id,
+			'link_type' => $link_type,
+		),
+		$read_set
+	);
 	if ( '' === $value && empty( $instance->context['bwsEditorPreview'] ) ) {
-		$value   = bws_handle_date_time_fallback( $mapped, $instance );
-		$link_id = 0;
+		$fallback = bws_handle_date_time_fallback( $mapped, $instance );
+		if ( '' !== $fallback ) {
+			$sole = bws_sole_link_identity( $out['read_identities'] ?? array() );
+			return array(
+				'value'     => $fallback,
+				'link_id'   => $sole ? $sole['id'] : 0,
+				'link_type' => $sole ? $sole['kind'] : 'post',
+			);
+		}
 	}
 
-	return array(
-		'value'     => $value,
-		'link_id'   => $link_id,
-		'link_type' => $link_type,
-	);
+	return $out;
 }
 
 /**

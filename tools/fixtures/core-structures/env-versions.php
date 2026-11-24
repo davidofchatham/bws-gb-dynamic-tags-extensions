@@ -62,6 +62,17 @@ return array(
 	// The date the baseline under `tools/test/snapshots/` was captured. Prose only —
 	// nothing compares it; it is here so a reader can place the record in time.
 	//
+	// 2026-11-24 (latest): a FIXTURE MOVE, re-captured. Blueprint v53 adds LK.31 to LK.36 to `/matrix-links/`, the
+	// only page that moved; no existing row moved, since no other `try_` fallback row sets `linkTo`. No dependency or
+	// active plugin changed.
+	//
+	// 2026-11-24 (later): a FIXTURE MOVE, re-captured. Blueprint v52 adds LK.21 to LK.30 to `/matrix-links/` and
+	// relabels D9.66 on `/matrix-datetime/`, whose fallback now links: the only two pages that moved. No dependency
+	// or active plugin changed.
+	//
+	// 2026-11-24: a FIXTURE MOVE, re-captured. Blueprint v51 adds LK.11 to LK.20 to `/matrix-links/`,
+	// the only page that moved; no dependency or active plugin changed.
+	//
 	// 2026-11-23: a DEPENDENCY MOVE, re-recorded with NO baseline change. GB Query Enhancements
 	// 1.4.0 -> 1.5.0-beta.1, WooCommerce 11.3.0 -> 11.3.1 and WordPress 7.1.4 -> 7.1.5 moved NO
 	// line on any of the 29 pages, so `tools/test/snapshots/` is byte-identical and only this
@@ -185,7 +196,7 @@ return array(
 	// The 2026-09-14 capture is WooCommerce joining the fixture site (chrome only, no
 	// rendered tag moved); the 2026-09-03 one is where the head-deletion rule arrived — a
 	// reader hitting an ~800-line deletion further back in `git log` is looking at that.
-	'captured' => '2026-11-19',
+	'captured' => '2026-11-24',
 
 	// WordPress core, as `get_bloginfo( 'version' )` reports it. A change is a WARNING like a
 	// plugin version change, never a failure. First recorded 2026-09-25, read off the site

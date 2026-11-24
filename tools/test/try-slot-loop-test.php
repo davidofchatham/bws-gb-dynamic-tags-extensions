@@ -115,6 +115,9 @@ function eq( string $label, $expected, $actual ): void {
 	echo '      actual:   ' . var_export( $actual, true ) . "\n";
 }
 
+/** An exhausted walk that read no single entity: the fallback, if any, prints plain. */
+const EXHAUSTED = array( 'value' => '', 'link_id' => 0, 'link_type' => 'post' );
+
 // ── Fixtures ────────────────────────────────────────────────────────────────
 
 /**
@@ -211,16 +214,16 @@ eq( 'L1.3 the second attempt never ran', array( 'one' ), array_column( $calls, '
 
 $calls = array();
 eq(
-	'L1.4 every attempt empty → NULL (the shell then runs the fallback or the label)',
-	null,
+	'L1.4 every attempt empty → the EXHAUSTED triple (the shell then runs the fallback or the label)',
+	EXHAUSTED,
 	bws_try_run_attempts( slots( 'key(one)', 'key(two)' ), null, CFG_KEYED, recorder( array( '', '' ), $calls ) )
 );
 eq( 'L1.4 both attempts were resolved before the walk gave up', array( 'one', 'two' ), array_column( $calls, 'key' ) );
 
 $calls = array();
 eq(
-	'L1.5 no attempts configured at all → NULL, resolver never called',
-	null,
+	'L1.5 no attempts configured at all → EXHAUSTED, resolver never called',
+	EXHAUSTED,
 	bws_try_run_attempts( array(), null, CFG_KEYED, recorder( array( 'alpha' ), $calls ) )
 );
 eq( 'L1.5 resolver never called', array(), $calls );
@@ -444,7 +447,7 @@ eq(
 $calls = array();
 eq(
 	'L6.5 `use(fixed)` with no text entered still reaches the resolver (which reads nothing)',
-	null,
+	EXHAUSTED,
 	bws_try_run_attempts( slots( 'use(fixed)' ), null, CFG_KEYED_FIXED, recorder( array( '' ), $calls ) )
 );
 eq( 'L6.5 its fixed text is empty', '', $calls[0]['fixed'] ?? null );
@@ -516,9 +519,9 @@ function dt_seam( array $meta, array &$calls ): callable {
 	};
 }
 
-/** The value a walk returned, or null. */
-function won( ?array $w ): ?string {
-	return null === $w ? null : $w['value'];
+/** The value a walk returned, or null when it exhausted. */
+function won( array $w ): ?string {
+	return '' === $w['value'] ? null : $w['value'];
 }
 
 $meta = array( 'a' => '', 'b' => 'Sep 2', 's' => 'Aug 1', 'e' => 'Aug 3', 'x' => 'Oct 9' );
@@ -635,6 +638,74 @@ eq(
 	'L8.9 no per-slot gate: a verb attempt with no field key still resolves',
 	'NOW',
 	won( bws_try_run_attempts( slots( 'use(now)' ), null, CFG_DATETIME, dt_seam( $meta, $calls ) ) )
+);
+
+// ── §L9 — the exhausted walk's link identity (FW-191 D2) ────────────────────
+// An empty attempt reports the identities its read reached; the walk reduces their
+// union through bws_sole_link_identity(), and the shell links the fallback to it.
+
+/** An empty attempt that read the given (kind, id) pairs. */
+function empty_read( array ...$ids ): array {
+	return array(
+		'value'           => '',
+		'link_id'         => 0,
+		'link_type'       => 'post',
+		'read_identities' => array_map( static fn( $p ) => array( 'kind' => $p[0], 'id' => $p[1] ), $ids ),
+	);
+}
+
+$calls = array();
+eq(
+	'L9.1 two slots reading different fields of ONE post → that post',
+	array( 'value' => '', 'link_id' => 11, 'link_type' => 'post' ),
+	bws_try_run_attempts( slots( 'key(one)', 'key(two)' ), null, CFG_KEYED, recorder( array( empty_read( array( 'post', 11 ) ), empty_read( array( 'post', 11 ) ) ), $calls ) )
+);
+
+$calls = array();
+eq(
+	'L9.2 slots on DIFFERENT sources (post, then site) → none, the fallback prints plain',
+	EXHAUSTED,
+	bws_try_run_attempts( slots( 'key(one)', 'src(site);key(one)' ), null, CFG_KEYED, recorder( array( empty_read( array( 'post', 11 ) ), empty_read( array( 'site', 1 ) ) ), $calls ) )
+);
+
+$calls = array();
+eq(
+	'L9.3 a slot that resolved NO entity is ignored → the other slot\'s term',
+	array( 'value' => '', 'link_id' => 7, 'link_type' => 'term' ),
+	bws_try_run_attempts( slots( 'src(refs,none);key(one)', 'key(two)' ), null, CFG_KEYED, recorder( array( empty_read(), empty_read( array( 'term', 7 ) ) ), $calls ) )
+);
+
+$calls = array();
+eq(
+	'L9.4 a FANNING slot (two posts) breaks agreement → none',
+	EXHAUSTED,
+	bws_try_run_attempts( slots( 'key(one)', 'key(two)' ), null, CFG_KEYED, recorder( array( empty_read( array( 'post', 11 ) ), empty_read( array( 'post', 11 ), array( 'post', 12 ) ) ), $calls ) )
+);
+
+$calls = array();
+eq(
+	'L9.5 same id, different kinds (post 7, term 7) are two entities → none',
+	EXHAUSTED,
+	bws_try_run_attempts( slots( 'key(one)', 'key(two)' ), null, CFG_KEYED, recorder( array( empty_read( array( 'post', 7 ) ), empty_read( array( 'term', 7 ) ) ), $calls ) )
+);
+
+$calls = array();
+eq(
+	'L9.6 a WINNER is unchanged: its own triple, no read_identities, earlier empty reads ignored',
+	array( 'value' => 'beta', 'link_id' => 12, 'link_type' => 'post' ),
+	bws_try_run_attempts(
+		slots( 'key(one)', 'key(two)' ),
+		null,
+		CFG_KEYED,
+		recorder( array( empty_read( array( 'term', 7 ) ), array( 'value' => 'beta', 'link_id' => 12, 'link_type' => 'post' ) ), $calls )
+	)
+);
+
+$calls = array();
+eq(
+	'L9.7 a resolver that reports no read_identities contributes nothing',
+	EXHAUSTED,
+	bws_try_run_attempts( slots( 'key(one)' ), null, CFG_KEYED, recorder( array( array( 'value' => '', 'link_id' => 11, 'link_type' => 'post' ) ), $calls ) )
 );
 
 echo $fails ? "\n{$fails} FAILURE(S)\n" : "\nALL PASS\n";
