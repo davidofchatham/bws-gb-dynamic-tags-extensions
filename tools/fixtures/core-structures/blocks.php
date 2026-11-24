@@ -2738,6 +2738,17 @@ function bws_fixture_page_content_matrix_links() {
 		bws_fixture_gb_row( 'LK.30 datetime reading ONLY now, no source (-> the current year as PLAIN text: it reads no entity)', "{{datetime use:now|as:date|format:Y|showCurrentYear|linkTo:permalink}}" ),
 	) );
 
+	// FW-191 ticket 04 (text-test-matrix.md §T11): a try_ fallback links when every attempt's
+	// read agrees on one entity. Same missing fields as above, so every walk exhausts.
+	$sections[] = bws_fixture_gb_section( 'Links LK - a try_ fallback links when EVERY attempt read the same ONE entity (FW-191)', array(
+		bws_fixture_gb_row( 'LK.31 try_text, two fields of ONE post (-> No nickname anchored to /staff/jane-partner/)', "{{try_text A:src(post,{$jane_id});key(nickname)|B:src(same);key(nickname_alt)|fallback:No nickname|linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'LK.32 try_text, this page then the site (-> No nickname as PLAIN text: two sources, so it belongs to neither)', '{{try_text A:key(nickname)|B:src(site);key(nickname)|fallback:No nickname|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'LK.33 try_text, a slot that resolved nothing is ignored (-> No nickname anchored to /staff/jane-partner/)', "{{try_text A:src(refs,no_such_rel);key(nickname)|B:src(post,{$jane_id});key(nickname)|fallback:No nickname|linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'LK.34 try_text, a slot that read two staff posts (-> No nickname as PLAIN text: it belongs to neither)', '{{try_text A:src(refs,link_staff);key(nickname);limit(2)|fallback:No nickname|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'LK.35 try_datetime, two fields of ONE post (-> Date TBA anchored to /matrix-post-meta/)', "{{try_datetime A:src(post,{$meta_id});key(missing_dt_field)|B:src(same);key(missing_dt_alt)|fallback:Date TBA|linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'LK.36 try_datetime, this page then the site (-> Date TBA as PLAIN text: two sources, so it belongs to neither)', '{{try_datetime A:key(missing_dt_field)|B:src(site);key(missing_dt_field)|fallback:Date TBA|linkTo:permalink}}' ),
+	) );
+
 	return implode( "\n\n", $sections );
 }
 

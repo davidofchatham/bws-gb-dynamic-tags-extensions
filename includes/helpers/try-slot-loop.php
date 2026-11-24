@@ -30,8 +30,8 @@
  * WHAT THE LOOP DOES NOT OWN: link-wrap, the preview label, the stated fallback
  * and the media-block guard all stay in the tag's SHELL, exactly as they do for a
  * base tag (bws_base_text_callback is the shape). The loop hands the shell the
- * winning attempt's triple and says nothing about what to do with an all-empty
- * walk beyond returning null.
+ * winning attempt's triple, or on an all-empty walk an empty value carrying the one
+ * identity every attempt's read agrees on, which the shell links the fallback to.
  *
  * @package BWS_Dynamic_Tags
  * @since 1.21.0
@@ -82,6 +82,7 @@ function bws_try_slot_needs_key( array $cfg, string $use ): bool {
  * Walk a `try_` tag's attempts and return the first one that reads something.
  *
  * @since 1.21.0
+ * @since Unreleased An exhausted walk returns the identity its fallback links to, not null (FW-191).
  *
  * @param array    $options  Tag options as GB hands them over (fallback keys included —
  *                           this function strips them before they reach an attempt, so a
@@ -93,10 +94,12 @@ function bws_try_slot_needs_key( array $cfg, string $use ): bool {
  * @param callable $resolve  fn( array $slot_opts, $instance ): array{
  *                               value:string, link_id:int, link_type:string }
  *                           The family's resolve seam — its base tag's own, unchanged.
- * @return array{value:string, link_id:int, link_type:string}|null Null = every attempt
- *                           read nothing; the shell then runs the fallback or the label.
+ * @return array{value:string, link_id:int, link_type:string} The winning attempt's triple,
+ *                           or, when every attempt read nothing, value '' with the identity
+ *                           the stated fallback links to (link_id 0 = none); the shell then
+ *                           runs the fallback or the label.
  */
-function bws_try_run_attempts( array $options, $instance, array $cfg, callable $resolve ): ?array {
+function bws_try_run_attempts( array $options, $instance, array $cfg, callable $resolve ): array {
 	$per_slot_key = ! empty( $cfg['per_slot_key'] );
 	$per_slot_use = ! empty( $cfg['per_slot_use'] );
 	$collapse     = ! empty( $cfg['collapse'] );
@@ -125,6 +128,8 @@ function bws_try_run_attempts( array $options, $instance, array $cfg, callable $
 	// Seeded UNCONDITIONALLY, not only under per_slot_use: a template with no `use` enum
 	// derives '' anyway, and the seam writes no read default of its own.
 	$carry = bws_fold_empty_carry( (string) ( $cfg['default_use'] ?? '' ) );
+
+	$read_identities = array();
 
 	for ( $n = 1; $n <= BWS_TRY_MAX_SLOTS; $n++ ) {
 		// Era per SLOT, not per tag: a folded value parses, an absent one is recovered
@@ -209,6 +214,9 @@ function bws_try_run_attempts( array $options, $instance, array $cfg, callable $
 		// real value and STOPS the walk (hooks.php maps it downstream; no emptiness is
 		// re-decided here, same contract as the absorb seam's).
 		if ( '' === (string) ( $resolved['value'] ?? '' ) ) {
+			// What this empty attempt read, kept for the fallback's link (FW-191): one that
+			// resolved nothing adds nothing, one that fanned adds every entity it read.
+			array_push( $read_identities, ...( $resolved['read_identities'] ?? array() ) );
 			continue;
 		}
 
@@ -219,5 +227,12 @@ function bws_try_run_attempts( array $options, $instance, array $cfg, callable $
 		);
 	}
 
-	return null;
+	// Exhausted: the stated fallback links to the one entity every attempt's read agrees
+	// on, or prints plain (bws_sole_link_identity() owns the rule).
+	$sole = bws_sole_link_identity( $read_identities );
+	return array(
+		'value'     => '',
+		'link_id'   => $sole ? $sole['id'] : 0,
+		'link_type' => $sole ? $sole['kind'] : 'post',
+	);
 }

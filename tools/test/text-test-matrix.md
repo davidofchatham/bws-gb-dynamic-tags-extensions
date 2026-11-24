@@ -211,8 +211,10 @@ Verified 2026-08-29 via `render-tag`. The `try_` half lives in `fold-test-matrix
 | T11.7 | LK.18 to LK.20 — the stated fallback, no sole entity (FW-191) | the fallback prints PLAIN: two posts read (LK.18), repeater rows (LK.19), a `linkTo:key` field empty on the one entity read (LK.20) |
 | T11.8 | LK.21 to LK.25, LK.28, LK.29 — the DATE tags' stated fallback, one entity read (FW-191) | the fallback is an anchor to THE entity read, as T11.6: the pinned post (`{{datetime}}` and both old tags), the pinned term, the one related post, this page, the home page (`src:site`) |
 | T11.9 | LK.26, LK.27, LK.30 — the date tags, no sole entity (FW-191) | PLAIN: two posts read (LK.26), repeater rows (LK.27); LK.30 reads only `now`, so it reads no source and prints the year unlinked |
+| T11.10 | LK.31, LK.33, LK.35 — a `try_` fallback, every attempt read one entity (FW-191) | the fallback is an anchor to THE entity every attempt read: two fields of one pinned post (`try_text` LK.31, `try_datetime` LK.35); LK.33's first attempt resolves no entity and is ignored, so the pinned post in the second still links it |
+| T11.11 | LK.32, LK.34, LK.36 — a `try_` fallback, no agreed entity (FW-191) | PLAIN: this page then the site (LK.32, LK.36); one attempt that read two staff posts (LK.34) |
 
-Verified 2026-11-24 by curl of the page (T11.8 and T11.9 rows, blueprint v52) and `render-tag`.
+Verified 2026-11-24 by curl of the page (T11.8 to T11.11 rows, blueprint v53) and `render-tag`.
 
 The page carries two more rows, LK.5 and LK.6, which are the `try_title` twins of LK.2 and LK.4 and belong to a different change — they are [`fold-test-matrix.md`](fold-test-matrix.md) §F9b F9b.4b/F9b.4c, and what they assert is stated there.
 

@@ -497,26 +497,31 @@ class TagTemplateRegistry {
 				}
 				$opts = bws_host_unlinked_options( $opts, $b );
 
-				// THE WALK (includes/helpers/try-slot-loop.php). Null = every attempt read
-				// nothing; the tail below is this shell's, exactly as a base tag's callback
+				// THE WALK (includes/helpers/try-slot-loop.php). An empty value = every attempt
+				// read nothing; the tail below is this shell's, exactly as a base tag's callback
 				// owns its own fallback and label.
 				$won = bws_try_run_attempts( (array) $opts, $inst, $loop_cfg, $resolve );
 
-				if ( null !== $won ) {
-					$value = $won['value'];
-					// ONE link wrap, on the winning attempt's identity. A fanning read that
-					// already wrapped its values per item reports link_id 0 and is left
-					// alone — the same contract bws_base_text_callback() reads (FW-85).
-					if ( $slnk && $won['link_id'] && function_exists( 'bws_wrap_with_link' ) ) {
-						$value = bws_wrap_with_link(
-							$value,
-							$opts['linkTo'] ?? 'none',
-							$opts['linkKey'] ?? '',
-							bws_flag_is_on( $opts, 'newTab' ),
-							$won['link_id'],
-							$won['link_type']
-						);
+				// ONE link wrap, on the walk's identity: the winning attempt's, or on an
+				// exhausted walk the one entity every attempt read (FW-191). A fanning read that
+				// already wrapped its values per item reports link_id 0 and is left alone — the
+				// same contract bws_base_text_callback() reads (FW-85).
+				$link = static function ( string $value ) use ( $slnk, $won, $opts ): string {
+					if ( ! $slnk || ! $won['link_id'] || ! function_exists( 'bws_wrap_with_link' ) ) {
+						return $value;
 					}
+					return bws_wrap_with_link(
+						$value,
+						$opts['linkTo'] ?? 'none',
+						$opts['linkKey'] ?? '',
+						bws_flag_is_on( $opts, 'newTab' ),
+						$won['link_id'],
+						$won['link_type']
+					);
+				};
+
+				if ( '' !== $won['value'] ) {
+					$value = $link( $won['value'] );
 					// The content slot's final value, reduced for an inline-only core host (FW-156).
 					return 'content' === $tpl_key ? bws_content_strip_for_host( $value, $b ) : $value;
 				}
@@ -537,7 +542,7 @@ class TagTemplateRegistry {
 						}
 					}
 				} elseif ( '' !== $fallback ) {
-					return bws_gb_tag_output( $fallback, $opts, $inst );
+					return $link( bws_gb_tag_output( $fallback, $opts, $inst ) );
 				}
 
 				return $is_preview && function_exists( 'bws_build_try_preview_label' )
