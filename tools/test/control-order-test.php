@@ -38,9 +38,9 @@
  * tag file constructing GB's registrar itself changes nothing any assertion here reads, and
  * moves no rendered page either, since a name collision is invisible until two plugins
  * meet. §9 re-reads the tree for a second door. §10 drives a collision through the boundary
- * in all THREE directions -- the overwrite and its report, the two template constructors'
- * opposite yield and ITS report, and the reverse case where a later registrar takes one of
- * our names and the late re-read is the only thing that notices. A harness of their own
+ * in both directions -- the overwrite and its report (base tags and the `try_` family alike,
+ * listed or hidden), and the reverse case where a later registrar takes one of our names and
+ * the late re-read is the only thing that notices. A harness of their own
  * would be a second place to remember, for two sections.
  *
  * Run:  php tools/test/control-order-test.php
@@ -874,13 +874,10 @@ if ( $stray ) {
 
 // ---------------------------------------------------------------------------
 
-echo "\n§10 Which way a name collision went, in ALL THREE directions\n";
+echo "\n§10 Which way a name collision went, in BOTH directions\n";
 
-// The asymmetry the boundary exists for, DRIVEN rather than read, and driven on both
-// sides: the base half OVERWRITES a taken name and says so, the two template constructors
-// YIELD one and say so differently. Arms C and F exercise the yield on each constructor, so
-// the sentence about it is a claim this section checks rather than a claim about somewhere
-// else.
+// The rule the boundary exists for, DRIVEN rather than read: we OVERWRITE a taken name and
+// say so. Arm A drives it on a probe name, F on the real `try_` constructor.
 //
 // AND THE REVERSE COLLISION, which matters most and is the one no registration-time check
 // can see. Something registering our name after our pass has no effect any assertion above
@@ -968,13 +965,10 @@ assert_same(
 assert_same( 'a free name fires no notice', 0, count( $GLOBALS['bws_doing_it_wrong'] ) );
 assert_same( 'a free name records no collision', false, isset( bws_gb_tag_name_collisions()['bws_collision_probe_free'] ) );
 
-// --- C. the OTHER half of the asymmetry: a template constructor yields ------
-
-// MEASURED IN §F, not here: the whole yield arm runs on the `try_` constructor, the only
-// family constructor left. §F carries every assertion for it, plus the re-entry guard.
+// --- C. RETIRED ------------------------------------------------------------
 //
-// The lettering below is unchanged on purpose: C3 reads GB's live registry against the
-// migration entries, a different subject from what a constructor stands down from.
+// It pointed at the template constructor's yield, which is gone: a taken `try_` name is
+// overwritten like any other (arm F). The lettering below is unchanged on purpose.
 
 // --- C2. RETIRED ------------------------------------------------------------
 //
@@ -1132,6 +1126,60 @@ assert_same(
 	bws_gb_registration_marker( $seam_rec['seam_listed'] ?? null, null )
 );
 
+// --- C6. the multi-attempt setting HIDES the `try_` family, never unregisters it ----
+//
+// Unchecked, the family leaves the picker and keeps rendering: GB replaces only a registered
+// tag, so an unregistered `try_` prints its stored string as literal braces. Driven through
+// the real setting read (SettingsPage's cached option), on the real constructor.
+$try_names = array_values( array_filter(
+	array_keys( $registered ),
+	static function ( $t ) { return 0 === strpos( (string) $t, 'try_' ); }
+) );
+$try_hidden_of = static function () use ( $try_names ) {
+	$rec = bws_gb_tags_we_registered();
+	return array_values( array_filter( $try_names, static function ( $t ) use ( $rec ) { return ! empty( $rec[ $t ]['hidden'] ); } ) );
+};
+assert_same( 'precondition: the bootstrap pass registered try_ tags', true, count( $try_names ) > 5 );
+assert_same(
+	'setting on: only the try_ forms of the hidden templates are hidden',
+	array( 'try_datetime_single', 'try_datetime_range' ),
+	$try_hidden_of()
+);
+assert_same(
+	'setting on: try_email and try_phone carry their base tag\'s tagName gate',
+	array( $registered['email']['visibility'] ?? 'none', $registered['phone']['visibility'] ?? 'none' ),
+	array( $registered['try_email']['visibility'] ?? null, $registered['try_phone']['visibility'] ?? null )
+);
+
+$settings_prop = new ReflectionProperty( \BWS\DynamicTags\Admin\SettingsPage::class, 'settings' );
+$settings_prop->setAccessible( true );
+$settings_prop->setValue( null, array( 'modifiers' => array( 'try' => false ) ) );
+$GLOBALS['bws_doing_it_wrong'] = array();
+\BWS\DynamicTags\TagTemplateRegistry::generate_base_try_tags();
+$off_gb = GenerateBlocks_Register_Dynamic_Tag::get_tags();
+
+assert_same( 'setting off: every try_ tag is still registered, so stored tags render', $try_names, array_values( array_intersect( $try_names, array_keys( $off_gb ) ) ) );
+assert_same( 'setting off: every try_ tag is hidden', $try_names, $try_hidden_of() );
+assert_same(
+	'setting off: GB holds visibility false on every try_ tag, replacing the tagName gate',
+	array(),
+	array_values( array_filter( $try_names, static function ( $t ) use ( $off_gb ) { return false !== ( $off_gb[ $t ]['visibility'] ?? null ); } ) )
+);
+assert_same( 'registering our own names again is not a collision', 0, count( $GLOBALS['bws_doing_it_wrong'] ) );
+
+$settings_prop->setValue( null, null );
+\BWS\DynamicTags\TagTemplateRegistry::generate_base_try_tags();
+assert_same(
+	'setting back on: listed again, the hidden templates still hidden',
+	array( 'try_datetime_single', 'try_datetime_range' ),
+	$try_hidden_of()
+);
+assert_same(
+	'and try_email\'s gate is back',
+	$registered['try_email']['visibility'] ?? 'none',
+	GenerateBlocks_Register_Dynamic_Tag::get_tags()['try_email']['visibility'] ?? null
+);
+
 // --- D. the late re-read is quiet while every name is still ours ------------
 
 // The negative arm for the reverse direction, run over the whole real registration rather
@@ -1222,10 +1270,6 @@ $plain_parties = bws_gb_collision_other_parties( bws_gb_tag_name_collisions()['b
 assert_same( 'a plain takeover names nobody before us', null, array_key_exists( 'before', $plain_parties ) ? $plain_parties['before'] : 'absent' );
 assert_same( 'and still names who took it', 'Late Stranger', $plain_parties['after']['title'] ?? null );
 
-// The THIRD direction — a yielded record read as parties — is in §F, beside the constructor
-// that produces one. It cannot run here: the only yield this process makes takes a real
-// `try_` name away from us, which §D's whole-registration re-read would then report.
-
 assert_same( 'exactly two notices fired, for the two lost names', 2, count( $GLOBALS['bws_doing_it_wrong'] ) );
 
 $subjects = array_map( static function ( $n ) { return (string) $n[0]; }, $GLOBALS['bws_doing_it_wrong'] );
@@ -1304,22 +1348,20 @@ assert_same(
 	$GLOBALS['bws_doing_it_wrong'][1][0] ?? null
 );
 
-// --- F. the yielding constructor, its record, and the re-entry guard --------
-
-// THE WHOLE YIELD ARM, and the only one now: it drives generate_base_try_tags() against a
-// real `try_` name a stranger has taken. It runs LAST on purpose: taking a real try_ name away from us is exactly what arms D
-// and E would otherwise have read as a loss of ours.
+// --- F. a taken `try_` name is OVERWRITTEN and reported, like a base tag's ----
 //
-// THE YIELD SPEAKS, AND THAT IS WHAT THIS ARM ONCE CHANGED. Through 1.18.0 the assertion was
-// SILENCE, which was true and was the defect: GB Query Enhancements holds `term_title` on any
-// site running it, so our {{term_title}} does not exist there while two docs still described
-// it as ours, and nothing on the site said so. The yield itself is unchanged and still
-// correct — only its silence was wrong.
+// Driven on the real constructor against a real `try_` name a stranger has taken. It runs
+// LAST on purpose: taking a real try_ name away from us is exactly what arms D and E would
+// otherwise have read as a loss of ours.
 //
-// IT ALSO MEASURES THE GUARD, which is why re-running the whole constructor is the right
-// shape rather than a probe family. Every other try_ name is still ours from §1's pass, so a
-// yield note that only asked "is this name taken" would fire eight times, naming us as the
-// stranger. Silence on those eight is the assertion; one notice for the one genuinely taken
+// The stranger's tag loses the name, because yielding would send every stored block naming
+// it through the stranger's callback with nothing on the site saying so. Listed or hidden
+// makes no difference: hidden exists to keep stored content rendering.
+//
+// IT ALSO MEASURES THE RE-ENTRY GUARD, which is why re-running the whole constructor is the
+// right shape rather than a probe family. Every other try_ name is still ours from §1's pass,
+// so a boundary that only asked "is this name taken" would report nine collisions with
+// ourselves. Silence on those nine is the assertion; one notice for the one genuinely taken
 // is the other half.
 
 $GLOBALS['bws_doing_it_wrong'] = array();
@@ -1334,78 +1376,64 @@ new GenerateBlocks_Register_Dynamic_Tag( array(
 \BWS\DynamicTags\TagTemplateRegistry::generate_base_try_tags();
 
 assert_same(
-	'the try_ constructor YIELDS a name already taken',
-	'Stranger Fallback',
+	'the try_ constructor TAKES a name already taken',
+	'Try Text Fields',
 	GenerateBlocks_Register_Dynamic_Tag::get_tags()['try_text']['title'] ?? null
 );
-// A second member of the same family must still be ours, or "yielded" would be
-// indistinguishable from "the constructor did nothing".
+assert_same( 'exactly one notice fired, for the one name a stranger held', 1, count( $GLOBALS['bws_doing_it_wrong'] ) );
 assert_same(
-	'and its other members are still registered, so the yield is a skip not a no-op',
-	true,
-	count( array_filter(
-		array_keys( GenerateBlocks_Register_Dynamic_Tag::get_tags() ),
-		static function ( $t ) { return 0 === strpos( (string) $t, 'try_' ) && 'try_text' !== $t; }
-	) ) > 1
-);
-assert_same( 'exactly one notice fired, for the one name that is not ours', 1, count( $GLOBALS['bws_doing_it_wrong'] ) );
-assert_same(
-	'and it is the try_ name a stranger took',
-	"BWS GB dynamic tag 'try_text' not registered",
+	'and it is the base-tag collision notice, on the try_ name',
+	"BWS GB dynamic tag 'try_text' collision",
 	$GLOBALS['bws_doing_it_wrong'][0][0] ?? null
 );
+assert_same( 'the notice names who held it first', true, false !== strpos( (string) ( $GLOBALS['bws_doing_it_wrong'][0][1] ?? '' ), 'Stranger Fallback' ) );
 
-$yielded = bws_gb_tag_name_collisions()['try_text'] ?? array();
-assert_same( 'a yielded name IS recorded', true, array() !== $yielded );
-assert_same( 'the try_ yield is recorded too', 'yielded', $yielded['outcome'] ?? null );
-assert_same( 'the record names who holds it', 'Stranger Fallback', $yielded['previous_title'] ?? null );
+$try_kept = bws_gb_tag_name_collisions()['try_text'] ?? array();
+assert_same( 'the record says WE kept the name', 'kept', $try_kept['outcome'] ?? null );
+assert_same( 'the record names who held it first', 'Stranger Fallback', $try_kept['previous_title'] ?? null );
 assert_same(
 	'the record locates the holder by file',
 	true,
-	(bool) preg_match( '~control-order-test\.php$~', (string) ( $yielded['previous_source'] ?? '' ) )
+	(bool) preg_match( '~control-order-test\.php$~', (string) ( $try_kept['previous_source'] ?? '' ) )
 );
-// We never built a registration, so there is no title of ours to report. An empty string
-// here is the record saying that, and a status surface printing our title would be inventing
-// a tag that does not exist.
-assert_same( 'and carries no title of ours, because we never built one', '', $yielded['title'] ?? null );
+assert_same( 'and carries our title', 'Try Text Fields', $try_kept['title'] ?? null );
 
-// The three subjects must stay distinguishable at a glance: this one is neither the
-// collision we won nor the takeover we lost, and its remedy is different from both.
-$yield_notice = $GLOBALS['bws_doing_it_wrong'][0] ?? array( '', '', '' );
-assert_same( 'a yield subject is not a winning subject', false, false !== strpos( (string) $yield_notice[0], 'collision' ) );
-assert_same( 'a yield subject is not a losing subject', false, false !== strpos( (string) $yield_notice[0], 'taken over' ) );
-assert_same( 'the yield message names who held the name', true, false !== strpos( (string) $yield_notice[1], 'Stranger Fallback' ) );
-assert_same( 'the yield message says our tag does not exist', true, false !== strpos( (string) $yield_notice[1], 'does not exist on this site' ) );
-assert_same( 'the yield message does not claim we registered over anyone', false, false !== strpos( (string) $yield_notice[1], 'has registered over it' ) );
-
-// The THIRD direction the parties reader answers, and the only one a yield can show: a record
-// whose subject is who was here FIRST. §E covers the other two (a plain takeover, and a merged
-// keep-then-lose) on names of its own.
-$yield_parties = bws_gb_collision_other_parties( $yielded );
-assert_same( 'a yielded name is about who was here first', 'before', $yield_parties['subject'] ?? null );
-assert_same( 'and it names them', 'Stranger Fallback', $yield_parties['before']['title'] ?? null );
-assert_same( 'with nobody having taken it since', null, array_key_exists( 'after', $yield_parties ) ? $yield_parties['after'] : 'absent' );
-
-// The guard, stated as the thing it prevents: re-entering the constructor must not report
-// the family it registered itself as yielded to a stranger.
+// The guard, stated as the thing it prevents: re-entering the constructor must not report a
+// collision with a name we already hold.
 assert_same(
-	'a name still holding our own callable records no yield',
-	0,
-	count( array_filter(
-		bws_gb_tag_name_collisions(),
-		static function ( $c, $t ) {
-			return 'yielded' === ( $c['outcome'] ?? '' ) && 'try_text' !== $t && 0 === strpos( (string) $t, 'try_' );
-		},
-		ARRAY_FILTER_USE_BOTH
+	'no other try_ name records a collision',
+	array(),
+	array_values( array_filter(
+		array_keys( bws_gb_tag_name_collisions() ),
+		static function ( $t ) { return 'try_text' !== $t && 0 === strpos( (string) $t, 'try_' ); }
 	) )
 );
 
-// AND THE RE-ENTRY IS THE PATH THAT ACTUALLY DOUBLE-FIRED. The guard above stops us
-// reporting a name we hold ourselves; the E2 pins stop us repeating a true sentence about a
-// name we do not. This is the two meeting: the constructor runs again, meets the same
-// stranger on `try_text` again, and says nothing further.
+// And the re-entry once the name is ours again: the constructor runs a third time, finds
+// try_text holding our own callable, and says nothing further.
 \BWS\DynamicTags\TagTemplateRegistry::generate_base_try_tags();
-assert_same( 'a re-entered constructor does not report the same yield twice', 1, count( $GLOBALS['bws_doing_it_wrong'] ) );
+assert_same( 'a re-entered constructor reports nothing more', 1, count( $GLOBALS['bws_doing_it_wrong'] ) );
+
+// The same rule when the setting hides the family: a hidden try_ tag takes the name too.
+$GLOBALS['bws_doing_it_wrong'] = array();
+new GenerateBlocks_Register_Dynamic_Tag( array(
+	'tag'    => 'try_title',
+	'title'  => 'Stranger Title',
+	'type'   => 'post',
+	'return' => static function () { return 'theirs'; },
+) );
+$settings_prop->setValue( null, array( 'modifiers' => array( 'try' => false ) ) );
+\BWS\DynamicTags\TagTemplateRegistry::generate_base_try_tags();
+$settings_prop->setValue( null, null );
+assert_same(
+	'a HIDDEN try_ tag takes a taken name too, and reports it',
+	array( 'Try Title/Name', 'kept', 1 ),
+	array(
+		GenerateBlocks_Register_Dynamic_Tag::get_tags()['try_title']['title'] ?? null,
+		bws_gb_tag_name_collisions()['try_title']['outcome'] ?? null,
+		count( $GLOBALS['bws_doing_it_wrong'] ),
+	)
+);
 
 // ---------------------------------------------------------------------------
 

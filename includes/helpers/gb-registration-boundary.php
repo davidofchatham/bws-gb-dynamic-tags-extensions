@@ -34,33 +34,24 @@ require_once __DIR__ . '/ai-syntax-hints.php';
  * registration through one function is what gives a name collision somewhere to be
  * noticed; the alternative is 13 call sites each of which could grow its own answer.
  *
- * AXIS — A TAKEN BASE-TAG NAME IS OVERWRITTEN, AND THE COLLISION IS REPORTED. Not "we
- * yield", and not "we overwrite quietly". Two separate decisions:
+ * AXIS — A TAKEN NAME IS OVERWRITTEN, AND THE COLLISION IS REPORTED, for every tag we
+ * register: base tags and the `try_` family alike, listed or hidden. Not "we yield", and not
+ * "we overwrite quietly". Two separate decisions:
  *
- *   OVERWRITE, because for a base tag yielding is the worse failure. `{{text}}` is read by
- *   every block an author has pointed at it; if a co-resident plugin registered a `text`
- *   tag first and we stood down, every one of those blocks would render through someone
- *   else's callback, on a site where nothing changed but the plugin list, and nothing
- *   anywhere would say so. Overwriting breaks the newcomer's tag instead — the failure the
- *   person who just installed the newcomer can see and act on.
+ *   OVERWRITE, because yielding is the worse failure. `{{text}}` is read by every block an
+ *   author has pointed at it; if a co-resident plugin registered a `text` tag first and we
+ *   stood down, every one of those blocks would render through someone else's callback, on a
+ *   site where nothing changed but the plugin list, and nothing anywhere would say so.
+ *   Overwriting breaks the newcomer's tag instead — the failure the person who just installed
+ *   the newcomer can see and act on. A hidden tag is no exception: it is registered only to
+ *   keep stored content rendering, which yielding would hand to the stranger.
  *
  *   REPORT, because overwriting is the SAFER failure, not a harmless one. Until 1.19.0 it
  *   happened by accident: base tags register at init priority 20, later than most
  *   extensions, so we won every collision without anyone being told there was one.
  *
- * THE ASYMMETRY WITH THE FAMILY CONSTRUCTOR IS DELIBERATE — DO NOT "FIX" IT.
- * TagTemplateRegistry::generate_base_try_tags() (the `try_` half, and since 1.21.0 the only
- * family constructor left) reads GB's registry before building a tag and SKIPS a name that
- * is taken, yielding to the first registrar.
- * That is right for it and stays: that family is an optional extra over the base tags,
- * so losing one to a name clash degrades the editor rather than breaking published pages.
- * That site owns the rule and states it where it is enforced. Because it
- * skips before reaching here, a collision this function sees is a base-tag collision.
- *
- * WHAT CHANGED IN THE YIELD IS THAT IT SPEAKS, NOT THAT IT YIELDS. That site
- * calls bws_gb_note_tag_yielded() at its dup-check, so a name we stand down from is recorded
- * and reported like the other two directions. Standing down silently meant a documented tag
- * simply did not exist with nothing anywhere saying why.
+ * RE-REGISTERING A NAME GB STILL HOLDS FOR US IS NOT A COLLISION (a constructor run twice in
+ * one request); bws_gb_tag_is_still_ours() is the comparison.
  *
  * THIS FUNCTION IS INTERNAL, AND STAYS INTERNAL. It is not on the supported surface in
  * docs/plugin-integration.md §3, and §3 still tells an integrator to construct
@@ -126,8 +117,10 @@ function bws_gb_register_tag( array $args ): void {
 	}
 
 	$existing = \GenerateBlocks_Register_Dynamic_Tag::get_tags();
+	$ours     = bws_gb_tags_we_registered()[ $tag ] ?? null;
 
-	if ( isset( $existing[ $tag ] ) ) {
+	// Re-registering a name GB still holds for us (a constructor run twice) is no collision.
+	if ( isset( $existing[ $tag ] ) && ! ( null !== $ours && bws_gb_tag_is_still_ours( $ours, $existing[ $tag ] ) ) ) {
 		bws_gb_tag_name_collisions( array(
 			'tag'             => $tag,
 			'title'           => (string) $args['title'],
@@ -357,54 +350,7 @@ function bws_gb_registration_marker( ?array $ours, ?array $now ): string {
 }
 
 /**
- * Record and report a tag name the fallback-chain constructor stood down from.
- *
- * THE THIRD DIRECTION, and the only one where nothing of ours ever runs. bws_gb_register_tag()
- * reports a name we took, bws_gb_recheck_tag_ownership() a name we were taken off; this
- * reports a name we never claimed. The YIELD ITSELF IS CORRECT AND IS NOT CHANGED BY THIS —
- * the constructor's own AXIS comment owns why standing down is right for its family. What
- * was wrong was that it was silent: a documented tag of ours is absent whenever a co-resident
- * plugin registers that name first, and until 1.19.0 the only
- * evidence anywhere was the tag missing from a dropdown.
- *
- * THE REMEDY IS THE THIRD ONE TOO, which is why the outcome is its own value rather than
- * folded into 'kept'. Nothing of ours is rendering wrongly and no page changed; the other
- * plugin's tag works. The only question is which of the two tags the site wants under that
- * name, and answering it means renaming or removing one of them.
- *
- * NOT A YIELD IF THE NAME IS ALREADY OURS. A constructor re-entered in the same request
- * finds its whole family taken — by itself — and would otherwise report every member as
- * yielded to a stranger. That an entry holding the callable we handed GB is still ours is a
- * consequence of the ownership rule; bws_gb_recheck_tag_ownership() states the axis.
- *
- * @since 1.19.0
- * @internal Called by the try_ constructor at its dup-check, nowhere else.
- * @param string $tag      The name that was already taken.
- * @param mixed  $existing GB's registry entry for that name, or null when unavailable.
- * @return void
- */
-function bws_gb_note_tag_yielded( string $tag, $existing = null ): void {
-	$entry = is_array( $existing ) ? $existing : array();
-	$ours  = bws_gb_tags_we_registered()[ $tag ] ?? null;
-
-	if ( is_array( $ours ) && array_key_exists( 'return', $entry ) && $entry['return'] === $ours['return'] ) {
-		return;
-	}
-
-	bws_gb_tag_name_collisions( array(
-		'tag'             => $tag,
-		'title'           => '',
-		'outcome'         => 'yielded',
-		'previous_title'  => (string) ( $entry['title'] ?? '' ),
-		'previous_type'   => (string) ( $entry['type'] ?? '' ),
-		'previous_source' => bws_gb_tag_registrar_file( $entry['return'] ?? null ),
-	) );
-
-	bws_gb_report_tag_collision( $tag );
-}
-
-/**
- * The tag name collisions this request ran into, in all three directions.
+ * The tag name collisions this request ran into, in both directions.
  *
  * Keyed by tag name, so a name holds ONE record however many times it is re-registered. The
  * notice channel matches that — bws_gb_report_tag_collision() owns the rule and states it.
@@ -414,52 +360,16 @@ function bws_gb_note_tag_yielded( string $tag, $existing = null ): void {
  *               them. Adds `previous_title`, `previous_type`, `previous_source`.
  *   'lost'    — the name was ours after our pass and is not ours now. Adds `later_title`,
  *               `later_type`, `later_source`.
- *   'yielded' — a stranger held the name and we stood down, so no tag of ours by that name
- *               exists. Adds the same `previous_*` fields as 'kept': the situation those
- *               describe is identical (who was here first), only our answer to it differs.
  *
  * `previous_source` / `later_source` is the file the other registration's callback is
  * defined in, relative to ABSPATH where that is known, or '' when reflection could not
  * answer.
  *
- * `title` IS OURS, AND IS '' ON A 'yielded' RECORD. On the other two outcomes we built a
- * registration and it has a title; on a yield we never built one, so there is no title of
- * ours to report and the tag name is the whole of what a reader has.
- *
- * THE THREE OUTCOMES ARE NOT ONE EVENT SEEN THREE TIMES, and a DEVELOPER must be able to
- * tell them apart because the remedies differ. On 'kept' the stranger's tag is the one that
- * stopped working, and whoever installed the stranger is the person to tell. On 'lost' OUR
- * tag stopped working, silently, on pages already using it — that is the failure the whole
- * boundary exists for, and the one a status surface must not round off to "a collision
- * happened". On 'yielded' nothing of ours rendered THIS REQUEST: a tag simply is not there,
- * which no other signal on the site says at all.
- *
- * AXIS — AN OUTCOME IS THIS REQUEST'S REGISTRATION ORDER, NOT THE SITE'S HISTORY. 'yielded'
- * says a stranger held the name when our pass reached it. It does NOT say that no block ever
- * rendered through our tag: a site that used our tag and then installed the stranger
- * records 'yielded' on every request afterwards, while its author lived through exactly the
- * takeover 'lost' describes. Nothing in the record separates the two, and nothing can — the
- * evidence that a takeover happened was the PREVIOUS request's registry, and it is gone.
- *
- * So a yield is not a guarantee that nothing broke; it is silence about whether anything
- * did. A surface reporting one to an AUTHOR carries the same warning 'lost' carries, and for
- * the same reason: if blocks already used this name, their output has moved and no other
- * signal says so. What stays true of a yield alone is the rest — no tag of ours exists, it
- * is absent from the editor, and documentation describing it does not apply here.
- *
- * WHICH IS WHY A SURFACE MAY SHOW FEWER STATES THAN THIS RECORDS. The remedies that separate
- * the outcomes are DEVELOPER remedies: rename a tag, move a registration off init priority
- * 20. A site owner has neither, and to them 'lost' and 'yielded' say one thing — another
- * plugin's code answers for this name and ours does not. The notice channel here needs
- * WP_DEBUG and a log file, so it reports all three; the settings page reports two and owns
- * that map (see SettingsPage's Tag Name Conflicts block). The record keeps three regardless:
- * the merge rule depends on the distinction, and a surface can always collapse what it is
- * given, while nothing can recover a distinction the record threw away.
- *
- * A 'yielded' RECORD IS EXCLUSIVE PER NAME BY CONSTRUCTION, so it needs no merge rule of
- * its own. A name we stood down from was never handed to GB, so bws_gb_register_tag() never
- * saw it ('kept' is impossible) and the late pass never looks at it ('lost' is impossible —
- * it iterates what we registered). First-write-wins is the whole of it.
+ * THE TWO OUTCOMES ARE NOT ONE EVENT SEEN TWICE, and a reader must be able to tell them
+ * apart because the remedies differ. On 'kept' the stranger's tag is the one that stopped
+ * working, and whoever installed the stranger is the person to tell. On 'lost' OUR tag stopped
+ * working, silently, on pages already using it — that is the failure the whole boundary
+ * exists for, and the one a status surface must not round off to "a collision happened".
  *
  * A 'lost' FINDING REFINES AN EXISTING RECORD RATHER THAN BEING DROPPED. Three plugins can
  * contest one name: we register over the first, a third registers over us. The final owner
@@ -508,10 +418,10 @@ function bws_gb_tag_name_collisions( array $record = array() ): array {
 /**
  * Report one recorded collision through WordPress's incorrect-usage channel.
  *
- * ONE MESSAGE PER OUTCOME, NOT ONE PARAMETERIZED SENTENCE. The three outcomes are different
+ * ONE MESSAGE PER OUTCOME, NOT ONE PARAMETERIZED SENTENCE. The two outcomes are different
  * situations with different consequences, and the only clause they share is that a name was
- * claimed twice. A single sentence covering all of them would have to describe none: "a tag
- * name is registered twice" is true of every one and actionable for none.
+ * claimed twice. A single sentence covering both would have to describe neither: "a tag
+ * name is registered twice" is true of each and actionable for neither.
  *
  * THE SUBJECT NAMES THE COLLISION, NOT US. WordPress renders the first argument as
  * "Function %s was called incorrectly", so passing __FUNCTION__ puts `bws_gb_register_tag`
@@ -530,9 +440,8 @@ function bws_gb_tag_name_collisions( array $record = array() ): array {
  * is something this line wants.
  *
  * AXIS — ONE NOTICE PER TAG PER OUTCOME, FOR THE LIFE OF THE REQUEST. Not once per call:
- * the yield sites call this from inside a constructor, and a constructor re-entered in the
- * same request meets the same taken name again, so an undeduped channel says the same
- * sentence twice about one event. A duplicate is pure noise in the one channel a developer
+ * a detection site can meet the same name more than once in a request, so an undeduped
+ * channel says the same sentence twice about one event. A duplicate is pure noise in the one channel a developer
  * is reading, and noise there is what teaches someone to stop reading it.
  *
  * THE KEY IS TAG PLUS OUTCOME, AND THE OUTCOME HALF IS LOAD-BEARING. A name can legitimately
@@ -590,30 +499,11 @@ function bws_gb_report_tag_collision( string $tag ): void {
 		return;
 	}
 
-	if ( 'yielded' === $outcome ) {
-		_doing_it_wrong(
-			// Says the consequence, not the mechanism: what a reader needs on line one is
-			// that a tag they expected does not exist, which "collision" would not tell them.
-			// The body carries the takeover warning as well, restating what the record's own
-			// axis note says a yield is silent about — see bws_gb_tag_name_collisions().
-			sprintf( "BWS GB dynamic tag '%s' not registered", $tag ),
-			sprintf(
-				/* translators: 1: dynamic tag name, 2: title and file of the code that registered it first */
-				__( 'The dynamic tag name "%1$s" was already registered by %2$s, so BWS Dynamic Tag Extensions did not register its own tag of that name. The other tag is unaffected and keeps working; the BWS tag does not exist on this site and will not appear in the editor. If blocks here used this tag name before the other code was installed, they now render through it instead and their output may have changed. Rename or remove the other tag if you want the BWS one instead.', 'generateblocks' ),
-				$tag,
-				bws_gb_other_registrar_phrase( $other['title'], $other['source'] )
-			),
-			'1.19.0'
-		);
-
-		return;
-	}
-
 	_doing_it_wrong(
 		sprintf( "BWS GB dynamic tag '%s' collision", $tag ),
 		sprintf(
 			/* translators: 1: dynamic tag name, 2: title and file of the code that registered it first */
-			__( 'The dynamic tag name "%1$s" was already registered by %2$s. BWS Dynamic Tag Extensions has registered over it, because a base tag that stood down would stop rendering everywhere it is already used. The other tag of this name will not render. Rename one of the two tags to clear this.', 'generateblocks' ),
+			__( 'The dynamic tag name "%1$s" was already registered by %2$s. BWS Dynamic Tag Extensions has registered over it, because a tag of ours that stood down would stop rendering everywhere it is already used. The other tag of this name will not render. Rename one of the two tags to clear this.', 'generateblocks' ),
 			$tag,
 			bws_gb_other_registrar_phrase( $other['title'], $other['source'] )
 		),
@@ -639,7 +529,7 @@ function bws_gb_report_tag_collision( string $tag ): void {
  * the pair but could not name anybody is a pair of empty strings, not a null.
  *
  * `subject` NAMES THE PARTY THE OUTCOME'S SENTENCE IS ABOUT — the one in direct contest with
- * us. On 'kept' and 'yielded' that is who was here first; on 'lost' it is who took the name.
+ * us. On 'kept' that is who was here first; on 'lost' it is who took the name.
  * It is a key into this same array and its entry is never null, so a caller wanting one party
  * takes $parties[ $parties['subject'] ] with no branch of its own.
  *
@@ -821,7 +711,7 @@ function bws_gb_registrar_plugin_name( string $source ): string {
 /**
  * Name the other party in a collision, as far as GB's registry lets us.
  *
- * Shared by all three report directions: the identity of the other registrar is the one
+ * Shared by both report directions: the identity of the other registrar is the one
  * thing they have in common, which is why this is the piece that was extracted and the
  * sentences were not. WHICH party that is comes from bws_gb_collision_other_parties().
  *

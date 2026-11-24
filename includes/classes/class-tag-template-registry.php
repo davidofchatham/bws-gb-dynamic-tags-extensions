@@ -45,7 +45,8 @@ class TagTemplateRegistry {
 	 *   supports_try     bool      Whether this template generates a try_ tag.
 	 *   hidden           bool      The generated try_ tag registers hidden (kept out of the
 	 *                    picker, still rendering): the base tag's own `hidden` registration,
-	 *                    repeated here because the two registrations are separate.
+	 *                    repeated here because the two registrations are separate. Every
+	 *                    try_ tag is hidden while the multi-attempt setting is off.
 	 *   leading_options       array    Global formatting options (as, size, the datetime format
 	 *                    cluster). The name is historical; the try_ constructor registers
 	 *                    them in canonical control order, i.e. after the attempts and their
@@ -288,17 +289,14 @@ class TagTemplateRegistry {
 			return;
 		}
 
-		// Snapshot existing tags for the dup-check inside the template loop.
-		//
-		// AXIS - A try_ TAG WHOSE NAME IS ALREADY TAKEN IS NOT REGISTERED: a fallback-chain
-		// tag is an extra over the base tag it is built from, so a name clash costs an
-		// affordance rather than an already-rendering page. The base tags overwrite instead
-		// - the asymmetry is deliberate and is explained at bws_gb_register_tag().
-		//
-		// AND THE YIELD IS REPORTED: bws_gb_note_tag_yielded() at the dup-check below. The whole registry is kept rather than its keys because the report
-		// names who holds the name.
+		// Read for each base tag's description below. A taken try_ name is not checked here:
+		// bws_gb_register_tag() owns what happens to one.
 		$existing_tags = \GenerateBlocks_Register_Dynamic_Tag::get_tags() ?? [];
-		$existing      = array_keys( $existing_tags );
+
+		// The multi-attempt setting decides whether the family is in the picker, never whether
+		// it is registered: GB replaces only a registered tag, so a stored {{try_…}} would print
+		// as literal braces. Unchecked, every try_ tag registers hidden.
+		$family_hidden = ! SettingsPage::is_modifier_enabled( 'try' );
 
 		foreach ( self::$modifier_templates as $tpl ) {
 			if ( empty( $tpl['supports_try'] ) ) {
@@ -306,16 +304,6 @@ class TagTemplateRegistry {
 			}
 
 			$tag_name = 'try_' . $tpl['key'];
-
-			if ( in_array( $tag_name, $existing, true ) ) {
-				bws_gb_note_tag_yielded( $tag_name, $existing_tags[ $tag_name ] ?? null );
-				continue;
-			}
-			$existing[] = $tag_name;
-
-			if ( ! SettingsPage::is_modifier_enabled( 'try' ) ) {
-				continue;
-			}
 
 			// The family's resolve seam is the one REQUIRED key (the gate below).
 			$resolve         = $tpl['resolve_fn'] ?? null;
@@ -567,7 +555,7 @@ class TagTemplateRegistry {
 			$base_description = (string) ( $existing_tags[ $tpl['key'] ]['description'] ?? '' );
 			$description      = '' === $base_description ? '' : self::TRY_DESCRIPTION_OPENING . ' ' . $base_description;
 
-			self::register_gb_tag( $title, $tag_name, 'first-available', $supports, $options, $callback, $visibility, $description, ! empty( $tpl['hidden'] ) );
+			self::register_gb_tag( $title, $tag_name, 'first-available', $supports, $options, $callback, $visibility, $description, $family_hidden || ! empty( $tpl['hidden'] ) );
 		}
 	}
 
@@ -624,10 +612,7 @@ class TagTemplateRegistry {
 			$args['hidden'] = true;
 		}
 		// THE plugin's one registration site is bws_gb_register_tag(), in
-		// includes/helpers/gb-registration-boundary.php. The try_ constructor reaches GB
-		// through it. It cannot hand it a taken name: it skips one at its dup-check
-		// (see the AXIS comment above), so every collision that function reports is
-		// a base-tag collision.
+		// includes/helpers/gb-registration-boundary.php; it owns what a taken name gets.
 		bws_gb_register_tag( $args );
 	}
 

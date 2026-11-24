@@ -99,14 +99,14 @@ echo "§O1 — the four states\n";
 $ours = decide( array( 'option_keys' => array( 'use', 'key' ) ) );
 check( 'O1.1 nothing contested and every key known — rewrite, reason `ours`', true === $ours['rewrite'] && 'ours' === $ours['reason'] );
 
-$yielded = decide( array( 'collisions' => record( 'term_title', 'yielded' ), 'option_keys' => array( 'use' ) ) );
-check( 'O1.2 a name we stood down from — refuse, reason `name_not_ours`', false === $yielded['rewrite'] && 'name_not_ours' === $yielded['reason'] );
+$lost = decide( array( 'collisions' => record( 'term_title', 'lost' ), 'option_keys' => array( 'use' ) ) );
+check( 'O1.2 a name TAKEN FROM US — refuse, reason `name_not_ours`', false === $lost['rewrite'] && 'name_not_ours' === $lost['reason'] );
 
 $foreign = decide( array( 'option_keys' => array( 'use', 'qe_mode' ) ) );
 check( 'O1.3 a key the target template does not accept — refuse, reason `unknown_options`', false === $foreign['rewrite'] && 'unknown_options' === $foreign['reason'] );
 check( 'O1.4 the refusal names the offending key, not every key', array( 'qe_mode' ) === $foreign['unknown_options'] );
 
-$claimed = decide( array( 'collisions' => record( 'term_title', 'yielded' ), 'opted_in' => array( 'term_title' ) ) );
+$claimed = decide( array( 'collisions' => record( 'term_title', 'lost' ), 'opted_in' => array( 'term_title' ) ) );
 check( 'O1.5 the owner claimed the name — rewrite, reason `opted_in`', true === $claimed['rewrite'] && 'opted_in' === $claimed['reason'] );
 
 // ---------------------------------------------------------------------------
@@ -117,14 +117,13 @@ echo "\n§O2 — the refusals are absolute, and the opt-in is the only override\
 // prove we own without an explicit per-name opt-in. Each pair below breaks one fact and
 // holds the rest innocent, so a failure names which half of the guard stopped working.
 
-$clean_wire = decide( array( 'collisions' => record( 'term_title', 'yielded' ), 'option_keys' => array( 'use', 'key' ) ) );
-check( 'O2.1 a yielded name refuses even when every option key is ours', false === $clean_wire['rewrite'] && 'name_not_ours' === $clean_wire['reason'] );
+$clean_wire = decide( array( 'collisions' => record( 'term_title', 'lost' ), 'option_keys' => array( 'use', 'key' ) ) );
+check( 'O2.1 a lost name refuses even when every option key is ours', false === $clean_wire['rewrite'] && 'name_not_ours' === $clean_wire['reason'] );
 
-$bare = decide( array( 'collisions' => record( 'term_title', 'yielded' ), 'option_keys' => array() ) );
-check( 'O2.2 a yielded name refuses even with no options at all', false === $bare['rewrite'] );
+$bare = decide( array( 'collisions' => record( 'term_title', 'lost' ), 'option_keys' => array() ) );
+check( 'O2.2 a lost name refuses even with no options at all', false === $bare['rewrite'] );
 
-$lost = decide( array( 'collisions' => record( 'term_title', 'lost' ), 'option_keys' => array( 'use' ) ) );
-check( 'O2.3 a name TAKEN FROM US refuses on the same reason as a name we yielded', false === $lost['rewrite'] && 'name_not_ours' === $lost['reason'] );
+// O2.3 RETIRED: once its comparison outcome was removed it only repeated O1.2.
 
 // 'kept' IS THE AXIS'S OTHER SIDE. We registered over a stranger, so our tag is the one
 // rendering now and the record is not evidence against us. The content may still predate
@@ -144,7 +143,7 @@ check( 'O2.5 …and is still caught by the vocabulary net when the wire is forei
 $net_alone = decide( array( 'option_keys' => array( 'src', 'use', 'key', 'fallback' ) ) );
 check( 'O2.6 a fully known wire authorizes nothing beyond `ours`', 'ours' === $net_alone['reason'] );
 
-$other_name = decide( array( 'collisions' => record( 'term_title', 'yielded' ), 'opted_in' => array( 'term_content' ) ) );
+$other_name = decide( array( 'collisions' => record( 'term_title', 'lost' ), 'opted_in' => array( 'term_content' ) ) );
 check( 'O2.7 the opt-in is PER NAME — claiming term_content does not release term_title', false === $other_name['rewrite'] && 'name_not_ours' === $other_name['reason'] );
 
 $optin_vocab = decide( array( 'option_keys' => array( 'qe_mode' ), 'opted_in' => array( 'term_title' ) ) );
@@ -188,13 +187,13 @@ check( 'O3.1 no known vocabulary refuses rather than waves through', false === $
 $nothing_at_all = decide( array( 'known_options' => array(), 'option_keys' => array() ) );
 check( 'O3.2 a bare tag with no vocabulary either way is decided by the record alone', true === $nothing_at_all['rewrite'] && 'ours' === $nothing_at_all['reason'] );
 
-$nothing_yielded = decide( array( 'collisions' => record( 'term_title', 'yielded' ), 'known_options' => array(), 'option_keys' => array() ) );
-check( 'O3.3 …and that record still refuses', false === $nothing_yielded['rewrite'] );
+$nothing_lost = decide( array( 'collisions' => record( 'term_title', 'lost' ), 'known_options' => array(), 'option_keys' => array() ) );
+check( 'O3.3 …and that record still refuses', false === $nothing_lost['rewrite'] );
 
 // A record about a DIFFERENT name says nothing about this one. The record is keyed by tag
 // name; reading it as "any collision anywhere" would refuse every migration on a site with
 // one contested tag.
-$unrelated = decide( array( 'collisions' => record( 'term_content', 'yielded' ), 'option_keys' => array( 'use' ) ) );
+$unrelated = decide( array( 'collisions' => record( 'term_content', 'lost' ), 'option_keys' => array( 'use' ) ) );
 check( 'O3.4 another name\'s collision does not refuse this one', true === $unrelated['rewrite'] && 'ours' === $unrelated['reason'] );
 
 // ---------------------------------------------------------------------------
