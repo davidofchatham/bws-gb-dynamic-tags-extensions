@@ -1003,8 +1003,8 @@ class SettingsPage {
 										value="1" <?php checked( self::is_modifier_enabled( 'try' ) ); ?> />
 								</td>
 								<td>
-									<label for="bws-modifier-try"><?php esc_html_e( 'Enable multi-attempt tags', 'generateblocks' ); ?></label>
-									<p class="description"><?php printf( /* translators: 1: an example multi-attempt tag name, 2: another example tag name. */ esc_html__( 'Multi-attempt tags (%1$s, %2$s, etc.) that return the first attempt with a value.', 'generateblocks' ), '<code>try_text</code>', '<code>try_image</code>' ); ?></p>
+									<label for="bws-modifier-try"><?php esc_html_e( 'Show multi-attempt tags in the tag picker', 'generateblocks' ); ?></label>
+									<p class="description"><?php printf( /* translators: 1: an example multi-attempt tag name, 2: another example tag name. */ esc_html__( 'Multi-attempt tags (%1$s, %2$s, etc.) return the first attempt with a value. Unchecked, they leave the tag picker, and tags already on your pages keep working.', 'generateblocks' ), '<code>try_text</code>', '<code>try_image</code>' ); ?></p>
 								</td>
 							</tr>
 						</tbody>

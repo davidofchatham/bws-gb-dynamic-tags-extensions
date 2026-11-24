@@ -429,7 +429,7 @@ future opt-in ("search past empty fields"), called by nothing shipped; the track
 
 In v1.6.0 the per-source×template matrix was removed from the admin settings page. Default-enabled state is now controlled at two levels:
 
-**Modifier group toggles** — `try_` has an on/off toggle in the admin settings page; disabling the group removes all its tags from the GB editor picker. It defaults to enabled, and a settings row that never mentioned the group reads it as enabled, which is what leaves an existing install rendering what it always rendered — the activation seed is the only place a new install is told apart from an untouched old one. `term_` had the second toggle until the family was removed in v1.21.0, and its history is in [`deprecated-tags-options.md` §The `term_` modifier family](deprecated-tags-options.md#the-term_-modifier-family-removed-in-v1210). An externally registered modifier group would not be surfaced in the toggle UI; none exists (the route is deprecated, see FW-129).
+**Modifier group toggles** — `try_` has an on/off toggle in the admin settings page; disabling the group removes all its tags from the GB editor picker. **[UNRELEASED: They stay registered, hidden, so tags already stored keep rendering.]** It defaults to enabled, and a settings row that never mentioned the group reads it as enabled, which is what leaves an existing install rendering what it always rendered — the activation seed is the only place a new install is told apart from an untouched old one. `term_` had the second toggle until the family was removed in v1.21.0, and its history is in [`deprecated-tags-options.md` §The `term_` modifier family](deprecated-tags-options.md#the-term_-modifier-family-removed-in-v1210). An externally registered modifier group would not be surfaced in the toggle UI; none exists (the route is deprecated, see FW-129).
 
 **Deprecated wrapper tags** — No setting governs whether a deprecated tag registers. Every deprecated tag but four has had its GB registration and runtime callbacks removed entirely. The four are `datetime_single`, `datetime_range`, `try_datetime_single` and `try_datetime_range` **[UNRELEASED]**: they stay registered, hidden from the picker, so stored content keeps rendering until the Migration Tool moves it to `{{datetime}}` and `try_datetime` (unregistering them is FW-192). The editor's mount rewrite only folds a stored tag's six old datetime options into one `key`: it never renames the tag, and on the two old `try_` tags it leaves that `key` tag-level instead of moving it into slot A, because those templates still read a tag-level `key`. Migration data (`MigrationRegistry` entries) and the admin Tag Converter / settings-page list stay intact for detection and migration of old content. The settings page lists the tags still in a deprecation window under Deprecated Tags, grouped by whether the Migration Tool can convert them. A tag's state in a deprecation window is its registered state (hidden, or not registered), not a site-owner setting.
 
@@ -580,48 +580,16 @@ callback already discarded.
 
 ## Tag name collisions
 
-GB's registrar is last-write-wins on a tag name, with no duplicate check and no notice (the GB
-fact: [`gb-constraints.md` §Duplicate tag names](gb-constraints.md#duplicate-tag-names-last-write-wins-silently)).
-Every tag this plugin registers goes through one function, `bws_gb_register_tag()`, and the two
-constructors do not answer a taken name the same way:
+GB's registrar is last-write-wins on a tag name, with no duplicate check and no notice (the GB fact: [`gb-constraints.md` §Duplicate tag names](gb-constraints.md#duplicate-tag-names-last-write-wins-silently)). Every tag this plugin registers goes through one function, `bws_gb_register_tag()`, and every one answers a name another plugin registered first the same way: registered OVER, and the collision reported. That covers the base tags, `{{join}}`, the tags registered in their own files (`{{email}}`, `{{phone}}`, `{{table}}`, `{{call}}`) and **[UNRELEASED: the `try_*` family, listed or hidden]**. Re-registering a name we already hold is not a collision.
 
-| Constructor | A name another plugin registered first |
-|---|---|
-| Every non-`try_` tag: `bws_register_base_tags()` (the base tags and `{{join}}`), plus the tags registered in their own files (`{{email}}`, `{{phone}}`, `{{table}}`, `{{call}}`) | Registered OVER, and the collision reported |
-| `TagTemplateRegistry::generate_base_try_tags()` (the `try_*` half) | Skipped; the first registrar keeps the name, and the skip is reported |
-
-A collision is detected three times, because it can go three ways and the DEVELOPER remedies differ:
+A collision is detected twice, because it can go two ways and the DEVELOPER remedies differ:
 
 | Detected | When | Recorded outcome |
 |---|---|---|
-| Something already held one of our base-tag names when our pass reached it | `bws_gb_register_tag()`, during registration | `kept` — we own the name, the other tag of that name does not render |
+| Something already held one of our names when our pass reached it | `bws_gb_register_tag()`, during registration | `kept` — we own the name, the other tag of that name does not render |
 | Something takes one of our names after our pass | `bws_gb_recheck_tag_ownership()`, once on `wp_loaded` | `lost` — every block already using our tag now renders through their callback |
-| Something already held a `try_*` name (or, before v1.21.0, a `term_*` one), so that constructor stood down | `bws_gb_note_tag_yielded()`, at the constructor's dup-check | `yielded` — no tag of ours by that name exists and nothing of ours renders under it |
 
-**A `yielded` outcome means this doc does not describe that tag on that site.** The tag simply is
-not there, so a page describing it — this one included — is describing something the reader cannot
-use. That is what makes it worth reporting rather than a silent non-event.
-
-**An outcome is this request's registration order, not the site's history**, and `yielded` is
-therefore silence about whether anything broke rather than proof that nothing did: a site that used
-`{{term_title}}` and then installed the other plugin records `yielded` on every request afterwards,
-while its author lived through the takeover `lost` describes. Nothing in the record separates the
-two — the evidence was the previous request's registry. The axis is stated at
-`bws_gb_tag_name_collisions()`.
-
-The report goes two ways for each: `_doing_it_wrong()` with a subject naming the situation and the
-tag, and a per-request record `bws_gb_tag_name_collisions()` hands back for any surface that wants
-to show it. The shipped surface for that record is the settings page's **Tag Name Conflicts**
-subsection, under Diagnostics. **It shows TWO states over these three outcomes**, because the
-remedies that separate them — rename a tag, move a registration off `init` priority 20 — are things
-only a plugin's own developer can do: `kept` reads as *this plugin's tag is active*, and `lost` and
-`yielded` both read as *another plugin's tag is active*, which is the whole of what a site owner can
-act on. The developer-facing `_doing_it_wrong()` notices keep all three. The subsection names the
-tag, the state, the OTHER PLUGIN (derived from the registrar's file, not the other tag's label) and
-that file. Why the constructors differ,
-what decides that a tag is still ours, when a report is repeated and when it is not, and which
-collision no detection can see are stated at
-[`gb-registration-boundary.php`](../includes/helpers/gb-registration-boundary.php) and nowhere else.
+The report goes two ways for each: `_doing_it_wrong()` with a subject naming the situation and the tag, and a per-request record `bws_gb_tag_name_collisions()` hands back for any surface that wants to show it. The shipped surface for that record is the settings page's **Tag Name Conflicts** subsection, under Diagnostics: `kept` reads as *this plugin's tag is active*, and `lost` as *another plugin's tag is active*. The subsection names the tag, the state, the OTHER PLUGIN (derived from the registrar's file, not the other tag's label) and that file. What decides that a tag is still ours, when a report is repeated and when it is not, and which collision no detection can see are stated at [`gb-registration-boundary.php`](../includes/helpers/gb-registration-boundary.php) and nowhere else.
 
 ---
 
