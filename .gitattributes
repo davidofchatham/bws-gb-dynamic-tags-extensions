@@ -1,0 +1,3 @@
+# Shell scripts must check out with LF: a fixture script runs inside WSL against the
+# wp-litespeed env, and a CRLF line ending rides into its commands as a stray carriage return.
+tools/fixtures/**/*.sh text eol=lf

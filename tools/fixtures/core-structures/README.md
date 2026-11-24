@@ -41,7 +41,7 @@ seed + verify clean, or coordinate a pin bump with them:
 
 | Consumer | Blueprint | Pins |
 |---|---|---|
-| the integrating plugin | its own fixture tree | v4+ |
+| the integrating plugin | `tools/fixtures/view-structures/` | v4+ |
 | meta-conductor | `tools/fixtures/mc-rules/` | v4+ |
 | bws-generate-layout-conditions | `tools/fixtures/layout-states/` | v4+ |
 | gb-query-filter (`query-filters`) | `tools/fixtures/query-filters/` | no pin |
