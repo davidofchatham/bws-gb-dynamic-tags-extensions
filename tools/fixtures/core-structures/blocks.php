@@ -2455,7 +2455,7 @@ function bws_fixture_page_content_matrix_datetime() {
 		bws_fixture_gb_row( 'D9.63 (= D7.6, pinned term) expect "Date TBA" (a real key, an empty term field)', "{{datetime_single src:term,{$warehouse_id}|key:event_date|fallback:Date TBA}}" ),
 		bws_fixture_gb_row( 'D9.64 (= D9.60, pinned term) expect "FB"', "{{datetime_range src:term,{$sales_id}|startKey:missing_a|endKey:missing_b|fallback:FB}}" ),
 		bws_fixture_gb_row( 'D9.65 (= control) expect "November 12, 2030" (the value wins, fallback idle)', "{{datetime src:term,{$sales_id}|key:event_date|fallback:Date TBA}}" ),
-		bws_fixture_gb_row( 'D9.66 (= new combination) expect "Date TBA" with NO link around it', "{{datetime src:post,{$meta_id}|key:missing_dt_field|fallback:Date TBA|linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'D9.66 (= new combination) expect "Date TBA" anchored to the page read (FW-191: one entity, so the fallback links)', "{{datetime src:post,{$meta_id}|key:missing_dt_field|fallback:Date TBA|linkTo:permalink}}" ),
 		bws_fixture_gb_empty_row( 'D9.67 (= new combination) expect EMPTY (no fallback stated)', "{{datetime src:post,{$meta_id}|key:missing_dt_field}}" ),
 	) );
 
@@ -2720,6 +2720,22 @@ function bws_fixture_page_content_matrix_links() {
 		bws_fixture_gb_row( 'LK.18 FAN of two (-> No nickname as PLAIN text: two staff posts read, so it belongs to neither)', "{{text src:refs,link_staff|limit:2|{$miss}|linkTo:permalink}}" ),
 		bws_fixture_gb_row( 'LK.19 repeater ROWS (-> No nickname as PLAIN text: a row has no URL)', "{{text src:post,{$meta_id};rows,team_members|{$miss}|linkTo:permalink}}" ),
 		bws_fixture_gb_row( 'LK.20 Link To a URL field the entity leaves empty (-> No nickname as PLAIN text: Fixture Root Entity has no profile_url)', "{{text src:post,{$root_id}|{$miss}|linkTo:key|linkKey:profile_url}}" ),
+	) );
+
+	// FW-191 ticket 03 (datetime-test-matrix.md D9.66): the same rule for the date tags. No
+	// entity carries `missing_dt_field`, so every row prints its stated fallback.
+	$dmiss      = 'key:missing_dt_field|fallback:Date TBA';
+	$sections[] = bws_fixture_gb_section( 'Links LK - a stated DATE fallback links to the ONE entity read, else prints plain (FW-191)', array(
+		bws_fixture_gb_row( 'LK.21 datetime PINNED post (-> Date TBA anchored to /matrix-post-meta/)', "{{datetime src:post,{$meta_id}|{$dmiss}|linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'LK.22 datetime PINNED term (-> Date TBA anchored to /department/sales/)', "{{datetime src:term,{$sales_id}|{$dmiss}|linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'LK.23 datetime RELATED post, one read (-> Date TBA anchored to /staff/jane-partner/)', "{{datetime src:refs,link_staff|limit:1|{$dmiss}|linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'LK.24 datetime NO src, this page (-> Date TBA anchored to /matrix-links/)', "{{datetime {$dmiss}|linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'LK.25 datetime src:site (-> Date TBA anchored to the home page)', "{{datetime src:site|{$dmiss}|linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'LK.26 datetime FAN of two (-> Date TBA as PLAIN text: two staff posts read, so it belongs to neither)', "{{datetime src:refs,link_staff|limit:2|{$dmiss}|linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'LK.27 datetime repeater ROWS (-> Date TBA as PLAIN text: a row has no URL)', "{{datetime src:post,{$meta_id};rows,team_members|{$dmiss}|linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'LK.28 datetime_single PINNED post (-> the twin of LK.21: Date TBA anchored to /matrix-post-meta/)', "{{datetime_single src:post,{$meta_id}|{$dmiss}|linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'LK.29 datetime_range PINNED post (-> FB anchored to /matrix-post-meta/)', "{{datetime_range src:post,{$meta_id}|startKey:missing_a|endKey:missing_b|fallback:FB|linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'LK.30 datetime reading ONLY now, no source (-> the current year as PLAIN text: it reads no entity)', "{{datetime use:now|as:date|format:Y|showCurrentYear|linkTo:permalink}}" ),
 	) );
 
 	return implode( "\n\n", $sections );

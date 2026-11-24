@@ -62,6 +62,10 @@ return array(
 	// The date the baseline under `tools/test/snapshots/` was captured. Prose only —
 	// nothing compares it; it is here so a reader can place the record in time.
 	//
+	// 2026-11-24 (later): a FIXTURE MOVE, re-captured. Blueprint v52 adds LK.21 to LK.30 to `/matrix-links/` and
+	// relabels D9.66 on `/matrix-datetime/`, whose fallback now links: the only two pages that moved. No dependency
+	// or active plugin changed.
+	//
 	// 2026-11-24: a FIXTURE MOVE, re-captured. Blueprint v51 adds LK.11 to LK.20 to `/matrix-links/`,
 	// the only page that moved; no dependency or active plugin changed.
 	//
