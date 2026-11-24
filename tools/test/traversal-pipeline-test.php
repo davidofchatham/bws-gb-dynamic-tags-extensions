@@ -1308,6 +1308,18 @@ $r = $cv(
 eq( 'FW191 identity count is not the value gate: values still wrap per item', '<a href="/post/1">A</a>, <a href="/post/2">B</a>', $r['value'] );
 eq( 'FW191 …though the read set has no sole identity', null, bws_sole_link_identity( $r['read_identities'] ) );
 
+// A resolver's EMPTY return reports what it read: a list arm's fold set, else the
+// singular/site/ambient triple's own identity, else nothing. A value leaves it untouched.
+$triple = static fn( string $v, int $id, string $kind = 'post' ): array => array( 'value' => $v, 'link_id' => $id, 'link_type' => $kind );
+eq( 'FW191 resolver value -> return unchanged', $triple( 'X', 9 ), bws_with_read_identities( $triple( 'X', 9 ) ) );
+eq( 'FW191 resolver value -> list set ignored', $triple( 'X', 0 ), bws_with_read_identities( $triple( 'X', 0 ), array( array( 'kind' => 'post', 'id' => 1 ) ) ) );
+eq( 'FW191 empty singular -> its entity', array( array( 'kind' => 'post', 'id' => 9 ) ), bws_with_read_identities( $triple( '', 9 ) )['read_identities'] );
+eq( 'FW191 empty site -> the sentinel', array( array( 'kind' => 'site', 'id' => 1 ) ), bws_with_read_identities( $triple( '', 1, 'site' ) )['read_identities'] );
+eq( 'FW191 empty, no entity -> none', array(), bws_with_read_identities( $triple( '', 0 ) )['read_identities'] );
+$two = array( array( 'kind' => 'term', 'id' => 3 ), array( 'kind' => 'term', 'id' => 5 ) );
+eq( 'FW191 empty list arm -> the fold set', $two, bws_with_read_identities( $triple( '', 0 ), $two )['read_identities'] );
+eq( 'FW191 empty list arm, nothing read -> none', array(), bws_with_read_identities( $triple( '', 0 ), array() )['read_identities'] );
+
 // ── FW-49 — bws_source_link_identity (resolved source → link identity) ───────
 //
 // Pure mapper (field-helpers.php): {kind,id} for post|term|user (id>0), site

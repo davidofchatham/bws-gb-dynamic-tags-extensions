@@ -2696,6 +2696,32 @@ function bws_fixture_page_content_matrix_links() {
 		bws_fixture_gb_row( 'LK.10 try_ twin of LK.9: a fanning ATTEMPT links each whole range to ITS OWN post (-> byte for byte what LK.9 prints; was the two ranges joined and unlinked)', '{{try_datetime_range A:src(refs,link_staff)|startKey:event_datetime|endKey:event_end_datetime|linkTo:permalink}}' ),
 	) );
 
+	// FW-191 (text matrix §T11): the STATED FALLBACK links when the read reached exactly one
+	// entity, and prints plain otherwise. No staff post, term or site option carries
+	// `nickname`, so every row below prints its fallback. {{title}} has no rows: it states
+	// no fallback.
+	$jane_id  = function_exists( 'bws_fixture_seeded_post_id' ) ? bws_fixture_seeded_post_id( 'jane-partner', 'staff' ) : false;
+	$root_id  = function_exists( 'bws_fixture_seeded_post_id' ) ? bws_fixture_seeded_post_id( 'fixture-root', 'staff' ) : false;
+	$meta_id  = function_exists( 'bws_fixture_seeded_post_id' ) ? bws_fixture_seeded_post_id( 'matrix-post-meta', 'page' ) : false;
+	$sales_id = function_exists( 'bws_fixture_seeded_term_id' ) ? bws_fixture_seeded_term_id( 'sales', 'department' ) : false;
+	if ( ! $jane_id || ! $root_id || ! $meta_id || ! $sales_id ) {
+		$sections[] = bws_fixture_gb_text_block( 'FALLBACK-LINK FIXTURE ERROR: jane-partner, fixture-root, matrix-post-meta or the sales term was not found. Reseed staff + pages + terms before this page.', 'fw191-fixture-error' );
+		return implode( "\n\n", $sections );
+	}
+	$miss = 'use:key|key:nickname|fallback:No nickname';
+	$sections[] = bws_fixture_gb_section( 'Links LK - a stated fallback links to the ONE entity read, else prints plain (FW-191)', array(
+		bws_fixture_gb_row( 'LK.11 PINNED post (-> No nickname anchored to /staff/jane-partner/)', "{{text src:post,{$jane_id}|{$miss}|linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'LK.12 PINNED term (-> No nickname anchored to /department/sales/)', "{{text src:term,{$sales_id}|{$miss}|linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'LK.13 RELATED post, one read (-> No nickname anchored to /staff/jane-partner/)', "{{text src:refs,link_staff|limit:1|{$miss}|linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'LK.14 srcTermIn, one term read (-> No nickname anchored to /department/sales/)', "{{text src:refs,link_term_host|srcTermIn:department|limit:1|{$miss}|linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'LK.15 NO src, this page (-> No nickname anchored to /matrix-links/)', "{{text {$miss}|linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'LK.16 src:site (-> No nickname anchored to the home page)', "{{text src:site|{$miss}|linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'LK.17 newTab applies (-> No nickname anchored to /staff/jane-partner/, opening in a new tab)', "{{text src:post,{$jane_id}|{$miss}|linkTo:permalink|newTab:true}}" ),
+		bws_fixture_gb_row( 'LK.18 FAN of two (-> No nickname as PLAIN text: two staff posts read, so it belongs to neither)', "{{text src:refs,link_staff|limit:2|{$miss}|linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'LK.19 repeater ROWS (-> No nickname as PLAIN text: a row has no URL)', "{{text src:post,{$meta_id};rows,team_members|{$miss}|linkTo:permalink}}" ),
+		bws_fixture_gb_row( 'LK.20 Link To a URL field the entity leaves empty (-> No nickname as PLAIN text: Fixture Root Entity has no profile_url)', "{{text src:post,{$root_id}|{$miss}|linkTo:key|linkKey:profile_url}}" ),
+	) );
+
 	return implode( "\n\n", $sections );
 }
 

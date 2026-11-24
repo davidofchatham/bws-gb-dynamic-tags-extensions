@@ -207,6 +207,10 @@ Verified 2026-08-29 via `render-tag`. The `try_` half lives in `fold-test-matrix
 | T11.3 | LK.2 — post list, `linkTo:permalink` | each post is an anchor to ITS OWN permalink; three posts, three different permalinks |
 | T11.4 | LK.3 — the same three posts, `linkTo:key\|linkKey:profile_url` | each value carries the URL stored on ITS OWN entity. The stored URLs are deliberately not permalinks, so this row and T11.3 print the same three names and differ only in the hrefs — which is what a key-mode read falling back to the permalink route would fail |
 | T11.5 | LK.4 — the mixed list | exactly one member has no stored URL and prints as PLAIN TEXT between two anchors. One unresolvable value costs its own link and no sibling's |
+| T11.6 | LK.11 to LK.17 — the stated fallback, one entity read (FW-191) | the fallback is an anchor to THE entity read: the pinned post, the pinned term, the one related post, the one `srcTermIn` term, this page (no `src`), the home page (`src:site`); LK.17 carries `target="_blank"` |
+| T11.7 | LK.18 to LK.20 — the stated fallback, no sole entity (FW-191) | the fallback prints PLAIN: two posts read (LK.18), repeater rows (LK.19), a `linkTo:key` field empty on the one entity read (LK.20) |
+
+Verified 2026-11-24 by curl of the page and `render-tag`.
 
 The page carries two more rows, LK.5 and LK.6, which are the `try_title` twins of LK.2 and LK.4 and belong to a different change — they are [`fold-test-matrix.md`](fold-test-matrix.md) §F9b F9b.4b/F9b.4c, and what they assert is stated there.
 

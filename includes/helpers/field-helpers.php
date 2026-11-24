@@ -1128,6 +1128,31 @@ function bws_sole_link_identity( array $identities ): ?array {
 }
 
 /**
+ * Attach to a resolver's EMPTY return the link identities its read reached (PURE).
+ *
+ * The set bws_sole_link_identity() reduces when the caller emits a stated fallback.
+ * A list arm passes its fold's `read_identities`; every other arm (singular, site,
+ * ambient, refused) is its own triple's identity, or none when `link_id` is 0. A
+ * non-empty value is returned untouched: only a fallback asks where the read landed.
+ *
+ * @since Unreleased
+ * @param array{value:string, link_id:int, link_type:string} $resolved A resolver triple.
+ * @param array<int, array{kind:string, id:int}>|null          $list     A list arm's fold set; null → not a list arm.
+ * @return array The triple, plus `read_identities` when its value is ''.
+ */
+if ( ! function_exists( 'bws_with_read_identities' ) ) {
+function bws_with_read_identities( array $resolved, ?array $list = null ): array {
+	if ( '' !== (string) $resolved['value'] ) {
+		return $resolved;
+	}
+	$resolved['read_identities'] = $list ?? ( (int) $resolved['link_id'] > 0
+		? array( array( 'kind' => (string) $resolved['link_type'], 'id' => (int) $resolved['link_id'] ) )
+		: array() );
+	return $resolved;
+}
+}
+
+/**
  * THE single interpreter of a `limit` option value (list mode).
  *
  * One rule shared by every call site, so that "unset", "0" and "garbage" cannot

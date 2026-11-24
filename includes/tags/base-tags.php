@@ -575,9 +575,10 @@ function bws_register_base_tags(): void {
  *
  * @param array $options  Tag options.
  * @param mixed $instance GB tag instance.
- * @return array{value:string, link_id:int, link_type:string} link_id 0 = the
- *                        caller must not link-wrap: either there is no entity, or the
- *                        value came from a list arm that already wrapped per item.
+ * @return array{value:string, link_id:int, link_type:string, read_identities?:array} link_id
+ *                        0 = the caller must not link-wrap the VALUE: either there is no
+ *                        entity, or a list arm already wrapped per item. An empty value
+ *                        also carries `read_identities` (bws_with_read_identities()).
  */
 function bws_base_text_resolve_value( array $options, $instance ): array {
 	// A datetime-shaped `key` reads its first field only (bws_text_first_read_options()).
@@ -590,28 +591,29 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 
 	// Site read — no entity; site value with sentinel link identity (id 1, 'site' type).
 	if ( 'site' === $res['kind'] ) {
-		return array(
+		return bws_with_read_identities( array(
 			'value'     => bws_site_resolve_value( 'text', $options, $instance ),
 			'link_id'   => 1,
 			'link_type' => 'site',
-		);
+		) );
 	}
 
 	// REFUSED — read nothing. The empty triple IS the empty path (the callback then runs
 	// preview label or fallback). Covers {{join}} slots too: the field drops out of the
 	// composite rather than taking the current entry's value.
 	if ( $read['refused'] ) {
-		return array( 'value' => '', 'link_id' => 0, 'link_type' => 'post' );
+		return bws_with_read_identities( array( 'value' => '', 'link_id' => 0, 'link_type' => 'post' ) );
 	}
 
 	// Ambient dispatch (term/author/query-context archive); its triple IS this arm's return shape.
 	if ( null !== $read['ambient'] ) {
-		return $read['ambient'];
+		return bws_with_read_identities( $read['ambient'] );
 	}
 	// The singular collapse is deferred into the singular arm: list branches run their
 	// own traversal, and computing it here would run the chain twice.
 	$link_id   = 0;
 	$link_type = 'post';
+	$read_set  = null;
 
 	// List branches ride bws_collect_value_list (slice/drop/per-item link wrap/join), so
 	// they leave link_id 0 — already wrapped. Per-item reads get 'fallback' unset: it
@@ -629,7 +631,8 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 			},
 			$options
 		);
-		$value = $collected['value'];
+		$value    = $collected['value'];
+		$read_set = $collected['read_identities'];
 	} elseif ( 'post' === $res['kind'] ) {
 		// Post LIST mode: EVERY fanned-out target. Honors `sep` and any stored `limit`.
 		$post_ids  = bws_base_post_ids_from_source( $base, $options );
@@ -643,7 +646,8 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 			},
 			$options
 		);
-		$value = $collected['value'];
+		$value    = $collected['value'];
+		$read_set = $collected['read_identities'];
 	} elseif ( 'meta_row' === $res['kind'] ) {
 		// REPEATER-ROW LIST: reads SOURCES, not ids (a row has no id).
 		//
@@ -659,7 +663,8 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 			static fn( $row_source, array $item_opts ) => bws_try_text_row_dispatch( $row_source, $item_opts, $instance ),
 			$options
 		);
-		$value = $collected['value'];
+		$value    = $collected['value'];
+		$read_set = $collected['read_identities'];
 	} else {
 		$post_id   = bws_base_post_id_from_source( $base, $options );
 		$value     = bws_try_text_post_dispatch( $post_id, $options, $instance );
@@ -667,10 +672,13 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 		$link_type = 'post';
 	}
 
-	return array(
-		'value'     => $value,
-		'link_id'   => $link_id,
-		'link_type' => $link_type,
+	return bws_with_read_identities(
+		array(
+			'value'     => $value,
+			'link_id'   => $link_id,
+			'link_type' => $link_type,
+		),
+		$read_set
 	);
 }
 
@@ -679,7 +687,7 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
  *
  * Shell over bws_base_text_resolve_value(): link-wrap singular results (list arms
  * wrap per item, link_id 0), then on empty output the preview label (editor) or the
- * fallback (front end).
+ * fallback (front end), linked when the read reached one entity (bws_sole_link_identity()).
  *
  * The fallback fires HERE, once, on all-empty output. Singular cores also emit it,
  * so this path fires for them only when the core produced nothing — inert either way.
@@ -690,35 +698,43 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
  * @since 1.6.0
  * @since 1.14.1 Value resolution extracted to bws_base_text_resolve_value().
  * @since 1.16.0 All-empty fallback path.
+ * @since Unreleased The fallback links to the sole entity read (FW-191).
  */
 function bws_base_text_callback( $options, $block, $instance ): string {
 	$options    = bws_host_unlinked_options( $options, $block );
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
-	$resolved = bws_base_text_resolve_value( $options, $instance );
-	$value    = $resolved['value'];
+	$resolved  = bws_base_text_resolve_value( $options, $instance );
+	$value     = $resolved['value'];
+	$link_id   = (int) $resolved['link_id'];
+	$link_type = (string) $resolved['link_type'];
 
-	if ( '' !== $value ) {
-		if ( $resolved['link_id'] && function_exists( 'bws_wrap_with_link' ) ) {
-			$value = bws_wrap_with_link(
-				$value,
-				$options['linkTo'] ?? 'none',
-				$options['linkKey'] ?? '',
-				bws_flag_is_on( $options, 'newTab' ),
-				$resolved['link_id'],
-				$resolved['link_type']
-			);
+	if ( '' === $value ) {
+		if ( $is_preview && function_exists( 'bws_build_preview_label' ) ) {
+			return bws_build_preview_label( $options, 'text' );
 		}
-		return $value;
+		// All-empty: the stated fallback, linked to the sole entity the read reached, or
+		// plain when there is none (bws_sole_link_identity() owns the rule).
+		$value     = bws_base_stated_fallback( $options, $instance );
+		$sole      = bws_sole_link_identity( $resolved['read_identities'] ?? array() );
+		$link_id   = $sole ? $sole['id'] : 0;
+		$link_type = $sole ? $sole['kind'] : 'post';
+		if ( '' === $value ) {
+			return '';
+		}
 	}
 
-	if ( $is_preview && function_exists( 'bws_build_preview_label' ) ) {
-		return bws_build_preview_label( $options, 'text' );
+	if ( $link_id && function_exists( 'bws_wrap_with_link' ) ) {
+		$value = bws_wrap_with_link(
+			$value,
+			$options['linkTo'] ?? 'none',
+			$options['linkKey'] ?? '',
+			bws_flag_is_on( $options, 'newTab' ),
+			$link_id,
+			$link_type
+		);
 	}
-
-	// All slots empty — apply the fallback. Never link-wrapped: it is not a
-	// resolved entity's value, so there is no entity to link to.
-	return bws_base_stated_fallback( $options, $instance );
+	return $value;
 }
 
 /**
@@ -1078,9 +1094,11 @@ function bws_base_content_callback( $options, $block, $instance ): string {
  *
  * @param array $options  Tag options.
  * @param mixed $instance GB tag instance.
- * @return array{value:string, link_id:int, link_type:string} link_id 0 = the caller must
- *                        not link-wrap: either there is no entity, or the value came from
- *                        a list arm that already wrapped per item.
+ * @return array{value:string, link_id:int, link_type:string, read_identities?:array} link_id
+ *                        0 = the caller must not link-wrap the VALUE: either there is no
+ *                        entity, or a list arm already wrapped per item. An empty value
+ *                        also carries `read_identities` (bws_with_read_identities()), as
+ *                        every resolve seam does; {{title}} itself states no fallback.
  */
 function bws_base_title_resolve_value( array $options, $instance ): array {
 	$read = bws_base_read_source( $options, $instance, array(), 'title' );
@@ -1090,28 +1108,29 @@ function bws_base_title_resolve_value( array $options, $instance ): array {
 	// Site read — title base tag has no `use`; resolver returns site name. Sentinel
 	// link identity (id 1, 'site' type), the same pair the text seam reports.
 	if ( 'site' === $res['kind'] ) {
-		return array(
+		return bws_with_read_identities( array(
 			'value'     => bws_site_resolve_value( 'title', $options, $instance ),
 			'link_id'   => 1,
 			'link_type' => 'site',
-		);
+		) );
 	}
 
 	// REFUSED (GH #75/#76/#109) — read nothing. The empty triple IS this arm's own empty
 	// path: {{title}} registers no `fallback` option, so the shell's whole empty path is
 	// the preview label and a refusal takes it exactly as a read that found nothing does.
 	if ( $read['refused'] ) {
-		return array( 'value' => '', 'link_id' => 0, 'link_type' => 'post' );
+		return bws_with_read_identities( array( 'value' => '', 'link_id' => 0, 'link_type' => 'post' ) );
 	}
 
 	// Ambient dispatch; the seam's triple IS this arm's return shape (term and user both
 	// link-wrap on the derived identity).
 	if ( null !== $read['ambient'] ) {
-		return $read['ambient'];
+		return bws_with_read_identities( $read['ambient'] );
 	}
 	// Singular collapse deferred into the singular arm (list branches traverse themselves).
 	$link_id   = 0;
 	$link_type = 'post';
+	$read_set  = null;
 
 	// List branches ride bws_collect_value_list. Fallback suppression is inert here
 	// (title cores never read 'fallback').
@@ -1126,7 +1145,8 @@ function bws_base_title_resolve_value( array $options, $instance ): array {
 			},
 			$options
 		);
-		$value = $collected['value'];
+		$value    = $collected['value'];
+		$read_set = $collected['read_identities'];
 	} elseif ( 'post' === $res['kind'] ) {
 		// Post LIST mode: EVERY fanned-out target, honoring limit/sep.
 		$post_ids  = bws_base_post_ids_from_source( $base, $options );
@@ -1140,7 +1160,8 @@ function bws_base_title_resolve_value( array $options, $instance ): array {
 			},
 			$options
 		);
-		$value = $collected['value'];
+		$value    = $collected['value'];
+		$read_set = $collected['read_identities'];
 	} else {
 		$post_id   = bws_base_post_id_from_source( $base, $options );
 		$value     = bws_post_title_core( $post_id, $options, $instance );
@@ -1148,10 +1169,13 @@ function bws_base_title_resolve_value( array $options, $instance ): array {
 		$link_type = 'post';
 	}
 
-	return array(
-		'value'     => $value,
-		'link_id'   => $link_id,
-		'link_type' => $link_type,
+	return bws_with_read_identities(
+		array(
+			'value'     => $value,
+			'link_id'   => $link_id,
+			'link_type' => $link_type,
+		),
+		$read_set
 	);
 }
 
