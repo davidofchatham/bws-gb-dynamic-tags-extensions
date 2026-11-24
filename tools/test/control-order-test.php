@@ -97,7 +97,7 @@ if ( ! function_exists( '_doing_it_wrong' ) ) {
 /**
  * Capturing stand-in for GB's registrar. Registration is the whole subject here, so the
  * stub keeps every tag's option array in declaration order and answers get_tags() from
- * the same store (the try_ constructor reads it for its own dup-check).
+ * the same store (the boundary reads it to detect a taken name).
  */
 class GenerateBlocks_Register_Dynamic_Tag {
 	public static array $tags = array();
