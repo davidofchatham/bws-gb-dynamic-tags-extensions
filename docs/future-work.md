@@ -123,15 +123,15 @@ Open: Whether to take Door and Constant alone; the Assembler waits for a tag fam
 
 Blocked by: —  •  Interacts with: FW-112 (closed), FW-115
 
-#### FW-114 — Fold-grammar PHP↔JS twin checks the wrong constant for `chainRoot`
+#### FW-114 — Fold-grammar PHP↔JS twin leaves `slotKeyRe` and `chainFanningSteps` uncompared
 
-`bws_fold_chain_root()` (PHP) derives its answer from `BWS_FOLD_STEP_TYPES` (`slot-fold-compile.php:80-84`), but the twin test (`slot-fold-twin-test.php`) instead asserts a *different*, redundant PHP constant — `BWS_FOLD_FANNING_SLUGS` (`slot-fold.php:121`) — against JS's `FANNING_SLUGS`. All three currently hold `{refs, terms, rows}`, so the check passes today, but it proves nothing about the constant `chainRoot` actually reads: a slug added to `BWS_FOLD_STEP_TYPES` alone, with no new twin-corpus case, would diverge PHP/JS silently. `slotKeyRe` is exported by the JS grammar (`slot-fold-grammar.js:865`) but never compared; `chainFanningSteps` has no comparison axis at all.
+Two axes of the grammar twin (`slot-fold-twin-test.php`) still have no comparison. `slotKeyRe` is exported by the JS grammar (`grammar.slotKeyRe`, `slot-fold-grammar.js:909`) but neither twin driver emits it, so `BWS_FOLD_SLOT_KEY_RE` (`slot-fold.php:148`) and `SLOT_KEY_RE` agree by inspection only. `chainFanningSteps` (JS) and `bws_fold_chain_fanning_steps()` (PHP, `slot-fold.php:1108`) have no comparison axis at all, and the predicate chooses the limit control's two help forms and what the migrator stamps, so an editor-only divergence in the argless-step rule is invisible. The third gap this item opened with — `chainRoot` answering off a constant the twin did not compare — closed with FW-169.
 
 Detail home: `.scratch/plans/architecture-review-2026-08.md` §FW-114
 
-Progress: Verified 2026-09-02 — latent, not live: today's corpus slugs are covered by all three declarations, so no test currently fails. `chainRoot`'s OWN output is corpus-compared and passes; it is the constant-identity check that is misdirected. (Was bundled with the serialization-order twin and the `show_if` DSL gap under one item; split 2026-09-02 into FW-117/FW-118 — different harnesses, different fix shapes.)
+Progress: Re-checked 2026-11-24 against the tree (`slot-fold-twin-test.php` 452 passed). The `chainRoot` constant gap is closed: FW-169 (`7b2a7cf`, the `parent` step) added `STEP_SLUGS` to the JS grammar, `chainRoot` now reads it, and both twin drivers emit `stepSlugs` (PHP off `array_keys( BWS_FOLD_STEP_TYPES )`), which the grammar-surface diff compares. `BWS_FOLD_FANNING_SLUGS` is no longer redundant: it is `{refs, terms, rows}` while the step set also holds `parent`, so it answers which steps fan, not which are steps. `slotKeyRe` and `chainFanningSteps` are unchanged: still uncompared. (Earlier history: verified 2026-09-02 as latent; split 2026-09-02 from the serialization-order twin and the `show_if` DSL gap into FW-117/FW-118 — different harnesses, different fix shapes.)
 
-Open: Fix shape — delete the redundant `BWS_FOLD_FANNING_SLUGS` constant and have the twin compare JS `FANNING_SLUGS` directly against `BWS_FOLD_STEP_TYPES`'s keys (collapses 3 declarations to 2 genuinely-compared ones, rather than adding a 4th declaration asserting the other two agree). Add `slotKeyRe` and `chainFanningSteps` as new comparison axes in the same pass.
+Open: Fix shape — add `slotKeyRe` to both drivers' grammar blocks (PHP side strips the `/…/` delimiters from `BWS_FOLD_SLOT_KEY_RE` to match JS `.source`), and add a corpus-driven `chainFanningSteps` axis: run it per `chains` case on both sides and compare the index lists. The earlier "delete `BWS_FOLD_FANNING_SLUGS`" shape is withdrawn, since `parent` made the two sets differ by design.
 
 Blocked by: —  •  Interacts with: FW-115 (both are "two languages agree by convention"), FW-117, FW-118 (split siblings)
 
