@@ -137,7 +137,7 @@ const BWS_GB_PASSTHROUGH_TAG_OPTIONS = array( 'required' );
  *
  * INVARIANT — THE CONVERTER NEVER REWRITES A TAG NAME WE CANNOT PROVE WE OWN WITHOUT AN
  * EXPLICIT PER-NAME OPT-IN. Both refusals below are absolute against every other fact: a
- * yielded name stays unrewritten whatever its options look like, and unknown vocabulary is
+ * name another plugin holds stays unrewritten whatever its options look like, and unknown vocabulary is
  * never lifted by the name looking clean. Only a name in $opted_in overrides either.
  *
  * PURE, AND THAT IS THE POINT. Every fact arrives as an argument — no WordPress, no GB
@@ -146,23 +146,21 @@ const BWS_GB_PASSTHROUGH_TAG_OPTIONS = array( 'required' );
  * bws_converter_rewrite_allowed() below is the thin WordPress-side half that gathers them.
  *
  * AXIS — A NAME IS NOT OURS IFF ANOTHER PLUGIN'S CODE ANSWERS FOR IT, BY EITHER WITNESS. The
- * collision record says it for a name we TRIED to register: 'lost' and 'yielded' together,
- * and 'kept' deliberately excluded. The live registry says it for ANY name
+ * collision record says it for a name we TRIED to register: 'lost', with 'kept' deliberately
+ * excluded. The live registry says it for ANY name
  * (`$held_by_other`, decided by bws_gb_tag_held_by_other()), which is the only witness for a
  * name we no longer register at all: a retired tag has no registration to collide, so the
  * record is silent about it however plainly a co-resident plugin holds the name. Neither
  * witness sees a plugin that is not active now, so strings written for a since-deactivated
- * plugin's tag look ours. The record
- * keeps the three apart because the DEVELOPER remedies differ (see
- * bws_gb_tag_name_collisions()), and the settings page already collapses them on the same
- * line this does — but the question here is neither of theirs. It is "could these strings
- * have been authored against somebody else's tag", and 'lost' and 'yielded' both mean yes.
+ * plugin's tag look ours. The question here is "could these strings have been authored
+ * against somebody else's tag", and either witness means yes.
  *
  * 'kept' MEANS WE REGISTERED OVER A STRANGER, so our tag is the one rendering now — and the
  * content may still predate us. That case has no record to catch it, which is exactly what
  * the vocabulary net below is for.
  *
- * THE YIELD RECORD MEANS "WE CANNOT PROVE THESE STRINGS ARE OURS", NOT "THEY ARE NOT OURS".
+ * A NAME ANOTHER PLUGIN HOLDS MEANS "WE CANNOT PROVE THESE STRINGS ARE OURS", NOT "THEY ARE
+ * NOT OURS".
  * The site this guard was built for is exactly that case: the strings are ours, the other
  * plugin arrived later, and only the owner knows it. Which is why refusing is not the end
  * of the interaction — declining outright would leave that owner a report and no button.
@@ -201,7 +199,7 @@ function bws_converter_tag_ownership(
 	$unknown = array_values( array_diff( $option_keys, $known_options ) );
 
 	$refusal = '';
-	if ( 'lost' === $outcome || 'yielded' === $outcome || $held_by_other ) {
+	if ( 'lost' === $outcome || $held_by_other ) {
 		$refusal = 'name_not_ours';
 	} elseif ( $unknown ) {
 		$refusal = 'unknown_options';

@@ -38,8 +38,8 @@ if ( ! function_exists( 'apply_filters' ) ) {
 // control-order-test.php; here it is only the fact the guard reads.
 function bws_gb_tag_name_collisions(): array {
 	return array(
-		'ms_held'      => array( 'tag' => 'ms_held', 'outcome' => 'yielded', 'title' => '' ),
-		'ms_held_drop' => array( 'tag' => 'ms_held_drop', 'outcome' => 'yielded', 'title' => '' ),
+		'ms_held'      => array( 'tag' => 'ms_held', 'outcome' => 'lost', 'title' => '' ),
+		'ms_held_drop' => array( 'tag' => 'ms_held_drop', 'outcome' => 'lost', 'title' => '' ),
 	);
 }
 

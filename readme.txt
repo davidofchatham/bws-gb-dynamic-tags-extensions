@@ -11,6 +11,9 @@ Tags reimagined. See README.md for overview and CHANGELOG.md for version history
 
 == Upgrade Notice ==
 
+= Unreleased =
+If you unchecked the multi-attempt tags setting, try_ tags already in your content render again instead of printing as literal text; the setting now only hides them from the tag picker. A try_ tag name another plugin also registers now belongs to this plugin, and the conflict is listed on the settings page.
+
 = 1.23.0 =
 ⚠ For developers: ten unused methods are removed from SourceInterface and AbstractSource. Custom code that calls one on a source that does not override it now causes a fatal error; delete the call. The changelog lists them. Sites with no custom integration code are unaffected.
 

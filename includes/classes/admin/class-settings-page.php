@@ -1003,8 +1003,8 @@ class SettingsPage {
 										value="1" <?php checked( self::is_modifier_enabled( 'try' ) ); ?> />
 								</td>
 								<td>
-									<label for="bws-modifier-try"><?php esc_html_e( 'Enable multi-attempt tags', 'generateblocks' ); ?></label>
-									<p class="description"><?php printf( /* translators: 1: an example multi-attempt tag name, 2: another example tag name. */ esc_html__( 'Multi-attempt tags (%1$s, %2$s, etc.) that return the first attempt with a value.', 'generateblocks' ), '<code>try_text</code>', '<code>try_image</code>' ); ?></p>
+									<label for="bws-modifier-try"><?php esc_html_e( 'Show multi-attempt tags in the tag picker', 'generateblocks' ); ?></label>
+									<p class="description"><?php printf( /* translators: 1: an example multi-attempt tag name, 2: another example tag name. */ esc_html__( 'Multi-attempt tags (%1$s, %2$s, etc.) return the first attempt with a value. If unchecked, they are hidden from the tag picker, but any tags already on your pages keep working.', 'generateblocks' ), '<code>try_text</code>', '<code>try_image</code>' ); ?></p>
 								</td>
 							</tr>
 						</tbody>
@@ -1325,27 +1325,20 @@ function my_result( $post_id, $arg = '' ) {
 					?>
 					<h3 class="bws-subhead" id="bws-tag-name-conflicts"><?php esc_html_e( 'Tag Name Conflicts', 'generateblocks' ); ?></h3>
 					<?php
-					// TWO USER-FACING STATES OVER THE RECORD'S THREE OUTCOMES, and the map from one
-					// to the other lives HERE, at the only surface that collapses them. The record
-					// keeps 'kept' / 'lost' / 'yielded' apart because they are different events with
-					// different DEVELOPER remedies, and its merge rule depends on the distinction --
-					// see bws_gb_tag_name_collisions(). This page has a different reader. To a site
-					// owner, 'lost' and 'yielded' say one thing: another plugin's code answers for
-					// this name and ours does not. Which of the two put us there is invisible from
-					// the editor, invisible on the front end, and asks for the same action.
+					// ONE USER-FACING STATE PER RECORD OUTCOME, and the map from one to the other
+					// lives HERE: 'kept' leaves our tag active, 'lost' leaves another plugin's.
+					// See bws_gb_tag_name_collisions() for the outcomes.
 					//
 					// THE PROSE IS A PROPERTY OF THE STATE, SO IT PRINTS ONCE PER STATE, BELOW THE
-					// TABLE. It used to print per ROW, which meant three tags standing down behind
-					// one plugin printed the same paragraph three times.
+					// TABLE, so several tags lost to one plugin print the paragraph once.
 					//
 					// REMEDIES ARE OWNER ACTIONS. Renaming a tag, or moving a registration to a
 					// different init priority, is something only whoever ships the plugin can do.
 					// Those instructions stay in the _doing_it_wrong() notices, whose reader needs
 					// WP_DEBUG and a log file and is a developer by construction.
 					$bws_c_state_of = array(
-						'kept'    => 'ours',
-						'lost'    => 'theirs',
-						'yielded' => 'theirs',
+						'kept' => 'ours',
+						'lost' => 'theirs',
 					);
 
 					$bws_c_states = array(
@@ -1363,10 +1356,10 @@ function my_result( $post_id, $arg = '' ) {
 							'long'    => __( 'Another plugin registered this tag name first, but this plugin registered over it, so their version is inactive. If you previously inserted any instances of their version of the tag into your content, they still carry the settings you chose, but this plugin likely does not recognize them, so their output may be different from what you intended.', 'generateblocks' ),
 							'remedy'  => __( 'If the other plugin\'s version is the one you want, deactivate this plugin, or ask either developer for help with the conflict.', 'generateblocks' ),
 						),
-						// UNREACHABLE BY CONSTRUCTION, AND KEPT ANYWAY. The three outcome values are
-						// written at three sites in gb-registration-boundary.php and nowhere else,
+						// UNREACHABLE BY CONSTRUCTION, AND KEPT ANYWAY. The two outcome values are
+						// written at two sites in gb-registration-boundary.php and nowhere else,
 						// and no filter reaches the record. What this state buys is the behaviour on
-						// the day a FOURTH outcome is added there: a row saying a conflict exists,
+						// the day a third outcome is added there: a row saying a conflict exists,
 						// rather than a blank status and an undefined-index notice, on a diagnostics
 						// page whose whole job is to stay readable when something is wrong.
 						'unknown' => array(
